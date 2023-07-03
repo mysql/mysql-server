@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 -- Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 -- 
 -- This program is free software; you can redistribute it and/or modify
@@ -9,6 +10,26 @@
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 -- GNU General Public License for more details.
 -- 
+=======
+-- Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+-- 
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License, version 2.0, for more details.
+--
+>>>>>>> pr/231
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
@@ -196,8 +217,13 @@ mysql> CREATE OR REPLACE VIEW mydb.my_statements AS
     -> SELECT sys.format_statement(DIGEST_TEXT) AS query,
     ->        SCHEMA_NAME AS db,
     ->        COUNT_STAR AS exec_count,
+<<<<<<< HEAD
     ->        format_pico_time(SUM_TIMER_WAIT) AS total_latency,
     ->        format_pico_time(AVG_TIMER_WAIT) AS avg_latency,
+=======
+    ->        sys.format_time(SUM_TIMER_WAIT) AS total_latency,
+    ->        sys.format_time(AVG_TIMER_WAIT) AS avg_latency,
+>>>>>>> pr/231
     ->        ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,
     ->        ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg,
     ->        ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,
@@ -243,7 +269,10 @@ BEGIN
     DECLARE v_sql longtext;
     -- Maximum supported length for MESSAGE_TEXT with the SIGNAL command is 128 chars.
     DECLARE v_error_msg VARCHAR(128);
+<<<<<<< HEAD
     DECLARE v_old_group_concat_max_len INT UNSIGNED DEFAULT 0;
+=======
+>>>>>>> pr/231
 
 
     -- Don't instrument this thread
@@ -254,7 +283,11 @@ BEGIN
 
     -- Temporary table are used - disable sql_log_bin if necessary to prevent them replicating
     SET @log_bin := @@sql_log_bin;
+<<<<<<< HEAD
     IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+=======
+    IF (@log_bin = 1) THEN
+>>>>>>> pr/231
         SET sql_log_bin = 0;
     END IF;
 
@@ -302,8 +335,11 @@ BEGIN
         END IF;
 
         IF (v_table_exists = 'BASE TABLE') THEN
+<<<<<<< HEAD
             SET v_old_group_concat_max_len = @@session.group_concat_max_len;
             SET @@session.group_concat_max_len = 2048;
+=======
+>>>>>>> pr/231
             -- Verify that the table has the correct table definition
             -- This can only be done for base tables as temporary aren't in information_schema.COLUMNS.
             -- This also minimises the risk of using a production table.
@@ -317,7 +353,11 @@ BEGIN
                    FROM information_schema.COLUMNS
                   WHERE TABLE_SCHEMA = v_table_db AND TABLE_NAME = v_table_name
                 );
+<<<<<<< HEAD
             SET @@session.group_concat_max_len = v_old_group_concat_max_len;
+=======
+
+>>>>>>> pr/231
             IF (v_checksum_ref <> v_checksum_table) THEN
                 -- The table does not have the correct definition, so abandon
                 SET v_error_msg = CONCAT('The table ',
@@ -402,6 +442,7 @@ BEGIN
 
     SET v_digest_table_template = 'CREATE %{TEMPORARY}TABLE %{TABLE_NAME} (
   `SCHEMA_NAME` varchar(64) DEFAULT NULL,
+<<<<<<< HEAD
   `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `COUNT_STAR` bigint unsigned NOT NULL,
@@ -442,6 +483,38 @@ BEGIN
   `QUERY_SAMPLE_TIMER_WAIT` bigint unsigned NOT NULL,
   INDEX (SCHEMA_NAME, DIGEST)
 ) DEFAULT CHARSET=utf8mb4';
+=======
+  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `FIRST_SEEN` timestamp NULL DEFAULT NULL,
+  `LAST_SEEN` timestamp NULL DEFAULT NULL,
+  INDEX (SCHEMA_NAME, DIGEST)
+) DEFAULT CHARSET=utf8';
+>>>>>>> pr/231
 
     -- Do the action
     -- The actions snapshot, ... requires a fresh snapshot - create it now
@@ -517,6 +590,7 @@ SELECT `d_end`.`SCHEMA_NAME`,
        `d_end`.`SUM_SORT_SCAN`-IFNULL(`d_start`.`SUM_SORT_SCAN`, 0) AS ''SUM_SORT_SCAN'',
        `d_end`.`SUM_NO_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_INDEX_USED`, 0) AS ''SUM_NO_INDEX_USED'',
        `d_end`.`SUM_NO_GOOD_INDEX_USED`-IFNULL(`d_start`.`SUM_NO_GOOD_INDEX_USED`, 0) AS ''SUM_NO_GOOD_INDEX_USED'',
+<<<<<<< HEAD
        `d_end`.`SUM_CPU_TIME`-IFNULL(`d_start`.`SUM_CPU_TIME`, 0) AS ''SUM_CPU_TIME'',
        `d_end`.`MAX_CONTROLLED_MEMORY` AS ''MAX_CONTROLLED_MEMORY'',
        `d_end`.`MAX_TOTAL_MEMORY` AS ''MAX_TOTAL_MEMORY'',
@@ -529,6 +603,10 @@ SELECT `d_end`.`SCHEMA_NAME`,
        `d_end`.`QUERY_SAMPLE_TEXT`,
        `d_end`.`QUERY_SAMPLE_SEEN`,
        `d_end`.`QUERY_SAMPLE_TIMER_WAIT`
+=======
+       `d_end`.`FIRST_SEEN`,
+       `d_end`.`LAST_SEEN`
+>>>>>>> pr/231
   FROM tmp_digests d_end
        LEFT OUTER JOIN ', v_quoted_table, ' d_start ON `d_start`.`DIGEST` = `d_end`.`DIGEST`
                                                     AND (`d_start`.`SCHEMA_NAME` = `d_end`.`SCHEMA_NAME`
@@ -738,7 +816,11 @@ HAVING percentile > 0.95
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
+<<<<<<< HEAD
     IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+=======
+    IF (@log_bin = 1) THEN
+>>>>>>> pr/231
         SET sql_log_bin = @log_bin;
     END IF;
 END$$

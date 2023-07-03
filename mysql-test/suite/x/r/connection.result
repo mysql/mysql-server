@@ -1346,6 +1346,20 @@ ok
 connecting...
 Got expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
 ok
+<<<<<<< HEAD
+=======
+drop user xplugin@localhost;
+drop user nonblank@localhost;
+drop user blank@localhost;
+drop user abc@localhost;
+drop user con1@localhost;
+drop user con2@localhost;
+drop user mysqlcon1@localhost;
+drop user mysqlcon2@localhost;
+drop user ''@localhost;
+drop user special@localhost;
+drop user session@localhost;
+>>>>>>> pr/231
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	15

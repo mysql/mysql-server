@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +40,25 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
+<<<<<<< HEAD
 #include "client/mysqlbinlog.h"
 
 #include <fcntl.h>
+<<<<<<< HEAD
 #include <inttypes.h>
+=======
+=======
+#define MYSQL_CLIENT
+#undef MYSQL_SERVER
+#include "client_priv.h"
+#include "my_default.h"
+#include <my_time.h>
+#include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
+/* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
+#include "query_options.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -82,7 +105,89 @@ using std::min;
   active binlog. it will be changed each time a new Format_description_event is
   found in the binlog.
 */
+<<<<<<< HEAD
 Format_description_event glob_description_event(BINLOG_VERSION, server_version);
+=======
+static std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
+
+<<<<<<< HEAD
+static bool rewrite_db(char **buf, ulong *buf_size, uint offset_db,
+                       uint offset_len) {
+  char *ptr = *buf;
+  char *old_db = ptr + offset_db;
+  uint old_db_len = (uint)ptr[offset_len];
+  std::map<std::string, std::string>::iterator new_db_it =
+      map_mysqlbinlog_rewrite_db.find(std::string(old_db, old_db_len));
+  if (new_db_it == map_mysqlbinlog_rewrite_db.end()) return false;
+  const char *new_db = new_db_it->second.c_str();
+  DBUG_ASSERT(new_db && new_db != old_db);
+=======
+/**
+  The function represents Log_event delete wrapper
+  to reset possibly active temp_buf member.
+  It's to be invoked in context where the member is
+  not bound with dynamically allocated memory and therefore can
+  be reset as simple as with plain assignment to NULL.
+
+  @param ev  a pointer to Log_event instance
+*/
+inline void reset_temp_buf_and_delete(Log_event *ev)
+{
+  char *event_buf= ev->temp_buf;
+  ev->temp_buf= NULL;
+  delete ev;
+  my_free(event_buf);
+}
+
+static bool
+rewrite_db(char **buf, ulong *buf_size,
+           uint offset_db, uint offset_len)
+{
+  char* ptr= *buf;
+  char* old_db= ptr + offset_db;
+  uint old_db_len= (uint) ptr[offset_len];
+  std::map<std::string, std::string>::iterator new_db_it=
+    map_mysqlbinlog_rewrite_db.find(std::string(old_db, old_db_len));
+  if (new_db_it == map_mysqlbinlog_rewrite_db.end())
+    return false;
+  const char *new_db=new_db_it->second.c_str();
+  assert(new_db && new_db != old_db);
+>>>>>>> upstream/cluster-7.6
+
+  size_t new_db_len = strlen(new_db);
+
+  // Reallocate buffer if needed.
+  if (new_db_len > old_db_len) {
+    char *new_buf =
+        (char *)my_realloc(PSI_NOT_INSTRUMENTED, *buf,
+                           *buf_size + new_db_len - old_db_len, MYF(0));
+    if (!new_buf) return true;
+    *buf = new_buf;
+  }
+
+  // Move the tail of buffer to the correct place.
+  if (new_db_len != old_db_len)
+    memmove(*buf + offset_db + new_db_len, *buf + offset_db + old_db_len,
+            *buf_size - (offset_db + old_db_len));
+
+  // Write new_db and new_db_len.
+<<<<<<< HEAD
+  strncpy((*buf) + offset_db, new_db, new_db_len);
+  (*buf)[offset_len] = (char)new_db_len;
+=======
+  memcpy((*buf) + offset_db, new_db, new_db_len);
+  (*buf)[offset_len]= (char) new_db_len;
+>>>>>>> upstream/cluster-7.6
+
+  // Update event length in header.
+  int4store((*buf) + EVENT_LEN_OFFSET, (*buf_size) - old_db_len + new_db_len);
+
+  // finally update the event len argument
+  *buf_size = (*buf_size) - old_db_len + new_db_len;
+
+  return false;
+}
+>>>>>>> pr/231
 
 /**
   This class abstracts the rewriting of databases for RBR events.
@@ -699,8 +804,17 @@ static uint opt_protocol = 0;
 static uint opt_compress = 0;
 static FILE *result_file;
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
 static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
+=======
+#ifndef NDEBUG
+static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
+>>>>>>> upstream/cluster-7.6
 #endif
 static const char *load_default_groups[] = {"mysqlbinlog", "client", nullptr};
 
@@ -1782,6 +1896,7 @@ end:
   return retval;
 }
 
+<<<<<<< HEAD
 static struct my_option my_long_options[] = {
     {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1824,8 +1939,57 @@ static struct my_option my_long_options[] = {
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
+<<<<<<< HEAD
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+
+static struct my_option my_long_options[] =
+{
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"base64-output", OPT_BASE64_OUTPUT_MODE,
+    /* 'unspec' is not mentioned because it is just a placeholder. */
+   "Determine when the output statements should be base64-encoded BINLOG "
+   "statements: 'never' disables it and works only for binlogs without "
+   "row-based events; 'decode-rows' decodes row events into commented pseudo-SQL "
+   "statements if the --verbose option is also given; 'auto' prints base64 "
+   "only when necessary (i.e., for row-based events and format description "
+   "events).  If no --base64-output[=name] option is given at all, the "
+   "default is 'auto'.",
+   &opt_base64_output_mode_str, &opt_base64_output_mode_str,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  /*
+    mysqlbinlog needs charsets knowledge, to be able to convert a charset
+    number found in binlog to a charset name (to be able to print things
+    like this:
+    SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`;
+  */
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory for character set files.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"database", 'd', "List entries for just this database (local log only).",
+   &database, &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"rewrite-db", OPT_REWRITE_DB, "Rewrite the row event to point so that "
+   "it can be applied to a new database", &rewrite, &rewrite, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef NDEBUG
+   {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
@@ -1935,6 +2099,7 @@ static struct my_option my_long_options[] = {
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+<<<<<<< HEAD
     {"short-form", 's',
      "Just show regular queries: no extra info and no "
      "row-based events. This is for testing only, and should not be used in "
@@ -1946,6 +2111,112 @@ static struct my_option my_long_options[] = {
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
+=======
+  {"short-form", 's', "Just show regular queries: no extra info and no "
+   "row-based events. This is for testing only, and should not be used in "
+   "production systems. If you want to suppress base64-output, consider "
+   "using --base64-output=never instead.",
+   &short_form, &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+#include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
+  {"start-datetime", OPT_START_DATETIME,
+   "Start reading the binlog at first event having a datetime equal or "
+   "posterior to the argument; the argument must be a date and time "
+   "in the local time zone, in any format accepted by the MySQL server "
+   "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
+   "(you should probably use quotes for your shell to set it properly).",
+   &start_datetime_str, &start_datetime_str,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"start-position", 'j',
+   "Start reading the binlog at position N. Applies to the first binlog "
+   "passed on the command line.",
+   &start_position, &start_position, 0, GET_ULL,
+   REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
+   /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
+   (ulonglong)(~(uint32)0), 0, 0, 0},
+  {"stop-datetime", OPT_STOP_DATETIME,
+   "Stop reading the binlog at first event having a datetime equal or "
+   "posterior to the argument; the argument must be a date and time "
+   "in the local time zone, in any format accepted by the MySQL server "
+   "for DATETIME and TIMESTAMP types, for example: 2004-12-25 11:25:56 "
+   "(you should probably use quotes for your shell to set it properly).",
+   &stop_datetime_str, &stop_datetime_str,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never", OPT_STOP_NEVER, "Wait for more data from the server "
+   "instead of stopping at the end of the last log. Implicitly sets "
+   "--to-last-log but instead of stopping at the end of the last log "
+   "it continues to wait till the server disconnects.",
+   &stop_never, &stop_never, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
+   "The slave server_id used for --read-from-remote-server --stop-never."
+   " This option cannot be used together with connection-server-id.",
+   &stop_never_slave_server_id, &stop_never_slave_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
+  {"connection-server-id", OPT_CONNECTION_SERVER_ID,
+   "The slave server_id used for --read-from-remote-server."
+   " This option cannot be used together with stop-never-slave-server-id.",
+   &connection_server_id, &connection_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
+  {"stop-position", OPT_STOP_POSITION,
+   "Stop reading the binlog at position N. Applies to the last binlog "
+   "passed on the command line.",
+   &stop_position, &stop_position, 0, GET_ULL,
+   REQUIRED_ARG, (longlong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
+   (ulonglong)(~(my_off_t)0), 0, 0, 0},
+  {"to-last-log", 't', "Requires -R. Will not stop at the end of the "
+   "requested binlog but rather continue printing until the end of the last "
+   "binlog of the MySQL server. If you send the output to the same MySQL "
+   "server, that may lead to an endless loop.",
+   &to_last_remote_log, &to_last_remote_log, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "Connect to the remote server as username.",
+   &user, &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"verbose", 'v', "Reconstruct pseudo-SQL statements out of row events. "
+                   "-v -v adds comments on column data types.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"open_files_limit", OPT_OPEN_FILES_LIMIT,
+   "Used to reserve file descriptors for use by this program.",
+   &open_files_limit, &open_files_limit, 0, GET_ULONG,
+   REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
+   (uchar**) &opt_verify_binlog_checksum, (uchar**) &opt_verify_binlog_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+   "The maximum size of a row-based binary log event in bytes. Rows will be "
+   "grouped into events smaller than this size if possible. "
+   "This value must be a multiple of 256.",
+   &opt_binlog_rows_event_max_size,
+   &opt_binlog_rows_event_max_size, 0,
+   GET_ULONG, REQUIRED_ARG,
+   /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
+   /* max_value */ ULONG_MAX, /* sub_size */ 0,
+   /* block_size */ 256, /* app_type */ 0},
+  {"skip-gtids", OPT_MYSQLBINLOG_SKIP_GTIDS,
+   "Do not preserve Global Transaction Identifiers; instead make the server "
+   "execute the transactions as if they were new.",
+   &opt_skip_gtids, &opt_skip_gtids, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"include-gtids", OPT_MYSQLBINLOG_INCLUDE_GTIDS,
+   "Print events whose Global Transaction Identifiers "
+   "were provided.",
+   &opt_include_gtids_str, &opt_include_gtids_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"exclude-gtids", OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
+   "Print all events but those whose Global Transaction "
+   "Identifiers were provided.",
+   &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+>>>>>>> upstream/cluster-7.6
 
     {"start-datetime", OPT_START_DATETIME,
      "Start reading the binlog at first event having a datetime equal or "
@@ -2185,10 +2456,21 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument) {
   bool tty_password = false;
   switch (optid) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
+=======
+#ifndef NDEBUG
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    break;
+>>>>>>> upstream/cluster-7.6
 #endif
 #include "sslopt-case.h"
 
@@ -2366,7 +2648,19 @@ static Exit_status safe_connect() {
   set_server_public_key(mysql);
   set_get_server_public_key_option(mysql);
 
+<<<<<<< HEAD
   if (!mysql_real_connect(mysql, host, user, pass, nullptr, port, sock, 0)) {
+=======
+<<<<<<< HEAD
+  if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0)) {
+=======
+  set_server_public_key(mysql);
+  set_get_server_public_key_option(mysql);
+
+  if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     error("Failed on connect: %s", mysql_error(mysql));
     return ERROR_STOP;
   }
@@ -2406,8 +2700,17 @@ static Exit_status dump_single_log(PRINT_EVENT_INFO *print_event_info,
       rc = dump_remote_log_entries(print_event_info, logname);
       break;
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(0);
+>>>>>>> pr/231
       break;
+=======
+      assert(0);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   return rc;
 }
@@ -2652,6 +2955,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       --stop-never
       --stop-never-slave-server-id
 
+<<<<<<< HEAD
     i.e., acting as a fake slave.
   */
   MYSQL_RPL rpl = {0,
@@ -2672,6 +2976,52 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     rpl.gtid_set_encoded_size = gtid_set_excluded->get_encoded_length();
     rpl.fix_gtid_set = fix_gtid_set;
     rpl.gtid_set_arg = (void *)gtid_set_excluded;
+=======
+    command_size= ptr_buffer - command_buffer;
+    assert(command_size == (allocation_size - 1));
+  }
+  else
+  {
+    command= COM_BINLOG_DUMP_GTID;
+
+    global_sid_lock->rdlock();
+
+    // allocate buffer
+    size_t encoded_data_size= gtid_set_excluded->get_encoded_length();
+    size_t allocation_size=
+      ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+      ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
+      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
+      encoded_data_size + 1;
+    if (!(command_buffer= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              allocation_size, MYF(MY_WME))))
+    {
+      error("Got fatal error allocating memory.");
+      global_sid_lock->unlock();
+      DBUG_RETURN(ERROR_STOP);
+    }
+    uchar* ptr_buffer= command_buffer;
+
+    int2store(ptr_buffer, get_dump_flags());
+    ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
+    int4store(ptr_buffer, server_id);
+    ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
+    ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
+    memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
+    ptr_buffer+= BINLOG_NAME_INFO_SIZE;
+    int8store(ptr_buffer, start_position);
+    ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
+    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    gtid_set_excluded->encode(ptr_buffer);
+    ptr_buffer+= encoded_data_size;
+
+    global_sid_lock->unlock();
+
+    command_size= ptr_buffer - command_buffer;
+    assert(command_size == (allocation_size - 1));
+>>>>>>> upstream/cluster-7.6
   }
 
   if (mysql_binlog_open(mysql, &rpl)) {
@@ -2839,6 +3189,17 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           return ERROR_STOP;
         }
       }
+<<<<<<< HEAD
+=======
+      
+      if (type == binary_log::LOAD_EVENT)
+      {
+        assert(raw_mode);
+        warning("Attempting to load a remote pre-4.0 binary log that contains "
+                "LOAD DATA INFILE statements. The file will not be copied from "
+                "the remote server. ");
+      }
+>>>>>>> upstream/cluster-7.6
 
       if (raw_mode) {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",

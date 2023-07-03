@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -171,6 +176,21 @@ IF(UNIX)
 )
 ENDIF()
 
+<<<<<<< HEAD
+=======
+IF(NOT WITHOUT_SERVER)
+  INSTALL(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+    ${FIX_PRIVILEGES_SQL}
+    DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
+  )
+ENDIF()
+
+>>>>>>> pr/231
 SET(COMPILE_DEFINITIONS_WHITELIST
 )
 
@@ -309,6 +329,7 @@ SET(LIBS "")
 # Extract dependencies using CMake's LINK_LIBRARIES property.
 # Returned string in ${var} is can be passed to linker's command line
 MACRO(EXTRACT_LINK_LIBRARIES target var)
+<<<<<<< HEAD
   GET_TARGET_PROPERTY(TARGET_LIB_DEPENDS ${target} LINK_LIBRARIES)
   IF(TARGET_LIB_DEPENDS)
     LIST(REMOVE_DUPLICATES TARGET_LIB_DEPENDS)
@@ -326,6 +347,28 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
         # Add -L/usr/local/opt/openssl/lib for ssl (and crypto).
         IF(APPLE AND WITH_SSL STREQUAL "system" AND ${lib} STREQUAL "ssl")
           SET(${var} "${${var}}-L${dir} " )
+=======
+  IF(${target}_LIB_DEPENDS)
+    LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
+    LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
+    FOREACH(lib ${${target}_LIB_DEPENDS})
+      # Filter out -limported_openssl and -limported_crypto
+      # Filter out "general", it is not a library, just CMake hint
+      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} " AND
+          NOT lib MATCHES "imported_"
+          )
+        IF (lib MATCHES "^\\-l")
+          SET(${var} "${${var}} ${lib} ")
+        ELSEIF (lib MATCHES "^\\-L")
+          SET(${var} "${${var}} ${lib} ")
+        ELSEIF(lib MATCHES "^/")
+          # Full path, convert to just filename, strip "lib" prefix and extension
+          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+          SET(${var} "${${var}}-l${lib} " )
+        ELSE()
+          SET(${var} "${${var}}-l${lib} " )
+>>>>>>> pr/231
         ENDIF()
         # Add -L/usr/local/lib for zstd
         IF(APPLE AND WITH_ZSTD STREQUAL "system" AND ${lib} STREQUAL "zstd")
@@ -345,6 +388,19 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
 ENDMACRO()
 
 EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+<<<<<<< HEAD
+=======
+IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+  STRING_APPEND(CLIENT_LIBS " -xatomic=gcc")
+ENDIF()
+
+IF(WITH_EMBEDDED_SERVER)
+  EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+  IF(SOLARIS AND CMAKE_C_FLAGS MATCHES "-xatomic=gcc")
+    STRING_APPEND(EMBEDD_LIBS " -xatomic=gcc")
+  ENDIF()
+ENDIF()
+>>>>>>> upstream/cluster-7.6
 
 IF(MSVC)
   GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION mysqlclient VERSION)

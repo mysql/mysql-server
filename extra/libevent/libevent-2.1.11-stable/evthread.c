@@ -74,12 +74,20 @@ evthread_set_id_callback(unsigned long (*id_fn)(void))
 	evthread_id_fn_ = id_fn;
 }
 
+<<<<<<< HEAD
 struct evthread_lock_callbacks *evthread_get_lock_callbacks(void)
+=======
+struct evthread_lock_callbacks *evthread_get_lock_callbacks()
+>>>>>>> pr/231
 {
 	return evthread_lock_debugging_enabled_
 	    ? &original_lock_fns_ : &evthread_lock_fns_;
 }
+<<<<<<< HEAD
 struct evthread_condition_callbacks *evthread_get_condition_callbacks(void)
+=======
+struct evthread_condition_callbacks *evthread_get_condition_callbacks()
+>>>>>>> pr/231
 {
 	return evthread_lock_debugging_enabled_
 	    ? &original_cond_fns_ : &evthread_cond_fns_;

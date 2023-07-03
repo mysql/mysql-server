@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,17 +156,34 @@ int Program::execute(const std::vector<std::string> &positional_options) {
           new std::function<bool(const Mysql::Tools::Base::Message_data &)>(
               std::bind(&Program::message_handler, this, _1));
 
+<<<<<<< HEAD
   try {
     connection_provider = m_single_transaction
                               ? new Single_transaction_connection_provider(
                                     this, num_connections, message_handler)
                               : new Thread_specific_connection_provider(this);
+<<<<<<< HEAD
   } catch (const std::exception &) {
+=======
+  } catch (const std::exception &e) {
+=======
+  try
+  {
+    connection_provider=
+      m_single_transaction ?
+      new Single_transaction_connection_provider(this, num_connections, message_handler)
+      : new Thread_specific_connection_provider(this);
+  }
+  catch (const std::exception &e)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     this->error(Mysql::Tools::Base::Message_data(
         0, "Error during creating connection.",
         Mysql::Tools::Base::Message_type_error));
   }
 
+<<<<<<< HEAD
   Mysql::Tools::Base::Mysql_query_runner *runner =
       connection_provider->get_runner(message_handler);
   if (!runner) {
@@ -166,10 +191,22 @@ int Program::execute(const std::vector<std::string> &positional_options) {
     delete connection_provider;
     return 0;
   }
+<<<<<<< HEAD
 
   ulong server_version =
       mysql_get_server_version(runner->get_low_level_connection());
   if (server_version < 50646) {
+=======
+  if (mysql_get_server_version(runner->get_low_level_connection()) < 50708) {
+=======
+  Mysql::Tools::Base::Mysql_query_runner* runner= connection_provider
+         ->get_runner(message_handler);
+  ulong server_version =
+    mysql_get_server_version(runner->get_low_level_connection());
+  if (server_version < 50646)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     std::cerr << "Server version is not compatible. Server version should "
                  "be 5.6.46 or above.";
     delete runner;
@@ -177,9 +214,17 @@ int Program::execute(const std::vector<std::string> &positional_options) {
     delete connection_provider;
     return 0;
   }
+<<<<<<< HEAD
   use_show_create_user = (server_version > 50705);
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 
   Simple_id_generator *id_generator = new Simple_id_generator();
+=======
+  use_show_create_user = (server_version > 50705);
+  Simple_id_generator* id_generator= new Simple_id_generator();
+>>>>>>> upstream/cluster-7.6
 
   std::chrono::high_resolution_clock::time_point start_time =
       std::chrono::high_resolution_clock::now();
@@ -190,10 +235,20 @@ int Program::execute(const std::vector<std::string> &positional_options) {
     progress_watcher =
         new Standard_progress_watcher(message_handler, id_generator);
   }
+<<<<<<< HEAD
   I_crawler *crawler =
       new Mysql_crawler(connection_provider, message_handler, id_generator,
+<<<<<<< HEAD
                         m_mysql_chain_element_options,
                         m_mysqldump_tool_chain_maker_options, this);
+=======
+                        m_mysql_chain_element_options, this);
+=======
+  I_crawler* crawler= new Mysql_crawler(
+    connection_provider, message_handler, id_generator,
+    m_mysql_chain_element_options, m_mysqldump_tool_chain_maker_options, this);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   m_mysqldump_tool_chain_maker_options->process_positional_options(
       positional_options);
   check_mutually_exclusive_options();
@@ -260,7 +315,9 @@ Program::Program()
   this->add_provider(m_mysqldump_tool_chain_maker_options);
 }
 
+<<<<<<< HEAD
 const char *load_default_groups[] = {
+<<<<<<< HEAD
     "client", /* Read settings how to connect to server. */
     /*
      Read special settings for mysql_dump.
@@ -269,6 +326,25 @@ const char *load_default_groups[] = {
     "mysql_dump",
     /* Read config options from mysqlpump section. */
     "mysqlpump", nullptr};
+=======
+    "client",     /* Read settings how to connect to server. */
+    "mysql_dump", /* Read special settings for mysql_dump. */
+    0};
+=======
+const char *load_default_groups[]=
+{
+  "client", /* Read settings how to connect to server. */
+  /*
+    Read special settings for mysql_dump.
+    This section will be deprecated.
+  */
+  "mysql_dump",
+  /* Read config options from mysqlpump section. */
+  "mysqlpump",
+  0
+};
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 int main(int argc, char **argv) {
   Program program;

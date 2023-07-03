@@ -1,5 +1,9 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+-- source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo Show preservation of autoincrement values via ndb_restore
 --echo Cover some variants including :
@@ -11,12 +15,15 @@
 --echo 1.  Create tables and add some data
 --echo ----------------------------------------
 use test;
+<<<<<<< HEAD
 
 --disable_query_log
 set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
 set ndb_autoincrement_prefetch_sz = 1;
 --enable_query_log
 
+=======
+>>>>>>> pr/231
 create table boring (
   a tinyint auto_increment primary key,
   b int
@@ -222,8 +229,13 @@ create table bigsignedauto (
 --echo 4.  Restore data
 --echo ----------------------------------------
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo ----------------------------------------
 --echo 5.  Check autoincrement info
@@ -303,16 +315,21 @@ drop table filler5, filler6, filler7, filler8;
 --echo 8.  Use ndb_restore metadata restore
 --echo ----------------------------------------
 
+<<<<<<< HEAD
 
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -m --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/include/ndb_sync_metadata.inc
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -m --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 
 --echo ----------------------------------------
 --echo 9.  Check autoincrement info
 --echo ----------------------------------------
 
+<<<<<<< HEAD
 --echo With just NdbApi metadata restored, auto_increment values are set to default values (1)
 
 # We use show create table rather than INFORMATION_SCHEMA here to workaround
@@ -328,15 +345,33 @@ show create table intsignedauto;
 show create table medsignedauto;
 show create table smallsignedauto;
 show create table tinysignedauto;
+=======
+--echo With just NdbApi metadata restored, auto_increment values are set to default values
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+
+>>>>>>> pr/231
 
 --echo ----------------------------------------
 --echo 10.  Restore data
 --echo ----------------------------------------
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 #--source suite/ndb/include/ndb_sync_metadata.inc
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 
 --echo ----------------------------------------
@@ -344,6 +379,7 @@ show create table tinysignedauto;
 --echo ----------------------------------------
 
 --echo Expect 7
+<<<<<<< HEAD
 show create table boring;
 
 --echo Expect 1 (So nothing shown)
@@ -361,6 +397,21 @@ show create table intsignedauto;
 show create table medsignedauto;
 show create table smallsignedauto;
 show create table tinysignedauto;
+=======
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+
+--echo Expect 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+
+--echo Expect 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+
+--echo Expect 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+
+--echo Expect 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+>>>>>>> pr/231
 
 --echo ----------------------------------------
 --echo 12.  Test via inserts
@@ -402,9 +453,12 @@ select max(a) from bigsignedauto;
 --echo 13.  Cleanup
 --echo ----------------------------------------
 
+<<<<<<< HEAD
 --disable_query_log
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 --enable_query_log
+=======
+>>>>>>> pr/231
 
 drop table boring;
 drop table boring_keyless;
@@ -417,5 +471,8 @@ drop table medsignedauto;
 drop table smallsignedauto;
 drop table tinysignedauto;
 
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

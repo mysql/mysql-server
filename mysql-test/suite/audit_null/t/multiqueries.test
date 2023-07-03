@@ -9,7 +9,11 @@
 eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
 
 CREATE USER multiqueries_test_user34207811 IDENTIFIED BY 'secret_pswd';
+<<<<<<< HEAD
 GRANT CREATE USER, SELECT, SESSION_VARIABLES_ADMIN ON *.* TO multiqueries_test_user34207811;
+=======
+GRANT CREATE USER, SELECT, SUPER ON *.* TO multiqueries_test_user34207811;
+>>>>>>> pr/231
 
 --connect(con1,localhost,multiqueries_test_user34207811,secret_pswd)
 

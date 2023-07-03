@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -276,7 +284,11 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
   ulong blocks, hash_links;
   size_t length;
   int error;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("init_key_cache");
+>>>>>>> pr/231
   assert(key_cache_block_size >= 512);
 
   if (keycache->key_cache_inited && keycache->disk_blocks > 0) {
@@ -656,8 +668,18 @@ static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
                             st_keycache_thread_var *thread) {
   st_keycache_thread_var *last;
 
+<<<<<<< HEAD
   assert(!thread->next && !thread->prev);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT(!thread->next && !thread->prev);
+>>>>>>> pr/231
   if (!(last = wqueue->last_thread)) {
+=======
+  assert(!thread->next && !thread->prev);
+  if (! (last= wqueue->last_thread))
+  {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
     /* Queue is empty */
     thread->next = thread;
     thread->prev = &thread->next;
@@ -681,6 +703,7 @@ static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
 */
 
 static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
+<<<<<<< HEAD:mysys/mf_keycache.cc
                               st_keycache_thread_var *thread) {
   assert(thread->next && thread->prev);
   if (thread->next == thread) /* The queue contains only one member */
@@ -688,12 +711,34 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
   else {
     thread->next->prev = thread->prev;
     *thread->prev = thread->next;
+=======
+                              st_keycache_thread_var *thread)
+{
+  assert(thread->next && thread->prev);
+  if (thread->next == thread)
+    /* The queue contains only one member */
+    wqueue->last_thread= NULL;
+  else
+  {
+    thread->next->prev= thread->prev;
+    *thread->prev=thread->next;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
     if (wqueue->last_thread == thread)
       wqueue->last_thread =
           STRUCT_PTR(st_keycache_thread_var, next, thread->prev);
   }
+<<<<<<< HEAD
   thread->next = nullptr;
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  thread->next = NULL;
+#if !defined(DBUG_OFF)
+=======
+  thread->next= NULL;
+#if !defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some assert() rely on it.
@@ -731,13 +776,29 @@ static void wait_on_queue(KEYCACHE_WQUEUE *wqueue, mysql_mutex_t *mutex,
   st_keycache_thread_var *last;
 
   /* Add to queue. */
+<<<<<<< HEAD
   assert(!thread->next);
   assert(!thread->prev); /* Not required, but must be true anyway. */
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT(!thread->next);
+  DBUG_ASSERT(!thread->prev); /* Not required, but must be true anyway. */
+>>>>>>> pr/231
   if (!(last = wqueue->last_thread))
     thread->next = thread;
   else {
     thread->next = last->next;
     last->next = thread;
+=======
+  assert(!thread->next);
+  assert(!thread->prev); /* Not required, but must be true anyway. */
+  if (! (last= wqueue->last_thread))
+    thread->next= thread;
+  else
+  {
+    thread->next= last->next;
+    last->next= thread;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
   }
   wqueue->last_thread = thread;
 
@@ -792,8 +853,18 @@ static void release_whole_queue(KEYCACHE_WQUEUE *wqueue) {
   Unlink a block from the chain of dirty/clean blocks
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static inline void unlink_changed(BLOCK_LINK *block) {
+<<<<<<< HEAD
   assert(block->prev_changed && *block->prev_changed == block);
+=======
+  DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
+=======
+static inline void unlink_changed(BLOCK_LINK *block)
+{
+  assert(block->prev_changed && *block->prev_changed == block);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   if (block->next_changed)
     block->next_changed->prev_changed = block->prev_changed;
   *block->prev_changed = block->next_changed;
@@ -812,6 +883,7 @@ static inline void unlink_changed(BLOCK_LINK *block) {
   Link a block into the chain of dirty/clean blocks
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead) {
   assert(!block->next_changed);
   assert(!block->prev_changed);
@@ -819,6 +891,16 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead) {
   if ((block->next_changed = *phead))
     (*phead)->prev_changed = &block->next_changed;
   *phead = block;
+=======
+static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
+{
+  assert(!block->next_changed);
+  assert(!block->prev_changed);
+  block->prev_changed= phead;
+  if ((block->next_changed= *phead))
+    (*phead)->prev_changed= &block->next_changed;
+  *phead= block;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
 }
 
 /*
@@ -846,12 +928,24 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead) {
     void
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void link_to_file_list(KEY_CACHE *keycache, BLOCK_LINK *block, int file,
                               bool unlink_block) {
   assert(block->status & BLOCK_IN_USE);
   assert(block->hash_link && block->hash_link->block == block);
   assert(block->hash_link->file == file);
   if (unlink_block) unlink_changed(block);
+=======
+static void link_to_file_list(KEY_CACHE *keycache,
+                              BLOCK_LINK *block, int file,
+                              my_bool unlink_block)
+{
+  assert(block->status & BLOCK_IN_USE);
+  assert(block->hash_link && block->hash_link->block == block);
+  assert(block->hash_link->file == file);
+  if (unlink_block)
+    unlink_changed(block);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
   link_changed(block, &keycache->file_blocks[FILE_HASH(file)]);
   if (block->status & BLOCK_CHANGED) {
     block->status &= ~BLOCK_CHANGED;
@@ -882,10 +976,25 @@ static void link_to_file_list(KEY_CACHE *keycache, BLOCK_LINK *block, int file,
     void
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void link_to_changed_list(KEY_CACHE *keycache, BLOCK_LINK *block) {
+<<<<<<< HEAD
   assert(block->status & BLOCK_IN_USE);
   assert(!(block->status & BLOCK_CHANGED));
   assert(block->hash_link && block->hash_link->block == block);
+=======
+  DBUG_ASSERT(block->status & BLOCK_IN_USE);
+  DBUG_ASSERT(!(block->status & BLOCK_CHANGED));
+  DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
+=======
+static void link_to_changed_list(KEY_CACHE *keycache,
+                                 BLOCK_LINK *block)
+{
+  assert(block->status & BLOCK_IN_USE);
+  assert(!(block->status & BLOCK_CHANGED));
+  assert(block->hash_link && block->hash_link->block == block);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
   unlink_changed(block);
   link_changed(block,
@@ -1007,7 +1116,16 @@ static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
     keycache->used_last = keycache->used_ins = block->next_used = block;
     block->prev_used = &block->next_used;
   }
+<<<<<<< HEAD
   assert((ulong)keycache->blocks_available <= keycache->blocks_used);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT((ulong)keycache->blocks_available <= keycache->blocks_used);
+=======
+  assert((ulong) keycache->blocks_available <=
+         keycache->blocks_used);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 }
 
 /*
@@ -1025,6 +1143,7 @@ static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
     See NOTES for link_block
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block) {
   assert((block->status & ~BLOCK_CHANGED) == (BLOCK_READ | BLOCK_IN_USE));
   assert(block->hash_link); /*backptr to block NULL from free_block()*/
@@ -1038,13 +1157,41 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block) {
   else {
     block->next_used->prev_used = block->prev_used;
     *block->prev_used = block->next_used;
+=======
+static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
+{
+  assert((block->status & ~BLOCK_CHANGED) == (BLOCK_READ | BLOCK_IN_USE));
+  assert(block->hash_link); /*backptr to block NULL from free_block()*/
+  assert(!block->requests);
+  assert(block->prev_changed && *block->prev_changed == block);
+  assert(block->next_used && block->prev_used &&
+         (block->next_used->prev_used == &block->next_used) &&
+         (*block->prev_used == block));
+  if (block->next_used == block)
+    /* The list contains only one member */
+    keycache->used_last= keycache->used_ins= NULL;
+  else
+  {
+    block->next_used->prev_used= block->prev_used;
+    *block->prev_used= block->next_used;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
     if (keycache->used_last == block)
       keycache->used_last = STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
     if (keycache->used_ins == block)
       keycache->used_ins = STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
   }
+<<<<<<< HEAD
   block->next_used = nullptr;
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  block->next_used = NULL;
+#if !defined(DBUG_OFF)
+=======
+  block->next_used= NULL;
+#if !defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some assert() rely on it.
@@ -1069,9 +1216,21 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block) {
   RETURN
     void
 */
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count) {
+<<<<<<< HEAD
   assert(block->status & BLOCK_IN_USE);
   assert(block->hash_link);
+=======
+  DBUG_ASSERT(block->status & BLOCK_IN_USE);
+  DBUG_ASSERT(block->hash_link);
+=======
+static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
+{
+  assert(block->status & BLOCK_IN_USE);
+  assert(block->hash_link);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
   if (!block->requests) unlink_block(keycache, block);
   block->requests += count;
@@ -1109,13 +1268,31 @@ static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count) {
     not linked in the LRU ring.
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void unreg_request(KEY_CACHE *keycache, BLOCK_LINK *block, int at_end) {
+<<<<<<< HEAD
+=======
+  DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+  DBUG_ASSERT(block->hash_link); /*backptr to block NULL from free_block()*/
+  DBUG_ASSERT(block->requests);
+  DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
+  DBUG_ASSERT(!block->next_used);
+  DBUG_ASSERT(!block->prev_used);
+=======
+static void unreg_request(KEY_CACHE *keycache,
+                          BLOCK_LINK *block, int at_end)
+{
+>>>>>>> pr/231
   assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
   assert(block->hash_link); /*backptr to block NULL from free_block()*/
   assert(block->requests);
   assert(block->prev_changed && *block->prev_changed == block);
   assert(!block->next_used);
   assert(!block->prev_used);
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   /*
     Unregister the request, but do not link erroneous blocks into the
     LRU ring.
@@ -1164,13 +1341,30 @@ static void unreg_request(KEY_CACHE *keycache, BLOCK_LINK *block, int at_end) {
   Remove a reader of the page in block
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void remove_reader(BLOCK_LINK *block) {
+<<<<<<< HEAD
+=======
+  DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+  DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
+  DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
+  DBUG_ASSERT(!block->next_used);
+  DBUG_ASSERT(!block->prev_used);
+  DBUG_ASSERT(block->hash_link->requests);
+=======
+static void remove_reader(BLOCK_LINK *block)
+{
+>>>>>>> pr/231
   assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
   assert(block->hash_link && block->hash_link->block == block);
   assert(block->prev_changed && *block->prev_changed == block);
   assert(!block->next_used);
   assert(!block->prev_used);
   assert(block->hash_link->requests);
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
   if (!--block->hash_link->requests && block->condvar)
     mysql_cond_signal(block->condvar);
@@ -1181,21 +1375,53 @@ static void remove_reader(BLOCK_LINK *block) {
   signals on its termination
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void wait_for_readers(KEY_CACHE *keycache, BLOCK_LINK *block,
                              st_keycache_thread_var *thread) {
+<<<<<<< HEAD
+=======
+  DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+  DBUG_ASSERT(!(block->status & (BLOCK_IN_FLUSH | BLOCK_CHANGED)));
+  DBUG_ASSERT(block->hash_link);
+  DBUG_ASSERT(block->hash_link->block == block);
+=======
+static void wait_for_readers(KEY_CACHE *keycache,
+                             BLOCK_LINK *block,
+                             st_keycache_thread_var *thread)
+{
+>>>>>>> pr/231
   assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
   assert(!(block->status & (BLOCK_IN_FLUSH | BLOCK_CHANGED)));
   assert(block->hash_link);
   assert(block->hash_link->block == block);
+<<<<<<< HEAD
   /* Linked in file_blocks or changed_blocks hash. */
   assert(block->prev_changed && *block->prev_changed == block);
   /* Not linked in LRU ring. */
   assert(!block->next_used);
   assert(!block->prev_used);
+=======
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+  /* Linked in file_blocks or changed_blocks hash. */
+  assert(block->prev_changed && *block->prev_changed == block);
+  /* Not linked in LRU ring. */
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT(!block->next_used);
+  DBUG_ASSERT(!block->prev_used);
+>>>>>>> pr/231
   while (block->hash_link->requests) {
     /* There must be no other waiter. We have no queue here. */
     assert(!block->condvar);
     block->condvar = &thread->suspend;
+=======
+  assert(!block->next_used);
+  assert(!block->prev_used);
+  while (block->hash_link->requests)
+  {
+    /* There must be no other waiter. We have no queue here. */
+    assert(!block->condvar);
+    block->condvar= &thread->suspend;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
     mysql_cond_wait(&thread->suspend, &keycache->cache_lock);
     block->condvar = nullptr;
   }
@@ -1216,11 +1442,24 @@ static inline void link_hash(HASH_LINK **start, HASH_LINK *hash_link) {
   Remove a hash link from the hash table
 */
 
+<<<<<<< HEAD:mysys/mf_keycache.cc
 static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link) {
   assert(hash_link->requests == 0);
   if ((*hash_link->prev = hash_link->next))
     hash_link->next->prev = hash_link->prev;
+<<<<<<< HEAD
   hash_link->block = nullptr;
+=======
+  hash_link->block = NULL;
+=======
+static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
+{
+  assert(hash_link->requests == 0);
+  if ((*hash_link->prev= hash_link->next))
+    hash_link->next->prev= hash_link->prev;
+  hash_link->block= NULL;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
   if (keycache->waiting_for_hash_link.last_thread) {
     /* Signal that a free hash link has appeared */
@@ -1275,6 +1514,7 @@ restart:
      start contains the head of the bucket list,
      hash_link points to the first member of the list
   */
+<<<<<<< HEAD:mysys/mf_keycache.cc
   hash_link = *(start = &keycache->hash_root[KEYCACHE_HASH(file, filepos)]);
 #ifndef NDEBUG
   cnt = 0;
@@ -1283,7 +1523,23 @@ restart:
   while (hash_link &&
          (hash_link->diskpos != filepos || hash_link->file != file)) {
     hash_link = hash_link->next;
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  hash_link= *(start= &keycache->hash_root[KEYCACHE_HASH(file, filepos)]);
+#ifndef NDEBUG
+  cnt= 0;
+#endif
+  /* Look for an element for the pair (file, filepos) in the bucket chain */
+  while (hash_link &&
+         (hash_link->diskpos != filepos || hash_link->file != file))
+  {
+    hash_link= hash_link->next;
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
     cnt++;
     assert(cnt <= keycache->hash_links_used);
 #endif
@@ -1396,8 +1652,17 @@ restart:
           - changed over the file contents (dirty) or
           - not changed (clean).
   */
+<<<<<<< HEAD:mysys/mf_keycache.cc
   hash_link = get_hash_link(keycache, file, filepos, thread);
+<<<<<<< HEAD
   assert((hash_link->file == file) && (hash_link->diskpos == filepos));
+=======
+  DBUG_ASSERT((hash_link->file == file) && (hash_link->diskpos == filepos));
+=======
+  hash_link= get_hash_link(keycache, file, filepos, thread);
+  assert((hash_link->file == file) && (hash_link->diskpos == filepos));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
   page_status = -1;
   if ((block = hash_link->block) && block->hash_link == hash_link &&
@@ -1491,10 +1756,21 @@ restart:
         only. Waiting here on COND_FOR_REQUESTED works in all
         situations.
       */
+<<<<<<< HEAD
       assert(
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      DBUG_ASSERT(
+>>>>>>> pr/231
           ((block->hash_link != hash_link) &&
            (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
           ((block->hash_link == hash_link) && !(block->status & BLOCK_READ)));
+=======
+      assert(((block->hash_link != hash_link) &&
+              (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
+             ((block->hash_link == hash_link) &&
+              !(block->status & BLOCK_READ)));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
       wait_on_queue(&block->wqueue[COND_FOR_REQUESTED], &keycache->cache_lock,
                     thread);
       /*
@@ -1519,10 +1795,24 @@ restart:
 
     if (!wrmode) {
       /* A reader can just read the block. */
+<<<<<<< HEAD:mysys/mf_keycache.cc
       *page_st = PAGE_READ;
+<<<<<<< HEAD
       assert((hash_link->file == file) && (hash_link->diskpos == filepos) &&
              (block->hash_link == hash_link));
       return block;
+=======
+      DBUG_ASSERT((hash_link->file == file) &&
+                  (hash_link->diskpos == filepos) &&
+                  (block->hash_link == hash_link));
+=======
+      *page_st= PAGE_READ;
+      assert((hash_link->file == file) &&
+             (hash_link->diskpos == filepos) &&
+             (block->hash_link == hash_link));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+      DBUG_RETURN(block);
+>>>>>>> pr/231
     }
 
     /*
@@ -1565,10 +1855,24 @@ restart:
         other part of the block must be preserved. Since the block has
         not yet been selected for flush, we can still add our changes.
       */
+<<<<<<< HEAD:mysys/mf_keycache.cc
       *page_st = PAGE_READ;
+<<<<<<< HEAD
       assert((hash_link->file == file) && (hash_link->diskpos == filepos) &&
              (block->hash_link == hash_link));
       return block;
+=======
+      DBUG_ASSERT((hash_link->file == file) &&
+                  (hash_link->diskpos == filepos) &&
+                  (block->hash_link == hash_link));
+=======
+      *page_st= PAGE_READ;
+      assert((hash_link->file == file) &&
+             (hash_link->diskpos == filepos) &&
+             (block->hash_link == hash_link));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+      DBUG_RETURN(block);
+>>>>>>> pr/231
     }
 
     /*
@@ -1703,11 +2007,26 @@ restart:
         } else {
           size_t block_mem_offset;
           /* There are some never used blocks, take first of them */
+<<<<<<< HEAD
           assert(keycache->blocks_used < (ulong)keycache->disk_blocks);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(keycache->blocks_used < (ulong)keycache->disk_blocks);
+>>>>>>> pr/231
           block = &keycache->block_root[keycache->blocks_used];
           block_mem_offset =
               ((size_t)keycache->blocks_used) * keycache->key_cache_block_size;
           block->buffer = keycache->block_mem + block_mem_offset;
+=======
+          assert(keycache->blocks_used <
+                 (ulong) keycache->disk_blocks);
+          block= &keycache->block_root[keycache->blocks_used];
+          block_mem_offset= 
+           ((size_t) keycache->blocks_used) * keycache->key_cache_block_size;
+          block->buffer= ADD_TO_PTR(keycache->block_mem,
+                                    block_mem_offset,
+                                    uchar*);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
           keycache->blocks_used++;
           assert(!block->next_used);
         }
@@ -1777,8 +2096,17 @@ restart:
             Register a request on the block. This unlinks it from the
             LRU ring and protects it against eviction.
           */
+<<<<<<< HEAD
           assert(!block->requests);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(!block->requests);
+>>>>>>> pr/231
           reg_requests(keycache, block, 1);
+=======
+          assert(!block->requests);
+          reg_requests(keycache, block,1);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
           /*
             We do not need to set block->status|= BLOCK_IN_EVICTION here
             because we will set block->status|= BLOCK_IN_SWITCH
@@ -1817,19 +2145,51 @@ restart:
                 The block is marked BLOCK_IN_SWITCH. It should be left
                 alone except for reading. No free, no write.
               */
+<<<<<<< HEAD
               assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
               assert(!(block->status &
                        (BLOCK_REASSIGNED | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+              DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+              DBUG_ASSERT(!(block->status & (BLOCK_REASSIGNED | BLOCK_CHANGED |
+                                             BLOCK_FOR_UPDATE)));
+>>>>>>> pr/231
             } else {
               block->status |= BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE;
+=======
+              assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
+              assert(!(block->status & (BLOCK_REASSIGNED |
+                                        BLOCK_CHANGED |
+                                        BLOCK_FOR_UPDATE)));
+            }
+            else
+            {
+              block->status|= BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
               /*
                 BLOCK_IN_EVICTION may be true or not. Other flags must
                 have a fixed value.
               */
+<<<<<<< HEAD
               assert((block->status & ~BLOCK_IN_EVICTION) ==
                      (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
                       BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED | BLOCK_IN_USE));
               assert(block->hash_link);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+              DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
+                          (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
+                           BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED | BLOCK_IN_USE));
+              DBUG_ASSERT(block->hash_link);
+=======
+              assert((block->status & ~BLOCK_IN_EVICTION) ==
+                     (BLOCK_READ | BLOCK_IN_SWITCH |
+                      BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE |
+                      BLOCK_CHANGED | BLOCK_IN_USE));
+              assert(block->hash_link);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
               mysql_mutex_unlock(&keycache->cache_lock);
               /*
@@ -1844,10 +2204,25 @@ restart:
               mysql_mutex_lock(&keycache->cache_lock);
 
               /* Block status must not have changed. */
+<<<<<<< HEAD
               assert((block->status & ~BLOCK_IN_EVICTION) ==
                          (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
                           BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED | BLOCK_IN_USE) ||
                      fail_block(block));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+              DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
+                              (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
+                               BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED |
+                               BLOCK_IN_USE) ||
+                          fail_block(block));
+=======
+              assert((block->status & ~BLOCK_IN_EVICTION) ==
+                     (BLOCK_READ | BLOCK_IN_SWITCH |
+                      BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE |
+                      BLOCK_CHANGED | BLOCK_IN_USE) || fail_block(block));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
               keycache->global_cache_write++;
             }
           }
@@ -1857,8 +2232,18 @@ restart:
             The block comes from the LRU ring. It must have a hash_link
             assigned.
           */
+<<<<<<< HEAD
           assert(block->hash_link);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(block->hash_link);
+>>>>>>> pr/231
           if (block->hash_link) {
+=======
+          assert(block->hash_link);
+          if (block->hash_link)
+          {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
             /*
               All pending requests for this page must be resubmitted.
               This must be done before waiting for readers. They could
@@ -1910,9 +2295,22 @@ restart:
           link_to_file_list(keycache, block, file, false);
           page_status = PAGE_TO_BE_READ;
 
+<<<<<<< HEAD
           assert(block->hash_link->block == block);
           assert(hash_link->block->hash_link == hash_link);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(block->hash_link->block == block);
+          DBUG_ASSERT(hash_link->block->hash_link == hash_link);
+>>>>>>> pr/231
         } else {
+=======
+          assert(block->hash_link->block == block);
+          assert(hash_link->block->hash_link == hash_link);
+        }
+        else
+        {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
           /*
             Either (block->hash_link == hash_link),
             or     (block->status & BLOCK_IN_SWITCH).
@@ -1954,12 +2352,25 @@ restart:
         Register a request on the block. This is another protection
         against eviction.
       */
+<<<<<<< HEAD
       assert(
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      DBUG_ASSERT(
+>>>>>>> pr/231
           ((block->hash_link != hash_link) &&
            (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
           ((block->hash_link == hash_link) && !(block->status & BLOCK_READ)) ||
           ((block->status & BLOCK_READ) &&
            !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))));
+=======
+      assert(((block->hash_link != hash_link) &&
+              (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
+             ((block->hash_link == hash_link) &&
+              !(block->status & BLOCK_READ)) ||
+             ((block->status & BLOCK_READ) &&
+              !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
       reg_requests(keycache, block, 1);
       page_status =
           (((block->hash_link == hash_link) && (block->status & BLOCK_READ))
@@ -1976,11 +2387,26 @@ restart:
   assert(!block->next_used);
   assert(!block->prev_used);
   /* Assert that we return the correct block. */
+<<<<<<< HEAD
   assert((page_status == PAGE_WAIT_TO_BE_READ) ||
          ((block->hash_link->file == file) &&
           (block->hash_link->diskpos == filepos)));
   *page_st = page_status;
   return block;
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT((page_status == PAGE_WAIT_TO_BE_READ) ||
+              ((block->hash_link->file == file) &&
+               (block->hash_link->diskpos == filepos)));
+  *page_st = page_status;
+=======
+  assert((page_status == PAGE_WAIT_TO_BE_READ) ||
+         ((block->hash_link->file == file) &&
+          (block->hash_link->diskpos == filepos)));
+  *page_st=page_status;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+  DBUG_RETURN(block);
+>>>>>>> pr/231
 }
 
 /*
@@ -2043,13 +2469,31 @@ static void read_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       The block can now have been marked for free (in case of
       FLUSH_RELEASE). Otherwise the state must be unchanged.
     */
+<<<<<<< HEAD
     assert(((block->status & ~(BLOCK_REASSIGNED | BLOCK_FOR_UPDATE)) ==
             BLOCK_IN_USE) ||
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+    DBUG_ASSERT(((block->status & ~(BLOCK_REASSIGNED | BLOCK_FOR_UPDATE)) ==
+                 BLOCK_IN_USE) ||
+                fail_block(block));
+    DBUG_ASSERT((block->length == 0) || fail_block(block));
+    DBUG_ASSERT((block->offset == keycache->key_cache_block_size) ||
+                fail_block(block));
+    DBUG_ASSERT((block->requests > 0) || fail_block(block));
+=======
+    assert(((block->status & ~(BLOCK_REASSIGNED |
+                               BLOCK_FOR_UPDATE)) == BLOCK_IN_USE) ||
+>>>>>>> pr/231
            fail_block(block));
     assert((block->length == 0) || fail_block(block));
     assert((block->offset == keycache->key_cache_block_size) ||
            fail_block(block));
     assert((block->requests > 0) || fail_block(block));
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
     if (got_length < min_length)
       block->status |= BLOCK_ERROR;
@@ -2164,8 +2608,20 @@ uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start reading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not read beyond the end of the cache block. */
+<<<<<<< HEAD
       read_length = std::min(length, keycache->key_cache_block_size - offset);
       assert(read_length > 0);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      DBUG_ASSERT(read_length > 0);
+=======
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      assert(read_length > 0);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
       if (block_length > keycache->key_cache_block_size || offset)
         return_buffer = 0;
@@ -2199,11 +2655,28 @@ uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
             requested file block. It does not hurt to check it for
             primary requests too.
           */
+<<<<<<< HEAD
           assert(keycache->can_be_used);
           assert(block->hash_link->file == file);
           assert(block->hash_link->diskpos == filepos);
           assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(keycache->can_be_used);
+          DBUG_ASSERT(block->hash_link->file == file);
+          DBUG_ASSERT(block->hash_link->diskpos == filepos);
+          DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+>>>>>>> pr/231
         } else if (block->length < read_length + offset) {
+=======
+          assert(keycache->can_be_used);
+          assert(block->hash_link->file == file);
+          assert(block->hash_link->diskpos == filepos);
+          assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
+        }
+        else if (block->length < read_length + offset)
+        {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
           /*
             Impossible if nothing goes wrong:
             this could only happen if we are using a file with
@@ -2336,8 +2809,20 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start loading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not load beyond the end of the cache block. */
+<<<<<<< HEAD
       read_length = std::min(length, keycache->key_cache_block_size - offset);
       assert(read_length > 0);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      DBUG_ASSERT(read_length > 0);
+=======
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      assert(read_length > 0);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
       /* The block has been read by the caller already. */
       keycache->global_cache_read++;
@@ -2392,18 +2877,40 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
             requested file block. It does not hurt to check it for
             primary requests too.
           */
+<<<<<<< HEAD
           assert(keycache->can_be_used);
           assert(block->hash_link->file == file);
           assert(block->hash_link->diskpos == filepos);
           assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(keycache->can_be_used);
+          DBUG_ASSERT(block->hash_link->file == file);
+          DBUG_ASSERT(block->hash_link->diskpos == filepos);
+          DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
+>>>>>>> pr/231
         } else if (page_st == PAGE_TO_BE_READ) {
+=======
+          assert(keycache->can_be_used);
+          assert(block->hash_link->file == file);
+          assert(block->hash_link->diskpos == filepos);
+          assert(block->status & (BLOCK_READ | BLOCK_IN_USE));
+        }
+        else if (page_st == PAGE_TO_BE_READ)
+        {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
           /*
             This is a new block in the cache. If we come here, we have
             data for the whole block.
           */
           assert(block->hash_link->requests);
           assert(block->status & BLOCK_IN_USE);
+<<<<<<< HEAD
           assert((page_st == PAGE_TO_BE_READ) || (block->status & BLOCK_READ));
+=======
+          assert((page_st == PAGE_TO_BE_READ) ||
+                 (block->status & BLOCK_READ));
+>>>>>>> pr/231
 
           mysql_mutex_unlock(&keycache->cache_lock);
           /*
@@ -2416,7 +2923,12 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
 
           mysql_mutex_lock(&keycache->cache_lock);
           assert(block->status & BLOCK_IN_USE);
+<<<<<<< HEAD
           assert((page_st == PAGE_TO_BE_READ) || (block->status & BLOCK_READ));
+=======
+          assert((page_st == PAGE_TO_BE_READ) ||
+                 (block->status & BLOCK_READ));
+>>>>>>> pr/231
           /*
             After the data is in the buffer, we can declare the block
             valid. Now other threads do not need to register as
@@ -2588,8 +3100,20 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start writing at the beginning of the cache block. */
       filepos -= offset;
       /* Do not write beyond the end of the cache block. */
+<<<<<<< HEAD
       read_length = std::min(length, keycache->key_cache_block_size - offset);
       assert(read_length > 0);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      DBUG_ASSERT(read_length > 0);
+=======
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      assert(read_length > 0);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_w_requests++;
@@ -2819,10 +3343,24 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     is registered in the hash_link and free_block() will wait for it
     below.
   */
+<<<<<<< HEAD
   assert((block->status & BLOCK_IN_USE) &&
          !(block->status &
            (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED |
             BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT((block->status & BLOCK_IN_USE) &&
+              !(block->status &
+                (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED |
+                 BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+=======
+  assert((block->status & BLOCK_IN_USE) &&
+         !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
+                            BLOCK_REASSIGNED | BLOCK_IN_FLUSH |
+                            BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   /* Assert that the block is in a file_blocks chain. */
   assert(block->prev_changed && *block->prev_changed == block);
   /* Assert that the block is not in the LRU ring. */
@@ -2836,8 +3374,18 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
     place an assert to confirm my hypothesis. Eventually the
     condition (if()) can be removed.
   */
+<<<<<<< HEAD
   assert(block->hash_link && block->hash_link->block == block);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+  DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
+>>>>>>> pr/231
   if (block->hash_link) {
+=======
+  assert(block->hash_link && block->hash_link->block == block);
+  if (block->hash_link)
+  {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
     /*
       While waiting for readers to finish, new readers might request the
       block. But since we set block->status|= BLOCK_REASSIGNED, they
@@ -2851,6 +3399,7 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       checks. An additional requirement is that it must be read now
       (BLOCK_READ).
     */
+<<<<<<< HEAD
     assert(block->hash_link && block->hash_link->block == block);
     assert(
         (block->status & (BLOCK_READ | BLOCK_IN_USE | BLOCK_REASSIGNED)) &&
@@ -2858,6 +3407,26 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                            BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
     assert(block->prev_changed && *block->prev_changed == block);
     assert(!block->prev_used);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+    DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
+    DBUG_ASSERT(
+        (block->status & (BLOCK_READ | BLOCK_IN_USE | BLOCK_REASSIGNED)) &&
+        !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
+                           BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+    DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
+    DBUG_ASSERT(!block->prev_used);
+=======
+    assert(block->hash_link && block->hash_link->block == block);
+    assert((block->status & (BLOCK_READ | BLOCK_IN_USE |
+                             BLOCK_REASSIGNED)) &&
+           !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
+                              BLOCK_IN_FLUSH | BLOCK_CHANGED |
+                              BLOCK_FOR_UPDATE)));
+    assert(block->prev_changed && *block->prev_changed == block);
+    assert(!block->prev_used);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
     /*
       Unset BLOCK_REASSIGNED again. If we hand the block to an evicting
       thread (through unreg_request() below), other threads must not see
@@ -2893,7 +3462,12 @@ static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
   /* Error blocks are not put into the LRU ring. */
   if (!(block->status & BLOCK_ERROR)) {
     /* Here the block must be in the LRU ring. Unlink it again. */
+<<<<<<< HEAD
     assert(block->next_used && block->prev_used && *block->prev_used == block);
+=======
+    assert(block->next_used && block->prev_used &&
+           *block->prev_used == block);
+>>>>>>> pr/231
     unlink_block(keycache, block);
   }
   if (block->temperature == BLOCK_WARM) keycache->warm_blocks--;
@@ -2963,12 +3537,29 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
     */
     if (!(block->status & BLOCK_FOR_UPDATE)) {
       /* Blocks coming here must have a certain status. */
+<<<<<<< HEAD
       assert(block->hash_link);
       assert(block->hash_link->block == block);
       assert(block->hash_link->file == file);
       assert((block->status & ~BLOCK_IN_EVICTION) ==
              (BLOCK_READ | BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_IN_USE));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+      DBUG_ASSERT(block->hash_link);
+      DBUG_ASSERT(block->hash_link->block == block);
+      DBUG_ASSERT(block->hash_link->file == file);
+      DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
+                  (BLOCK_READ | BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_IN_USE));
+>>>>>>> pr/231
       block->status |= BLOCK_IN_FLUSHWRITE;
+=======
+      assert(block->hash_link);
+      assert(block->hash_link->block == block);
+      assert(block->hash_link->file == file);
+      assert((block->status & ~BLOCK_IN_EVICTION) ==
+             (BLOCK_READ | BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_IN_USE));
+      block->status|= BLOCK_IN_FLUSHWRITE;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
       mysql_mutex_unlock(&keycache->cache_lock);
       error = (int)my_pwrite(file, block->buffer + block->offset,
                              block->length - block->offset,
@@ -3069,8 +3660,17 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     BLOCK_LINK *last_in_flush;
     BLOCK_LINK *last_link_for_update;
     BLOCK_LINK *block, *next;
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+#ifndef DBUG_OFF
+>>>>>>> pr/231
     uint cnt = 0;
+=======
+#ifndef NDEBUG
+    uint cnt=0;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
 #endif
 
     if (type != FLUSH_IGNORE_CHANGED) {
@@ -3084,7 +3684,15 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         if ((block->hash_link->file == file) &&
             !(block->status & BLOCK_IN_FLUSH)) {
           count++;
+<<<<<<< HEAD
           assert(count <= keycache->blocks_used);
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(count <= keycache->blocks_used);
+=======
+          assert(count<= keycache->blocks_used);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
         }
       }
       /*
@@ -3104,13 +3712,29 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     }
 
     /* Retrieve the blocks and write them to a buffer to be flushed */
+<<<<<<< HEAD:mysys/mf_keycache.cc
   restart:
     last_in_flush = nullptr;
     last_link_for_update = nullptr;
     end = (pos = cache) + count;
     for (block = keycache->changed_blocks[FILE_HASH(file)]; block;
          block = next) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+restart:
+    last_in_flush= NULL;
+    last_for_update= NULL;
+    end= (pos= cache)+count;
+    for (block= keycache->changed_blocks[FILE_HASH(file)] ;
+         block ;
+         block= next)
+    {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
       cnt++;
       assert(cnt <= keycache->blocks_used);
 #endif
@@ -3271,9 +3895,16 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
       are switching these blocks will relink them to clean file chains
       while we wait and thus empty the 'first_in_switch' chain.
     */
+<<<<<<< HEAD:mysys/mf_keycache.cc
     while (first_in_switch) {
 #ifndef NDEBUG
       cnt = 0;
+=======
+    while (first_in_switch)
+    {
+#ifndef NDEBUG
+      cnt= 0;
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
 #endif
       wait_on_queue(&first_in_switch->wqueue[COND_FOR_SAVED],
                     &keycache->cache_lock, thread_var);
@@ -3307,8 +3938,18 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
           next = block->next_changed;
 
           /* Changed blocks cannot appear in the file_blocks hash. */
+<<<<<<< HEAD
           assert(!(block->status & BLOCK_CHANGED));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+          DBUG_ASSERT(!(block->status & BLOCK_CHANGED));
+>>>>>>> pr/231
           if (block->hash_link->file == file) {
+=======
+          assert(!(block->status & BLOCK_CHANGED));
+          if (block->hash_link->file == file)
+          {
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
             /* We must skip blocks that will be changed. */
             if (block->status & BLOCK_FOR_UPDATE) {
               last_for_update = block;
@@ -3347,11 +3988,23 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
               */
               if (next && (hash_requests = block->hash_link->requests)) {
                 /* Copy values from the 'next' block and its hash_link. */
+<<<<<<< HEAD:mysys/mf_keycache.cc
                 next_status = next->status;
                 next_hash_link = next->hash_link;
                 next_diskpos = next_hash_link->diskpos;
                 next_file = next_hash_link->file;
+<<<<<<< HEAD
                 assert(next == next_hash_link->block);
+=======
+                DBUG_ASSERT(next == next_hash_link->block);
+=======
+                next_status=    next->status;
+                next_hash_link= next->hash_link;
+                next_diskpos=   next_hash_link->diskpos;
+                next_file=      next_hash_link->file;
+                assert(next == next_hash_link->block);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
               }
 
               free_block(keycache, thread_var, block);
@@ -3406,8 +4059,19 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
       */
       if (last_in_switch) {
         /* We did not wait. Block must not have changed status. */
+<<<<<<< HEAD
         assert(last_in_switch->status &
                (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED));
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+        DBUG_ASSERT(last_in_switch->status &
+                    (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED));
+=======
+        assert(last_in_switch->status & (BLOCK_IN_EVICTION |
+                                         BLOCK_IN_SWITCH |
+                                         BLOCK_REASSIGNED));
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
         wait_on_queue(&last_in_switch->wqueue[COND_FOR_SAVED],
                       &keycache->cache_lock, thread_var);
         goto restart;
@@ -3575,9 +4239,21 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
 
 #ifndef NDEBUG
   /* Now there should not exist any block any more. */
+<<<<<<< HEAD:mysys/mf_keycache.cc
   for (idx = 0; idx < CHANGED_BLOCKS_HASH; idx++) {
+<<<<<<< HEAD
     assert(!keycache->changed_blocks[idx]);
     assert(!keycache->file_blocks[idx]);
+=======
+    DBUG_ASSERT(!keycache->changed_blocks[idx]);
+    DBUG_ASSERT(!keycache->file_blocks[idx]);
+=======
+  for (idx= 0; idx < CHANGED_BLOCKS_HASH; idx++)
+  {
+    assert(!keycache->changed_blocks[idx]);
+    assert(!keycache->file_blocks[idx]);
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
   }
 #endif
 
@@ -3619,7 +4295,16 @@ int reset_key_cache_counters(std::string_view name [[maybe_unused]],
   return 0;
 }
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD:mysys/mf_keycache.cc
+#if !defined(DBUG_OFF)
+=======
+
+#if !defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6:mysys/mf_keycache.c
+>>>>>>> pr/231
 #define F_B_PRT(_f_, _v_) DBUG_PRINT("assert_fail", (_f_, _v_))
 
 static int fail_block(BLOCK_LINK *block) {

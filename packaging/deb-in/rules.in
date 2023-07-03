@@ -1,6 +1,10 @@
 #!/usr/bin/make -f
 
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +50,10 @@ override_dh_auto_configure:
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+<<<<<<< HEAD
+=======
+		-DWITH_SSL=system \
+>>>>>>> pr/231
 		-DWITH_INNODB_MEMCACHED=1 \
 		-DWITH_MECAB=system \
 		-DWITH_NUMA=ON \
@@ -105,6 +113,7 @@ override_dh_installinit:
 override_dh_install:
 	dh_install --fail-missing \
 		-Xusr/bin/i_mysql_client_test \
+<<<<<<< HEAD
 		-Xmysql.server \
 		-Xmysql.info \
 		-XChangeLog \
@@ -119,3 +128,23 @@ override_dh_strip:
 # Debug plugins use libprotobuf-lite from the server package.
 override_dh_shlibdeps:
 	dh_shlibdeps -Lmysql-@DEB_PRODUCT@-server-core -l/usr/lib/mysql/private
+=======
+<<<<<<< HEAD
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/mysql.server \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE-test \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/README-test \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/docs/mysql.info \
+		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/docs/ChangeLog \
+		-Xusr/share/man/man1/mysqlman.1
+=======
+		-Xusr/share/mysql/mysql.server \
+		-Xusr/share/man/man1/mysql.server.1 \
+		-Xusr/share/mysql/binary-configure \
+		-Xusr/share/mysql/@DEB_INSTALL_LICENSEFILE@-test \
+		-Xusr/share/mysql/README-test \
+		-Xusr/share/mysql/docs/mysql.info \
+		-Xusr/share/man/man1/mysqlman.1 \
+		-Xusr/share/man/man1/ndb_setup.py.1 \
+		-X.h.pp
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

@@ -27,12 +27,13 @@ character-set-server=      latin1
 connect-timeout=            60
 log-bin-trust-function-creators=1
 key_buffer_size=            1M
-sort_buffer=                256K
+sort_buffer_size=           256K
 max_heap_table_size=        1M
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 replica-net-timeout=120
 ndbcluster
 ndb-wait-setup=60
+show_compatibility_56=ON
 
 [cluster_config.mysqld.1.1]
 NodeId=49

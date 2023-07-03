@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 --source include/not_parallel.inc
 --source include/not_valgrind.inc
 
@@ -208,11 +209,19 @@ TRUNCATE TABLE mysql.slow_log;
 --remove_file $MYSQL_TMP_DIR/my_slow.log
 
 --echo
+=======
+>>>>>>> pr/231
 --echo #
 --echo # Bug#33732907: Slow query log logs password in plain text on syntax error
 --echo #
 --echo
 
+<<<<<<< HEAD
+=======
+--source include/not_parallel.inc
+--source include/not_valgrind.inc
+
+>>>>>>> pr/231
 SET @save_sqlf=@@global.slow_query_log_file;
 SET @save_sql=@@global.slow_query_log;
 SET @save_lo=@@global.log_output;
@@ -226,8 +235,11 @@ SET @@session.long_query_time=0;
 
 let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
 
+<<<<<<< HEAD
 SET @my_start=CURRENT_TIMESTAMP(6);
 
+=======
+>>>>>>> pr/231
 --echo
 --echo # This succeeds, and the password is correctly obfuscated.
 CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
@@ -243,6 +255,7 @@ CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
 --error ER_PARSE_ERROR
 CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
 
+<<<<<<< HEAD
 --echo # Expected: 2 (1 OK stmt, 1 failed stmt, 0 unparseable stmts)
 SELECT COUNT(argument)/@protdiv
   FROM mysql.general_log
@@ -271,6 +284,18 @@ SELECT COUNT(sql_text)/@protdiv
  WHERE INSTR(sql_text,"CREATE USER")=1
    AND INSTR(sql_text," IDENTIFIED BY <secret>")=0
    AND start_time>=@my_start
+=======
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "general table>",argument
+  FROM mysql.general_log
+ WHERE INSTR(argument,"CREATE USER")=1
+ ORDER BY event_time;
+
+--echo # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "slow table>",sql_text
+  FROM mysql.slow_log
+ WHERE INSTR(sql_text,"CREATE USER")=1
+>>>>>>> pr/231
  ORDER BY start_time;
 
 SET @@global.slow_query_log_file=@save_sqlf;
@@ -284,19 +309,29 @@ DROP USER 'duplicate_user'@'%';
 --perl
    use strict;
 
+<<<<<<< HEAD
    my $obfs = 0;
    my $nono = 0;
    my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
    my $protdiv= $ENV{'IS_PS'}+1;
+=======
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+>>>>>>> pr/231
 
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+<<<<<<< HEAD
      $obfs++ if(($line =~ /CREATE USER /)&& ($line =~ / IDENTIFIED BY <secret>/));
      $nono++ if(($line =~ /CREATE USER /)&&!($line =~ / IDENTIFIED BY <secret>/));
    }
    print "slow file     obfuscated statements>".($obfs/$protdiv)."\n";
    print "slow file non-obfuscated statements>".($nono/$protdiv)."\n";
+=======
+     if ($line =~ /CREATE USER /) {
+       print "slow file>".$line; }
+   }
+>>>>>>> pr/231
    close(FILE);
 EOF
 

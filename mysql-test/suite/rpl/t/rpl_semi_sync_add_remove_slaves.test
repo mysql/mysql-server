@@ -20,7 +20,11 @@
 #
 #========
 #
+<<<<<<< HEAD
 # 9 servers + 1000 inserts involved in test. Hence marking it as big-test.
+=======
+# 9 servers + 5000 inserts involved in test. Hence marking it as big-test.
+>>>>>>> pr/231
 #
 --source include/big_test.inc
 --source include/not_group_replication_plugin.inc
@@ -52,12 +56,20 @@ while ($i < 10)
   {
     --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
     CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+<<<<<<< HEAD
     --source include/install_semisync_source.inc
+=======
+    --source include/install_semisync_master.inc
+>>>>>>> pr/231
   }
   if ( $i != 1 )
   {
     CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+<<<<<<< HEAD
     --source include/install_semisync_replica.inc
+=======
+    --source include/install_semisync_slave.inc
+>>>>>>> pr/231
   }
   --inc $i
 }
@@ -68,12 +80,21 @@ while ($i < 10)
 --let $rpl_connection_name= server1_1
 --source include/rpl_connection.inc
 --let $slaves = 8
+<<<<<<< HEAD
 --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
 
 --echo #
 --echo # 4. Insert 1000 tuples in background using 10 parallel connections.
 --echo #
 --exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=100 --query="INSERT INTO t1 values (1)" --concurrency=10 --silent 2>&1
+=======
+--eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+
+--echo #
+--echo # 4. Insert 5000 tuples in background using 10 parallel connections.
+--echo #
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=500 --query="INSERT INTO t1 values (1)" --concurrency=10 --silent 2>&1
+>>>>>>> pr/231
 
 --echo #
 --echo # 5. While the insert operations are going in the background, keep
@@ -98,9 +119,15 @@ while ( $iter < 50 )
     --source include/stop_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
+<<<<<<< HEAD
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --dec $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
+=======
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --dec $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+>>>>>>> pr/231
   }
   if ($service_state == 'OFF')
   {
@@ -108,9 +135,15 @@ while ( $iter < 50 )
     --source include/start_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
+<<<<<<< HEAD
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
+=======
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --inc $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+>>>>>>> pr/231
   }
   --inc $iter
   # Do it slowly while insertions on the master are happening in the background.
@@ -132,9 +165,15 @@ while ($iter <= 9)
     --source include/start_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
+<<<<<<< HEAD
     # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
     --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
+=======
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --inc $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+>>>>>>> pr/231
   }
   --inc $iter
 }
@@ -150,7 +189,11 @@ while ($iter <= 9)
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --let $wait_timeout= 60
+<<<<<<< HEAD
 --let $wait_condition= SELECT count(*) = 1000 FROM t1
+=======
+--let $wait_condition= SELECT count(*) = 5000 FROM t1
+>>>>>>> pr/231
 --source include/wait_condition.inc
 --let $slave_timeout=600
 --source include/rpl_sync.inc
@@ -167,6 +210,7 @@ while ($i >= 1)
   --source include/rpl_connection.inc
   if ( $i == 1)
   {
+<<<<<<< HEAD
     --let $assert_variable_name= rpl_semi_sync_source_enabled
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
@@ -178,6 +222,19 @@ while ($i >= 1)
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
     --source include/uninstall_semisync_replica.inc
+=======
+    --let $assert_variable_name= rpl_semi_sync_master_enabled
+    --let $assert_variable_value= 1
+    --source include/assert_variable.inc
+    --source include/uninstall_semisync_master.inc
+  }
+  if ( $i != 1 )
+  {
+    --let $assert_variable_name= rpl_semi_sync_slave_enabled
+    --let $assert_variable_value= 1
+    --source include/assert_variable.inc
+    --source include/uninstall_semisync_slave.inc
+>>>>>>> pr/231
   }
   --dec $i
 }

@@ -170,7 +170,11 @@ DROP TABLE t1;
 --source include/wait_until_count_sessions.inc
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug #31310404 I_S_FTS_INDEX_CACHE_FILL_ONE_INDEX() IS NOT PROTECTED BY THE LOCK
+=======
+--echo # Bug #31310404 I_S_FTS_INDEX_CACHE_FILL_ONE_INDEX() IS NOT PROTECTED BY THE  +LOCK
+>>>>>>> pr/231
 --echo #
 
 CREATE TABLE t1 (

@@ -624,7 +624,11 @@ create table t1 (a int primary key) engine ndb
 COMMENT="NDB_TABLE=NOLOGGING=1";
 alter table t1 algorithm=inplace,
 COMMENT="NDB_TABLE=NOLOGGING=0";
+<<<<<<< HEAD
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
+=======
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter nologging inplace. Try ALGORITHM=copy'
+>>>>>>> pr/231
 drop table t1;
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
@@ -668,7 +672,15 @@ t1	CREATE TABLE `t1` (
   `c` bigint NOT NULL,
   `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1'
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1'
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num from ndbinfo.memory_per_fragment
@@ -699,7 +711,15 @@ t1	CREATE TABLE `t1` (
   `c` bigint NOT NULL,
   `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num from ndbinfo.memory_per_fragment
@@ -738,7 +758,15 @@ t1	CREATE TABLE `t1` (
   `c` bigint NOT NULL,
   `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num from ndbinfo.memory_per_fragment
@@ -785,7 +813,15 @@ t1	CREATE TABLE `t1` (
   `c` bigint NOT NULL,
   `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -884,6 +920,7 @@ create table t2 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 alter table t2 algorithm=inplace,
 COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+<<<<<<< HEAD
 select node_id, fragment_num from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t2' order by node_id, fragment_num;
 node_id	fragment_num
@@ -912,6 +949,22 @@ cnt
 1
 1
 1
+=======
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
+node_id	fragment_num	block_instance
+1	0	4
+1	1	2
+2	0	4
+2	1	2
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num, block_instance;
+node_id	fragment_num	block_instance
+1	0	1
+1	1	3
+2	0	1
+2	1	3
+>>>>>>> pr/231
 drop table t2;
 create table t1 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=READ_BACKUP=1";

@@ -1,4 +1,5 @@
 RESET MASTER;
+<<<<<<< HEAD
 # Generate binlog.000002
 FLUSH BINARY LOGS;
 # Generate binlog.000003
@@ -10,3 +11,16 @@ FLUSH BINARY LOGS;
 FLUSH BINARY LOGS;
 PURGE BINARY LOGS TO 'binlog.000003';
 PURGE BINARY LOGS TO 'binlog.000005';
+=======
+# Generate master-bin.000002
+FLUSH BINARY LOGS;
+# Generate master-bin.000003
+FLUSH BINARY LOGS;
+# Generate master-bin.000004
+FLUSH BINARY LOGS;
+# Generate master-bin.000005
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'master-bin.000003';
+PURGE BINARY LOGS TO 'master-bin.000005';
+>>>>>>> pr/231

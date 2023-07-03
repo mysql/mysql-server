@@ -60,13 +60,21 @@ Duesseldorf|City|98765|Hafen|1|A|a|Z
 Oldenburg|Mitte|87654|Deich|2|B|b|Y
 Koeln|West|76543|Rhein|3|C|c|X
 Stuttgart|Nord|65432|Fernsehturm|4|D|d|U
+<<<<<<< HEAD
 Here are the memcached results with c2 of desct13:
+=======
+Here the memcached results with c2 of desct13:
+>>>>>>> pr/231
 test/t1
 D|City
 O|Mitte
 K|West
 S|Nord
+<<<<<<< HEAD
 Here are the memcached results with c2 of desct12:
+=======
+Here the memcached results with c2 of desct12:
+>>>>>>> pr/231
 test/t1
 D|Duesseldorf
 O|Oldenburg

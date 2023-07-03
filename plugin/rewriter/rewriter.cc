@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/*  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -109,10 +117,22 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   Normal debug sync points will not work in the THD that the plugin creates,
   so we have to call the debug sync functions ourselves.
 */
+<<<<<<< HEAD
 static void do_debug_sync(MYSQL_THD thd) {
   assert(opt_debug_sync_timeout > 0);
   const char act[] = "now signal parked wait_for go";
+<<<<<<< HEAD
   assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+=======
+  DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+=======
+static void do_debug_sync(MYSQL_THD thd)
+{
+  assert(opt_debug_sync_timeout > 0);
+  const char act[]= "now signal parked wait_for go";
+  assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 #endif
 

@@ -457,7 +457,11 @@ longtext1 longtext,
 longtext2 longtext,
 longtext3 longtext,
 longtext4 longtext
+<<<<<<< HEAD
 ) engine=ndb character set UTF8MB4;
+=======
+) engine=ndb character set utf8;
+>>>>>>> pr/231
 insert into test.t2 values (1,
 repeat('Tartan', 40),    # tinytext
 repeat('Tartan', 40),
@@ -556,7 +560,11 @@ longblob1 longblob,
 longblob2 longblob,
 longblob3 longblob,
 longblob4 longblob
+<<<<<<< HEAD
 ) engine=ndb character set UTF8MB4;
+=======
+) engine=ndb character set utf8;
+>>>>>>> pr/231
 insert into test.t2 values (1,
 repeat('Tartan', 40),    # tinyblob
 repeat('Tartan', 40),
@@ -637,9 +645,15 @@ drop table test.t2_orig;
 *****************************************************************************
 Charset-aware truncation in blob -> tinytext and text ->tinyblob conversions
 *****************************************************************************
+<<<<<<< HEAD
 # ndb_restore TEXT -> TINYBLOB and BLOB->TINYTEXT truncation with UTF8MB4
 set character_set_client=UTF8MB4;
 create table t2(id int primary key, text_val text character set UTF8MB4, blob_val blob)engine=ndb;
+=======
+# ndb_restore TEXT -> TINYBLOB and BLOB->TINYTEXT truncation with utf8
+set character_set_client=utf8;
+create table t2(id int primary key, text_val text character set utf8, blob_val blob)engine=ndb;
+>>>>>>> pr/231
 insert into t2 values(11111, REPEAT(UNHEX("E38182"), 100), REPEAT(UNHEX("E38182"), 100));
 insert into t2 values(22222, CONCAT("AA",REPEAT(UNHEX("E38182"), 100)), CONCAT("AA",REPEAT(UNHEX("E38182"), 100)));
 select length(text_val), char_length(text_val), length(blob_val), char_length(blob_val) from t2 order by id;
@@ -648,7 +662,11 @@ length(text_val)	char_length(text_val)	length(blob_val)	char_length(blob_val)
 302	102	302	302
 # run backup
 drop table t2;
+<<<<<<< HEAD
 create table t2(id int primary key, text_val tinyblob, blob_val tinytext character set UTF8MB4)engine=ndb;
+=======
+create table t2(id int primary key, text_val tinyblob, blob_val tinytext character set utf8)engine=ndb;
+>>>>>>> pr/231
 # run restore
 # run ndb_select_all to see charset-aware truncation in ndb
 # text_val = TINYBLOB, truncation on byte boundary, mid-character
@@ -664,7 +682,11 @@ NDBT_ProgramExit: 0 - OK
 
 # run mysql select to see charset-aware truncation in mysqld
 # blob_val = TINYTEXT, truncation on well-formed char boundary
+<<<<<<< HEAD
 # length = well-formed char length * sizeof(UTF8MB4 char)
+=======
+# length = well-formed char length * sizeof(utf8 char)
+>>>>>>> pr/231
 # 1. pk-based read
 select length(blob_val), char_length(blob_val) from t2 where id = 11111;
 length(blob_val)	char_length(blob_val)

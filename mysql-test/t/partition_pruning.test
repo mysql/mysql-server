@@ -9,6 +9,11 @@
 --source include/have_innodb_min_8k.inc
 
 --source include/no_valgrind_without_big.inc
+<<<<<<< HEAD
+=======
+--source include/have_partition.inc
+--source include/have_innodb_16k.inc
+>>>>>>> upstream/cluster-7.6
 let $verify_without_partitions=0;
 
 --echo #
@@ -1573,7 +1578,10 @@ CREATE TABLE `t2` (
 insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
 insert into t1 select a from t2;
 ANALYZE TABLE t1;
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 drop table t2;
 CREATE TABLE `t2` (
   `a` int(11) default NULL,
@@ -1999,6 +2007,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values ('na');
+ANALYZE TABLE t1;
 select * from t1;
 select * from t1 where a like 'n%';
 drop table t1;
@@ -2012,7 +2021,11 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 select * from t1 where s1 = 0 or s1 is null;
 insert into t1 values ('aa'),('bb'),('0');
+<<<<<<< HEAD
 analyze table t1;
+=======
+ANALYZE TABLE t1;
+>>>>>>> upstream/cluster-7.6
 --replace_column 10 #
 explain select * from t1 where s1 = 0 or s1 is null;
 drop table t1;
@@ -2032,7 +2045,10 @@ ALTER TABLE t2 REMOVE PARTITIONING;
 
 insert into t2 values (1,1),(2,2);
 ANALYZE TABLE t2;
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 --vertical_results
 --replace_column 10 #
 explain select * from t2;
@@ -2116,6 +2132,10 @@ ALTER TABLE t2 REMOVE PARTITIONING;
 insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
 ANALYZE TABLE t1;
 insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+<<<<<<< HEAD
+=======
+ANALYZE TABLE t1;
+>>>>>>> pr/231
 ANALYZE TABLE t2;
 --replace_column 10 #
 explain select * from t1 where a=0;

@@ -755,6 +755,7 @@ ALTER TABLE t1 ADD UNIQUE KEY (col25);
 ALTER TABLE t1 DROP INDEX col24;
 ALTER TABLE t1 DROP INDEX col25;
 DROP TABLE t1;
+<<<<<<< HEAD
 #
 # Bug#31452597 BUILD ATTRID MAP FOR PRIMARY KEY
 #  - test read using primary key where keys are specified in
@@ -795,3 +796,5 @@ t1hash.b = 2 AND t1hash.c = 3 AND t1hash.d = 4 /* use primary key on t1 */;
 a	h
 1	8
 DROP TABLE t1,t1hash,t2;
+=======
+>>>>>>> pr/231

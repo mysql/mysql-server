@@ -17,8 +17,13 @@
 # Table with a primary key consisting of a single column with insert and update.
 
 --connection master
+<<<<<<< HEAD
 CREATE TABLE t1 (a BINARY(1) PRIMARY KEY);
 SET @debug_saved= @@GLOBAL.DEBUG;
+=======
+CREATE TABLE t1 (a INT PRIMARY KEY);
+SET @@GLOBAL.DEBUG= @debug_saved;
+>>>>>>> upstream/cluster-7.6
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_insert';
 INSERT INTO t1 VALUES(1);
 SET @@GLOBAL.DEBUG= @debug_saved;
@@ -49,7 +54,11 @@ DROP TABLE t1;
 # Table with a primary key consisting of more than one column with insert and
 # update.
 
+<<<<<<< HEAD
 CREATE TABLE t1(a BINARY(1), b BINARY(1), PRIMARY KEY(a, b));
+=======
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a, b));
+>>>>>>> upstream/cluster-7.6
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_key_generated_insert';
 INSERT INTO t1 VALUE(1, 2);
@@ -79,7 +88,11 @@ DROP TABLE t1;
 # Table with a primary key consisting of more than one column and more than one
 # unique key with insert and updates.
 
+<<<<<<< HEAD
 CREATE TABLE t1 (a BINARY(1), d BINARY(1), b BINARY(1) NOT NULL UNIQUE, c BINARY(1) NOT NULL UNIQUE, PRIMARY KEY(a, d));
+=======
+CREATE TABLE t1 (a INT, d INT, b INT NOT NULL UNIQUE, c INT NOT NULL UNIQUE, PRIMARY KEY(a, d));
+>>>>>>> upstream/cluster-7.6
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_insert';
 INSERT INTO t1 VALUES(1, 2, 3, 4);

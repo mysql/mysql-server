@@ -1,5 +1,9 @@
 # -*- cperl -*-
+<<<<<<< HEAD
 # Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -77,9 +81,16 @@ sub show_last_lines_from_file {
   $F->close();
 }
 
+<<<<<<< HEAD
 # Executes command, and prints n last lines of output from the command
 # only if the command fails. If the command runs successfully, no output
 # is written.
+=======
+#
+# exec_print_on_error - executes command, and prints n last lines of output
+#                       from the command only if the command fails. If the command runs
+#                       successfully, no output is written.
+>>>>>>> pr/231
 #
 # Parameters:
 #   cmd       - the command to run
@@ -101,6 +112,7 @@ sub exec_print_on_error {
   # Redirect stdout and stderr of command to log file
   $cmd = $cmd . " > $logfile_name 2>&1";
 
+<<<<<<< HEAD
   # Execute command
   print "Running command\n";
   system($cmd);
@@ -114,6 +126,20 @@ sub exec_print_on_error {
     } else {
       print "Failed to remove log file at '$logfile_name'\n";
       return 0;
+=======
+    # Redirect stdout and stderr of command to log file
+    $cmd .= " > $logfile_name 2>&1";
+
+    # Execute command
+    print "Running command\n";
+    system($cmd);
+
+    print "Result of command: $?\n";
+    if ($? == 0)
+    {
+	# Test program suceeded
+	return 1;
+>>>>>>> pr/231
     }
   }
 

@@ -1,10 +1,21 @@
 # This test case will test concurrent search on R-tree.
+<<<<<<< HEAD
+=======
+# Not supported in embedded
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+>>>>>>> pr/231
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
 
 CREATE TABLE g (
   id INT PRIMARY KEY,
+<<<<<<< HEAD
   p GEOMETRY NOT NULL SRID 0,
+=======
+  p GEOMETRY NOT NULL,
+>>>>>>> pr/231
   SPATIAL KEY p_idx(p)
 ) ENGINE=InnoDB;
 

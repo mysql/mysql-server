@@ -73,7 +73,11 @@ lines terminated by '\n';
 
 # crash node 2 in 5-15 seconds, may hit t1 or t2
 
+<<<<<<< HEAD
 exec $NDB_MGM
+=======
+exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
+>>>>>>> pr/231
      -e "2 dump 9999 5000 15000" >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # import t1, t2
@@ -104,9 +108,12 @@ select count(*) from t2 x, t2ver y
 where x.b = y.b;
 
 drop table t1, t1ver, t2, t2ver;
+<<<<<<< HEAD
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

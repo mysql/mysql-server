@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1281,6 +1285,109 @@
 }
 
 {
+   OpenSSL leak 1 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:pthread_once
+}
+
+{
+   OpenSSL leak 2 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:CRYPTO_realloc
+   ...
+   fun:pthread_once
+}
+
+{
+   OpenSSL leak 1 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
+   OpenSSL leak 2 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:CRYPTO_realloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
+   OpenSSL leak 3 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:RAND_priv_bytes
+}
+
+{
+   OpenSSL leak 4 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:RAND_bytes
+}
+
+# http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
+# Memory leak in ldap_initialize/ldap_unbind
+# Version: 2.4.48
+# Fixed in RE24 (2.4.49)
+{
+   OpenLDAP bug 9081
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:ber_memcalloc_x
+   fun:ber_memcalloc
+   fun:ber_sockbuf_alloc
+   fun:ldap_create
+   fun:ldap_initialize
+}
+
+{
+   cyrus libsasl2 still reachable one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_set_path
+}
+
+{
   OpenSSL still reachable.
   Memcheck:Leak
   match-leak-kinds: reachable
@@ -1710,6 +1817,7 @@
   ...
 }
 
+<<<<<<< HEAD
 {
   TPL leak 22
   Memcheck:Leak
@@ -1742,6 +1850,9 @@
    ...
 }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 # Workarounds for
 #
 # Bug#26116237 SYSCALL PARAM PPOLL(SIGMASK) POINTS TO UNADDRESSABLE BYTE
@@ -1910,11 +2021,16 @@
 
 {
    OpenSSL still reachable.
+=======
+{
+   TPL leak 22
+>>>>>>> upstream/cluster-7.6
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
    ...
    fun:CRYPTO_malloc
+<<<<<<< HEAD
    fun:ERR_get_state
    fun:ERR_put_error
    fun:PEM_read_bio
@@ -1922,6 +2038,13 @@
    fun:X509_load_cert_crl_file
    fun:by_file_ctrl
    fun:X509_STORE_load_locations
+=======
+   fun:lh_new
+   fun:int_thread_get
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_clear_error
+>>>>>>> upstream/cluster-7.6
    obj:*
    obj:*
    obj:*
@@ -1929,6 +2052,11 @@
    obj:*
    obj:*
    obj:*
+<<<<<<< HEAD
+=======
+   fun:_ZL17plugin_initializeP13st_plugin_int
+   ...
+>>>>>>> upstream/cluster-7.6
 }
 
 # Bug #25964438  LDAP: ASAN AND VALGRIND ISSUES
@@ -2051,6 +2179,7 @@
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
 }
+<<<<<<< HEAD
 {
    LDAP_TLS_workaround10
    Memcheck:Leak
@@ -2674,3 +2803,81 @@
    ...
 }
 
+=======
+
+{
+  AWS_SDK_1_9_s2n_init
+    Memcheck:Leak
+    match-leak-kinds: reachable,definite,indirect
+    ...
+    fun:s2n_init
+    ...
+}
+{
+  AWS_SDK_1_9_curl_init
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    ...
+    fun:curl_global_init
+    ...
+    fun:_ZN3Aws7InitAPIERKNS_10SDKOptionsE
+}
+{
+  AWS_SDK_1_9_conf_modules_load
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    ...
+    fun:CONF_modules_load_file
+    fun:_ZL12keyring_initPv
+    ...
+}
+
+#
+# Bug28597417: NDB: Supress memory_leak at bitmap_init in binlog/Ndb_share
+# in pre-trunk releases. The problem seems to occur during a "discover"
+# and those should be rare so not much memory should leak over time.
+# In trunk, this is not a problem due to code rewrites.
+#
+{
+   <bitmap_init1>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:my_raw_malloc
+   fun:my_malloc
+   fun:bitmap_init
+   fun:_ZN9NDB_SHARE26set_binlog_flags_for_tableEP5TABLE
+   fun:_ZL28ndb_binlog_open_shadow_tableP3THDP9NDB_SHARE
+   fun:_Z28ndbcluster_binlog_init_shareP3THDP9NDB_SHAREP5TABLE
+   fun:_ZN9NDB_SHARE6createEPKcP5TABLE
+   fun:_ZL20ndbcluster_get_sharePKcP5TABLEb
+   fun:_Z20ndbcluster_get_sharePKcP5TABLEbb
+   fun:_Z9get_sharePKcP5TABLEbb
+   fun:_ZN13ha_ndbcluster6createEPKcP5TABLEP24st_ha_create_information
+   fun:_ZN7handler9ha_createEPKcP5TABLEP24st_ha_create_information
+   fun:_Z15ha_create_tableP3THDPKcS2_S2_P24st_ha_create_informationbb
+   fun:_Z16rea_create_tableP3THDPKcS2_S2_P24st_ha_create_informationR4ListI12Create_fieldEjP6st_keyP7handlerb
+   fun:_ZL17create_table_implP3THDPKcS2_S2_S2_P24st_ha_create_informationP10Alter_infobjbPbPP6st_keyPj
+}
+{
+   <bitmap_init2>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:my_raw_malloc
+   fun:my_malloc
+   fun:bitmap_init
+   fun:_ZN9NDB_SHARE26set_binlog_flags_for_tableEP5TABLE
+   fun:_ZL28ndb_binlog_open_shadow_tableP3THDP9NDB_SHARE
+   fun:_Z28ndbcluster_binlog_init_shareP3THDP9NDB_SHAREP5TABLE
+   fun:_ZN9NDB_SHARE6createEPKcP5TABLE
+   fun:_ZL20ndbcluster_get_sharePKcP5TABLEb
+   fun:_Z20ndbcluster_get_sharePKcP5TABLEbb
+   fun:_Z9get_sharePKcP5TABLEbb
+   fun:_Z30ndbcluster_create_binlog_setupP3THDP3NdbPKcS4_S4_P5TABLE
+   fun:_ZN13ha_ndbcluster6createEPKcP5TABLEP24st_ha_create_information
+   fun:_ZN7handler9ha_createEPKcP5TABLEP24st_ha_create_information
+   fun:_Z27ha_create_table_from_engineP3THDPKcS2_
+   fun:_Z28ndb_create_table_from_engineP3THDPKcS2_
+}
+>>>>>>> pr/231

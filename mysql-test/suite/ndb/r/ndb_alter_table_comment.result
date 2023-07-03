@@ -1,7 +1,11 @@
 set @global_fully_replicated=@@global.ndb_fully_replicated;
 set @global_read_backup=@@global.ndb_read_backup;
 # Create table with fully_replicated=1        #
+<<<<<<< HEAD
 # will change read_backup to 1 implicitly,    #
+=======
+# wiil change read_backup to 1 implicitly,    #
+>>>>>>> pr/231
 # but will not be shown in the comment.       #
 # This should not affect the following alters #
 set global ndb_fully_replicated=1;
@@ -11,17 +15,30 @@ ENGINE=ndbcluster;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 ALTER TABLE t ALGORITHM=copy, ADD COLUMN y int;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   `y` int DEFAULT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `x` int(11) NOT NULL,
+  `y` int(11) DEFAULT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 DROP TABLE t;
 
 # Change the default of read_backup and alter another comment item. #
@@ -38,9 +55,15 @@ ERROR 0A000: Alter table is not supported. Reason: Alter will use the default va
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='A comment'
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='A comment'
+>>>>>>> pr/231
 
 # Change the default of FR and alter another comment item  #
 # Will fail due to the new default of the non-specified FR #
@@ -61,9 +84,15 @@ ALTER TABLE t algorithm=copy, comment="NDB_TABLE=READ_BACKUP=1";
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+>>>>>>> pr/231
 DROP TABLE t;
 
 # Check if alters preserve the values of the other comment items #
@@ -76,10 +105,17 @@ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 SHOW CREATE TABLE t30;
 Table	Create Table
 t30	CREATE TABLE `t30` (
+<<<<<<< HEAD
   `col1` int NOT NULL,
   `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=0,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_NODE'
+=======
+  `col1` int(11) NOT NULL,
+  `col2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=0,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_NODE'
+>>>>>>> pr/231
 
 # Cannot alter fully replicated tables when read backup=0 #
 # is specified by the user                                #
@@ -99,10 +135,17 @@ ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
 SHOW CREATE TABLE t30;
 Table	Create Table
 t30	CREATE TABLE `t30` (
+<<<<<<< HEAD
   `col1` int NOT NULL,
   `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=1'
+=======
+  `col1` int(11) NOT NULL,
+  `col2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=1'
+>>>>>>> pr/231
 # Cannot change read_backup to 0 when FR is on  #
 ALTER TABLE t30 algorithm=copy, comment="NDB_TABLE=READ_BACKUP=0";
 ERROR 0A000: Alter table is not supported. Reason: cannot change READ_BACKUP to 0 for fully replicated tables. Try fully_replicated=0 if that is the intention.
@@ -113,15 +156,26 @@ set global ndb_read_backup=1;
 CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
 ENGINE=ndb;
 ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=1";
+<<<<<<< HEAD
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
+=======
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter nologging inplace. Try ALGORITHM=copy'
+>>>>>>> pr/231
 ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=NOLOGGING=1";
 SHOW CREATE TABLE t30;
 Table	Create Table
 t30	CREATE TABLE `t30` (
+<<<<<<< HEAD
   `col1` int NOT NULL,
   `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+  `col1` int(11) NOT NULL,
+  `col2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 
 # Execute some more alters #
 ALTER TABLE t30 ALGORITHM=COPY,
@@ -130,10 +184,17 @@ ALTER TABLE t30 ALGORITHM=COPY, COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
 SHOW CREATE TABLE t30;
 Table	Create Table
 t30	CREATE TABLE `t30` (
+<<<<<<< HEAD
   `col1` int NOT NULL,
   `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_LDM'
+=======
+  `col1` int(11) NOT NULL,
+  `col2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_LDM'
+>>>>>>> pr/231
 drop table t30;
 
 # Check if changing the comment gives assertion error on fullyreplicated table#
@@ -144,25 +205,43 @@ ENGINE=ndbcluster;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 ALTER TABLE t ALGORITHM=inplace, comment="A comment";
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='A comment'
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='A comment'
+>>>>>>> pr/231
 
 # Perform an alter of an already existing NDB table option
 ALTER TABLE t ALGORITHM=inplace, comment="NDB_TABLE=READ_BACKUP=1";
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `x` int NOT NULL,
   PRIMARY KEY (`x`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+=======
+  `x` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+>>>>>>> pr/231
 DROP TABLE t;
 
 # Change PB to the existing value
@@ -173,9 +252,15 @@ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
+=======
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
+>>>>>>> pr/231
 
 # Changing PB to a new value should fail for inplace alter#
 # and pass for copy alter#
@@ -187,6 +272,7 @@ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 DROP TABLE t;
 set global ndb_fully_replicated=@global_fully_replicated;
 set global ndb_read_backup=@global_read_backup;
+<<<<<<< HEAD
 #
 # BUG#31776392 ALTER TABLE COMMENT HITS ASSERT IN DEBUG BUILD
 # Turning off NOLOGGING is not supported inplace, check that
@@ -217,3 +303,5 @@ COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
 Warnings:
 Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
 DROP TABLE t1;
+=======
+>>>>>>> pr/231

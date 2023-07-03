@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates. */
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates. */
+>>>>>>> pr/231
 
 #ifndef UTIL_H
 #define UTIL_H

@@ -5,9 +5,14 @@
 --echo # ... FOR CHANNEL.
 --echo #
 --echo # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
+<<<<<<< HEAD
 --echo # - deletes all relay log files of named channels and reinitializes
+=======
+--echo # - deletes all relay log files of named channels and reintializes
+>>>>>>> pr/231
 --echo # them.
 --echo # - For default channel, it restart the relay log from .000001
+<<<<<<< HEAD
 --echo # - retains replication filters of the channel.
 --echo # - For named channel, it restart the relay log from ch.000001
 --echo # - retains all replication filters from all replication channels.
@@ -35,6 +40,9 @@
 --echo # (copies all global replication filters to its own per-channel
 --echo # replication filters).
 --echo #
+=======
+--echo # - For named channel, it restart the relay log from ch.000001
+>>>>>>> upstream/cluster-7.6
 --echo #########################################################################
 # The test doesn't relate to binlog format, so it is just tested on mixed mode.
 #Skip on group replication runs
@@ -86,6 +94,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --echo #
 eval RESET SLAVE FOR CHANNEL "ch1";
 
+<<<<<<< HEAD
 --echo #
 --echo # Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
 --echo # replication filters of the channel.
@@ -96,7 +105,14 @@ eval RESET SLAVE FOR CHANNEL "ch1";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
+<<<<<<< HEAD
 # all files of "ch1" are deleted and recreated.
+=======
+# all files of "ch1" are removed
+=======
+# all files of "ch1" are deleted and recreated.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --list_files $datadir *ch1*
 
 --echo #
@@ -108,6 +124,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --enable_warnings
 RESET SLAVE;
 
+<<<<<<< HEAD
 --echo #
 --echo # Verify that "RESET SLAVE" retains all replication filters from
 --echo # all replication channels.
@@ -121,7 +138,14 @@ RESET SLAVE;
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
+<<<<<<< HEAD
 # all files of "ch2" are deleted and recreated.
+=======
+# all files of "ch2" are removed
+=======
+# all files of "ch2" are deleted and recreated.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --list_files $datadir *ch2*
 
 --echo #

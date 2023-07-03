@@ -13,10 +13,15 @@ SET @@GLOBAL.replication_sender_observe_commit_only = 1;
 include/assert.inc [Reported value matches the one set (set 1 in GLOBAL scope)]
 CREATE USER user1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
+<<<<<<< HEAD
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 GRANT SUPER ON *.* TO user1@'%';
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
+=======
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+GRANT SUPER ON *.* TO user1@'%';
+>>>>>>> pr/231
 FLUSH PRIVILEGES;
 SET GLOBAL replication_sender_observe_commit_only = 1;
 DROP USER user1;

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,11 +138,20 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
     uint32_t incoming;
     uint32_t computed;
 
+<<<<<<< HEAD
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) {
 #ifndef NDEBUG
       unsigned char fd_alg = event_buf[event_len - BINLOG_CHECKSUM_LEN -
                                        BINLOG_CHECKSUM_ALG_DESC_LEN];
 #endif
+=======
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+    {
+    #ifndef NDEBUG
+      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
+                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
+    #endif
+>>>>>>> upstream/cluster-7.6
       /*
         FD event is checksummed and therefore verified w/o
         the binlog-in-use flag.
@@ -147,11 +160,23 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
       flags = le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+<<<<<<< HEAD
         /*
            The only algorithm currently is CRC32. Zero indicates
            the binlog file is checksum-free *except* the FD-event.
         */
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+      /*
+         The only algorithm currently is CRC32. Zero indicates
+         the binlog file is checksum-free *except* the FD-event.
+      */
+    #ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
 #endif
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
@@ -178,8 +203,18 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     res = !(computed == incoming);
   }
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   if (binary_log_debug::debug_checksum_test) return true;
+=======
+#ifndef NDEBUG
+  if (binary_log_debug::debug_checksum_test)
+    return true;
+>>>>>>> upstream/cluster-7.6
 #endif
   return res;
 }

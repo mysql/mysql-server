@@ -12,6 +12,7 @@ performance_schema_max_program_instances	-1
 show session variables like 'performance_schema_max_program_instances';
 Variable_name	Value
 performance_schema_max_program_instances	-1
+<<<<<<< HEAD
 select * from performance_schema.global_variables
 where variable_name='performance_schema_max_program_instances';
 VARIABLE_NAME	VARIABLE_VALUE
@@ -20,6 +21,16 @@ select * from performance_schema.session_variables
 where variable_name='performance_schema_max_program_instances';
 VARIABLE_NAME	VARIABLE_VALUE
 performance_schema_max_program_instances	-1
+=======
+select * from information_schema.global_variables
+where variable_name='performance_schema_max_program_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PROGRAM_INSTANCES	-1
+select * from information_schema.session_variables
+where variable_name='performance_schema_max_program_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PROGRAM_INSTANCES	-1
+>>>>>>> upstream/cluster-7.6
 set global performance_schema_max_program_instances=1;
 ERROR HY000: Variable 'performance_schema_max_program_instances' is a read only variable
 set session performance_schema_max_program_instances=1;
@@ -32,10 +43,17 @@ WHERE VARIABLE_NAME='performance_schema_max_program_instances';
 select @@global.performance_schema_max_program_instances;
 @@global.performance_schema_max_program_instances
 -1
+<<<<<<< HEAD
 select * from performance_schema.global_variables
 where variable_name='performance_schema_max_program_instances';
 VARIABLE_NAME	VARIABLE_VALUE
 performance_schema_max_program_instances	-1
+=======
+select * from information_schema.global_variables
+where variable_name='performance_schema_max_program_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PROGRAM_INSTANCES	-1
+>>>>>>> upstream/cluster-7.6
 SELECT @@performance_schema_max_program_instances = @@GLOBAL.performance_schema_max_program_instances;
 @@performance_schema_max_program_instances = @@GLOBAL.performance_schema_max_program_instances
 1

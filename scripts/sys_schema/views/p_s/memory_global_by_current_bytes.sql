@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -46,11 +65,19 @@ VIEW memory_global_by_current_bytes (
 ) AS
 SELECT event_name,
        current_count_used AS current_count,
+<<<<<<< HEAD
        format_bytes(current_number_of_bytes_used) AS current_alloc,
        format_bytes(IFNULL(current_number_of_bytes_used / NULLIF(current_count_used, 0), 0)) AS current_avg_alloc,
        high_count_used AS high_count,
        format_bytes(high_number_of_bytes_used) AS high_alloc,
        format_bytes(IFNULL(high_number_of_bytes_used / NULLIF(high_count_used, 0), 0)) AS high_avg_alloc
+=======
+       sys.format_bytes(current_number_of_bytes_used) AS current_alloc,
+       sys.format_bytes(IFNULL(current_number_of_bytes_used / NULLIF(current_count_used, 0), 0)) AS current_avg_alloc,
+       high_count_used AS high_count,
+       sys.format_bytes(high_number_of_bytes_used) AS high_alloc,
+       sys.format_bytes(IFNULL(high_number_of_bytes_used / NULLIF(high_count_used, 0), 0)) AS high_avg_alloc
+>>>>>>> pr/231
   FROM performance_schema.memory_summary_global_by_event_name
  WHERE current_number_of_bytes_used > 0
  ORDER BY current_number_of_bytes_used DESC;

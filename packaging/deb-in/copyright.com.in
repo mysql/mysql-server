@@ -15,7 +15,11 @@ License: Commercial
  please refer to the LICENSE file.
  .
  For more information on MySQL, visit 
+<<<<<<< HEAD
  https://docs.oracle.com/cd/E17952_01/mysql-8.0-en/index.html
+=======
+ https://docs.oracle.com/cd/E17952_01/mysql-5.7-en/index.html
+>>>>>>> upstream/cluster-7.6
  or http://dev.mysql.com/doc/
  .
  For additional downloads of MySQL, visit

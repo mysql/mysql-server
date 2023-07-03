@@ -1,6 +1,12 @@
 # Crash-safe InnoDB ALTER operations
 
 --source include/not_valgrind.inc
+<<<<<<< HEAD
+=======
+--source include/not_asan.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+>>>>>>> upstream/cluster-7.6
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 

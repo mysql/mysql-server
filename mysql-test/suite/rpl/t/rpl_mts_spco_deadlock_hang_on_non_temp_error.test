@@ -5,12 +5,20 @@
 # transaction and such cases are handled properly by signalling other workers.
 #
 # This test is based on
+<<<<<<< HEAD
 # mysql-test/suite/rpl/t/rpl_mts_replica_preserve_commit_order_deadlock_error.test
+=======
+# mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock_error.test
+>>>>>>> pr/231
 # and differs from it by having an extra transaction in the waiting state.
 #
 # For more information about "commit order deadlock and
 # retry logic, please see header section in
+<<<<<<< HEAD
 # mysql-test/suite/rpl/t/rpl_mts_replica_preserve_commit_order_deadlock.test.
+=======
+# mysql-test/suite/rpl/t/rpl_mts_slave_preserve_commit_order_deadlock.test.
+>>>>>>> pr/231
 #
 # ==== Implementation ====
 #
@@ -34,7 +42,11 @@
 # ==== References ====
 #
 # Bug #87796 Commit_order_manager can't terminate MTS worker properly when deadlock happens
+<<<<<<< HEAD
 # Bug #89247 Deadlock with MTS when replica_preserve_commit_order = ON.
+=======
+# Bug #89247 Deadlock with MTS when slave_preserve_commit_order = ON.
+>>>>>>> pr/231
 # Bug #95249 stop slave permanently blocked
 # Bug #99440 Threads of MTS Slave randomly stuck
 
@@ -47,13 +59,18 @@
 
 --echo #
 --echo # 2. Setup testing environment.
+<<<<<<< HEAD
 --echo #    2.1 Create table on source and insert few rows.
 --echo #
+=======
+--echo #    2.1 Create tables on source.
+>>>>>>> pr/231
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 
 --echo #
 --echo # 2.2 Setup necessary variables on replica server.
+<<<<<<< HEAD
 --echo #
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_sql.inc
@@ -67,6 +84,20 @@ SET GLOBAL replica_parallel_workers = 3;
 # switched to slave connection
 --source include/only_mts_replica_parallel_type_logical_clock.inc
 --source include/only_mts_replica_parallel_workers.inc
+=======
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET @saved_slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET GLOBAL slave_preserve_commit_order = ON;
+SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
+SET GLOBAL slave_parallel_workers = 3;
+
+# switched to slave connection
+--source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/only_mts_slave_parallel_workers.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
@@ -110,6 +141,7 @@ INSERT INTO t1 VALUES(1, 1),(2, 2);
 --let $debug_point= set_commit_parent_100
 --source include/add_debug_point.inc
 
+<<<<<<< HEAD
 --echo #
 --echo # 3.3 Execute Transaction-1
 --echo #
@@ -119,10 +151,16 @@ INSERT INTO t1 VALUES(3, 1);
 --echo # 3.4 Execute Transaction-2
 --echo #
 BEGIN;
+=======
+INSERT INTO t1 VALUES(3, 1);  # Transaction 1
+
+BEGIN;                        # Transaction 2
+>>>>>>> pr/231
 DELETE FROM t1 WHERE c2 <= 1;
 INSERT INTO t2 values(1);
 COMMIT;
 
+<<<<<<< HEAD
 --echo #
 --echo # 3.5 Execute Transaction-3
 --echo #
@@ -132,26 +170,44 @@ INSERT INTO t1 values(10,10);
 --echo # 3.6 On Slave, begin a transaction (Transacation-4)
 --echo #     which will acquire MDL lock on t1
 --echo #     (that blocks 'Transacation-1').
+=======
+INSERT INTO t1 values(10,10); # Transaction 3
+
+--echo #
+--echo # 3.3 On Slave, begin a transaction (Transacation 4)
+--echo #     which will acquire MDL lock on t1
+--echo #     (that blocks 'Transacation 1').
+>>>>>>> pr/231
 --echo #
 --source include/rpl_connection_slave1.inc
 BEGIN;
 INSERT INTO t1 VALUES(3, 3);
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.7 On Slave, begin a transaction (Transacation-5)
 --echo #     that can block INSERT in 'Transacation-2'.
+=======
+--echo # 3.4 On Slave, begin a transaction (Transacation 5)
+--echo #     that can block INSERT in 'Transacation 2'.
+>>>>>>> pr/231
 --echo #
 --source include/rpl_connection_slave.inc
 BEGIN;
 INSERT INTO t2 VALUES(1);
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.8 Start SQL thread, let Transaction-1 & 2 reach SQL workers
+=======
+--echo # 3.5 Start SQL thread, let Transaction-1 & 2 reach SQL workers
+>>>>>>> pr/231
 --echo #
 --connection slave2
 --source include/start_slave_sql.inc
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.9 Wait till the worker threads pick up those transacations
 --echo #     (Transaction 1 and Transaction 2). They will wait for locks due
 --echo #     local transacations (4 & 5).
@@ -163,20 +219,41 @@ INSERT INTO t2 VALUES(1);
 
 --echo #
 --echo # 3.10 Rollback Transaction-4 which will release MDL lock required for
+=======
+--echo # 3.6 Wait till the worker threads pick up those transacations
+--echo #     (Transaction 1 and Transaction 2). They will wait for locks due
+--echo #     local transacations (4 & 5).
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t1 VALUES(3, 1)' AND NAME LIKE '%slave_worker%'
+--source include/wait_condition.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t2 values(1)' AND NAME LIKE '%slave_worker%'
+--source include/wait_condition.inc
+
+--echo #
+--echo # 3.7 Rollback Transaction-4 which will release MDL lock required for
+>>>>>>> pr/231
 --echo #      Transaction-1.
 --echo #
 --source include/rpl_connection_slave1.inc
 ROLLBACK;
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.11 Wait till the worker thread detects commit order deadlock
+=======
+--echo # 3.8 Wait till the worker thread detects commit order deadlock
+>>>>>>> pr/231
 --echo #      between two workers
 --echo #      (Worker1 : Transaction-1 & Worker-2: Transaction-2).
 --echo #
 SET debug_sync = "now WAIT_FOR reported_deadlock";
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.12 Commit Transaction-5 which will release MDL lock required for
+=======
+--echo # 3.9 Commit Transaction-5 which will release MDL lock required for
+>>>>>>> pr/231
 --echo #      Transaction-2.
 --echo #
 --source include/rpl_connection_slave.inc
@@ -189,7 +266,11 @@ COMMIT;
 # workers to finish thus leading to server hang.
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.13 Step 3.11 will cause worker 2 ("Transacation-2")
+=======
+--echo # 3.10 Step 3.8 will cause worker 2 ("Transacation-2")
+>>>>>>> pr/231
 --echo #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 --echo #      detected the 'commit order deadlock').
 --echo #
@@ -197,13 +278,21 @@ COMMIT;
 --source include/wait_for_slave_sql_error.inc
 
 --echo #
+<<<<<<< HEAD
 --echo # 3.13 Check that worker 2 did not *retry* transaction-2
+=======
+--echo # 3.11 Check that worker 2 did not *retry* transaction-2
+>>>>>>> pr/231
 --echo #      before throwing ER_DUP_ENTRY error (non-temporary error).
 --echo #
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_mts_spco_deadlock_hang_on_non_temp_error.2.err
 --let $assert_only_after = CURRENT_TEST: rpl.rpl_mts_spco_deadlock_hang_on_non_temp_error
 --let $assert_count = 1
+<<<<<<< HEAD
 --let $assert_select = Error 'Duplicate entry '1' for key 't2.PRIMARY'' on query
+=======
+--let $assert_select = Error 'Duplicate entry '1' for key 'PRIMARY'' on query
+>>>>>>> pr/231
 --let $assert_text = Found 'Duplicate entry' error only once time which proves that transaction is not retried after getting 'non-temporary error'.
 --source include/assert_grep.inc
 
@@ -225,12 +314,20 @@ DROP TABLE t1, t2;
 --echo #
 --echo # 4.3 Clear system variables.
 --echo #
+<<<<<<< HEAD
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 --disable_warnings
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
 --enable_warnings
+=======
+SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
+SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
+SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+
+>>>>>>> pr/231
 --echo #
 --echo # 4.4 Clear debug point.
 --echo #

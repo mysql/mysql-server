@@ -160,7 +160,15 @@ SHOW CREATE TABLE xplugintest.table2;
 -->stmtadmin create_collection_index	{"schema":"xplugintest", "collection":"table2", "unique":false, "fields":{"field":"$.col5", "type":"INT", "required":false}}
 -->recv
 
+<<<<<<< HEAD
 #
+=======
+<<<<<<< HEAD:mysql-test/suite/x/t/create_index_crud.test
+#-- testcase for https://jira.oraclecorp.com/jira/browse/MYP-287
+=======
+-- testcase for JIRA issue MYP-287
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/tests/mtr/t/create_index_crud.test
+>>>>>>> pr/231
 -->sql
 #DELETE FROM xplugintest.table2;
 TRUNCATE xplugintest.table2;
@@ -170,11 +178,115 @@ INSERT INTO xplugintest.table2(doc) VALUES('{"F1":1, "F2":"abcd", "F3":1000, "_i
 -->recv
 
 -->echo Create index on two fields
+<<<<<<< HEAD
 #-- should create second virtual column for F2 as required is true now! (JIRA issue MYP-325)
 -->stmtadmin create_collection_index	{"schema":"xplugintest", "collection":"table2", "name":"iX3", "unique":true, "fields":[{"field":"$.F3", "type":"BIGINT", "required":true}, {"field":"$.F2", "type":"BLOB(767)", "required":true}]}
 -->recv
 
 #-- testcase for JIRA issue MYP-290
+=======
+<<<<<<< HEAD:mysql-test/suite/x/t/create_index_crud.test
+#-- should create second virtual column for F2 as required is true now! (MYP-325)
+=======
+-- should create second virtual column for F2 as required is true now! (JIRA issue MYP-325)
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/tests/mtr/t/create_index_crud.test
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "iX3"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.F3"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "BIGINT"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.F2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "BLOB(767)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+-->recv
+
+<<<<<<< HEAD:mysql-test/suite/x/t/create_index_crud.test
+#-- testcase for https://jira.oraclecorp.com/jira/browse/MYP-290
+=======
+-- testcase for JIRA issue MYP-290
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/tests/mtr/t/create_index_crud.test
+>>>>>>> pr/231
 -->sql
 #DELETE FROM xplugintest.table2;
 TRUNCATE xplugintest.table2;
@@ -215,7 +327,15 @@ SELECT * FROM xplugintest.table2;
 -->callmacro Create_index	IX10	$.b\\\\')) virtual not null; drop database xplugintest; alter table table3 add column x int GENERATED ALWAYS AS (JSON_EXTRACT(doc, \\\\'$.c
 -->callmacro Create_index	IX11	$.`b))` virtual not null; drop database xplugintest; alter table table3 add column x int GENERATED ALWAYS AS (JSON_EXTRACT(doc, $.`c`
 
+<<<<<<< HEAD
 #-- Testing very long document path cases JIRA issue MYP-204
+=======
+<<<<<<< HEAD:mysql-test/suite/x/t/create_index_crud.test
+#-- Testing very long document path cases https://jira.oraclecorp.com/jira/browse/MY-204
+=======
+-- Testing very long document path cases (JIRA issue MYP-204)
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/tests/mtr/t/create_index_crud.test
+>>>>>>> pr/231
 
 -->echo Document path 2k long
 -->callmacro Create_index	IXLong1	$.a0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678
@@ -224,7 +344,15 @@ SELECT * FROM xplugintest.table2;
 SHOW CREATE TABLE xplugintest.table3;
 -->endsql
 
+<<<<<<< HEAD
 #-- Testing many multi-field indexes JIRA issue MYP-337
+=======
+<<<<<<< HEAD:mysql-test/suite/x/t/create_index_crud.test
+#-- Testing many multi-field indexes https://jira.oraclecorp.com/jira/browse/MYP-337
+=======
+-- Testing many multi-field indexes JIRA issue MYP-337
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/tests/mtr/t/create_index_crud.test
+>>>>>>> pr/231
 
 -->stmtadmin create_collection	{"schema":"xplugintest","name":"col_myp337"}
 -->recvresult

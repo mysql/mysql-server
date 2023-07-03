@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -32,7 +51,10 @@
 --                  state: alter table (read PK and internal sort)
 --                   time: 2
 --      current_statement: alter table t1 add column l int
+<<<<<<< HEAD
 --       execution_engine: PRIMARY
+=======
+>>>>>>> pr/231
 --      statement_latency: 2349834276374
 --               progress: 60.00
 --           lock_latency: 339707000000
@@ -68,11 +90,17 @@ VIEW x$processlist (
   state,
   time,
   current_statement,
+<<<<<<< HEAD
   execution_engine,
   statement_latency,
   progress,
   lock_latency,
   cpu_latency,
+=======
+  statement_latency,
+  progress,
+  lock_latency,
+>>>>>>> pr/231
   rows_examined,
   rows_sent,
   rows_affected,
@@ -101,7 +129,10 @@ SELECT pps.thread_id AS thd_id,
        pps.processlist_state AS state,
        pps.processlist_time AS time,
        pps.processlist_info AS current_statement,
+<<<<<<< HEAD
        pps.execution_engine AS execution_engine,
+=======
+>>>>>>> pr/231
        IF(esc.end_event_id IS NULL,
           esc.timer_wait,
           NULL) AS statement_latency,
@@ -109,7 +140,10 @@ SELECT pps.thread_id AS thd_id,
           ROUND(100 * (estc.work_completed / estc.work_estimated), 2),
           NULL) AS progress,
        esc.lock_time AS lock_latency,
+<<<<<<< HEAD
        esc.cpu_time AS cpu_latency,
+=======
+>>>>>>> pr/231
        esc.rows_examined AS rows_examined,
        esc.rows_sent AS rows_sent,
        esc.rows_affected AS rows_affected,

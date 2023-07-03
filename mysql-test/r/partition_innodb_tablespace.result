@@ -427,6 +427,127 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB,
  PARTITION p1 ENGINE = InnoDB) */
+<<<<<<< HEAD
+=======
+# Test TABLESPACE (and restart)
+CREATE TABLESPACE `ts_part1` ADD DATAFILE 'ts_part1.ibd';
+CREATE TABLESPACE `ts part2` ADD DATAFILE 'ts_part2.ibd';
+CREATE TABLESPACE `ts_part3` ADD DATAFILE 'ts_part3.ibd';
+CREATE TABLESPACE `ts_part4` ADD DATAFILE 'ts_part4.ibd';
+CREATE TABLE t2 (a int) ENGINE = InnoDB TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`;
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+CREATE TABLE t2 (a int) ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p1 VALUES LESS THAN (10)
+TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`
+);
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+CREATE TABLE t2
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB
+TABLESPACE ts_part1
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+SUBPARTITION sp1,
+SUBPARTITION sp2 TABLESPACE ts_part4),
+PARTITION p1 VALUES LESS THAN (100)
+(SUBPARTITION sp3,
+SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+SUBPARTITION sp5),
+PARTITION p2 VALUES LESS THAN (200)
+(SUBPARTITION sp6 TABLESPACE innodb_system,
+SUBPARTITION sp7,
+SUBPARTITION sp8),
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+(SUBPARTITION sp9 TABLESPACE ts_part4,
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+call mtr.add_suppression("Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (400)
+TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`);
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+# Same but without table level tablespace defined
+CREATE TABLE t3
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+SUBPARTITION sp1,
+SUBPARTITION sp2 TABLESPACE ts_part4),
+PARTITION p1 VALUES LESS THAN (100)
+(SUBPARTITION sp3,
+SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+SUBPARTITION sp5),
+PARTITION p2 VALUES LESS THAN (200)
+(SUBPARTITION sp6 TABLESPACE innodb_system,
+SUBPARTITION sp7,
+SUBPARTITION sp8),
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+(SUBPARTITION sp9 TABLESPACE ts_part4,
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+>>>>>>> pr/231
 SET @@global.innodb_file_per_table = ON;
 CREATE TABLE t_file_per_table_on
 (a int not null auto_increment primary key,

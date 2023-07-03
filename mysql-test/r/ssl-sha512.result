@@ -1,5 +1,14 @@
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;
 GRANT SELECT ON test.* TO u1@localhost;
 Variable_name	Value
+<<<<<<< HEAD
+=======
+have_openssl	YES
+have_ssl	YES
+performance_schema_show_processlist	OFF
+ssl_ca	MYSQL_TEST_DIR/std_data/ca-sha512.pem
+ssl_capath	
+ssl_cert	MYSQL_TEST_DIR/std_data/server-cert-sha512.pem
+>>>>>>> pr/231
 ssl_cipher	DHE-RSA-AES256-SHA
 DROP USER u1@localhost;

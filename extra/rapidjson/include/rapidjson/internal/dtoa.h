@@ -63,7 +63,15 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
     const DiyFp wp_w = Mp - W;
     uint32_t p1 = static_cast<uint32_t>(Mp.f >> -one.e);
     uint64_t p2 = Mp.f & (one.f - 1);
+<<<<<<< HEAD
     int kappa = CountDecimalDigit32(p1); // kappa in [0, 9]
+=======
+<<<<<<< HEAD
+    unsigned kappa = CountDecimalDigit32(p1); // kappa in [0, 9]
+=======
+    int kappa = CountDecimalDigit32(p1); // kappa in [0, 9]
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     *len = 0;
 
     while (kappa > 0) {
@@ -102,8 +110,18 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
         kappa--;
         if (p2 < delta) {
             *K += kappa;
+<<<<<<< HEAD
             int index = -kappa;
             GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * (index < 9 ? kPow10[index] : 0));
+=======
+<<<<<<< HEAD
+            int index = -static_cast<int>(kappa);
+            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * (index < 9 ? kPow10[-static_cast<int>(kappa)] : 0));
+=======
+            int index = -kappa;
+            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * (index < 9 ? kPow10[index] : 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
             return;
         }
     }

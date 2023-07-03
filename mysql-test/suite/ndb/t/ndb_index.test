@@ -369,6 +369,7 @@ ALTER TABLE t1 DROP INDEX col24;
 ALTER TABLE t1 DROP INDEX col25;
 
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#31452597 BUILD ATTRID MAP FOR PRIMARY KEY
@@ -412,3 +413,5 @@ SELECT t1hash.a, t1hash.h FROM t1hash, t2
     t1hash.b = 2 AND t1hash.c = 3 AND t1hash.d = 4 /* use primary key on t1 */;
 
 DROP TABLE t1,t1hash,t2;
+=======
+>>>>>>> pr/231

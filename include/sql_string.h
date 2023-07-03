@@ -1,7 +1,15 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,9 +91,19 @@ class Simple_cstring {
     // NULL is allowed only with length==0
     assert(str_arg || length_arg == 0);
     // For non-NULL, make sure length_arg is in sync with '\0' terminator.
+<<<<<<< HEAD
     assert(!str_arg || str_arg[length_arg] == '\0');
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!str_arg || str_arg[length_arg] == '\0');
+>>>>>>> pr/231
     m_str = str_arg;
     m_length = length_arg;
+=======
+    assert(!str_arg || str_arg[length_arg] == '\0');
+    m_str= str_arg;
+    m_length= length_arg;
+>>>>>>> upstream/cluster-7.6
   }
   Simple_cstring() { set(nullptr, 0); }
   Simple_cstring(const char *str_arg, size_t length_arg) {
@@ -246,10 +264,23 @@ class String {
   void mark_as_const() { m_alloced_length = 0; }
   /* Returns a pointer to data, may not include NULL terminating character. */
   const char *ptr() const { return m_ptr; }
+<<<<<<< HEAD
   char *ptr() { return m_ptr; }
   char *c_ptr() {
     assert(!m_is_alloced || !m_ptr || !m_alloced_length ||
            (m_alloced_length >= (m_length + 1)));
+=======
+<<<<<<< HEAD
+  char *c_ptr() {
+    DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
+                (m_alloced_length >= (m_length + 1)));
+=======
+  char *c_ptr()
+  {
+    assert(!m_is_alloced || !m_ptr || !m_alloced_length ||
+           (m_alloced_length >= (m_length + 1)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Should be safe, but in case valgrind complains on this line, it means
@@ -276,8 +307,18 @@ class String {
     return lex_cstring;
   }
 
+<<<<<<< HEAD
   void set(String &str, size_t offset, size_t arg_length) {
+<<<<<<< HEAD
     assert(&str != this);
+=======
+    DBUG_ASSERT(&str != this);
+=======
+  void set(String &str,size_t offset, size_t arg_length)
+  {
+    assert(&str != this);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     mem_free();
     m_ptr = str.ptr() + offset;
     m_length = arg_length;
@@ -365,7 +406,12 @@ class String {
   */
   void chop() {
     m_length--;
+<<<<<<< HEAD
     m_ptr[m_length] = '\0';
+=======
+    m_ptr[m_length]= '\0';
+    assert(strlen(m_ptr) == m_length);
+>>>>>>> upstream/cluster-7.6
   }
 
   void mem_claim(bool claim) {
@@ -454,8 +500,18 @@ class String {
 
     @param s - a String object to steal buffer from.
   */
+<<<<<<< HEAD
   void takeover(String &s) {
+<<<<<<< HEAD
     assert(this != &s);
+=======
+    DBUG_ASSERT(this != &s);
+=======
+  void takeover(String &s)
+  {
+    assert(this != &s);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     // Make sure buffers of the two Strings do not overlap
     assert(!s.uses_buffer_owned_by(this));
     mem_free();

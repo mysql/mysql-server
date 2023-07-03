@@ -3,7 +3,11 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
+<<<<<<< HEAD
 SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
+=======
+SET @@GLOBAL.group_replication_ip_whitelist= "AUTOMATIC";
+>>>>>>> pr/231
 include/start_and_bootstrap_group_replication.inc
 =====mysqladmin -u root -P MASTER_MYPORT --protocol=TCP check all the GR variable outputs=====
 

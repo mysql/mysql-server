@@ -526,6 +526,10 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 --echo #                 ABOUT LDML DEFINITION PROBLEMS
 --echo #
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --echo #
 --echo # Restart the server with a collation with invalid grammar rules.
 --let $restart_parameters=restart:--character-sets-dir=$MYSQL_TEST_DIR/std_data/bug16204175/

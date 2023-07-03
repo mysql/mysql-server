@@ -6,8 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 Test to show that combination of Backup + Restore and
 Binlog positioning correctly recovers a slave
 stop slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+=======
+>>>>>>> pr/231
 use test;
 create table ticker (a int primary key) engine=ndb;
 reset master;
@@ -36,7 +39,11 @@ select sleep(2);
 sleep(2)
 0
 Run backup snapshotstart
+<<<<<<< HEAD
 Starting SNAPSHOTSTART backup
+=======
+Starting backup
+>>>>>>> pr/231
 Backup started
 Waiting for backup to complete
 Backup completed
@@ -52,8 +59,11 @@ Replicate as normal
 use test;
 create table ticker (a int primary key) engine=ndb;
 start slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+>>>>>>> pr/231
 Expect 200 entries on Slave
 select count(1) from test.ticker;
 count(1)
@@ -64,8 +74,11 @@ max(a)
 Verify backup restoration is correct wrt binlog positions
 Restore backup on the slave
 stop slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+=======
+>>>>>>> pr/231
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 select @backup_rows:=count(1) from test.ticker;
@@ -74,8 +87,11 @@ select @backup_rows - @backup_max_val;
 @backup_rows - @backup_max_val
 0
 start slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+>>>>>>> pr/231
 Expect 200 rows when backup and binlog subset combined on slave
 select count(1) from test.ticker;
 count(1)
@@ -85,6 +101,7 @@ max(a)
 200
 Now check Binlog apply alone
 stop slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 truncate table test.ticker;
@@ -92,6 +109,11 @@ delete from mysql.ndb_apply_status;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+start slave;
+>>>>>>> pr/231
 select @log_rows:=count(1) from test.ticker;
 select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows
@@ -103,8 +125,11 @@ select @log_max_val;
 200
 Restore backup on the slave
 stop slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
+=======
+>>>>>>> pr/231
 truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 select @backup_rows:=count(1) from test.ticker;
@@ -113,8 +138,11 @@ select @backup_rows - @backup_max_val;
 @backup_rows - @backup_max_val
 0
 start slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+>>>>>>> pr/231
 Expect 200 rows when backup and binlog subset combined on slave
 select count(1) from test.ticker;
 count(1)
@@ -124,6 +152,7 @@ max(a)
 200
 Now check Binlog apply alone
 stop slave;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 truncate table test.ticker;
@@ -131,6 +160,11 @@ delete from mysql.ndb_apply_status;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+start slave;
+>>>>>>> pr/231
 select @log_rows:=count(1) from test.ticker;
 select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows

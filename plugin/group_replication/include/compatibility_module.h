@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/compatibility_module.h
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/compatibility_module.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,8 +124,12 @@ class Compatibility_module {
       @retval COMPATIBLE       The versions are compatible with each other
       @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
   */
+<<<<<<< HEAD
   Compatibility_type check_local_incompatibility(Member_version &to,
                                                  bool is_lowest_version);
+=======
+  Compatibility_type check_local_incompatibility(Member_version &to, bool is_lowest_version);
+>>>>>>> pr/231
 
   virtual ~Compatibility_module();
 

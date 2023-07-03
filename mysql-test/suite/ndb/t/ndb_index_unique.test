@@ -602,6 +602,7 @@ from
 
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
+<<<<<<< HEAD
    t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
 SELECT STRAIGHT_JOIN count(*) FROM 
    t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
@@ -625,6 +626,11 @@ SELECT STRAIGHT_JOIN count(*) FROM
    t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 SELECT STRAIGHT_JOIN count(*) FROM
    t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+=======
+   t1 JOIN t2 FORCE INDEX FOR JOIN (ix) ON t2.a=t1.a where t2.uq IS NULL;
+SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 FORCE INDEX FOR JOIN (ix) ON t2.a=t1.a where t2.uq IS NULL;
+>>>>>>> pr/231
 
 drop table t1,t2;
 
@@ -806,6 +812,7 @@ insert into t2 values (4);
 --echo #cleanup
 drop table t2, t1;
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#24444899 MYSQLD CRASHED WHILE DROPPING UNIQUE KEY ...
 --echo #  - test read using unique key where keys are specified in
@@ -836,6 +843,8 @@ SELECT t1.i FROM t1, t2
 
 DROP TABLE t1, t2;
 
+=======
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug#33317872 Incorrect Index selected leading to slower execution of queries
@@ -932,10 +941,19 @@ insert into t (msg_id, auth_login_type, auth_login_id) values
 #SET end_markers_in_json=on;
 #SET optimizer_trace="enabled=on,one_line=off";
 
+<<<<<<< HEAD
 explain format=tree
+=======
+explain
+>>>>>>> pr/231
   select * from t
   where auth_login_type='5' AND auth_login_id = '81774133' AND msg_id IN (4866,4869);
 
 #SELECT * FROM information_schema.optimizer_trace;
 
 drop table t;
+<<<<<<< HEAD
+=======
+
+# end of tests
+>>>>>>> pr/231

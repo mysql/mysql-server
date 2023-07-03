@@ -1,4 +1,12 @@
+<<<<<<< HEAD:mysys/my_default.cc
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_default.cc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +164,7 @@ PSI_memory_key key_memory_defaults;
 
    See BUG#25192
 */
+<<<<<<< HEAD
 static const char *args_separator = "----args-separator----";
 inline static void set_args_separator(const char **arg) {
   assert(my_getopt_use_args_separator);
@@ -175,6 +184,13 @@ void set_persist_args_separator(char **arg) {
 }
 bool my_getopt_is_ro_persist_args_separator(const char *arg) {
   return (arg == persist_args_separator);
+=======
+static const char *args_separator= "----args-separator----";
+inline static void set_args_separator(char** arg)
+{
+  assert(my_getopt_use_args_separator);
+  *arg= (char*)args_separator;
+>>>>>>> upstream/cluster-7.6
 }
 
 /*
@@ -1058,14 +1074,37 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       goto err;
     }
 
+<<<<<<< HEAD:mysys/my_default.cc
     /* comments are not supported in login file */
     if (!is_login_file)
       end = remove_end_comment(ptr);
     else
       end = ptr + strlen(ptr);
 
+=======
+<<<<<<< HEAD
+    end = remove_end_comment(ptr);
+>>>>>>> pr/231:mysys_ssl/my_default.cc
     if ((value = strchr(ptr, '='))) end = value; /* Option without argument */
     for (; my_isspace(&my_charset_latin1, end[-1]); end--) {
+=======
+    /* comments are not supported in login file */
+    if (!is_login_file)
+      end = remove_end_comment(ptr);
+    else
+      end = ptr + strlen(ptr);
+
+    if ((value= strchr(ptr, '=')))
+      end= value;				/* Option without argument */
+    for ( ; my_isspace(&my_charset_latin1, end[-1]) ; end--)
+    {}
+
+    if (!value)
+    {
+      strmake(my_stpcpy(option,"--"),ptr, (size_t) (end-ptr));
+      if (opt_handler(handler_ctx, curr_gr, option))
+        goto err;
+>>>>>>> upstream/cluster-7.6
     }
 
     /* Self freeing option buffer */
@@ -1561,8 +1600,17 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs) {
   len = normalize_dirname(buf, dir);
   if (!(p = strmake_root(alloc, buf, len))) return 1; /* Failure */
   /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
+<<<<<<< HEAD
   err = array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
+<<<<<<< HEAD:mysys/my_default.cc
   assert(err == false);
+=======
+  DBUG_ASSERT(err == false);
+=======
+  err= array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
+  assert(err == FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_default.cc
 
   return 0;
 }

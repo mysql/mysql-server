@@ -45,8 +45,13 @@ call mtr.add_suppression("Member version is incompatible with the group");
 SET session sql_log_bin=1;
 
 SET @debug_saved= @@GLOBAL.DEBUG;
+<<<<<<< HEAD
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_lower';
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+=======
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_minor';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
+>>>>>>> pr/231
 SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a66";
 
 # The start will fail as the node is declared incompatible with the group
@@ -63,8 +68,9 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

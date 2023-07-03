@@ -81,11 +81,16 @@ INSERT INTO t1 VALUES (2);
 RESET MASTER;
 DROP TABLE t1;
 
+<<<<<<< HEAD
 ## BUG26035544 Assert that an error was logged to the server error log.
+=======
+# BUG26035544 Assert that an error was logged to the server error log.
+>>>>>>> pr/231
 --let $assert_select = Binary logging not possible. Message: Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid. Server is being stopped.
 --let $assert_count = 1
 --let $assert_text = ER_GNO_EXHAUSTED server is being stopped found in server error log
 --source include/assert_grep.inc
+<<<<<<< HEAD
 
 ##############################################################################
 # ==== Purpose ====
@@ -224,3 +229,5 @@ RESET MASTER;
 
 # Cleanup
 --source include/restart_mysqld.inc
+=======
+>>>>>>> pr/231

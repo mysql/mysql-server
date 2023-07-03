@@ -77,5 +77,21 @@ SHOW WARNINGS;
 # Start NDB nodes back up again
 --source ndb_restart_start.inc
 
+<<<<<<< HEAD
 # Wait until mysqld has connected properly to cluster again
+=======
+<<<<<<< HEAD
+
+
+# NOTE! this is a workaround so that check-testcase after test
+# see the mysql.ndb_schema table(if not connected, 'find_files'
+# will hide the table)
+#
+# Wait until mysqld has connected properly to cluster
+=======
+# Wait until mysqld has connected properly to cluster again
+--disable_result_log
+--disable_query_log
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 source include/ndb_not_readonly.inc;

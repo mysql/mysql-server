@@ -7,7 +7,7 @@ SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
 SET GLOBAL group_replication_start_on_boot= 1;
 include/assert.inc [The value of group name should be 8a94f357-aab4-11df-86ab-c80aa9429563]
 include/assert.inc [The value of group_replication_start_on_boot should be 1]
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 include/start_group_replication.inc

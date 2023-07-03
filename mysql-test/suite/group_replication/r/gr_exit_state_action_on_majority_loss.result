@@ -17,10 +17,15 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("\\[GCS\\] read failed");
+<<<<<<< HEAD
 call mtr.add_suppression("The plugin encountered a critical error and will abort: This member could not reach a majority of the members.");
 SET SESSION sql_log_bin = 1;
 [connection server3]
 [connection server1]
+=======
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+SET SESSION sql_log_bin = 1;
+>>>>>>> pr/231
 [connection server2]
 [connection server3]
 
@@ -50,11 +55,19 @@ include/rpl_reconnect.inc
 [connection server2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_group_replication.inc
 include/rpl_reconnect.inc
 [connection server3]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
@@ -81,16 +94,28 @@ include/rpl_reconnect.inc
 [connection server1]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_and_bootstrap_group_replication.inc
 include/rpl_reconnect.inc
 [connection server2]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER2";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER2";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_group_replication.inc
 include/rpl_reconnect.inc
 [connection server3]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER3";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER3";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2001, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +84,7 @@ extern uint bitmap_n_copy(MY_BITMAP *dst, const MY_BITMAP *src,
 #define no_bytes_in_map(map) (((map)->n_bits + 7) / 8)
 #define no_words_in_map(map) (((map)->n_bits + 31) / 32)
 
+<<<<<<< HEAD
 static inline void bitmap_set_bit(MY_BITMAP *map, uint bit) {
   assert(bit < map->n_bits);
   ((uchar *)map->bitmap)[bit / 8] |= (1 << (bit & 7));
@@ -94,6 +103,33 @@ static inline void bitmap_clear_bit(MY_BITMAP *map, uint bit) {
 static inline bool bitmap_is_set(const MY_BITMAP *map, uint bit) {
   assert(bit < map->n_bits);
   return ((uchar *)map->bitmap)[bit / 8] & (1 << (bit & 7));
+=======
+static inline void bitmap_set_bit(MY_BITMAP *map, uint bit)
+{
+  assert(bit < map->n_bits);
+  ((uchar*)map->bitmap)[bit / 8] |= (1 << (bit & 7));
+}
+
+
+static inline void bitmap_flip_bit(MY_BITMAP *map, uint bit)
+{
+  assert(bit < map->n_bits);
+  ((uchar*)map->bitmap)[bit / 8] ^= (1 << (bit & 7));
+}
+
+
+static inline void bitmap_clear_bit(MY_BITMAP *map, uint bit)
+{
+  assert(bit < map->n_bits);
+  ((uchar*)map->bitmap)[bit / 8] &= ~(1 << (bit & 7));
+}
+
+
+static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
+{
+  assert(bit < map->n_bits);
+  return ((uchar*)map->bitmap)[bit / 8] & (1 << (bit & 7));
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -104,9 +140,21 @@ static inline bool bitmap_is_set(const MY_BITMAP *map, uint bit) {
    @retval true The bitmaps are equal.
    @retval false The bitmaps differ.
  */
+<<<<<<< HEAD
 static inline bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2) {
+<<<<<<< HEAD
   assert(map1->n_bits > 0);
   assert(map2->n_bits > 0);
+=======
+  DBUG_ASSERT(map1->n_bits > 0);
+  DBUG_ASSERT(map2->n_bits > 0);
+=======
+static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
+{
+  assert(map1->n_bits > 0);
+  assert(map2->n_bits > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (memcmp(map1->bitmap, map2->bitmap, 4 * (no_words_in_map(map1) - 1)) != 0)
     return false;

@@ -78,7 +78,12 @@ disconnect con1;
 
 --echo
 CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+<<<<<<< HEAD
 query_vertical SELECT User,plugin FROM mysql.user
+=======
+--replace_column 3 #
+query_vertical SELECT User,plugin,authentication_string FROM mysql.user
+>>>>>>> upstream/cluster-7.6
 WHERE USER='user4';
 --echo
 CREATE USER user6@localhost IDENTIFIED WITH 'mysql_native_password';
@@ -222,7 +227,11 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
             u22@localhost IDENTIFIED WITH 'test_plugin_server',
+<<<<<<< HEAD
             u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
+=======
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+>>>>>>> upstream/cluster-7.6
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 query_vertical SELECT User,plugin,ssl_type,ssl_cipher,
@@ -828,7 +837,13 @@ DROP USER user1@localhost,u1@localhost, u2@localhost, u3@localhost, u4@localhost
           u5@localhost,u6@localhost, u7@localhost, u8@localhost, u9@localhost,
           u10@localhost,u11@localhost, u12@localhost, u13@localhost,
           u14@localhost,u15@localhost;
+<<<<<<< HEAD
 
+=======
+--echo
+--echo # GRANT
+--echo
+>>>>>>> upstream/cluster-7.6
 CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password'
             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
@@ -1110,7 +1125,198 @@ DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+<<<<<<< HEAD
 TRUNCATE TABLE mysql.general_log;
+=======
+
+<<<<<<< HEAD
+=======
+--echo
+--echo # Test general log with log_builtin_as_identified_by_password ON
+
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+
+--echo # Restarting the server with log_builtin_as_identified_by_password ON
+
+# Write file to make mysql-test-run.pl wait for the server to stop.
+--exec echo "wait" > $expect_file
+
+# Request shutdown
+--send_shutdown
+#--sleep 1
+# Call script that will poll the server waiting for it to disapear
+--source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+--exec echo "restart:--log-builtin-as-identified-by-password=ON --log-bin" > $expect_file
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+SHOW GLOBAL VARIABLES LIKE 'log_bin';
+
+# Get rid of previous tests binlog
+--disable_query_log
+reset master;
+--enable_query_log
+
+CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
+                            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password'
+                            REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password'
+                             PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password'
+                             PASSWORD EXPIRE NEVER;
+
+CREATE USER u2@localhost IDENTIFIED BY 'meow';
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
+                          REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+                          SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+                          ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+                          WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+                         REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
+                            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+                            SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+                            ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+                            PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
+                            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                            ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
+                            MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                             ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
+                             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                             ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
+--connect(con1, localhost, u1, 'azundris1')
+SELECT USER();
+ALTER USER USER() IDENTIFIED BY 'new-auth';
+connection default;
+disconnect con1;
+
+GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1'
+                                       WITH GRANT OPTION;
+SET PASSWORD FOR u3@localhost = 'def';
+CREATE USER user10@localhost
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+GRANT SELECT ON mysql.user TO user8@localhost
+      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+
+--echo # Show binlog events
+--source include/show_binlog_events.inc
+
+# Cleanup
+DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
+          user12@localhost,user13@localhost,user14@localhost,user15@localhost,
+          user16@localhost,u10@localhost,u1,u2@localhost,u3@localhost;
+
+# Make sure we start with a clean slate. log_tables.test says this is OK.
+TRUNCATE TABLE mysql.general_log;
+
+--echo --------------- general log ---------------------------------------
+
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+let $general_file_on = $MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_password_ON.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SET GLOBAL general_log_file = '$general_file_on';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
+                            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password'
+                            REQUIRE SSL;
+CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password'
+                             PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password'
+                             PASSWORD EXPIRE NEVER;
+
+CREATE USER u2@localhost IDENTIFIED BY 'meow';
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
+                          REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+                          SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+                          ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+                          WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+                         REQUIRE SSL;
+ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
+                            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+                            SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+                            ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+                            PASSWORD EXPIRE  DEFAULT ACCOUNT UNLOCK;
+ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
+                            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                            ACCOUNT UNLOCK PASSWORD  EXPIRE INTERVAL 90 DAY;
+CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
+                            MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                             ACCOUNT LOCK;
+CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
+                             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                             ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
+--connect(con1, localhost, u1, 'azundris1')
+SELECT USER();
+ALTER USER USER() IDENTIFIED BY 'new-auth';
+connection default;
+disconnect con1;
+
+GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1'
+                                       WITH GRANT OPTION;
+SET PASSWORD FOR u3@localhost = 'def';
+CREATE USER user10@localhost
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+GRANT SELECT ON mysql.user TO user8@localhost
+      IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+
+CREATE TABLE test_log (argument TEXT);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$general_file_on'
+INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+
+--echo Show what is logged:
+--echo ------ rewrite ------
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+--echo ------ done ------
+
+# Cleanup
+DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
+          user12@localhost,user13@localhost,user14@localhost,user15@localhost,
+          user16@localhost,u10@localhost,u1,u2@localhost,u3@localhost;
+
+--remove_file $general_file_on
+
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+--echo
+--echo End of 5.7 tests!
+--echo
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 --echo
 --echo Bug #20602525 ALTER USER DOES NOT VERIFY AUTH PLUGIN

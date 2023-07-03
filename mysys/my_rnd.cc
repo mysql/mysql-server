@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD:mysys/my_rnd.cc
    Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_rnd.cc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +34,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 /**
+<<<<<<< HEAD:mysys/my_rnd.cc
   @file mysys/my_rnd.cc
+=======
+  @file mysys_ssl/my_rnd.cc
+=======
+#include <my_rnd.h>
+
+#if defined(HAVE_OPENSSL)
+#include <openssl/rand.h>
+#include <openssl/err.h>
+#endif /* HAVE_OPENSSL */
+
+
+/*
+  A wrapper to use OpenSSL PRNGs.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_rnd.cc
 */
 
 #include "my_rnd.h"
@@ -64,9 +89,17 @@ Fill a buffer with random bytes using the SSL library routines
 */
 int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
   int rc;
+<<<<<<< HEAD
   rc = RAND_bytes(buffer, (int)buffer_size);
 
   if (!rc) {
+=======
+#if defined(HAVE_OPENSSL)
+  rc= RAND_bytes(buffer, buffer_size);
+
+  if (!rc)
+  {
+>>>>>>> upstream/cluster-7.6
     ERR_clear_error();
     return 1;
   }
@@ -74,7 +107,15 @@ int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
 }
 
 /**
+<<<<<<< HEAD:mysys/my_rnd.cc
   Generate a random number using the OpenSSL supplied
+=======
+<<<<<<< HEAD
+  Generate a random number using the OpenSSL/wolfSSL supplied
+=======
+  Generate a random number using the OpenSSL supplied
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_rnd.cc
   random number generator if available.
 
   @param [out] failed set to TRUE if the method failed. FALSE if OK.

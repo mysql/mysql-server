@@ -69,4 +69,8 @@ inline uint32_t clzll(uint64_t x) {
 } // namespace internal
 RAPIDJSON_NAMESPACE_END
 
+<<<<<<< HEAD
 #endif // RAPIDJSON_CLZLL_H_
+=======
+#endif // RAPIDJSON_CLZLL_H_
+>>>>>>> pr/231

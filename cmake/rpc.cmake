@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -18,12 +22,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
+<<<<<<< HEAD
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+=======
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+>>>>>>> pr/231
 
 IF(WIN32)
   RETURN()
 ENDIF()
 
+<<<<<<< HEAD
 FUNCTION(WARN_MISSING_RPCGEN_EXECUTABLE)
   IF(NOT RPCGEN_EXECUTABLE)
     MESSAGE(WARNING "Cannot find rpcgen executable. "
@@ -49,6 +58,22 @@ ENDFUNCTION()
 MACRO(MYSQL_CHECK_RPC)
   IF(LINUX AND NOT LIBTIRPC_VERSION_TOO_OLD)
     MYSQL_CHECK_PKGCONFIG()
+=======
+MACRO(MYSQL_CHECK_RPC)
+  IF(LINUX AND NOT LIBTIRPC_VERSION_TOO_OLD)
+    # Do a sanity check, before bailing out in FIND_PACKAGE below.
+    FIND_PROGRAM(MY_PKG_CONFIG_EXECUTABLE NAMES pkg-config
+      DOC "pkg-config executable")
+    IF(NOT MY_PKG_CONFIG_EXECUTABLE)
+      MESSAGE(WARNING "Cannot find pkg-config. You need to "
+        "install the required package:\n"
+        "  Debian/Ubuntu:              apt install pkg-config\n"
+        "  RedHat/Fedora/Oracle Linux: yum install pkg-config\n"
+        "  SuSE:                       zypper install pkg-config\n"
+        )
+    ENDIF()
+    FIND_PACKAGE(PkgConfig REQUIRED)
+>>>>>>> pr/231
     PKG_CHECK_MODULES(TIRPC libtirpc)
   ENDIF()
 
@@ -84,7 +109,10 @@ MACRO(MYSQL_CHECK_RPC)
   ENDIF()
 
   IF(NOT RPC_INCLUDE_DIRS)
+<<<<<<< HEAD
     WARN_MISSING_SYSTEM_TIRPC()
+=======
+>>>>>>> pr/231
     MESSAGE(FATAL_ERROR
       "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
   ENDIF()

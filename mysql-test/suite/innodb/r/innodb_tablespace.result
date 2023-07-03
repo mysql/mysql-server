@@ -707,12 +707,17 @@ DROP TABLE t1;
 # Bug#27903881 [MYSQL 8.0 GA RELEASE & DEBUG BUILD]
 # FIL_SPACE_GET(TABLE->SPACE) != __NULL
 #
+<<<<<<< HEAD
+=======
+call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+>>>>>>> pr/231
 CREATE TABLE t1(c1 INT,c2 CHAR,c3 DATE)PARTITION BY HASH(DAYOFWEEK(c3));
 ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
 ERROR HY000: Tablespace has been discarded for table 't1'
 UNLOCK TABLES;
 DROP TABLE t1;
+<<<<<<< HEAD
 #
 # Bug#29492113 TABLE NOT ACCESSIBLE AFTER MOVING THE IBD FILE,
 # WHEN THE DATABASE NAME HAS "/"
@@ -850,3 +855,5 @@ abc/def/xyz/123#p#p1#sp#s3	Single
 #
 DROP DATABASE `abc/def`;
 # restart:
+=======
+>>>>>>> pr/231

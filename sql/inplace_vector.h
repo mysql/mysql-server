@@ -1,7 +1,15 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,18 +81,44 @@ class Inplace_vector {
     @return the object pointer stored in the specified slot; NULL if need
             to allocate more space but out of memory.
    */
+<<<<<<< HEAD
   objtype *get_space(size_t index) {
     assert(index <= m_obj_count);
     size_t arr_id = index / array_size;
     size_t slot_id = index % array_size;
+<<<<<<< HEAD
     objtype *ptr = nullptr;
+=======
+    objtype *ptr = NULL;
+=======
+  objtype *get_space(size_t index)
+  {
+    assert(index <= m_obj_count);
+    size_t arr_id= index / array_size;
+    size_t slot_id= index % array_size;
+    objtype *ptr= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     assert(arr_id <= m_obj_arrays.size());
 
     // Appending a new slot causes appending a new array.
+<<<<<<< HEAD
     if (arr_id == m_obj_arrays.size()) {
+<<<<<<< HEAD
       assert(slot_id == 0);
       if (m_outof_mem) return nullptr;
+=======
+      DBUG_ASSERT(slot_id == 0);
+      if (m_outof_mem) return NULL;
+=======
+    if (arr_id == m_obj_arrays.size())
+    {
+      assert(slot_id == 0);
+      if (m_outof_mem)
+        return NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       append_new_array();
       if (m_outof_mem) return nullptr;
     }
@@ -128,8 +162,18 @@ class Inplace_vector {
                  within valid in-use range of the vector.
     @return The element address specified by index; NULL if out of memory.
    */
+<<<<<<< HEAD
   objtype *get_object(size_t index) {
+<<<<<<< HEAD
     assert(index < m_obj_count);
+=======
+    DBUG_ASSERT(index < m_obj_count);
+=======
+  objtype *get_object(size_t index)
+  {
+    assert(index < m_obj_count);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return get_space(index);
   }
 
@@ -221,9 +265,16 @@ class Inplace_vector {
     STL std::vector::back interface.
     @return the reference of the last object stored in the vector.
     */
+<<<<<<< HEAD
   const objtype &back() const {
     assert(size() > 0);
     objtype *p = get_object(size() - 1);
+=======
+  const objtype &back() const
+  {
+    assert(size() > 0);
+    objtype *p= get_object(size() - 1);
+>>>>>>> upstream/cluster-7.6
     return *p;
   }
 
@@ -231,9 +282,16 @@ class Inplace_vector {
     STL std::vector::back interface.
     @return the reference of the last object stored in the vector.
     */
+<<<<<<< HEAD
   objtype &back() {
     assert(size() > 0);
     objtype *p = get_object(size() - 1);
+=======
+  objtype &back()
+  {
+    assert(size() > 0);
+    objtype *p= get_object(size() - 1);
+>>>>>>> upstream/cluster-7.6
     return *p;
   }
 
@@ -243,9 +301,16 @@ class Inplace_vector {
              within valid in-use range of the vector.
     @return The element reference specified by index.
     */
+<<<<<<< HEAD
   const objtype &operator[](size_t i) const {
     assert(i < size());
     objtype *p = get_object(i);
+=======
+  const objtype &operator[](size_t i) const
+  {
+    assert(i < size());
+    objtype *p= get_object(i);
+>>>>>>> upstream/cluster-7.6
     return *p;
   }
 
@@ -255,9 +320,16 @@ class Inplace_vector {
              within valid in-use range of the vector.
     @return The element reference specified by index.
     */
+<<<<<<< HEAD
   objtype &operator[](size_t i) {
     assert(i < size());
     objtype *p = get_object(i);
+=======
+  objtype &operator[](size_t i)
+  {
+    assert(i < size());
+    objtype *p= get_object(i);
+>>>>>>> upstream/cluster-7.6
     return *p;
   }
 

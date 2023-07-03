@@ -44,9 +44,19 @@ include/sync_slave_sql_with_master.inc
 #
 [connection master]
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+<<<<<<< HEAD
 INSERT INTO a.test(id, age) VALUES (1,5);
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+=======
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO a.test(id, age) VALUES (1,5);
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 INSERT INTO b.test(id,age) SELECT id , age FROM a.test;
 SET sql_mode = default;
 DROP DATABASE a;

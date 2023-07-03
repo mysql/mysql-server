@@ -1,7 +1,15 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,6 +437,54 @@ class Item_func : public Item_result_field {
     set_arguments(list, false);
   }
 
+<<<<<<< HEAD
+=======
+  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
+    allowed_arg_cols(1), arg_count(5)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
+      with_sum_func= a->with_sum_func || b->with_sum_func ||
+	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+    }
+    else
+      arg_count= 0; // OOM
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
+    : super(pos), allowed_arg_cols(1), arg_count(5)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
+    }
+    else
+      arg_count= 0; // OOM
+  }
+  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e,Item* f):
+    allowed_arg_cols(1), arg_count(6)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*6)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e; args[5]= f;
+      with_sum_func= a->with_sum_func || b->with_sum_func ||
+      c->with_sum_func || d->with_sum_func || e->with_sum_func || f->with_sum_func;
+    }
+    else
+      arg_count= 0; // OOM
+  }
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e, Item* f)
+    : super(pos), allowed_arg_cols(1), arg_count(6)
+  {
+    if ((args= (Item**) sql_alloc(sizeof(Item*)*6)))
+    {
+      args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;args[5]= f;
+    }
+    else
+      arg_count= 0; // OOM
+  }
+  Item_func(List<Item> &list);
+>>>>>>> upstream/cluster-7.6
   Item_func(const POS &pos, PT_item_list *opt_list);
 
   // Constructor used for Item_cond_and/or (see Item comment)
@@ -474,6 +530,19 @@ class Item_func : public Item_result_field {
   virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return false; }
   virtual Item *key_item() const { return args[0]; }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  inline Item **arguments() const {
+    DBUG_ASSERT(argument_count() > 0);
+    return args;
+  }
+=======
+  virtual bool const_item() const { return const_item_cache; }
+  inline Item **arguments() const
+  { assert(argument_count() > 0); return args; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /**
     Copy arguments from list to args array
 
@@ -567,9 +636,17 @@ class Item_func : public Item_result_field {
     return (error == E_DEC_OVERFLOW) ? raise_decimal_overflow() : error;
   }
 
+<<<<<<< HEAD
   bool has_timestamp_args() {
     assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
+=======
+  bool has_timestamp_args()
+  {
+    assert(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+>>>>>>> upstream/cluster-7.6
       if (args[i]->type() == Item::FIELD_ITEM &&
           args[i]->data_type() == MYSQL_TYPE_TIMESTAMP)
         return true;
@@ -577,9 +654,17 @@ class Item_func : public Item_result_field {
     return false;
   }
 
+<<<<<<< HEAD
   bool has_date_args() {
     assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
+=======
+  bool has_date_args()
+  {
+    assert(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+>>>>>>> upstream/cluster-7.6
       if (args[i]->type() == Item::FIELD_ITEM &&
           (args[i]->data_type() == MYSQL_TYPE_DATE ||
            args[i]->data_type() == MYSQL_TYPE_DATETIME))
@@ -588,9 +673,17 @@ class Item_func : public Item_result_field {
     return false;
   }
 
+<<<<<<< HEAD
   bool has_time_args() {
     assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
+=======
+  bool has_time_args()
+  {
+    assert(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+>>>>>>> upstream/cluster-7.6
       if (args[i]->type() == Item::FIELD_ITEM &&
           (args[i]->data_type() == MYSQL_TYPE_TIME ||
            args[i]->data_type() == MYSQL_TYPE_DATETIME))
@@ -599,9 +692,17 @@ class Item_func : public Item_result_field {
     return false;
   }
 
+<<<<<<< HEAD
   bool has_datetime_args() {
     assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
+=======
+  bool has_datetime_args()
+  {
+    assert(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+>>>>>>> upstream/cluster-7.6
       if (args[i]->type() == Item::FIELD_ITEM &&
           args[i]->data_type() == MYSQL_TYPE_DATETIME)
         return true;
@@ -759,6 +860,7 @@ class Item_real_func : public Item_func {
     set_data_type_double();
   }
 
+<<<<<<< HEAD
   Item_real_func(const POS &pos, PT_item_list *list) : Item_func(pos, list) {
     set_data_type_double();
   }
@@ -770,6 +872,14 @@ class Item_real_func : public Item_func {
     return llrint_with_overflow_check(val_real());
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
+=======
+  String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *decimal_value);
+  longlong val_int()
+  { assert(fixed == 1); return (longlong) rint(val_real()); }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  {
+>>>>>>> upstream/cluster-7.6
     return get_date_from_real(ltime, fuzzydate);
   }
   bool get_time(MYSQL_TIME *ltime) override {
@@ -880,6 +990,7 @@ class Item_func_num1 : public Item_func_numhybrid {
   Item_func_num1(const POS &pos, Item *a, Item *b)
       : Item_func_numhybrid(pos, a, b) {}
 
+<<<<<<< HEAD
   void fix_num_length_and_dec() override;
   void set_numeric_type() override;
   String *str_op(String *) override {
@@ -894,6 +1005,15 @@ class Item_func_num1 : public Item_func_numhybrid {
     assert(0);
     return false;
   }
+=======
+  void fix_num_length_and_dec();
+  void find_num_type();
+  String *str_op(String *str) { assert(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  { assert(0); return 0; }
+  bool time_op(MYSQL_TIME *ltime)
+  { assert(0); return 0; }
+>>>>>>> upstream/cluster-7.6
 };
 
 /* Base class for operations like '+', '-', '*' */
@@ -910,6 +1030,7 @@ class Item_num_op : public Item_func_numhybrid {
     print_op(thd, str, query_type);
   }
 
+<<<<<<< HEAD
   void set_numeric_type() override;
   String *str_op(String *) override {
     assert(0);
@@ -923,6 +1044,14 @@ class Item_num_op : public Item_func_numhybrid {
     assert(0);
     return false;
   }
+=======
+  void find_num_type();
+  String *str_op(String *str) { assert(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  { assert(0); return 0; }
+  bool time_op(MYSQL_TIME *ltime)
+  { assert(0); return 0; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_int_func : public Item_func {
@@ -991,9 +1120,13 @@ class Item_func_connection_id final : public Item_int_func {
  public:
   Item_func_connection_id(const POS &pos) : Item_int_func(pos) {}
 
+<<<<<<< HEAD
   table_map get_initial_pseudo_tables() const override {
     return INNER_TABLE_BIT;
   }
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "connection_id"; }
   bool resolve_type(THD *thd) override;
@@ -1007,6 +1140,18 @@ class Item_func_connection_id final : public Item_int_func {
     return ((func_arg->source == VGS_GENERATED_COLUMN) ||
             (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
+<<<<<<< HEAD
+=======
+  bool check_gcol_func_processor(uchar *) override { return true; }
+=======
+  virtual bool itemize(Parse_context *pc, Item **res);
+  const char *func_name() const { return "connection_id"; }
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  longlong val_int() { assert(fixed == 1); return value; }
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 class Item_typecast_signed final : public Item_int_func {
@@ -1153,10 +1298,20 @@ class Item_func_mul final : public Item_num_op {
 
 class Item_func_div_base : public Item_num_op {
  public:
+<<<<<<< HEAD
   Item_func_div_base(const POS &pos, Item *a, Item *b)
       : Item_num_op(pos, a, b) {}
   Item_func_div_base(Item *a, Item *b) : Item_num_op(a, b) {}
   longlong int_op() override;
+=======
+  uint prec_increment;
+<<<<<<< HEAD
+  Item_func_div(const POS &pos, Item *a, Item *b) : Item_num_op(pos, a, b) {}
+  longlong int_op() override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
+>>>>>>> pr/231
   double real_op() override;
   my_decimal *decimal_op(my_decimal *) override;
   enum Functype functype() const override { return DIV_FUNC; }
@@ -1172,6 +1327,15 @@ class Item_func_div final : public Item_func_div_base {
   const char *func_name() const override { return "/"; }
   bool resolve_type(THD *thd) override;
   void result_precision() override;
+=======
+  Item_func_div(const POS &pos, Item *a,Item *b) :Item_num_op(pos, a,b) {}
+  longlong int_op() { assert(0); return 0; }
+  double real_op();
+  my_decimal *decimal_op(my_decimal *);
+  const char *func_name() const { return "/"; }
+  void fix_length_and_dec();
+  void result_precision();
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_func_div_int final : public Item_func_div_base {
@@ -1678,6 +1842,7 @@ class Item_func_length : public Item_int_func {
   }
 };
 
+<<<<<<< HEAD
 class Item_func_bit_length final : public Item_func_length {
  public:
   Item_func_bit_length(const POS &pos, Item *a) : Item_func_length(pos, a) {}
@@ -1686,6 +1851,15 @@ class Item_func_bit_length final : public Item_func_length {
     return Item_func_length::val_int() * 8;
   }
   const char *func_name() const override { return "bit_length"; }
+=======
+class Item_func_bit_length :public Item_func_length
+{
+public:
+  Item_func_bit_length(const POS &pos, Item *a) :Item_func_length(pos, a) {}
+  longlong val_int()
+  { assert(fixed == 1); return Item_func_length::val_int()*8; }
+  const char *func_name() const { return "bit_length"; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_func_char_length final : public Item_int_func {
@@ -2107,10 +2281,33 @@ class Item_udf_func : public Item_func {
   }
   ~Item_udf_func() override = default;
 
+<<<<<<< HEAD
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   enum Functype functype() const override { return UDF_FUNC; }
+<<<<<<< HEAD
   bool fix_fields(THD *thd, Item **ref) override;
+=======
+  bool fix_fields(THD *thd, Item **) override {
+    DBUG_ASSERT(fixed == 0);
+    bool res = udf.fix_fields(thd, this, arg_count, args);
+    used_tables_cache = udf.used_tables_cache;
+    fixed = true;
+=======
+  virtual bool itemize(Parse_context *pc, Item **res);
+  const char *func_name() const { return udf.name(); }
+  enum Functype functype() const   { return UDF_FUNC; }
+  bool fix_fields(THD *thd, Item **ref)
+  {
+    assert(fixed == 0);
+    bool res= udf.fix_fields(thd, this, arg_count, args);
+    used_tables_cache= udf.used_tables_cache;
+    const_item_cache= udf.const_item_cache;
+    fixed= 1;
+>>>>>>> upstream/cluster-7.6
+    return res;
+  }
+>>>>>>> pr/231
   void update_used_tables() override {
     /*
       TODO: Make a member in UDF_INIT and return if a UDF is deterministic or
@@ -2178,11 +2375,22 @@ class Item_udf_func : public Item_func {
 
 class Item_func_udf_float final : public Item_udf_func {
  public:
+<<<<<<< HEAD
   Item_func_udf_float(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
       : Item_udf_func(pos, udf_arg, opt_list) {}
   longlong val_int() override {
     assert(fixed == 1);
     return (longlong)rint(Item_func_udf_float::val_real());
+=======
+  Item_func_udf_float(const POS &pos, udf_func *udf_arg,
+                      PT_item_list *opt_list)
+    :Item_udf_func(pos, udf_arg, opt_list)
+  {}
+  longlong val_int()
+  {
+    assert(fixed == 1);
+    return (longlong) rint(Item_func_udf_float::val_real());
+>>>>>>> upstream/cluster-7.6
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     double res = val_real();
@@ -3302,6 +3510,7 @@ class Item_user_var_as_out_param : public Item {
     item_name.copy(a);
   }
   /* We should return something different from FIELD_ITEM here */
+<<<<<<< HEAD
   enum Type type() const override { return STRING_ITEM; }
   double val_real() override;
   longlong val_int() override;
@@ -3312,7 +3521,26 @@ class Item_user_var_as_out_param : public Item {
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
+<<<<<<< HEAD
     assert(0);
+=======
+    DBUG_ASSERT(0);
+=======
+  enum Type type() const { return STRING_ITEM;}
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *decimal_buffer);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  {
+    assert(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return true;
   }
 
@@ -3371,7 +3599,11 @@ class Item_func_get_system_var final : public Item_var_func {
   bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
+<<<<<<< HEAD
   const System_variable_tracker var_tracker;
+=======
+  Sys_var_tracker var_tracker;
+>>>>>>> pr/231
 
   template <typename T>
   longlong get_sys_var_safe(THD *thd, sys_var *var);
@@ -3400,14 +3632,22 @@ class Item_func_get_system_var final : public Item_var_func {
     return val_decimal_from_real(dec_buf);
   }
   /* TODO: fix to support views */
+<<<<<<< HEAD
   const char *func_name() const override { return "get_system_var"; }
   bool eq(const Item *item, bool binary_cmp) const override;
+<<<<<<< HEAD
   bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
     // Expressions which have system variables cannot be pushed as of
     // now because Item_func_get_system_var::print does not print the
     // original expression which leads to an incorrect clone.
     return true;
   }
+=======
+=======
+  const char *func_name() const { return "get_system_var"; }
+  bool eq(const Item *item, bool binary_cmp) const;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   void cleanup() override;
 };
@@ -3480,13 +3720,23 @@ class Item_func_match final : public Item_real_func {
   bool fix_fields(THD *thd, Item **ref) override;
   bool eq(const Item *, bool binary_cmp) const override;
   /* The following should be safe, even if we compare doubles */
+<<<<<<< HEAD
   longlong val_int() override {
     assert(fixed);
     return val_real() != 0.0;
   }
   double val_real() override;
+<<<<<<< HEAD
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+=======
+  void print(String *str, enum_query_type query_type) override;
+=======
+  longlong val_int() { assert(fixed == 1); return val_real() != 0.0; }
+  double val_real();
+  virtual void print(String *str, enum_query_type query_type);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   bool fix_index(const THD *thd);
   bool init_search(THD *thd);
@@ -3505,9 +3755,21 @@ class Item_func_match final : public Item_real_func {
 
      @return Number of matching rows in result
    */
+<<<<<<< HEAD
   ulonglong get_count() {
+<<<<<<< HEAD
     assert(ft_handler);
     assert(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+=======
+    DBUG_ASSERT(ft_handler);
+    DBUG_ASSERT(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+=======
+  ulonglong get_count()
+  {
+    assert(ft_handler);
+    assert(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return ((FT_INFO_EXT *)ft_handler)
         ->could_you->count_matches((FT_INFO_EXT *)ft_handler);
@@ -3519,16 +3781,34 @@ class Item_func_match final : public Item_real_func {
      @return true if result is ordered
      @return false otherwise
    */
+<<<<<<< HEAD
   bool ordered_result() {
     assert(!master);
     if (hints->get_flags() & FT_SORTED) return true;
+=======
+  bool ordered_result()
+  {
+    assert(!master);
+    if (hints->get_flags() & FT_SORTED)
+      return true;
+>>>>>>> upstream/cluster-7.6
 
     if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
+<<<<<<< HEAD
     assert(ft_handler);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(ft_handler);
+>>>>>>> pr/231
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() &
            FTS_ORDERED_RESULT;
+=======
+    assert(ft_handler);
+    return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
+      FTS_ORDERED_RESULT;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -3537,8 +3817,18 @@ class Item_func_match final : public Item_real_func {
      @return true if document ID is available
      @return false otherwise
    */
+<<<<<<< HEAD
   bool docid_in_result() {
+<<<<<<< HEAD
     assert(ft_handler);
+=======
+    DBUG_ASSERT(ft_handler);
+=======
+  bool docid_in_result()
+  {
+    assert(ft_handler);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
@@ -3577,8 +3867,18 @@ class Item_func_match final : public Item_real_func {
 
      @return pointer to Ft_hints object
   */
+<<<<<<< HEAD
   Ft_hints *get_hints() {
+<<<<<<< HEAD
     assert(!master);
+=======
+    DBUG_ASSERT(!master);
+=======
+  Ft_hints *get_hints()
+  {
+    assert(!master);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return hints;
   }
 
@@ -3588,8 +3888,18 @@ class Item_func_match final : public Item_real_func {
      @param type   comparison operation type
      @param value_arg  comparison operation value
   */
+<<<<<<< HEAD
   void set_hints_op(enum ft_operation type, double value_arg) {
+<<<<<<< HEAD
     assert(!master);
+=======
+    DBUG_ASSERT(!master);
+=======
+  void set_hints_op(enum ft_operation type, double value_arg)
+  {
+    assert(!master);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     hints->set_hint_op(type, value_arg);
   }
 
@@ -3604,12 +3914,22 @@ class Item_func_match final : public Item_real_func {
      @return true if ranking is not needed
      @return false otherwise
   */
+<<<<<<< HEAD
   bool can_skip_ranking() {
     assert(!master);
     return (!(hints->get_flags() & FT_SORTED) &&  // FT_SORTED is no set
             used_in_where_only &&                 // MATCH result is not used
                                                   // in expression
             hints->get_op_type() == FT_OP_NO);    // MATCH is single function
+=======
+  bool can_skip_ranking()
+  {
+    assert(!master);
+    return (!(hints->get_flags() & FT_SORTED) && // FT_SORTED is no set
+            used_in_where_only &&                // MATCH result is not used
+                                                 // in expression
+            hints->get_op_type() == FT_OP_NO);   // MATCH is single function
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -3617,9 +3937,16 @@ class Item_func_match final : public Item_real_func {
 
      @param val true if the function is a simple expression, false otherwise
   */
+<<<<<<< HEAD
   void set_simple_expression(bool val) {
     assert(!master);
     simple_expression = val;
+=======
+  void set_simple_expression(bool val)
+  {
+    assert(!master);
+    simple_expression= val;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -3628,8 +3955,18 @@ class Item_func_match final : public Item_real_func {
      @return true if simple expression
      @return false otherwise
   */
+<<<<<<< HEAD
   bool is_simple_expression() {
+<<<<<<< HEAD
     assert(!master);
+=======
+    DBUG_ASSERT(!master);
+=======
+  bool is_simple_expression()
+  {
+    assert(!master);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return simple_expression;
   }
 
@@ -3920,6 +4257,7 @@ class Item_func_version final : public Item_static_string_func {
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
+<<<<<<< HEAD
 /**
   Internal function used by INFORMATION_SCHEMA implementation to check
   if a role is a mandatory role.
@@ -3992,6 +4330,11 @@ inline Item *get_system_variable(Parse_context *pc, enum_var_type scope,
 }
 
 extern bool check_reserved_words(const char *name);
+=======
+Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component, bool unsafe);
+extern bool check_reserved_words(LEX_STRING *name);
+>>>>>>> pr/231
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);

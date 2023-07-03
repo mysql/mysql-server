@@ -61,6 +61,14 @@ public:
 
     explicit PrettyWriter(StackAllocator* allocator = 0, size_t levelDepth = Base::kDefaultLevelDepth) : 
         Base(allocator, levelDepth), indentChar_(' '), indentCharCount_(4) {}
+<<<<<<< HEAD
+=======
+
+#if RAPIDJSON_HAS_CXX11_RVALUE_REFS
+    PrettyWriter(PrettyWriter&& rhs) :
+        Base(std::forward<PrettyWriter>(rhs)), indentChar_(rhs.indentChar_), indentCharCount_(rhs.indentCharCount_), formatOptions_(rhs.formatOptions_) {}
+#endif
+>>>>>>> upstream/cluster-7.6
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
     PrettyWriter(PrettyWriter&& rhs) :
@@ -92,6 +100,7 @@ public:
     */
     //@{
 
+<<<<<<< HEAD
     bool Null()                 { PrettyPrefix(kNullType);   return Base::EndValue(Base::WriteNull()); }
     bool Bool(bool b)           { PrettyPrefix(b ? kTrueType : kFalseType); return Base::EndValue(Base::WriteBool(b)); }
     bool Int(int i)             { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteInt(i)); }
@@ -99,12 +108,41 @@ public:
     bool Int64(int64_t i64)     { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteInt64(i64)); }
     bool Uint64(uint64_t u64)   { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteUint64(u64));  }
     bool Double(double d)       { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteDouble(d)); }
+=======
+<<<<<<< HEAD
+    bool Null()                 { PrettyPrefix(kNullType);   return Base::WriteNull(); }
+    bool Bool(bool b)           { PrettyPrefix(b ? kTrueType : kFalseType); return Base::WriteBool(b); }
+    bool Int(int i)             { PrettyPrefix(kNumberType); return Base::WriteInt(i); }
+    bool Uint(unsigned u)       { PrettyPrefix(kNumberType); return Base::WriteUint(u); }
+    bool Int64(int64_t i64)     { PrettyPrefix(kNumberType); return Base::WriteInt64(i64); }
+    bool Uint64(uint64_t u64)   { PrettyPrefix(kNumberType); return Base::WriteUint64(u64);  }
+    bool Double(double d)       { PrettyPrefix(kNumberType); return Base::WriteDouble(d); }
+>>>>>>> pr/231
+
+    bool RawNumber(const Ch* str, SizeType length, bool copy = false) {
+        RAPIDJSON_ASSERT(str != 0);
+        (void)copy;
+        PrettyPrefix(kNumberType);
+<<<<<<< HEAD
+        return Base::EndValue(Base::WriteString(str, length));
+=======
+        return Base::WriteString(str, length);
+=======
+    bool Null()                 { PrettyPrefix(kNullType);   return Base::EndValue(Base::WriteNull()); }
+    bool Bool(bool b)           { PrettyPrefix(b ? kTrueType : kFalseType); return Base::EndValue(Base::WriteBool(b)); }
+    bool Int(int i)             { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteInt(i)); }
+    bool Uint(unsigned u)       { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteUint(u)); }
+    bool Int64(int64_t i64)     { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteInt64(i64)); }
+    bool Uint64(uint64_t u64)   { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteUint64(u64));  }
+    bool Double(double d, bool is_int = false)       { PrettyPrefix(kNumberType); return Base::EndValue(Base::WriteDouble(d)); }
 
     bool RawNumber(const Ch* str, SizeType length, bool copy = false) {
         RAPIDJSON_ASSERT(str != 0);
         (void)copy;
         PrettyPrefix(kNumberType);
         return Base::EndValue(Base::WriteString(str, length));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     bool String(const Ch* str, SizeType length, bool copy = false) {
@@ -146,7 +184,15 @@ public:
             Base::os_->Put('\n');
             WriteIndent();
         }
+<<<<<<< HEAD
         bool ret = Base::EndValue(Base::WriteEndObject());
+=======
+<<<<<<< HEAD
+        bool ret = Base::WriteEndObject();
+=======
+        bool ret = Base::EndValue(Base::WriteEndObject());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         (void)ret;
         RAPIDJSON_ASSERT(ret == true);
         if (Base::level_stack_.Empty()) // end of json text
@@ -170,7 +216,15 @@ public:
             Base::os_->Put('\n');
             WriteIndent();
         }
+<<<<<<< HEAD
         bool ret = Base::EndValue(Base::WriteEndArray());
+=======
+<<<<<<< HEAD
+        bool ret = Base::WriteEndArray();
+=======
+        bool ret = Base::EndValue(Base::WriteEndArray());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         (void)ret;
         RAPIDJSON_ASSERT(ret == true);
         if (Base::level_stack_.Empty()) // end of json text
@@ -198,11 +252,21 @@ public:
         \param type Type of the root of json.
         \note When using PrettyWriter::RawValue(), the result json may not be indented correctly.
     */
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    bool RawValue(const Ch* json, size_t length, Type type) { PrettyPrefix(type); return Base::WriteRawValue(json, length); }
+=======
+>>>>>>> pr/231
     bool RawValue(const Ch* json, size_t length, Type type) {
         RAPIDJSON_ASSERT(json != 0);
         PrettyPrefix(type);
         return Base::EndValue(Base::WriteRawValue(json, length));
     }
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 protected:
     void PrettyPrefix(Type type) {
@@ -251,7 +315,15 @@ protected:
 
     void WriteIndent()  {
         size_t count = (Base::level_stack_.GetSize() / sizeof(typename Base::Level)) * indentCharCount_;
+<<<<<<< HEAD
         PutN(*Base::os_, static_cast<typename OutputStream::Ch>(indentChar_), count);
+=======
+<<<<<<< HEAD
+        PutN(*Base::os_, static_cast<typename TargetEncoding::Ch>(indentChar_), count);
+=======
+        PutN(*Base::os_, static_cast<typename OutputStream::Ch>(indentChar_), count);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     Ch indentChar_;

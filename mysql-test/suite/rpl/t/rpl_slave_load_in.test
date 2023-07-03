@@ -10,10 +10,19 @@
 # Bug#28541204 SECURE-FILE-PRIV BREAKS LOAD DATA INFILE REPLICATION IN
 #              STATEMENT MODE ON 5.7.23
 ##########################################################################
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> pr/231
 
 # This test does not work with var being a softlink.
 --source include/not_var_link.inc
 --source include/have_binlog_format_statement.inc
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --source include/master-slave.inc
 
 # Bug#28541204 SECURE-FILE-PRIV BREAKS LOAD DATA INFILE REPLICATION IN
@@ -40,6 +49,10 @@
 ##########################################################################
 --source include/rpl_connection_master.inc
 
+<<<<<<< HEAD
+=======
+create table t1(a int not null auto_increment, b int, primary key(a)) engine=myisam;
+>>>>>>> pr/231
 create table t2(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 
 
@@ -68,6 +81,12 @@ commit;
 --source include/assert.inc
 
 --source include/start_slave.inc
+<<<<<<< HEAD
+=======
+
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+>>>>>>> pr/231
 
 let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;

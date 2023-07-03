@@ -1,6 +1,16 @@
 /*
+<<<<<<< HEAD
  Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+ Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+ Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+ Use is subject to license terms.
+ 
+>>>>>>> upstream/cluster-7.6
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.

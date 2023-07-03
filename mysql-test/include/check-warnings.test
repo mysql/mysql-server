@@ -1,5 +1,13 @@
 #
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This test is executed once after each test to check the servers
 # for unexpected warnings found in the servers error log

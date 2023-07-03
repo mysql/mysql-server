@@ -13,6 +13,10 @@
 --echo
 
 --source include/no_protocol.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo ### Setup ###
 --echo

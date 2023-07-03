@@ -138,6 +138,7 @@ PRIMARY
 DROP TABLE t2;
 DROP TABLE t1;
 #
+<<<<<<< HEAD
 # BUG#25976199 GROUP_REPLICATION.GR_FOREIGN_CHECKS_DISABLED TEST FAILING
 # ON PB2
 #
@@ -275,6 +276,7 @@ ON DELETE CASCADE
 ) ENGINE=INNODB;
 ERROR 42000: Identifier name 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
 DROP TABLE parent;
+<<<<<<< HEAD
 # Test delete/update rules combination.
 CREATE TABLE t1
 (a INT NOT NULL,
@@ -552,6 +554,9 @@ id	for_name	ref_name
 test/......................................_ibfk_1	test/......................................	test/t1
 DROP TABLES `......................................`, t1;
 #
+=======
+=======
+>>>>>>> pr/231
 # Bug#33053297 VIRTUAL INDEX CORRUPTED DURING CASCADE UPDATE ON CHILD TABLE
 #
 #Test-Case 1
@@ -698,3 +703,7 @@ date_sent
 2020-10-22 13:32:41
 DROP TABLE `email_stats`;
 DROP TABLE `emails`;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

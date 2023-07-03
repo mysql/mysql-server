@@ -732,5 +732,8 @@ select output_line from ndb_restore_output where output_line like '%not specifie
 output_line
 Backup file node ID not specified, please provide --nodeid
 Backup ID not specified, please provide --backupid
+<<<<<<< HEAD
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+=======
+>>>>>>> pr/231

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +32,35 @@
 
 INCLUDE(CheckCSourceRuns)
 
+<<<<<<< HEAD
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
   SET(APPLE_ARM 1)
 ENDIF()
+=======
+<<<<<<< HEAD
+# We require at least Clang 3.6 (XCode 7).
+# Bug #26279510 OS X: ASSERTION FAILED: (TABLE_SHARE->TMP_TABLE !=
+# Clang 8.0.0 generates wrong code.
+=======
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+  SET(APPLE_ARM 1)
+ENDIF()
+
+# We require at least Clang 3.3 (XCode 5).
+>>>>>>> upstream/cluster-7.6
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        return !(__clang_major__ == 8 && __clang_minor__ == 0);
+      }"
+    HAVE_BUGGY_CLANG_VERSION)
+    IF(HAVE_BUGGY_CLANG_VERSION)
+      MESSAGE(FATAL_ERROR
+        "Clang version 8.0 is known to generate wrong code for MySQL, you should upgrade Xcode")
+    ENDIF()
+>>>>>>> pr/231
 
 # We require at least XCode 10.0
 IF(NOT FORCE_UNSUPPORTED_COMPILER)

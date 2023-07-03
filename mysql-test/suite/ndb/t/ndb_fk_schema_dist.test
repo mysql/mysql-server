@@ -1,5 +1,9 @@
 --source include/have_ndb.inc
 --source include/have_multi_ndb.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --connection server1
 --echo #setup tables
@@ -35,7 +39,11 @@ let $expect_alter_failure= 0;
 --echo #Testing create table
 let $ddl_query= create table child(
                   ref int,
+<<<<<<< HEAD
                   constraint fk1 foreign key (ref) references parent(a)
+=======
+                  foreign key fk1(ref) references parent(a)
+>>>>>>> pr/231
                 ) engine ndb;
 let $expect_alter_failure= 1;
 --source ndb_fk_schema_dist_test_parent.inc
@@ -43,7 +51,11 @@ let $expect_alter_failure= 1;
 --echo #Testing multiple alter FK create/drops : I
 let $ddl_query= alter table child
                   drop foreign key fk1,
+<<<<<<< HEAD
                   add constraint fk2 foreign key (ref) references parent(b);
+=======
+                  add foreign key fk2(ref) references parent(b);
+>>>>>>> pr/231
 let $expect_alter_failure= 0;
 --source ndb_fk_schema_dist_test_parent.inc
 
@@ -54,7 +66,11 @@ create table parent2(
 show create table child;
 alter table child
   drop foreign key fk2,
+<<<<<<< HEAD
   add constraint fk1 foreign key (ref) references parent(a);
+=======
+  add foreign key fk1(ref) references parent(a);
+>>>>>>> pr/231
 
 --echo #Testing multiple alter FK create/drops : II
 --echo #This also tests the fix for Bug#27646160
@@ -63,12 +79,20 @@ alter table child
 select * from parent2;
 let $ddl_query= alter table child
                   drop foreign key fk1,
+<<<<<<< HEAD
                   add constraint fk2 foreign key (ref) references parent2(a);
+=======
+                  add foreign key fk2(ref) references parent2(a);
+>>>>>>> pr/231
 let $expect_alter_failure= 0;
 --source ndb_fk_schema_dist_test_parent.inc
 --echo #altering column in parent2 should fail with error
 flush tables parent2;
+<<<<<<< HEAD
 --error ER_FK_INCOMPATIBLE_COLUMNS
+=======
+--error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+>>>>>>> pr/231
 alter table parent2
   change column a a varchar(64) not null;
 

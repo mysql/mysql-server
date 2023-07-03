@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -58,10 +77,18 @@ BEGIN
 
     DECLARE json_objects LONGTEXT;
 
+<<<<<<< HEAD
+=======
+    /*!50602
+>>>>>>> pr/231
     -- Do not track the current thread, it will kill the stack
     UPDATE performance_schema.threads
        SET instrumented = 'NO'
      WHERE processlist_id = CONNECTION_ID();
+<<<<<<< HEAD
+=======
+    */
+>>>>>>> pr/231
 
     SET SESSION group_concat_max_len=@@global.max_allowed_packet;
 
@@ -104,6 +131,10 @@ BEGIN
           ORDER BY event_id ASC SEPARATOR ',') event
     INTO json_objects
     FROM (
+<<<<<<< HEAD
+=======
+          /*!50600
+>>>>>>> pr/231
           -- Select all statements, with the extra tracing information available
           (SELECT thread_id, event_id, event_name, timer_wait, timer_start, nesting_event_id, 
                   CONCAT(sql_text, '\\n',
@@ -132,7 +163,11 @@ BEGIN
           -- Select all stages
           (SELECT thread_id, event_id, event_name, timer_wait, timer_start, nesting_event_id, null AS wait_info
              FROM performance_schema.events_stages_history_long WHERE thread_id = thd_id) 
+<<<<<<< HEAD
           UNION
+=======
+          UNION */
+>>>>>>> pr/231
           -- Select all events, adding information appropriate to the event
           (SELECT thread_id, event_id, 
                   CONCAT(event_name , 
@@ -146,7 +181,11 @@ BEGIN
                                 CONCAT(IF (object_name LIKE ':0%', @@socket, object_name)),
                                 object_name),
                             ''),
+<<<<<<< HEAD
                          IF(index_name IS NOT NULL, CONCAT(' Index: ', index_name), ''),'\\n'
+=======
+                         /*!50600 IF(index_name IS NOT NULL, CONCAT(' Index: ', index_name), ''),*/'\\n'
+>>>>>>> pr/231
                          ) AS event_name,
                   timer_wait, timer_start, nesting_event_id, source AS wait_info
              FROM performance_schema.events_waits_history_long WHERE thread_id = thd_id)) events 

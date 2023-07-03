@@ -3864,6 +3864,7 @@ SELECT 19.955934879;
 --exec echo "replace_numeric_round -1;" | $MYSQL_TEST 2>&1
 
 --echo #
+<<<<<<< HEAD
 --echo # BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
 --echo #
 
@@ -4021,6 +4022,8 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
 
 --echo #
+=======
+>>>>>>> upstream/cluster-7.6
 --echo # BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
 --echo #               STRINGS IN PATH NAME
 --echo #
@@ -4036,6 +4039,7 @@ EOF
 --replace_result $replace_string REPLACE_STRING tab1 t1
 --error 1
 --exec echo "SELECT $replace_string FROM tab1;" | $MYSQL_TEST  2>&1
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
@@ -4156,6 +4160,7 @@ EOF
 # Print the value of environment variable storing number of CPUs
 --replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
 --eval SELECT $NUMBER_OF_CPUS
+<<<<<<< HEAD
 
 --echo #
 --echo # WL#11811: Rename and enhance [disable|enable]_parser test commands
@@ -5061,3 +5066,7 @@ EOF
 --error 1
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/myt_assert4.test 2>&1
 --remove_file $MYSQLTEST_VARDIR/tmp/myt_assert4.test
+=======
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

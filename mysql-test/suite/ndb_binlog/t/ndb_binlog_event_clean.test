@@ -50,7 +50,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -78,7 +82,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -94,9 +102,15 @@ reset master;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -p -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES -p --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -107,9 +121,15 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -135,7 +155,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -163,7 +187,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -179,9 +207,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -198,9 +232,15 @@ show warnings;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -216,9 +256,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -247,7 +293,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -275,7 +325,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -291,9 +345,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -314,9 +374,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -346,7 +412,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -374,7 +444,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -390,9 +464,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -413,9 +493,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -445,7 +531,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -473,7 +563,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -489,9 +583,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -512,9 +612,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -543,7 +649,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -571,7 +681,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -587,9 +701,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -630,7 +750,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -658,7 +782,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -676,9 +804,15 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -704,7 +838,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -732,7 +870,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -748,9 +890,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -771,9 +919,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -806,7 +960,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -834,7 +992,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -850,9 +1012,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -881,7 +1049,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -909,7 +1081,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -925,9 +1101,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -948,9 +1130,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -981,7 +1169,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1009,7 +1201,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1025,9 +1221,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 6 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 6 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1048,9 +1250,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1080,7 +1288,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1108,7 +1320,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1124,9 +1340,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
 --source ndb_binlog_count_event_t1.inc
@@ -1147,9 +1369,15 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
 --source ndb_binlog_count_event_t1.inc
@@ -1179,7 +1407,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1207,7 +1439,11 @@ show binlog events;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
+<<<<<<< HEAD
 --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+=======
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+>>>>>>> pr/231
 
 create table raw_binlog_rows (txt varchar(1000));
 
@@ -1223,9 +1459,15 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 8 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Case 8 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1248,13 +1490,22 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
+<<<<<<< HEAD
   --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
+=======
+  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
+  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+>>>>>>> pr/231
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
 
 drop table test.synch;
+<<<<<<< HEAD
 --remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --remove_file $MYSQLTEST_VARDIR/tmp.dat
+=======
+>>>>>>> pr/231

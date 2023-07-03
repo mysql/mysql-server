@@ -206,7 +206,10 @@ SELECT * FROM t2;
 
 DROP TABLE t1,t2,t3;
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 --echo #
 --echo # Bug #29866408	SERVER CRASHES WHEN ADDING LONGTEXT COLUMN
 --echo #

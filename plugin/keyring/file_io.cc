@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +53,11 @@ bool is_super_user() {
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_super_privilege = false;
 
+<<<<<<< HEAD
   assert(thd != nullptr);
+=======
+  assert(thd != NULL);
+>>>>>>> pr/231
 
   if (thd == nullptr || thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_super",
@@ -187,7 +199,11 @@ bool File_io::truncate(File file, myf myFlags) {
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t)0) && (myFlags & MY_WME)) {
 #else
+<<<<<<< HEAD
   assert(0);
+=======
+    assert(0);
+>>>>>>> pr/231
 #endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
@@ -199,11 +215,19 @@ bool File_io::truncate(File file, myf myFlags) {
                 my_filename(file), strerror(errno));
     return true;
   }
+<<<<<<< HEAD
   //#else
   //  assert(0);
   //#endif
   return false;
 }  // namespace keyring
+=======
+//#else
+//  assert(0);
+//#endif
+  return FALSE;
+}
+>>>>>>> upstream/cluster-7.6
 
 void File_io::my_warning(int nr, ...) {
   va_list args;

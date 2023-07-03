@@ -32,8 +32,9 @@
 --connection server1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 
 connect(server1_1,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
@@ -187,9 +188,15 @@ SET GTID_NEXT= 'AUTOMATIC';
 --let $assert_cond= "$negatively_certified" = 0
 --source include/assert.inc
 
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_perfschema_group_member_stats.test
 --let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_rows_validating, 1)
 --let $assert_text= The value of Count_Transactions_rows_validating should be 2 after starting group replication
 --let $assert_cond= "$certification_db_size" = 2
+=======
+--let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats, Count_Transactions_rows_validating, 1)
+--let $assert_text= The value of Count_Transactions_rows_validating should be 6 after starting group replication
+--let $assert_cond= "$certification_db_size" = 6
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_perfschema_group_member_stats.test
 --source include/assert.inc
 
 --let $stable_set= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)

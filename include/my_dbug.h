@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10,6 +18,14 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+>>>>>>> upstream/cluster-7.6
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,6 +57,7 @@
 #include <stdio.h>
 #endif
 
+<<<<<<< HEAD
 /**
   Calls our own implementation of abort, if specified, or std's abort().
  */
@@ -53,6 +70,12 @@
  */
 void set_my_abort(void (*new_my_abort_func)());
 
+=======
+// Needs to be extern "C" for the time being, since extra/regex/ uses it.
+#ifdef __cplusplus
+extern "C" {
+#endif
+>>>>>>> pr/231
 #if !defined(NDEBUG)
 
 struct _db_stack_frame_ {
@@ -195,8 +218,19 @@ class AutoDebugTrace {
 #define DBUG_END() _db_end_()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#define DBUG_ASSERT(A) assert(A)
+>>>>>>> pr/231
 #define DBUG_EXPLAIN(buf, len) _db_explain_(0, (buf), (len))
 #define DBUG_EXPLAIN_INITIAL(buf, len) _db_explain_init_((buf), (len))
+=======
+#define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
+#define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
+#define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
+#define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
+>>>>>>> upstream/cluster-7.6
 #ifndef _WIN32
 #define DBUG_ABORT() (_db_flush_(), my_abort())
 #define DBUG_EXIT() (_db_flush_(), exit(2))
@@ -235,6 +269,11 @@ extern void _db_flush_gcov_();
   } while (false)
 #endif
 #define DBUG_ENTER(a1)
+<<<<<<< HEAD
+=======
+#define DBUG_LEAVE
+<<<<<<< HEAD
+>>>>>>> pr/231
 #define DBUG_RETURN(a1) \
   do {                  \
     return (a1);        \
@@ -278,6 +317,27 @@ extern void _db_flush_gcov_();
 #define DBUG_LOCK_FILE \
   do {                 \
   } while (0)
+=======
+#define DBUG_RETURN(a1)                 do { return(a1); } while(0)
+#define DBUG_VOID_RETURN                do { return; } while(0)
+#define DBUG_EXECUTE(keyword,a1)        do { } while(0)
+#define DBUG_EXECUTE_IF(keyword,a1)     do { } while(0)
+#define DBUG_EVALUATE(keyword,a1,a2) (a2)
+#define DBUG_EVALUATE_IF(keyword,a1,a2) (a2)
+#define DBUG_PRINT(keyword,arglist)     do { } while(0)
+#define DBUG_PUTS(keyword,arg)          do { } while(0)
+#define DBUG_LOG(keyword,arglist)       do { } while(0)
+#define DBUG_PUSH(a1)                   do { } while(0)
+#define DBUG_SET(a1)                    do { } while(0)
+#define DBUG_SET_INITIAL(a1)            do { } while(0)
+#define DBUG_POP()                      do { } while(0)
+#define DBUG_PROCESS(a1)                do { } while(0)
+#define DBUG_SETJMP(a1) setjmp(a1)
+#define DBUG_LONGJMP(a1) longjmp(a1)
+#define DBUG_DUMP(keyword,a1,a2)        do { } while(0)
+#define DBUG_END()                      do { } while(0)
+#define DBUG_LOCK_FILE                  do { } while(0)
+>>>>>>> upstream/cluster-7.6
 #define DBUG_FILE (stderr)
 #define DBUG_UNLOCK_FILE \
   do {                   \
@@ -294,6 +354,13 @@ extern void _db_flush_gcov_();
 #endif
 
 #ifdef __cplusplus
+<<<<<<< HEAD
+=======
+}
+#endif
+
+#ifdef __cplusplus
+>>>>>>> pr/231
 #if !defined(NDEBUG)
 #include <sstream>
 #include <string>
@@ -311,6 +378,7 @@ extern void _db_flush_gcov_();
   print out.  So, this limitation is there for DBUG_LOG macro also.
 */
 
+<<<<<<< HEAD
 #define DBUG_LOG(keyword, v)                           \
   do {                                                 \
     _db_pargs_(__LINE__, keyword);                     \
@@ -319,13 +387,37 @@ extern void _db_flush_gcov_();
       sout << v;                                       \
       DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
     }                                                  \
+=======
+<<<<<<< HEAD
+#define DBUG_LOG(keyword, v)                         \
+  do {                                               \
+    std::ostringstream sout;                         \
+    sout << v;                                       \
+    DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
+>>>>>>> pr/231
   } while (0)
 
 #else /* NDEBUG */
 #define DBUG_LOG(keyword, v) \
   do {                       \
   } while (0)
+<<<<<<< HEAD
 #endif /* NDEBUG */
+=======
+#define DBUG_TRACE(x) \
+  do {                \
+  } while (0)
+#endif /* DBUG_OFF */
+=======
+#define DBUG_LOG(keyword, v) do { \
+	std::ostringstream		sout; \
+	sout << v; \
+	DBUG_PUTS(keyword, sout.str().c_str()); \
+} while(0)
+#endif /* NDEBUG */
+>>>>>>> upstream/cluster-7.6
+#endif /* __cplusplus */
+>>>>>>> pr/231
 
 /**
    A type-safe interface to DBUG_EXECUTE_IF, where the debug action to

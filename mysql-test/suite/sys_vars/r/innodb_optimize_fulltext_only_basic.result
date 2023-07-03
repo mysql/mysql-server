@@ -77,13 +77,31 @@ set global innodb_optimize_fulltext_only=-3;
 ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of '-3'
 select @@global.innodb_optimize_fulltext_only;
 @@global.innodb_optimize_fulltext_only
+<<<<<<< HEAD
 0
+=======
+<<<<<<< HEAD
+1
+>>>>>>> pr/231
 select * from performance_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_optimize_fulltext_only	OFF
 select * from performance_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
 VARIABLE_NAME	VARIABLE_VALUE
+<<<<<<< HEAD
 innodb_optimize_fulltext_only	OFF
+=======
+innodb_optimize_fulltext_only	ON
+=======
+0
+select * from information_schema.global_variables where variable_name='innodb_optimize_fulltext_only';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+select * from information_schema.session_variables where variable_name='innodb_optimize_fulltext_only';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_OPTIMIZE_FULLTEXT_ONLY	OFF
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 set global innodb_optimize_fulltext_only='AUTO';
 ERROR 42000: Variable 'innodb_optimize_fulltext_only' can't be set to the value of 'AUTO'
 SET @@global.innodb_optimize_fulltext_only = @start_global_value;

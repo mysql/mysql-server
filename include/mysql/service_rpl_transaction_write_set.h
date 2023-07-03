@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +66,7 @@ struct Transaction_write_set {
   unsigned long long *write_set;  // A pointer to the PKE set.
 };
 
+<<<<<<< HEAD
 extern "C" struct transaction_write_set_service_st {
   Transaction_write_set *(*get_transaction_write_set)(
       unsigned long m_thread_id);
@@ -65,11 +74,23 @@ extern "C" struct transaction_write_set_service_st {
   void (*set_write_set_memory_size_limit)(uint64 size_limit);
   void (*update_write_set_memory_size_limit)(uint64 size_limit);
 } * transaction_write_set_service;
+=======
+extern struct transaction_write_set_service_st {
+  Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
+  void (*require_full_write_set)(int requires_ws);
+  void (*set_write_set_memory_size_limit)(long long size_limit);
+  void (*update_write_set_memory_size_limit)(long long  size_limit);
+} *transaction_write_set_service;
+>>>>>>> upstream/cluster-7.6
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define get_transaction_write_set(m_thread_id) \
+<<<<<<< HEAD
   transaction_write_set_service->get_transaction_write_set(m_thread_id)
+=======
+  (transaction_write_set_service->get_transaction_write_set((m_thread_id)))
+>>>>>>> pr/231
 #define require_full_write_set(requires_ws) \
   transaction_write_set_service->require_full_write_set(requires_ws)
 #define set_write_set_memory_size_limit(size_limit) \
@@ -81,11 +102,19 @@ extern "C" struct transaction_write_set_service_st {
 
 Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id);
 
+<<<<<<< HEAD
 void require_full_write_set(bool requires_ws);
 
 void set_write_set_memory_size_limit(uint64 size_limit);
 
 void update_write_set_memory_size_limit(uint64 size_limit);
+=======
+void require_full_write_set(int requires_ws);
+
+void set_write_set_memory_size_limit(long long size_limit);
+
+void update_write_set_memory_size_limit(long long size_limit);
+>>>>>>> pr/231
 
 #endif
 

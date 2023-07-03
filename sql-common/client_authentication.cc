@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +37,7 @@
 #include "my_config.h"
 
 #include <stdarg.h>
+<<<<<<< HEAD
 #include <string.h>
 
 #include "my_dbug.h"
@@ -49,7 +58,20 @@
     defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
+<<<<<<< HEAD
 #include "client_async_authentication.h"
+=======
+#include <wolfssl_fix_namespace_pollution.h>
+=======
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/sha.h>
+#if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
+#include <openssl/applink.c>
+#endif
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #include "mysql/plugin.h"
 #include "sha2.h"
 #include "violite.h"
@@ -60,6 +82,7 @@
 
 mysql_mutex_t g_public_key_mutex;
 
+<<<<<<< HEAD
 int sha256_password_init(char *, size_t, int, va_list) {
   mysql_mutex_init(0, &g_public_key_mutex, MY_MUTEX_INIT_SLOW);
   return 0;
@@ -67,16 +90,33 @@ int sha256_password_init(char *, size_t, int, va_list) {
 
 int sha256_password_deinit(void) {
   mysql_reset_server_public_key();
+=======
+int sha256_password_init(char *a, size_t b, int c, va_list d)
+{
+  mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);
+  return 0;
+}
+
+int sha256_password_deinit(void)
+{
+>>>>>>> upstream/cluster-7.6
   mysql_mutex_destroy(&g_public_key_mutex);
   return 0;
 }
 
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 static EVP_PKEY *g_public_key = nullptr;
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 static RSA *g_public_key = nullptr;
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
+=======
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /**
   Reads and parse RSA public key data from a file.
 
@@ -177,6 +217,7 @@ static bool encrypt_RSA_public_key(const unsigned char *password,
     @retval CR_OK Authentication succeeded.
 */
 
+<<<<<<< HEAD
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
@@ -188,7 +229,22 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
+<<<<<<< HEAD
   unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
+=======
+=======
+extern "C"
+int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
+{
+  bool uses_password= mysql->passwd[0] != 0;
+  unsigned char encrypted_password[MAX_CIPHER_LENGTH];
+  static char request_public_key= '\1';
+  RSA *public_key= NULL;
+  bool got_public_key_from_server= false;
+  bool connection_is_secure= false;
+>>>>>>> upstream/cluster-7.6
+  unsigned char scramble_pkt[20];
+>>>>>>> pr/231
   unsigned char *pkt;
 
   DBUG_TRACE;
@@ -214,8 +270,18 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   if (mysql_get_ssl_cipher(mysql) != nullptr) connection_is_secure = true;
 
   /* If connection isn't secure attempt to get the RSA public key file */
+<<<<<<< HEAD
   if (!connection_is_secure) {
     public_key = rsa_init(mysql);
+<<<<<<< HEAD
+=======
+#endif
+=======
+  if (!connection_is_secure)
+  {
+    public_key= rsa_init(mysql);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   if (!uses_password) {
@@ -224,9 +290,19 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     if (vio->write_packet(vio, &zero_byte, 1)) return CR_ERROR;
   } else {
     /* Password is a 0-terminated byte array ('\0' character included) */
+<<<<<<< HEAD
     unsigned int passwd_len =
         static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     if (!connection_is_secure) {
+<<<<<<< HEAD
+=======
+#if !defined(HAVE_WOLFSSL)
+=======
+    unsigned int passwd_len= static_cast<unsigned int>(strlen(mysql->passwd) + 1);
+    if (!connection_is_secure)
+    {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       /*
         If no public key; request one from the server.
       */
@@ -305,8 +381,24 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (got_public_key_from_server) RSA_free(public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
       if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
+<<<<<<< HEAD
         return CR_ERROR;
+=======
+        DBUG_RETURN(CR_ERROR);
+<<<<<<< HEAD
+#else
+      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
+                               ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
+                               "Authentication requires SSL encryption");
+      DBUG_RETURN(CR_ERROR);  // If no openssl support
+#endif
+>>>>>>> pr/231
     } else {
+=======
+    }
+    else
+    {
+>>>>>>> upstream/cluster-7.6
       /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar *)mysql->passwd, passwd_len))
         return CR_ERROR;
@@ -581,6 +673,7 @@ err:
 }
 /* caching_sha2_password */
 
+<<<<<<< HEAD
 int caching_sha2_password_init(char *, size_t, int, va_list) { return 0; }
 
 int caching_sha2_password_deinit(void) { return 0; }
@@ -598,6 +691,36 @@ static bool is_secure_transport(MYSQL *mysql) {
       return true;
     default:
       return false;
+=======
+int caching_sha2_password_init(char *, size_t, int, va_list)
+{
+  return 0;
+}
+
+int caching_sha2_password_deinit(void)
+{
+  return 0;
+}
+
+static bool is_secure_transport(MYSQL *mysql)
+{
+  if (!mysql || !mysql->net.vio)
+    return false;
+  switch (mysql->net.vio->type)
+  {
+    case VIO_TYPE_SSL:
+    {
+      if (mysql_get_ssl_cipher(mysql) == NULL)
+        return false;
+    }
+   // Fall through
+   case VIO_TYPE_SHARED_MEMORY:
+   // Fall through
+   case VIO_TYPE_SOCKET:
+     return true;
+   default:
+     return false;
+>>>>>>> upstream/cluster-7.6
   }
   return false;
 }
@@ -616,6 +739,15 @@ static char perform_full_authentication = '\4';
     @retval CR_ERROR An error occurred.
     @retval CR_OK Authentication succeeded.
 */
+<<<<<<< HEAD
+=======
+
+<<<<<<< HEAD
+static char request_public_key = '\2';
+static char fast_auth_success = '\3';
+static char perform_full_authentication = '\4';
+
+>>>>>>> pr/231
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
@@ -627,7 +759,24 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
+<<<<<<< HEAD
   unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
+=======
+=======
+static char request_public_key= '\2';
+static char fast_auth_success= '\3';
+static char perform_full_authentication= '\4';
+
+int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
+{
+  bool uses_password= mysql->passwd[0] != 0;
+  unsigned char encrypted_password[MAX_CIPHER_LENGTH];
+  RSA *public_key= NULL;
+  bool got_public_key_from_server= false;
+  bool connection_is_secure= false;
+>>>>>>> upstream/cluster-7.6
+  unsigned char scramble_pkt[20];
+>>>>>>> pr/231
   unsigned char *pkt;
 
   DBUG_TRACE;
@@ -636,11 +785,22 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     Get the scramble from the server because we need it when sending encrypted
     password.
   */
+<<<<<<< HEAD
   if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1) {
     DBUG_PRINT("info", ("Scramble is not of correct length."));
     return CR_ERROR;
   }
   if (pkt[SCRAMBLE_LENGTH] != '\0') {
+=======
+  if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1)
+  {
+    DBUG_PRINT("info", ("Scramble is not of correct length."));
+    DBUG_RETURN(CR_ERROR);
+  }
+
+  if (pkt[SCRAMBLE_LENGTH] != '\0')
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Missing protocol token in scramble data."));
     return CR_ERROR;
   }
@@ -651,6 +811,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   */
   memcpy(scramble_pkt, pkt, SCRAMBLE_LENGTH);
 
+<<<<<<< HEAD
   connection_is_secure = is_secure_transport(mysql);
 
   if (!uses_password) {
@@ -663,14 +824,39 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     unsigned int passwd_len =
         static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     int pkt_len = 0;
+=======
+  connection_is_secure= is_secure_transport(mysql);
+
+  if (!uses_password)
+  {
+    /* We're not using a password */
+    static const unsigned char zero_byte= '\0';
+    if (vio->write_packet(vio, &zero_byte, 1))
+      DBUG_RETURN(CR_ERROR);
+    DBUG_RETURN(CR_OK);
+  }
+  else
+  {
+    /* Password is a 0-terminated byte array ('\0' character included) */
+    unsigned int passwd_len=
+      static_cast<unsigned int>(strlen(mysql->passwd) + 1);
+    int pkt_len= 0;
+>>>>>>> upstream/cluster-7.6
     {
       /* First try with SHA2 scramble */
       unsigned char sha2_scramble[SHA2_SCRAMBLE_LENGTH];
       if (generate_sha256_scramble(sha2_scramble, SHA2_SCRAMBLE_LENGTH,
                                    mysql->passwd, passwd_len - 1,
+<<<<<<< HEAD
                                    (char *)scramble_pkt, SCRAMBLE_LENGTH)) {
         set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                  ER_CLIENT(CR_AUTH_PLUGIN_ERR),
+=======
+                                   (char *)scramble_pkt, SCRAMBLE_LENGTH))
+      {
+        set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
+                                 ER(CR_AUTH_PLUGIN_ERR),
+>>>>>>> upstream/cluster-7.6
                                  "caching_sha2_password",
                                  "Failed to generate scramble");
         return CR_ERROR;
@@ -679,30 +865,65 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (vio->write_packet(vio, sha2_scramble, SHA2_SCRAMBLE_LENGTH))
         return CR_ERROR;
 
+<<<<<<< HEAD
       if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
 
       if (pkt_len == 1 && *pkt == fast_auth_success) return CR_OK;
+=======
+<<<<<<< HEAD
+      if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) DBUG_RETURN(CR_ERROR);
+
+      if (pkt_len == 1 && *pkt == fast_auth_success) DBUG_RETURN(CR_OK);
+=======
+      if ((pkt_len= vio->read_packet(vio, &pkt)) == -1)
+        DBUG_RETURN(CR_ERROR);
+
+      if (pkt_len == 1 && *pkt == fast_auth_success)
+        DBUG_RETURN(CR_OK);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       /* An OK packet would follow */
     }
 
+<<<<<<< HEAD
     if (pkt_len != 1 || *pkt != perform_full_authentication) {
+=======
+    if (pkt_len != 1 || *pkt != perform_full_authentication)
+    {
+>>>>>>> upstream/cluster-7.6
       DBUG_PRINT("info", ("Unexpected reply from server."));
       return CR_ERROR;
     }
 
+<<<<<<< HEAD
     /* If connection isn't secure attempt to get the RSA public key file */
     if (!connection_is_secure) {
       public_key = rsa_init(mysql);
 
       if (public_key == nullptr && mysql->options.extension &&
           mysql->options.extension->get_server_public_key) {
+=======
+    if (!connection_is_secure)
+    {
+      /* If connection isn't secure attempt to get the RSA public key file */
+      public_key= rsa_init(mysql);
+
+      if (public_key == NULL && mysql->options.extension &&
+          mysql->options.extension->get_server_public_key)
+      {
+>>>>>>> upstream/cluster-7.6
         // If no public key; request one from the server.
         if (vio->write_packet(vio, (const unsigned char *)&request_public_key,
                               1))
           return CR_ERROR;
 
+<<<<<<< HEAD
         if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_ERROR;
+=======
+<<<<<<< HEAD
+        if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) DBUG_RETURN(CR_ERROR);
+>>>>>>> pr/231
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
         public_key = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
@@ -730,6 +951,36 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         char passwd_scramble[PASSWORD_SCRAMBLE_LENGTH];
 
         if (passwd_len > sizeof(passwd_scramble)) {
+=======
+        if ((pkt_len= vio->read_packet(vio, &pkt)) <= 0)
+          DBUG_RETURN(CR_ERROR);
+        BIO *bio= BIO_new_mem_buf(pkt, pkt_len);
+        public_key= PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+        if (public_key == 0)
+        {
+          ERR_clear_error();
+          DBUG_PRINT("info", ("Failed to parse public key"));
+          DBUG_RETURN(CR_ERROR);
+        }
+        got_public_key_from_server= true;
+      }
+
+      if (public_key)
+      {
+        /*
+          An arbitrary limitation based on the assumption that passwords
+          larger than e.g. 15 symbols don't contribute to security.
+          Note also that it's further restricted to RSA_size() - 11 down
+          below, so this leaves 471 bytes of possible RSA key sizes which
+          should be reasonably future-proof.
+          We avoid heap allocation for speed reasons.
+        */
+        char passwd_scramble[512];
+
+        if (passwd_len > sizeof(passwd_scramble))
+        {
+>>>>>>> upstream/cluster-7.6
           /* password too long for the buffer */
           DBUG_PRINT("info", ("Password is too long."));
           goto err;
@@ -740,9 +991,13 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         xor_string(passwd_scramble, passwd_len - 1, (char *)scramble_pkt,
                    SCRAMBLE_LENGTH);
         /* Encrypt the password and send it to the server */
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
         int cipher_length = EVP_PKEY_get_size(public_key);
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
         int cipher_length = RSA_size(public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
         /*
@@ -751,10 +1006,27 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
          */
         if (passwd_len + 41 >= (unsigned)cipher_length) {
           /* password message is to long */
+<<<<<<< HEAD
+=======
+          if (got_public_key_from_server) RSA_free(public_key);
+=======
+        int cipher_length= RSA_size(public_key);
+        /*
+          When using RSA_PKCS1_OAEP_PADDING the password length must be less
+          than RSA_size(rsa) - 41.
+        */
+        if (passwd_len + 41 >= (unsigned)cipher_length)
+        {
+          /* password message is to long */
+          if (got_public_key_from_server)
+            RSA_free(public_key);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           DBUG_PRINT("info", ("Password is too long to be encrypted using "
                               "given public key."));
           goto err;
         }
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
         {
           size_t encrypted_password_len = sizeof(encrypted_password);
@@ -770,6 +1042,12 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
                                    encrypted_password, public_key))
           goto err;
 
+=======
+        RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
+                           encrypted_password, public_key,
+                           RSA_PKCS1_OAEP_PADDING);
+<<<<<<< HEAD
+>>>>>>> pr/231
         if (got_public_key_from_server) RSA_free(public_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
@@ -778,16 +1056,35 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       } else {
         set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                  ER_CLIENT(CR_AUTH_PLUGIN_ERR),
+=======
+        if (got_public_key_from_server)
+          RSA_free(public_key);
+
+        if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
+          DBUG_RETURN(CR_ERROR);
+      }
+      else
+      {
+        set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
+                                 ER(CR_AUTH_PLUGIN_ERR),
+>>>>>>> upstream/cluster-7.6
                                  "caching_sha2_password",
                                  "Authentication requires secure connection.");
         return CR_ERROR;
       }
+<<<<<<< HEAD
     } else {
+=======
+    }
+    else
+    {
+>>>>>>> upstream/cluster-7.6
       /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar *)mysql->passwd, passwd_len))
         return CR_ERROR;
     }
   }
+<<<<<<< HEAD
 
   return CR_OK;
 
@@ -1046,3 +1343,14 @@ void STDCALL mysql_reset_server_public_key(void) {
   g_public_key = nullptr;
   mysql_mutex_unlock(&g_public_key_mutex);
 }
+<<<<<<< HEAD
+=======
+
+#endif
+=======
+  DBUG_RETURN(CR_OK);
+}
+
+#endif /* HAVE_OPENSSL */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

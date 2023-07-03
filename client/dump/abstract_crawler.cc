@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,18 +67,39 @@ Mysql::Tools::Base::Abstract_program *Abstract_crawler::get_program() {
   return m_program;
 }
 
+<<<<<<< HEAD
 void Abstract_crawler::process_dump_task(I_dump_task *new_dump_task) {
+<<<<<<< HEAD
+=======
+=======
+void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
+{
+>>>>>>> pr/231
   /*
    Add the tasks to this list so that even if we error out,
    cleanup is done properly.
   */
   m_dump_tasks_created.push_back(new_dump_task);
 
+<<<<<<< HEAD
   /* in case of error stop all further processing */
   if (get_program()->get_error_code()) return;
 
+=======
+>>>>>>> upstream/cluster-7.6
+  /* in case of error stop all further processing */
+  if (get_program()->get_error_code()) return;
+
+<<<<<<< HEAD
+  m_dump_tasks_created.push_back(new_dump_task);
+
+>>>>>>> pr/231
   Item_processing_data *main_item_processing_data =
       this->new_task_created(new_dump_task);
+=======
+  Item_processing_data* main_item_processing_data=
+    this->new_task_created(new_dump_task);
+>>>>>>> upstream/cluster-7.6
 
   this->object_processing_starts(main_item_processing_data);
 

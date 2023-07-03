@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +61,15 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
   int ret = 0;
   bool is_first = true;
 
+<<<<<<< HEAD
   assert(cs->mbminlen == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(cs->mbminlen == 1);
+=======
+	assert(cs->mbminlen == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   start = const_cast<char *>(doc);
   next = start;
@@ -63,6 +79,7 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
   while (next < end) {
     char_len = my_mbcharlen_ptr(cs, next, end);
 
+<<<<<<< HEAD
     /* Skip the rest of the doc if invalid char. */
     if (next + char_len > end || char_len == 0) {
       break;
@@ -75,6 +92,21 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
         start = next + 1;
         next = start;
         n_chars = 0;
+=======
+		/* Skip the rest of the doc if invalid char. */
+		if (next + char_len > end || char_len == 0) {
+			break;
+		} else {
+			/* Skip SPACE or ","/"." etc as they are not words*/
+			int     ctype;
+			cs->cset->ctype(
+                        cs, &ctype, (uchar*) next, (uchar*) end);
+			if (char_len == 1 && (*next == ' '
+			   || !true_word_char(ctype, *next))) {
+				start = next + 1;
+				next = start;
+				n_chars = 0;
+>>>>>>> upstream/cluster-7.6
 
         continue;
       }
@@ -96,6 +128,7 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     }
   }
 
+<<<<<<< HEAD
   /* We handle unigram in cases below:
   1. BOOLEAN MODE: suppose we have phrase search like ('"a bc"');
   2. STOPWORD MODE: we should handle unigram when matching phrase.
@@ -104,8 +137,25 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
     case MYSQL_FTPARSER_WITH_STOPWORDS:
       if (n_chars > 0 && is_first) {
+<<<<<<< HEAD
         assert(next > start);
         assert(n_chars < ngram_token_size);
+=======
+        DBUG_ASSERT(next > start);
+        DBUG_ASSERT(n_chars < ngram_token_size);
+=======
+	/* We handle unigram in cases below:
+	1. BOOLEAN MODE: suppose we have phrase search like ('"a bc"');
+	2. STOPWORD MODE: we should handle unigram when matching phrase.
+	Note: only when the document char len is less than ngram_token_size. */
+	switch (param->mode) {
+	case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
+	case MYSQL_FTPARSER_WITH_STOPWORDS:
+		if (n_chars > 0 && is_first) {
+                  assert(next > start);
+                  assert(n_chars < ngram_token_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         ret = param->mysql_add_word(param, start, next - start, bool_info);
       }
@@ -157,9 +207,21 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
   int token_size;
   int ret = 0;
 
+<<<<<<< HEAD
   assert(bool_info->type == FT_TOKEN_WORD);
   assert(bool_info->quot == nullptr);
   assert(cs->mbminlen == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(bool_info->type == FT_TOKEN_WORD);
+  DBUG_ASSERT(bool_info->quot == NULL);
+  DBUG_ASSERT(cs->mbminlen == 1);
+=======
+	assert(bool_info->type == FT_TOKEN_WORD);
+	assert(bool_info->quot == NULL);
+	assert(cs->mbminlen == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Convert rules:
   1. if term with wildcard and term length is less than ngram_token_size,
@@ -184,9 +246,19 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
     ret = param->mysql_add_word(param, nullptr, 0, bool_info);
 
+<<<<<<< HEAD
     assert(bool_info->quot == nullptr);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(bool_info->quot == NULL);
+>>>>>>> pr/231
     bool_info->type = FT_TOKEN_WORD;
   }
+=======
+		assert(bool_info->quot == NULL);
+		bool_info->type = FT_TOKEN_WORD;
+	}
+>>>>>>> upstream/cluster-7.6
 
   return (ret);
 }
@@ -211,6 +283,7 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
 
       break;
 
+<<<<<<< HEAD
     case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
       /* Ngram parser cannot handle query in boolean mode, so we
       first parse query into words with boolean info, then we parse
@@ -232,6 +305,39 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
           ret = param->mysql_add_word(param, reinterpret_cast<char *>(word.pos),
                                       word.len, &bool_info);
         }
+=======
+	case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
+		/* Ngram parser cannot handle query in boolean mode, so we
+		first parse query into words with boolean info, then we parse
+		the words into ngram. */
+		while (fts_get_word(cs, start, end, &word, &bool_info)) {
+			if (bool_info.type == FT_TOKEN_WORD) {
+				if (bool_info.quot != NULL) {
+					/* Phrase search */
+					ret = ngram_parse(
+						param,
+						reinterpret_cast<char*>(word.pos),
+						word.len,
+						&bool_info);
+				} else {
+					/* Term serach */
+					ret = ngram_term_convert(
+						param,
+						reinterpret_cast<char*>(word.pos),
+						word.len,
+						&bool_info);
+					assert(bool_info.quot == NULL);
+					assert(bool_info.type
+                                               == FT_TOKEN_WORD);
+				}
+			} else {
+				ret = param->mysql_add_word(
+					param,
+					reinterpret_cast<char*>(word.pos),
+					word.len,
+					&bool_info);
+			}
+>>>>>>> upstream/cluster-7.6
 
         RETURN_IF_ERROR(ret);
       }

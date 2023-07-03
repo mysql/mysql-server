@@ -1,4 +1,9 @@
 SET SQL_MODE='';
+<<<<<<< HEAD
+=======
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 drop table if exists t1;
 CREATE TABLE t1 (data LONGBLOB) ENGINE=myisam;
 INSERT INTO t1 (data) VALUES (NULL);

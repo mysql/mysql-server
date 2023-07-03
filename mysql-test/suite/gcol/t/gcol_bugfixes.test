@@ -769,6 +769,7 @@ INSERT INTO v (a,c) VALUES (1,1);
 SELECT (SELECT MAX(c) FROM v);
 DROP TABLE v;
 
+<<<<<<< HEAD
 --echo # Bug#23021693 gcol:assertion '!table->in_use->is_error()' failed
 
 CREATE TABLE t1 (
@@ -851,6 +852,7 @@ LOAD DATA INFILE '../../std_data/loaddata5.dat'
  INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
 
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#27452082 ASSERTION FAILED: !TABLE->IN_USE->IS_ERROR() IN UPDATE_GENERATED_READ_FIELDS
@@ -892,6 +894,11 @@ SET BINLOG_FORMAT=DEFAULT;
 
 --echo #
 --echo # Bug #28652826  THE CONTINUATION OF BUG 27968952 .. CRASH & CORRUPTION
+=======
+=======
+--echo #
+--echo # Bug #28652826	THE CONTINUATION OF BUG 27968952 .. CRASH & CORRUPTION
+>>>>>>> pr/231
 --echo # WITH GCOLS
 --echo #
 
@@ -910,6 +917,7 @@ REPLACE INTO t(a, b, c) VALUES (0,7,12);
 REPLACE INTO t(a, b, c) VALUES (0,0,13);
 SELECT * FROM t;
 DROP TABLE t;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug #28772251 "SWAPPING COLUMN BY ALTER TABLE RENAME COLUMN BREAKS
@@ -1617,3 +1625,6 @@ CREATE TABLE v1(v2 INT SERIAL DEFAULT VALUE, v3 INT AS (DEFAULT(v2)/1 IS NULL));
 CREATE TABLE v1(v2 INT DEFAULT 10, v3 INT AS (DEFAULT(v2)/1 IS NULL));
 SHOW CREATE TABLE v1;
 DROP TABLE v1;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

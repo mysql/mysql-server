@@ -1,0 +1,149 @@
+# ==== Purpose ====
+#
+# Test verifies that there is no deadlock when below threads are executed in
+# parallel.
+#
+# 1. Server thread executing START SLAVE SQL_THREAD.
+# 2. Stopping SQL Thread.
+# 3. Server thread calling show_heartbeat_period() function
+#    through any of the following queries
+#
+#    -  SHOW STATUS LIKE 'Slave_heartbeat_period'
+#    -  SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+#    -  SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+#
+# ==== Implementation ====
+#
+# Simulate the deadlock environment using DEBUG_SYNC utility,
+#
+# 1) START SLAVE SQL_THREAD
+#    Owns: Multisource_info::m_channel_map_lock
+#    Waits for: Relay_log_info::run_lock
+#
+# 2) Stopping SQL thread
+#    Owns: Relay_log_info::run_lock
+#    Waits for: LOCK_status
+#
+# 3) SHOW STATUS LIKE 'Slave_heartbeat_period'
+#    Owns: LOCK_status
+#    Waits for: Multisource_info::m_channel_map_lock
+#
+# ==== References ====
+#
+# Bug#29697588: MYSQLD DEADLOCK OF ALL CLIENT THREADS ORIGINATING FROM 3-WAY
+#               DEADLOCK
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Failed during slave thread initialization.*");
+# Create new connections on slave
+connect(slave2, 127.0.0.1, root, , test, $SLAVE_MYPORT, );
+
+# Iteration 1 with "SHOW STATUS LIKE 'Slave_heartbeat_period'"
+# Iteration 2 with "SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS"
+# Iteration 3 with "SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS"
+
+--let $iter=0
+while ($iter < 3)
+{
+  #############################################################################
+  # Thread 1: START SLAVE SQL_THREAD
+  #
+  # Halt the execution after the thread takes
+  # Multisource_info::m_channel_map_lock and before it reacquires
+  # Relay_log_info::run_lock after it was signaled on the start_cond.
+  #############################################################################
+  --source include/stop_slave_sql.inc
+  --source include/rpl_connection_slave1.inc
+  SET DEBUG_SYNC='start_slave_thread_after_signal_on_start_cond SIGNAL reached_start_slave_thread WAIT_FOR continue_start_slave_thread';
+
+  #############################################################################
+  # Thread 2: Stopping SQL Thread
+  #
+  # Halt the execution before the thread takes Relay_log_info::run_lock and
+  # before calling THD::release resources() where it tries to acquire
+  # LOCK_status. This is done by simulating error on slave initialization
+  # which makes SQL thread to stop and call THD::release_resources() in the
+  # end.
+  #############################################################################
+  --let debug_point= simulate_sql_slave_error_on_init
+  --source include/add_debug_point.inc
+  --let debug_point= pause_after_sql_thread_stop_hook
+  --source include/add_debug_point.inc
+  --source include/rpl_connection_slave1.inc
+  --send START SLAVE SQL_THREAD
+
+  #############################################################################
+  # Thread 3: SHOW STATUS VARIABLES LIKE '%heartbeat%'
+  #
+  # Halt the execution after the thread takes LOCK_status and in
+  # show_heartbeat_period() before it tries to acquire
+  # Multisource_info::m_channel_map_lock.
+  #############################################################################
+  --let $rpl_connection_name= slave2
+  --source include/rpl_connection.inc
+  SET DEBUG_SYNC='dsync_show_heartbeat_period SIGNAL reached_show_heartbeat_period WAIT_FOR continue_show_thread';
+
+  # The threads can enter into deadlock even when thread 3 is replaced with
+  # another thread executing any of the following queries.
+  #
+  #   1. SHOW STATUS LIKE 'Slave_heartbeat_period'
+  #   2. SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+  #   3. SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+
+  if ($iter == 0)
+  {
+    --let $query= SHOW STATUS LIKE 'Slave_heartbeat_period'
+  }
+  if ($iter == 1)
+  {
+    --let $query= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+  }
+  if ($iter == 2)
+  {
+    --let $query= SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  }
+  --send_eval $query
+
+  # Wait for all three threads to reach their debug sync points.
+  --source include/rpl_connection_slave.inc
+  SET DEBUG_SYNC='now WAIT_FOR reached_start_slave_thread';
+  SET DEBUG_SYNC='now WAIT_FOR reached_stopping_sql_thread';
+  SET DEBUG_SYNC='now WAIT_FOR reached_show_heartbeat_period';
+
+  # First signal the SQL thread so that it acquires run_lock and then signal
+  # other threads.
+  SET DEBUG_SYNC='now SIGNAL continue_to_stop_sql_thread';
+  SET DEBUG_SYNC='now SIGNAL continue_show_thread';
+  SET DEBUG_SYNC='now SIGNAL continue_start_slave_thread';
+
+  # Wait for the threads to complete their execution.
+  --disable_result_log
+  --let $rpl_connection_name= slave1
+  --source include/rpl_connection.inc
+  --reap
+  --let $rpl_connection_name= slave2
+  --source include/rpl_connection.inc
+  --reap
+  --enable_result_log
+
+  # Verify that SQL thread has failed during initialization.
+  --let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+  --source include/wait_for_slave_sql_error.inc
+
+  # Clear the debug points on slave
+  --let debug_point= simulate_sql_slave_error_on_init
+  --source include/remove_debug_point.inc
+
+  --let debug_point= pause_after_sql_thread_stop_hook
+  --source include/remove_debug_point.inc
+
+  SET DEBUG_SYNC='RESET';
+
+  --inc $iter
+}
+--source include/start_slave_sql.inc
+--source include/rpl_end.inc

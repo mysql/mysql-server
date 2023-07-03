@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -17,8 +21,14 @@
 # GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
+<<<<<<< HEAD
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+=======
+# along with this program. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
+>>>>>>> upstream/cluster-7.6
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -238,14 +248,23 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
 done
 
 %if 0%{?cluster}
+<<<<<<< HEAD
 for f in ndb_error_reporter ndb_move_data \
          ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
          ndb_print_schema_file ndb_print_sys_file \
          ndb_size.pl ; do
+=======
+for f in ndb_blob_tool ndb_config ndb_delete_all ndb_desc ndb_drop_index \
+         ndb_drop_table ndb_error_reporter ndb_import ndb_index_stat ndb_move_data \
+         ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
+         ndb_print_schema_file ndb_print_sys_file ndb_redo_log_reader ndb_restore ndb_select_all \
+         ndb_select_count ndb_show_tables ndb_size.pl ndbinfo_select_all ndb_waiter ; do
+>>>>>>> pr/231
     rm -f %{buildroot}%{_bindir}/$f
 done
 %endif
 
+<<<<<<< HEAD
 #  Remove test plugins, please keep alphabetical order
 for p in \
          auth.so \
@@ -314,6 +333,44 @@ for p in \
          test_udf_services.so \
          udf_example.so \
          ; do
+=======
+#  Remove test plugins
+<<<<<<< HEAD
+for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
+         authentication_ldap_simple.so component_example_component1.so \
+         component_example_component2.so component_example_component3.so \
+         component_log_sink_test.so component_pfs_example.so \
+         component_pfs_example_component_population.so \
+         component_test_pfs_notification.so component_test_pfs_resource_group.so \
+         component_test_string_service_charset.so component_test_string_service.so \
+         component_test_string_service_long.so component_udf_reg_3_func.so \
+         component_udf_reg_int_same_func.so component_udf_reg_avg_func.so \
+         component_udf_reg_only_3_func.so component_udf_reg_int_func.so \
+         component_udf_reg_real_func.so component_test_udf_registration.so \
+         component_udf_unreg_3_func.so component_udf_unreg_int_func.so \
+         component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
+         component_test_sys_var_service_int.so component_test_sys_var_service.so \
+         component_test_sys_var_service_same.so component_test_sys_var_service_str.so \
+         component_test_status_var_service.so\
+         component_test_status_var_service_int.so\
+         component_test_status_var_service_reg_only.so\
+         component_test_status_var_service_str.so\
+         component_test_status_var_service_unreg_only.so\
+         component_test_system_variable_source.so\
+         daemon_example.ini ha_example.so libdaemon_example.so \
+         pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
+         qa_auth_server.so replication_observers_example_plugin.so \
+         test_security_context.so test_services_plugin_registry.so \
+         udf_example.so  component_mysqlx_global_reset.so \
+         test_udf_services.so component_test_backup_lock_service.so ; do
+=======
+for p in auth.so auth_test_plugin.so \
+    daemon_example.ini libdaemon_example.so \
+    qa_auth_client.so qa_auth_interface.so qa_auth_server.so \
+    replication_observers_example_plugin.so ha_example.so \
+    test_udf_services.so test_security_context.so udf_example.so ; do
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -325,17 +382,33 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
+<<<<<<< HEAD
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
 rm -rf %{buildroot}%{_libdir}/mysql/ndb_engine.so
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient_static.a
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
+=======
+rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
+<<<<<<< HEAD
+rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
+rm -rf %{buildroot}%{_datadir}/mysql-*/java/
+=======
+rm -rf %{buildroot}%{_datadir}/mysql/java/
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 %endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
+<<<<<<< HEAD
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
+=======
+rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
+rm -f %{buildroot}%{_datadir}/mysql/upgrade_firewall.sql
+rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
+>>>>>>> upstream/cluster-7.6
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -394,7 +467,19 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
+<<<<<<< HEAD
 %attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
+=======
+<<<<<<< HEAD
+%attr(755, root, root) %{_bindir}/memclient
+%attr(755, root, root) %{_sbindir}/memcached
+%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
+%attr(644, root, root) %{_datadir}/mysql-*/ndb_dist_priv.sql
+%{_datadir}/mysql-*/memcache-api/
+=======
+%attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -495,12 +580,24 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqlbackup
 %endif # with_meb
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+<<<<<<< HEAD
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+<<<<<<< HEAD
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
+=======
+=======
+%attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
@@ -525,8 +622,23 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+<<<<<<< HEAD
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci
+=======
+<<<<<<< HEAD
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
+- Removed milestone marker
+- Move mysqlx to default plugin
+- Fixed the package names for GA release
+=======
+* Thu Sep 05 2019 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.28-1
+- Add License Book, remove COPYING
+
+* Fri Apr 28 2017 Trond Humborstad <trond.humborstad@oracle.com> - 7.5.7-1
+- Adapt to MySQL Cluster
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 * Mon Jun 20 2022 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.31-1
 - Added component_test_mysql_command_services.so test component

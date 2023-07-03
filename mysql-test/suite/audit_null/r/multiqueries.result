@@ -3,7 +3,11 @@
 #
 INSTALL PLUGIN null_audit SONAME 'adt_null.so';
 CREATE USER multiqueries_test_user34207811 IDENTIFIED BY 'secret_pswd';
+<<<<<<< HEAD
 GRANT CREATE USER, SELECT, SESSION_VARIABLES_ADMIN ON *.* TO multiqueries_test_user34207811;
+=======
+GRANT CREATE USER, SELECT, SUPER ON *.* TO multiqueries_test_user34207811;
+>>>>>>> pr/231
 set @con1_tid = (select thread_id from performance_schema.threads
 where processlist_user = 'multiqueries_test_user34207811');
 SET DEBUG="+d, print_query"|
@@ -26,9 +30,15 @@ where processlist_user = 'multiqueries_test_user34207811')
 SET DEBUG="+d, print_query"
 select 1
 select 2
+<<<<<<< HEAD
 CREATE USER 'u1'@'%' IDENTIFIED BY <secret>
 select 3
 ALTER USER 'u1'@'%' IDENTIFIED BY <secret> PASSWORD EXPIRE
+=======
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+select 3
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE
+>>>>>>> pr/231
 select 4
 SET DEBUG="-d, print_query"
 UNINSTALL PLUGIN null_audit;

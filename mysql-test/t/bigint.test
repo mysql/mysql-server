@@ -470,6 +470,21 @@ SELECT CAST(100 AS UNSIGNED) NOT BETWEEN 1 AND -1;
 SELECT CAST(0 AS UNSIGNED) BETWEEN 0 AND -1;
 SELECT CAST(0 AS UNSIGNED) NOT BETWEEN 0 AND -1;
 
+<<<<<<< HEAD
+=======
+--echo #
+--echo # Bug #27691347: BETWEEN CLAUSE RETURNS INCOHERENT RESULTS COMPARING
+--echo #                NEGATIVE VALUES
+
+CREATE TABLE Reservation (id BIGINT UNSIGNED NOT NULL,
+                          transaction_id BIGINT UNSIGNED NOT NULL DEFAULT '0',
+                          KEY transaction_id_idx (transaction_id));
+INSERT INTO Reservation(id, transaction_id) VALUES(1, 1);
+
+SELECT COUNT(*) FROM Reservation WHERE transaction_id BETWEEN -2 AND -1;
+DROP TABLE Reservation;
+
+>>>>>>> upstream/cluster-7.6
 SET sql_mode = default;
 
 --echo #

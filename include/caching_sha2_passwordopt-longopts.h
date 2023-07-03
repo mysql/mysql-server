@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +32,7 @@
   @file include/caching_sha2_passwordopt-longopts.h
 */
 
+<<<<<<< HEAD
 {"server-public-key-path",
  OPT_SERVER_PUBLIC_KEY,
  "File path to the server public RSA key in PEM format.",
@@ -51,4 +60,43 @@
      0,
      nullptr,
      0,
+<<<<<<< HEAD
      nullptr},
+=======
+     0,
+     0},
+=======
+{
+  "server-public-key-path",
+  OPT_SERVER_PUBLIC_KEY,
+  "File path to the server public RSA key in PEM format.",
+  &opt_server_public_key,
+  &opt_server_public_key,
+  0,
+  GET_STR,
+  REQUIRED_ARG,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+},
+{
+  "get-server-public-key",
+  0,
+  "Get server public key",
+  &opt_get_server_public_key,
+  &opt_get_server_public_key,
+  0,
+  GET_BOOL,
+  NO_ARG,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

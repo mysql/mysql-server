@@ -141,16 +141,36 @@ inline bool StrtodDiyFp(const char* decimals, int dLen, int dExp, double* result
     if (i < dLen && decimals[i] >= '5') // Rounding
         significand++;
 
+<<<<<<< HEAD
     int remaining = dLen - i;
     const int kUlpShift = 3;
     const int kUlp = 1 << kUlpShift;
+=======
+<<<<<<< HEAD
+    size_t remaining = length - i;
+    const unsigned kUlpShift = 3;
+    const unsigned kUlp = 1 << kUlpShift;
+=======
+    int remaining = dLen - i;
+    const int kUlpShift = 3;
+    const int kUlp = 1 << kUlpShift;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     int64_t error = (remaining == 0) ? 0 : kUlp / 2;
 
     DiyFp v(significand, 0);
     v = v.Normalize();
     error <<= -v.e;
 
+<<<<<<< HEAD
     dExp += remaining;
+=======
+<<<<<<< HEAD
+    const int dExp = static_cast<int>(decimalPosition) - static_cast<int>(i) + exp;
+=======
+    dExp += remaining;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     int actualExp;
     DiyFp cachedPower = GetCachedPower10(dExp, &actualExp);
@@ -164,10 +184,23 @@ inline bool StrtodDiyFp(const char* decimals, int dLen, int dExp, double* result
             DiyFp(RAPIDJSON_UINT64_C2(0xf4240000, 0x00000000), -44),  // 10^6
             DiyFp(RAPIDJSON_UINT64_C2(0x98968000, 0x00000000), -40)   // 10^7
         };
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        int  adjustment = dExp - actualExp - 1;
+        RAPIDJSON_ASSERT(adjustment >= 0 && adjustment < 7);
+        v = v * kPow10[adjustment];
+        if (length + static_cast<unsigned>(adjustment)> 19u) // has more digits than decimal digits in 64-bit
+=======
+>>>>>>> pr/231
         int adjustment = dExp - actualExp;
         RAPIDJSON_ASSERT(adjustment >= 1 && adjustment < 8);
         v = v * kPow10[adjustment - 1];
         if (dLen + adjustment > 19) // has more digits than decimal digits in 64-bit
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
             error += kUlp / 2;
     }
 
@@ -205,9 +238,21 @@ inline bool StrtodDiyFp(const char* decimals, int dLen, int dExp, double* result
     return halfWay - static_cast<unsigned>(error) >= precisionBits || precisionBits >= halfWay + static_cast<unsigned>(error);
 }
 
+<<<<<<< HEAD
 inline double StrtodBigInteger(double approx, const char* decimals, int dLen, int dExp) {
     RAPIDJSON_ASSERT(dLen >= 0);
     const BigInteger dInt(decimals, static_cast<unsigned>(dLen));
+=======
+<<<<<<< HEAD
+inline double StrtodBigInteger(double approx, const char* decimals, size_t length, size_t decimalPosition, int exp) {
+    const BigInteger dInt(decimals, length);
+    const int dExp = static_cast<int>(decimalPosition) - static_cast<int>(length) + exp;
+=======
+inline double StrtodBigInteger(double approx, const char* decimals, int dLen, int dExp) {
+    RAPIDJSON_ASSERT(dLen >= 0);
+    const BigInteger dInt(decimals, static_cast<unsigned>(dLen));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Double a(approx);
     int cmp = CheckWithinHalfULP(a.Value(), dInt, dExp);
     if (cmp < 0)
@@ -261,10 +306,25 @@ inline double StrtodFullPrecision(double d, int p, const char* decimals, size_t 
     }
 
     // Trim right-most digits
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    const int kMaxDecimalDigit = 780;
+    if (static_cast<int>(length) > kMaxDecimalDigit) {
+        int delta = (static_cast<int>(length) - kMaxDecimalDigit);
+        exp += delta;
+        decimalPosition -= static_cast<unsigned>(delta);
+        length = kMaxDecimalDigit;
+=======
+>>>>>>> pr/231
     const int kMaxDecimalDigit = 767 + 1;
     if (dLen > kMaxDecimalDigit) {
         dExp += dLen - kMaxDecimalDigit;
         dLen = kMaxDecimalDigit;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     // If too small, underflow to zero.

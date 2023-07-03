@@ -88,7 +88,11 @@ drop table t1;
 #
 # Bug #29465567 INNODB: RTREE SPLIT ASSERTION FAILURE
 #
+<<<<<<< HEAD
 create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+=======
+create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+>>>>>>> pr/231
 insert into t1 values(1, Point(1,1));
 insert into t1 values(2, Point(2,2));
 insert into t1 values(3, Point(3,3));

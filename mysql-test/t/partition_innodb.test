@@ -252,6 +252,7 @@ SELECT * FROM t1;
 --echo # No changes.
 COMMIT;
 DROP TABLE t1;
+SET AUTOCOMMIT= default;
 
 
 --echo #
@@ -396,8 +397,16 @@ UPDATE t1 SET data = data*2 WHERE data = 2;
 #--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
 #SHOW ENGINE InnoDB STATUS;
 
+<<<<<<< HEAD
 SET @@session.transaction_isolation = @old_transaction_isolation;
+<<<<<<< HEAD
 SET autocommit = default;
+=======
+=======
+SET @@session.tx_isolation = @old_tx_isolation;
+SET autocommit= default;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 DROP TABLE t1;
 
@@ -1294,6 +1303,40 @@ partition_id=1;
 
 --connection default
 drop table test12;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+--echo
+--echo
+--echo Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
+--echo			MYSQL.INNODB_TABLE_STATS.
+--echo
+
+CREATE DATABASE test_jfg;
+
+CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
+ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
+InnoDB);
+
+--replace_result #p# #P#
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+
+RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
+RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
+
+--replace_result #p# #P#
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+
+DROP DATABASE test_jfg;
+>>>>>>> pr/231
 
 
 --echo #
@@ -1301,6 +1344,10 @@ drop table test12;
 --echo #
 
 --echo # Set up.
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 CREATE TABLE t1 (fld1 INT(11) NOT NULL, fld2 INT(11) NOT NULL,
 fld3 DATE NOT NULL,  fld4 DATE NOT NULL,
 PRIMARY KEY (fld1, fld3),  KEY(fld1)) PARTITION
@@ -1329,7 +1376,11 @@ PARTITION_ORDINAL_POSITION;
 --echo # Update the table where partition p02 is updated.
 UPDATE t1 SET fld2 = 71000 WHERE fld1 = 12 AND fld3 = '1985-11-16';
 
+<<<<<<< HEAD
 --echo # Without fix, the count for 'update_time' will be 3. After fix,
+=======
+--echo # Without fix, the count for 'update_time' will be 2. After fix,
+>>>>>>> pr/231
 --echo # it will be 1 since only partition 'p02' is updated.
 SELECT TABLE_NAME, COUNT(UPDATE_TIME)
 FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = 'test' AND
@@ -1337,6 +1388,10 @@ TABLE_NAME = 't1' ORDER BY PARTITION_ORDINAL_POSITION;
 
 DROP TABLE t1;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --echo
 --echo BUG#26553164 - INNODB PARTITION TABLE HAS UNEXPECTED ROW LOCK
 --echo
@@ -1377,6 +1432,7 @@ commit;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # WL#1074 - Descending index support.
@@ -1499,3 +1555,6 @@ HANDLER t1 CLOSE;
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 DROP TABLE t1;
                                             
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

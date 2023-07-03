@@ -129,6 +129,23 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 SELECT 1 FROM t1 WHERE t1.a IN (1, t1.a) AND t1.a=2;
 1
 DROP TABLE t1;
+<<<<<<< HEAD
+=======
+SET NAMES utf8;
+CREATE TABLE t1(id INT, plage TIME, plage2 DATETIME) ENGINE=InnoDB CHARSET=utf8;
+INSERT INTO t1 VALUES(1,'00:00:00', '2018-04-20 00:00:00');
+SELECT (date_format(plage2,'%H:%i:%s')) < plage FROM t1;
+(date_format(plage2,'%H:%i:%s')) < plage
+0
+SELECT plage > (date_format(plage2,'%H:%i:%s')) FROM t1;
+plage > (date_format(plage2,'%H:%i:%s'))
+0
+SELECT (date_format(plage2,'%H:%i:%s')) < plage COLLATE utf8_general_ci FROM t1;
+(date_format(plage2,'%H:%i:%s')) < plage COLLATE utf8_general_ci
+0
+DROP TABLE t1;
+SET NAMES default;
+>>>>>>> upstream/cluster-7.6
 
 Bug #27452148: ASSERTION FAILED: (SLEN % 4) == 0 IN
 MY_STRNNCOLLSP_UTF32_BIN

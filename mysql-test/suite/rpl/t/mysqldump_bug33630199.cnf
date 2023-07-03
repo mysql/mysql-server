@@ -1,0 +1,6 @@
+!include ../my.cnf
+
+[mysqld]
+gtid-mode=on
+enforce-gtid-consistency
+server-id=100

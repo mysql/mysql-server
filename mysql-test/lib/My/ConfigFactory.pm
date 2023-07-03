@@ -1,5 +1,13 @@
 # -*- cperl -*-
+<<<<<<< HEAD
 # Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +42,13 @@ use My::Find;
 use My::Platform;
 
 # Rules to run first of all
+<<<<<<< HEAD
 my @pre_rules = (\&pre_check_no_hosts_in_cluster_config);
+=======
+#
+my @pre_rules = (\&pre_check_no_hosts_in_cluster_config);
+
+>>>>>>> pr/231
 
 sub get_basedir {
   my ($self, $group) = @_;
@@ -420,6 +434,16 @@ my @mysql_upgrade_rules = ();
 sub pre_check_no_hosts_in_cluster_config {
   my ($self, $config) = @_;
 
+<<<<<<< HEAD
+=======
+# For [cluster_config] section there should be no ndbd, ndb_mgmd, mysqld,
+# ndbapi options set.  These should only be set in cluster instance specific
+# sections, [cluster_config.X].  This is crucial when determining in the order
+# ndb_mgmd will enumerate node ids for nodes without explicit node id.
+sub pre_check_no_hosts_in_cluster_config {
+  my ($self, $config) = @_;
+
+>>>>>>> pr/231
   my $group = $config->group('cluster_config');
   if (defined $group) {
     if (defined $group->if_exist('ndbd') ||
@@ -429,6 +453,56 @@ sub pre_check_no_hosts_in_cluster_config {
       croak "Configuration error: Do not set ndbd, ndb_mgmd, mysqld, ndbapi ".
             "in [cluster_config] section.  Use cluster specific sections ".
             "[cluster_config.X] instead.";
+<<<<<<< HEAD
+=======
+    }
+  }
+}
+
+# For each [cluster_config.X] record all allocated node ids (set using NodeId
+# property).  This will be used when determining what node id nodes with no
+# configured node id will get.
+sub track_allocated_nodeid {
+  my ($self, $config, $group_name, $group) = @_;
+
+  my (undef, $process_type, $idx, $suffix) = split(/\./, $group_name);
+
+  if (my $nodeid = $group->if_exist('NodeId')) {
+    if (!defined $suffix) {
+      croak "Configuration error: Do not set NodeId in general group ".
+            "[$group_name] but use instance specific group like ".
+            "[cluster_config.$process_type.1.cluster] instead.";
+    }
+    $config->{"cluster_config.$suffix"}->{"ALLOCATED NODEIDS"}->{$nodeid} = 1;
+  }
+  return;
+}
+
+#
+# Generate a [client.<suffix>] group to be
+# used for connecting to [mysqld.<suffix>]
+#
+sub post_check_client_group {
+  my ($self, $config, $client_group_name, $mysqld_group_name)= @_;
+
+
+  #  Settings needed for client, copied from its "mysqld"
+  my %client_needs=
+    (
+     port       => 'port',
+     socket     => 'socket',
+     host       => '#host',
+     user       => '#user',
+     password   => '#password',
+    );
+  my $group_to_copy_from= $config->group($mysqld_group_name);
+  while (my ($name_to, $name_from)= each( %client_needs )) {
+    my $option= $group_to_copy_from->option($name_from);
+
+    if (! defined $option){
+      #print $config;
+      croak "Could not get value for '$name_from'";
+>>>>>>> pr/231
     }
   }
 }
@@ -572,6 +646,16 @@ sub post_fix_mysql_cluster_section {
       }
     }
 
+    # Add ndb_connectstring to each ndbd connected to this
+    # cluster.
+    foreach my $ndbd ($config->like('cluster_config.ndbd.')) {
+      if ($ndbd->suffix() eq $group->suffix()) {
+        my $after = $ndbd->after('cluster_config.ndbd');
+        $config->insert("ndbd$after",
+                        'ndb_connectstring', $ndb_connectstring);
+      }
+    }
+
     # Add ndb_connectstring to each mysqld connected to this
     # cluster.
     foreach my $mysqld ($config->like('cluster_config.mysqld.')) {
@@ -623,7 +707,26 @@ sub run_section_rules {
 sub run_generate_sections_from_cluster_config {
   my ($self, $config) = @_;
 
+<<<<<<< HEAD
   foreach my $group ($config->like('cluster_config\.\w*$')) {
+
+    # @options will be a list of ndbd, ndb_mgmd, mysqld, ndbapi ordered in the
+    # way that ndb_mgmd will assign node ids to nodes without id.
+    my @options;
+
+    foreach my $option ($group->options()) {
+      my $option_name = $option->name();
+      if ($option_name =~ /^(ndbd|ndb_mgmd|mysqld|ndbapi)$/)
+      {
+        push @options, $option_name;
+      }
+    }
+
+    # Keep track of next node id to use if not explicitly set.
+    my $next_nodeid = 1;
+=======
+  foreach my $group ( $config->like('cluster_config\.\w*$') ) {
+>>>>>>> pr/231
 
     # @options will be a list of ndbd, ndb_mgmd, mysqld, ndbapi ordered in the
     # way that ndb_mgmd will assign node ids to nodes without id.
@@ -684,6 +787,7 @@ sub run_generate_sections_from_cluster_config {
         # If prediction of node id is wrong, and node id for another node type
         # is used, that will cause testcase to fail during setup.
         if ($option_name eq 'ndbd') {
+<<<<<<< HEAD
           if ($instances > 1) {
             $config->insert("$option_name.$idx$suffix",
                             'ndb-nodeid', $nodeid);
@@ -705,6 +809,20 @@ sub run_generate_sections_from_cluster_config {
                                    $group);
           $config->insert("mysqld.$idx$suffix", 'datadir', "$datadir/data");
         }
+=======
+          $config->insert("$option_name.$idx$suffix",
+                          'ndb-nodeid', $nodeid);
+        }
+
+	if ($option_name eq 'mysqld'){
+	  my $datadir=
+	    $self->fix_cluster_dir($config,
+				   "cluster_config.mysqld.$idx$suffix",
+				   $group);
+	  $config->insert("mysqld.$idx$suffix",
+			  'datadir', "$datadir/data");
+	}
+>>>>>>> pr/231
       }
     }
   }
@@ -751,8 +869,21 @@ sub new_config {
 
   $self->run_generate_sections_from_cluster_config($config);
 
+<<<<<<< HEAD
   $self->run_section_rules($config, 'cluster_config\.\w',
                            ({ 'CODE' => \&track_allocated_nodeid }));
+=======
+  $self->run_section_rules($config,
+                           'cluster_config\.\w',
+                           ({ 'CODE' => \&track_allocated_nodeid }));
+
+  $self->run_section_rules($config,
+			   'cluster_config.ndb_mgmd.',
+			   @ndb_mgmd_rules);
+  $self->run_section_rules($config,
+			   'cluster_config.ndbd',
+			   @ndbd_rules);
+>>>>>>> pr/231
 
   $self->run_section_rules($config, 'cluster_config.ndb_mgmd.',
                            @ndb_mgmd_rules);

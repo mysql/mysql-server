@@ -3895,6 +3895,7 @@ d VARCHAR(3) DEFAULT NULL,
 id INT DEFAULT NULL,
 KEY idx1 (id, c),
 KEY idx2 (id, d)) ENGINE=INNODB ;
+<<<<<<< HEAD
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	Table 'test.t1' doesn't exist
@@ -3912,12 +3913,31 @@ SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
 ORDER BY c, a
+=======
+ANALYZE TABLE test_ref;
+Table	Op	Msg_type	Msg_text
+test.test_ref	analyze	status	OK
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+>>>>>>> pr/231
 LIMIT 1;
 a	b	c	d	id
 34876	D003	gheennse	S	3
 EXPLAIN SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
+<<<<<<< HEAD
 ORDER BY c DESC, a DESC
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3928,10 +3948,23 @@ SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
 ORDER BY c DESC, a DESC
+=======
+ORDER BY c DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+>>>>>>> pr/231
 LIMIT 1;
 a	b	c	d	id
 1770649	D003	gheennse	S	3
 DROP TABLE test_ref;
+<<<<<<< HEAD
 #
 # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
 #                WHERE_CLAUSE
@@ -4094,4 +4127,6 @@ c
 z
 L
 DROP TABLE t1;
+=======
+>>>>>>> pr/231
 set optimizer_switch=default;

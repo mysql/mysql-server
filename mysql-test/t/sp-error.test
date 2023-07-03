@@ -3679,6 +3679,7 @@ drop function test.f111111111122222222223333333333444444444455555555556666666666
 --error ER_WRONG_DB_NAME 
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 
+<<<<<<< HEAD
 --echo #
 --echo # WL#7897 -- Use DD API for Stored Routines.
 --echo # Test cases to verify error scenarios.
@@ -3793,6 +3794,11 @@ SET character_set_client = @orig_character_set_client;
 
 --enable_query_log
 
+<<<<<<< HEAD
+=======
+=======
+
+>>>>>>> pr/231
 --echo #
 --echo # Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT
 --echo #                SELECTED
@@ -3816,3 +3822,7 @@ SELECT f2();
 DROP FUNCTION IF EXISTS f2;
 DROP FUNCTION IF EXISTS f1;
 DROP DATABASE mysqltest;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

@@ -61,6 +61,10 @@ drop table test.t1;
 
 drop table test.t1;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --echo Test that exclude-missing-tables does not exclude tables in rewritten databases
 
 create database dbfrom;
@@ -73,15 +77,24 @@ insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5);
 drop table t1;
 drop database dbfrom;
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -n 1 -b $the_backup_id --disable-indexes --rewrite-database=dbfrom,dbto -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -n 1 -b $the_backup_id --rebuild-indexes --rewrite-database=dbfrom,dbto --exclude-missing-tables -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -n 2 -b $the_backup_id --rebuild-indexes --rewrite-database=dbfrom,dbto --exclude-missing-tables -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -n 1 -b $the_backup_id --disable-indexes --rewrite-database=dbfrom,dbto -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -n 1 -b $the_backup_id --rebuild-indexes --rewrite-database=dbfrom,dbto --exclude-missing-tables -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -n 2 -b $the_backup_id --rebuild-indexes --rewrite-database=dbfrom,dbto --exclude-missing-tables -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 create database dbto;
 use dbto;
 select * from t1 order by id;
 
 drop database dbto;
+<<<<<<< HEAD
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

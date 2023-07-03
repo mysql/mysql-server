@@ -32,7 +32,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -47,7 +55,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -130,7 +146,15 @@ t1	CREATE TABLE `t1` (
   `total` bigint unsigned DEFAULT NULL,
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -145,9 +169,17 @@ t1	CREATE TABLE `t1` (
   `total` bigint unsigned DEFAULT NULL,
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -256,7 +288,15 @@ t1	CREATE TABLE `t1` (
   `u` int DEFAULT NULL,
   `v` char(16) DEFAULT 'default',
   PRIMARY KEY (`id`,`total`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SELECT * 
 FROM t1
 ORDER BY id;
@@ -361,7 +401,15 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`,`total`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead

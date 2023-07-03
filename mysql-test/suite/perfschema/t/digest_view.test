@@ -5,7 +5,12 @@
 # Test case to show behavior of statements digest when
 # using a view
 
+<<<<<<< HEAD
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+=======
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+>>>>>>> pr/231
 --source include/no_protocol.inc
 
 CREATE TABLE test.v1 (a int, b int);
@@ -14,7 +19,10 @@ INSERT INTO test.v1 VALUES (1, 100), (2, 200), (3, 300);
 CREATE TABLE test.t1 (a int, b int);
 INSERT INTO test.t1 VALUES (1, 100), (2, 200), (3, 300);
 
+<<<<<<< HEAD
 ANALYZE TABLE v1, t1;
+=======
+>>>>>>> pr/231
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 
@@ -23,17 +31,23 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 # Every query here is different, and should have a different digest.
 #
 
+<<<<<<< HEAD
 # The hypergraph optimizer skips EXPLAIN with the traditional format.
 # Disable warnings so that the count of SHOW WARNINGS in
 # performance_schema.events_statements_summary_by_digest is the same
 # regardless of optimizer used.
 --disable_warnings
+=======
+>>>>>>> pr/231
 EXPLAIN SELECT * from test.v1;
 EXPLAIN SELECT * from test.v1 where a = 1;
 EXPLAIN SELECT * from test.v1 where b > 100;
 EXPLAIN SELECT a, b from test.v1;
 EXPLAIN SELECT b, a from test.v1;
+<<<<<<< HEAD
 --enable_warnings
+=======
+>>>>>>> pr/231
 
 SELECT * from test.v1;
 SELECT * from test.v1 where a = 1;
@@ -45,7 +59,11 @@ SELECT b, a from test.v1;
 --echo # DIGESTS SEEN ON TABLE
 --echo #
 
+<<<<<<< HEAD
 SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, QUERY_SAMPLE_TEXT
+=======
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR
+>>>>>>> pr/231
   FROM performance_schema.events_statements_summary_by_digest
   ORDER BY DIGEST_TEXT;
 
@@ -57,13 +75,19 @@ CREATE VIEW test.v1 AS SELECT * FROM test.t1;
 # the query digests should be unchanged.
 #
 
+<<<<<<< HEAD
 --disable_warnings
+=======
+>>>>>>> pr/231
 EXPLAIN SELECT * from test.v1;
 EXPLAIN SELECT * from test.v1 where a = 1;
 EXPLAIN SELECT * from test.v1 where b > 100;
 EXPLAIN SELECT a, b from test.v1;
 EXPLAIN SELECT b, a from test.v1;
+<<<<<<< HEAD
 --enable_warnings
+=======
+>>>>>>> pr/231
 
 SELECT * from test.v1;
 SELECT * from test.v1 where a = 1;
@@ -75,7 +99,11 @@ SELECT b, a from test.v1;
 --echo # DIGESTS SEEN ON VIEW
 --echo #
 
+<<<<<<< HEAD
 SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, QUERY_SAMPLE_TEXT
+=======
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR
+>>>>>>> pr/231
   FROM performance_schema.events_statements_summary_by_digest
   ORDER BY DIGEST_TEXT;
 

@@ -1,4 +1,8 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
+=======
+--source suite/ndb/include/ndb_find_import_tool.inc
+>>>>>>> pr/231
 
 
 #
@@ -39,8 +43,12 @@ exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
 exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
      --resume test $MYSQL_TMP_DIR/mt.data;
 
+<<<<<<< HEAD
 --let $n= `SELECT count(*) FROM mt`
 --assert($n == 6)
+=======
+SELECT count(*) FROM mt;
+>>>>>>> pr/231
 
 DROP TABLE mt;
 

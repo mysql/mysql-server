@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/replication_threads_api.h
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/replication_threads_api.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,30 +78,61 @@ class Replication_thread_api {
     @param priority      The channel priority on event application
     @param retry_count   The number of retries when connecting
     @param preserve_logs If logs should be always preserved
+<<<<<<< HEAD:plugin/group_replication/include/replication_threads_api.h
     @param public_key_path The file with public key path information
     @param get_public_key Preference to get public key if unavailable.
+<<<<<<< HEAD
     @param compression_algorithm The compression algorithm
     @param zstd_compression_level The compression level
     @param tls_version   TLS versions
     @param tls_ciphersuites Permissible ciphersuites for TLS 1.3.
     @param ignore_ws_mem_limit Shall ignore write set mem limits
     @param allow_drop_write_set Shall not require write set to be preserved
+=======
+=======
+    @param ignore_ws_mem_limit Shall ignore write set mem limits
+    @param allow_drop_write_set Shall not require write set to be preserved
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/replication_threads_api.h
+>>>>>>> pr/231
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error on channel creation
   */
+<<<<<<< HEAD:plugin/group_replication/include/replication_threads_api.h
   int initialize_channel(char *hostname, uint port, char *user, char *password,
                          bool use_ssl, char *ssl_ca, char *ssl_capath,
                          char *ssl_cert, char *ssl_cipher, char *ssl_key,
                          char *ssl_crl, char *ssl_crlpath,
                          bool ssl_verify_server_cert, int priority,
                          int retry_count, bool preserve_logs,
+<<<<<<< HEAD
                          char *public_key_path, bool get_public_key,
                          char *compression_algorithm,
                          uint zstd_compression_level, char *tls_version,
                          char *tls_ciphersuites, bool ignore_ws_mem_limit,
                          bool allow_drop_write_set);
+=======
+                         char *public_key_path, bool get_public_key);
+=======
+  int initialize_channel(char* hostname, uint port,
+                         char* user, char* password,
+                         bool use_ssl,
+                         char *ssl_ca,
+                         char *ssl_capath,
+                         char *ssl_cert,
+                         char *ssl_cipher,
+                         char *ssl_key,
+                         char *ssl_crl,
+                         char *ssl_crlpath,
+                         bool ssl_verify_server_cert,
+                         int priority,
+                         int retry_count,
+                         bool preserve_logs,
+                         bool ignore_ws_mem_limit,
+                         bool allow_drop_write_set);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/replication_threads_api.h
+>>>>>>> pr/231
 
   /**
     Start the Applier/Receiver threads according to the given options.

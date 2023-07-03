@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 include/only_with_option.inc [GLOBAL.replica_transaction_retries > 2]
+=======
+include/only_with_option.inc [GLOBAL.slave_transaction_retries > 2]
+>>>>>>> pr/231
 #
 # 1. Create source-replica topology.
 include/master-slave.inc
@@ -6,6 +10,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+<<<<<<< HEAD
 
 # 2. Save the current variables on source.
 #    2.1 Save current binlog_row_image.
@@ -17,6 +22,26 @@ SET @@session.binlog_row_image = 'MINIMAL';
 SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
 #
 # 4.Create table and procedure on source.
+=======
+#
+# 2. Save the current variable values.
+SET @old_binlog_row_image= @@binlog_row_image;
+[connection master]
+# 3. Setup neccesary variables on source.
+# 3.1 Set the binlog_row_image to MINIMAL on source.
+CON: 'master', IMG: 'MINIMAL', RESTART SLAVE: 'N'
+SET SESSION binlog_row_image= 'MINIMAL';
+SET GLOBAL binlog_row_image= 'MINIMAL';
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION = 'XXHASH64';
+SET SESSION TRANSACTION_WRITE_SET_EXTRACTION = 'XXHASH64';
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
+#
+# 4. Create table and procedure on source.
+>>>>>>> pr/231
 CREATE TABLE t( a tinyint unsigned primary key, b tinyint, c int, d bigint,
 f char(10), g char(255), h text, i longtext, unique key(g,f),
 unique key(f,c), key(c,d,b), key(i(10),f(10),b)) ENGINE=InnoDB;
@@ -48,8 +73,16 @@ include/sync_slave_sql_with_master.inc
 # 6. Clear system variables on source.
 #
 [connection master]
+<<<<<<< HEAD
 SET SESSION binlog_row_image= @old_binlog_row_image;
 SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = OLD_TRX_TRACKER;
+=======
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = OLD_TRX_TRACKER;
+SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION = OLD_TRX_WRITE_SET_EXTRACTION_GLOBAL;
+SET SESSION TRANSACTION_WRITE_SET_EXTRACTION = OLD_TRX_WRITE_SET_EXTRACTION_SESSION;
+>>>>>>> pr/231
 [connection slave]
 CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 [connection master]

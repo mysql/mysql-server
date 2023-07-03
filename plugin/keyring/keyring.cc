@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +101,12 @@ static MYSQL_SYSVAR_STR(
     update_keyring_file_data,                          /* update()   */
     MYSQL_DEFAULT_KEYRINGFILE                          /* default    */
 );
+static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
+                         PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
+                         "Mode in which keyring file should be opened", NULL,
+                         NULL, TRUE);
 
+<<<<<<< HEAD
 static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
                          PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
                          "Mode in which keyring file should be opened", nullptr,
@@ -101,6 +114,10 @@ static MYSQL_SYSVAR_BOOL(open_mode, keyring_open_mode,
 
 static SYS_VAR *keyring_file_system_variables[] = {
     MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), nullptr};
+=======
+<<<<<<< HEAD
+static SYS_VAR *keyring_file_system_variables[] = {MYSQL_SYSVAR(data), NULL};
+>>>>>>> pr/231
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -115,14 +132,28 @@ static int keyring_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     ERR_load_BIO_strings();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
+<<<<<<< HEAD
 #endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+=======
+=======
+static struct st_mysql_sys_var *keyring_file_system_variables[]= {
+  MYSQL_SYSVAR(data),
+  MYSQL_SYSVAR(open_mode),
+  NULL
+};
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef HAVE_PSI_INTERFACE
     keyring_init_psi_keys();
 #endif
 
+<<<<<<< HEAD
     DBUG_EXECUTE_IF("simulate_keyring_init_error", return true;);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
     if (init_keyring_locks()) return true;
 
     logger.reset(new Logger());
@@ -140,7 +171,37 @@ static int keyring_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     if (keys->init(keyring_io, keyring_file_data_value)) {
       is_keys_container_initialized = false;
       logger->log(ERROR_LEVEL, ER_KEYRING_FILE_INIT_FAILED);
+<<<<<<< HEAD
       return true;
+=======
+      return false;
+=======
+    DBUG_EXECUTE_IF("simulate_keyring_init_error", return TRUE;);
+
+    if (init_keyring_locks())
+      return TRUE;
+
+    logger.reset(new Logger(plugin_info));
+    if (create_keyring_dir_if_does_not_exist(keyring_file_data_value))
+    {
+      logger->log(MY_ERROR_LEVEL, "Could not create keyring directory "
+        "The keyring_file will stay unusable until correct path to the keyring "
+        "directory gets provided");
+      return TRUE;
+    }
+    keys.reset(new Keys_container(logger.get()));
+    IKeyring_io *keyring_io= new Buffered_file_io(logger.get());
+    if (keys->init(keyring_io, keyring_file_data_value))
+    {
+      is_keys_container_initialized = FALSE;
+      logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure. Please check"
+        " if the keyring_file_data points to readable keyring file or keyring file"
+        " can be created in the specified location. "
+        "The keyring_file will stay unusable until correct path to the keyring file "
+        "gets provided");
+      return TRUE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     is_keys_container_initialized = true;
     return false;

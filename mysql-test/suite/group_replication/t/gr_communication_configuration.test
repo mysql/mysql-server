@@ -83,22 +83,32 @@ SET SESSION sql_log_bin= 1;
 --source include/rpl_connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
 
 # Clear XCom configuration on all servers.
 --source include/gr_clear_configuration.inc
 
+<<<<<<< HEAD
 --replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
 --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+=======
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+>>>>>>> pr/231
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+<<<<<<< HEAD
 --replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
 --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+=======
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+>>>>>>> pr/231
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

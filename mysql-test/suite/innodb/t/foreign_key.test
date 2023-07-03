@@ -146,6 +146,7 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 --echo #
+<<<<<<< HEAD
 --echo # BUG#25976199 GROUP_REPLICATION.GR_FOREIGN_CHECKS_DISABLED TEST FAILING
 --echo # ON PB2
 --echo #
@@ -273,6 +274,7 @@ KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
 ) ENGINE=INNODB;
 
 DROP TABLE parent;
+<<<<<<< HEAD
 
 --echo # Test delete/update rules combination.
 CREATE TABLE t1
@@ -547,6 +549,9 @@ SELECT id, for_name, ref_name FROM information_schema.innodb_foreign WHERE id LI
 DROP TABLES `......................................`, t1;
 
 --echo #
+=======
+=======
+>>>>>>> pr/231
 --echo # Bug#33053297 VIRTUAL INDEX CORRUPTED DURING CASCADE UPDATE ON CHILD TABLE
 --echo #
 
@@ -685,3 +690,7 @@ SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-';
 #clean up.
 DROP TABLE `email_stats`;
 DROP TABLE `emails`;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

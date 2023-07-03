@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 --source include/count_sessions.inc
 --source include/have_debug.inc
 # Remove when Bug#30320009 has been fixed
 --source include/not_binlog_format_mixed.inc
+=======
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+--source include/have_debug.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug#25966845 INSERT ON DUPLICATE KEY GENERATE A DEADLOCK

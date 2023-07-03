@@ -1,14 +1,23 @@
 Setup error insert to interleave DEFINE_BACKUP_REQ replies with NODE_FAILREP
 
 Start backup, that will fail due to node failure
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 Wait for cluster to come up again
 Setup error insert to interleave START_BACKUP_REQ replies with NODE_FAILREP
 
 Start backup, that will fail due to node failure
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 Wait for cluster to come up again
 Setup error insert to interleave STOP_BACKUP_REQ replies with NODE_FAILREP
 
 Start backup, that will fail due to node failure
+<<<<<<< HEAD
 Wait for cluster to come up again
 Setup error insert so that backup fails in a controlled way
 
@@ -34,3 +43,7 @@ Node recovered, ok
 Clear error
 
 Check backup ok
+=======
+
+Wait for cluster to come up again
+>>>>>>> pr/231

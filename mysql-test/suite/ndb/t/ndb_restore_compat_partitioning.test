@@ -1,5 +1,10 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_setup.inc
+=======
+
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+>>>>>>> pr/231
 
 # Test schema restore using pre-7.5 metadata to check
 # for regressions introduced since then.
@@ -52,9 +57,17 @@
 #
 #
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b 1 -n 1 -m $NDB_SAVED_BACKUPS/pre_75_partitioning_variants >> $NDB_TOOLS_OUTPUT
 
 use test;
+=======
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m $backup_data_dir/pre_75_partitioning_variants >> $NDB_TOOLS_OUTPUT
+
+use test;
+--sorted_result
+show tables;
+>>>>>>> pr/231
 
 show create table standard;
 show create table maxrows_low;
@@ -63,15 +76,22 @@ show create table bykeycount;
 show create table bykeycount_big;
 show create table another;
 
+<<<<<<< HEAD
 --sorted_result
 show tables;
 
+=======
+>>>>>>> pr/231
 
 drop table standard;
 drop table maxrows_low;
 drop table maxrows_high;
 drop table bykeycount;
 drop table bykeycount_big;
+<<<<<<< HEAD
 drop table another;
 
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+drop table another;
+>>>>>>> pr/231

@@ -287,9 +287,15 @@ DROP TABLE t1;
 
 CREATE TABLE t(
 a VARCHAR(256) NOT NULL,
+<<<<<<< HEAD
 i VARCHAR(512) NOT NULL,
 PRIMARY KEY (a),
 KEY (i)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+=======
+i VARCHAR(1024) NOT NULL,
+PRIMARY KEY (a),
+KEY (i)) DEFAULT CHARSET=utf8;
+>>>>>>> pr/231
 
 INSERT INTO t VALUES
 ('aaa12345678','aaa'), ('aaa2','aaa'), ('aaa4','aaa'),

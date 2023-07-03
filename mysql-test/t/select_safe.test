@@ -151,17 +151,26 @@ eval $query2;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= default;
 
 eval EXPLAIN $query3;
+<<<<<<< HEAD
 --skip_if_hypergraph  # Different wording in error message.
+=======
+>>>>>>> pr/231
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query3;
 
 eval EXPLAIN $query4;
+<<<<<<< HEAD
 --skip_if_hypergraph  # Different wording in error message.
+=======
+>>>>>>> pr/231
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query4;
 
 eval EXPLAIN $query5;
+<<<<<<< HEAD
 --skip_if_hypergraph  # Does not use index. Bug#33583337?
+=======
+>>>>>>> pr/231
 eval $query5;
 
 eval EXPLAIN $query6;
@@ -176,7 +185,10 @@ eval EXPLAIN $query8;
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query8;
 
+<<<<<<< HEAD
 --replace_column 12 #
+=======
+>>>>>>> pr/231
 eval EXPLAIN $query9;
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query9;
@@ -188,6 +200,7 @@ SET sql_log_bin= default;
 
 DROP TABLE t1, t2;
 SET SESSION sql_safe_updates=default;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#25118903: MAX_JOIN_SIZE DOES NOT MATCH ROW ESTIMATES
@@ -427,3 +440,5 @@ SELECT 1 FROM t AS t1, t AS t2 WHERE t1.y = t2.y LIMIT 16;
 
 SET max_join_size = DEFAULT;
 DROP TABLE t;
+=======
+>>>>>>> pr/231

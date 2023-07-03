@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
@@ -19,6 +20,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /// @file safe_process_win.cc
 ///

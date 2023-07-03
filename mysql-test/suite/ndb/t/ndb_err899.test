@@ -7,12 +7,20 @@ connect(con2, localhost, root,,);
 --echo check COMMIT behaviour with out-of-order signals and single delete
 
 --echo record DBTUP resource usage before test
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
 INSERT INTO test.t1 values (101,101), (202,202);
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 # Test for multiple ops on specific tuple in transaction, where overall result
 # is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
@@ -42,17 +50,29 @@ while ($i)
 drop table test.t1;
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo check COMMIT behaviour with out-of-order signals and multiple deletes
 
 --echo record DBTUP resource usage before test
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
 INSERT INTO test.t1 values (101,101), (202,202);
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 # Test for multiple ops on specific tuple in transaction, where overall result
 # is deletion of tuple. Error insert re-orders COMMIT and delays COMPLETE to
@@ -84,7 +104,11 @@ while ($i)
 drop table test.t1;
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 
 
@@ -92,12 +116,20 @@ drop table test.t1;
 --echo check COMMIT behaviour with concurrent reads
 
 --echo record DBTUP resource usage before test
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
 INSERT INTO test.t1 values (101,101), (202,202);
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --connection con1
 
@@ -145,18 +177,30 @@ drop procedure work;
 drop table test.t1;
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 
 --echo check ABORT behaviour with out-of-order signals
 
 --echo record DBTUP resource usage before test
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4000" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
 INSERT INTO test.t1 values (101,101), (202,202);
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5093" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 BEGIN;
 SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
@@ -178,5 +222,9 @@ while ($i)
 drop table test.t1;
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231

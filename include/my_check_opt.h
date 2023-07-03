@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +58,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /** CHECK TABLE...MEDIUM (the default) */
 #define T_MEDIUM (1UL << 14)
 /** CHECK TABLE...QUICK */
+<<<<<<< HEAD
 #define T_QUICK (1UL << 15)
 #define T_READONLY (1UL << 16)
 #define T_REP (1UL << 17)
@@ -68,6 +77,31 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define T_WAIT_FOREVER (1UL << 30)
 #define T_WRITE_LOOP (1UL << 31)
 
+<<<<<<< HEAD
 #define T_REP_ANY (T_REP | T_REP_BY_SORT)
+=======
+#define T_REP_ANY (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
+=======
+#define T_QUICK			(1UL << 15)
+#define T_READONLY		(1UL << 16)
+#define T_REP			(1UL << 17)
+#define T_REP_BY_SORT		(1UL << 18)
+#define T_REP_PARALLEL_OBSOLETE		(1UL << 19)
+#define T_RETRY_WITHOUT_QUICK	(1UL << 20)
+#define T_SAFE_REPAIR		(1UL << 21)
+#define T_SILENT		(1UL << 22)
+#define T_SORT_INDEX		(1UL << 23)
+#define T_SORT_RECORDS		(1UL << 24)
+#define T_STATISTICS		(1UL << 25)
+#define T_UNPACK		(1UL << 26)
+#define T_UPDATE_STATE		(1UL << 27)
+#define T_VERBOSE		(1UL << 28)
+#define T_VERY_SILENT		(1UL << 29)
+#define T_WAIT_FOREVER		(1UL << 30)
+#define T_WRITE_LOOP		(1UL << 31)
+
+#define T_REP_ANY		(T_REP | T_REP_BY_SORT)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #endif

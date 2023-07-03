@@ -1,4 +1,12 @@
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/cmake/xcom.h.cmake
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/xcom.h.cmake
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/xcom.h.cmake
+>>>>>>> pr/231:plugin/group_replication/libmysqlgcs/xcom.h.cmake
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

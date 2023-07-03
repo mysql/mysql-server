@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +61,12 @@ extern PSI_memory_key key_memory_log_event;
 
 #endif
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
 
 #include "my_dbug.h"
 
@@ -72,6 +85,10 @@ extern PSI_memory_key key_memory_log_event;
 #define BAPI_TRACE
 #define BAPI_VOID_RETURN return
 #endif
+=======
+#if !defined(NDEBUG)
+#define BAPI_ASSERT(x) assert(x)
+>>>>>>> upstream/cluster-7.6
 #else
 #define BAPI_ASSERT(x) \
   do {                 \

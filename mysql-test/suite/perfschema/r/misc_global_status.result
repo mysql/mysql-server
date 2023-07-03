@@ -4,6 +4,10 @@ CREATE USER user3@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
+<<<<<<< HEAD
+=======
+SET GLOBAL show_compatibility_56=0;
+>>>>>>> pr/231
 TRUNCATE TABLE performance_schema.accounts;
 FLUSH PRIVILEGES;
 CREATE TABLE test.t_range(a int, b int, PRIMARY KEY(a));
@@ -96,4 +100,8 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM user3@localhost;
 DROP USER user1@localhost;
 DROP USER user2@localhost;
 DROP USER user3@localhost;
+<<<<<<< HEAD
+=======
+SET GLOBAL show_compatibility_56=1;
+>>>>>>> pr/231
 FLUSH PRIVILEGES;

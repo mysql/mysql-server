@@ -18,3 +18,20 @@ c1	c2
 5	5
 6	6
 DROP TABLE t1;
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 2);
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create
+WAIT_FOR go_ahead';
+CREATE UNIQUE INDEX idx ON parent(b);;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+INSERT INTO parent VALUES(4, 2);
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+ERROR 23000: Duplicate entry '2' for key 'idx'
+SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
+SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
+ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE child;
+DROP TABLE parent;

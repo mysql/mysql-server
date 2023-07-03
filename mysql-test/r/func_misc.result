@@ -1101,6 +1101,7 @@ NULL
 Warnings:
 Warning	1411	Incorrect string value: ''255.255.255.2551'' for function inet_aton
 #
+<<<<<<< HEAD
 # Bug #27004825: UBSAN: ITEM_FUNC_IS_IPV4_MAPPED - MEMBER ACCESS WITHIN MISALIGNED ADDRESS
 #
 SELECT IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)));
@@ -1109,6 +1110,7 @@ IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)))
 SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)))
 0
+<<<<<<< HEAD
 #
 # Bug#27744557 UBSAN: COMPARE_BINARY_STRING NULL POINTER PASSED
 #
@@ -1126,6 +1128,9 @@ DO (!(SECOND(0xb16beeb7)));
 Warnings:
 Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 Warning	1292	Truncated incorrect time value: '\xB1k\xEE\xB7'
+=======
+=======
+>>>>>>> pr/231
 # Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
 # NAME_CONST
 #
@@ -1136,6 +1141,7 @@ CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp9
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+<<<<<<< HEAD
   `a` varchar(6) CHARACTER SET cp932 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1165,6 +1171,26 @@ do (is_ipv4_mapped(bin_to_uuid(@a:=34)))
 <=>
 (json_objectagg('key2',42 ) and rtrim(""));
 ERROR HY000: Incorrect string value: '34' for function bin_to_uuid
+=======
+  `a` varchar(5) CHARACTER SET cp932 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+#
+# Bug 33334507 - 5.7 - utf8mb4 + REPLACE(UUID(),'-','') returns duplicate UUIDs!
+#
+CREATE TABLE t1(c1 CHAR(10) CHARACTER SET ascii);
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SELECT COUNT(*) FROM t1 GROUP BY COALESCE(c1, UUID());
+COUNT(*)
+1
+1
+1
+DROP TABLE t1;
+>>>>>>> upstream/cluster-7.6
+
+# -- Done.
+
+>>>>>>> pr/231
 #
 # End of tests
 #

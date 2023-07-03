@@ -9,6 +9,7 @@ id int(11) NOT NULL,
 value varbinary(4000),  # VARBINARY
 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 stop slave;
@@ -18,6 +19,11 @@ set global replica_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+stop slave;
+set global slave_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
+start slave;
+>>>>>>> pr/231
 use test;
 drop table t1;
 CREATE TABLE t1 (
@@ -25,8 +31,11 @@ id int(11) NOT NULL,
 value blob,          # BLOB
 PRIMARY KEY (id)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+=======
+>>>>>>> pr/231
 insert into t1(id,value) values(3,repeat(0x23,240));
 update t1 set value=repeat(0x24,240) where id=3;
 update t1 set value=repeat(0x25,250) where id=3;
@@ -44,5 +53,9 @@ id	length(value)	value
 3	256	PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
 update t1 set value=repeat('S', 2000);
 drop table test.t1;
+<<<<<<< HEAD
 set global replica_type_conversions='';
+=======
+set global slave_type_conversions='';
+>>>>>>> pr/231
 include/rpl_end.inc

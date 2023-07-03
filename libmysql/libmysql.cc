@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:libmysql/libmysql.cc
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +143,17 @@ int STDCALL mysql_server_init(int argc [[maybe_unused]],
     if (my_init()) /* Will init threads */
       return 1;
     init_client_errs();
+<<<<<<< HEAD:libmysql/libmysql.cc
     if (mysql_client_plugin_init()) return 1;
+<<<<<<< HEAD
+=======
+#if defined(HAVE_OPENSSL)
+=======
+    if (mysql_client_plugin_init())
+      return 1;
+#if defined (HAVE_OPENSSL)
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
     ssl_start();
 
     if (!mysql_port) {
@@ -235,10 +253,25 @@ static void append_wild(char *to, char *end, const char *wild) {
   Init debugging if MYSQL_DEBUG environment variable is found
 **************************************************************************/
 
+<<<<<<< HEAD
 void STDCALL mysql_debug(const char *debug [[maybe_unused]]) {
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD:libmysql/libmysql.cc
+void STDCALL mysql_debug(const char *debug MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   char *env;
   if (debug) {
+=======
+void STDCALL
+mysql_debug(const char *debug MY_ATTRIBUTE((unused)))
+{
+#ifndef NDEBUG
+  char	*env;
+  if (debug)
+  {
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
     DBUG_PUSH(debug);
   } else if ((env = getenv("MYSQL_DEBUG"))) {
     DBUG_PUSH(env);
@@ -1184,9 +1217,20 @@ static void stmt_clear_error(MYSQL_STMT *stmt) {
 
 void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err) {
+<<<<<<< HEAD
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER_CLIENT(errcode)));
   assert(stmt != nullptr);
+=======
+  DBUG_ENTER("set_stmt_error");
+<<<<<<< HEAD:libmysql/libmysql.cc
+  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER_CLIENT(errcode)));
+  DBUG_ASSERT(stmt != 0);
+=======
+  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER(errcode)));
+  assert(stmt != 0);
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
 
   if (err == nullptr) err = ER_CLIENT(errcode);
 
@@ -1206,7 +1250,11 @@ void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d/%s '%s'", net->last_errno, net->sqlstate,
                        net->last_error));
+<<<<<<< HEAD
   assert(stmt != nullptr);
+=======
+  assert(stmt != 0);
+>>>>>>> pr/231
 
   stmt->last_errno = net->last_errno;
   if (net->last_error[0] != '\0') my_stpcpy(stmt->last_error, net->last_error);
@@ -1767,11 +1815,28 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
         return true;
       }
 
+<<<<<<< HEAD:libmysql/libmysql.cc
       if (is_data_packet) {
         assert(stmt->result.rows == 0);
         prev_ptr = &stmt->result.data;
+<<<<<<< HEAD
         if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) return true;
       } else {
+=======
+        if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) DBUG_RETURN(1);
+      } else
+=======
+      if (is_data_packet)
+      {
+        assert(stmt->result.rows == 0);
+        prev_ptr= &stmt->result.data;
+        if (add_binary_row(net, stmt, pkt_len, &prev_ptr))
+          DBUG_RETURN(1);
+      }
+      else
+      {
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
         read_ok_ex(mysql, pkt_len);
         /*
           If the result set was empty and the server did not open a cursor,
@@ -1782,9 +1847,16 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
           to ensure that the next call to C API mysql_stmt_fetch() will not
           read on the network. Instead, it will return NO_MORE_DATA.
         */
+<<<<<<< HEAD
         if (!(mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)) {
           mysql->status = MYSQL_STATUS_READY;
           stmt->read_row_func = stmt_read_row_no_data;
+=======
+        if (!(mysql->server_status & SERVER_STATUS_CURSOR_EXISTS))
+        {
+          mysql->status= MYSQL_STATUS_READY;
+          stmt->read_row_func= stmt_read_row_no_data;
+>>>>>>> pr/231
         }
       }
     }
@@ -2122,12 +2194,27 @@ static void prepare_to_fetch_result(MYSQL_STMT *stmt) {
       and set the status to MYSQL_STATUS_READY. In such cases, we need
       not call mysql_stmt_store_result().
     */
+<<<<<<< HEAD
     if (stmt->mysql->status != MYSQL_STATUS_READY)
       mysql_stmt_store_result(stmt);
+=======
+<<<<<<< HEAD:libmysql/libmysql.cc
+    mysql_stmt_store_result(stmt);
+>>>>>>> pr/231
   } else {
     stmt->mysql->unbuffered_fetch_owner = &stmt->unbuffered_fetch_cancelled;
     stmt->unbuffered_fetch_cancelled = false;
     stmt->read_row_func = stmt_read_row_unbuffered;
+=======
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+      mysql_stmt_store_result(stmt);
+  }
+  else
+  {
+    stmt->mysql->unbuffered_fetch_owner= &stmt->unbuffered_fetch_cancelled;
+    stmt->unbuffered_fetch_cancelled= FALSE;
+    stmt->read_row_func= stmt_read_row_unbuffered;
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
   }
 }
 
@@ -2530,10 +2617,21 @@ bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
 bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
                                        const char *data, ulong length) {
   MYSQL_BIND *param;
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(stmt != nullptr);
+=======
+  DBUG_ENTER("mysql_stmt_send_long_data");
+<<<<<<< HEAD:libmysql/libmysql.cc
+  DBUG_ASSERT(stmt != 0);
+>>>>>>> pr/231
   DBUG_PRINT("enter", ("param no: %d  data: %p, length : %ld", param_number,
                        data, length));
+=======
+  assert(stmt != 0);
+  DBUG_PRINT("enter",("param no: %d  data: 0x%lx, length : %ld",
+		      param_number, (long) data, length));
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
 
   /*
     We only need to check for stmt->param_count, if it's not null
@@ -3434,6 +3532,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
 
   /* Setup data copy functions for the different supported types */
   switch (param->buffer_type) {
+<<<<<<< HEAD:libmysql/libmysql.cc
     case MYSQL_TYPE_NULL: /* for dummy binds */
       /*
         It's not binary compatible with anything the server can return:
@@ -3500,7 +3599,80 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     default:
       DBUG_PRINT("error",
                  ("Unknown param->buffer_type: %u", (uint)param->buffer_type));
+<<<<<<< HEAD
       return true;
+=======
+      DBUG_RETURN(true);
+=======
+  case MYSQL_TYPE_NULL: /* for dummy binds */
+    /*
+      It's not binary compatible with anything the server can return:
+      no need to setup fetch_result, as it'll be reset anyway
+    */
+    *param->length= 0;
+    break;
+  case MYSQL_TYPE_TINY:
+    param->fetch_result= fetch_result_tinyint;
+    *param->length= 1;
+    break;
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+    param->fetch_result= fetch_result_short;
+    *param->length= 2;
+    break;
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+    param->fetch_result= fetch_result_int32;
+    *param->length= 4;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    param->fetch_result= fetch_result_int64;
+    *param->length= 8;
+    break;
+  case MYSQL_TYPE_FLOAT:
+    param->fetch_result= fetch_result_float;
+    *param->length= 4;
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    param->fetch_result= fetch_result_double;
+    *param->length= 8;
+    break;
+  case MYSQL_TYPE_TIME:
+    param->fetch_result= fetch_result_time;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_DATE:
+    param->fetch_result= fetch_result_date;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    param->fetch_result= fetch_result_datetime;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_BIT:
+    assert(param->buffer_length != 0);
+    param->fetch_result= fetch_result_bin;
+    break;
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_JSON:
+    assert(param->buffer_length != 0);
+    param->fetch_result= fetch_result_str;
+    break;
+  default:
+    DBUG_PRINT("error", ("Unknown param->buffer_type: %u",
+                         (uint) param->buffer_type));
+    DBUG_RETURN(TRUE);
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
   }
   if (!is_binary_compatible(param->buffer_type, field->type))
     param->fetch_result = fetch_result_with_conversion;
@@ -3697,10 +3869,24 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
   return 0;
 }
 
+<<<<<<< HEAD:libmysql/libmysql.cc
 int cli_unbuffered_fetch(MYSQL *mysql, char **row) {
   ulong len = 0;
   bool is_data_packet;
+<<<<<<< HEAD
   if (packet_error == (len = cli_safe_read(mysql, &is_data_packet))) {
+=======
+  if (packet_error == cli_safe_read(mysql, &is_data_packet)) {
+=======
+
+int cli_unbuffered_fetch(MYSQL *mysql, char **row)
+{
+  ulong len= 0;
+  my_bool is_data_packet;
+  if (packet_error == (len = cli_safe_read(mysql, &is_data_packet)))
+  {
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
+>>>>>>> pr/231
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
   }
@@ -3812,8 +3998,18 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
    We could have read one row in execute() due to the lack of a cursor,
    but one at most.
   */
+<<<<<<< HEAD
   assert(result->rows <= 1);
+=======
+<<<<<<< HEAD:libmysql/libmysql.cc
+  DBUG_ASSERT(result->rows <= 1);
+>>>>>>> pr/231
   if (result->rows == 1) prev_ptr = &result->data->next;
+=======
+  assert(result->rows <= 1);
+  if (result->rows == 1)
+    prev_ptr= &result->data->next;
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
 
   while ((pkt_len = cli_safe_read(mysql, &is_data_packet)) != packet_error) {
     cp = net->read_pos;
@@ -3892,9 +4088,15 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
   MYSQL_BIND *my_bind, *end;
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
+<<<<<<< HEAD:libmysql/libmysql.cc
   uchar *row = (uchar *)data->data;
 #ifndef NDEBUG
   uchar *row_end = row + data->length;
+=======
+  uchar *row= (uchar*) data->data;
+#ifndef NDEBUG
+  uchar *row_end= row + data->length;
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
 #endif
 
   null_ptr = row;
@@ -3902,6 +4104,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
   bit = 4;                            /* first 2 bits are reserved */
 
   /* Go through all fields and calculate metadata */
+<<<<<<< HEAD:libmysql/libmysql.cc
   for (my_bind = stmt->bind, end = my_bind + stmt->field_count,
       field = stmt->fields;
        my_bind < end; my_bind++, field++) {
@@ -3909,6 +4112,18 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
     assert(row <= row_end);
     if (!((bit <<= 1) & 255)) {
       bit = 1; /* To next uchar */
+=======
+  for (my_bind= stmt->bind, end= my_bind + stmt->field_count, field= stmt->fields ;
+       my_bind < end ;
+       my_bind++, field++)
+  {
+    if (!(*null_ptr & bit))
+      (*my_bind->skip_result)(my_bind, field, &row);
+    assert(row <= row_end);
+    if (!((bit<<=1) & 255))
+    {
+      bit= 1;					/* To next uchar */
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
       null_ptr++;
     }
   }
@@ -4206,9 +4421,20 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt) {
 */
 
 bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(stmt != nullptr);
+=======
+  DBUG_ENTER("mysql_stmt_reset");
+<<<<<<< HEAD:libmysql/libmysql.cc
+  DBUG_ASSERT(stmt != 0);
+>>>>>>> pr/231
   if (!stmt->mysql) {
+=======
+  assert(stmt != 0);
+  if (!stmt->mysql)
+  {
+>>>>>>> upstream/cluster-7.6:libmysql/libmysql.c
     /* mysql can be reset in mysql_close called from mysql_reconnect */
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, nullptr);
     return true;

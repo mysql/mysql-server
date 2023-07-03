@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+DROP TABLE IF EXISTS t1;
+>>>>>>> pr/231
 SET GLOBAL innodb_adaptive_hash_index = false;
 SET GLOBAL innodb_stats_persistent = false;
 SET GLOBAL innodb_flush_log_at_trx_commit = 0;
@@ -35,7 +39,11 @@ DROP PROCEDURE data_load_t1;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+<<<<<<< HEAD
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 CLUST_INDEX_SIZE
 1856
 SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
@@ -57,7 +65,11 @@ bcc
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+<<<<<<< HEAD
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 CLUST_INDEX_SIZE
 1856
 SET DEBUG_SYNC = 'RESET';
@@ -89,7 +101,11 @@ dyw
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+<<<<<<< HEAD
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 CLUST_INDEX_SIZE
 1856
 SET DEBUG_SYNC = 'RESET';

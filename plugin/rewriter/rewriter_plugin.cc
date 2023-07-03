@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/*  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -337,8 +345,21 @@ static bool reload(MYSQL_THD thd) {
   } catch (const std::bad_alloc &) {
     errcode = ER_REWRITER_OOM;
   }
+<<<<<<< HEAD
   assert(errcode != 0);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(errcode != 0);
+>>>>>>> pr/231
   LogPluginErr(ERROR_LEVEL, errcode);
+=======
+  catch (const std::bad_alloc &ba)
+  {
+    message= MESSAGE_OOM;
+  }
+  assert(message != NULL);
+  my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", message);
+>>>>>>> upstream/cluster-7.6
   return true;
 }
 
@@ -458,11 +479,25 @@ static bool allow_rewrite() {
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
+<<<<<<< HEAD
 static int rewrite_query_notify(MYSQL_THD thd,
                                 mysql_event_class_t event_class
                                 [[maybe_unused]],
                                 const void *event) {
   assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
+=======
+<<<<<<< HEAD
+static int rewrite_query_notify(
+    MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
+    const void *event) {
+  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
+=======
+static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
+                                 const void *event)
+{
+  assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);

@@ -20,8 +20,16 @@
 # 6) Cleanup.
 #
 ################################################################################
+<<<<<<< HEAD
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
+=======
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -29,7 +37,11 @@
 --echo #########################################################################
 --echo
 --let $rpl_server_count= 3
+<<<<<<< HEAD
 --source include/group_replication.inc
+=======
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -42,6 +54,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("\\[GCS\\] read failed");
+<<<<<<< HEAD
 call mtr.add_suppression("The plugin encountered a critical error and will abort: This member could not reach a majority of the members.");
 SET SESSION sql_log_bin = 1;
 
@@ -51,10 +64,19 @@ SET SESSION sql_log_bin = 1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+=======
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+SET SESSION sql_log_bin = 1;
+
+>>>>>>> pr/231
 # Get address, seeds and UUID of all servers
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
+<<<<<<< HEAD
+=======
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+>>>>>>> pr/231
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -74,7 +96,10 @@ SET SESSION sql_log_bin = 1;
 # Crash server 2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 --enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0
@@ -100,7 +125,11 @@ SET SESSION sql_log_bin = 1;
 --source include/rpl_connection.inc
 --let $group_replication_member_state= ERROR
 --let $group_replication_member_id= $member1_uuid
+<<<<<<< HEAD
 --source include/gr_wait_for_member_state.inc
+=======
+--source ../inc/gr_wait_for_member_state.inc
+>>>>>>> pr/231
 # Verify that it enabled super_read_only
 --let $assert_text= super_read_only should be enabled
 --let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
@@ -113,26 +142,51 @@ SET SESSION sql_log_bin = 1;
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 --source include/stop_group_replication.inc
 --source include/start_and_bootstrap_group_replication.inc
+=======
+
+--source include/stop_group_replication.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+>>>>>>> pr/231
 # First we relaunch server 2 and 3
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
+<<<<<<< HEAD
 --source include/start_group_replication.inc
 --let $rpl_server_number= 3
 --source include/rpl_reconnect.inc
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+--source include/start_group_replication.inc
+
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+>>>>>>> pr/231
 --replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
 --eval SET @@global.group_replication_local_address="$local_address_server3"
+<<<<<<< HEAD
 --source include/start_group_replication.inc
 # Wait for everyone to settle down
 --let $group_replication_number_of_members= 3
@@ -140,6 +194,20 @@ SET SESSION sql_log_bin = 1;
 # Then we set server 1's exit_state_action to ABORT_SERVER
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+--source include/start_group_replication.inc
+
+# Wait for everyone to settle down
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Then we set server 1's exit_state_action to ABORT_SERVER
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+>>>>>>> pr/231
 # Set the exit state action sysvar to ABORT_SERVER
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 
@@ -178,9 +246,13 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 # Wait until the connection is dropped
+<<<<<<< HEAD
 --let $disconnect_timeout= 300
 --source include/wait_until_disconnected.inc
 --let $disconnect_timeout=
+=======
+--source include/wait_until_disconnected.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -196,7 +268,13 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
 --eval SET @@global.group_replication_local_address="$local_address_server1"
+<<<<<<< HEAD
 --source include/start_and_bootstrap_group_replication.inc
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+--source ../inc/start_and_bootstrap_group_replication.inc
+>>>>>>> pr/231
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 --let $rpl_connection_name= server2
@@ -205,6 +283,11 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
+<<<<<<< HEAD
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+>>>>>>> pr/231
 --source include/start_group_replication.inc
 --let $rpl_server_number= 3
 --source include/rpl_reconnect.inc
@@ -214,14 +297,27 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
 --eval SET @@global.group_replication_local_address="$local_address_server3"
+<<<<<<< HEAD
 --source include/start_group_replication.inc
 # Wait for everyone to settle down
 --let $group_replication_number_of_members= 3
 --source include/gr_wait_for_number_of_members.inc
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+--source include/start_group_replication.inc
+# Wait for everyone to settle down
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
 --echo # 6) Cleanup.
 --echo #########################################################################
 --echo
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

@@ -102,7 +102,15 @@ class PrettyWriter;
 // document.h
 
 template <typename Encoding, typename Allocator> 
+<<<<<<< HEAD
 class GenericMember;
+=======
+<<<<<<< HEAD
+struct GenericMember;
+=======
+class GenericMember;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 template <bool Const, typename Encoding, typename Allocator>
 class GenericMemberIterator;

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +37,14 @@
 #include <optional>
 #include <sstream>
 #include <vector>
+<<<<<<< HEAD
+=======
+#include "abstract_options_provider.h"
+#include "mysql_connection_options.h"
+#include "abstract_program.h"
+#include <mysys_err.h>
+#include "caching_sha2_passwordopt-vars.h"
+>>>>>>> upstream/cluster-7.6
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/base/abstract_options_provider.h"
@@ -146,7 +162,11 @@ void Mysql_connection_options::create_options() {
   this->create_new_option(&this->m_plugin_dir, "plugin_dir",
                           "Directory for client-side plugins.");
   this->create_new_option(&this->m_default_auth, "default_auth",
+<<<<<<< HEAD
                           "Default authentication client-side plugin to use.");
+=======
+    "Default authentication client-side plugin to use.");
+>>>>>>> upstream/cluster-7.6
   this->create_new_option(&this->m_server_public_key, "server_public_key_path",
                           "Path to file containing server public key");
   this->create_new_option(&this->m_get_server_public_key,
@@ -197,6 +217,7 @@ MYSQL *Mysql_connection_options::create_connection() {
                  this->m_program->get_name().c_str());
 
   if (this->m_server_public_key.has_value())
+<<<<<<< HEAD
     set_server_public_key(connection,
                           this->m_server_public_key.value().c_str());
 
@@ -204,6 +225,7 @@ MYSQL *Mysql_connection_options::create_connection() {
     set_get_server_public_key_option(connection,
                                      &this->m_get_server_public_key);
 
+<<<<<<< HEAD
   /* set passwords for --password{1,2,3} */
   set_password_options(connection);
 
@@ -212,6 +234,32 @@ MYSQL *Mysql_connection_options::create_connection() {
                           nullptr, this->m_mysql_port,
                           this->get_null_or_string(this->m_mysql_unix_port),
                           0)) {
+=======
+  if (!mysql_real_connect(
+          connection, this->get_null_or_string(this->m_host),
+          this->get_null_or_string(this->m_user),
+          this->get_null_or_string(this->m_password), NULL, this->m_mysql_port,
+          this->get_null_or_string(this->m_mysql_unix_port), 0)) {
+=======
+  {
+    opt_server_public_key=
+      const_cast <char *> (this->m_server_public_key.value().c_str());
+  }
+
+  opt_get_server_public_key= this->m_get_server_public_key ? TRUE : FALSE;
+
+  set_server_public_key(connection);
+  set_get_server_public_key_option(connection);
+
+  if (!mysql_real_connect(connection,
+    this->get_null_or_string(this->m_host),
+    this->get_null_or_string(this->m_user),
+    this->get_null_or_string(this->m_password), NULL,
+    this->m_mysql_port,
+    this->get_null_or_string(this->m_mysql_unix_port), 0))
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     this->db_error(connection, "while connecting to the MySQL server");
     mysql_close(connection);
     return nullptr;

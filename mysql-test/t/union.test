@@ -2102,8 +2102,28 @@ while ($c)
 DROP TABLE t1;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug #27903792 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `DATA_TYPE() ==
 --echo # MYSQL_TYPE_GEOMETRY' FAILED
+=======
+--echo # Bug#27197235 USER VARIABLE + UINON + DECIMAL COLUMN RETURNS
+--echo #              WRONG VALUES
+--echo #
+
+let $old_charset= `SELECT @@character_set_client`;
+
+SET NAMES utf8;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+
+eval SET NAMES $old_charset;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+
+--echo #
+--echo # Bug #29916900 (duplicate of #27903792) [ASSERTION `FIELD_TYPE() ==
+--echo # MYSQL_TYPE_GEOMETRY' FAILED]
+>>>>>>> pr/231
 --echo #
 
 # We're not interested in the result, just that it doesn't fail any assertions.
@@ -2112,6 +2132,7 @@ SELECT ST_GEOMFROMTEXT('POINT(0 0)')
 UNION
 SELECT * FROM (SELECT NULL) AS a;
 --enable_result_log
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#28237675: ASSERTION IN UNION QUERY WHEN MIXING CHARACTER SETS
@@ -2816,3 +2837,5 @@ eval $query;
 eval EXPLAIN format = tree $query;
 
 DROP TABLE r, s, t;
+=======
+>>>>>>> pr/231

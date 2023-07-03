@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +30,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+<<<<<<< HEAD
 #include "sql/conn_handler/init_net_server_extension.h"
 
 #include <assert.h>
@@ -53,7 +62,34 @@ static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
                                   size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
+<<<<<<< HEAD
   assert(thd != nullptr);
+=======
+  DBUG_ASSERT(thd != NULL);
+=======
+#include "init_net_server_extension.h"
+
+#include "violite.h"                    // Vio
+#include "channel_info.h"               // Channel_info
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "mysqld.h"                     // key_socket_tcpip
+#include "log.h"                        // sql_print_error
+#include "sql_class.h"                  // THD
+
+#include <pfs_idle_provider.h>
+#include <mysql/psi/mysql_idle.h>
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+extern PSI_statement_info stmt_info_new_packet;
+#endif
+
+static void net_before_header_psi(struct st_net *net, void *user_data,
+                                  size_t /* unused: count */) {
+  THD *thd;
+  thd = static_cast<THD *>(user_data);
+  assert(thd != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (thd->m_server_idle) {
     /*
@@ -70,11 +106,28 @@ static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
   mysql_thread_set_secondary_engine(false);
 }
 
+<<<<<<< HEAD
 static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
                                  size_t /* unused: count */, bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
   assert(thd != nullptr);
+=======
+<<<<<<< HEAD
+static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
+                                 void *user_data, size_t /* unused: count */,
+                                 bool rc) {
+  THD *thd;
+  thd = static_cast<THD *>(user_data);
+  DBUG_ASSERT(thd != NULL);
+=======
+static void net_after_header_psi(struct st_net *net, void *user_data,
+                                 size_t /* unused: count */, my_bool rc) {
+  THD *thd;
+  thd = static_cast<THD *>(user_data);
+  assert(thd != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (thd->m_server_idle) {
     /*
@@ -91,7 +144,15 @@ static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
     if (!rc) {
+<<<<<<< HEAD
       assert(thd->m_statement_psi == nullptr);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(thd->m_statement_psi == NULL);
+=======
+      assert(thd->m_statement_psi == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       thd->m_statement_psi = MYSQL_START_STATEMENT(
           &thd->m_statement_state, stmt_info_new_packet.m_key, thd->db().str,
           thd->db().length, thd->charset(), nullptr);
@@ -122,8 +183,16 @@ void init_net_server_extension(THD *thd) {
   thd->m_net_server_extension.m_user_data = thd;
   thd->m_net_server_extension.m_before_header = net_before_header_psi;
   thd->m_net_server_extension.m_after_header = net_after_header_psi;
+<<<<<<< HEAD
   thd->m_net_server_extension.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   thd->m_net_server_extension.timeout_on_full_packet = false;
+=======
+<<<<<<< HEAD
+=======
+  thd->m_net_server_extension.timeout_on_full_packet = FALSE;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension =
       &thd->m_net_server_extension;

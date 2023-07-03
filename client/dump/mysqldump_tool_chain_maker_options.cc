@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +37,19 @@
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
+<<<<<<< HEAD
 bool Mysql::Tools::Dump::use_show_create_user;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char *) {
+=======
+bool Mysql::Tools::Dump::use_show_create_user;
+
+void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
+{
+>>>>>>> upstream/cluster-7.6
   std::vector<std::string> schemas;
   std::istringstream schema_stream(m_parallel_schemas_string.value());
   for (std::string schema; std::getline(schema_stream, schema, ',');)
@@ -184,6 +198,7 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       We do not filter password_history since the password history
       will be lost this way.
     */
+<<<<<<< HEAD
     if (use_show_create_user) {
       m_object_filter.m_tables_excluded.push_back(
           std::make_pair("mysql", "user"));
@@ -204,6 +219,43 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       m_object_filter.m_tables_excluded.push_back(
           std::make_pair("mysql", "role_edges"));
     }
+=======
+<<<<<<< HEAD
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "user"));
+    m_object_filter.m_tables_excluded.push_back(std::make_pair("mysql", "db"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "tables_priv"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "columns_priv"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "procs_priv"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "proxies_priv"));
+=======
+    if (use_show_create_user) {
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "user"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "db"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "tables_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "columns_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "procs_priv"));
+      m_object_filter.m_tables_excluded.push_back(std::make_pair(
+        "mysql", "proxies_priv"));
+    }
+    /*
+      Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
+    */
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "event"));
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "proc"));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
       m_object_filter.m_databases_included.size() == 0) {

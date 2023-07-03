@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 --  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 -- 
 --  This program is free software; you can redistribute it and/or modify
@@ -9,6 +10,26 @@
 --  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 --  GNU General Public License for more details.
 -- 
+=======
+--  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+-- 
+--  This program is free software; you can redistribute it and/or modify
+--  it under the terms of the GNU General Public License, version 2.0,
+--  as published by the Free Software Foundation.
+--
+--  This program is also distributed with certain software (including
+--  but not limited to OpenSSL) that is licensed under separate terms,
+--  as designated in a particular file or component or in included license
+--  documentation.  The authors of MySQL hereby grant you an additional
+--  permission to link the program and your derivative works with the
+--  separately licensed software that they have included with MySQL.
+--
+--  This program is distributed in the hope that it will be useful,
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--  GNU General Public License, version 2.0, for more details.
+--
+>>>>>>> pr/231
 --  You should have received a copy of the GNU General Public License
 --  along with this program; if not, write to the Free Software
 --  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA 
@@ -48,6 +69,13 @@ Some of the sys schema views are calculated as initial (optional), overall, delt
 
 Requires the SUPER privilege for "SET sql_log_bin = 0;".
 
+<<<<<<< HEAD
+=======
+Versions supported:
+   * MySQL 5.6: 5.6.10 and later
+   * MySQL 5.7: 5.7.9 and later
+
+>>>>>>> pr/231
 Parameters
 -----------
 
@@ -62,10 +90,16 @@ in_auto_config (ENUM(''current'', ''medium'', ''full''))
   NOTE: The more that are enabled, the more impact on the performance.
   Supported values are:
      * current - use the current settings.
+<<<<<<< HEAD
      * medium - enable some settings. This requires the SUPER privilege.
      * full - enables all settings. This will have a big impact on the
               performance - be careful using this option. This requires
               the SUPER privilege.
+=======
+     * medium - enable some settings.
+     * full - enables all settings. This will have a big impact on the
+              performance - be careful using this option.
+>>>>>>> pr/231
   If another setting the ''current'' is chosen, the current settings
   are restored at the end of the procedure.
 
@@ -107,9 +141,15 @@ mysql> NOTEE;
     READS SQL DATA
 BEGIN
     DECLARE v_start, v_runtime, v_iter_start, v_sleep DECIMAL(20,2) DEFAULT 0.0;
+<<<<<<< HEAD
     DECLARE v_has_innodb, v_has_ndb, v_has_ps, v_has_replication, v_has_ps_replication VARCHAR(8) CHARSET utf8mb4 DEFAULT 'NO';
     DECLARE v_this_thread_enabled  ENUM('YES', 'NO');
     DECLARE v_table_name, v_banner VARCHAR(64) CHARSET utf8mb4;
+=======
+    DECLARE v_has_innodb, v_has_ndb, v_has_ps, v_has_replication, v_has_ps_replication VARCHAR(8) CHARSET utf8 DEFAULT 'NO';
+    DECLARE v_this_thread_enabled, v_has_ps_vars, v_has_metrics ENUM('YES', 'NO');
+    DECLARE v_table_name, v_banner VARCHAR(64) CHARSET utf8;
+>>>>>>> pr/231
     DECLARE v_sql_status_summary_select, v_sql_status_summary_delta, v_sql_status_summary_from, v_no_delta_names TEXT;
     DECLARE v_output_time, v_output_time_prev DECIMAL(20,3) UNSIGNED;
     DECLARE v_output_count, v_count, v_old_group_concat_max_len INT UNSIGNED DEFAULT 0;
@@ -181,7 +221,11 @@ BEGIN
 
     -- Temporary table are used - disable sql_log_bin if necessary to prevent them replicating
     SET @log_bin := @@sql_log_bin;
+<<<<<<< HEAD
     IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+=======
+    IF (@log_bin = 1) THEN
+>>>>>>> pr/231
         SET sql_log_bin = 0;
     END IF;
 
@@ -299,6 +343,7 @@ BEGIN
     SET v_has_innodb         = IFNULL((SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'InnoDB'), 'NO'),
         v_has_ndb            = IFNULL((SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'NDBCluster'), 'NO'),
         v_has_ps             = IFNULL((SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'PERFORMANCE_SCHEMA'), 'NO'),
+<<<<<<< HEAD
         v_has_ps_replication = v_has_ps,
         v_has_replication    = IF(v_has_ps_replication = 'YES', IF((SELECT COUNT(*) FROM performance_schema.replication_connection_status) > 0, 'YES', 'NO'),
                                   IF(@@master_info_repository = 'TABLE', IF((SELECT COUNT(*) FROM mysql.slave_master_info) > 0, 'YES', 'NO'),
@@ -308,6 +353,33 @@ BEGIN
     IF (@sys.debug = 'ON') THEN
        SELECT v_has_innodb AS 'Has_InnoDB', v_has_ndb AS 'Has_NDBCluster',
               v_has_ps AS 'Has_Performance_Schema',
+=======
+        v_has_ps_replication = IF(v_has_ps = 'YES'
+                                   AND EXISTS(SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'performance_schema' AND TABLE_NAME = 'replication_applier_status'),
+                                   'YES',
+                                   'NO'
+                               ),
+        v_has_replication    = /*!50707 IF(v_has_ps_replication = 'YES', IF((SELECT COUNT(*) FROM performance_schema.replication_connection_status) > 0, 'YES', 'NO'),*/
+                                  IF(@@master_info_repository = 'TABLE', IF((SELECT COUNT(*) FROM mysql.slave_master_info) > 0, 'YES', 'NO'),
+                                     IF(@@relay_log_info_repository = 'TABLE', IF((SELECT COUNT(*) FROM mysql.slave_relay_log_info) > 0, 'YES', 'NO'),
+                                        'MAYBE'))/*!50707 )*/,
+        v_has_metrics        = IF(v_has_ps = 'YES' OR (sys.version_major() = 5 AND sys.version_minor() = 6), 'YES', 'NO'),
+        v_has_ps_vars        = 'NO';
+
+    -- 5.7.7 introduced the possibility to get SHOW [GLOBAL|SESSION] VARIABLES and SHOW [GLOBAL|SESSION] STATUS
+    -- from the Performance Schema. But it's optional whether it's enabled.
+    -- 5.7.9 changes so the Performance Schema tables always work.
+    -- Note that @@global.show_compatibility_56 = OFF will only actually work if the Performance Schema is enabled in <=5.7.8,
+    -- however except overriding the global value there is nothing that can be done about it.
+    -- v_has_ps_vars defaults to NO
+    /*!50707 SET v_has_ps_vars = IF(@@global.show_compatibility_56, 'NO', 'YES');*/
+    /*!50709 SET v_has_ps_vars = 'YES';*/
+
+    IF (@sys.debug = 'ON') THEN
+       SELECT v_has_innodb AS 'Has_InnoDB', v_has_ndb AS 'Has_NDBCluster',
+              v_has_ps AS 'Has_Performance_Schema', v_has_ps_vars AS 'Has_P_S_SHOW_Variables',
+              v_has_metrics AS 'Has_metrics',
+>>>>>>> pr/231
               v_has_ps_replication 'AS Has_P_S_Replication', v_has_replication AS 'Has_Replication';
     END IF;
 
@@ -339,12 +411,21 @@ BEGIN
                                 (''io_global_by_file_by_bytes'', ''total''),
                                 (''io_global_by_wait_by_bytes'', ''total_requested'')
                          )
+<<<<<<< HEAD
                          THEN CONCAT(''format_bytes('', COLUMN_NAME, '') AS '', COLUMN_NAME)
                     WHEN COLUMN_NAME LIKE ''%latency''
                          THEN CONCAT(''format_pico_time('', COLUMN_NAME, '') AS '', COLUMN_NAME)
                     WHEN SUBSTRING(COLUMN_NAME, -7) = ''_memory'' OR SUBSTRING(COLUMN_NAME, -17) = ''_memory_allocated''
                          OR ((SUBSTRING(COLUMN_NAME, -5) = ''_read'' OR SUBSTRING(COLUMN_NAME, -8) = ''_written'' OR SUBSTRING(COLUMN_NAME, -6) = ''_write'') AND SUBSTRING(COLUMN_NAME, 1, 6) <> ''COUNT_'')
                          THEN CONCAT(''format_bytes('', COLUMN_NAME, '') AS '', COLUMN_NAME)
+=======
+                         THEN CONCAT(''sys.format_bytes('', COLUMN_NAME, '') AS '', COLUMN_NAME)
+                    WHEN COLUMN_NAME LIKE ''%latency''
+                         THEN CONCAT(''sys.format_time('', COLUMN_NAME, '') AS '', COLUMN_NAME)
+                    WHEN SUBSTRING(COLUMN_NAME, -7) = ''_memory'' OR SUBSTRING(COLUMN_NAME, -17) = ''_memory_allocated''
+                         OR ((SUBSTRING(COLUMN_NAME, -5) = ''_read'' OR SUBSTRING(COLUMN_NAME, -8) = ''_written'' OR SUBSTRING(COLUMN_NAME, -6) = ''_write'') AND SUBSTRING(COLUMN_NAME, 1, 6) <> ''COUNT_'')
+                         THEN CONCAT(''sys.format_bytes('', COLUMN_NAME, '') AS '', COLUMN_NAME)
+>>>>>>> pr/231
                     ELSE COLUMN_NAME
                END
                ORDER BY ORDINAL_POSITION
@@ -359,9 +440,15 @@ BEGIN
     SET @sys.diagnostics.sql_gen_query_delta = 'SELECT CONCAT(
            ''SELECT '',
            GROUP_CONCAT(
+<<<<<<< HEAD
                CASE WHEN FIND_IN_SET(COLUMN_NAME COLLATE utf8mb3_general_ci, diag.pk)
                          THEN COLUMN_NAME
                     WHEN diag.TABLE_NAME = ''io_global_by_file_by_bytes'' AND COLUMN_NAME COLLATE utf8mb3_general_ci = ''write_pct''
+=======
+               CASE WHEN FIND_IN_SET(COLUMN_NAME, diag.pk)
+                         THEN COLUMN_NAME
+                    WHEN diag.TABLE_NAME = ''io_global_by_file_by_bytes'' AND COLUMN_NAME = ''write_pct''
+>>>>>>> pr/231
                          THEN CONCAT(''IFNULL(ROUND(100-(((e.total_read-IFNULL(s.total_read, 0))'',
                                      ''/NULLIF(((e.total_read-IFNULL(s.total_read, 0))+(e.total_written-IFNULL(s.total_written, 0))), 0))*100), 2), 0.00) AS '',
                                      COLUMN_NAME)
@@ -369,6 +456,7 @@ BEGIN
                                 (''io_global_by_file_by_bytes'', ''total''),
                                 (''io_global_by_wait_by_bytes'', ''total_requested'')
                          )
+<<<<<<< HEAD
                          THEN CONCAT(''format_bytes(e.'', COLUMN_NAME, ''-IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
                     WHEN SUBSTRING(COLUMN_NAME, 1, 4) IN (''max_'', ''min_'') AND SUBSTRING(COLUMN_NAME, -8) = ''_latency''
                          THEN CONCAT(''format_pico_time(e.'', COLUMN_NAME, '') AS '', COLUMN_NAME)
@@ -382,11 +470,30 @@ BEGIN
                          THEN CONCAT(''format_pico_time(e.'', COLUMN_NAME, '' - IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
                     WHEN COLUMN_NAME IN (''avg_read'', ''avg_write'', ''avg_written'')
                          THEN CONCAT(''format_bytes(IFNULL((e.total_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''written''), ''-IFNULL(s.total_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''written''), '', 0))'',
+=======
+                         THEN CONCAT(''sys.format_bytes(e.'', COLUMN_NAME, ''-IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
+                    WHEN SUBSTRING(COLUMN_NAME, 1, 4) IN (''max_'', ''min_'') AND SUBSTRING(COLUMN_NAME, -8) = ''_latency''
+                         THEN CONCAT(''sys.format_time(e.'', COLUMN_NAME, '') AS '', COLUMN_NAME)
+                    WHEN COLUMN_NAME = ''avg_latency''
+                         THEN CONCAT(''sys.format_time((e.total_latency - IFNULL(s.total_latency, 0))'',
+                                     ''/NULLIF(e.total - IFNULL(s.total, 0), 0)) AS '', COLUMN_NAME)
+                    WHEN SUBSTRING(COLUMN_NAME, -12) = ''_avg_latency''
+                         THEN CONCAT(''sys.format_time((e.'', SUBSTRING(COLUMN_NAME FROM 1 FOR CHAR_LENGTH(COLUMN_NAME)-12), ''_latency - IFNULL(s.'', SUBSTRING(COLUMN_NAME FROM 1 FOR CHAR_LENGTH(COLUMN_NAME)-12), ''_latency, 0))'',
+                                     ''/NULLIF(e.'', SUBSTRING(COLUMN_NAME FROM 1 FOR CHAR_LENGTH(COLUMN_NAME)-12), ''s - IFNULL(s.'', SUBSTRING(COLUMN_NAME FROM 1 FOR CHAR_LENGTH(COLUMN_NAME)-12), ''s, 0), 0)) AS '', COLUMN_NAME)
+                    WHEN COLUMN_NAME LIKE ''%latency''
+                         THEN CONCAT(''sys.format_time(e.'', COLUMN_NAME, '' - IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
+                    WHEN COLUMN_NAME IN (''avg_read'', ''avg_write'', ''avg_written'')
+                         THEN CONCAT(''sys.format_bytes(IFNULL((e.total_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''written''), ''-IFNULL(s.total_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''written''), '', 0))'',
+>>>>>>> pr/231
                                      ''/NULLIF(e.count_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''write''), ''-IFNULL(s.count_'', IF(COLUMN_NAME = ''avg_read'', ''read'', ''write''), '', 0), 0), 0)) AS '',
                                      COLUMN_NAME)
                     WHEN SUBSTRING(COLUMN_NAME, -7) = ''_memory'' OR SUBSTRING(COLUMN_NAME, -17) = ''_memory_allocated''
                          OR ((SUBSTRING(COLUMN_NAME, -5) = ''_read'' OR SUBSTRING(COLUMN_NAME, -8) = ''_written'' OR SUBSTRING(COLUMN_NAME, -6) = ''_write'') AND SUBSTRING(COLUMN_NAME, 1, 6) <> ''COUNT_'')
+<<<<<<< HEAD
                          THEN CONCAT(''format_bytes(e.'', COLUMN_NAME, '' - IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
+=======
+                         THEN CONCAT(''sys.format_bytes(e.'', COLUMN_NAME, '' - IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
+>>>>>>> pr/231
                     ELSE CONCAT(''(e.'', COLUMN_NAME, '' - IFNULL(s.'', COLUMN_NAME, '', 0)) AS '', COLUMN_NAME)
                END
                ORDER BY ORDINAL_POSITION
@@ -396,7 +503,11 @@ BEGIN
        LEFT OUTER JOIN tmp_'', diag.TABLE_NAME, ''_start s USING ('', diag.pk, '')''
        ) AS Query INTO @sys.diagnostics.sql_select
   FROM tmp_sys_views_delta diag
+<<<<<<< HEAD
        INNER JOIN information_schema.COLUMNS c ON c.TABLE_NAME COLLATE utf8mb3_general_ci = CONCAT(''x$'', diag.TABLE_NAME)
+=======
+       INNER JOIN information_schema.COLUMNS c ON c.TABLE_NAME = CONCAT(''x$'', diag.TABLE_NAME)
+>>>>>>> pr/231
  WHERE c.TABLE_SCHEMA = ''sys'' AND diag.TABLE_NAME = ?
  GROUP BY diag.TABLE_NAME';
 
@@ -509,7 +620,15 @@ BEGIN
 ' AS '';
     -- Get the configuration.
     SELECT 'GLOBAL VARIABLES' AS 'The following output is:';
+<<<<<<< HEAD
     SELECT LOWER(VARIABLE_NAME) AS Variable_name, VARIABLE_VALUE AS Variable_value FROM performance_schema.global_variables ORDER BY VARIABLE_NAME;
+=======
+    IF (v_has_ps_vars = 'YES') THEN
+        SELECT LOWER(VARIABLE_NAME) AS Variable_name, VARIABLE_VALUE AS Variable_value FROM performance_schema.global_variables ORDER BY VARIABLE_NAME;
+    ELSE
+        SELECT LOWER(VARIABLE_NAME) AS Variable_name, VARIABLE_VALUE AS Variable_value FROM information_schema.GLOBAL_VARIABLES ORDER BY VARIABLE_NAME;
+    END IF;
+>>>>>>> pr/231
 
     IF (v_has_ps = 'YES') THEN
         -- Overview of the Performance Schema dynamic settings used for this report.
@@ -546,7 +665,11 @@ BEGIN
 
         IF (v_has_ps_replication = 'YES') THEN
             SELECT 'Replication - Connection Configuration' AS 'The following output is:';
+<<<<<<< HEAD
             SELECT * FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
+=======
+            SELECT * FROM performance_schema.replication_connection_configuration/*!50706 ORDER BY CHANNEL_NAME*/;
+>>>>>>> pr/231
         END IF;
 
         IF (v_has_ps_replication = 'YES') THEN
@@ -558,17 +681,30 @@ BEGIN
             SELECT 'Replication - Master Info Repository Configuration' AS 'The following output is:';
             -- Can't just do SELECT *  as the password may be present in plain text
             -- Don't include binary log file and position as that will be determined in each iteration as well
+<<<<<<< HEAD
             SELECT Channel_name, Host, User_name, Port, Connect_retry,
                    Enabled_ssl, Ssl_ca, Ssl_capath, Ssl_cert, Ssl_cipher, Ssl_key, Ssl_verify_server_cert,
                    Heartbeat, Bind, Ignored_server_ids, Uuid, Retry_count, Ssl_crl, Ssl_crlpath,
                    Tls_version, Enabled_auto_position
               FROM mysql.slave_master_info ORDER BY Channel_name;
+=======
+            SELECT /*!50706 Channel_name, */Host, User_name, Port, Connect_retry,
+                   Enabled_ssl, Ssl_ca, Ssl_capath, Ssl_cert, Ssl_cipher, Ssl_key, Ssl_verify_server_cert,
+                   Heartbeat, Bind, Ignored_server_ids, Uuid, Retry_count, Ssl_crl, Ssl_crlpath,
+                   Tls_version, Enabled_auto_position
+              FROM mysql.slave_master_info/*!50706 ORDER BY Channel_name*/;
+>>>>>>> pr/231
         END IF;
 
         IF (@@relay_log_info_repository = 'TABLE') THEN
             SELECT 'Replication - Relay Log Repository Configuration' AS 'The following output is:';
+<<<<<<< HEAD
             SELECT Channel_name, Sql_delay, Number_of_workers, Id
               FROM mysql.slave_relay_log_info ORDER BY Channel_name;
+=======
+            SELECT /*!50706 Channel_name, */Sql_delay, Number_of_workers, Id
+              FROM mysql.slave_relay_log_info/*!50706 ORDER BY Channel_name*/;
+>>>>>>> pr/231
         END IF;
     END IF;
 
@@ -632,7 +768,11 @@ BEGIN
                        )
                   INTO @sys.diagnostics.sql_select
                   FROM tmp_sys_views_delta
+<<<<<<< HEAD
                  WHERE TABLE_NAME COLLATE utf8mb4_0900_as_ci = v_table_name;
+=======
+                 WHERE TABLE_NAME = v_table_name;
+>>>>>>> pr/231
                 SELECT CONCAT('Initial ', v_table_name) AS 'The following output is:';
                 CALL sys.execute_prepared_stmt(@sys.diagnostics.sql_select);
             END IF;
@@ -701,9 +841,15 @@ BEGIN
                 SELECT Id, sys.format_path(Relay_log_name) AS Relay_log_name, Relay_log_pos, Master_log_name, Master_log_pos,
                        sys.format_path(Checkpoint_relay_log_name) AS Checkpoint_relay_log_name, Checkpoint_relay_log_pos,
                        Checkpoint_master_log_name, Checkpoint_master_log_pos, Checkpoint_seqno, Checkpoint_group_size,
+<<<<<<< HEAD
                        HEX(Checkpoint_group_bitmap) AS Checkpoint_group_bitmap, Channel_name
                   FROM mysql.slave_worker_info
               ORDER BY Channel_name, Id;
+=======
+                       HEX(Checkpoint_group_bitmap) AS Checkpoint_group_bitmap/*!50706 , Channel_name*/
+                  FROM mysql.slave_worker_info
+              ORDER BY /*!50706 Channel_name, */Id;
+>>>>>>> pr/231
             END IF;
         END IF;
 
@@ -719,12 +865,53 @@ BEGIN
   Type VARCHAR(225) NOT NULL,
   Enabled ENUM(''YES'', ''NO'', ''PARTIAL'') NOT NULL,
   PRIMARY KEY (Type, Variable_name)
+<<<<<<< HEAD
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4'));
 
         SET @sys.diagnostics.sql = CONCAT(
             'INSERT INTO ', v_table_name,
             ' SELECT Variable_name, REPLACE(Variable_value, ''\n'', ''\\\\n'') AS Variable_value, Type, Enabled FROM sys.metrics'
         );
+=======
+) ENGINE = InnoDB DEFAULT CHARSET=utf8'));
+
+        IF (v_has_metrics) THEN
+            SET @sys.diagnostics.sql = CONCAT(
+                'INSERT INTO ', v_table_name,
+                ' SELECT Variable_name, REPLACE(Variable_value, ''\n'', ''\\\\n'') AS Variable_value, Type, Enabled FROM sys.metrics'
+            );
+        ELSE
+            -- 5.7+ and the Performance Schema disabled. Use information_schema.GLOBAL_STATUS instead like in 5.6.
+            SET @sys.diagnostics.sql = CONCAT(
+                'INSERT INTO ', v_table_name,
+                '(SELECT LOWER(VARIABLE_NAME) AS Variable_name, REPLACE(VARIABLE_VALUE, ''\n'', ''\\\\n'') AS Variable_value,
+                         ''Global Status'' AS Type, ''YES'' AS Enabled
+  FROM performance_schema.global_status
+) UNION ALL (
+SELECT NAME AS Variable_name, COUNT AS Variable_value,
+       CONCAT(''InnoDB Metrics - '', SUBSYSTEM) AS Type,
+       IF(STATUS = ''enabled'', ''YES'', ''NO'') AS Enabled
+  FROM information_schema.INNODB_METRICS
+  -- Deduplication - some variables exists both in GLOBAL_STATUS and INNODB_METRICS
+  -- Keep the one from GLOBAL_STATUS as it is always enabled and it''s more likely to be used for existing tools.
+ WHERE NAME NOT IN (
+     ''lock_row_lock_time'', ''lock_row_lock_time_avg'', ''lock_row_lock_time_max'', ''lock_row_lock_waits'',
+     ''buffer_pool_reads'', ''buffer_pool_read_requests'', ''buffer_pool_write_requests'', ''buffer_pool_wait_free'',
+     ''buffer_pool_read_ahead'', ''buffer_pool_read_ahead_evicted'', ''buffer_pool_pages_total'', ''buffer_pool_pages_misc'',
+     ''buffer_pool_pages_data'', ''buffer_pool_bytes_data'', ''buffer_pool_pages_dirty'', ''buffer_pool_bytes_dirty'',
+     ''buffer_pool_pages_free'', ''buffer_pages_created'', ''buffer_pages_written'', ''buffer_pages_read'',
+     ''buffer_data_reads'', ''buffer_data_written'', ''file_num_open_files'',
+     ''os_log_bytes_written'', ''os_log_fsyncs'', ''os_log_pending_fsyncs'', ''os_log_pending_writes'',
+     ''log_waits'', ''log_write_requests'', ''log_writes'', ''innodb_dblwr_writes'', ''innodb_dblwr_pages_written'', ''innodb_page_size'')
+) UNION ALL (
+SELECT ''NOW()'' AS Variable_name, NOW(3) AS Variable_value, ''System Time'' AS Type, ''YES'' AS Enabled
+) UNION ALL (
+SELECT ''UNIX_TIMESTAMP()'' AS Variable_name, ROUND(UNIX_TIMESTAMP(NOW(3)), 3) AS Variable_value, ''System Time'' AS Type, ''YES'' AS Enabled
+)
+ ORDER BY Type, Variable_name;'
+            );
+        END IF;
+>>>>>>> pr/231
         CALL sys.execute_prepared_stmt(@sys.diagnostics.sql);
 
         -- Prepare the query to retrieve the summary
@@ -761,7 +948,15 @@ BEGIN
         SET v_output_time_prev = v_output_time;
 
         IF (@sys.diagnostics.include_raw = 'ON') THEN
+<<<<<<< HEAD
             SELECT 'SELECT * FROM sys.metrics' AS 'The following output is:';
+=======
+            IF (v_has_metrics) THEN
+                SELECT 'SELECT * FROM sys.metrics' AS 'The following output is:';
+            ELSE
+                SELECT 'sys.metrics equivalent' AS 'The following output is:';
+            END IF;
+>>>>>>> pr/231
             -- Ensures that the output here is the same as the one used in the status summary at the end
             CALL sys.execute_prepared_stmt(CONCAT('SELECT Type, Variable_name, Enabled, Variable_value FROM ', v_table_name, ' ORDER BY Type, Variable_name'));
         END IF;
@@ -780,7 +975,11 @@ BEGIN
             EXECUTE stmt_ndbcluster_status;
 
             SELECT 'ndbinfo.memoryusage' AS 'The following output is:';
+<<<<<<< HEAD
             SELECT node_id, memory_type, format_bytes(used) AS used, used_pages, format_bytes(total) AS total, total_pages,
+=======
+            SELECT node_id, memory_type, sys.format_bytes(used) AS used, used_pages, sys.format_bytes(total) AS total, total_pages,
+>>>>>>> pr/231
                    ROUND(100*(used/total), 2) AS 'Used %'
             FROM ndbinfo.memoryusage;
 
@@ -865,9 +1064,15 @@ BEGIN
     IF (@sys.diagnostics.allow_i_s_tables = 'ON') THEN
         SELECT 'Storage Engine Usage' AS 'The following output is:';
         SELECT ENGINE, COUNT(*) AS NUM_TABLES,
+<<<<<<< HEAD
                 format_bytes(SUM(DATA_LENGTH)) AS DATA_LENGTH,
                 format_bytes(SUM(INDEX_LENGTH)) AS INDEX_LENGTH,
                 format_bytes(SUM(DATA_LENGTH+INDEX_LENGTH)) AS TOTAL
+=======
+                sys.format_bytes(SUM(DATA_LENGTH)) AS DATA_LENGTH,
+                sys.format_bytes(SUM(INDEX_LENGTH)) AS INDEX_LENGTH,
+                sys.format_bytes(SUM(DATA_LENGTH+INDEX_LENGTH)) AS TOTAL
+>>>>>>> pr/231
             FROM information_schema.TABLES
             GROUP BY ENGINE;
 
@@ -945,7 +1150,11 @@ BEGIN
                     )
                 INTO @sys.diagnostics.sql_select
                 FROM tmp_sys_views_delta
+<<<<<<< HEAD
                 WHERE TABLE_NAME COLLATE utf8mb4_0900_as_ci = v_table_name;
+=======
+                WHERE TABLE_NAME = v_table_name;
+>>>>>>> pr/231
             SELECT CONCAT('Overall ', v_table_name) AS 'The following output is:';
             CALL sys.execute_prepared_stmt(@sys.diagnostics.sql_select);
         END LOOP;
@@ -996,7 +1205,11 @@ BEGIN
                     )
                 INTO @sys.diagnostics.sql_select
                 FROM tmp_sys_views_delta
+<<<<<<< HEAD
                 WHERE TABLE_NAME COLLATE utf8mb4_0900_as_ci = v_table_name;
+=======
+                WHERE TABLE_NAME = v_table_name;
+>>>>>>> pr/231
 
             SELECT CONCAT('Delta ', v_table_name) AS 'The following output is:';
             CALL sys.execute_prepared_stmt(@sys.diagnostics.sql_select);
@@ -1011,7 +1224,15 @@ BEGIN
         DROP TEMPORARY TABLE tmp_sys_views_delta;
     END IF;
 
+<<<<<<< HEAD
     SELECT 'SELECT * FROM sys.metrics' AS 'The following output is:';
+=======
+    IF (v_has_metrics) THEN
+        SELECT 'SELECT * FROM sys.metrics' AS 'The following output is:';
+    ELSE
+        SELECT 'sys.metrics equivalent' AS 'The following output is:';
+    END IF;
+>>>>>>> pr/231
     CALL sys.execute_prepared_stmt(
         CONCAT(v_sql_status_summary_select, v_sql_status_summary_delta, ', Type, s1.Enabled', v_sql_status_summary_from,
                '
@@ -1029,9 +1250,13 @@ BEGIN
 
     IF (in_auto_config <> 'current') THEN
         CALL sys.ps_setup_reload_saved();
+<<<<<<< HEAD
         IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
             SET sql_log_bin = @log_bin;
         END IF;
+=======
+        SET sql_log_bin = @log_bin;
+>>>>>>> pr/231
     END IF;
 
     -- Reset the @sys.diagnostics.% user variables internal to this procedure
@@ -1047,7 +1272,11 @@ BEGIN
         CALL sys.ps_setup_enable_thread(CONNECTION_ID());
     END IF;
 
+<<<<<<< HEAD
     IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+=======
+    IF (@log_bin = 1) THEN
+>>>>>>> pr/231
         SET sql_log_bin = @log_bin;
     END IF;
 END$$

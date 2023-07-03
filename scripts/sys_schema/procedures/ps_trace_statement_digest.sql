@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -18,7 +37,11 @@ DROP PROCEDURE IF EXISTS ps_trace_statement_digest;
 DELIMITER $$
 
 CREATE DEFINER='mysql.sys'@'localhost' PROCEDURE ps_trace_statement_digest (
+<<<<<<< HEAD
         IN in_digest VARCHAR(64),
+=======
+        IN in_digest VARCHAR(32),
+>>>>>>> pr/231
         IN in_runtime INT,
         IN in_interval DECIMAL(2,2),
         IN in_start_fresh BOOLEAN,
@@ -33,7 +56,11 @@ Statement Digest.
 
 When finding a statement of interest within the
 performance_schema.events_statements_summary_by_digest table, feed
+<<<<<<< HEAD
 the DIGEST value in to this procedure, set how long to poll for,
+=======
+the DIGEST MD5 value in to this procedure, set how long to poll for,
+>>>>>>> pr/231
 and at what interval to poll, and it will generate a report of all
 statistics tracked within Performance Schema for that digest for the
 interval.
@@ -55,7 +82,11 @@ Requires the SUPER privilege for "SET sql_log_bin = 0;".
 Parameters
 -----------
 
+<<<<<<< HEAD
 in_digest (VARCHAR(64)):
+=======
+in_digest (VARCHAR(32)):
+>>>>>>> pr/231
   The statement digest identifier you would like to analyze
 in_runtime (INT):
   The number of seconds to run analysis for
@@ -240,8 +271,13 @@ BEGIN
     SELECT "SUMMARY STATISTICS";
 
     SELECT COUNT(*) executions,
+<<<<<<< HEAD
            format_pico_time(SUM(timer_wait)) AS exec_time,
            format_pico_time(SUM(lock_time)) AS lock_time,
+=======
+           sys.format_time(SUM(timer_wait)) AS exec_time,
+           sys.format_time(SUM(lock_time)) AS lock_time,
+>>>>>>> pr/231
            SUM(rows_sent) AS rows_sent,
            SUM(rows_affected) AS rows_affected,
            SUM(rows_examined) AS rows_examined,
@@ -251,7 +287,11 @@ BEGIN
 
     SELECT event_name,
            COUNT(*) as count,
+<<<<<<< HEAD
            format_pico_time(SUM(timer_wait)) as latency
+=======
+           sys.format_time(SUM(timer_wait)) as latency
+>>>>>>> pr/231
       FROM stmt_stages
      GROUP BY event_name
      ORDER BY SUM(timer_wait) DESC;
@@ -259,8 +299,13 @@ BEGIN
     SELECT "LONGEST RUNNING STATEMENT";
 
     SELECT thread_id,
+<<<<<<< HEAD
            format_pico_time(timer_wait) AS exec_time,
            format_pico_time(lock_time) AS lock_time,
+=======
+           sys.format_time(timer_wait) AS exec_time,
+           sys.format_time(lock_time) AS lock_time,
+>>>>>>> pr/231
            rows_sent,
            rows_affected,
            rows_examined,
@@ -279,7 +324,11 @@ BEGIN
 
     IF (@sql_id IS NOT NULL) THEN
         SELECT event_name,
+<<<<<<< HEAD
                format_pico_time(timer_wait) as latency
+=======
+               sys.format_time(timer_wait) as latency
+>>>>>>> pr/231
           FROM stmt_stages
          WHERE stmt_id = @sql_id
          ORDER BY event_id;

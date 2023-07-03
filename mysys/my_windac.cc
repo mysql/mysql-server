@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,18 +192,34 @@ error:
     sa   security attributes
 */
 
+<<<<<<< HEAD:mysys/my_windac.cc
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa) {
   if (sa) {
     My_security_attr *attr =
         (My_security_attr *)(((char *)sa) + ALIGN_SIZE(sizeof(*sa)));
+<<<<<<< HEAD
 
     PACL dacl_from_descriptor = nullptr;
     BOOL dacl_present_in_descriptor = FALSE;
     BOOL dacl_defaulted = FALSE;
+=======
+=======
+void my_security_attr_free(SECURITY_ATTRIBUTES *sa)
+{
+  if (sa)
+  {
+    My_security_attr *attr= (My_security_attr*)
+                            (((char*)sa) + ALIGN_SIZE(sizeof(*sa)));
+
+    PACL dacl_from_descriptor= NULL;
+    BOOL dacl_present_in_descriptor= FALSE;
+    BOOL dacl_defaulted= FALSE;
+>>>>>>> pr/231
     // If the DACL in the descriptor is not the same as that in the
     // My_security_attr, it will have been created by a call to SetEntriesInAcl
     // and thus must be freed by a call to LocalFree.
     if (GetSecurityDescriptorDacl(sa->lpSecurityDescriptor,
+<<<<<<< HEAD
                                   &dacl_present_in_descriptor,
                                   &dacl_from_descriptor, &dacl_defaulted) &&
         dacl_present_in_descriptor && !dacl_defaulted &&
@@ -207,6 +227,16 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa) {
       LocalFree(dacl_from_descriptor);
     }
 
+=======
+      &dacl_present_in_descriptor,
+      &dacl_from_descriptor, &dacl_defaulted) &&
+      dacl_present_in_descriptor && !dacl_defaulted &&
+      attr->dacl != dacl_from_descriptor) {
+      LocalFree(dacl_from_descriptor);
+    }
+
+>>>>>>> upstream/cluster-7.6:mysys/my_windac.c
+>>>>>>> pr/231
     FreeSid(attr->everyone_sid);
     my_free(attr->dacl);
     my_free(sa);

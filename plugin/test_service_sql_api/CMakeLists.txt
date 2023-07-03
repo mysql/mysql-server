@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +30,19 @@
 # 
 # Test session API
 
+<<<<<<< HEAD
 DISABLE_MISSING_PROFILE_WARNING()
+=======
+# Silence warnings in test code for now.
+# Bug#27572037 REFACTOR CODE IN TEST_SERVICE_SQL_API
+MY_CHECK_CXX_COMPILER_FLAG("-Wstringop-truncation" HAVE_STRINGOP_TRUNCATION)
+IF(HAVE_STRINGOP_TRUNCATION)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-stringop-truncation")
+ENDIF()
+
+MYSQL_ADD_PLUGIN(test_session_in_thd test_session_in_thd.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "libtest_session_in_thd")
+>>>>>>> pr/231
 
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc

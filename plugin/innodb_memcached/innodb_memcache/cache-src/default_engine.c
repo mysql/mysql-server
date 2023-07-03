@@ -1,6 +1,10 @@
 /*****************************************************************************
 This file was modified by Oracle on 2015/02/05
+<<<<<<< HEAD
 Modifications Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+Modifications Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 *****************************************************************************/
 
 #include "config.h"

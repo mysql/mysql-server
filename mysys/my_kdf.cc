@@ -1,4 +1,8 @@
+<<<<<<< HEAD:mysys/my_kdf.cc
 /* Copyright (c) 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +29,11 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD:mysys/my_kdf.cc
 #include "mysys/my_kdf.h"
+=======
+#include "my_kdf.h"
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 
 #include <openssl/evp.h>
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -36,8 +44,13 @@
 #include <cstring>
 #include <memory>
 
+<<<<<<< HEAD:mysys/my_kdf.cc
 const int max_kdf_iterations_size{65535};
 const int min_kdf_iterations_size{1000};
+=======
+const int max_kdf_iterations_size = 65535;
+const int min_kdf_iterations_size = 1000;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 
 /*
   return 0 on success and 1 on failure
@@ -45,7 +58,14 @@ const int min_kdf_iterations_size{1000};
 int create_kdf_key(const unsigned char *key, const unsigned int key_length,
                    unsigned char *rkey, unsigned int rkey_size,
                    vector<string> *kdf_options) {
+<<<<<<< HEAD:mysys/my_kdf.cc
   assert(kdf_options != nullptr);
+=======
+  assert(kdf_options != NULL);
+  if (kdf_options == NULL) {
+    return 1;
+  }
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
   int nkdf_options = kdf_options->size();
   assert(nkdf_options > 0);
   if (nkdf_options < 1) {
@@ -53,27 +73,61 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
   }
 
   string kdf_name = (*kdf_options)[0];
+<<<<<<< HEAD:mysys/my_kdf.cc
   std::unique_ptr<Key_derivation_function> kdf_function;
 
   if (kdf_name == "hkdf") {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
     kdf_function = std::make_unique<Key_hkdf_function>(kdf_options);
+=======
+  Key_derivation_function *kdf_function = NULL;
+
+  if (kdf_name == "hkdf") {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    kdf_function = new Key_hkdf_function(kdf_options);
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 #else
     return 1;
 #endif
   }
   if (kdf_name == "pbkdf2_hmac") {
+<<<<<<< HEAD:mysys/my_kdf.cc
     kdf_function = std::make_unique<Key_pbkdf2_hmac_function>(kdf_options);
   }
   if (kdf_function->validate_options()) {
     return 1;
   }
   return kdf_function->derive_key(key, key_length, rkey, rkey_size);
+=======
+    kdf_function = new Key_pbkdf2_hmac_function(kdf_options);
+  }
+  if (kdf_function == NULL) {
+    return 1;
+  }
+  if (kdf_function->validate_options()) {
+    delete kdf_function;
+    kdf_function = NULL;
+    return 1;
+  }
+  bool ret = kdf_function->derive_key(key, key_length, rkey, rkey_size);
+  delete kdf_function;
+  kdf_function = NULL;
+  return ret;
+}
+
+Key_derivation_function::Key_derivation_function() {
+  kdf_options_ = NULL;
+  options_valid_ = false;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 }
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 Key_hkdf_function::Key_hkdf_function(vector<string> *kdf_options) {
+<<<<<<< HEAD:mysys/my_kdf.cc
   kdf_options_ = {kdf_options};
+=======
+  kdf_options_ = kdf_options;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 }
 
 /*
@@ -97,11 +151,19 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
                                   unsigned char *rkey, unsigned int key_size) {
   if (!options_valid_) return 1;
 
+<<<<<<< HEAD:mysys/my_kdf.cc
   EVP_PKEY_CTX *pctx{nullptr};
 
   /* Set initial key  */
   memset(rkey, 0, key_size);
   pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+=======
+  EVP_PKEY_CTX *pctx = NULL;
+
+  /* Set initial key  */
+  memset(rkey, 0, key_size);
+  pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
   if (!pctx) {
     return 1;
   }
@@ -132,7 +194,11 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
     EVP_PKEY_CTX_free(pctx);
     return 1;
   }
+<<<<<<< HEAD:mysys/my_kdf.cc
   size_t len{key_size};
+=======
+  size_t len = key_size;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
   if (EVP_PKEY_derive(pctx, static_cast<unsigned char *>(rkey),
                       static_cast<size_t *>(&len)) <= 0) {
     EVP_PKEY_CTX_free(pctx);
@@ -150,7 +216,12 @@ int Key_hkdf_function::derive_key(const unsigned char *key,
 
 Key_pbkdf2_hmac_function::Key_pbkdf2_hmac_function(
     vector<string> *kdf_options) {
+<<<<<<< HEAD:mysys/my_kdf.cc
   kdf_options_ = {kdf_options};
+=======
+  kdf_options_ = kdf_options;
+  iterations_ = 0;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 }
 
 /*
@@ -159,7 +230,11 @@ Key_pbkdf2_hmac_function::Key_pbkdf2_hmac_function(
 */
 int Key_pbkdf2_hmac_function::validate_options() {
   int nkdf_options = kdf_options_->size();
+<<<<<<< HEAD:mysys/my_kdf.cc
   iterations_ = {min_kdf_iterations_size};
+=======
+  iterations_ = min_kdf_iterations_size;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
 
   if (nkdf_options > 1) {
     salt_ = (*kdf_options_)[1];
@@ -185,7 +260,11 @@ int Key_pbkdf2_hmac_function::derive_key(const unsigned char *key,
                                          unsigned char *rkey,
                                          unsigned int key_size) {
   if (!options_valid_) return 1;
+<<<<<<< HEAD:mysys/my_kdf.cc
   int res{0};
+=======
+  int res = 0;
+>>>>>>> pr/231:mysys_ssl/my_kdf.cc
   res = PKCS5_PBKDF2_HMAC((const char *)key, key_length,
                           (const unsigned char *)salt_.c_str(), salt_.length(),
                           iterations_, EVP_sha512(), key_size, rkey);

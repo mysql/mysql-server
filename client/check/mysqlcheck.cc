@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2001, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +34,7 @@
 
 #include <mysql_version.h>
 #include <mysqld_error.h>
+<<<<<<< HEAD
 #include <stdlib.h>
 
 #include "caching_sha2_passwordopt-vars.h"
@@ -42,6 +51,11 @@
 #include "sslopt-vars.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+=======
+#include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+>>>>>>> upstream/cluster-7.6
 
 using namespace Mysql::Tools::Check;
 using std::string;
@@ -81,6 +95,7 @@ static char *opt_bind_addr = nullptr;
 
 #include "multi_factor_passwordopt-vars.h"
 
+<<<<<<< HEAD
 static struct my_option my_long_options[] = {
     {"all-databases", 'A',
      "Check all the databases. This is the same as --databases with all "
@@ -132,8 +147,59 @@ static struct my_option my_long_options[] = {
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
+<<<<<<< HEAD
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+static struct my_option my_long_options[] =
+{
+  {"all-databases", 'A',
+   "Check all the databases. This is the same as --databases with all databases selected.",
+   &opt_alldbs, &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"analyze", 'a', "Analyze given tables.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"all-in-1", '1',
+   "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
+   &opt_all_in_1, &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"auto-repair", OPT_AUTO_REPAIR,
+   "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
+   &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory for character set files.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"check-only-changed", 'C',
+   "Check only tables that have changed since last check or haven't been closed properly.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"check-upgrade", 'g',
+   "Check tables for version-dependent changes. May be used with --auto-repair to correct tables requiring version-dependent updates.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"databases", 'B',
+   "Check several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names.",
+   &opt_databases, &opt_databases, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+#ifdef NDEBUG
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
      nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -221,8 +287,14 @@ static struct my_option my_long_options[] = {
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 #endif
+<<<<<<< HEAD
     {"silent", 's', "Print only error messages.", &opt_silent, &opt_silent,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+<<<<<<< HEAD
+    {"silent", 's', "Print only error messages.", &opt_silent, &opt_silent, 0,
+     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> pr/231
     {"skip_database", 0, "Don't process the database specified as argument",
      &opt_skip_database, &opt_skip_database, nullptr, GET_STR, REQUIRED_ARG, 0,
      0, 0, nullptr, 0, nullptr},
@@ -231,6 +303,32 @@ static struct my_option my_long_options[] = {
      0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
+=======
+  {"silent", 's', "Print only error messages.", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_database", 0, "Don't process the database specified as argument",
+   &opt_skip_database, &opt_skip_database, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
+  {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"use-frm", OPT_FRM,
+   "When used with REPAIR, get table structure from .frm file, so the table can be repaired even if .MYI header is corrupted.",
+   &opt_frm, &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"user", 'u', "User for login if not current user.", &current_user,
+   &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print info about the various stages.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+>>>>>>> upstream/cluster-7.6
 
     {"tables", OPT_TABLES, "Overrides option --databases (-B).", nullptr,
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -481,15 +579,36 @@ static int dbConnect(char *host, char *user) {
                   (char *)&opt_enable_cleartext_plugin);
 
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+<<<<<<< HEAD
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
+=======
+  mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+<<<<<<< HEAD
+>>>>>>> pr/231
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlcheck");
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
+<<<<<<< HEAD
   set_password_options(&mysql_connection);
   if (!(sock =
             mysql_real_connect(&mysql_connection, host, user, nullptr, nullptr,
                                opt_mysql_port, opt_mysql_unix_port, 0))) {
+=======
+  if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd, NULL,
+                                  opt_mysql_port, opt_mysql_unix_port, 0))) {
+=======
+  mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqlcheck");
+
+  set_server_public_key(&mysql_connection);
+  set_get_server_public_key_option(&mysql_connection);
+
+  if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
+         NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     DBerror(&mysql_connection, "when trying to connect");
     return 1;
   }

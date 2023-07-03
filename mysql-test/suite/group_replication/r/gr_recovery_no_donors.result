@@ -9,9 +9,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
+<<<<<<< HEAD
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+=======
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+>>>>>>> pr/231
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
 call mtr.add_suppression("This member has more executed transactions *.*");
@@ -22,8 +27,12 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+<<<<<<< HEAD
 call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication applier termination.");
+=======
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+>>>>>>> pr/231
 SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 SET @old_event_scheduler= @@global.event_scheduler;
@@ -69,6 +78,7 @@ call mtr.add_suppression("All donors left. Aborting group replication incrementa
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET SESSION sql_log_bin= 1;
 [connection server3]
 SET SESSION sql_log_bin= 0;
@@ -81,6 +91,7 @@ call mtr.add_suppression("All donors left. Aborting group replication incrementa
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET SESSION sql_log_bin= 1;
 
 ############################################################

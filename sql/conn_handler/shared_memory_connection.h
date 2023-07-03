@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +74,7 @@ class Shared_mem_listener {
     @param  shared_memory_base_name pointer to shared memory base name.
   */
   Shared_mem_listener(const std::string *shared_memory_base_name)
+<<<<<<< HEAD
       : m_shared_mem_name(*shared_memory_base_name),
         m_connect_file_map(0),
         m_connect_map(0),
@@ -84,6 +93,27 @@ class Shared_mem_listener {
         m_event_server_wrote(0),
         m_event_server_read(0),
         m_event_conn_closed(0) {}
+=======
+  : m_shared_mem_name(*shared_memory_base_name),
+    m_connect_file_map(0),
+    m_connect_map(0),
+    m_connect_named_mutex(NULL),
+    m_event_connect_request(0),
+    m_event_connect_answer(0),
+    m_sa_event(0),
+    m_sa_mapping(0),
+    m_sa_mutex(0),
+    m_temp_buffer(0),
+    m_connect_number(1),
+    m_handle_client_file_map(0),
+    m_handle_client_map(0),
+    m_event_client_wrote(0),
+    m_event_client_read(0),
+    m_event_server_wrote(0),
+    m_event_server_read(0),
+    m_event_conn_closed(0)
+  { }
+>>>>>>> upstream/cluster-7.6
 
   /**
     Set up a listener.

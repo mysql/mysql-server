@@ -5,6 +5,10 @@
 --echo ##
 
 --source include/no_protocol.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo
 --echo ### Setup ###
@@ -86,7 +90,11 @@ let $host_old = query_get_value(SHOW FULL PROCESSLIST, Host, 1);
 --echo
 
 ## DEBUG ONLY
+<<<<<<< HEAD
 ##  --echo DEBUG: New: $host_new  Old: $host_old
+=======
+## --echo DEBUG: New: $host_new  Old: $host_old
+>>>>>>> pr/231
 
 if ($host_new == $host_old)
 {

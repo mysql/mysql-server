@@ -1,7 +1,11 @@
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
+<<<<<<< HEAD
 --source suite/ndb_rpl/ndb_master-slave.inc
 --source suite/ndb/include/backup_restore_setup.inc
+=======
+--source include/master-slave.inc
+>>>>>>> pr/231
 
 --echo Test to show that combination of Backup + Restore and
 --echo Binlog positioning correctly recovers a slave
@@ -89,8 +93,12 @@ select sleep(2);
 select sleep(2);
 
 --echo Run backup snapshotstart
+<<<<<<< HEAD
 let $start_backup_extra = SNAPSHOTSTART;
 --source suite/ndb/t/ndb_backup_nowait_start.inc
+=======
+--source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+>>>>>>> pr/231
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 --let $second_backup_id = $the_backup_id
@@ -226,7 +234,13 @@ reset master;
 #start slave;
 
 --remove_file $outfile
+<<<<<<< HEAD
 
 --connection master
 --source suite/ndb/include/backup_restore_cleanup.inc
+=======
+--remove_file $NDB_TOOLS_OUTPUT
+
+--connection master
+>>>>>>> pr/231
 --source include/rpl_end.inc

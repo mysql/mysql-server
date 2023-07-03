@@ -1,0 +1,130 @@
+CREATE TABLESPACE ts add datafile 'ts.ibd';
+#########################################################################
+# Partitioned Table                                                     #
+#########################################################################
+
+DROP TABLE IF EXISTS t1;
+# Create table without explicit tablespace name
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+# Try to ALTER TABLE to have general tablespace at table level
+ALTER TABLE t1 TABLESPACE=ts;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+# Create table with general tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+TABLESPACE=ts
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+# Create table with system tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+TABLESPACE=innodb_system
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+# Create table with innodb_file_per_table tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+TABLESPACE=innodb_file_per_table
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+DROP TABLE t1;
+# Create table with general tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30) TABLESPACE=ts);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+# Create table with system tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30) TABLESPACE=innodb_system);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+# Create table with innodb_file_per_table tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+PARTITION BY RANGE(id) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN (40) TABLESPACE=innodb_file_per_table);
+# Alter table to move a partition to general tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P0 INTO (
+PARTITION P0 VALUES LESS THAN (10) TABLESPACE=ts);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+# Alter table to move a partition to system tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P1 INTO (
+PARTITION P1 VALUES LESS THAN (20) TABLESPACE=innodb_system);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+# Alter table to move a partition to file_per_table tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+PARTITION P2 VALUES LESS THAN (30) TABLESPACE=innodb_file_per_table);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION P0 VALUES LESS THAN (10) TABLESPACE = `ts` ENGINE = InnoDB,
+ PARTITION P1 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (30) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (40) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
+# Alter table to add a new partition in general tablespace
+ALTER TABLE t1 ADD PARTITION (
+PARTITION p4 VALUES LESS THAN (50) tablespace=ts);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+# Alter table to add a new partition in innodb_system tablespace
+ALTER TABLE t1 ADD PARTITION (
+PARTITION p5 VALUES LESS THAN (60) tablespace=innodb_system);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+# Alter table to add a new partition in innodb_file_per_table tablespace
+ALTER TABLE t1 ADD PARTITION (
+PARTITION p6 VALUES LESS THAN (70) tablespace=innodb_file_per_table);
+# Alter table to add a new partition without giving tablespace
+ALTER TABLE t1 ADD PARTITION (
+PARTITION p7 VALUES LESS THAN (80));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION P0 VALUES LESS THAN (10) TABLESPACE = `ts` ENGINE = InnoDB,
+ PARTITION P1 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (30) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (40) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (50) TABLESPACE = `ts` ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (60) TABLESPACE = `innodb_system` ENGINE = InnoDB,
+ PARTITION p6 VALUES LESS THAN (70) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION p7 VALUES LESS THAN (80) ENGINE = InnoDB) */
+###########
+# Cleanup #
+###########
+DROP TABLE t1;
+DROP TABLESPACE ts;

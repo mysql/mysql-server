@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +30,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "init_net_server_extension.h"
 #include "shared_memory_connection.h"
 
 #include <errno.h>
@@ -91,8 +100,13 @@ class Channel_info_shared_mem : public Channel_info {
     THD *thd = Channel_info::create_thd();
 
     if (thd != NULL) {
+<<<<<<< HEAD
       init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+=======
+        init_net_server_extension(thd);
+        thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+>>>>>>> pr/231
     }
     return thd;
   }
@@ -101,6 +115,7 @@ class Channel_info_shared_mem : public Channel_info {
                                             bool senderror) {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
+<<<<<<< HEAD
     // Channel_info::send_error_and_close_channel will have closed
     // handles on senderror
     if (!senderror) {
@@ -112,6 +127,37 @@ class Channel_info_shared_mem : public Channel_info {
       if (m_event_client_read) CloseHandle(m_event_client_read);
       if (m_event_conn_closed) CloseHandle(m_event_conn_closed);
     }
+=======
+<<<<<<< HEAD
+    if (m_handle_client_file_map) CloseHandle(m_handle_client_file_map);
+    if (m_handle_client_map) CloseHandle(m_handle_client_map);
+    if (m_event_server_wrote) CloseHandle(m_event_server_wrote);
+    if (m_event_server_read) CloseHandle(m_event_server_read);
+    if (m_event_client_wrote) CloseHandle(m_event_client_wrote);
+    if (m_event_client_read) CloseHandle(m_event_client_read);
+    if (m_event_conn_closed) CloseHandle(m_event_conn_closed);
+=======
+    // Channel_info::send_error_and_close_channel will have closed
+    // handles on senderror
+    if (!senderror)
+    {
+      if (m_handle_client_file_map)
+        CloseHandle(m_handle_client_file_map);
+      if (m_handle_client_map)
+        UnmapViewOfFile(m_handle_client_map);
+      if (m_event_server_wrote)
+        CloseHandle(m_event_server_wrote);
+      if (m_event_server_read)
+        CloseHandle(m_event_server_read);
+      if (m_event_client_wrote)
+        CloseHandle(m_event_client_wrote);
+      if (m_event_client_read)
+        CloseHandle(m_event_client_read);
+      if (m_event_conn_closed)
+        CloseHandle(m_event_conn_closed);
+    }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 };
 
@@ -124,12 +170,29 @@ void Shared_mem_listener::close_shared_mem() {
 
   my_security_attr_free(m_sa_event);
   my_security_attr_free(m_sa_mapping);
+<<<<<<< HEAD
   my_security_attr_free(m_sa_mutex);
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (m_connect_map) UnmapViewOfFile(m_connect_map);
   if (m_connect_named_mutex) CloseHandle(m_connect_named_mutex);
   if (m_connect_file_map) CloseHandle(m_connect_file_map);
   if (m_event_connect_answer) CloseHandle(m_event_connect_answer);
   if (m_event_connect_request) CloseHandle(m_event_connect_request);
+=======
+  my_security_attr_free(m_sa_mutex);
+  if (m_connect_map)
+    UnmapViewOfFile(m_connect_map);
+  if (m_connect_named_mutex)
+    CloseHandle(m_connect_named_mutex);
+  if (m_connect_file_map)
+    CloseHandle(m_connect_file_map);
+  if (m_event_connect_answer)
+    CloseHandle(m_event_connect_answer);
+  if (m_event_connect_request)
+    CloseHandle(m_event_connect_request);
+>>>>>>> upstream/cluster-7.6
 }
 
 bool Shared_mem_listener::setup_listener() {
@@ -176,9 +239,20 @@ bool Shared_mem_listener::setup_listener() {
   }
 
   my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
+<<<<<<< HEAD
   m_connect_named_mutex = CreateMutex(m_sa_mutex, false, m_temp_buffer);
+=======
+<<<<<<< HEAD
+  m_connect_named_mutex = CreateMutex(NULL, false, m_temp_buffer);
+>>>>>>> pr/231
   if (m_connect_named_mutex == NULL) {
     errmsg = "Unable to create connect named mutex.";
+=======
+  m_connect_named_mutex= CreateMutex(m_sa_mutex, FALSE, m_temp_buffer);
+  if (m_connect_named_mutex == NULL)
+  {
+    errmsg="Unable to create connect named mutex.";
+>>>>>>> upstream/cluster-7.6
     goto error;
   }
   if (GetLastError() == ERROR_ALREADY_EXISTS) {

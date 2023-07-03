@@ -4,9 +4,18 @@
 --echo ##
 
 --source include/no_protocol.inc
+<<<<<<< HEAD
 
 SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
 
+=======
+--source include/not_embedded.inc
+
+SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
+
+--source include/add_anonymous_users.inc
+
+>>>>>>> pr/231
 SET @@global.performance_schema_show_processlist = OFF;
 
 CREATE USER 'regular'@'localhost';
@@ -123,6 +132,11 @@ TRUNCATE TABLE performance_schema.events_statements_history;
 
 disconnect reg2;
 
+<<<<<<< HEAD
+=======
+--source include/delete_anonymous_users.inc
+
+>>>>>>> pr/231
 SET @@global.performance_schema_show_processlist = @save_processlist;
 
 DROP USER 'regular'@'localhost';

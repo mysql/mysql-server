@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +28,14 @@
 #define GROUP_REPLICATION_PRIV_INCLUDE
 
 /**
+<<<<<<< HEAD
   @file include/mysql/group_replication_priv.h
 */
+=======
+  Server side initializations.
+*/
+int group_replication_init();
+>>>>>>> upstream/cluster-7.6
 
 #include "my_sys.h"
 #include "my_thread.h"
@@ -189,7 +199,20 @@ void global_thd_manager_remove_thd(THD *thd);
 
   @return the algorithm name
 */
+<<<<<<< HEAD
 const char *get_write_set_algorithm_string(unsigned int algorithm);
+=======
+const char* get_write_set_algorithm_string(unsigned int algorithm);
+
+/**
+  Returns the value of slave_max_allowed_packet.
+
+  @return slave_max_allowed_packet
+*/
+unsigned long get_slave_max_allowed_packet();
+
+#endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
+>>>>>>> upstream/cluster-7.6
 
 /**
   Returns true if the given transaction is committed.

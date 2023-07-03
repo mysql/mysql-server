@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,6 +138,7 @@ void Event_worker_thread::print_warnings(THD *thd, Event_job_data *et) {
     /* set it to 0 or we start adding at the end. That's the trick ;) */
     err_msg.length(0);
     err_msg.append(prefix);
+<<<<<<< HEAD
     err_msg.append(err->message_text(), err->message_octet_length(),
                    system_charset_info);
     switch (err->severity()) {
@@ -144,7 +153,28 @@ void Event_worker_thread::print_warnings(THD *thd, Event_job_data *et) {
         break;
       default:
         ll = ERROR_LEVEL;
+<<<<<<< HEAD
         assert(false);
+=======
+        DBUG_ASSERT(false);
+=======
+    err_msg.append(err->message_text(),
+                   err->message_octet_length(), system_charset_info);
+    switch (err->severity())
+    {
+    case Sql_condition::SL_ERROR:
+      sql_print_error("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_WARNING:
+      sql_print_warning("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_NOTE:
+      sql_print_information("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      break;
+    default:
+      assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     LogErr(ll, ER_EVENT_MESSAGE_STACK, static_cast<int>(err_msg.length()),
            err_msg.c_ptr());
@@ -258,6 +288,7 @@ static void *event_scheduler_thread(void *arg) {
 
   mysql_thread_set_psi_id(thd->thread_id());
 
+<<<<<<< HEAD
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Update the thread instrumentation. */
   PSI_THREAD_CALL(set_thread_account)
@@ -268,7 +299,24 @@ static void *event_scheduler_thread(void *arg) {
   PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   res = post_init_event_thread(thd);
+=======
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+    (thd->security_context()->user().str,
+     thd->security_context()->user().length,
+     thd->security_context()->host_or_ip().str,
+     thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  res= post_init_event_thread(thd);
+>>>>>>> upstream/cluster-7.6
 
   {
     DBUG_TRACE;
@@ -315,11 +363,20 @@ static void *event_worker_thread(void *arg) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Update the thread instrumentation. */
   PSI_THREAD_CALL(set_thread_account)
+<<<<<<< HEAD
   (thd->security_context()->user().str, thd->security_context()->user().length,
    thd->security_context()->host_or_ip().str,
    thd->security_context()->host_or_ip().length);
   PSI_THREAD_CALL(set_thread_command)(thd->get_command());
   PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+=======
+    (thd->security_context()->user().str,
+     thd->security_context()->user().length,
+     thd->security_context()->host_or_ip().str,
+     thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start());
+>>>>>>> pr/231
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Event_worker_thread worker_thread;
@@ -346,7 +403,11 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   Event_job_data job_data;
   bool res;
 
+<<<<<<< HEAD
   assert(thd->m_digest == nullptr);
+=======
+  assert(thd->m_digest == NULL);
+>>>>>>> pr/231
 
   thd->thread_stack = &my_stack;  // remember where our stack is
   res = post_init_event_thread(thd);
@@ -364,10 +425,26 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
+<<<<<<< HEAD
   assert(thd->m_statement_psi == nullptr);
   thd->m_statement_psi = MYSQL_START_STATEMENT(
       &state, event->get_psi_info()->m_key, event->dbname.str,
       event->dbname.length, thd->charset(), nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
+  thd->m_statement_psi = MYSQL_START_STATEMENT(
+      &state, event->get_psi_info()->m_key, event->dbname.str,
+      event->dbname.length, thd->charset(), NULL);
+=======
+  assert(thd->m_statement_psi == NULL);
+  thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+                                              event->get_psi_info()->m_key,
+                                              event->dbname.str,
+                                              event->dbname.length,
+                                              thd->charset(), NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
   /*
     We must make sure the schema is released and unlocked in the right
@@ -416,7 +493,11 @@ end:
   thd->m_statement_psi = nullptr;
 #endif
 
+<<<<<<< HEAD
   assert(thd->m_digest == nullptr);
+=======
+  assert(thd->m_digest == NULL);
+>>>>>>> pr/231
 
   DBUG_PRINT("info",
              ("Done with Event %s.%s", event->dbname.str, event->name.str));
@@ -599,16 +680,36 @@ bool Event_scheduler::run(THD *thd) {
     }
 
     DBUG_PRINT("info", ("get_top_for_execution_if_time returned "
+<<<<<<< HEAD
                         "event_name=%p",
                         event_name));
     if (event_name) {
       if ((res = execute_top(event_name))) break;
     } else {
+<<<<<<< HEAD
       assert(thd->killed);
       DBUG_PRINT("info", ("job_data is NULL, the thread was killed"));
     }
     DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));
     thd->mem_root->Clear();
+=======
+      DBUG_ASSERT(thd->killed);
+=======
+                        "event_name=0x%lx", (long) event_name));
+    if (event_name)
+    {
+      if ((res= execute_top(event_name)))
+        break;
+    }
+    else
+    {
+      assert(thd->killed);
+>>>>>>> upstream/cluster-7.6
+      DBUG_PRINT("info", ("job_data is NULL, the thread was killed"));
+    }
+    DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));
+    free_root(thd->mem_root, MYF(0));
+>>>>>>> pr/231
   }
 
   LOCK_DATA();

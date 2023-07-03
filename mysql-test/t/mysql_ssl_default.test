@@ -13,6 +13,24 @@
 
 --echo # verify that mysql default connect with ssl channel when using TCP/IP
 --echo # connection
+<<<<<<< HEAD
+--replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+>>>>>>> pr/231
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
+
+--echo # verify that mysql --ssl=0 connect with unencrypted channel
+--replace_regex $ALLOWED_CIPHERS_REGEX
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=DISABLED
+
+--echo # verify that mysql --ssl=1 connect with ssl channel
+<<<<<<< HEAD
+--replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
 --replace_regex $ALLOWED_CIPHERS_REGEX
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
@@ -22,6 +40,8 @@
 
 --echo # verify that mysql --ssl=1 connect with ssl channel
 --replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=REQUIRED
 
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;

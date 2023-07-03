@@ -9,7 +9,11 @@ include/rpl_sync.inc
 [connection server2]
 
 # 1. Kill and restart server 2
+<<<<<<< HEAD
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS2 --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_communication_stack=GROUP_REPLICATION_COMMUNICATION_STACK
+=======
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS2 --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
+>>>>>>> pr/231
 include/rpl_reconnect.inc
 [connection server1]
 
@@ -38,7 +42,11 @@ ERROR HY000: Plugin 'group_replication' cannot be uninstalled now. Plugin is bus
 
 # 6. Clean-up
 [connection server1]
+<<<<<<< HEAD
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR or Rollback
+=======
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+>>>>>>> pr/231
 Got one of the listed errors
 include/rpl_start_server.inc [server_number=1]
 include/rpl_reconnect.inc

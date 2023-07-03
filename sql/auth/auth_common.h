@@ -1,4 +1,15 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+#ifndef AUTH_COMMON_INCLUDED
+#define AUTH_COMMON_INCLUDED
+
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -435,13 +446,20 @@ class User_table_schema {
  */
 class User_table_current_schema : public User_table_schema {
  public:
+<<<<<<< HEAD
   uint host_idx() override { return MYSQL_USER_FIELD_HOST; }
   uint user_idx() override { return MYSQL_USER_FIELD_USER; }
+=======
+  uint host_idx() { return MYSQL_USER_FIELD_HOST; }
+  uint user_idx() { return MYSQL_USER_FIELD_USER; }
+<<<<<<< HEAD
+>>>>>>> pr/231
   // not available
   uint password_idx() override {
     assert(0);
     return MYSQL_USER_FIELD_COUNT;
   }
+<<<<<<< HEAD
   uint select_priv_idx() override { return MYSQL_USER_FIELD_SELECT_PRIV; }
   uint insert_priv_idx() override { return MYSQL_USER_FIELD_INSERT_PRIV; }
   uint update_priv_idx() override { return MYSQL_USER_FIELD_UPDATE_PRIV; }
@@ -465,6 +483,31 @@ class User_table_current_schema : public User_table_schema {
   }
   uint drop_role_priv_idx() override { return MYSQL_USER_FIELD_DROP_ROLE_PRIV; }
   uint create_tmp_table_priv_idx() override {
+=======
+=======
+  //not available
+  uint password_idx() { assert(0); return MYSQL_USER_FIELD_COUNT; }
+>>>>>>> upstream/cluster-7.6
+  uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV; }
+  uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV; }
+  uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV; }
+  uint delete_priv_idx() { return MYSQL_USER_FIELD_DELETE_PRIV; }
+  uint create_priv_idx() { return MYSQL_USER_FIELD_CREATE_PRIV; }
+  uint drop_priv_idx() { return MYSQL_USER_FIELD_DROP_PRIV; }
+  uint reload_priv_idx() { return MYSQL_USER_FIELD_RELOAD_PRIV; }
+  uint shutdown_priv_idx() { return MYSQL_USER_FIELD_SHUTDOWN_PRIV; }
+  uint process_priv_idx() { return MYSQL_USER_FIELD_PROCESS_PRIV; }
+  uint file_priv_idx() { return MYSQL_USER_FIELD_FILE_PRIV; }
+  uint grant_priv_idx() { return MYSQL_USER_FIELD_GRANT_PRIV; }
+  uint references_priv_idx() { return MYSQL_USER_FIELD_REFERENCES_PRIV; }
+  uint index_priv_idx() { return MYSQL_USER_FIELD_INDEX_PRIV; }
+  uint alter_priv_idx() { return MYSQL_USER_FIELD_ALTER_PRIV; }
+  uint show_db_priv_idx() { return MYSQL_USER_FIELD_SHOW_DB_PRIV; }
+  uint super_priv_idx() { return MYSQL_USER_FIELD_SUPER_PRIV; }
+  uint create_role_priv_idx() { return MYSQL_USER_FIELD_CREATE_ROLE_PRIV; }
+  uint drop_role_priv_idx() { return MYSQL_USER_FIELD_DROP_ROLE_PRIV; }
+  uint create_tmp_table_priv_idx() {
+>>>>>>> pr/231
     return MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV;
   }
   uint lock_tables_priv_idx() override {
@@ -731,16 +774,51 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 #define ACCESS_RIGHTS_ATTR (1L << 5)   /* update privileges */
 #define ACCOUNT_LOCK_ATTR (1L << 6)    /* update account lock status */
 #define DIFFERENT_PLUGIN_ATTR \
+<<<<<<< HEAD
   (1L << 7)                       /* updated plugin with a different value */
 #define USER_ATTRIBUTES (1L << 8) /* Request to update user attributes */
+=======
+  (1L << 7) /* updated plugin with a different value */
+
+/* rewrite CREATE/ALTER/GRANT user */
+<<<<<<< HEAD
+void mysql_rewrite_create_alter_user(
+    THD *thd, String *rlb, std::set<LEX_USER *> *users_not_to_log = NULL,
+    bool for_binlog = false);
+=======
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
+                                     std::set<LEX_USER *> *extra_users= NULL,
+                                     bool hide_password_hash= false);
+>>>>>>> upstream/cluster-7.6
+void mysql_rewrite_grant(THD *thd, String *rlb);
+void mysql_rewrite_set_password(THD *thd, String *rlb,
+                                std::set<LEX_USER *> *users,
+                                bool for_binlog = false);
+>>>>>>> pr/231
 
 /* sql_user */
+<<<<<<< HEAD
 void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
+<<<<<<< HEAD
 bool check_change_password(THD *thd, const char *host, const char *user,
                            bool retain_current_password);
 bool change_password(THD *thd, LEX_USER *user, const char *password,
                      const char *current_password,
                      bool retain_current_password);
+=======
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
+int check_change_password(THD *thd, const char *host, const char *user);
+=======
+void append_user(THD *thd, String *str, LEX_USER *user,
+                 bool comma, bool ident);
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true,
+                     bool hide_password_hash= false);
+int check_change_password(THD *thd, const char *host, const char *user,
+                          const char *password, size_t password_len);
+>>>>>>> upstream/cluster-7.6
+bool change_password(THD *thd, const char *host, const char *user,
+                     char *password);
+>>>>>>> pr/231
 bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
                        bool is_role);
 bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);
@@ -799,21 +877,49 @@ bool check_column_grant_in_table_ref(THD *thd, Table_ref *table_ref,
                                      ulong want_privilege);
 bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
+<<<<<<< HEAD
 bool check_grant_routine(THD *thd, ulong want_access, Table_ref *procs,
                          bool is_proc, bool no_error);
 bool check_grant_db(THD *thd, const char *db,
                     const bool check_table_grant = false);
+=======
+<<<<<<< HEAD
+bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
+                         bool is_proc, bool no_error);
+bool check_grant_db(THD *thd, const char *db);
+=======
+bool check_grant_routine(THD *thd, ulong want_access,
+                         TABLE_LIST *procs, bool is_proc, bool no_error);
+bool check_routine_level_acl(THD *thd, const char *db, const char *name,
+                             bool is_proc);
+bool check_grant_db(THD *thd, const char *db,
+                    const bool check_table_grant = false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
 void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc);
+<<<<<<< HEAD
 ulong get_table_grant(THD *thd, Table_ref *table);
+=======
+ulong get_table_grant(THD *thd, TABLE_LIST *table);
+<<<<<<< HEAD
+>>>>>>> pr/231
 ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
                        const char *table_name, const char *field_name);
 bool mysql_show_grants(THD *, LEX_USER *, const List_of_auth_id_refs &, bool,
                        bool);
 bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
 bool mysql_revoke_all(THD *thd, List<LEX_USER> &list);
+=======
+ulong get_column_grant(THD *thd, GRANT_INFO *grant,
+                       const char *db_name, const char *table_name,
+                       const char *field_name);
+bool mysql_show_grants(THD *thd, LEX_USER *user);
+bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
+bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
+>>>>>>> upstream/cluster-7.6
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
@@ -832,7 +938,11 @@ bool create_table_precheck(THD *thd, Table_ref *tables,
                            Table_ref *create_table);
 bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+<<<<<<< HEAD
 bool check_lock_view_underlying_table_access(THD *thd, Table_ref *tbl,
+=======
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+>>>>>>> pr/231
                                              bool *fake_lock_tables_acl);
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
@@ -897,6 +1007,7 @@ typedef enum ssl_artifacts_status {
   SSL_ARTIFACTS_AUTO_DETECTED
 } ssl_artifacts_status;
 
+<<<<<<< HEAD
 ulong get_global_acl_cache_size();
 extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
@@ -1051,6 +1162,7 @@ class Grant_temporary_static_privileges
 };
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
+<<<<<<< HEAD
 bool is_partial_revoke_exists(THD *thd);
 void set_system_user_flag(THD *thd, bool check_for_main_security_ctx = false);
 void set_connection_admin_flag(THD *thd,
@@ -1139,4 +1251,14 @@ bool decrypt_RSA_private_key(uchar *pkt, int cipher_length,
                              RSA *private_key);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
+=======
+=======
+#endif /* EMBEDDED_LIBRARY */
+
+#if defined(HAVE_OPENSSL)
+extern my_bool opt_auto_generate_certs;
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
+#endif /* HAVE_OPENSSL */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* AUTH_COMMON_INCLUDED */

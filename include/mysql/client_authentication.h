@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +43,17 @@ int sha256_password_deinit(void);
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 int caching_sha2_password_init(char *, size_t, int, va_list);
 int caching_sha2_password_deinit(void);
+<<<<<<< HEAD
 net_async_status caching_sha2_password_auth_client_nonblocking(
     MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *res);
 net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
                                                          MYSQL *mysql,
                                                          int *res);
+=======
+<<<<<<< HEAD
+=======
+C_MODE_END
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
 #endif

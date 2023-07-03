@@ -1,6 +1,15 @@
 # -*- cperl -*-
+<<<<<<< HEAD
 # Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 #
+=======
+# Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> upstream/cluster-7.6
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -823,6 +832,88 @@ sub collect_one_suite($$$$) {
   mtr_verbose("testdir: $testdir");
   mtr_verbose("resdir: $resdir");
 
+<<<<<<< HEAD
+=======
+  # ----------------------------------------------------------------------
+  # Build a hash of disabled testcases for this suite
+  # ----------------------------------------------------------------------
+  my %disabled;
+  foreach my $skip_file(@{$opt_skip_test_list})
+  {
+    $skip_file= get_bld_path($skip_file);
+  }
+  my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
+  unshift (@disabled_collection, "$testdir/disabled.def");
+
+  # Check for the tests to be skipped in a sanitizer which are listed
+  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
+<<<<<<< HEAD
+  if ($::opt_sanitize)
+  {
+    # Check for disabled-asan.list
+    if($::mysql_version_extra =~ /asan/i &&
+       !grep(/disabled-asan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-asan.list");
+    }
+    # Check for disabled-ubsan.list
+    elsif($::mysql_version_extra =~ /ubsan/i &&
+         !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-ubsan.list");
+=======
+  if ($::opt_sanitize) {
+    # Check for disabled-asan.list
+    if ($::mysql_version_extra =~ /asan/i &&
+        !grep (/disabled-asan\.list$/, @{$opt_skip_test_list})) {
+      push(@disabled_collection, "collections/disabled-asan.list");
+>>>>>>> upstream/cluster-7.6
+    }
+  }
+
+  for my $skip (@disabled_collection)
+    {
+      if ( open(DISABLED, $skip ) )
+	{
+	  # $^O on Windows considered not generic enough
+	  my $plat= (IS_WINDOWS) ? 'windows' : $^O;
+
+	  while ( <DISABLED> )
+	    {
+	      chomp;
+	      #diasble the test case if platform matches
+	      if ( /\@/ )
+		{
+		  if ( /\@$plat/ )
+		    {
+		      /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/ ;
+		      $disabled{$1}= $2 if not exists $disabled{$1};
+		    }
+		  elsif ( /\@!(\S*)/ )
+		    {
+		      if ( $1 ne $plat)
+			{
+			  /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/ ;
+			  $disabled{$1}= $2 if not exists $disabled{$1};
+			}
+		    }
+		}
+	      elsif ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+		{
+		  chomp;
+		  if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+		    {
+		      $disabled{$1}= $2 if not exists $disabled{$1};
+		    }
+		}
+	    }
+	  close DISABLED;
+	}
+    }
+
+>>>>>>> pr/231
   # Read suite.opt file
   my $suite_opt_file = "$testdir/suite.opt";
 
@@ -1015,6 +1106,7 @@ sub optimize_cases {
     # Check that engine set by '--default-storage-engine=<engine>' is supported
     my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
+<<<<<<< HEAD
     foreach my $opt (@{ $tinfo->{master_opt} }) {
       (my $dash_opt = $opt) =~ s/_/-/g;
 
@@ -1022,6 +1114,26 @@ sub optimize_cases {
         mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine =
         mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
+=======
+    foreach my $opt ( @{$tinfo->{master_opt}} ) {
+     (my $dash_opt = $opt) =~ s/_/-/g;
+<<<<<<< HEAD
+
+      # Check whether server supports SSL connection
+      if ($dash_opt eq "--skip-ssl" and $::opt_ssl)
+      {
+        $tinfo->{'skip'}= 1;
+        $tinfo->{'comment'}= "Server doesn't support SSL connection";
+        next;
+      }
+
+=======
+>>>>>>> upstream/cluster-7.6
+      my $default_engine=
+	mtr_match_prefix($dash_opt, "--default-storage-engine=");
+      my $default_tmp_engine=
+	mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
+>>>>>>> pr/231
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;

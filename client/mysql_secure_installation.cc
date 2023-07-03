@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -789,9 +797,21 @@ int main(int argc, char *argv[]) {
 
   my_getopt_use_args_separator = false;
 
+<<<<<<< HEAD
   if ((rc = my_handle_options(&argc, &argv, my_connection_options,
+<<<<<<< HEAD
                               my_arguments_get_one_option, nullptr, true))) {
     assert(0);
+=======
+                              my_arguments_get_one_option, NULL, true))) {
+    DBUG_ASSERT(0);
+=======
+  if ((rc= my_handle_options(&argc, &argv, my_connection_options,
+                             my_arguments_get_one_option, NULL, TRUE)))
+  {
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   init_connection_options(&mysql);

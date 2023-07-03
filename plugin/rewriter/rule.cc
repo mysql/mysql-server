@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/*  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +85,14 @@ class Parse_error_recorder : public services::Condition_handler {
 
     @retval false We don't handle the error.
   */
+<<<<<<< HEAD
   bool handle(int sql_errno, const char *, const char *message) override {
     assert(message != nullptr);
+=======
+<<<<<<< HEAD
+  bool handle(int sql_errno, const char *, const char *message) {
+    DBUG_ASSERT(message != NULL);
+>>>>>>> pr/231
     if (m_message.empty()) m_message.assign(message);
     switch (sql_errno) {
       case ER_PARSE_ERROR:
@@ -88,6 +102,22 @@ class Parse_error_recorder : public services::Condition_handler {
         return true;
       default:
         return false;
+=======
+  bool handle(int sql_errno, const char*, const char *message)
+  {
+    assert(message != NULL);
+    if (m_message.empty())
+      m_message.assign(message);
+    switch (sql_errno)
+    {
+    case ER_PARSE_ERROR:
+    case ER_EMPTY_QUERY:
+    case ER_WARN_LEGACY_SYNTAX_CONVERTED:
+    case ER_NO_DB_ERROR:
+      return true;
+    default:
+      return false;
+>>>>>>> upstream/cluster-7.6
     };
   }
 

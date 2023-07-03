@@ -111,7 +111,11 @@ SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 3;
 
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^\]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_auto_increment_increment_log.err
+<<<<<<< HEAD
 --let $grep_pattern=Group contains 4 members which is greater than group_replication_auto_increment_increment value of 3. This can lead to a higher transactional abort rate.
+=======
+--let $grep_pattern=Group contains 4 members which is greater than auto_increment_increment value of 3. This can lead to an higher rate of transactional aborts.
+>>>>>>> pr/231
 --source include/grep_pattern.inc
 
 --echo ############################################################
@@ -250,8 +254,9 @@ SET GLOBAL GROUP_REPLICATION_AUTO_INCREMENT_INCREMENT= 1;
 --let $allow_rpl_inited= 1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 
 # Needed as we are not using rpl_restart_server.inc

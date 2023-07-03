@@ -1,7 +1,15 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,10 +241,26 @@ class Arg_comparator {
   /*
     Set correct cmp_context if items would be compared as INTs.
   */
+<<<<<<< HEAD
   inline void set_cmp_context_for_datetime() {
+<<<<<<< HEAD
     assert(func == &Arg_comparator::compare_datetime);
     if ((*left)->is_temporal()) (*left)->cmp_context = INT_RESULT;
     if ((*right)->is_temporal()) (*right)->cmp_context = INT_RESULT;
+=======
+    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    if ((*a)->is_temporal()) (*a)->cmp_context = INT_RESULT;
+    if ((*b)->is_temporal()) (*b)->cmp_context = INT_RESULT;
+=======
+  inline void set_cmp_context_for_datetime()
+  {
+    assert(func == &Arg_comparator::compare_datetime);
+    if ((*a)->is_temporal())
+      (*a)->cmp_context= INT_RESULT;
+    if ((*b)->is_temporal())
+      (*b)->cmp_context= INT_RESULT;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   Item_result get_compare_type() const { return m_compare_type; }
@@ -2441,7 +2465,12 @@ class Item_cond : public Item_bool_func {
 
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
+<<<<<<< HEAD
       : Item_bool_func(), list(nlist), abort_on_null(false) {}
+=======
+<<<<<<< HEAD
+      : Item_bool_func(), list(nlist), abort_on_null(0) {}
+>>>>>>> pr/231
   bool add(Item *item) {
     assert(item);
     return list.push_back(item);
@@ -2453,6 +2482,23 @@ class Item_cond : public Item_bool_func {
   void add_at_head(List<Item> *nlist) {
     assert(nlist->elements);
     list.prepend(nlist);
+=======
+    :Item_bool_func(), list(nlist), abort_on_null(0) {}
+  bool add(Item *item)
+  {
+    assert(item);
+    return list.push_back(item);
+  }
+  bool add_at_head(Item *item)
+  {
+    assert(item);
+    return list.push_front(item);
+  }
+  void add_at_head(List<Item> *nlist)
+  {
+    assert(nlist->elements);
+    list.prepand(nlist);
+>>>>>>> upstream/cluster-7.6
   }
 
   bool itemize(Parse_context *pc, Item **res) override;

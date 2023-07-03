@@ -1,0 +1,195 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+[on slave]
+[connection slave]
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+[on master]
+[connection master]
+SET @old_binlog_format= @@global.binlog_format;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+CREATE TABLE t (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_row (a VARCHAR(100)) ENGINE = INNODB;
+CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
+CREATE TABLE t_slave_stmt (a VARCHAR(100)) ENGINE = MYISAM;
+CREATE TABLE t_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TABLE t_double_autoinc (a INT KEY AUTO_INCREMENT) ENGINE = MYISAM;
+CREATE TRIGGER trig_autoinc BEFORE INSERT ON t_autoinc FOR EACH ROW BEGIN INSERT INTO t_stmt VALUES ('x'); END;
+CREATE TRIGGER trig_double_autoinc BEFORE INSERT ON t_double_autoinc FOR EACH ROW BEGIN INSERT INTO t_autoinc VALUES (NULL); END;
+CREATE DATABASE other;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+[on slave]
+include/sync_slave_sql_with_master.inc
+DROP TABLE t_slave_stmt;
+CREATE TABLE t_slave_stmt (a INT) ENGINE = EXAMPLE;
+[on master]
+[connection master]
+BINLOG '
+1gRVSg8BAAAAZgAAAGoAAAABAAQANS4xLjM2LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
+';
+==== Test ====
+---- binlog_format='row' ----
+* TC1: Modify both row-only and stmt-only table
+CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
+INSERT INTO t_stmt VALUES (1);
+ERROR HY000: Cannot execute statement: impossible to write to binary log since both row-incapable engines and statement-incapable engines are involved.
+SELECT * FROM t_stmt /* should be empty */;
+a
+SELECT * FROM t_row /* should be empty */;
+a
+DROP TRIGGER trig_2;
+* TC2: Stmt-only table and binlog_format='row'
+INSERT INTO t_stmt VALUES (1);
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
+SELECT * FROM t_stmt /* should be empty */;
+a
+* TC3: Row injection and stmt-only table: in slave sql thread
+INSERT INTO t_slave_stmt VALUES (1);
+[on slave]
+[connection slave]
+include/wait_for_slave_sql_error_and_skip.inc [errno=1664]
+Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.''
+[connection slave]
+SELECT * FROM t_slave_stmt /* should be empty */;
+a
+[on master]
+[connection master]
+* TC4: Row injection and stmt-only table: use BINLOG statement
+BINLOG '
+1gRVShMBAAAALwAAAEABAAAAABcAAAAAAAAABHRlc3QABnRfc3RtdAABDwJkAAE=
+1gRVShcBAAAAIAAAAGABAAAQABcAAAAAAAEAAf/+ATE=
+';
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.
+SELECT * FROM t_stmt /* should be empty */;
+a
+---- binlog_format=mixed ----
+[on slave]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@global.binlog_format = MIXED;
+include/start_slave.inc
+[on master]
+[connection master]
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+* TC5: Unsafe statement and stmt-only engine
+INSERT INTO t_stmt VALUES (UUID());
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t_stmt;
+a
+/* should be empty */;
+* TC6: Multi-unsafe statement and stmt-only engine
+INSERT INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+SELECT * FROM t_double_autoinc;
+a
+/* should be empty */;
+---- binlog_format=statement ----
+[on slave]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@global.binlog_format = STATEMENT;
+include/start_slave.inc
+[on master]
+[connection master]
+SET @@global.binlog_format = STATEMENT;
+SET @@session.binlog_format = STATEMENT;
+* TC7: Row-only engine and binlog_format=statement: innodb-specific message
+INSERT INTO t_row VALUES (1);
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+SELECT * FROM t_row /* should be empty */;
+a
+* TC8: Same statement, but db filtered out - no error
+USE other;
+INSERT INTO test.t_row VALUES (1);
+USE test;
+SELECT * FROM t_row /* should contain the value 1 */;
+a
+1
+USE other;
+DELETE FROM test.t_row;
+USE test;
+* TC9: Row-only engine and binlog_format=statement: generic message
+SET @@session.debug= '+d,no_innodb_binlog_errors';
+INSERT INTO t_row VALUES (1);
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging.
+SELECT * FROM t_row /* should be empty */;
+a
+* TC10: Same statement, but db filtered out - no error
+USE other;
+INSERT INTO test.t_row VALUES (1);
+USE test;
+SET @@session.debug= '';
+SELECT * FROM t_row /* should contain the value 1 */;
+a
+1
+* TC11: Row injection and binlog_format=statement: BINLOG statement
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.
+SELECT * FROM t /* should be empty */;
+a
+* TC12: Same statement, but db filtered out - no error
+USE other;
+BINLOG '
+cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
+cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
+';
+USE test;
+SELECT * FROM t /* should contain the value 1 */;
+a
+1
+DELETE FROM t;
+* TC13: Unsafe statement and binlog_format=statement
+INSERT INTO t VALUES (COALESCE(1, UUID()));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT * FROM t /* should contain the value 1 */;
+a
+1
+DELETE FROM t;
+* TC14: Same statement, but db filtered out - no message
+USE other;
+INSERT INTO test.t VALUES (COALESCE(1, UUID()));
+USE test;
+SELECT * FROM t /* should contain the value 1 */;
+a
+1
+DELETE FROM t;
+---- master: binlog_format=mixed, slave: binlog_format=statement ----
+SET @@global.binlog_format = MIXED;
+SET @@session.binlog_format = MIXED;
+* TC15: Row injection and binlog_format=statement: in slave sql thread
+INSERT INTO t VALUES (COALESCE(1, UUID()));
+[on slave]
+[connection slave]
+include/wait_for_slave_sql_error_and_skip.inc [errno=1666]
+Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.''
+[connection slave]
+SELECT * FROM t /* should be empty */;
+a
+[on master]
+[connection master]
+==== Clean up ====
+DROP TRIGGER trig_autoinc;
+DROP TRIGGER trig_double_autoinc;
+DROP TABLE t, t_row, t_stmt, t_slave_stmt, t_autoinc, t_double_autoinc;
+DROP DATABASE other;
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+UNINSTALL PLUGIN example;
+[on slave]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;
+include/start_slave.inc
+UNINSTALL PLUGIN example;
+include/rpl_end.inc

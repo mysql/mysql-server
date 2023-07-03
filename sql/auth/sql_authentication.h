@@ -1,4 +1,15 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+#ifndef SQL_AUTHENTICATION_INCLUDED
+#define SQL_AUTHENTICATION_INCLUDED
+
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,12 +104,23 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   bool can_authenticate();
 };
 
+<<<<<<< HEAD
+=======
+#if defined(HAVE_OPENSSL)
+<<<<<<< HEAD
+>>>>>>> pr/231
 class String;
 
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
+<<<<<<< HEAD
+=======
+#ifndef HAVE_WOLFSSL
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 typedef struct rsa_st RSA;
 class Rsa_authentication_keys {
  private:

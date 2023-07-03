@@ -16,7 +16,11 @@ PRIMARY KEY (id)
 --connection slave
 
 stop slave;
+<<<<<<< HEAD
 set global replica_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
+=======
+set global slave_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
+>>>>>>> pr/231
 start slave;
 
 # Drop and recreate table with blob storage
@@ -83,7 +87,11 @@ drop table test.t1;
 --sync_slave_with_master
 
 --connection slave
+<<<<<<< HEAD
 set global replica_type_conversions='';
+=======
+set global slave_type_conversions='';
+>>>>>>> pr/231
 
 
 --source include/rpl_end.inc

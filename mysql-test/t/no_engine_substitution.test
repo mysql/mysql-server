@@ -1,10 +1,20 @@
 --source include/have_example_plugin.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug#27502530: DISABLING NO_ENGINE_SUBSTITUTION DOES NOT BEHAVE AS
 --echo #               DOCUMENTED
 --echo #
 
+<<<<<<< HEAD
+=======
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+
+>>>>>>> pr/231
 --echo # Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
 SELECT @@disabled_storage_engines;
 SET DEFAULT_STORAGE_ENGINE= MyISAM;
@@ -29,9 +39,12 @@ CREATE TEMPORARY TABLE t2(c1 INT) ENGINE= InnoDB;
 --error ER_DISABLED_STORAGE_ENGINE
 ALTER TABLE t1 ENGINE= InnoDB;
 
+<<<<<<< HEAD
 --echo # Create a table in MYISAM, which will become disabled after restart
 CREATE TABLE t2 (c1 INT) ENGINE=MYISAM;
 
+=======
+>>>>>>> pr/231
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
@@ -53,6 +66,7 @@ CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
 
 SELECT * FROM t1;
 
+<<<<<<< HEAD
 --error ER_UNKNOWN_STORAGE_ENGINE
 ALTER TABLE t2 ENGINE=example;
 
@@ -61,10 +75,13 @@ ALTER TABLE t2 ENGINE=example;
 SHOW CREATE TABLE t2;
 SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
 
+=======
+>>>>>>> pr/231
 --echo # Checking table creation with dynamic storage plugins
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
+<<<<<<< HEAD
 --error ER_DISABLED_STORAGE_ENGINE
 ALTER TABLE t2 ENGINE=example;
 
@@ -75,6 +92,8 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
 
+=======
+>>>>>>> pr/231
 --ERROR ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
@@ -123,6 +142,7 @@ CREATE TABLE t8 (c1 INT) ENGINE= MyISAM;
 --error ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t8 (c1 INT) ENGINE= EXAMPLE;
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
 --echo # FROM MYISAM TO INNODB
@@ -160,6 +180,8 @@ CREATE TEMPORARY TABLE tt1(c1 INT);
 CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
 
 
+=======
+>>>>>>> pr/231
 # Cleanup
 UNINSTALL PLUGIN EXAMPLE;
 DROP PROCEDURE p1;

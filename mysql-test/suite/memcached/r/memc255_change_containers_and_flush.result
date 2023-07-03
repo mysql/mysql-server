@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 SET @transaction_isolation= @@global.transaction_isolation;
+=======
+SET @tx_isolation= @@global.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+>>>>>>> pr/231
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -19,6 +25,7 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+<<<<<<< HEAD
 Warnings:
 Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 Get @@desc_t1 returned test/t1
@@ -29,3 +36,18 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP DATABASE innodb_memcache;
 SET @@global.transaction_isolation= @transaction_isolation;
+=======
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Get @@desc_t1 returned test/t1
+Get @@desc_t2 returned test/t2
+Flush all returned 1
+DROP TABLE t1;
+DROP TABLE t2;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+>>>>>>> pr/231

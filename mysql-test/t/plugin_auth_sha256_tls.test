@@ -1,7 +1,15 @@
 --source include/allowed_ciphers.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';

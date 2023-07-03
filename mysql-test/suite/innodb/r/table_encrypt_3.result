@@ -1,3 +1,13 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("The error means that another program is using InnoDB's files");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # Create encrypt table before loading keyring plugin
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -212,7 +222,11 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
+<<<<<<< HEAD
 ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
+=======
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'ENCRYPTION'
+>>>>>>> pr/231
 CREATE PROCEDURE tde_db.row_format_t_encrypt(row_form VARCHAR(1000))
 begin
 declare i int default 1;

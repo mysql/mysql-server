@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -137,25 +145,51 @@ void Object_queue::read_object(Item_processing_data *item_to_process) {
     this->add_ready_items_to_queue(m_tasks_map.find(dump_task));
 }
 
+<<<<<<< HEAD
 void Object_queue::stop_queue() {
+=======
+<<<<<<< HEAD
+void Object_queue::stop_queue() { m_is_queue_running = false; }
+=======
+void Object_queue::stop_queue()
+{
+>>>>>>> pr/231
   /*
     In case of error we stop all the running queues. Make sure the
     cleanup of the items is done properly.
   */
   if (m_is_queue_running) {
+<<<<<<< HEAD
     Item_processing_data *item_to_process = nullptr;
     do {
       {
         std::lock_guard<std::mutex> lock(m_queue_mutex);
         if (m_items_ready_for_processing.size() == 0) break;
+=======
+    Item_processing_data *item_to_process= NULL;
+    do
+    {
+      {
+        my_boost::mutex::scoped_lock lock(m_queue_mutex);
+        if (m_items_ready_for_processing.size() == 0)
+          break;
+>>>>>>> pr/231
         item_to_process = m_items_ready_for_processing.front();
         m_items_ready_for_processing.pop();
       }
       this->object_processing_ends(item_to_process);
+<<<<<<< HEAD
     } while (item_to_process != nullptr);
     m_is_queue_running = false;
   }
 }
+=======
+    } while(item_to_process != NULL);
+    m_is_queue_running = false;
+  }
+}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 Object_queue::~Object_queue() {
   m_is_queue_running = false;

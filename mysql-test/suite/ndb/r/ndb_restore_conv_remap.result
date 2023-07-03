@@ -21,7 +21,13 @@ primary key (entry_key, mv_idx)) engine=ndb;
 Populate a number of entities, each with
 a couple of type_1 rows and 2 sets of type_2 rows
 insert into idx_tbl (k1,k2,data) values ('Edinburgh', 'UK', 1);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+1
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 11);
 insert into type1_2 values (@ek, 12);
 insert into type2_1 (entry_key, data) values (@ek, 110);
@@ -31,7 +37,13 @@ insert into type2_1 (entry_key, data) values (@ek, 113);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0121", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0122", 10000));
 insert into idx_tbl (k1,k2,data) values ('Bristol', 'UK', 2);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+2
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 21);
 insert into type1_2 values (@ek, 22);
 insert into type2_1 (entry_key, data) values (@ek, 210);
@@ -41,7 +53,13 @@ insert into type2_1 (entry_key, data) values (@ek, 213);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0221", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0222", 10000));
 insert into idx_tbl (k1,k2,data) values ('Glasgow', 'UK', 3);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+3
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 31);
 insert into type1_2 values (@ek, 32);
 insert into type2_1 (entry_key, data) values (@ek, 310);
@@ -51,7 +69,13 @@ insert into type2_1 (entry_key, data) values (@ek, 313);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0321", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0322", 10000));
 insert into idx_tbl (k1,k2,data) values ('London', 'UK', 4);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+4
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 41);
 insert into type1_2 values (@ek, 42);
 insert into type2_1 (entry_key, data) values (@ek, 410);
@@ -61,7 +85,13 @@ insert into type2_1 (entry_key, data) values (@ek, 413);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0421", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0422", 10000));
 insert into idx_tbl (k1,k2,data) values ('Paris', 'France', 5);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+5
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 51);
 insert into type1_2 values (@ek, 52);
 insert into type2_1 (entry_key, data) values (@ek, 510);
@@ -71,7 +101,13 @@ insert into type2_1 (entry_key, data) values (@ek, 513);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0521", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0522", 10000));
 insert into idx_tbl (k1,k2,data) values ('Heidelberg', 'Germany', 6);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+6
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 61);
 insert into type1_2 values (@ek, 62);
 insert into type2_1 (entry_key, data) values (@ek, 610);
@@ -81,7 +117,13 @@ insert into type2_1 (entry_key, data) values (@ek, 613);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0621", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0622", 10000));
 insert into idx_tbl (k1,k2,data) values ('Riga', 'Latvia', 7);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+7
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 71);
 insert into type1_2 values (@ek, 72);
 insert into type2_1 (entry_key, data) values (@ek, 710);
@@ -91,7 +133,13 @@ insert into type2_1 (entry_key, data) values (@ek, 713);
 insert into type2_2 (entry_key, data) values (@ek, repeat("0721", 10000));
 insert into type2_2 (entry_key, data) values (@ek, repeat("0722", 10000));
 insert into idx_tbl (k1,k2,data) values ('Orlando', 'USA', 8);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+8
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 81);
 insert into type1_2 values (@ek, 82);
 insert into type2_1 (entry_key, data) values (@ek, 810);
@@ -275,6 +323,7 @@ Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
 count(1)	max(entry_key)
 8	8
+<<<<<<< HEAD
 show create table idx_tbl;
 Table	Create Table
 idx_tbl	CREATE TABLE `idx_tbl` (
@@ -307,6 +356,23 @@ type2_2	CREATE TABLE `type2_2` (
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+table_name	auto_increment
+idx_tbl	9
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+table_name	auto_increment
+type2_1	33
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+table_name	auto_increment
+type2_2	17
+>>>>>>> pr/231
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -426,6 +492,7 @@ Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
 count(1)	max(entry_key)
 8	8
+<<<<<<< HEAD
 show create table idx_tbl;
 Table	Create Table
 idx_tbl	CREATE TABLE `idx_tbl` (
@@ -458,6 +525,23 @@ type2_2	CREATE TABLE `type2_2` (
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+table_name	auto_increment
+idx_tbl	9
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+table_name	auto_increment
+type2_1	33
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+table_name	auto_increment
+type2_2	17
+>>>>>>> pr/231
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -470,8 +554,11 @@ mv_idx	ct
 Run backup
 drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
 Run normal restore for first set of content
+<<<<<<< HEAD
 Waiting for metadata sync
 Metadata synchronised
+=======
+>>>>>>> pr/231
 Remap args : -x test.idx_tbl.entry_key:offset:9 -x test.type1_1.entry_key:offset:9 -x test.type1_2.entry_key:offset:9 -x test.type2_1.entry_key:offset:9 -x test.type2_1.mv_idx:offset:33 -x test.type2_2.entry_key:offset:9 -x test.type2_2.mv_idx:offset:17
 Run offset restore for second set of content
 Combined dataset
@@ -631,6 +718,7 @@ Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
 count(1)	max(entry_key)
 16	17
+<<<<<<< HEAD
 show create table idx_tbl;
 Table	Create Table
 idx_tbl	CREATE TABLE `idx_tbl` (
@@ -663,6 +751,23 @@ type2_2	CREATE TABLE `type2_2` (
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+table_name	auto_increment
+idx_tbl	18
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+64	65
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+table_name	auto_increment
+type2_1	66
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+32	33
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+table_name	auto_increment
+type2_2	34
+>>>>>>> pr/231
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -674,7 +779,13 @@ having ct > 1;
 mv_idx	ct
 Verify the insert of further entity succeeds
 insert into idx_tbl (k1,k2,data) values ('Sancerre', 'France', 9);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+@ek:=last_insert_id()
+18
+>>>>>>> pr/231
 insert into type1_1 values (@ek, 91);
 insert into type1_2 values (@ek, 92);
 insert into type2_1 (entry_key, data) values (@ek, 910);
@@ -848,6 +959,7 @@ Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
 count(1)	max(entry_key)
 17	18
+<<<<<<< HEAD
 show create table idx_tbl;
 Table	Create Table
 idx_tbl	CREATE TABLE `idx_tbl` (
@@ -880,6 +992,23 @@ type2_2	CREATE TABLE `type2_2` (
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+table_name	auto_increment
+idx_tbl	19
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+68	69
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+table_name	auto_increment
+type2_1	70
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+34	35
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+table_name	auto_increment
+type2_2	36
+>>>>>>> pr/231
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 

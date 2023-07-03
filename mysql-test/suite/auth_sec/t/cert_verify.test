@@ -5,12 +5,40 @@
 
 let $ssl_verify_pass_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem;
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+let $tls_default= TLSv1.2;
+
+=======
+>>>>>>> upstream/cluster-7.6
+--echo #T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:" $ssl_verify_fail_path  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error 1
+--exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
+
+>>>>>>> pr/231
 --echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
 --let $restart_parameters="restart: $ssl_verify_pass_path"
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --source include/restart_mysqld.inc
 
+<<<<<<< HEAD
 --replace_result TLSv1.2 TLS_VERSION TLSv1.3 TLS_VERSION
+=======
+--exec echo "restart:" $ssl_verify_pass_path  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--replace_result TLSv1 TLS_VERSION TLSv1.1 TLS_VERSION TLSv1.2 TLS_VERSION
+>>>>>>> pr/231
 --exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
 
 --let $restart_parameters="restart: "

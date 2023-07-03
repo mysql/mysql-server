@@ -1,4 +1,8 @@
 --source include/windows.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 #
 # only global
 #

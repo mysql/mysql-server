@@ -4,6 +4,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
+<<<<<<< HEAD
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
@@ -12,6 +13,22 @@ call mtr.add_suppression("Operating system error number .* in a file operation")
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 --enable_query_log
+=======
+<<<<<<< HEAD
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("The error means that another program is using InnoDB's files");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+=======
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
+--enable_query_log
+
+>>>>>>> upstream/cluster-7.6
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+>>>>>>> pr/231
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -214,7 +231,11 @@ CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=In
 SHOW WARNINGS;
 
 # Now error/warning shown
+<<<<<<< HEAD
 --error ER_CHECK_NOT_IMPLEMENTED
+=======
+--error ER_ILLEGAL_HA_CREATE_OPTION
+>>>>>>> pr/231
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 
 # Create a table with encryption and different row format

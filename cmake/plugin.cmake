@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +48,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     LINK_LIBRARIES # lib1 ... libN
     )
 
+<<<<<<< HEAD
   CMAKE_PARSE_ARGUMENTS(ARG
     "${PLUGIN_OPTIONS}"
     "${PLUGIN_ONE_VALUE_KW}"
@@ -53,6 +58,61 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
 
   SET(plugin ${plugin_arg})
   SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
+=======
+# MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
+# [STORAGE_ENGINE]
+# [MANDATORY|DEFAULT]
+# [STATIC_ONLY|MODULE_ONLY]
+# [MODULE_OUTPUT_NAME module_name]
+# [STATIC_OUTPUT_NAME static_name]
+# [LINK_LIBRARIES lib1...libN]
+# [DEPENDENCIES target1...targetN]
+
+# MANDATORY   : not actually a plugin, always builtin
+# DEFAULT     : builtin as static by default
+# MODULE_ONLY : build only as shared library
+
+# Append collections files for the plugin to the common files
+# Make sure we don't copy twice if running cmake again
+
+MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
+  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
+  IF(NOT EXISTS ${fcopied})
+    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
+    FOREACH(cfile ${collections})
+      FILE(READ ${cfile} contents)
+      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
+      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
+      FILE(APPEND ${fcopied} "${fname}\n")
+      MESSAGE(STATUS "Appended ${cfile}")
+    ENDFOREACH()
+  ENDIF()
+ENDMACRO()
+
+MACRO(MYSQL_ADD_PLUGIN)
+  MYSQL_PARSE_ARGUMENTS(ARG
+    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
+<<<<<<< HEAD
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
+=======
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED;TEST_ONLY;SKIP_INSTALL"
+>>>>>>> upstream/cluster-7.6
+    ${ARGN}
+  )
+  
+  # Add common include directories
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
+<<<<<<< HEAD
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+=======
+                    ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+                    ${CMAKE_SOURCE_DIR}/sql/auth
+                    ${CMAKE_SOURCE_DIR}/regex
+                    ${SSL_INCLUDE_DIRS}
+                    )
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   STRING(TOUPPER ${plugin} plugin)
   STRING(TOLOWER ${plugin} target)
@@ -227,9 +287,27 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
 
+<<<<<<< HEAD
     # For APPLE: adjust path dependecy for SSL shared libraries.
     SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
+=======
+<<<<<<< HEAD
+    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+                 $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+                 $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY
+        ${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}
+        )
+    ENDIF()
+>>>>>>> pr/231
 
+=======
+>>>>>>> upstream/cluster-7.6
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)
       SET(INSTALL_COMPONENT Server)
@@ -238,6 +316,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       ELSEIF(ARG_CLIENT_ONLY)
         SET(INSTALL_COMPONENT Client)
       ENDIF()
+<<<<<<< HEAD
 
       ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
 
@@ -255,6 +334,30 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
         INSTALL_DEBUG_TARGET(${target}
           DESTINATION ${INSTALL_PLUGINDIR}/debug
           COMPONENT ${INSTALL_COMPONENT})
+=======
+<<<<<<< HEAD
+      IF(LINUX_INSTALL_RPATH_ORIGIN)
+        SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
+      ENDIF()
+=======
+>>>>>>> upstream/cluster-7.6
+      MYSQL_INSTALL_TARGETS(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}
+        COMPONENT ${INSTALL_COMPONENT})
+      INSTALL_DEBUG_TARGET(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}/debug
+        COMPONENT ${INSTALL_COMPONENT})
+<<<<<<< HEAD
+=======
+      # Add installed files to list for RPMs
+      FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
+              "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/${ARG_MODULE_OUTPUT_NAME}.so\n"
+              "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/debug/${ARG_MODULE_OUTPUT_NAME}.so\n")
+>>>>>>> upstream/cluster-7.6
+      # For internal testing in PB2, append collections files
+      IF(DEFINED ENV{PB2WORKDIR})
+        PLUGIN_APPEND_COLLECTIONS(${plugin})
+>>>>>>> pr/231
       ENDIF()
     ENDIF()
   ELSE()

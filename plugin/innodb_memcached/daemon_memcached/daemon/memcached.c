@@ -3,10 +3,17 @@
  *  memcached - memory caching daemon
  *
  *       http://www.danga.com/memcached/
+<<<<<<< HEAD
  *  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
  *  This file was modified by Oracle on 28-08-2015 and 23-03-2016.
  *  Modifications Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+ *  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+ *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
+ *  This file was modified by Oracle on 28-08-2015 and 23-03-2016.
+ *  Modifications Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
  *  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
@@ -2910,6 +2917,7 @@ static RESPONSE_HANDLER response_handlers[256] = {
 static void dispatch_bin_command(conn *c) {
   int protocol_error = 0;
 
+<<<<<<< HEAD
   uint8_t extlen = c->binary_header.request.extlen;
   uint16_t keylen = c->binary_header.request.keylen;
   uint32_t bodylen = c->binary_header.request.bodylen;
@@ -2919,6 +2927,23 @@ static void dispatch_bin_command(conn *c) {
     c->write_and_go = conn_closing;
     return;
   }
+=======
+    uint8_t extlen = c->binary_header.request.extlen;
+    uint16_t keylen = c->binary_header.request.keylen;
+    uint32_t bodylen = c->binary_header.request.bodylen;
+
+    if (keylen > bodylen || keylen + extlen > bodylen) {
+        write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_UNKNOWN_COMMAND, 0);
+        c->write_and_go = conn_closing;
+        return;
+    }
+
+    if (settings.require_sasl && !authenticated(c)) {
+        write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_AUTH_ERROR, 0);
+        c->write_and_go = conn_closing;
+        return;
+    }
+>>>>>>> pr/231
 
   if (settings.require_sasl && !authenticated(c)) {
     write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_AUTH_ERROR, 0);

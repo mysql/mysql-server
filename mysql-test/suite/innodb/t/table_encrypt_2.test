@@ -2,13 +2,21 @@
 # This test case will test basic encryption support features.
 
 
+<<<<<<< HEAD
 --source include/no_valgrind_without_big.inc
 
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+=======
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+>>>>>>> upstream/cluster-7.6
 call mtr.add_suppression("Plugin keyring_file reported");
+--enable_query_log
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

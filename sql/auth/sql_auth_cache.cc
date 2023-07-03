@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,9 +195,21 @@ void init_acl_memory() {
   @param name the schema name
   @param access the schema ACL specific rules
 */
+<<<<<<< HEAD
 void ACL_internal_schema_registry::register_schema(
+<<<<<<< HEAD
     const LEX_CSTRING &name, const ACL_internal_schema_access *access) {
   assert(m_registry_array_size < array_elements(registry_array));
+=======
+    const LEX_STRING &name, const ACL_internal_schema_access *access) {
+  DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
+=======
+void ACL_internal_schema_registry::register_schema
+  (const LEX_STRING &name, const ACL_internal_schema_access *access)
+{
+  assert(m_registry_array_size < array_elements(registry_array));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Not thread safe, and does not need to be. */
   registry_array[m_registry_array_size].m_name = &name;
@@ -206,9 +222,20 @@ void ACL_internal_schema_registry::register_schema(
   @param name a schema name
   @return per schema rules, or NULL
 */
+<<<<<<< HEAD
 const ACL_internal_schema_access *ACL_internal_schema_registry::lookup(
     const char *name) {
+<<<<<<< HEAD
   assert(name != nullptr);
+=======
+  DBUG_ASSERT(name != NULL);
+=======
+const ACL_internal_schema_access *
+ACL_internal_schema_registry::lookup(const char *name)
+{
+  assert(name != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   uint i;
 
@@ -462,6 +489,7 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
     dst->plugin.str = strmake_root(root, plugin.str, plugin.length);
     dst->plugin.length = plugin.length;
   }
+<<<<<<< HEAD
   for (int i = 0; i < NUM_CREDENTIALS; ++i) {
     dst->credentials[i].m_auth_string.str =
         safe_strdup_root(root, credentials[i].m_auth_string.str);
@@ -475,6 +503,15 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   dst->password_require_current = password_require_current;
   dst->password_locked_state = password_locked_state;
   dst->set_mfa(root, m_mfa);
+=======
+<<<<<<< HEAD
+  dst->auth_string.str = safe_strdup_root(root, auth_string.str);
+  dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
+=======
+  dst->auth_string.str= safe_strdup_root(root, auth_string.str);
+  dst->host.update_hostname(host.is_null() ? NULL : strdup_root(root, host.get_host()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return dst;
 }
 
@@ -540,6 +577,7 @@ void ACL_PROXY_USER::init(TABLE *table, MEM_ROOT *mem) {
        table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->val_int() != 0);
 }
 
+<<<<<<< HEAD
 bool ACL_PROXY_USER::check_validity(bool check_no_resolve) {
   if (check_no_resolve &&
       (hostname_requires_resolving(host.get_host()) ||
@@ -551,12 +589,33 @@ bool ACL_PROXY_USER::check_validity(bool check_no_resolve) {
            user ? user : "", host.get_host() ? host.get_host() : "");
   }
   return false;
+=======
+void
+ACL_PROXY_USER::check_validity(bool check_no_resolve)
+{
+  if (check_no_resolve &&
+      (hostname_requires_resolving(host.get_host()) ||
+       hostname_requires_resolving(proxied_host.get_host())) &&
+      strcmp(host.get_host(), "localhost") != 0) {
+    sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
+                      "ignored in --skip-name-resolve mode.",
+                      proxied_user ? proxied_user : "",
+                      proxied_host.get_host(),
+                      user ? user : "",
+                      host.get_host());
+  }
+>>>>>>> upstream/cluster-7.6
 }
 
 bool ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
                              const char *ip_arg, const char *proxied_user_arg,
                              bool any_proxy_user) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("ACL_PROXY_USER::matches");
+<<<<<<< HEAD
+>>>>>>> pr/231
   DBUG_PRINT("info",
              ("compare_hostname(%s,%s,%s) &&"
               "compare_hostname(%s,%s,%s) &&"
@@ -569,6 +628,7 @@ bool ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
               user_arg ? user_arg : "<NULL>", user ? user : "<NULL>",
               proxied_user_arg ? proxied_user_arg : "<NULL>",
               proxied_user ? proxied_user : "<NULL>"));
+<<<<<<< HEAD
   return host.compare_hostname(host_arg, ip_arg) &&
          proxied_host.compare_hostname(host_arg, ip_arg) &&
          (!user || (user_arg && !wild_compare(user_arg, strlen(user_arg), user,
@@ -581,6 +641,42 @@ bool ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
 
 bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
   DBUG_TRACE;
+=======
+  DBUG_RETURN(
+      host.compare_hostname(host_arg, ip_arg) &&
+      proxied_host.compare_hostname(host_arg, ip_arg) &&
+      (!user || (user_arg && !wild_compare(user_arg, user, true))) &&
+      (any_proxy_user || !proxied_user ||
+       (proxied_user && !wild_compare(proxied_user_arg, proxied_user, true))));
+=======
+  DBUG_PRINT("info", ("compare_hostname(%s,%s,%s) &&"
+             "compare_hostname(%s,%s,%s) &&"
+             "wild_compare (%s,%s) &&"
+             "wild_compare (%s,%s)",
+             host.get_host(),
+             host_arg ? host_arg : "<NULL>",
+             ip_arg ? ip_arg : "<NULL>",
+             proxied_host.get_host(),
+             host_arg ? host_arg : "<NULL>",
+             ip_arg ? ip_arg : "<NULL>",
+             user_arg ? user_arg : "<NULL>",
+             user ? user : "<NULL>",
+             proxied_user_arg ? proxied_user_arg : "<NULL>",
+             proxied_user ? proxied_user : "<NULL>"));
+  DBUG_RETURN(host.compare_hostname(host_arg, ip_arg) &&
+              proxied_host.compare_hostname(host_arg, ip_arg) &&
+              (!user ||
+               (user_arg && !wild_compare(user_arg, user, TRUE))) &&
+              (any_proxy_user || !proxied_user || 
+               (proxied_user && !wild_compare(proxied_user_arg, proxied_user,
+                                              TRUE))));
+>>>>>>> upstream/cluster-7.6
+}
+
+bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
+  DBUG_ENTER("pk_equals");
+<<<<<<< HEAD
+>>>>>>> pr/231
   DBUG_PRINT("info",
              ("strcmp(%s,%s) &&"
               "strcmp(%s,%s) &&"
@@ -594,6 +690,20 @@ bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
               proxied_host.get_host() ? proxied_host.get_host() : "<NULL>",
               grant->proxied_host.get_host() ? grant->proxied_host.get_host()
                                              : "<NULL>"));
+=======
+  DBUG_PRINT("info", ("strcmp(%s,%s) &&"
+             "strcmp(%s,%s) &&"
+             "wild_compare (%s,%s) &&"
+             "wild_compare (%s,%s)",
+             user ? user : "<NULL>",
+             grant->user ? grant->user : "<NULL>",
+             proxied_user ? proxied_user : "<NULL>",
+             grant->proxied_user ? grant->proxied_user : "<NULL>",
+             host.get_host(),
+             grant->host.get_host(),
+             proxied_host.get_host(),
+             grant->proxied_host.get_host()));
+>>>>>>> upstream/cluster-7.6
 
   return auth_element_equals(user, grant->user) &&
          auth_element_equals(proxied_user, grant->proxied_user) &&
@@ -602,6 +712,7 @@ bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
                              grant->proxied_host.get_host());
 }
 
+<<<<<<< HEAD
 void ACL_PROXY_USER::print_grant(THD *thd, String *str) {
   str->append(STRING_WITH_LEN("GRANT PROXY ON "));
   append_auth_id_string(thd, proxied_user, get_proxied_user_length(),
@@ -610,7 +721,42 @@ void ACL_PROXY_USER::print_grant(THD *thd, String *str) {
   str->append(STRING_WITH_LEN(" TO "));
   append_auth_id_string(thd, user, get_user_length(), host.get_host(),
                         host.get_host_len(), str);
+=======
+<<<<<<< HEAD
+void ACL_PROXY_USER::print_grant(String *str) {
+  str->append(STRING_WITH_LEN("GRANT PROXY ON '"));
+  if (proxied_user) str->append(proxied_user, strlen(proxied_user));
+  str->append(STRING_WITH_LEN("'@'"));
+  if (proxied_host.get_host())
+    str->append(proxied_host.get_host(), strlen(proxied_host.get_host()));
+  str->append(STRING_WITH_LEN("' TO '"));
+  if (user) str->append(user, strlen(user));
+  str->append(STRING_WITH_LEN("'@'"));
+  if (host.get_host()) str->append(host.get_host(), strlen(host.get_host()));
+  str->append(STRING_WITH_LEN("'"));
+>>>>>>> pr/231
   if (with_grant) str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+=======
+void
+ACL_PROXY_USER::print_grant(THD *thd, String *str)
+{
+  str->append(STRING_WITH_LEN("GRANT PROXY ON "));
+  String proxied_user_str(proxied_user, get_proxied_user_length(),
+                          system_charset_info);
+  append_query_string(thd, system_charset_info, &proxied_user_str, str);
+  str->append(STRING_WITH_LEN("@"));
+  String proxied_host_str(proxied_host.get_host(), proxied_host.get_host_len(),
+                          system_charset_info);
+  append_query_string(thd, system_charset_info, &proxied_host_str, str);
+  str->append(STRING_WITH_LEN(" TO "));
+  String user_str(user, get_user_length(), system_charset_info);
+  append_query_string(thd, system_charset_info, &user_str, str);
+  str->append(STRING_WITH_LEN("@"));
+  String host_str(host.get_host(), host.get_host_len(), system_charset_info);
+  append_query_string(thd, system_charset_info, &host_str, str);
+  if (with_grant)
+    str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+>>>>>>> upstream/cluster-7.6
 }
 
 int ACL_PROXY_USER::store_pk(TABLE *table, const LEX_CSTRING &hostname,
@@ -1007,7 +1153,7 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
 
     KEY_PART_INFO *key_part = col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
-                               host.get_host() ? host.get_host_len() : 0,
+                               host.get_host_len(),
                                system_charset_info);
     col_privs->field[1]->store(db, strlen(db), system_charset_info);
     col_privs->field[2]->store(user, strlen(user), system_charset_info);
@@ -1169,6 +1315,7 @@ ACL_USER *find_acl_user(const char *host, const char *user, bool exact) {
 
   assert(assert_acl_cache_read_lock(current_thd));
 
+<<<<<<< HEAD
   if (likely(acl_users)) {
     Acl_user_ptr_list *list = cached_acl_users_for_name(user);
     if (!list) {
@@ -1181,13 +1328,40 @@ ACL_USER *find_acl_user(const char *host, const char *user, bool exact) {
                  ("strcmp('%s','%s'), compare_hostname('%s','%s'),", user,
                   acl_user->user ? acl_user->user : "", host,
                   acl_user->host.get_host() ? acl_user->host.get_host() : ""));
+<<<<<<< HEAD
       if (acl_user->user || (user && !user[0])) {
         if (exact ? !my_strcasecmp(system_charset_info, host ? host : "",
+=======
+=======
+  if (likely(acl_users))
+  {
+    for (ACL_USER *acl_user= acl_users->begin();
+         acl_user != acl_users->end(); ++acl_user)
+    {
+      DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
+                         user, acl_user->user ? acl_user->user : "",
+                         host,
+                         acl_user->host.get_host()));
+>>>>>>> upstream/cluster-7.6
+      if ((!acl_user->user && !user[0]) ||
+          (acl_user->user && !strcmp(user, acl_user->user))) {
+        if (exact ? !my_strcasecmp(system_charset_info, host,
+<<<<<<< HEAD
+>>>>>>> pr/231
                                    acl_user->host.get_host()
                                        ? acl_user->host.get_host()
                                        : "")
                   : acl_user->host.compare_hostname(host, host)) {
+<<<<<<< HEAD
           return acl_user;
+=======
+=======
+                                   acl_user->host.get_host()) :
+            acl_user->host.compare_hostname(host,host))
+        {
+>>>>>>> upstream/cluster-7.6
+          DBUG_RETURN(acl_user);
+>>>>>>> pr/231
         }
       }
     }
@@ -1375,6 +1549,7 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
   /*
     Check if there are some access rights for database and user
   */
+<<<<<<< HEAD
   for (ACL_DB *acl_db = acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db) {
     if (!acl_db->user || !strcmp(user, acl_db->user)) {
       if (acl_db->host.compare_hostname(host, ip)) {
@@ -1391,6 +1566,20 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
           db_access = acl_db->access;
           if (acl_db->host.get_host()) goto exit;  // Fully specified. Take it
           break;                                   /* purecov: tested */
+=======
+  for (ACL_DB *acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
+  {
+    if (!acl_db->user || !strcmp(user,acl_db->user))
+    {
+      if (acl_db->host.compare_hostname(host,ip))
+      {
+        if (!acl_db->db || !wild_compare(db,acl_db->db,db_is_pattern))
+        {
+          db_access=acl_db->access;
+          if (!acl_db->host.is_null())
+            goto exit;                          // Fully specified. Take it
+          break; /* purecov: tested */
+>>>>>>> upstream/cluster-7.6
         }
       }
     }
@@ -1450,6 +1639,27 @@ static void init_check_host(void) {
           // Will be ignored if there's already an entry.
           acl_check_hosts->emplace(acl_user->host.get_host(), acl_user);
         }
+<<<<<<< HEAD
+=======
+        if (acl == acl_wild_hosts->end())  // If new
+          acl_wild_hosts->push_back(acl_user->host);
+<<<<<<< HEAD
+      } else {
+        // Will be ignored if there's already an entry.
+        acl_check_hosts->emplace(acl_user->host.get_host(), acl_user);
+=======
+      }
+      else if (!my_hash_search(&acl_check_hosts,(uchar*)
+                               acl_user->host.get_host(),
+                               acl_user->host.get_host_len()))
+      {
+        if (my_hash_insert(&acl_check_hosts,(uchar*) acl_user))
+        {                                       // End of memory
+          allow_all_hosts=1;                    // Should never happen
+          DBUG_VOID_RETURN;
+        }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -1553,6 +1763,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
       }
     }
 
+<<<<<<< HEAD
     if (sctx->get_active_roles()->size() == 0) {
       for (ACL_DB *acl_db = acl_dbs->begin(); acl_db != acl_dbs->end();
            ++acl_db) {
@@ -1580,6 +1791,10 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
     sctx->assign_priv_host(
         acl_user->host.get_host(),
         acl_user->host.get_host() ? strlen(acl_user->host.get_host()) : 0);
+=======
+    sctx->assign_priv_host(acl_user->host.get_host(),
+                           acl_user->host.get_host_len());
+>>>>>>> upstream/cluster-7.6
 
     sctx->set_password_expired(acl_user->password_expired);
     sctx->lock_account(acl_user->account_locked);
@@ -1660,12 +1875,31 @@ static void validate_user_plugin_records() {
                  acl_user->host.get_host());
         }
       }
+<<<<<<< HEAD
       if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
                                                         acl_user->plugin) &&
           sha256_rsa_auth_status() && !have_ssl()) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG, acl_user->plugin.str,
                acl_user->user, static_cast<int>(acl_user->host.get_host_len()),
+<<<<<<< HEAD
                acl_user->host.get_host(), "but neither SSL nor RSA keys are");
+=======
+               acl_user->host.get_host(), missing);
+=======
+      if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+          rsa_auth_status() && !ssl_acceptor_fd)
+      {
+          sql_print_warning("The plugin '%s' is used to authenticate "
+                            "user '%s'@'%.*s', "
+                            "but neither SSL nor RSA keys are "
+                            "configured. "
+                            "Nobody can currently login using this account.",
+                            sha256_password_plugin_name.str,
+                            acl_user->user,
+                            static_cast<int>(acl_user->host.get_host_len()),
+                            acl_user->host.get_host());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -1850,7 +2084,454 @@ static bool acl_load(THD *thd, Table_ref *tables) {
   clear_and_init_db_cache();  // Clear locked hostname cache
   init_acl_memory();          // Allocate the memory blocks in the MEM_ROOT
 
+<<<<<<< HEAD
   if (read_user_table(thd, tables[0].table)) goto end;
+=======
+  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE,
+                 0);
+  /*
+    Prepare reading from the mysql.user table
+  */
+  if (init_read_record(&read_record_info, thd, table = tables[0].table, NULL, 1,
+                       1, false))
+    goto end;
+  table->use_all_columns();
+  acl_users->clear();
+  /*
+   We need to check whether we are working with old database layout. This
+   might be the case for instance when we are running mysql_upgrade.
+  */
+  table_schema = user_table_schema_factory.get_user_table_schema(table);
+  is_old_db_layout = user_table_schema_factory.is_old_user_table_schema(table);
+
+  allow_all_hosts = 0;
+  int read_rec_errcode;
+  while (
+      !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+    password_expired = false;
+    /* Reading record from mysql.user */
+    ACL_USER user;
+    memset(&user, 0, sizeof(user));
+
+    /*
+      All accounts can authenticate per default. This will change when
+      we add a new field to the user table.
+
+      Currently this flag is only set to false when authentication is attempted
+      using an unknown user name.
+    */
+    user.can_authenticate = true;
+
+    /*
+      Account is unlocked by default.
+    */
+    user.account_locked = false;
+
+<<<<<<< HEAD
+    /*
+      The authorization id isn't a part of the role-graph per default.
+      This is true even if CREATE ROLE is used.
+    */
+    user.is_role = false;
+
+    user.host.update_hostname(
+        get_field(&global_acl_memory, table->field[table_schema->host_idx()]));
+    user.user =
+        get_field(&global_acl_memory, table->field[table_schema->user_idx()]);
+    if (check_no_resolve && hostname_requires_resolving(user.host.get_host())) {
+      LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_SKIPPED_NEEDS_RESOLVE,
+             user.user ? user.user : "",
+             user.host.get_host() ? user.host.get_host() : "");
+=======
+    user.host.update_hostname(get_field(&global_acl_memory,
+                                      table->field[table_schema->host_idx()]));
+    user.user= get_field(&global_acl_memory,
+                         table->field[table_schema->user_idx()]);
+  if (check_no_resolve && hostname_requires_resolving(user.host.get_host()) &&
+      strcmp(user.host.get_host(), "localhost") != 0) {
+      sql_print_warning("'user' entry '%s@%s' "
+                        "ignored in --skip-name-resolve mode.",
+                        user.user ? user.user : "",
+                        user.host.get_host());
+>>>>>>> upstream/cluster-7.6
+    }
+
+    /* Read password from authentication_string field */
+    if (table->s->fields > table_schema->authentication_string_idx())
+      user.auth_string.str =
+          get_field(&global_acl_memory,
+                    table->field[table_schema->authentication_string_idx()]);
+    else {
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_USER_TABLE_DODGY);
+
+      end_read_record(&read_record_info);
+      goto end;
+    }
+    if (user.auth_string.str)
+      user.auth_string.length = strlen(user.auth_string.str);
+    else
+      user.auth_string = EMPTY_STR;
+
+    {
+      uint next_field;
+      user.access =
+          get_access(table, table_schema->select_priv_idx(), &next_field) &
+          GLOBAL_ACLS;
+      /*
+        if it is pre 5.0.1 privilege table then map CREATE privilege on
+        CREATE VIEW & SHOW VIEW privileges
+      */
+      if (table->s->fields <= 31 && (user.access & CREATE_ACL))
+        user.access |= (CREATE_VIEW_ACL | SHOW_VIEW_ACL);
+
+      /*
+        if it is pre 5.0.2 privilege table then map CREATE/ALTER privilege on
+        CREATE PROCEDURE & ALTER PROCEDURE privileges
+      */
+      if (table->s->fields <= 33 && (user.access & CREATE_ACL))
+        user.access |= CREATE_PROC_ACL;
+      if (table->s->fields <= 33 && (user.access & ALTER_ACL))
+        user.access |= ALTER_PROC_ACL;
+
+      /*
+        pre 5.0.3 did not have CREATE_USER_ACL
+      */
+      if (table->s->fields <= 36 && (user.access & GRANT_ACL))
+        user.access |= CREATE_USER_ACL;
+
+      /*
+        if it is pre 5.1.6 privilege table then map CREATE privilege on
+        CREATE|ALTER|DROP|EXECUTE EVENT
+      */
+      if (table->s->fields <= 37 && (user.access & SUPER_ACL))
+        user.access |= EVENT_ACL;
+
+      /*
+        if it is pre 5.1.6 privilege then map TRIGGER privilege on CREATE.
+      */
+      if (table->s->fields <= 38 && (user.access & SUPER_ACL))
+        user.access |= TRIGGER_ACL;
+
+      user.sort = get_sort(2, user.host.get_host(), user.user);
+
+      /* Starting from 4.0.2 we have more fields */
+      if (table->s->fields >= 31) {
+        char *ssl_type = get_field(thd->mem_root,
+                                   table->field[table_schema->ssl_type_idx()]);
+        if (!ssl_type)
+          user.ssl_type = SSL_TYPE_NONE;
+        else if (!strcmp(ssl_type, "ANY"))
+          user.ssl_type = SSL_TYPE_ANY;
+        else if (!strcmp(ssl_type, "X509"))
+          user.ssl_type = SSL_TYPE_X509;
+        else /* !strcmp(ssl_type, "SPECIFIED") */
+          user.ssl_type = SSL_TYPE_SPECIFIED;
+
+        user.ssl_cipher = get_field(
+            &global_acl_memory, table->field[table_schema->ssl_cipher_idx()]);
+        user.x509_issuer = get_field(
+            &global_acl_memory, table->field[table_schema->x509_issuer_idx()]);
+        user.x509_subject = get_field(
+            &global_acl_memory, table->field[table_schema->x509_subject_idx()]);
+
+        char *ptr = get_field(thd->mem_root,
+                              table->field[table_schema->max_questions_idx()]);
+        user.user_resource.questions = ptr ? atoi(ptr) : 0;
+        ptr = get_field(thd->mem_root,
+                        table->field[table_schema->max_updates_idx()]);
+        user.user_resource.updates = ptr ? atoi(ptr) : 0;
+        ptr = get_field(thd->mem_root,
+                        table->field[table_schema->max_connections_idx()]);
+        user.user_resource.conn_per_hour = ptr ? atoi(ptr) : 0;
+        if (user.user_resource.questions || user.user_resource.updates ||
+            user.user_resource.conn_per_hour)
+          mqh_used = 1;
+
+        if (table->s->fields > table_schema->max_user_connections_idx()) {
+          /* Starting from 5.0.3 we have max_user_connections field */
+          ptr =
+              get_field(thd->mem_root,
+                        table->field[table_schema->max_user_connections_idx()]);
+          user.user_resource.user_conn = ptr ? atoi(ptr) : 0;
+        }
+
+        if (table->s->fields >= 41) {
+          /* We may have plugin & auth_String fields */
+          const char *tmpstr = get_field(
+              &global_acl_memory, table->field[table_schema->plugin_idx()]);
+          user.plugin.str = tmpstr ? tmpstr : "";
+          user.plugin.length = strlen(user.plugin.str);
+
+          /* In case we are working with 5.6 db layout we need to make server
+             aware of Password field and that the plugin column can be null.
+             In case when plugin column is null we use native password plugin
+             if we can.
+          */
+          if (is_old_db_layout &&
+              (user.plugin.length == 0 ||
+               Cached_authentication_plugins::compare_plugin(
+                   PLUGIN_MYSQL_NATIVE_PASSWORD, user.plugin))) {
+            char *password = get_field(
+                &global_acl_memory, table->field[table_schema->password_idx()]);
+
+            // We do not support pre 4.1 hashes
+            plugin_ref native_plugin =
+                g_cached_authentication_plugins->get_cached_plugin_ref(
+                    PLUGIN_MYSQL_NATIVE_PASSWORD);
+            if (native_plugin) {
+              uint password_len = password ? strlen(password) : 0;
+              st_mysql_auth *auth =
+                  (st_mysql_auth *)plugin_decl(native_plugin)->info;
+              if (auth->validate_authentication_string(password,
+                                                       password_len) == 0) {
+                // auth_string takes precedence over password
+                if (user.auth_string.length == 0) {
+                  user.auth_string.str = password;
+                  user.auth_string.length = password_len;
+                }
+                if (user.plugin.length == 0) {
+                  user.plugin.str =
+                      Cached_authentication_plugins::get_plugin_name(
+                          PLUGIN_MYSQL_NATIVE_PASSWORD);
+                  user.plugin.length = strlen(user.plugin.str);
+                }
+              } else {
+                if ((user.access & SUPER_ACL) &&
+                    !super_users_with_empty_plugin && (user.plugin.length == 0))
+                  super_users_with_empty_plugin = true;
+
+<<<<<<< HEAD
+                LogErr(WARNING_LEVEL,
+                       ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD,
+                       user.user ? user.user : "",
+                       user.host.get_host() ? user.host.get_host() : "");
+=======
+                sql_print_warning("User entry '%s'@'%s' has a deprecated "
+                "pre-4.1 password. The user will be ignored and no one can "
+                "login with this user anymore.",
+                user.user ? user.user : "",
+                user.host.get_host());
+                plugin_unlock(0, native_plugin);
+>>>>>>> upstream/cluster-7.6
+                continue;
+              }
+            }
+          }
+
+          /*
+            Check if the plugin string is blank or null.
+            If it is, the user will be skipped.
+          */
+          if (user.plugin.length == 0) {
+            if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
+<<<<<<< HEAD
+              super_users_with_empty_plugin = true;
+            LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_NEEDS_PLUGIN,
+                   user.user ? user.user : "",
+                   user.host.get_host() ? user.host.get_host() : "");
+=======
+                      super_users_with_empty_plugin= true;
+            sql_print_warning("User entry '%s'@'%s' has an empty plugin "
+      			"value. The user will be ignored and no one can login "
+      			"with this user anymore.",
+      			user.user ? user.user : "",
+                        user.host.get_host());
+>>>>>>> upstream/cluster-7.6
+            continue;
+          }
+          /*
+            By comparing the plugin with the built in plugins it is possible
+            to optimize the string allocation and comparision.
+          */
+          optimize_plugin_compare_by_pointer(&user.plugin);
+        }
+
+        /* Validate the hash string. */
+        plugin_ref plugin = NULL;
+        plugin =
+            my_plugin_lock_by_name(0, user.plugin, MYSQL_AUTHENTICATION_PLUGIN);
+        if (plugin) {
+          st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+          if (auth->validate_authentication_string(user.auth_string.str,
+<<<<<<< HEAD
+                                                   user.auth_string.length)) {
+            LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
+                   user.user ? user.user : "",
+                   user.host.get_host() ? user.host.get_host() : "");
+=======
+                                                   user.auth_string.length))
+          {
+            sql_print_warning("Found invalid password for user: '%s@%s'; "
+                              "Ignoring user", user.user ? user.user : "",
+                              user.host.get_host());
+>>>>>>> upstream/cluster-7.6
+            plugin_unlock(0, plugin);
+            continue;
+          }
+          plugin_unlock(0, plugin);
+        }
+
+        if (table->s->fields > table_schema->password_expired_idx()) {
+          char *tmpstr =
+              get_field(&global_acl_memory,
+                        table->field[table_schema->password_expired_idx()]);
+          if (tmpstr && (*tmpstr == 'Y' || *tmpstr == 'y')) {
+            user.password_expired = true;
+
+<<<<<<< HEAD
+            if (!auth_plugin_supports_expiration(user.plugin.str)) {
+              LogErr(WARNING_LEVEL, ER_AUTHCACHE_EXPIRED_PASSWORD_UNSUPPORTED,
+                     user.user ? user.user : "",
+                     user.host.get_host() ? user.host.get_host() : "");
+=======
+            if (!auth_plugin_supports_expiration(user.plugin.str))
+            {
+              sql_print_warning("'user' entry '%s@%s' has the password ignore "
+                                "flag raised, but its authentication plugin "
+                                "doesn't support password expiration. "
+                                "The user id will be ignored.",
+                                user.user ? user.user : "",
+                                user.host.get_host());
+>>>>>>> upstream/cluster-7.6
+              continue;
+            }
+            password_expired = true;
+          }
+        }
+
+        if (table->s->fields > table_schema->account_locked_idx()) {
+          char *locked =
+              get_field(&global_acl_memory,
+                        table->field[table_schema->account_locked_idx()]);
+
+          if (locked && (*locked == 'Y' || *locked == 'y')) {
+            user.account_locked = true;
+          }
+        }
+
+        if (table->s->fields > table_schema->drop_role_priv_idx()) {
+          char *priv =
+              get_field(&global_acl_memory,
+                        table->field[table_schema->create_role_priv_idx()]);
+
+          if (priv && (*priv == 'Y' || *priv == 'y')) {
+            user.access |= CREATE_ROLE_ACL;
+          }
+
+          priv = get_field(&global_acl_memory,
+                           table->field[table_schema->drop_role_priv_idx()]);
+
+          if (priv && (*priv == 'Y' || *priv == 'y')) {
+            user.access |= DROP_ROLE_ACL;
+          }
+        }
+
+        /*
+           Initalize the values of timestamp and expire after day
+           to error and true respectively.
+        */
+        user.password_last_changed.time_type = MYSQL_TIMESTAMP_ERROR;
+        user.use_default_password_lifetime = true;
+        user.password_lifetime = 0;
+
+        if (table->s->fields > table_schema->password_last_changed_idx()) {
+          if (!table->field[table_schema->password_last_changed_idx()]
+                   ->is_null()) {
+            char *password_last_changed = get_field(
+                &global_acl_memory,
+                table->field[table_schema->password_last_changed_idx()]);
+
+            if (password_last_changed &&
+                memcmp(password_last_changed, INVALID_DATE,
+                       sizeof(INVALID_DATE))) {
+              String str(password_last_changed, &my_charset_bin);
+              str_to_time_with_warn(&str, &(user.password_last_changed));
+            }
+          }
+        }
+
+        if (table->s->fields > table_schema->password_lifetime_idx()) {
+          if (!table->field[table_schema->password_lifetime_idx()]->is_null()) {
+            char *ptr =
+                get_field(&global_acl_memory,
+                          table->field[table_schema->password_lifetime_idx()]);
+            user.password_lifetime = ptr ? atoi(ptr) : 0;
+            user.use_default_password_lifetime = false;
+          }
+        }
+
+      }  // end if (table->s->fields >= 31)
+      else {
+        user.ssl_type = SSL_TYPE_NONE;
+        if (table->s->fields <= 13) {  // Without grant
+          if (user.access & CREATE_ACL)
+            user.access |= REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
+        }
+        /* Convert old privileges */
+        user.access |= LOCK_TABLES_ACL | CREATE_TMP_ACL | SHOW_DB_ACL;
+        if (user.access & FILE_ACL)
+          user.access |= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
+        if (user.access & PROCESS_ACL) user.access |= SUPER_ACL | EXECUTE_ACL;
+      }
+
+      if (table->s->fields > table_schema->password_reuse_history_idx()) {
+        if (table->field[table_schema->password_reuse_history_idx()]->is_null(
+                0))
+          user.use_default_password_history = true;
+        else {
+          char *ptr = get_field(
+              thd->mem_root,
+              table->field[table_schema->password_reuse_history_idx()]);
+          /* ptr is NULL in case of DB NULL. Take the default in that case */
+          user.password_history_length = ptr ? atoi(ptr) : 0;
+          user.use_default_password_history = ptr == NULL;
+        }
+      }
+
+      if (table->s->fields > table_schema->password_reuse_time_idx()) {
+        if (table->field[table_schema->password_reuse_time_idx()]->is_null(0))
+          user.use_default_password_reuse_interval = true;
+        else {
+          char *ptr =
+              get_field(thd->mem_root,
+                        table->field[table_schema->password_reuse_time_idx()]);
+          /* ptr is NULL in case of DB NULL. Take the default in that case */
+          user.password_reuse_interval = ptr ? atoi(ptr) : 0;
+          user.use_default_password_reuse_interval = ptr == NULL;
+        }
+      }
+
+      set_user_salt(&user);
+      user.password_expired = password_expired;
+
+      acl_users->push_back(user);
+      if (user.host.check_allow_all_hosts())
+        allow_all_hosts = 1;  // Anyone can connect
+    }
+  }  // END while reading records from the mysql.user table
+
+  end_read_record(&read_record_info);
+<<<<<<< HEAD
+  if (read_rec_errcode > 0) goto end;
+=======
+
+  DBUG_EXECUTE_IF("simulate_acl_init_failure",
+                  read_rec_errcode= HA_ERR_WRONG_IN_RECORD;);
+
+  if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
+    goto end;
+  }
+>>>>>>> upstream/cluster-7.6
+
+  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  acl_users->shrink_to_fit();
+
+  if (super_users_with_empty_plugin) {
+    LogErr(WARNING_LEVEL, ER_NO_SUPER_WITHOUT_USER_PLUGIN);
+  }
+>>>>>>> pr/231
 
   /*
     Prepare reading from the mysql.db table
@@ -1872,12 +2553,23 @@ static bool acl_load(THD *thd, Table_ref *tables) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_IGNORED_EMPTY_NAME);
       continue;
     }
+<<<<<<< HEAD
     db.user = get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
     if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
         strcmp(db.host.get_host(), "localhost") != 0) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_SKIPPED_NEEDS_RESOLVE, db.db,
              db.user ? db.user : "",
              db.host.get_host() ? db.host.get_host() : "");
+=======
+    db.user=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
+    if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
+        strcmp(db.host.get_host(), "localhost") != 0) {
+      sql_print_warning("'db' entry '%s %s@%s' "
+                        "ignored in --skip-name-resolve mode.",
+                        db.db,
+                        db.user ? db.user : "",
+                        db.host.get_host());
+>>>>>>> upstream/cluster-7.6
     }
     db.access = get_access(table, 3, nullptr);
     db.access = fix_rights_for_db(db.access);
@@ -1888,10 +2580,22 @@ static bool acl_load(THD *thd, Table_ref *tables) {
       */
       (void)my_stpcpy(tmp_name, db.db);
       my_casedn_str(files_charset_info, db.db);
+<<<<<<< HEAD
       if (strcmp(db.db, tmp_name) != 0) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_ENTRY_LOWERCASED_REVOKE_WILL_FAIL,
                db.db, db.user ? db.user : "",
                db.host.get_host() ? db.host.get_host() : "");
+=======
+      if (strcmp(db.db, tmp_name) != 0)
+      {
+        sql_print_warning("'db' entry '%s %s@%s' had database in mixed "
+                          "case that has been forced to lowercase because "
+                          "lower_case_table_names is set. It will not be "
+                          "possible to remove this privilege using REVOKE.",
+                          db.db,
+                          db.user ? db.user : "",
+                          db.host.get_host());
+>>>>>>> upstream/cluster-7.6
       }
     }
     db.sort = get_sort(3, db.host.get_host(), db.db, db.user);
@@ -1902,8 +2606,20 @@ static bool acl_load(THD *thd, Table_ref *tables) {
     acl_dbs->push_back(db);
   }  // END reading records from mysql.db tables
 
+<<<<<<< HEAD
   iterator.reset();
+=======
+  end_read_record(&read_record_info);
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (read_rec_errcode > 0) goto end;
+=======
+  if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
+    goto end;
+  }
+>>>>>>> upstream/cluster-7.6
 
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
   acl_dbs->shrink_to_fit();
@@ -1921,14 +2637,36 @@ static bool acl_load(THD *thd, Table_ref *tables) {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
       proxy.init(table, &global_acl_memory);
+<<<<<<< HEAD
       if (proxy.check_validity(check_no_resolve)) continue;
       if (acl_proxy_users->push_back(proxy)) {
+<<<<<<< HEAD
+=======
+=======
+      proxy.check_validity(check_no_resolve);
+      if (acl_proxy_users->push_back(proxy))
+      {
+>>>>>>> upstream/cluster-7.6
+        end_read_record(&read_record_info);
+>>>>>>> pr/231
         goto end;
       }
     }  // END reading records from the mysql.proxies_priv table
 
+<<<<<<< HEAD
     iterator.reset();
+=======
+    end_read_record(&read_record_info);
+<<<<<<< HEAD
+>>>>>>> pr/231
     if (read_rec_errcode > 0) goto end;
+=======
+    if (read_rec_errcode > 0)
+    {
+      table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
+      goto end;
+    }
+>>>>>>> upstream/cluster-7.6
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   } else {
@@ -2309,9 +3047,57 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value) {
   acl_proxy_users->insert(upper_bound, *new_value);
 }
 
+<<<<<<< HEAD
 struct Free_grant_table {
   void operator()(GRANT_TABLE *grant_table) const {
     grant_table->~GRANT_TABLE();
+=======
+
+void free_grant_table(GRANT_TABLE *grant_table)
+{
+  my_hash_free(&grant_table->hash_columns);
+}
+
+
+/* Search after a matching grant. Prefer exact grants before not exact ones */
+
+GRANT_NAME *name_hash_search(HASH *name_hash,
+                             const char *host,const char* ip,
+                             const char *db,
+                             const char *user, const char *tname,
+                             bool exact, bool name_tolower)
+{
+  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  uint len;
+  GRANT_NAME *grant_name,*found=0;
+  HASH_SEARCH_STATE state;
+
+  name_ptr= my_stpcpy(my_stpcpy(helping, user) + 1, db) + 1;
+  len  = (uint) (my_stpcpy(name_ptr, tname) - helping) + 1;
+  if (name_tolower)
+    my_casedn_str(files_charset_info, name_ptr);
+  for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,
+                                               len, &state);
+       grant_name ;
+       grant_name= (GRANT_NAME*) my_hash_next(name_hash,(uchar*) helping,
+                                              len, &state))
+  {
+    if (exact)
+    {
+      if (grant_name->host.is_null() ||
+          (host &&
+           !my_strcasecmp(system_charset_info, host,
+                          grant_name->host.get_host())) ||
+          (ip && !strcmp(ip, grant_name->host.get_host())))
+        return grant_name;
+    }
+    else
+    {
+      if (grant_name->host.compare_hostname(host, ip) &&
+          (!found || found->sort < grant_name->sort))
+        found=grant_name;                                       // Host ok
+    }
+>>>>>>> upstream/cluster-7.6
   }
 };
 
@@ -2427,11 +3213,22 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         goto end_unlock;
       }
 
+<<<<<<< HEAD
       if (check_no_resolve) {
         if (hostname_requires_resolving(mem_check->host.get_host())) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_PROCS_PRIV_SKIPPED_NEEDS_RESOLVE,
                  mem_check->tname, mem_check->user,
                  mem_check->host.get_host() ? mem_check->host.get_host() : "");
+=======
+      if (check_no_resolve)
+      {
+        if (hostname_requires_resolving(mem_check->host.get_host()))
+        {
+          sql_print_warning("'procs_priv' entry '%s %s@%s' "
+                            "ignored in --skip-name-resolve mode.",
+                            mem_check->tname, mem_check->user,
+                            mem_check->host.get_host());
+>>>>>>> upstream/cluster-7.6
         }
       }
       const enum_sp_type sp_type = to_sp_type(p_table->field[4]->val_int());
@@ -2546,12 +3343,24 @@ static bool grant_load(THD *thd, Table_ref *tables) {
         goto end_unlock;
       }
 
+<<<<<<< HEAD
       if (check_no_resolve) {
         if (hostname_requires_resolving(mem_check->host.get_host()) &&
             strcmp(mem_check->host.get_host(), "localhost") != 0) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_TABLES_PRIV_SKIPPED_NEEDS_RESOLVE,
                  mem_check->tname, mem_check->user ? mem_check->user : "",
                  mem_check->host.get_host() ? mem_check->host.get_host() : "");
+=======
+      if (check_no_resolve)
+      {
+        if (hostname_requires_resolving(mem_check->host.get_host()) &&
+            strcmp(mem_check->host.get_host(), "localhost") != 0) {
+          sql_print_warning("'tables_priv' entry '%s %s@%s' "
+                            "ignored in --skip-name-resolve mode.",
+                            mem_check->tname,
+                            mem_check->user ? mem_check->user : "",
+                            mem_check->host.get_host());
+>>>>>>> upstream/cluster-7.6
         }
       }
 
@@ -2733,6 +3542,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
        ++acl_user) {
     if ((!acl_user->user && !user[0]) ||
+<<<<<<< HEAD
         (acl_user->user && !strcmp(user, acl_user->user))) {
       if ((!acl_user->host.get_host() && !host[0]) ||
           (acl_user->host.get_host() &&
@@ -2740,6 +3550,17 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                           acl_user->host.get_host()))) {
         if (plugin.length > 0) {
           acl_user->plugin.str = plugin.str;
+=======
+        (acl_user->user && !strcmp(user,acl_user->user)))
+    {
+      if ((acl_user->host.is_null() && !host[0]) ||
+          (!acl_user->host.is_null() &&
+           !my_strcasecmp(system_charset_info, host, acl_user->host.get_host())))
+      {
+        if (plugin.length > 0)
+        {
+          acl_user->plugin.str= plugin.str;
+>>>>>>> upstream/cluster-7.6
           acl_user->plugin.length = plugin.length;
           optimize_plugin_compare_by_pointer(&acl_user->plugin);
           if (!auth_plugin_is_built_in(acl_user->plugin.str))
@@ -3045,9 +3866,19 @@ void acl_update_db(const char *user, const char *host, const char *db,
 
   for (ACL_DB *acl_db = acl_dbs->begin(); acl_db < acl_dbs->end();) {
     if ((!acl_db->user && !user[0]) ||
+<<<<<<< HEAD
         (acl_db->user && !strcmp(user, acl_db->user))) {
       if ((!acl_db->host.get_host() && !host[0]) ||
           (acl_db->host.get_host() && !strcmp(host, acl_db->host.get_host()))) {
+=======
+        (acl_db->user &&
+        !strcmp(user,acl_db->user)))
+    {
+      if ((acl_db->host.is_null() && !host[0]) ||
+          (acl_db->host.get_host_len() &&
+          !strcmp(host, acl_db->host.get_host())))
+      {
+>>>>>>> upstream/cluster-7.6
         if ((!acl_db->db && !db[0]) ||
             (acl_db->db && !strcmp(db, acl_db->db))) {
           if (privileges)
@@ -3130,10 +3961,19 @@ bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
     sctx_user = sctx->user().str;
   }
 
+<<<<<<< HEAD
   if (!acl_host) acl_host = "";
   if (!acl_user) acl_user = "";
   if (!sctx_host) sctx_host = "";
   if (!sctx_user) sctx_user = "";
+=======
+  if(!acl_user)
+    acl_user= "";
+  if (!sctx_host)
+    sctx_host= "";
+  if (!sctx_user)
+    sctx_user= "";
+>>>>>>> upstream/cluster-7.6
 
   if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host)) {
     sctx->set_password_expired(expired);

@@ -73,8 +73,13 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
+<<<<<<< HEAD
 CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+=======
+CHANGE MASTER TO MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+>>>>>>> pr/231
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
@@ -86,8 +91,13 @@ include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
+<<<<<<< HEAD
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+=======
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+>>>>>>> pr/231
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
@@ -99,8 +109,13 @@ include/wait_for_slave_io_to_stop.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
+<<<<<<< HEAD
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT,
 SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
+=======
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT,
+MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+>>>>>>> pr/231
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 

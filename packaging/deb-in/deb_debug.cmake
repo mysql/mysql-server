@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +35,15 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DBUILD_CONFIG=mysql_release \\
 		-DCMAKE_INSTALL_PREFIX=/usr \\
 		-DCMAKE_BUILD_TYPE=Debug \\
+		${DEB_DEBUG_MAINTAINER} \\
 		-DINSTALL_DOCDIR=share/mysql/docs \\
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \\
 		-DSYSCONFDIR=/etc/mysql \\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
+<<<<<<< HEAD
+=======
+		-DWITH_SSL=system \\
+>>>>>>> pr/231
 		-DWITH_INNODB_MEMCACHED=1 \\
 		-DWITH_MECAB=system \\
 		-DWITH_NUMA=ON \\
@@ -166,6 +179,7 @@ usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/udf_example.so
+<<<<<<< HEAD
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/test_services_host_application_signal.so
@@ -184,6 +198,7 @@ usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
+<<<<<<< HEAD
 usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
@@ -239,4 +254,8 @@ Architecture: any
 Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-test, \${misc:Depends}
 Description: Debug binaries for MySQL Testsuite
+=======
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 ")

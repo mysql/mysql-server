@@ -1,0 +1,14 @@
+#
+# Bug #30607708	IF ANALYZE TABLE RUNS MORE THAN 600 SECONDS DIAGNOSTIC QUERY MAY CRASH SERVER
+#
+CREATE TABLE t1(a int, index inda(a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+SET DEBUG_SYNC='innodb_dict_stats_update_persistent SIGNAL analyze.running WAIT_FOR analyze.finish';
+ANALYZE TABLE t1;
+SET DEBUG_SYNC='now WAIT_FOR analyze.running';
+SELECT ENGINE,SUM(DATA_LENGTH+INDEX_LENGTH),COUNT(ENGINE),SUM(DATA_LENGTH),SUM(INDEX_LENGTH) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql') AND ENGINE='InnoDB';
+SET DEBUG_SYNC='now SIGNAL analyze.finish';
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;

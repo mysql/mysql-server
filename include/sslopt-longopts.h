@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +65,7 @@
  0,
  0},
 #endif
+<<<<<<< HEAD
     {"ssl-ca",
      OPT_SSL_CA,
      "CA file in PEM format.",
@@ -199,6 +208,7 @@
      REQUIRED_ARG,
      0,
      0,
+<<<<<<< HEAD
      0,
      nullptr,
      0,
@@ -232,3 +242,37 @@
      nullptr,
      0,
      nullptr},
+=======
+     0},
+=======
+  {"ssl-ca", OPT_SSL_CA,
+   "CA file in PEM format.",
+   &opt_ssl_ca, &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-capath", OPT_SSL_CAPATH,
+   "CA directory.",
+   &opt_ssl_capath, &opt_ssl_capath, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-cert", OPT_SSL_CERT, "X509 cert in PEM format.",
+   &opt_ssl_cert, &opt_ssl_cert, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-cipher", OPT_SSL_CIPHER, "SSL cipher to use.",
+   &opt_ssl_cipher, &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-key", OPT_SSL_KEY, "X509 key in PEM format.",
+   &opt_ssl_key, &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-crl", OPT_SSL_CRL, "Certificate revocation list.",
+   &opt_ssl_crl, &opt_ssl_crl, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-crlpath", OPT_SSL_CRLPATH,
+    "Certificate revocation list path.",
+   &opt_ssl_crlpath, &opt_ssl_crlpath, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+   {"tls-version", OPT_TLS_VERSION, "TLS version to use, "
+    "permitted values are: TLSv1, TLSv1.1, TLSv1.2",
+    &opt_tls_version, &opt_tls_version, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+#endif /* HAVE_OPENSSL */
+>>>>>>> pr/231

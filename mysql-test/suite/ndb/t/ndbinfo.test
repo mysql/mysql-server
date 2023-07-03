@@ -447,6 +447,7 @@ create unique index ix2 on t1(b) using hash;
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
 
+<<<<<<< HEAD
 # Test the dict_obj_info table by showing t1 and it's four releated objects.
 # Replace table id of t1 in 'fq_name' values that contain it (index and blob
 # table names do), since the table id may vary between runs.
@@ -457,11 +458,31 @@ select type, state, parent_obj_type,
   if(parent_obj_id=@t1_id, "child_of_t1",
     if(parent_obj_id=0, "root", "error!")) as  nesting
   from ndbinfo.ndb$dict_obj_info
+<<<<<<< HEAD
+=======
+  where id >= @t1_id and id < @t1_id + 5 and type <= 6
+  order by type, id;
+=======
+# Test the dict_obj_info table. Replace table id of t1 in 'fq_name' values that
+# contain it (index and blob table names do), since the table id may vary 
+# between runs.
+select type, state, parent_obj_type,
+  replace(replace(fq_name,
+                  concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
+          concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+>>>>>>> pr/231
   where type <= 6
   and (id = @t1_id or
        instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
        instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
   order by type, state, parent_obj_type, fq_name;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
@@ -545,11 +566,21 @@ let $DUMP_INFO=0;
 select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
 where pool_name='Index memory';
 
+<<<<<<< HEAD
 select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
   into @diff
+=======
+select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+>>>>>>> pr/231
   from pool_sum, frag_sum 
   where pool_name='Data memory';
 select @diff;
+
+let $DIFF=query_get_value("select @diff as d", d, 1);
+if ($DIFF)
+{
+  let $DUMP_INFO=1;
+}
 
 let $DIFF=query_get_value("select @diff as d", d, 1);
 if ($DIFF)

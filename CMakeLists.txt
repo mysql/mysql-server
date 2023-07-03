@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,8 +116,37 @@ ELSEIF(UNIX)
   ENDIF()
 ENDIF()
 
+<<<<<<< HEAD
 # CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
+=======
+# Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
+# CMake has OLD as default even if OLD is deprecated.
+# See cmake --help-policy CMP0018 / CMP0022
+CMAKE_POLICY(SET CMP0018 NEW)
+CMAKE_POLICY(SET CMP0022 NEW)
+
+# We use get_target_property() for non-existent targets (CMP0045)
+IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
+   CMAKE_VERSION VERSION_GREATER "3.0.0")
+ CMAKE_POLICY(SET CMP0045 OLD)
+ENDIF()
+
+# In CMake 3.12 and above, the
+#
+# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
+# * ``check_include_file_cxx`` macro in the
+#   ``CheckIncludeFileCXX`` module, and the
+# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
+#
+# now prefer to link the check executable to the libraries listed in the
+# ``CMAKE_REQUIRED_LIBRARIES`` variable.
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
+ENDIF()
+
+MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
+>>>>>>> pr/231
 
 # Will set GIT_EXECUTABLE and GIT_FOUND
 FIND_PACKAGE(Git)
@@ -640,6 +677,23 @@ MACRO(CONFIGURE_FILE_CONTENT content file)
     @ONLY)
 ENDMACRO()
 
+MACRO(REPORT_CXX_FLAGS)
+  MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+  FOREACH(BUILD_TYPE "" _DEBUG _RELWITHDEBINFO _RELEASE _MINSIZEREL)
+    SET(flag "CMAKE_CXX_FLAGS${BUILD_TYPE}")
+    MESSAGE(STATUS "${flag}: ${${flag}}")
+  ENDFOREACH()
+ENDMACRO()
+
+# STRING(APPEND ...) from cmake VERSION 3.4
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
+
+MACRO(STRING_PREPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
 SET(BUILD_IS_SINGLE_CONFIG TRUE)
 MESSAGE(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
@@ -650,10 +704,13 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_COMPILER_IS_CLANG 1)
 ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   SET(MY_COMPILER_IS_GNU 1)
+<<<<<<< HEAD
   IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9 AND
       NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
     SET(MY_COMPILER_IS_GNU_8 1)
   ENDIF()
+=======
+>>>>>>> pr/231
 ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   SET(MY_COMPILER_IS_SUNPRO 1)
 ENDIF()
@@ -731,6 +788,7 @@ MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
 # even if we have configured for 64bit build....
 SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
 
+<<<<<<< HEAD
 
 INCLUDE(compile_flags)
 INCLUDE(install_layout)
@@ -771,6 +829,8 @@ IF(MY_COMPILER_IS_GNU AND WITH_PACKAGE_FLAGS AND
   ENDIF()
 ENDIF()
 
+=======
+>>>>>>> pr/231
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
@@ -797,9 +857,13 @@ INCLUDE(CMakePushCheckState)
 INCLUDE(add_custom_target)
 INCLUDE(pkg-config)
 INCLUDE(character_sets)
+<<<<<<< HEAD
 INCLUDE(cmake_parse_arguments)
 INCLUDE(link_options)
 INCLUDE(malloc_utils)
+=======
+INCLUDE(compile_flags)
+>>>>>>> pr/231
 INCLUDE(cpu_info)
 INCLUDE(fileutils)
 INCLUDE(zlib)
@@ -810,7 +874,10 @@ INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
 INCLUDE(ldap)
+<<<<<<< HEAD
 INCLUDE(kerberos)
+=======
+>>>>>>> pr/231
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
@@ -887,6 +954,7 @@ ELSE()
 ENDIF()
 
 OPTION(WITH_AUTHENTICATION_LDAP
+<<<<<<< HEAD
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
@@ -964,6 +1032,17 @@ OPTION(WITH_LTO
 IF(CMAKE_C_FLAGS MATCHES " -flto" OR CMAKE_CXX_FLAGS MATCHES " -flto")
   SET(CMAKE_COMPILER_FLAG_WITH_LTO 1)
 ENDIF()
+=======
+<<<<<<< HEAD
+       "Report error if the LDAP authentication plugin cannot be built." OFF)
+=======
+  "Report error if the LDAP authentication plugin cannot be built." OFF)
+
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -1064,9 +1143,11 @@ MACRO(DISABLE_MISSING_PROFILE_WARNING)
   ENDIF()
 ENDMACRO()
 
+<<<<<<< HEAD
 MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
+<<<<<<< HEAD
   IF(C_RESULT AND CXX_RESULT)
     STRING_APPEND(CMAKE_C_FLAGS   " ${SAN_OPT}")
     STRING_APPEND(CMAKE_CXX_FLAGS " ${SAN_OPT}")
@@ -1086,6 +1167,72 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
           "MySQL maintainer-specific development environment" FORCE)
       ENDIF()
     ENDIF()
+=======
+  IF(C_RESULT AND CXX_RESULT AND ${ADD_OPTIMIZATION})
+=======
+# Check whether a specific warning option is supported.
+# Intended use is primarily to silence warnings from third-party code.
+# If *our* code has warnings with gcc[56789] or clang[345678] the
+# code should be fixed, rather than silencing the compiler warnings.
+#
+# Returns the corresponding "-Wno-<option>" if supported, 0 otherwise.
+# WARNING_OPTION should be as found in clang/gcc documentation.
+# Note: Sun Studio accepts/ignores anything starting with "-W".
+#       Visual Studio has a few /W options, but are totally different.
+# Hence we check for gcc/clang only.
+# No return value for functions in cmake, so we use an output argument.
+FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
+  # Strip off possible leading -Wno- or -W
+  STRING(REGEX REPLACE "^-Wno-" "" WARNING_OPTION ${WARNING_OPTION})
+  STRING(REGEX REPLACE "^-W" "" WARNING_OPTION ${WARNING_OPTION})
+  # Use HAVE_CXX_W_warning_option as cache variable.
+  STRING(REPLACE "-" "_" VAR_NAME ${WARNING_OPTION})
+  STRING(REPLACE "=" "_" VAR_NAME ${VAR_NAME})
+  STRING(REPLACE "c++" "cpp" VAR_NAME ${VAR_NAME})
+  SET(VAR_NAME "HAVE_CXX_W_${VAR_NAME}")
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    MY_CHECK_CXX_COMPILER_FLAG("-W${WARNING_OPTION}" ${VAR_NAME})
+  ELSE()
+    SET(${VAR_NAME} 0 CACHE INTERNAL "-W${WARNING_OPTION} not supported")
+  ENDIF()
+  IF(${VAR_NAME})
+    SET(${RETURN_VALUE} "-Wno-${WARNING_OPTION}" PARENT_SCOPE)
+  ELSE()
+    SET(${RETURN_VALUE} 0 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
+  MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
+  MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
+  IF(C_RESULT AND CXX_RESULT)
+    STRING_APPEND(CMAKE_C_FLAGS   " ${SAN_OPT}")
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${SAN_OPT}")
+>>>>>>> upstream/cluster-7.6
+    # We switch on basic optimization also for debug builds.
+    # We disable inlining for stack trace readability.
+    # With optimization we may get some warnings, so we switch off -Werror
+<<<<<<< HEAD
+    SET(OPT_FLAG " -O1 ")
+  ENDIF()
+  IF(C_RESULT AND CXX_RESULT)
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
+=======
+    STRING_APPEND(CMAKE_C_FLAGS   " -O1 -fno-inline -fPIC")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -O1 -fno-inline -fPIC")
+    IF(NOT SANITIZE_MAINTAINER_MODE)
+      SET(MYSQL_MAINTAINER_MODE OFF CACHE BOOL
+        "MySQL maintainer-specific development environment" FORCE)
+    ENDIF()
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     SET(${RESULT} 1)
   ELSE()
     SET(${RESULT} 0)
@@ -1094,6 +1241,7 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
+<<<<<<< HEAD
   IF(WIN32_CLANG)
     # NOTE: We do _not_ modify CMAKE_C_FLAGS / CMAKE_CXX_FLAGS to add
     # -fsanitize=address here yet; Clang (at least of 5.0.0) requires /MT,
@@ -1107,6 +1255,20 @@ IF(WITH_ASAN)
     GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
     SET(ASAN_LIB_DIR "${ASAN_LIB_DIR}/../lib/clang/${CMAKE_CXX_COMPILER_VERSION}/lib/windows")
     GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${ASAN_LIB_DIR} REALPATH)
+=======
+  MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
+  IF(WITH_ASAN_OK)
+    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+    SET(HAVE_ASAN 1)
+    # This works with clang, but not gcc it seems.
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-fsanitize=address -fsanitize-address-use-after-scope"
+      HAVE_SANITIZE_SCOPE)
+    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+      STRING_APPEND(CMAKE_C_FLAGS   " -fsanitize-address-use-after-scope")
+      STRING_APPEND(CMAKE_CXX_FLAGS " -fsanitize-address-use-after-scope")
+    ENDIF()
+>>>>>>> upstream/cluster-7.6
   ELSE()
     MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
     IF(WITH_ASAN_OK)
@@ -1477,15 +1639,36 @@ ENDIF()
 
 IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   MESSAGE(SEND_ERROR 
+<<<<<<< HEAD
     "Test trace plugin was selected but it can be included only in
      debug binaries. Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
 
 # Add safemutex for debug configurations
 # Enable debug sync for debug builds.
+=======
+          "Test trace plugin was selected but it can be included only in debug binaries.
+          Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
+ENDIF()
+
+# Add safemutex for debug configurations
+<<<<<<< HEAD
+>>>>>>> pr/231
 FOREACH(LANG C CXX)
   STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DENABLED_DEBUG_SYNC ")
   STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
+ENDFOREACH()
+=======
+IF(NOT WITH_INNODB_MEMCACHED)
+  FOREACH(LANG C CXX)
+    STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
+  ENDFOREACH()
+ENDIF()
+>>>>>>> upstream/cluster-7.6
+
+# Enable debug sync for debug builds.
+FOREACH(LANG C CXX)
+  STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DENABLED_DEBUG_SYNC ")
 ENDFOREACH()
 
 
@@ -1560,6 +1743,15 @@ ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)
+
+IF(APPLE)
+  # Homebrew default location is
+  IF(APPLE_ARM)
+    SET(HOMEBREW_HOME "/opt/homebrew/opt")
+  ELSE()
+    SET(HOMEBREW_HOME "/usr/local/opt")
+  ENDIF()
+ENDIF()
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
@@ -1734,6 +1926,7 @@ IF(WITH_SYSTEM_LIBS)
 ENDIF()
 
 # Add bundled or system zlib.
+<<<<<<< HEAD
 MYSQL_CHECK_ZLIB()
 
 # Add bundled or system zstd.
@@ -1763,6 +1956,18 @@ IF(WITH_CUSTOM_LIBRARIES)
 ENDIF()
 
 # Add system/custom openssl.
+=======
+<<<<<<< HEAD
+MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+ENDIF()
+# Add bundled wolfssl/wolfcrypt or system openssl.
+=======
+MYSQL_CHECK_ZLIB()
+# Add openssl.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
 
@@ -1890,10 +2095,26 @@ ENDIF()
 
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+<<<<<<< HEAD
 # Add icu library
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_ICU()
 ENDIF()
+=======
+<<<<<<< HEAD
+# Add lzma library
+MYSQL_CHECK_LZMA()
+# Add re2 library
+MYSQL_CHECK_RE2()
+# Add icu library
+MYSQL_CHECK_ICU()
+=======
+# Add SASL library
+MYSQL_CHECK_SASL()
+# Add LDAP library
+MYSQL_CHECK_LDAP()
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -2151,6 +2372,11 @@ ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 ADD_SUBDIRECTORY(libchangestreams)
+
+# gcc9 will not allow CTORs to do memset(this, 0, sizeof(*this));
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT GXX_VERSION VERSION_LESS 9)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-class-memaccess")
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   IF(WITH_UNIT_TESTS)
@@ -2433,6 +2659,13 @@ ENDIF()
 # RPM installs documentation directly from the source tree
 #
 IF(NOT INSTALL_LAYOUT MATCHES "RPM")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  INSTALL(FILES README LICENSE DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
+  INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
+=======
+>>>>>>> pr/231
   INSTALL(FILES
     README
     LICENSE
@@ -2440,8 +2673,13 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   INSTALL(FILES
     ${CMAKE_BINARY_DIR}/Docs/INFO_SRC
     ${CMAKE_BINARY_DIR}/Docs/INFO_BIN
+<<<<<<< HEAD
     DESTINATION ${INSTALL_DOCDIR} COMPONENT Info
     )
+=======
+    DESTINATION ${INSTALL_DOCDIR} COMPONENT Info)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   # MYSQL_DOCS_LOCATON is used in "make dist",
   # points to the documentation directory
@@ -2604,6 +2842,10 @@ INCLUDE(CPack)
 #
 # Note that CMakeCache.txt contains cmake builtins for these variables,
 # *not* the values that will actually be used, which we report here:
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 
 IF(BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
@@ -2613,6 +2855,7 @@ MESSAGE(STATUS "COMPILE_DEFINITIONS: ${cwd_definitions}")
 REPORT_CXX_FLAGS()
 MESSAGE(STATUS "CMAKE_C_LINK_FLAGS: ${CMAKE_C_LINK_FLAGS}")
 MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS: ${CMAKE_CXX_LINK_FLAGS}")
+<<<<<<< HEAD
 MESSAGE(STATUS "CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS}")
 MESSAGE(STATUS "CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS}")
 MESSAGE(STATUS "CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}")
@@ -2622,3 +2865,25 @@ IF(HAVE_WITH_NDBCLUSTER)
   SET(WITH_NDBCLUSTER ${WITH_NDB} CACHE BOOL
     "Deprecated legacy option for MySQL Cluster")
 ENDIF()
+=======
+<<<<<<< HEAD
+IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")
+  MESSAGE(STATUS "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}")
+ENDIF()
+IF(NOT BUILD_IS_SINGLE_CONFIG)
+  MESSAGE(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+  MESSAGE(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+  MESSAGE(STATUS
+    "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  MESSAGE(STATUS
+    "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+ENDIF()
+
+=======
+MESSAGE(STATUS "CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS}")
+MESSAGE(STATUS "CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS}")
+MESSAGE(STATUS "CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}")
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

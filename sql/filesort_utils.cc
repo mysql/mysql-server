@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates. 
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,12 +61,29 @@ namespace {
   This one turns out to be pretty fast on all platforms, except sparc.
   See the accompanying unit tests, which measure various implementations.
  */
+<<<<<<< HEAD
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
+<<<<<<< HEAD
   assert(s1 != nullptr);
   assert(s2 != nullptr);
   for (size_t i = 0; i < len; ++i) {
     if (s1[i] != s2[i]) return s1[i] < s2[i];
   }
+=======
+  DBUG_ASSERT(len > 0);
+  DBUG_ASSERT(s1 != NULL);
+  DBUG_ASSERT(s2 != NULL);
+=======
+inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len)
+{
+  assert(len > 0);
+  assert(s1 != NULL);
+  assert(s2 != NULL);
+>>>>>>> upstream/cluster-7.6
+  do {
+    if (*s1++ != *s2++) return *--s1 < *--s2;
+  } while (--len != 0);
+>>>>>>> pr/231
   return false;
 }
 

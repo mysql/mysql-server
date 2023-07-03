@@ -2868,6 +2868,7 @@ SELECT '2010-10-10 10:10:10' + INTERVAL
   ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug #22819614 OUT OF RANGE SRIDS ARE SILENTLY CAST TO UINT32
 --echo #
 
@@ -4009,6 +4010,7 @@ SET @saved_sql_mode=@@sql_mode;
 SET SESSION sql_mode='';
 --source include/bug27252609.inc
 SET SESSION sql_mode=@saved_sql_mode;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#27756083 "INSERT INTO SELECT" QUERY INSERTS GEOMETRY OF DIFFERENT
@@ -4208,13 +4210,20 @@ is_uuid(
 DROP TABLE t;
 
 --echo #
+=======
+=======
+>>>>>>> pr/231
 --echo # Bug #32975221 5.7.29+ REGRESSION, SPATIAL INDEX NOT USED ANYMORE FOR MBRCONTAINS
 --echo #
 
 CREATE TABLE t (
   c1 VARCHAR(8) NOT NULL,
   c2 VARCHAR(16) NOT NULL,
+<<<<<<< HEAD
   geom POINT NOT NULL SRID 0,
+=======
+  geom POINT NOT NULL,
+>>>>>>> pr/231
   PRIMARY KEY (c2,c1),
   SPATIAL KEY coord (geom)
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
@@ -4224,3 +4233,7 @@ INSERT INTO t VALUES (1, 2, POINT(1, 2));
 --replace_column 10 ## 11 ##
 EXPLAIN SELECT COUNT(*) FROM t WHERE MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((1 2, 2 2, 2 3, 1 2))'), geom) AND c1 <> '10';
 DROP TABLE t;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

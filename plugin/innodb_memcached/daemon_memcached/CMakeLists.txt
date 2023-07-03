@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +25,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Common defines and includes
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include/mysql
   ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
@@ -33,6 +38,30 @@ INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
 IF(HAVE_LIBEVENT2)
   ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
 ENDIF()
+=======
+<<<<<<< HEAD
+INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
+=======
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+		    ${CMAKE_SOURCE_DIR}/sql
+		    ${CMAKE_SOURCE_DIR}/bld/include
+		    ${CMAKE_SOURCE_DIR}/regex
+		    ${CMAKE_SOURCE_DIR}/libevent
+>>>>>>> upstream/cluster-7.6
+		    ${CMAKE_SOURCE_DIR}/include/mysql
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
+
+		)
+INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
+
+IF(HAVE_LIBEVENT2)
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+ENDIF()
+
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
+>>>>>>> pr/231
 
 # If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
 IF(CMAKE_C_FLAGS MATCHES "-Werror")
@@ -85,8 +114,14 @@ IF(ENABLE_MEMCACHED_SASL)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
+<<<<<<< HEAD
   LINK_LIBRARIES
   ${LIBEVENT_LIBRARIES}
   memcached_utilities
   ${MEMCACHED_SASL_LIBRARY}
   MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
+=======
+                 LINK_LIBRARIES ${LIBEVENT_LIBRARIES}
+                 memcached_utilities ${SASL_LIBRARY}
+		 MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
+>>>>>>> pr/231

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/gcs_view_modification_notifier.h
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/gcs_view_modification_notifier.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +55,15 @@ class Plugin_gcs_view_modification_notifier {
 
     @retval true  there is a view modification ongoing
     @retval false otherwise
+   */
+  bool is_view_modification_ongoing();
+
+  /**
+    Checks if there is a view modification ongoing.
+
+    @return
+      @retval true  there is a view modification ongoing
+      @retval false otherwise
    */
   bool is_view_modification_ongoing();
 

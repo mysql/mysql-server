@@ -1,4 +1,12 @@
+<<<<<<< HEAD:mysys/my_getopt.cc
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_getopt.cc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1092,6 +1100,7 @@ static longlong getopt_ll(const char *arg, bool set_maximum_value,
   @param  var_type  type of integer variable (GET_*)
   @returns  maximum possible value for this type
  */
+<<<<<<< HEAD
 ulonglong max_of_int_range(int var_type) {
   switch (var_type) {
     case GET_INT:
@@ -1109,6 +1118,27 @@ ulonglong max_of_int_range(int var_type) {
     default:
       assert(0);
       return 0;
+=======
+ulonglong max_of_int_range(int var_type)
+{
+  switch (var_type)
+  {
+  case GET_INT:
+    return INT_MAX;
+  case GET_LONG:
+    return LONG_MAX;
+  case GET_LL:
+    return LLONG_MAX;
+  case GET_UINT:
+    return UINT_MAX;
+  case GET_ULONG:
+    return ULONG_MAX;
+  case GET_ULL:
+    return ULLONG_MAX;
+  default:
+    assert(0);
+    return 0;
+>>>>>>> upstream/cluster-7.6
   }
 }
 

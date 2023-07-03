@@ -3,10 +3,20 @@
 #
 # Test:
 # 0. This test requires one server.
+<<<<<<< HEAD
 # 1. Basic check on number of GR variables.
 # 2. Verify group replication related variables at GLOBAL scope.
 # 3. Verify group replication related variables at SESSION scope.
 # 4. Verify values of GLOBAL and SESSION variables using below commands:-
+=======
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
+# 1. Basic check that there are 43 GR variables.
+=======
+# 1. Basic check that there are 36 GR variables.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+# 2. Verify that all the group replication variables are GLOBAL variables.
+# 3. Verify values of GLOBAL and SESSION variables using below commands:-
+>>>>>>> pr/231
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
 #  - SHOW SESSION VARIABLES LIKE 'group_replication_..'
 #  - SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=
@@ -32,12 +42,30 @@
 
 --let $gr_var_count= 61
 --echo
+<<<<<<< HEAD
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
 --let $assert_text= There are $gr_var_count GR variables at present.
 --let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = $gr_var_count
+=======
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
+--echo # Test#1: Basic check that there are 44 GR variables.
+
+# Note: If a new GR variable is added or an old GR variable is removed, then
+# update this testcase for the sanity check.
+--let $assert_text= There are 44 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 44
+=======
+--echo # Test#1: Basic check that there are 36 GR variables.
+
+# Note: If a new GR variable is added or an old GR variable is removed, then
+# update this testcase for the sanity check.
+--let $assert_text= There are 36 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 36
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+>>>>>>> pr/231
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -74,8 +102,10 @@
 --let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
 --let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
 --let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
 --let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
 --let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
+<<<<<<< HEAD
 --let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
 --let $saved_gr_member_expel_timeout = `SELECT @@GLOBAL.group_replication_member_expel_timeout`
 --let $saved_gr_consistency = `SELECT @@GLOBAL.group_replication_consistency`
@@ -87,6 +117,11 @@
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites`
 --let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid`
 --let $saved_gr_paxos_single_leader = `SELECT @@GLOBAL.group_replication_paxos_single_leader`
+=======
+=======
+--let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+>>>>>>> pr/231
 --enable_query_log
 
 
@@ -159,9 +194,11 @@ SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_member_weight= 80;
 --error ER_GLOBAL_VARIABLE
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
 SET @@SESSION.group_replication_recovery_public_key_path= "";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_recovery_get_public_key= 1;
+<<<<<<< HEAD
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
 --error ER_GLOBAL_VARIABLE
@@ -182,6 +219,11 @@ SET @@SESSION.group_replication_recovery_tls_ciphersuites= "";
 SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_paxos_single_leader= 1;
+=======
+=======
+SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+>>>>>>> pr/231
 
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
@@ -216,8 +258,10 @@ SET GLOBAL group_replication_transaction_size_limit= 100000;
 SET GLOBAL group_replication_communication_debug_options= "GCS_DEBUG_ALL";
 SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
 SET GLOBAL group_replication_member_weight= 70;
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
 eval SET GLOBAL group_replication_recovery_public_key_path= '$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 SET GLOBAL group_replication_recovery_get_public_key= ON;
+<<<<<<< HEAD
 SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 SET GLOBAL group_replication_member_expel_timeout= 1000;
 SET GLOBAL group_replication_consistency= "EVENTUAL";
@@ -229,6 +273,12 @@ SET GLOBAL group_replication_recovery_tls_version= "";
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee";
 SET GLOBAL group_replication_paxos_single_leader= 1;
+=======
+
+=======
+SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+>>>>>>> pr/231
 --enable_query_log
 
 
@@ -796,6 +846,7 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
 --source include/assert.inc
 
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
 # group_replication_recovery_public_key_path
 --let $assert_text= Verify GLOBAL value of group_replication_recovery_public_key_path
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_public_key_path\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
@@ -828,6 +879,23 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 
 --let $assert_text= Verify SESSION value of group_replication_recovery_get_public_key
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_get_public_key\', VARIABLE_VALUE, 1]" = "ON"
+=======
+# group_replication_exit_state_action
+--let $assert_text= Verify GLOBAL value of group_replication_exit_state_action
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_exit_state_action\', Value, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_exit_state_action
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_exit_state_action
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_exit_state_action\', Value, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_exit_state_action
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
 --source include/assert.inc
 
 # group_replication_exit_state_action
@@ -1042,8 +1110,10 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options"
 --eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
 --eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_show_global_and_session_variables.test
 --eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
 --eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
+<<<<<<< HEAD
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
 --eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_consistency"
@@ -1055,6 +1125,11 @@ SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --eval SET @@GLOBAL.group_replication_paxos_single_leader= $saved_gr_paxos_single_leader
+=======
+=======
+--eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_show_global_and_session_variables.test
+>>>>>>> pr/231
 --enable_query_log
 
 

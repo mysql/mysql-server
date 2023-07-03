@@ -1146,6 +1146,7 @@ DROP TABLE t1;
 # Bug#14743786: PARSE ERROR WITH UNION PARENTHESES ON TOP LEVEL
 #
 #
+<<<<<<< HEAD
 # Part1: Regression Testing.
 #
 CREATE TABLE t1 ( a INT );
@@ -2239,6 +2240,7 @@ CREATE FUNCTION f1() RETURNS CHAR(1) CHARSET DEFAULT RETURN '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1
 CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1
+<<<<<<< HEAD
 #
 # Bug#27814204: THE "ADMIN" WORD SHOULD BE A NON-RESERVED WORD IN THE
 #               SQL GRAMMAR
@@ -2354,6 +2356,9 @@ ERROR 42000: COLLATION 'cp1251_general_cs' is not valid for CHARACTER SET 'utf8m
 DROP DATABASE db3;
 # Cleanup
 USE test;
+=======
+=======
+>>>>>>> pr/231
 
 Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
 
@@ -2361,6 +2366,7 @@ SET parser_max_mem_size = 10000000;
 ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
 SET parser_max_mem_size = default;
 #
+<<<<<<< HEAD
 # Bug #28968848: SIMPLIFY MYSQL_YYABORT
 #
 CREATE PROCEDURE p1 () wrong syntax;
@@ -2663,6 +2669,8 @@ WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;
 0	0
 0	0
 #
+=======
+>>>>>>> pr/231
 # Bug#30528450: SPECIAL SYMBOL NAMED COLUMN NOT HONORED IN A SELECT
 #
 CREATE TABLE t1 (c1 INT, `*` INT, c3 INT);
@@ -2677,6 +2685,7 @@ SELECT test.t1.`*`, test.t1.* FROM t1;
 *	c1	*	c3
 2	1	2	3
 DROP TABLE t1;
+<<<<<<< HEAD
 #
 # Bug#30592703: UNDOCUMENTED SYNTAX
 #               '('<QUERY BLOCK>')' {LIMIT|ORDER [LIMIT]} INTO ...
@@ -2798,3 +2807,6 @@ Warnings:
 Warning	4119	Using FULL as unquoted identifier is deprecated, please use quotes or rename the identifier.
 SET @@sql_mode=@save_sql_mode;
 DROP TABLE `full`;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

@@ -1,0 +1,8 @@
+# Bug 32565996: backport of WL#14519: Deprecate the use of TLS v1.[01]
+include/assert_grep.inc [Found a cmdline TLSv1 deprecation warning]
+include/assert_grep.inc [Found a cmdline TLSv1.1 deprecation warning]
+# Test for the connect warning
+1
+1
+include/assert_grep.inc [An old tls version client triggers a warning]
+# End of 5.7 tests

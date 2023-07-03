@@ -4604,6 +4604,7 @@ COUNTRY
 Australia
 DROP TABLE t1;
 #
+<<<<<<< HEAD
 # Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
 #              BUT EMPTY SET
 #
@@ -4843,7 +4844,22 @@ Warning	1411	Incorrect string value: 'aes_encrypt(left((@`e`),1),5)' for functio
 #
 SET NAMES utf8;
 Warnings:
+<<<<<<< HEAD
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+=======
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+=======
+# Bug 31320716 - SETTING VARIABLE TO CONCAT('') SETS IT TO NULL INSTEAD OF ''
+#
+SELECT @var:=CONCAT('');
+@var:=CONCAT('')
+
+SELECT @var:=CONCAT_WS('','');
+@var:=CONCAT_WS('','')
+
+SET NAMES utf8;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 CREATE TABLE t(a INT) engine=innodb;
 INSERT INTO t VALUES(1);
 SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
@@ -4853,6 +4869,7 @@ SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
 SET NAMES DEFAULT;
 DROP TABLE t;
 #
+<<<<<<< HEAD
 # Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
 #              CONSIDERING INDEXES
 CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
@@ -5030,6 +5047,7 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES DEFAULT;
 DROP TABLE t1, t2, t3;
+<<<<<<< HEAD
 #
 # Bug #27410088: LOWER(CHAR(51386)) NOT EVALUATED CONSISTENTLY IN
 #                STORED PROCEDURE
@@ -5511,6 +5529,9 @@ Warnings:
 Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 SET @@collation_connection = default;
 #
+=======
+=======
+>>>>>>> pr/231
 # Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
 #                FOR ES_MX AND ES_ES LOCALES
 #
@@ -5563,6 +5584,7 @@ es_UY	12.131.254.123.412.541,00
 es_VE	12.131.254.123.412.541,00
 DROP PROCEDURE load_locale_format_table;
 DROP TABLE locale_format;
+<<<<<<< HEAD
 # Bug#33661337: more gcols corruption
 SET sql_mode = '';
 CREATE TABLE t (
@@ -5700,3 +5722,6 @@ c
 1
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

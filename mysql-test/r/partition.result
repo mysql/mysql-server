@@ -887,10 +887,20 @@ c int not null,
 primary key(a,b))
 partition by key (a)
 partitions 3
+<<<<<<< HEAD
 (partition x1 tablespace innodb_file_per_table,
 partition x2 tablespace innodb_file_per_table,
 partition x3 tablespace innodb_file_per_table);
+=======
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -924,9 +934,17 @@ c int not null,
 primary key(a,b))
 partition by list (a)
 partitions 3
+<<<<<<< HEAD
 (partition x1 values in (1,2,9,4),
 partition x2 values in (3, 11, 5, 7),
 partition x3 values in (16, 8, 5+19, 70-43));
+=======
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -947,9 +965,17 @@ c int not null,
 primary key(a,b))
 partition by list (b*a)
 partitions 3
+<<<<<<< HEAD
 (partition x1 values in (1,2,9,4),
 partition x2 values in (3, 11, 5, 7),
 partition x3 values in (16, 8, 5+19, 70-43));
+=======
+(partition x1 values in (1,2,9,4) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -969,9 +995,17 @@ b int not null,
 c int not null,
 primary key(a,b))
 partition by list (b*a)
+<<<<<<< HEAD
 (partition x1 values in (1),
 partition x2 values in (3, 11, 5, 7),
 partition x3 values in (16, 8, 5+19, 70-43));
+=======
+(partition x1 values in (1) tablespace ts1,
+partition x2 values in (3, 11, 5, 7) tablespace ts2,
+partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2707,6 +2741,7 @@ PARTITION BY LINEAR KEY(a) PARTITIONS 2;
 SELECT 1 FROM t1 WHERE EXP(10000);
 ERROR 22003: DOUBLE value is out of range in 'exp(10000)'
 DROP TABLE t1;
+<<<<<<< HEAD
 create table t1 (a int)
 partition by range (a)
 subpartition by hash (a)
@@ -2909,6 +2944,10 @@ INSERT INTO t VALUES(0);
 SELECT 1 FROM t WHERE a = 0x8000000000000000;
 1
 DROP TABLE t;
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> pr/231
 #
 # Bug#28573894 ALTER PARTITIONED TABLE ADD AUTO_INCREMENT DIFF RESULT
 #
@@ -2934,6 +2973,7 @@ G	25	7
 H	35	8
 DROP TABLE t;
 #
+<<<<<<< HEAD
 # Bug#29317007: INIT_LEX_WITH_SINGLE_TABLE() CONFUSES TABLE
 #               AND SCHEMA NAME
 #
@@ -3299,6 +3339,8 @@ i	j
 0	2
 DROP TABLE t1;
 #
+=======
+>>>>>>> pr/231
 # Bug #25207522: INCORRECT ORDER-BY BEHAVIOR ON A PARTITIONED TABLE
 # WITH A COMPOSITE PREFIX INDEX
 #
@@ -3310,8 +3352,15 @@ KEY data_idx (data(1),id)
 (PARTITION p10 VALUES LESS THAN (10) ,
 PARTITION p20 VALUES LESS THAN (20) ) */;
 Warnings:
+<<<<<<< HEAD
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+=======
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+>>>>>>> pr/231
 SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
 id
 4
@@ -3325,6 +3374,7 @@ DROP TABLE t;
 # Bug#29268656: BOGUS CONSTANT, RANDOM OR TIMEZONE-DEPENDENT
 #               EXPRESSIONS IN (SUB)PARTITIONING FU
 #
+<<<<<<< HEAD
 CREATE TABLE t1 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
 CREATE TABLE t2 (c1 INT, c2 CHAR(32) DEFAULT (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
 CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
@@ -3336,3 +3386,12 @@ CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS
 ALTER TABLE t MODIFY COLUMN c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32)) STORED;
 ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
 DROP TABLE t, t1, t2;
+=======
+CREATE TABLE t1 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) ENGINE=INNODB PARTITION BY HASH(c1);
+CREATE TABLE t2 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) ENGINE=INNODB PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+CREATE TABLE t (c1 INT, c2 INT) ENGINE=INNODB PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ALTER TABLE t MODIFY COLUMN c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32)) STORED;
+ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
+DROP TABLE t, t1, t2;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

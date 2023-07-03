@@ -5,6 +5,9 @@ MaxNoOfLocalOperations=50K
 MaxNoOfConcurrentOperations=50K
 LongMessageBuffer=128M
 DataMemory=128M
+<<<<<<< HEAD
 TransactionDeadlockDetectionTimeout=30000
+=======
+>>>>>>> pr/231
 
 ThreadConfig=main={count=1},tc={count=1},ldm={count=2},io={count=1},rep={count=1},recv={count=2},send={count=2}

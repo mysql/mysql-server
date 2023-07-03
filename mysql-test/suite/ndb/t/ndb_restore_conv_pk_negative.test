@@ -1,7 +1,12 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source include/have_ndb_debug.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
+=======
+-- source include/not_embedded.inc
+-- source include/have_ndb_debug.inc
+>>>>>>> pr/231
 
 --echo ******************************
 --echo Tests for unsupported features
@@ -23,7 +28,11 @@ insert into test.t1 values
         ("6a","6b","6c","6d","6e");
 
 --echo Stall backup completion
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -50,7 +59,11 @@ update test.t1 set c=concat(c, "2"), d=concat(d, "2"), e=concat(e,"-modified") w
 delete from test.t1 where a in ("5a","8a");
 
 --echo Allow backup to complete...
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -70,8 +83,13 @@ create table test.t1 (a varchar(20) not null,
 
 --echo Run restore
 --echo Expect error
+<<<<<<< HEAD
 --error 1
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $NDB_TOOLS_OUTPUT 2>&1
+=======
+--error 134
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 --let $check_file=$NDB_TOOLS_OUTPUT
 --let $check_pattern=without allow-pk-changes
@@ -92,7 +110,11 @@ create table test.t1 (a varchar(20) not null,
 --echo Run restore
 --echo Expect error
 --error 1
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id --allow-pk-changes > $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id --allow-pk-changes > $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 --let $check_file=$NDB_TOOLS_OUTPUT
 --let $check_pattern=ignore-extended-pk-updates switch is missing
@@ -112,8 +134,13 @@ create table test.t1 (a varchar(20) not null,
 
 --echo Run restore
 --echo Expect error
+<<<<<<< HEAD
 --error 1
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id  > $NDB_TOOLS_OUTPUT 2>&1 
+=======
+--error 134
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id  > $NDB_TOOLS_OUTPUT 2>&1 
+>>>>>>> pr/231
 --let $check_file=$NDB_TOOLS_OUTPUT
 --let $check_pattern=structure incompatible
 --source suite/ndb/include/ndb_check_file_contains.inc
@@ -132,8 +159,13 @@ create table test.t1 (a varchar(20) not null,
 
 --echo Run restore
 --echo Expect error
+<<<<<<< HEAD
 --error 1
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+=======
+--error 134
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+>>>>>>> pr/231
 --let $check_file=$NDB_TOOLS_OUTPUT
 --let $check_pattern=structure incompatible
 --source suite/ndb/include/ndb_check_file_contains.inc
@@ -161,7 +193,11 @@ create table test.t1 (c varchar(20) not null,
 
 --echo Run restore
 --error 1
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes --lossy-conversions  $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --exclude-missing-columns --allow-pk-changes --lossy-conversions  $NDB_BACKUPS-$the_backup_id 2>&1  > $NDB_TOOLS_OUTPUT 2>&1 
+>>>>>>> pr/231
 --let $check_file=$NDB_TOOLS_OUTPUT
 --let $check_pattern=no columns
 --source suite/ndb/include/ndb_check_file_contains.inc
@@ -173,6 +209,9 @@ drop table test.t1;
 # Remove all existing keys + add one?
 # Multiple tables
 # Rewrite DB
+<<<<<<< HEAD
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

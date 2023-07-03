@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +33,27 @@
 #ifndef MYSQL_CRAWLER_INCLUDED
 #define MYSQL_CRAWLER_INCLUDED
 
+<<<<<<< HEAD
 #include <functional>
+=======
+#include "abstract_crawler.h"
+#include "abstract_mysql_chain_element_extension.h"
+#include "i_connection_provider.h"
+#include "i_callable.h"
+#include "dump_start_dump_task.h"
+#include "abstract_dump_task.h"
+#include "database.h"
+#include "table.h"
+#include "dump_end_dump_task.h"
+#include "mysql_chain_element_options.h"
+#include "mysqldump_tool_chain_maker_options.h"
+#include "database_start_dump_task.h"
+#include "database_end_dump_task.h"
+#include "tables_definition_ready_dump_task.h"
+#include "simple_id_generator.h"
+#include "base/message_data.h"
+#include "base/abstract_program.h"
+>>>>>>> upstream/cluster-7.6
 
 #include "client/base/abstract_program.h"
 #include "client/base/message_data.h"
@@ -52,9 +80,11 @@ namespace Dump {
 /**
   Searches DB objects using connection to MYSQL server.
  */
+<<<<<<< HEAD
 class Mysql_crawler : public Abstract_crawler,
                       public Abstract_mysql_chain_element_extension {
  public:
+<<<<<<< HEAD
   Mysql_crawler(
       I_connection_provider *connection_provider,
       std::function<bool(const Mysql::Tools::Base::Message_data &)>
@@ -63,6 +93,27 @@ class Mysql_crawler : public Abstract_crawler,
       Mysql_chain_element_options *options,
       Mysqldump_tool_chain_maker_options *m_mysqldump_tool_cmaker_options,
       Mysql::Tools::Base::Abstract_program *program);
+=======
+  Mysql_crawler(I_connection_provider *connection_provider,
+                std::function<bool(const Mysql::Tools::Base::Message_data &)>
+                    *message_handler,
+                Simple_id_generator *object_id_generator,
+                Mysql_chain_element_options *options,
+                Mysql::Tools::Base::Abstract_program *program);
+=======
+class Mysql_crawler
+  : public Abstract_crawler, public Abstract_mysql_chain_element_extension
+{
+public:
+  Mysql_crawler(
+    I_connection_provider* connection_provider,
+    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+      message_handler, Simple_id_generator* object_id_generator,
+      Mysql_chain_element_options* options,
+      Mysqldump_tool_chain_maker_options* m_mysqldump_tool_cmaker_options,
+      Mysql::Tools::Base::Abstract_program* program);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /**
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
@@ -105,7 +156,11 @@ class Mysql_crawler : public Abstract_crawler,
 
   void enumerate_users();
 
+<<<<<<< HEAD
   Mysqldump_tool_chain_maker_options *m_mysqldump_tool_cmaker_options;
+=======
+  Mysqldump_tool_chain_maker_options* m_mysqldump_tool_cmaker_options;
+>>>>>>> pr/231
 
   /**
     Rewrite statement, enclosing it with version specific comment and with

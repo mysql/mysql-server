@@ -42,6 +42,7 @@ while ($_rpl_server <= $_rpl_server_max)
     SET GLOBAL group_replication_force_members= "";
     SET GLOBAL group_replication_bootstrap_group= OFF;
     SET GLOBAL read_only= FALSE;
+<<<<<<< HEAD
     SET GLOBAL group_replication_ip_allowlist= "AUTOMATIC";
 
     # Result-log is enabled.
@@ -49,6 +50,9 @@ while ($_rpl_server <= $_rpl_server_max)
     # If RESET PERSIST is executed it is the responsibility of test case to restore ip_allowlist.
     # If we disable result log, test writer will not come to know ip_allowlist value is changed and needs restoration.
     RESET PERSIST IF EXISTS group_replication_ip_allowlist;
+=======
+    SET GLOBAL group_replication_ip_whitelist= "AUTOMATIC";
+>>>>>>> pr/231
 
     if (!$skip_recovery_configuration)
     {

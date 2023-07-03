@@ -431,20 +431,30 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug#27903881 [MYSQL 8.0 GA RELEASE & DEBUG BUILD]
 --echo # FIL_SPACE_GET(TABLE->SPACE) != __NULL
 --echo #
+<<<<<<< HEAD
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] Missing .ibd file for table `test`\.`t1` .* ");
 --enable_query_log
+=======
+call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+>>>>>>> pr/231
 CREATE TABLE t1(c1 INT,c2 CHAR,c3 DATE)PARTITION BY HASH(DAYOFWEEK(c3));
 ALTER TABLE t1 DISCARD TABLESPACE;
 --error ER_TABLESPACE_DISCARDED
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#29492113 TABLE NOT ACCESSIBLE AFTER MOVING THE IBD FILE,
@@ -590,3 +600,6 @@ DROP DATABASE `abc/def`;
 call mtr.add_suppression("\\[Warning\\].* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
 call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
 --enable_query_log
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

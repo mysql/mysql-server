@@ -1,5 +1,9 @@
 #
+<<<<<<< HEAD
 # Modern Linux distributions like EL8, Debian 10 and Ubuntu 20.04 restrict minimum TLS
+=======
+# Modern Linux distributions like EL8 and Debian 10 restrict minimum TLS
+>>>>>>> pr/231
 # protocol version to TLSv1.2, try to detect this and skip TLSv1/TLSv1.1 tests.
 #
 --perl
@@ -7,7 +11,10 @@
   use warnings;
   my $crypto_policy = '/etc/crypto-policies/back-ends/opensslcnf.config';
   my $openssl_conf = '/etc/ssl/openssl.cnf';
+<<<<<<< HEAD
   my $os_release = '/etc/os-release';
+=======
+>>>>>>> pr/231
   my $policy_file = "";
   if (-r $crypto_policy) {
     $policy_file = $crypto_policy;
@@ -25,6 +32,7 @@
     }
     close $RH;
   }
+<<<<<<< HEAD
   # On Ubuntu security level 2 means TLSv1.2+
   if (-r $os_release && -x '/usr/bin/openssl') {
     open(my $OH, "<", $os_release) or die "Could not open $os_release $!";
@@ -39,6 +47,8 @@
     }
     close $OH;
   }
+=======
+>>>>>>> pr/231
   open (my $WH, ">", "$ENV{MYSQL_TMP_DIR}/crypto_policy.inc") or die "Could not open $ENV{MYSQL_TMP_DIR}/crypto_policy.inc: $!";
   print $WH "let \$min_protocol_tlsv1_2 = $min_protocol_tlsv1_2;\n";
   close $WH;
@@ -48,5 +58,9 @@ EOF
 
 if ($min_protocol_tlsv1_2)
 {
+<<<<<<< HEAD
   --Skip Test requires TLS protocol lesser than 1.2, while OpenSSL policy sets MinProtocol TLSv1.2
+=======
+  --Skip Test requires TLS protocol <= 1.1, while OpenSSL policy sets MinProtocol TLSv1.2
+>>>>>>> pr/231
 }

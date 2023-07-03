@@ -99,8 +99,17 @@ name	thread/sql/event_worker
 type	FOREGROUND
 processlist_user	event_scheduler
 processlist_host	localhost
+<<<<<<< HEAD
 processlist_db	test
+<<<<<<< HEAD
 processlist_command	Connect
+=======
+processlist_command	Sleep
+=======
+processlist_db	NULL
+processlist_command	Connect
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 processlist_info	SELECT SLEEP(3)
 unified_parent_thread_id	unified parent_thread_id
 role	NULL

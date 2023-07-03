@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -117,6 +125,7 @@ MACRO (MYSQL_USE_BUNDLED_EDITLINE)
   SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
+<<<<<<< HEAD
   SET(EDITLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
   SET(USE_NEW_EDITLINE_INTERFACE 1 CACHE INTERNAL "")
   SET(EDITLINE_INCLUDE_DIR
@@ -125,6 +134,24 @@ MACRO (MYSQL_USE_BUNDLED_EDITLINE)
   SET(EDITLINE_LIBRARY edit)
   FIND_CURSES()
   ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CURRENT_LIBEDIT_DIRECTORY}/src)
+=======
+<<<<<<< HEAD
+  SET(EDITLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/libedit/editline)
+  INCLUDE_DIRECTORIES(SYSTEM ${EDITLINE_INCLUDE_DIR})
+  SET(EDITLINE_LIBRARY edit)
+  FIND_CURSES()
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/libedit)
+=======
+  SET(EDITLINE_HAVE_COMPLETION_CHAR 1 CACHE INTERNAL "")
+  SET(USE_NEW_EDITLINE_INTERFACE 1 CACHE INTERNAL "")
+  SET(EDITLINE_INCLUDE_DIR
+    ${CMAKE_SOURCE_DIR}/${CURRENT_LIBEDIT_DIRECTORY}/src/editline)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${EDITLINE_INCLUDE_DIR})
+  SET(EDITLINE_LIBRARY edit)
+  FIND_CURSES()
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CURRENT_LIBEDIT_DIRECTORY}/src)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_EDITLINE)
@@ -157,8 +184,16 @@ MACRO (FIND_SYSTEM_EDITLINE)
     CMAKE_PUSH_CHECK_STATE()
 
     SET(CMAKE_REQUIRED_INCLUDES ${EDITLINE_INCLUDE_DIR})
+<<<<<<< HEAD
     INCLUDE_DIRECTORIES(SYSTEM ${EDITLINE_INCLUDE_DIR})
+<<<<<<< HEAD
     LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
+=======
+    SET(CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
+=======
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
     #include <readline.h>

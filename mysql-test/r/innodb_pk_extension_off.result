@@ -454,9 +454,15 @@ DROP TABLE t1;
 #
 CREATE TABLE t(
 a VARCHAR(256) NOT NULL,
+<<<<<<< HEAD
 i VARCHAR(512) NOT NULL,
 PRIMARY KEY (a),
 KEY (i)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+=======
+i VARCHAR(1024) NOT NULL,
+PRIMARY KEY (a),
+KEY (i)) DEFAULT CHARSET=utf8;
+>>>>>>> pr/231
 INSERT INTO t VALUES
 ('aaa12345678','aaa'), ('aaa2','aaa'), ('aaa4','aaa'),
 ('aaa3','aaa'),('aaa1','aaa');
@@ -465,7 +471,11 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+<<<<<<< HEAD
 1	SIMPLE	t	NULL	index	i	i	2050	NULL	5	20.00	Using where
+=======
+1	SIMPLE	t	NULL	index	i	i	3074	NULL	5	20.00	Using where
+>>>>>>> pr/231
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t`.`i` AS `i` from `test`.`t` FORCE INDEX (`i`) where (`test`.`t`.`a` like '%aaa12345678%')
 SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';

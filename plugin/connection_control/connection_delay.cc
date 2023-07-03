@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,12 +135,25 @@ const uchar *connection_delay_event_hash_key(const uchar *el, size_t *length) {
   Initialize LF hash.
 */
 
+<<<<<<< HEAD
 Connection_delay_event::Connection_delay_event() {
   lf_hash_init(&m_entries, sizeof(Connection_event_record **), LF_HASH_UNIQUE,
                0, /* key offset */
                0, /* key length not used */
                connection_delay_event_hash_key, &my_charset_bin);
 }
+=======
+  uchar *connection_delay_event_hash_key(const uchar *el, size_t *length, my_bool huh)
+  {
+    const Connection_event_record * const *entry;
+    const Connection_event_record *entry_info;
+    entry= reinterpret_cast<const Connection_event_record* const *>(el);
+    assert(entry != NULL);
+    entry_info= *entry;
+    *length= entry_info->get_length();
+    return (const_cast<uchar *>(entry_info->get_userhost()));
+  }
+>>>>>>> upstream/cluster-7.6
 
 /**
   Creates or updates an entry in hash
@@ -154,8 +175,152 @@ bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
   LF_PINS *pins = lf_hash_get_pins(&m_entries);
   if (unlikely(pins == nullptr)) return true;
 
+<<<<<<< HEAD
   searched_entry = reinterpret_cast<Connection_event_record **>(
       lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
+=======
+  /**
+    Creates or updates an entry in hash
+
+    @param [in] s    User information in '<user'@'<host>' format
+
+    @returns status of insertion/update
+      @retval false  Insertion/Update successful
+      @retval true   Failed to insert/update an entry
+  */
+
+  bool
+  Connection_delay_event::create_or_update_entry(const Sql_string &s)
+  {
+    Connection_event_record **searched_entry= NULL;
+    Connection_event_record *searched_entry_info= NULL;
+    Connection_event_record *new_entry= NULL;
+    int insert_status;
+    DBUG_ENTER("Connection_delay_event::create_or_update_entry");
+
+    LF_PINS *pins= lf_hash_get_pins(&m_entries);
+    if (unlikely(pins == NULL))
+      DBUG_RETURN(true);
+
+    searched_entry= reinterpret_cast<Connection_event_record **>
+      (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
+
+    if (searched_entry && (searched_entry != MY_ERRPTR))
+    {
+      /* We found an entry, so increment the count */
+      searched_entry_info= *searched_entry;
+      assert(searched_entry_info != NULL);
+      searched_entry_info->inc_count();
+      lf_hash_search_unpin(pins);
+      lf_hash_put_pins(pins);
+      DBUG_RETURN(false);
+    }
+    else
+    {
+      /* No entry found, so try to add new entry */
+      lf_hash_search_unpin(pins);
+      new_entry= new Connection_event_record(s);
+
+      insert_status= lf_hash_insert(&m_entries, pins, &new_entry);
+
+      if (likely(insert_status == 0))
+      {
+        lf_hash_put_pins(pins);
+        DBUG_RETURN(false);
+      }
+      else
+      {
+        /*
+          OOM. We are likely in bigger trouble than just
+          failing to insert an entry in hash.
+        */
+        lf_hash_put_pins(pins);
+        delete new_entry;
+        new_entry= NULL;
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
+
+  /**
+    Resets count stored against given user entry
+
+    @param [in] s    User information in '<user'@'<host>' format
+
+    @returns status of reset operation
+      @retval false Reset successful
+      @retval true Failed to find given entry
+  */
+
+  bool
+  Connection_delay_event::remove_entry(const Sql_string &s)
+  {
+    Connection_event_record **searched_entry= NULL;
+    Connection_event_record *searched_entry_info= NULL;
+    DBUG_ENTER("Connection_delay_event::reset_entry");
+
+    LF_PINS *pins= lf_hash_get_pins(&m_entries);
+
+    searched_entry= reinterpret_cast<Connection_event_record **>
+      (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
+
+    if (searched_entry && searched_entry != MY_ERRPTR)
+    {
+      searched_entry_info= *searched_entry;
+      assert(searched_entry_info != NULL);
+      int rc= lf_hash_delete(&m_entries, pins, s.c_str(), s.length());
+      lf_hash_search_unpin(pins);
+      lf_hash_put_pins(pins);
+      if (rc == 0)
+      {
+        /* free memory upon successful deletion */
+        delete searched_entry_info;
+      }
+      DBUG_RETURN(rc != 0);
+    }
+    else
+    {
+      /* No entry found. */
+      lf_hash_search_unpin(pins);
+      lf_hash_put_pins(pins);
+      DBUG_RETURN(true);
+    }
+  }
+
+
+  /**
+    Retrieve stored value for given user entry
+
+    @param [in] s        User information in '<user'@'<host>' format
+    @param value [out]   Buffer to hold value stored against given user
+
+    @returns whether given entry is present in hash or not
+      @retval false  Entry found. Corresponding value is copied in value buffer.
+      @retval true   No matching entry found. value buffer should not be used.
+  */
+
+  bool
+  Connection_delay_event::match_entry(const Sql_string &s, void *value)
+  {
+    Connection_event_record **searched_entry= NULL;
+    Connection_event_record *searched_entry_info= NULL;
+    int64 count= DISABLE_THRESHOLD;
+    bool error= true;
+    DBUG_ENTER("Connection_delay_event::match_entry");
+
+    LF_PINS *pins= lf_hash_get_pins(&m_entries);
+
+    searched_entry= reinterpret_cast<Connection_event_record **>
+      (lf_hash_search(&m_entries, pins, s.c_str(), s.length()));
+
+    if (searched_entry && searched_entry != MY_ERRPTR)
+    {
+      searched_entry_info= *searched_entry;
+      count= searched_entry_info->get_count();
+      error= false;
+    }
+>>>>>>> upstream/cluster-7.6
 
   if (searched_entry && (searched_entry != MY_LF_ERRPTR)) {
     /* We found an entry, so increment the count */
@@ -185,6 +350,295 @@ bool Connection_delay_event::create_or_update_entry(const Sql_string &s) {
       new_entry = nullptr;
       return true;
     }
+<<<<<<< HEAD
+=======
+
+    if (connection_event->status)
+    {
+      /*
+        Connection failure.
+        Add new entry to hash or increment failed connection count
+        for an existing entry
+      */
+      if (m_userhost_hash.create_or_update_entry(userhost))
+      {
+        char error_buffer[512];
+        memset(error_buffer, 0, sizeof(error_buffer));
+        my_snprintf(error_buffer, sizeof(error_buffer)-1,
+                    "Failed to update connection delay hash for account : %s",
+                    userhost.c_str());
+        error_handler->handle_error(error_buffer);
+        error= true;
+      }
+    }
+    else
+    {
+      /*
+        Successful connection.
+        delete entry for given account from the hash
+      */
+      if (user_present)
+      {
+        (void) m_userhost_hash.remove_entry(userhost);
+      }
+    }
+
+    DBUG_RETURN(error);
+  }
+
+
+  /**
+    Notification of a change in system variable value
+
+    @param [in] coordinator        Handle to coordinator
+    @param [in] variable           Enum of variable
+    @param [in] new_value          New value for variable
+    @param [out] error_buffer      Buffer to log error message if any
+    @param [in] error_buffer_size  Size of error buffer
+
+    @returns processing status
+      @retval false  Change in variable value processed successfully
+      @retval true Error processing new value.
+                    error_buffer may contain more details.
+  */
+
+  bool
+  Connection_delay_action::notify_sys_var(Connection_event_coordinator_services *coordinator,
+                                          opt_connection_control variable,
+                                          void *new_value,
+                                          Error_handler * error_handler)
+  {
+    DBUG_ENTER("Connection_delay_action::notify_sys_var");
+    bool error= true;
+    Connection_event_observer *self= this;
+
+    WR_lock wr_lock(m_lock);
+
+    switch (variable)
+    {
+      case OPT_FAILED_CONNECTIONS_THRESHOLD:
+      {
+        int64 new_threshold= *(static_cast<int64 *>(new_value));
+        assert(new_threshold >= DISABLE_THRESHOLD);
+        set_threshold(new_threshold);
+
+        if ((error= coordinator->notify_status_var(&self,
+                                                   STAT_CONNECTION_DELAY_TRIGGERED,
+                                                   ACTION_RESET)))
+        {
+          error_handler->handle_error("Failed to reset connection delay triggered stats");
+        }
+        break;
+      }
+      case OPT_MIN_CONNECTION_DELAY:
+      case OPT_MAX_CONNECTION_DELAY:
+      {
+        int64 new_delay= *(static_cast<int64 *>(new_value));
+        if ((error= set_delay(new_delay,
+                      (variable == OPT_MIN_CONNECTION_DELAY))))
+        {
+          char error_buffer[512];
+          memset(error_buffer, 0, sizeof(error_buffer));
+          my_snprintf(error_buffer, sizeof(error_buffer) - 1,
+                      "Could not set %s delay for connection delay.",
+                      (variable == OPT_MIN_CONNECTION_DELAY) ? "min" : "max");
+          error_handler->handle_error(error_buffer);
+        }
+        break;
+      }
+      default:
+        /* Should never reach here. */
+        assert(FALSE);
+        error_handler->handle_error("Unexpected option type for connection delay.");
+    };
+    DBUG_RETURN(error);
+  }
+
+
+  /**
+    Subscribe with coordinator for connection events
+
+    @param [in] coordinator  Handle to Connection_event_coordinator_services
+                             for registration
+  */
+  void
+  Connection_delay_action::init(Connection_event_coordinator_services *coordinator)
+  {
+    DBUG_ENTER("Connection_delay_action::init");
+    assert(coordinator);
+    bool retval;
+    Connection_event_observer *subscriber= this;
+    WR_lock wr_lock(m_lock);
+    retval= coordinator->register_event_subscriber(&subscriber,
+                                                   &m_sys_vars,
+                                                   &m_stats_vars);
+    assert(!retval);
+    if (retval)
+      retval= false;                    /* Make compiler happy */
+    DBUG_VOID_RETURN;
+  }
+
+
+  /**
+    Clear data from Connection_delay_action
+  */
+
+  void
+    Connection_delay_action::deinit()
+  {
+    mysql_rwlock_wrlock(m_lock);
+    m_userhost_hash.reset_all();
+    m_sys_vars.clear();
+    m_stats_vars.clear();
+    m_threshold= DISABLE_THRESHOLD;
+    mysql_rwlock_unlock(m_lock);
+    m_lock= 0;
+  }
+
+
+
+  /**
+    Get user information from "where userhost = <value>"
+
+    @param [in] cond        Equality condition structure
+    @param [out] eq_arg     Sql_string handle to store user information
+    @param [in] field_name  userhost field
+
+    @returns whether a value was found or not
+      @retval false Found a value. Check eq_arg
+      @retval true Error.
+  */
+
+  static
+  bool get_equal_condition_argument(Item *cond, Sql_string *eq_arg,
+                                    const Sql_string &field_name)
+  {
+    if (cond != 0 && cond->type() == Item::FUNC_ITEM)
+    {
+      Item_func *func= static_cast<Item_func *>(cond);
+      if (func != NULL && func->functype() == Item_func::EQ_FUNC)
+      {
+        Item_func_eq* eq_func= static_cast<Item_func_eq*>(func);
+        if (eq_func->arguments()[0]->type() == Item::FIELD_ITEM &&
+            my_strcasecmp(system_charset_info,
+                          eq_func->arguments()[0]->full_name(),
+                          field_name.c_str()) == 0)
+        {
+          char buff[1024];
+          String *res;
+          String filter(buff, sizeof(buff), system_charset_info);
+          if (eq_func->arguments()[1] != NULL &&
+            (res= eq_func->arguments()[1]->val_str(&filter)))
+          {
+            eq_arg->append(res->c_ptr_safe(), res->length());
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+
+  /**
+    Function to fill information_schema.connection_control_failed_attempts.
+
+    Handles query with equality condition.
+    For full scan, calls Connection_delay_event::fill_IS_table()
+
+    Permission : SUPER_ACL is required.
+
+    @param [in] thd     THD handle.
+    @param [in] tables  Handle to
+                        information_schema.connection_control_failed_attempts.
+    @param [in] cond    Condition if any.
+  */
+
+  void
+  Connection_delay_action::fill_IS_table(THD *thd,
+                                         TABLE_LIST *tables,
+                                         Item *cond)
+  {
+    DBUG_ENTER("Connection_delay_action::fill_IS_table");
+    Security_context_wrapper sctx_wrapper(thd);
+    if (!sctx_wrapper.is_super_user())
+      DBUG_VOID_RETURN;
+    WR_lock wr_lock(m_lock);
+    Sql_string eq_arg;
+    if (cond != 0 &&
+        !get_equal_condition_argument(cond,
+                                      &eq_arg,
+                                      I_S_CONNECTION_CONTROL_FAILED_ATTEMPTS_USERHOST))
+    {
+      int64 current_count= 0;
+      if (m_userhost_hash.match_entry(eq_arg, (void *)&current_count))
+      {
+        /* There are no matches given the condition */
+        DBUG_VOID_RETURN;
+      }
+      else
+      {
+        /* There is exactly one matching userhost entry */
+        TABLE *table= tables->table;
+        table->field[0]->store(eq_arg.c_str(), eq_arg.length(),
+                               system_charset_info);
+        table->field[1]->store(current_count, true);
+        schema_table_store_record(thd, table);
+      }
+    }
+    else
+      m_userhost_hash.fill_IS_table(thd, tables);
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  /**
+    Initializes required objects for handling connection events.
+
+    @param [in] coordinator    Connection_event_coordinator_services handle.
+  */
+
+  bool init_connection_delay_event(Connection_event_coordinator_services *coordinator,
+                                   Error_handler *error_handler)
+  {
+    /*
+      1. Initialize lock(s)
+    */
+    const char *category= "conn_control";
+    int count= array_elements(all_rwlocks);
+    mysql_rwlock_register(category, all_rwlocks, count);
+    mysql_rwlock_init(key_connection_event_delay_lock,
+                      &connection_event_delay_lock);
+    g_max_failed_connection_handler= new Connection_delay_action(g_variables.failed_connections_threshold,
+                                                                 g_variables.min_connection_delay,
+                                                                 g_variables.max_connection_delay,
+                                                                 opt_enums, opt_enums_size,
+                                                                 status_vars_enums, status_vars_enums_size,
+                                                                 &connection_event_delay_lock);
+    if (!g_max_failed_connection_handler)
+    {
+      error_handler->handle_error("Failed to initialization Connection_delay_action");
+      return true;
+    }
+    g_max_failed_connection_handler->init(coordinator);
+
+    return false;
+  }
+
+
+  /**
+    Deinitializes objects and frees associated memory.
+  */
+
+  void deinit_connection_delay_event()
+  {
+    if (g_max_failed_connection_handler)
+      delete g_max_failed_connection_handler;
+    g_max_failed_connection_handler= 0;
+    mysql_rwlock_destroy(&connection_event_delay_lock);
+    return;
+>>>>>>> upstream/cluster-7.6
   }
 }
 

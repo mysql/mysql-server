@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -19,6 +38,7 @@
 -- Shows the top global IO consumers by bytes usage by file.
 --
 -- mysql> SELECT * FROM x$io_global_by_file_by_bytes LIMIT 5;
+<<<<<<< HEAD
 -- +--------------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
 -- | file                                                         | count_read | total_read | avg_read   | count_write | total_written | avg_write  | total   | write_pct |
 -- +--------------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
@@ -28,6 +48,17 @@
 -- | /opt/mysql/5.5.33/share/english/errmsg.sys                   |          3 |      44724 | 14908.0000 |           0 |             0 |     0.0000 |   44724 |      0.00 |
 -- | /opt/mysql/5.5.33/share/charsets/Index.xml                   |          1 |      18317 | 18317.0000 |           0 |             0 |     0.0000 |   18317 |      0.00 |
 -- +--------------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
+=======
+-- +------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
+-- | file                                                 | count_read | total_read | avg_read   | count_write | total_written | avg_write  | total   | write_pct |
+-- +------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
+-- | /Users/mark/sandboxes/msb_5_5_33/data/ibdata1        |        147 |    4472832 | 30427.4286 |           3 |         49152 | 16384.0000 | 4521984 |      1.09 |
+-- | /Users/mark/sandboxes/msb_5_5_33/data/mysql/proc.MYD |        347 |      87397 |   251.8646 |         111 |         19536 |   176.0000 |  106933 |     18.27 |
+-- | /Users/mark/sandboxes/msb_5_5_33/data/ib_logfile0    |          6 |      69632 | 11605.3333 |           8 |          4096 |   512.0000 |   73728 |      5.56 |
+-- | /opt/mysql/5.5.33/share/english/errmsg.sys           |          3 |      44724 | 14908.0000 |           0 |             0 |     0.0000 |   44724 |      0.00 |
+-- | /opt/mysql/5.5.33/share/charsets/Index.xml           |          1 |      18317 | 18317.0000 |           0 |             0 |     0.0000 |   18317 |      0.00 |
+-- +------------------------------------------------------+------------+------------+------------+-------------+---------------+------------+---------+-----------+
+>>>>>>> pr/231
 --
 
 CREATE OR REPLACE

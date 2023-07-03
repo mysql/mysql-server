@@ -40,7 +40,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -114,7 +122,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Perform basic operation on master ---
 --- and ensure replicated correctly --- 
 "--- Insert into t1 --" as "";
@@ -207,8 +223,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY RANGE (year(`t`))
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+>>>>>>> upstream/cluster-7.6
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -295,8 +320,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY RANGE (year(`t`))
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (YEAR(t))
+>>>>>>> upstream/cluster-7.6
 (PARTITION p0 VALUES LESS THAN (1901) ENGINE = ndbcluster,
  PARTITION p1 VALUES LESS THAN (1946) ENGINE = ndbcluster,
  PARTITION p2 VALUES LESS THAN (1966) ENGINE = ndbcluster,
@@ -390,8 +424,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY LIST (`id`)
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+>>>>>>> upstream/cluster-7.6
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -471,8 +514,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY LIST (`id`)
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (id)
+>>>>>>> upstream/cluster-7.6
 (PARTITION p0 VALUES IN (2,4) ENGINE = ndbcluster,
  PARTITION p1 VALUES IN (42,142) ENGINE = ndbcluster,
  PARTITION p2 VALUES IN (412) ENGINE = ndbcluster) */
@@ -557,8 +609,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY HASH (year(`t`))
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+>>>>>>> upstream/cluster-7.6
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -635,8 +696,17 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+>>>>>>> pr/231
 /*!50100 PARTITION BY HASH (year(`t`))
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH ( YEAR(t))
+>>>>>>> upstream/cluster-7.6
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -720,7 +790,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---
@@ -797,7 +875,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---
@@ -874,7 +960,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 --- Perform basic operation on master ---

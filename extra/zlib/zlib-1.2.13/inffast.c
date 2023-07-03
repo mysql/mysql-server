@@ -70,7 +70,21 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
     code const FAR *dcode;      /* local strm->distcode */
     unsigned lmask;             /* mask for first level of length codes */
     unsigned dmask;             /* mask for first level of distance codes */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
     code const *here;           /* retrieved table entry */
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inffast.c
+    code here;                  /* retrieved table entry */
+========
+    code const *here;           /* retrieved table entry */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inffast.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inffast.c
+=======
+>>>>>>> pr/231
     unsigned op;                /* code bits, operation, extra bits, or */
                                 /*  window position, window bytes to copy */
     unsigned len;               /* match length, unused bytes */
@@ -107,6 +121,46 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
             hold += (unsigned long)(*in++) << bits;
             bits += 8;
         }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
+        here = lcode + (hold & lmask);
+========
+<<<<<<<< HEAD:extra/zlib/inffast.c
+        here = lcode[hold & lmask];
+>>>>>>>> pr/231:extra/zlib/inffast.c
+      dolen:
+        op = (unsigned)(here->bits);
+        hold >>= op;
+        bits -= op;
+        op = (unsigned)(here->op);
+        if (op == 0) {                          /* literal */
+            Tracevv((stderr, here->val >= 0x20 && here->val < 0x7f ?
+                    "inflate:         literal '%c'\n" :
+                    "inflate:         literal 0x%02x\n", here->val));
+            *out++ = (unsigned char)(here->val);
+        }
+        else if (op & 16) {                     /* length base */
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
+            len = (unsigned)(here->val);
+========
+=======
+<<<<<<<< HEAD:extra/zlib/inffast.c
+        here = lcode[hold & lmask];
+      dolen:
+        op = (unsigned)(here.bits);
+        hold >>= op;
+        bits -= op;
+        op = (unsigned)(here.op);
+        if (op == 0) {                          /* literal */
+            Tracevv((stderr, here.val >= 0x20 && here.val < 0x7f ?
+                    "inflate:         literal '%c'\n" :
+                    "inflate:         literal 0x%02x\n", here.val));
+            *out++ = (unsigned char)(here.val);
+        }
+        else if (op & 16) {                     /* length base */
+>>>>>>> pr/231
+            len = (unsigned)(here.val);
+========
         here = lcode + (hold & lmask);
       dolen:
         op = (unsigned)(here->bits);
@@ -121,6 +175,11 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
         }
         else if (op & 16) {                     /* length base */
             len = (unsigned)(here->val);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inffast.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inffast.c
+=======
+>>>>>>> pr/231
             op &= 15;                           /* number of extra bits */
             if (op) {
                 if (bits < op) {
@@ -138,6 +197,34 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                 hold += (unsigned long)(*in++) << bits;
                 bits += 8;
             }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
+            here = dcode + (hold & dmask);
+========
+<<<<<<<< HEAD:extra/zlib/inffast.c
+            here = dcode[hold & dmask];
+>>>>>>>> pr/231:extra/zlib/inffast.c
+          dodist:
+            op = (unsigned)(here->bits);
+            hold >>= op;
+            bits -= op;
+            op = (unsigned)(here->op);
+            if (op & 16) {                      /* distance base */
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
+                dist = (unsigned)(here->val);
+========
+=======
+<<<<<<<< HEAD:extra/zlib/inffast.c
+            here = dcode[hold & dmask];
+          dodist:
+            op = (unsigned)(here.bits);
+            hold >>= op;
+            bits -= op;
+            op = (unsigned)(here.op);
+            if (op & 16) {                      /* distance base */
+>>>>>>> pr/231
+                dist = (unsigned)(here.val);
+========
             here = dcode + (hold & dmask);
           dodist:
             op = (unsigned)(here->bits);
@@ -146,6 +233,11 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
             op = (unsigned)(here->op);
             if (op & 16) {                      /* distance base */
                 dist = (unsigned)(here->val);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inffast.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inffast.c
+=======
+>>>>>>> pr/231
                 op &= 15;                       /* number of extra bits */
                 if (bits < op) {
                     hold += (unsigned long)(*in++) << bits;
@@ -264,7 +356,21 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
                 here = dcode + here->val + (hold & ((1U << op) - 1));
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inffast.c
+                here = dcode[here.val + (hold & ((1U << op) - 1))];
+========
+                here = dcode + here->val + (hold & ((1U << op) - 1));
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inffast.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inffast.c
+=======
+>>>>>>> pr/231
                 goto dodist;
             }
             else {
@@ -274,7 +380,21 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
             }
         }
         else if ((op & 64) == 0) {              /* 2nd level length code */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inffast.c
             here = lcode + here->val + (hold & ((1U << op) - 1));
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inffast.c
+            here = lcode[here.val + (hold & ((1U << op) - 1))];
+========
+            here = lcode + here->val + (hold & ((1U << op) - 1));
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inffast.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inffast.c
+=======
+>>>>>>> pr/231
             goto dolen;
         }
         else if (op & 32) {                     /* end-of-block */

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +76,15 @@ bool Connection_event_coordinator::register_event_subscriber(
   std::vector<opt_connection_control>::iterator sys_vars_it;
   std::vector<stats_connection_control>::iterator status_vars_it;
 
+<<<<<<< HEAD
   assert(subscriber != nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(subscriber != 0);
+=======
+    assert(subscriber != 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (status_vars) {
     for (status_vars_it = status_vars->begin();
@@ -234,6 +250,143 @@ bool Connection_event_coordinator::notify_status_var(
     }
   }
 
+<<<<<<< HEAD
   return error;
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(error);
+=======
+
+  /**
+      Handle connection event.
+      When a notification from server is received, perform following:
+      1. Iterate through list of subscribers
+      - If a subscriber has shown interest in received event,
+        call notify() for the subscriber
+      2. Interate through list of status variables
+      - If subscriber has show interest in any status variable,
+        call notify_status_var() for the subscriber
+      - If subscriber suggests an action on status variable,
+        perform the action
+
+      Note : If we receive error from a subscriber, we log it and move on.
+
+      @param [in] thd               THD handle
+      @param [in] error_handler     Error handler class
+      @param [in] connection_event  Event information
+  */
+
+  void
+  Connection_event_coordinator::notify_event(
+    MYSQL_THD thd,
+    Error_handler *error_handler,
+    const mysql_event_connection *connection_event)
+  {
+    DBUG_ENTER("Connection_event_coordinator::notify_event");
+    std::vector<Connection_event_subscriber>::iterator it= m_subscribers.begin();
+
+    while (it != m_subscribers.end())
+    {
+      Connection_event_subscriber event_subscriber= *it;
+      (void)event_subscriber.m_subscriber->notify_event(thd, this,
+                                                        connection_event,
+                                                        error_handler);
+
+      ++it;
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  /**
+    Process change in sys_var value
+
+    Iterate through all subscribers
+    - If a subscriber has shown interest in getting notification for given
+      system variable, call notify_sys_var.
+
+    Note : If we receive error from a subscriber, we log it and move on.
+
+    @param [in] error_hanlder          Error handler class
+    @param [in] opt_connection_control Variable information
+    @param [in] new_value              New value for variable
+  */
+
+  void
+  Connection_event_coordinator::notify_sys_var(Error_handler *error_handler,
+                                               opt_connection_control variable,
+                                               void *new_value)
+  {
+    DBUG_ENTER("Connection_event_coordinator::notify_sys_var");
+    std::vector<Connection_event_subscriber>::iterator it= m_subscribers.begin();
+
+    while (it != m_subscribers.end())
+    {
+      Connection_event_subscriber event_subscriber= *it;
+      if (event_subscriber.m_sys_vars[variable])
+      {
+        (void) event_subscriber.m_subscriber->notify_sys_var(this,
+                                                             variable,
+                                                             new_value,
+                                                             error_handler);
+      }
+      ++it;
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  /**
+    Update a status variable
+
+    @param [in] observer   Requestor
+    @param [in] status_var Status variable to be updated
+    @param [in] action     Operation to be performed on status variable
+
+    @returns status of the operation
+      @retval false Success
+      @retval true Error in processing
+  */
+
+  bool
+  Connection_event_coordinator::notify_status_var(Connection_event_observer **observer,
+                                                  stats_connection_control status_var,
+                                                  status_var_action action)
+  {
+    DBUG_ENTER("Connection_event_coordinator::notify_status_var");
+    bool error= false;
+
+    if (m_status_vars_subscription[status_var] == *observer)
+    {
+      if (status_var < STAT_LAST)
+      {
+        switch (action)
+        {
+          case ACTION_INC:
+          {
+            my_atomic_add64(&g_statistics.stats_array[status_var], 1);
+            break;
+          }
+          case ACTION_RESET:
+          {
+            my_atomic_store64(&g_statistics.stats_array[status_var], 0);
+            break;
+          }
+          default:
+          {
+            error= true;
+            assert(FALSE);
+            break;
+          }
+        }
+      }
+    }
+
+    DBUG_RETURN(error);
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 }  // namespace connection_control

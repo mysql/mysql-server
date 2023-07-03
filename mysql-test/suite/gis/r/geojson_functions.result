@@ -2479,7 +2479,15 @@ ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "In
 SELECT ST_GEOMFROMGEOJSON("{ \"test ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a closing quotation mark in string." at position 8.
 SELECT ST_GEOMFROMGEOJSON("{ \"\nabel\": 123 ");
+<<<<<<< HEAD
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid encoding in string." at position 3.
+=======
+<<<<<<< HEAD
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid escape character in string." at position 3.
+=======
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid encoding in string." at position 3.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SELECT ST_GEOMFROMGEOJSON("[ -2147483651, 4294967395 ] ");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("[ -9223372036854775900, 184467440737095516700] ");
@@ -2509,8 +2517,13 @@ SELECT ST_GEOMFROMGEOJSON("{ \"\\u06FF\" }");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
 SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
+<<<<<<< HEAD
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }", 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }", 1, 0))
+=======
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
+ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"))
+>>>>>>> upstream/cluster-7.6
 POINT(4294967295 9.223372036854776e18)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }", 1, 0))

@@ -1,5 +1,9 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+-- source include/not_embedded.inc
+>>>>>>> pr/231
 
 #
 #  Test BigInt [un]signed behaviours wrt offset remapping
@@ -57,8 +61,13 @@ insert into t2 values(1, 1), (2,2), (3,NULL), (4,4), (5,5);
 
 truncate test.t1;
 truncate table t2;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 select * from t2 order by col1;
@@ -68,8 +77,13 @@ select * from t2 order by col1;
 --let remap_args = $remap_args -x test.t1.kbs:offset:5
 
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -77,8 +91,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kbu:offset:20
 --let remap_args = $remap_args -x test.t1.kbs:offset:20
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -86,8 +105,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.dbu_low:offset:9223372036854775807
 --let remap_args = $remap_args -x test.t1.dbs_low:offset:9223372036854775807
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -97,8 +121,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = $remap_args -x test.t1.dbu_low:offset:110
 --let remap_args = $remap_args -x test.t1.dbs_low:offset:110
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -106,8 +135,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.dbu_hi:offset:-9223372036854775808
 --let remap_args = $remap_args -x test.t1.dbs_hi:offset:-9223372036854775808
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -115,8 +149,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kbu:offset:-10
 --let remap_args = $remap_args -x test.t1.kbs:offset:-10
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -124,8 +163,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kbu:offset:9223372036854775807
 --let remap_args = $remap_args -x test.t1.kbs:offset:9223372036854775788
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -133,8 +177,13 @@ select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kbu:offset:-10
 --let remap_args = $remap_args -x test.t1.kbs:offset:-9223372036854775808
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kbu, kbs, dbu_low, dbu_hi, dbs_low, dbs_hi, d, sha1(t) from test.t1 order by kbu;
 
@@ -185,8 +234,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kiu:offset:0
 --let remap_args = $remap_args -x test.t1.kis:offset:0
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -195,8 +249,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = $remap_args -x test.t1.kis:offset:5
 
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -204,8 +263,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kiu:offset:20
 --let remap_args = $remap_args -x test.t1.kis:offset:20
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -213,8 +277,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.diu_low:offset:2147483647
 --let remap_args = $remap_args -x test.t1.dis_low:offset:2147483647
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -224,8 +293,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = $remap_args -x test.t1.diu_low:offset:110
 --let remap_args = $remap_args -x test.t1.dis_low:offset:110
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -233,8 +307,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.diu_hi:offset:-2147483648
 --let remap_args = $remap_args -x test.t1.dis_hi:offset:-2147483648
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -242,8 +321,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kiu:offset:-10
 --let remap_args = $remap_args -x test.t1.kis:offset:-10
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -251,8 +335,13 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kiu:offset:2147483647
 --let remap_args = $remap_args -x test.t1.kis:offset:2147483628
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
@@ -260,13 +349,21 @@ select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order
 --let remap_args = -x test.t1.kiu:offset:-10
 --let remap_args = $remap_args -x test.t1.kis:offset:-2147483648
 truncate test.t1;
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select kiu, kis, diu_low, diu_hi, dis_low, dis_hi, d, sha1(t) from test.t1 order by kiu;
 
 drop table test.t1;
 
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
 
+=======
+>>>>>>> pr/231

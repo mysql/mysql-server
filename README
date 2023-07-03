@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
 This is a release of MySQL, an SQL database server.
 
@@ -17,4 +22,22 @@ For further information on MySQL or additional documentation, visit
 For additional downloads and the source of MySQL, visit
   http://dev.mysql.com/downloads/
 
+=======
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+This is a release of MySQL, an SQL database server.
+
+License information can be found in the LICENSE file.
+
+This distribution may include materials developed by third parties.
+For license and attribution notices for these materials,
+please refer to the LICENSE file.
+
+For further information on MySQL or additional documentation, visit
+  http://dev.mysql.com/doc/
+
+For additional downloads and the source of MySQL, visit
+  http://dev.mysql.com/downloads/
+
+>>>>>>> upstream/cluster-7.6
 MySQL is brought to you by the MySQL team at Oracle.

@@ -1,3 +1,6 @@
 $EXAMPLE_PLUGIN_OPT
 --disabled_storage_engines=InnoDB
+<<<<<<< HEAD
 --nowarnings
+=======
+>>>>>>> pr/231

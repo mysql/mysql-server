@@ -1,8 +1,17 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   
+>>>>>>> upstream/cluster-7.6
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -172,10 +181,20 @@ struct st_mysql_options_extention {
   struct My_hash *connection_attributes;
   char *server_public_key_path;
   size_t connection_attributes_length;
+<<<<<<< HEAD
   bool enable_cleartext_plugin;
   bool get_server_public_key; /* Former ssl_enforce */
   char *tls_version;          /* TLS version option */
   long ssl_ctx_flags;         /* SSL ctx options flag */
+=======
+  my_bool enable_cleartext_plugin;
+  my_bool get_server_public_key;
+  char *tls_version; /* TLS version option */
+  long ssl_ctx_flags; /* SSL ctx options flag */
+#ifndef MCP_BUG22389653
+  unsigned int retry_count;
+#endif
+>>>>>>> upstream/cluster-7.6
   unsigned int ssl_mode;
   unsigned int retry_count;
   unsigned int ssl_fips_mode; /* SSL fips mode for enforced encryption.*/
@@ -283,8 +302,15 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err);
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
+<<<<<<< HEAD
                               const char *format, ...)
     MY_ATTRIBUTE((format(printf, 4, 5)));
+=======
+                              const char *format, ...);
+#ifdef EMBEDDED_LIBRARY
+int embedded_ssl_check(MYSQL *mysql);
+#endif
+>>>>>>> upstream/cluster-7.6
 
 /* client side of the pluggable authentication */
 struct MYSQL_PLUGIN_VIO_INFO;

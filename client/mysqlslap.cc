@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +100,12 @@ TODO:
 #include <mysqld_error.h>
 #include <signal.h>
 #include <stdarg.h>
+<<<<<<< HEAD
 #include <stdlib.h>
+=======
+#include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
+>>>>>>> upstream/cluster-7.6
 #include <sys/types.h>
 
 #include "caching_sha2_passwordopt-vars.h"
@@ -379,6 +392,7 @@ int main(int argc, char **argv) {
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlslap");
   if (using_opt_enable_cleartext_plugin)
+<<<<<<< HEAD
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&opt_enable_cleartext_plugin);
   set_server_public_key(&mysql);
@@ -390,6 +404,22 @@ int main(int argc, char **argv) {
                              connect_flags))) {
       fprintf(stderr, "%s: Error when connecting to server: %s\n", my_progname,
               mysql_error(&mysql));
+=======
+    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
+                  (char*) &opt_enable_cleartext_plugin);
+
+  set_server_public_key(&mysql);
+  set_get_server_public_key_option(&mysql);
+
+  if (!opt_only_print) 
+  {
+    if (!(mysql_real_connect(&mysql, host, user, opt_password,
+                             NULL, opt_mysql_port,
+                             opt_mysql_unix_port, connect_flags)))
+    {
+      fprintf(stderr,"%s: Error when connecting to server: %s\n",
+              my_progname,mysql_error(&mysql));
+>>>>>>> upstream/cluster-7.6
       mysql_close(&mysql);
       my_end(0);
       return EXIT_FAILURE;
@@ -537,6 +567,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr) {
   my_free(head_sptr);
 }
 
+<<<<<<< HEAD
 static struct my_option my_long_options[] = {
     {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -604,11 +635,95 @@ static struct my_option my_long_options[] = {
     {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
      nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
+<<<<<<< HEAD
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", 'T', "This is a non-debug version. Catch this and exit.",
      nullptr, nullptr, nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+=======
+     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+     0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+
+static struct my_option my_long_options[] =
+{
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql", 'a',
+    "Generate SQL where not supplied by file or command line.",
+    &auto_generate_sql, &auto_generate_sql,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-add-autoincrement", OPT_SLAP_AUTO_GENERATE_ADD_AUTO,
+    "Add an AUTO_INCREMENT column to auto-generated tables.",
+    &auto_generate_sql_autoincrement,
+    &auto_generate_sql_autoincrement,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-execute-number", OPT_SLAP_AUTO_GENERATE_EXECUTE_QUERIES,
+    "Set this number to generate a set number of queries to run.",
+    &auto_actual_queries, &auto_actual_queries,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-guid-primary", OPT_SLAP_AUTO_GENERATE_GUID_PRIMARY,
+    "Add GUID based primary keys to auto-generated tables.",
+    &auto_generate_sql_guid_primary,
+    &auto_generate_sql_guid_primary,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
+    "Specify test load type: mixed, update, write, key, or read; default is mixed.",
+    &auto_generate_sql_type, &auto_generate_sql_type,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-secondary-indexes", 
+    OPT_SLAP_AUTO_GENERATE_SECONDARY_INDEXES, 
+    "Number of secondary indexes to add to auto-generated tables.",
+    &auto_generate_sql_secondary_indexes,
+    &auto_generate_sql_secondary_indexes, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-unique-query-number", 
+    OPT_SLAP_AUTO_GENERATE_UNIQUE_QUERY_NUM,
+    "Number of unique queries to generate for automatic tests.",
+    &auto_generate_sql_unique_query_number,
+    &auto_generate_sql_unique_query_number,
+    0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-unique-write-number", 
+    OPT_SLAP_AUTO_GENERATE_UNIQUE_WRITE_NUM,
+    "Number of unique queries to generate for auto-generate-sql-write-number.",
+    &auto_generate_sql_unique_write_number,
+    &auto_generate_sql_unique_write_number,
+    0, GET_ULL, REQUIRED_ARG, 10, 0, 0, 0, 0, 0},
+  {"auto-generate-sql-write-number", OPT_SLAP_AUTO_GENERATE_WRITE_NUM,
+    "Number of row inserts to perform for each thread (default is 100).",
+    &auto_generate_sql_number, &auto_generate_sql_number,
+    0, GET_ULL, REQUIRED_ARG, 100, 0, 0, 0, 0, 0},
+  {"commit", OPT_SLAP_COMMIT, "Commit records every X number of statements.",
+    &commit_rate, &commit_rate, 0, GET_UINT, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+    0, 0, 0},
+  {"concurrency", 'c', "Number of clients to simulate for query to run.",
+    &concurrency_str, &concurrency_str, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"create", OPT_SLAP_CREATE_STRING, "File or string to use create tables.",
+    &create_string, &create_string, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
+    &create_schema_string, &create_schema_string, 0, GET_STR, 
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"csv", OPT_SLAP_CSV,
+	"Generate CSV output to named file or to stdout if no file is named.",
+    NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef NDEBUG
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  { "debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+    0, 0, 0,
+    GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+    0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
      &default_dbug_option, &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0,
@@ -705,6 +820,7 @@ static struct my_option my_long_options[] = {
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 #endif
+<<<<<<< HEAD
     {"silent", 's', "Run program in silent mode - no output.", &opt_silent,
      &opt_silent, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"socket", 'S', "The socket file to use for connection.",
@@ -714,6 +830,28 @@ static struct my_option my_long_options[] = {
      &sql_mode, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
+=======
+  {"silent", 's', "Run program in silent mode - no output.",
+    &opt_silent, &opt_silent, 0, GET_BOOL,  NO_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
+    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
+  {"user", 'u', "User for login if not current user.", &user,
+    &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v',
+   "More verbose output; you can use this multiple times to get even more "
+   "verbose output.", &verbose, &verbose, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+>>>>>>> upstream/cluster-7.6
 
     {"user", 'u', "User for login if not current user.", &user, &user, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1749,6 +1887,7 @@ extern "C" void *run_task(void *p) {
           This should only happen if some sort of new engine was
           implemented that didn't properly handle UPDATEs.
 
+<<<<<<< HEAD
           Just in case someone runs this under an experimental engine we don't
           want a crash so the if() is placed here.
         */
@@ -1756,6 +1895,11 @@ extern "C" void *run_task(void *p) {
         if (primary_keys_number_of) {
           key_val = (unsigned int)(random() % primary_keys_number_of);
           key = primary_keys[key_val];
+=======
+<<<<<<< HEAD
+        length = snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'",
+                          (int)ptr->length, ptr->string, key);
+>>>>>>> pr/231
 
           assert(key);
 
@@ -1771,8 +1915,45 @@ extern "C" void *run_task(void *p) {
       } else {
         if (run_query(mysql, ptr->string, ptr->length)) {
           fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n", my_progname,
+<<<<<<< HEAD
                   (uint)ptr->length, ptr->string, mysql_error(mysql));
           goto end;
+=======
+                  (uint)length, buffer, mysql_error(mysql));
+=======
+          Just in case someone runs this under an experimental engine we don't
+          want a crash so the if() is placed here.
+        */
+        assert(primary_keys_number_of);
+        if (primary_keys_number_of)
+        {
+          key_val= (unsigned int)(random() % primary_keys_number_of);
+          key= primary_keys[key_val];
+
+          assert(key);
+
+          length= snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'", 
+                           (int)ptr->length, ptr->string, key);
+
+          if (run_query(mysql, buffer, length))
+          {
+            fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                    my_progname, (uint)length, buffer, mysql_error(mysql));
+            mysql_close(mysql);
+            exit(0);
+          }
+        }
+      }
+      else
+      {
+        if (run_query(mysql, ptr->string, ptr->length))
+        {
+          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+>>>>>>> upstream/cluster-7.6
+          mysql_close(mysql);
+          exit(0);
+>>>>>>> pr/231
         }
       }
 

@@ -132,6 +132,7 @@ UPDATE t1, t2 SET t2.c2 = 'y', t2.c3 = 'y' WHERE t2.c1 = t1.c1;
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#30674616 - UPDATE QUERY FAILS WITH "ERROR 1071 (42000): SPECIFIED
 --echo # KEY WAS TOO LONG; MAX KEY LENGTH IS 1024 BYTES"
@@ -140,6 +141,11 @@ DROP TABLE t1, t2;
 # Make sure the size of the primary key is greater than 1024 bytes.
 CREATE TABLE t1(c1 VARCHAR(350), c2 VARCHAR(350),
                 c3 INT, PRIMARY KEY(c1,c2)) charset=utf8mb4;
+=======
+# Make sure the size of the primary key is greater than 1024 bytes.
+CREATE TABLE t1(c1 VARCHAR(350), c2 VARCHAR(350),
+                c3 INT, PRIMARY KEY(c1,c2)) charset=utf8mb3;
+>>>>>>> pr/231
 
 # If the tmp storage engine is heap, irrespective of the setting of
 # global.tmp_table_size, memory to store 10 rows is always allocated.
@@ -159,10 +165,17 @@ INSERT INTO t1 VALUES ('a','k',11);
 
 # Set the size of the temp table to min value, to force migration to InnoDB
 SET @@SESSION.tmp_table_size=1024;
+<<<<<<< HEAD
 SET @@SESSION.internal_tmp_mem_storage_engine=MEMORY;
+=======
+>>>>>>> pr/231
 UPDATE t1 a, t1 b SET a.c3=22 WHERE a.c1 = b.c1;
 SELECT COUNT(*) FROM t1 WHERE c3=22;
 # Reset to default values
 SET @@SESSION.tmp_table_size=DEFAULT;
+<<<<<<< HEAD
 SET @@SESSION.internal_tmp_mem_storage_engine=DEFAULT;
 DROP TABLE t1;
+=======
+DROP TABLE t1;
+>>>>>>> pr/231

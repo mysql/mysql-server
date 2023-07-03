@@ -30,7 +30,12 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
+<<<<<<< HEAD
 INITIAL_SIZE = 12M;
+=======
+INITIAL_SIZE = 12M
+ENGINE=NDB;
+>>>>>>> pr/231
 
 ########################################
 # Create a table using this tablespace
@@ -158,18 +163,30 @@ SELECT COUNT(*) FROM t1;
 # Restart node 2 to ensure node 1 is master.
 #
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "2 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
 --exec $NDB_MGM -e "2 start"
+=======
+--exec $NDB_MGM --verbose=0 -e "2 restart -n -i"
+--exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_MGM --verbose=0 -e "2 start"
+>>>>>>> pr/231
 --exec $NDB_WAITER > /dev/null
 
 #
 # Restart slave (node 2)
 #
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "2 restart -n"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
 --exec $NDB_MGM -e "2 start"
+=======
+--exec $NDB_MGM --verbose=0 -e "2 restart -n"
+--exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_MGM --verbose=0 -e "2 start"
+>>>>>>> pr/231
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -179,9 +196,15 @@ SELECT COUNT(*) FROM t1;
 # Makes node 2 new master.
 #
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "1 restart -n"
 --exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
 --exec $NDB_MGM -e "1 start"
+=======
+--exec $NDB_MGM --verbose=0 -e "1 restart -n"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_MGM --verbose=0 -e "1 start"
+>>>>>>> pr/231
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -190,9 +213,15 @@ SELECT COUNT(*) FROM t1;
 # Restart slave (node 1) initial
 #
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "1 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
 --exec $NDB_MGM -e "1 start"
+=======
+--exec $NDB_MGM --verbose=0 -e "1 restart -n -i"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_MGM --verbose=0 -e "1 start"
+>>>>>>> pr/231
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -201,9 +230,15 @@ SELECT COUNT(*) FROM t1;
 # Restart master (node 2) initial
 #
 
+<<<<<<< HEAD
 --exec $NDB_MGM -e "2 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
 --exec $NDB_MGM -e "2 start"
+=======
+--exec $NDB_MGM --verbose=0 -e "2 restart -n -i"
+--exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
+--exec $NDB_MGM --verbose=0 -e "2 start"
+>>>>>>> pr/231
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -214,11 +249,22 @@ DROP TABLE t1;
 # Drop tablespace and datafiles
 #
 ALTER TABLESPACE ts1
+<<<<<<< HEAD
 DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile02.dat';
 DROP TABLESPACE ts1;
+=======
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+ENGINE=NDB;
+DROP TABLESPACE ts1
+ENGINE=NDB;
+>>>>>>> pr/231
 
 drop logfile group lg1
 engine ndb;

@@ -1,2 +1,5 @@
 --relay-log=other-relay
+<<<<<<< HEAD
 --relay-log-info-repository=FILE
+=======
+>>>>>>> upstream/cluster-7.6

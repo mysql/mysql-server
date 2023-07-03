@@ -1,5 +1,19 @@
 /* deflate.c -- compress data using the deflation algorithm
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
  * Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+ * Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+========
+ * Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -52,7 +66,21 @@
 #include "deflate.h"
 
 const char deflate_copyright[] =
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
    " deflate 1.2.13 Copyright 1995-2022 Jean-loup Gailly and Mark Adler ";
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+   " deflate 1.2.11 Copyright 1995-2017 Jean-loup Gailly and Mark Adler ";
+========
+   " deflate 1.2.13 Copyright 1995-2022 Jean-loup Gailly and Mark Adler ";
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -87,7 +115,27 @@ local void lm_init        OF((deflate_state *s));
 local void putShortMSB    OF((deflate_state *s, uInt b));
 local void flush_pending  OF((z_streamp strm));
 local unsigned read_buf   OF((z_streamp strm, Bytef *buf, unsigned size));
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 local uInt longest_match  OF((deflate_state *s, IPos cur_match));
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+#ifdef ASMV
+#  pragma message("Assembler code may have bugs -- use at your own risk")
+      void match_init OF((void)); /* asm code initialization */
+      uInt longest_match  OF((deflate_state *s, IPos cur_match));
+#else
+local uInt longest_match  OF((deflate_state *s, IPos cur_match));
+#endif
+========
+local uInt longest_match  OF((deflate_state *s, IPos cur_match));
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
 
 #ifdef ZLIB_DEBUG
 local  void check_match OF((deflate_state *s, IPos start, IPos match,
@@ -189,6 +237,46 @@ local const config configuration_table[10] = {
         zmemzero((Bytef *)s->head, \
                  (unsigned)(s->hash_size - 1)*sizeof(*s->head)); \
     } while (0)
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+========
+=======
+>>>>>>> pr/231
+
+/* ===========================================================================
+ * Slide the hash table when sliding the window down (could be avoided with 32
+ * bit values at the expense of memory usage). We slide even when level == 0 to
+ * keep the hash table consistent if we switch back to level > 0 later.
+ */
+local void slide_hash(s)
+    deflate_state *s;
+{
+    unsigned n, m;
+    Posf *p;
+    uInt wsize = s->w_size;
+
+    n = s->hash_size;
+    p = &s->head[n];
+    do {
+        m = *--p;
+        *p = (Pos)(m >= wsize ? m - wsize : NIL);
+    } while (--n);
+    n = wsize;
+#ifndef FASTEST
+    p = &s->prev[n];
+    do {
+        m = *--p;
+        *p = (Pos)(m >= wsize ? m - wsize : NIL);
+        /* If n is not on any hash chain, prev[n] is garbage but
+         * its value will never be used.
+         */
+    } while (--n);
+#endif
+}
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
 
 /* ===========================================================================
  * Slide the hash table when sliding the window down (could be avoided with 32
@@ -386,7 +474,21 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
 /* =========================================================================
  * Check for a valid deflate stream state. Return 0 if ok, 1 if not.
  */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 local int deflateStateCheck(strm)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+local int deflateStateCheck (strm)
+========
+local int deflateStateCheck(strm)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
 {
     deflate_state *s;
@@ -478,7 +580,21 @@ int ZEXPORT deflateSetDictionary(strm, dictionary, dictLength)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflateGetDictionary(strm, dictionary, dictLength)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflateGetDictionary (strm, dictionary, dictLength)
+========
+int ZEXPORT deflateGetDictionary(strm, dictionary, dictLength)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
     Bytef *dictionary;
     uInt  *dictLength;
@@ -500,7 +616,21 @@ int ZEXPORT deflateGetDictionary(strm, dictionary, dictLength)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflateResetKeep(strm)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflateResetKeep (strm)
+========
+int ZEXPORT deflateResetKeep(strm)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
 {
     deflate_state *s;
@@ -524,7 +654,21 @@ int ZEXPORT deflateResetKeep(strm)
 #ifdef GZIP
         s->wrap == 2 ? GZIP_STATE :
 #endif
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         INIT_STATE;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+        s->wrap ? INIT_STATE : BUSY_STATE;
+========
+        INIT_STATE;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     strm->adler =
 #ifdef GZIP
         s->wrap == 2 ? crc32(0L, Z_NULL, 0) :
@@ -538,7 +682,21 @@ int ZEXPORT deflateResetKeep(strm)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflateReset(strm)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflateReset (strm)
+========
+int ZEXPORT deflateReset(strm)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
 {
     int ret;
@@ -550,7 +708,21 @@ int ZEXPORT deflateReset(strm)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflateSetHeader(strm, head)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflateSetHeader (strm, head)
+========
+int ZEXPORT deflateSetHeader(strm, head)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
     gz_headerp head;
 {
@@ -561,7 +733,21 @@ int ZEXPORT deflateSetHeader(strm, head)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflatePending(strm, pending, bits)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflatePending (strm, pending, bits)
+========
+int ZEXPORT deflatePending(strm, pending, bits)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     unsigned *pending;
     int *bits;
     z_streamp strm;
@@ -575,7 +761,21 @@ int ZEXPORT deflatePending(strm, pending, bits)
 }
 
 /* ========================================================================= */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
 int ZEXPORT deflatePrime(strm, bits, value)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+int ZEXPORT deflatePrime (strm, bits, value)
+========
+int ZEXPORT deflatePrime(strm, bits, value)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     z_streamp strm;
     int bits;
     int value;
@@ -585,8 +785,23 @@ int ZEXPORT deflatePrime(strm, bits, value)
 
     if (deflateStateCheck(strm)) return Z_STREAM_ERROR;
     s = strm->state;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (bits < 0 || bits > 16 ||
         s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if ((Bytef *)(s->d_buf) < s->pending_out + ((Buf_size + 7) >> 3))
+========
+    if (bits < 0 || bits > 16 ||
+        s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         return Z_BUF_ERROR;
     do {
         put = Buf_size - s->bi_valid;
@@ -624,12 +839,40 @@ int ZEXPORT deflateParams(strm, level, strategy)
     func = configuration_table[s->level].func;
 
     if ((strategy != s->strategy || func != configuration_table[level].func) &&
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         s->last_flush != -2) {
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+        s->high_water) {
+========
+        s->last_flush != -2) {
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         /* Flush the last buffer: */
         int err = deflate(strm, Z_BLOCK);
         if (err == Z_STREAM_ERROR)
             return err;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         if (strm->avail_in || (s->strstart - s->block_start) + s->lookahead)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+        if (strm->avail_out == 0)
+========
+        if (strm->avail_in || (s->strstart - s->block_start) + s->lookahead)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
             return Z_BUF_ERROR;
     }
     if (s->level != level) {
@@ -678,6 +921,21 @@ int ZEXPORT deflateTune(strm, good_length, max_lazy, nice_length, max_chain)
  * of two worst case bounds is returned. This is at most an expansion of ~4% or
  * ~13%, plus a small constant.
  *
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+ * This function could be more sophisticated to provide closer upper bounds for
+ * every combination of windowBits and memLevel.  But even the conservative
+ * upper bound of about 14% expansion does not seem onerous for output buffer
+ * allocation.
+========
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
  * Both the 0.03% and 4% derive from the overhead of stored blocks. The first
  * one is for stored blocks of 16383 bytes (memLevel == 8), whereas the second
  * is for stored blocks of 127 bytes (the worst case memLevel == 1). The
@@ -692,12 +950,107 @@ int ZEXPORT deflateTune(strm, good_length, max_lazy, nice_length, max_chain)
  * which this can occur is 255 (memLevel == 2).
  *
  * Shifts are used to approximate divisions, for speed.
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+========
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+>>>>>>> pr/231
  */
 uLong ZEXPORT deflateBound(strm, sourceLen)
     z_streamp strm;
     uLong sourceLen;
 {
     deflate_state *s;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+    uLong fixedlen, storelen, wraplen;
+========
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    uLong complen, wraplen;
+>>>>>>>> pr/231:extra/zlib/deflate.c
+
+    /* upper bound for fixed blocks with 9-bit literals and length 255
+       (memLevel == 2, which is the lowest that may not use stored blocks) --
+       ~13% overhead plus a small constant */
+    fixedlen = sourceLen + (sourceLen >> 3) + (sourceLen >> 8) +
+               (sourceLen >> 9) + 4;
+
+    /* upper bound for stored blocks with length 127 (memLevel == 1) --
+       ~4% overhead plus a small constant */
+    storelen = sourceLen + (sourceLen >> 5) + (sourceLen >> 7) +
+               (sourceLen >> 11) + 7;
+
+    /* if can't get parameters, return larger bound plus a zlib wrapper */
+    if (deflateStateCheck(strm))
+        return (fixedlen > storelen ? fixedlen : storelen) + 6;
+=======
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    uLong complen, wraplen;
+
+    /* conservative upper bound for compressed data */
+    complen = sourceLen +
+              ((sourceLen + 7) >> 3) + ((sourceLen + 63) >> 6) + 5;
+
+    /* if can't get parameters, return conservative bound plus zlib wrapper */
+    if (deflateStateCheck(strm))
+        return complen + 6;
+>>>>>>> pr/231
+
+    /* compute wrapper length */
+    s = strm->state;
+    switch (s->wrap) {
+    case 0:                                 /* raw deflate */
+        wraplen = 0;
+        break;
+    case 1:                                 /* zlib wrapper */
+        wraplen = 6 + (s->strstart ? 4 : 0);
+        break;
+#ifdef GZIP
+    case 2:                                 /* gzip wrapper */
+        wraplen = 18;
+        if (s->gzhead != Z_NULL) {          /* user-supplied gzip header */
+            Bytef *str;
+            if (s->gzhead->extra != Z_NULL)
+                wraplen += 2 + s->gzhead->extra_len;
+            str = s->gzhead->name;
+            if (str != Z_NULL)
+                do {
+                    wraplen++;
+                } while (*str++);
+            str = s->gzhead->comment;
+            if (str != Z_NULL)
+                do {
+                    wraplen++;
+                } while (*str++);
+            if (s->gzhead->hcrc)
+                wraplen += 2;
+        }
+        break;
+#endif
+    default:                                /* for compiler happiness */
+        wraplen = 6;
+    }
+
+<<<<<<< HEAD
+    /* if not default parameters, return one of the conservative bounds */
+    if (s->w_bits != 15 || s->hash_bits != 8 + 7)
+        return (s->w_bits <= s->hash_bits ? fixedlen : storelen) + wraplen;
+
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+    /* default settings: return tight bound for that case -- ~0.03% overhead
+       plus a small constant */
+========
+=======
+    /* if not default parameters, return conservative bound */
+    if (s->w_bits != 15 || s->hash_bits != 8 + 7)
+        return complen + wraplen;
+
+>>>>>>> pr/231
+    /* default settings: return tight bound for that case */
+========
     uLong fixedlen, storelen, wraplen;
 
     /* upper bound for fixed blocks with 9-bit literals and length 255
@@ -756,6 +1109,11 @@ uLong ZEXPORT deflateBound(strm, sourceLen)
 
     /* default settings: return tight bound for that case -- ~0.03% overhead
        plus a small constant */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     return sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
            (sourceLen >> 25) + 13 - 6 + wraplen;
 }
@@ -863,11 +1221,31 @@ int ZEXPORT deflate(strm, flush)
     }
 
     /* Write the header */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (s->status == INIT_STATE && s->wrap == 0)
         s->status = BUSY_STATE;
     if (s->status == INIT_STATE) {
         /* zlib header */
         uInt header = (Z_DEFLATED + ((s->w_bits - 8) << 4)) << 8;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if (s->status == INIT_STATE) {
+        /* zlib header */
+        uInt header = (Z_DEFLATED + ((s->w_bits-8)<<4)) << 8;
+========
+    if (s->status == INIT_STATE && s->wrap == 0)
+        s->status = BUSY_STATE;
+    if (s->status == INIT_STATE) {
+        /* zlib header */
+        uInt header = (Z_DEFLATED + ((s->w_bits - 8) << 4)) << 8;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         uInt level_flags;
 
         if (s->strategy >= Z_HUFFMAN_ONLY || s->level < 2)
@@ -1299,10 +1677,30 @@ local uInt longest_match(s, cur_match)
      */
     register Bytef *strend = s->window + s->strstart + MAX_MATCH - 1;
     register ush scan_start = *(ushf*)scan;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     register ush scan_end   = *(ushf*)(scan + best_len - 1);
 #else
     register Bytef *strend = s->window + s->strstart + MAX_MATCH;
     register Byte scan_end1  = scan[best_len - 1];
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    register ush scan_end   = *(ushf*)(scan+best_len-1);
+#else
+    register Bytef *strend = s->window + s->strstart + MAX_MATCH;
+    register Byte scan_end1  = scan[best_len-1];
+========
+    register ush scan_end   = *(ushf*)(scan + best_len - 1);
+#else
+    register Bytef *strend = s->window + s->strstart + MAX_MATCH;
+    register Byte scan_end1  = scan[best_len - 1];
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     register Byte scan_end   = scan[best_len];
 #endif
 
@@ -1420,6 +1818,19 @@ local uInt longest_match(s, cur_match)
     if ((uInt)best_len <= s->lookahead) return (uInt)best_len;
     return s->lookahead;
 }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+#endif /* ASMV */
+========
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
 
 #else /* FASTEST */
 
@@ -1554,12 +1965,34 @@ local void fill_window(s)
          */
         if (s->strstart >= wsize + MAX_DIST(s)) {
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
             zmemcpy(s->window, s->window + wsize, (unsigned)wsize - more);
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
             s->block_start -= (long) wsize;
             if (s->insert > s->strstart)
                 s->insert = s->strstart;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+            zmemcpy(s->window, s->window+wsize, (unsigned)wsize - more);
+            s->match_start -= wsize;
+            s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
+            s->block_start -= (long) wsize;
+========
+            zmemcpy(s->window, s->window + wsize, (unsigned)wsize - more);
+            s->match_start -= wsize;
+            s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
+            s->block_start -= (long) wsize;
+            if (s->insert > s->strstart)
+                s->insert = s->strstart;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
             slide_hash(s);
             more += wsize;
         }
@@ -1685,7 +2118,21 @@ local void fill_window(s)
  *
  * deflate_stored() is written to minimize the number of times an input byte is
  * copied. It is most efficient with large input and output buffers, which
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
  * maximizes the opportunities to have a single copy from next_in to next_out.
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+ * maximizes the opportunites to have a single copy from next_in to next_out.
+========
+ * maximizes the opportunities to have a single copy from next_in to next_out.
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
  */
 local block_state deflate_stored(s, flush)
     deflate_state *s;
@@ -1789,7 +2236,20 @@ local block_state deflate_stored(s, flush)
             s->matches = 2;         /* clear hash */
             zmemcpy(s->window, s->strm->next_in - s->w_size, s->w_size);
             s->strstart = s->w_size;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
             s->insert = s->strstart;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+========
+            s->insert = s->strstart;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         }
         else {
             if (s->window_size - s->strstart <= used) {
@@ -1798,6 +2258,31 @@ local block_state deflate_stored(s, flush)
                 zmemcpy(s->window, s->window + s->w_size, s->strstart);
                 if (s->matches < 2)
                     s->matches++;   /* add a pending slide_hash() */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+                if (s->insert > s->strstart)
+                    s->insert = s->strstart;
+========
+<<<<<<<< HEAD:extra/zlib/deflate.c
+>>>>>>>> pr/231:extra/zlib/deflate.c
+            }
+            zmemcpy(s->window + s->strstart, s->strm->next_in - used, used);
+            s->strstart += used;
+            s->insert += MIN(used, s->w_size - s->insert);
+        }
+        s->block_start = s->strstart;
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
+========
+=======
+<<<<<<<< HEAD:extra/zlib/deflate.c
+            }
+            zmemcpy(s->window + s->strstart, s->strm->next_in - used, used);
+            s->strstart += used;
+        }
+        s->block_start = s->strstart;
+>>>>>>> pr/231
+        s->insert += MIN(used, s->w_size - s->insert);
+========
                 if (s->insert > s->strstart)
                     s->insert = s->strstart;
             }
@@ -1806,6 +2291,11 @@ local block_state deflate_stored(s, flush)
             s->insert += MIN(used, s->w_size - s->insert);
         }
         s->block_start = s->strstart;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;
@@ -1820,7 +2310,21 @@ local block_state deflate_stored(s, flush)
         return block_done;
 
     /* Fill the window with any remaining input. */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     have = s->window_size - s->strstart;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    have = s->window_size - s->strstart - 1;
+========
+    have = s->window_size - s->strstart;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     if (s->strm->avail_in > have && s->block_start >= (long)s->w_size) {
         /* Slide the window down. */
         s->block_start -= s->w_size;
@@ -1829,15 +2333,42 @@ local block_state deflate_stored(s, flush)
         if (s->matches < 2)
             s->matches++;           /* add a pending slide_hash() */
         have += s->w_size;          /* more space now */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         if (s->insert > s->strstart)
             s->insert = s->strstart;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+========
+        if (s->insert > s->strstart)
+            s->insert = s->strstart;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     }
     if (have > s->strm->avail_in)
         have = s->strm->avail_in;
     if (have) {
         read_buf(s->strm, s->window + s->strstart, have);
         s->strstart += have;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         s->insert += MIN(have, s->w_size - s->insert);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+========
+        s->insert += MIN(have, s->w_size - s->insert);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;
@@ -1965,7 +2496,21 @@ local block_state deflate_fast(s, flush)
         FLUSH_BLOCK(s, 1);
         return finish_done;
     }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (s->sym_next)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if (s->last_lit)
+========
+    if (s->sym_next)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         FLUSH_BLOCK(s, 0);
     return block_done;
 }
@@ -2096,7 +2641,21 @@ local block_state deflate_slow(s, flush)
         FLUSH_BLOCK(s, 1);
         return finish_done;
     }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (s->sym_next)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if (s->last_lit)
+========
+    if (s->sym_next)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         FLUSH_BLOCK(s, 0);
     return block_done;
 }
@@ -2145,8 +2704,23 @@ local block_state deflate_rle(s, flush)
                 if (s->match_length > s->lookahead)
                     s->match_length = s->lookahead;
             }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
             Assert(scan <= s->window + (uInt)(s->window_size - 1),
                    "wild scan");
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+            Assert(scan <= s->window+(uInt)(s->window_size-1), "wild scan");
+========
+            Assert(scan <= s->window + (uInt)(s->window_size - 1),
+                   "wild scan");
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         }
 
         /* Emit match if have run of MIN_MATCH or longer, else emit literal */
@@ -2172,7 +2746,21 @@ local block_state deflate_rle(s, flush)
         FLUSH_BLOCK(s, 1);
         return finish_done;
     }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (s->sym_next)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if (s->last_lit)
+========
+    if (s->sym_next)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         FLUSH_BLOCK(s, 0);
     return block_done;
 }
@@ -2201,7 +2789,21 @@ local block_state deflate_huff(s, flush)
         /* Output a literal byte */
         s->match_length = 0;
         Tracevv((stderr,"%c", s->window[s->strstart]));
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
         _tr_tally_lit(s, s->window[s->strstart], bflush);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+        _tr_tally_lit (s, s->window[s->strstart], bflush);
+========
+        _tr_tally_lit(s, s->window[s->strstart], bflush);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         s->lookahead--;
         s->strstart++;
         if (bflush) FLUSH_BLOCK(s, 0);
@@ -2211,7 +2813,21 @@ local block_state deflate_huff(s, flush)
         FLUSH_BLOCK(s, 1);
         return finish_done;
     }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.c
     if (s->sym_next)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.c
+    if (s->last_lit)
+========
+    if (s->sym_next)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.c
+=======
+>>>>>>> pr/231
         FLUSH_BLOCK(s, 0);
     return block_done;
 }

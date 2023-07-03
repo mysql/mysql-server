@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
  * Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/x/src/view_statement_builder.h
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/x/src/view_statement_builder.h
+>>>>>>> pr/231
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,

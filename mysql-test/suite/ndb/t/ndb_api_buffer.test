@@ -28,7 +28,11 @@ CREATE TABLE t1 (
   o varchar(2) DEFAULT NULL,
   p varchar(2) DEFAULT NULL,
   q varchar(45) DEFAULT NULL,
+<<<<<<< HEAD
   r double DEFAULT NULL,
+=======
+  r double(14,2) DEFAULT NULL,
+>>>>>>> pr/231
   s varchar(3) DEFAULT NULL,
   t varchar(2) DEFAULT NULL,
   u varchar(1) DEFAULT NULL,

@@ -9,6 +9,7 @@ License:
  .
  License information can be found in the LICENSE file.
  .
+<<<<<<< HEAD
  In test packages where this file is renamed README-test, the license
  file is renamed LICENSE-test.
  .
@@ -19,6 +20,15 @@ License:
  For further information on MySQL or additional documentation, visit
  http://dev.mysql.com/doc/
  .
+=======
+ This distribution may include materials developed by third parties.
+ For license and attribution notices for these materials,
+ please refer to the LICENSE file.
+ .
+ For further information on MySQL or additional documentation, visit
+ http://dev.mysql.com/doc/
+ .
+>>>>>>> upstream/cluster-7.6
  For additional downloads and the source of MySQL, visit
  http://dev.mysql.com/downloads/
  .

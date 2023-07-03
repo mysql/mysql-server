@@ -21,8 +21,12 @@ replace_regex /Version: [0-9]*/Version: Any/
               /Length of frm data: [0-9]*/Length of frm data: XXX/
               /IndexTable [0-9]*/IndexTable XX/
               /^([0-9][0-9]*) [0-9 	]*/\1 .../
+<<<<<<< HEAD
               /Table id: [0-9]*/Table id: XXX/
               /Tablespace id: [0-9]*/Tablespace id: XX/;
+=======
+              /Table id: [0-9]*/Table id: XXX/;
+>>>>>>> pr/231
 --exec $ndb_desc_cmd
 
 # Reset argument variable in order to detect missing assignment

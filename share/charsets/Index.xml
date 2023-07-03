@@ -3,7 +3,16 @@
 <charsets max-id="99">
 
 <copyright>
+<<<<<<< HEAD
   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:share/charsets/Index.xml
+  Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Use is subject to license terms
+>>>>>>> upstream/cluster-7.6:sql/share/charsets/Index.xml
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 SET @save_sqlf=@@global.slow_query_log_file;
 SET GLOBAL slow_query_log_file= '.../my_slow.log';
 SET timestamp=10;
@@ -74,6 +75,8 @@ SET @@global.log_output         = @old_log_output;
 TRUNCATE TABLE mysql.general_log;
 TRUNCATE TABLE mysql.slow_log;
 
+=======
+>>>>>>> pr/231
 #
 # Bug#33732907: Slow query log logs password in plain text on syntax error
 #
@@ -86,7 +89,10 @@ SET GLOBAL slow_query_log_file= '.../slow33732907.log';
 SET @@global.slow_query_log=1;
 SET @@global.log_output='file,table';
 SET @@session.long_query_time=0;
+<<<<<<< HEAD
 SET @my_start=CURRENT_TIMESTAMP(6);
+=======
+>>>>>>> pr/231
 
 # This succeeds, and the password is correctly obfuscated.
 CREATE USER 'duplicate_user'@'%' IDENTIFIED BY 'mypassword';
@@ -99,6 +105,7 @@ ERROR HY000: Operation CREATE USER failed for 'duplicate_user'@'%'
 # so we cannot obfuscate it. In that case, the statement should not be
 # logged, either. The general log also behaves like this by default.
 CREATE USER ‘bad_characters’@’%’ IDENTIFIED BY 'mypassword';
+<<<<<<< HEAD
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%’ IDENTIFIED BY 'mypassword'' at line 1
 # Expected: 2 (1 OK stmt, 1 failed stmt, 0 unparseable stmts)
 SELECT COUNT(argument)/@protdiv
@@ -134,14 +141,38 @@ AND start_time>=@my_start
 ORDER BY start_time;
 COUNT(sql_text)/@protdiv
 0.0000
+=======
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '��bad_characters’@’%’ IDENTIFIED BY 'mypassword'' at line 1
+# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "general table>",argument
+FROM mysql.general_log
+WHERE INSTR(argument,"CREATE USER")=1
+ORDER BY event_time;
+general table>	argument
+general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+general table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+# Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+SELECT "slow table>",sql_text
+FROM mysql.slow_log
+WHERE INSTR(sql_text,"CREATE USER")=1
+ORDER BY start_time;
+slow table>	sql_text
+slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*FABE5482D5AADF36D028AC443D117BE1180B9725'
+slow table>	CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+>>>>>>> pr/231
 SET @@global.slow_query_log_file=@save_sqlf;
 SET @@global.slow_query_log=@save_sql;
 SET @@global.log_output=@save_lo;
 SET @@session.long_query_time=@save_lqt;
 DROP USER 'duplicate_user'@'%';
 # Expected: 1 OK stmt, 1 failed stmt, 0 unparseable stmts
+<<<<<<< HEAD
 slow file     obfuscated statements>2
 slow file non-obfuscated statements>0
+=======
+slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*FABE5482D5AADF36D028AC443D117BE1180B9725';
+slow file>CREATE USER 'duplicate_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>';
+>>>>>>> pr/231
 TRUNCATE mysql.slow_log;
 TRUNCATE mysql.general_log;
 #

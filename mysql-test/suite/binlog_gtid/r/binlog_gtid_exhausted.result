@@ -23,6 +23,7 @@ ERROR HY000: Binary logging not possible. Message: Impossible to generate GTID: 
 RESET MASTER;
 DROP TABLE t1;
 include/assert_grep.inc [ER_GNO_EXHAUSTED server is being stopped found in server error log]
+<<<<<<< HEAD
 # restart
 RESET MASTER;
 CREATE TABLE t1(i INT);
@@ -42,3 +43,5 @@ SET GLOBAL gtid_purged = CONCAT('dddddddd-dddd-dddd-dddd-dddddddddddd:1-', (1 <<
 SET GLOBAL gtid_purged = CONCAT('+SERVER_UUID:1-25');
 include/assert_grep.inc [No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
 # restart
+=======
+>>>>>>> pr/231

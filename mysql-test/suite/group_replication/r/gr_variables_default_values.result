@@ -4,7 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
+<<<<<<< HEAD
 SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
+=======
+SET @@GLOBAL.group_replication_ip_whitelist= "AUTOMATIC";
+>>>>>>> pr/231
 include/start_and_bootstrap_group_replication.inc
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
@@ -25,10 +29,23 @@ include/stop_group_replication.inc
 # Take backup of group replication variables
 #
 # Test Unit#1
+<<<<<<< HEAD
 # Set global/session group replication variables to default.
 # Curently there are 61 group replication variables.
 #
 include/assert.inc [There are 61 GR variables at present.]
+=======
+# Set global group replication variables to default.
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_variables_default_values.result
+# Curently there are 44 group replication variables.
+#
+include/assert.inc [There are 44 GR variables at present.]
+=======
+# Curently there are 36 group replication variables.
+#
+include/assert.inc [There are 36 GR variables at present.]
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_variables_default_values.result
+>>>>>>> pr/231
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -68,8 +85,10 @@ SET @@GLOBAL.group_replication_communication_debug_options= default;
 SET @@GLOBAL.group_replication_transaction_size_limit= default;
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= default;
 SET @@GLOBAL.group_replication_member_weight= default;
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_variables_default_values.result
 SET @@GLOBAL.group_replication_recovery_public_key_path= default;
 SET @@GLOBAL.group_replication_recovery_get_public_key= default;
+<<<<<<< HEAD
 SET @@GLOBAL.group_replication_exit_state_action= default;
 SET @@GLOBAL.group_replication_member_expel_timeout= default;
 SET @@GLOBAL.group_replication_consistency= default;
@@ -85,6 +104,11 @@ SET @@GLOBAL.group_replication_view_change_uuid= default;
 SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@GLOBAL.group_replication_paxos_single_leader = default;
 SET @@SESSION.group_replication_consistency= default;
+=======
+=======
+SET @@GLOBAL.group_replication_exit_state_action= default;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_variables_default_values.result
+>>>>>>> pr/231
 #
 # Test Unit#2
 # Verify default values of the group replication variables.
@@ -114,11 +138,13 @@ include/assert.inc [Default group_replication_recovery_use_ssl is OFF/0]
 include/assert.inc [Default group_replication_ssl_mode is DISABLED]
 include/assert.inc [Default group_replication_start_on_boot is ON/1]
 include/assert.inc [Default group_replication_transaction_size_limit is 150000000]
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_variables_default_values.result
 include/assert.inc [Default group_replication_communication_debug_options is "GCS_DEBUG_NONE"]
 include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
 include/assert.inc [Default group_replication_member_weight is 50]
 include/assert.inc [Default group_replication_recovery_public_key_path is ""(EMPTY)]
 include/assert.inc [Default group_replication_recovery_get_public_key is OFF/0]
+<<<<<<< HEAD
 include/assert.inc [Default group_replication_exit_state_action is READ_ONLY]
 include/assert.inc [Default group_replication_member_expel_timeout is 5]
 include/assert.inc [Default group_replication_consistency is EVENTUAL]
@@ -134,6 +160,13 @@ include/assert.inc [Default group_replication_advertise_recovery_endpoints is "D
 include/assert.inc [Default group_replication_view_change_uuid is "AUTOMATIC"]
 include/assert.inc [Default group_replication_communication_stack is XCom]
 include/assert.inc [Default group_replication_paxos_single_leader is 0]
+=======
+=======
+include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
+include/assert.inc [Default group_replication_member_weight is 50]
+include/assert.inc [Default group_replication_exit_state_action is READ_ONLY]
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_variables_default_values.result
+>>>>>>> pr/231
 #
 # Clean up
 #

@@ -25,8 +25,13 @@
 ################################################################################
 --source include/have_debug_sync.inc
 --source include/big_test.inc
+<<<<<<< HEAD
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 --echo
 --echo ############################################################
@@ -145,4 +150,8 @@ if ($gtid_assignment_block_size == 1)
 --echo # 11. Clean up.
 DROP TABLE t1;
 
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

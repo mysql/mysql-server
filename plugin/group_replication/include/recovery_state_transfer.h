@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/recovery_state_transfer.h
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/recovery_state_transfer.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,6 +130,7 @@ class Recovery_state_transfer {
   void set_recovery_use_ssl(char use_ssl) { this->recovery_use_ssl = use_ssl; }
 
   /** Set a SSL trusted certificate authorities file */
+<<<<<<< HEAD:plugin/group_replication/include/recovery_state_transfer.h
   void set_recovery_ssl_ca(const char *ssl_ca) {
     memcpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca) + 1);
   }
@@ -153,7 +162,52 @@ class Recovery_state_transfer {
 
   /** Set a folder with SSL revocation list files*/
   void set_recovery_ssl_crlpath(const char *ssl_crlpath) {
+<<<<<<< HEAD
     memcpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath) + 1);
+=======
+    (void)strncpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath) + 1);
+=======
+  void set_recovery_ssl_ca(const char* ssl_ca)
+  {
+    memcpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca)+1);
+  }
+
+  /** Set a folder with SSL trusted CA files */
+  void set_recovery_ssl_capath(const char* ssl_capath)
+  {
+    memcpy(recovery_ssl_capath, ssl_capath, strlen(ssl_capath)+1);
+  }
+
+  /** Set a SSL certificate for connection */
+  void set_recovery_ssl_cert(const char* ssl_cert)
+  {
+    memcpy(recovery_ssl_cert, ssl_cert, strlen(ssl_cert)+1);
+  }
+
+  /** Set a SSL ciphers to be used */
+  void set_recovery_ssl_cipher(const char* ssl_cipher)
+  {
+    memcpy(recovery_ssl_cipher, ssl_cipher, strlen(ssl_cipher)+1);
+  }
+
+  /** Set a SSL key for connections */
+  void set_recovery_ssl_key(const char* ssl_key)
+  {
+    memcpy(recovery_ssl_key, ssl_key, strlen(ssl_key)+1);
+  }
+
+  /** Set a SSL revocation list file*/
+  void set_recovery_ssl_crl(const char* ssl_crl)
+  {
+    memcpy(recovery_ssl_crl, ssl_crl, strlen(ssl_crl)+1);
+  }
+
+  /** Set a folder with SSL revocation list files*/
+  void set_recovery_ssl_crlpath(const char* ssl_crlpath)
+  {
+    memcpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath)+1);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/recovery_state_transfer.h
+>>>>>>> pr/231
   }
 
   /** Set if recovery shall compare the used hostname against the certificate */
@@ -362,8 +416,12 @@ class Recovery_state_transfer {
       @retval STATE_TRANSFER_OK      OK
       @retval !=STATE_TRANSFER_OK    Error
   */
+<<<<<<< HEAD
   State_transfer_status terminate_recovery_slave_threads(
       bool purge_logs = true);
+=======
+  int terminate_recovery_slave_threads(bool purge_logs = true);
+>>>>>>> pr/231
 
   /**
     Purges relay logs and the master info object

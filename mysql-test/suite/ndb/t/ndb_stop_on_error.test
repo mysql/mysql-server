@@ -135,7 +135,11 @@ INSERT INTO t1 VALUES
 sleep 10;
 
 --echo "Insert ERROR command to crash nodes with SEGV"
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 9006" >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 9006" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo "Wait till nodes started"
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT

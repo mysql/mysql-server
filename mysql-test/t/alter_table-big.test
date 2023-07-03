@@ -114,6 +114,7 @@ source include/show_binlog_events.inc;
 --echo End of 5.1 tests
 --source include/restore_default_binlog_format.inc
 
+<<<<<<< HEAD
 
 --echo #
 --echo # Additional coverage for WL#7743 "New data dictionary: changes
@@ -381,4 +382,166 @@ SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection default;
 UNLOCK TABLES;
+<<<<<<< HEAD
 DROP DATABASE mysqltest;
+=======
+DROP TABLES t1, t4;
+
+--echo #
+--echo # 3.5) Special case ALTER TABLE COPY with RENAME clause which
+--echo #      non-atomic, adds foreign keys and fails at the late stage.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT) ENGINE=MyISAM;
+LOCK TABLES t2 WRITE, t1 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t2 ADD FOREIGN KEY (fk) REFERENCES t1(pk), ENGINE=InnoDB, RENAME TO t3, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # Table should be removed from locked tables list and new
+--echo # table name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t3;
+
+connection con1;
+--echo # However, metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t3;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+
+connection default;
+--echo # And delete from parent table is possible and doesn't cause asserts.
+DELETE FROM t1;
+UNLOCK TABLES;
+DROP TABLES t3, t1;
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--disable_connect_log
+--echo #
+--echo # Bug#24786075   FIND A WAY TO LIST #SQL... TABLE LEFT IN      
+--echo #                DATA DICTIONARY IN CASE ALTER FAILS.
+--echo # Test that we can see hidden temporary tables using ALTER TABLE.
+--echo # Test that we can delete the hidden temporary tables that were
+--echo # left by ALTER TABLE table failures in rare situations.
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+
+SET debug="+d,exit_after_alter_table_before_rename";
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 modify column a varchar(30);
+SET debug="-d,exit_after_alter_table_before_rename";
+
+--echo # Verify that #sql... tables are not seen by I_S and SHOW
+SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME like '#sql%';
+SHOW TABLES FROM test;
+
+--echo # The SHOW EXTENDED [FULL] syntax should show the hidden table.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # Dropping the temporary table.
+let $value=
+  query_get_value(SHOW EXTENDED TABLES FROM test, Tables_in_test, 1);
+let $stmt = DROP TABLE `$value`;
+--replace_regex /#sql.*$/#sql-xxxxx/
+eval $stmt;
+
+--echo # Verify that the temporary table is dropped.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # clean-up
+DROP TABLE t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+=======
+--echo #
+--echo # BUG#29375764: SIMPLE ALTER CAUSE UNNECESSARY INNODB INDEX REBUILDS,
+--echo #               5.7.23 OR LATER 5.7 RLSES
+--echo #
+
+############################################################################
+# In 5.7.22:
+# CREATE DATABASE my_db;
+# CREATE TABLE my_db.t1(i INT PRIMARY KEY, v VARCHAR(9), KEY (v));
+#
+# DATADIR NAME: data_50722
+# zip -r data_50722.zip data_50722
+############################################################################
+
+--echo # Copy the zipped 5.7.22 data directory and unzip it.
+--copy_file $MYSQLTEST_VARDIR/std_data/data_50722.zip $MYSQL_TMP_DIR/data_50722.zip
+--file_exists $MYSQL_TMP_DIR/data_50722.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_50722.zip -d $MYSQL_TMP_DIR
+
+let $DATADIR_50722 = $MYSQL_TMP_DIR/data_50722;
+let $MYSQLD_LOG = $MYSQL_TMP_DIR/data_50722/my_err.log;
+
+# SHUTDOWN
+--source include/shutdown_mysqld.inc
+
+--echo # Restart the server with the 5.7.22 data directory.
+--exec echo "restart: --datadir=$DATADIR_50722 --log-error=$MYSQLD_LOG --innodb_undo_tablespaces=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # UPGRADE
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SET DEBUG="+d, assert_index_def_has_no_pack_flag";
+--echo # Without the patch, an assert is triggered, indicating that index definitions
+--echo # have changed that would result in a index rebuild.
+ALTER TABLE my_db.t1 COMMENT "No index rebuild necessary";
+
+--echo # CLEANUP
+DROP TABLE my_db.t1;
+DROP DATABASE my_db;
+
+# SHUTDOWN
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files and directories.
+--remove_file $MYSQL_TMP_DIR/data_50722.zip
+--remove_files_wildcard $DATADIR_50722/sys *
+--remove_files_wildcard $DATADIR_50722/mysql *
+--remove_files_wildcard $DATADIR_50722/performance_schema *
+--remove_files_wildcard $DATADIR_50722/test *
+--remove_files_wildcard $DATADIR_50722 *
+--rmdir $DATADIR_50722/sys
+--rmdir $DATADIR_50722/mysql
+--rmdir $DATADIR_50722/performance_schema
+--rmdir $DATADIR_50722/test
+--rmdir $DATADIR_50722
+
+--echo # Restart server with default options.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

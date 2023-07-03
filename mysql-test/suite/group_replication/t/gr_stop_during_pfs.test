@@ -13,13 +13,22 @@
 # 4. Send performance_schema query on M1 from a parallel client.
 # 5. Verify that concurrent queries are properly handled by server.
 # 6. Verify the consistency of the P_S queries post STOP GR.
+<<<<<<< HEAD
 # 6. Cleanup
+=======
+# 7. Cleanup
+>>>>>>> pr/231
 ################################################################################
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+<<<<<<< HEAD
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # Set the necessary debug points required for the simulation.
@@ -27,7 +36,11 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET @debug_save= @@GLOBAL.DEBUG;
+<<<<<<< HEAD
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
+=======
+SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_stop';
+>>>>>>> pr/231
 
 --echo #
 --echo # Send STOP GR command. The query shall wait before
@@ -40,7 +53,11 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --echo #
 --let $rpl_connection_name= server_1_1
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
+=======
+SET DEBUG_SYNC= "now WAIT_FOR signal.stop_waiting";
+>>>>>>> pr/231
 
 --echo #
 --echo # Send PS query from different session. The query shall halt in
@@ -58,7 +75,11 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_get_group_member_stats';
 --let $rpl_connection_name= server_1_1
 --source include/rpl_connection.inc
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats";
+<<<<<<< HEAD
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
+=======
+SET DEBUG_SYNC= "now SIGNAL signal.stop_continue";
+>>>>>>> pr/231
 
 # Reap the STOP GR query.
 --let $rpl_connection_name= server1
@@ -100,4 +121,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
 --source include/rpl_connection.inc
 SET GLOBAL DEBUG= @debug_save;
 SET DEBUG_SYNC= 'RESET';
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

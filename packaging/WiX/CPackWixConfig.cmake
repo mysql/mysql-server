@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +28,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+SET(CPACK_COMPONENTS_USED 
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;Meb;MebReadme")
+=======
+>>>>>>> pr/231
 SET(CPACK_COMPONENTS_USED
   Client
   DataFiles
@@ -27,19 +42,32 @@ SET(CPACK_COMPONENTS_USED
   Documentation
   Info
   IniFiles
+<<<<<<< HEAD
   Meb
   MebReadme
   Readme
   Router
+=======
+  Readme
+>>>>>>> pr/231
   Server
   Server_Scripts
   SharedLibraries
   )
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 IF(WITH_NDB)
   MESSAGE(STATUS "This is Cluster build, append additional components")
-  SET(CPACK_COMPONENTS_USED
-    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+  LIST(APPEND CPACK_COMPONENTS_USED
+    ClusterTools
+    ClusterDataNode
+    ClusterManagementServer
+    ClusterManagementClient
+    ClusterJ
+    )
 ENDIF()
 
 # Some components are optional
@@ -103,13 +131,28 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  #Subfeature "Development"
  SET(CPACK_COMPONENT_DEVELOPMENT_GROUP "Devel")
  SET(CPACK_COMPONENT_DEVELOPMENT_HIDDEN 1)
+<<<<<<< HEAD
   
+=======
+ 
+<<<<<<< HEAD
+ #Subfeature "Shared libraries"
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "Devel")
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_DISPLAY_NAME "Client C API library (shared)")
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_DESCRIPTION "Installs shared client library")
+  
+=======
+>>>>>>> pr/231
  #Subfeature "Embedded"
  SET(CPACK_COMPONENT_EMBEDDED_GROUP "Devel")
  SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded server library")
  SET(CPACK_COMPONENT_EMBEDDED_DESCRIPTION "Installs embedded server library")
  SET(CPACK_COMPONENT_EMBEDDED_WIX_LEVEL 2)
 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #Feature Debug Symbols
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DISPLAY_NAME "Debug Symbols")
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DESCRIPTION "Installs Debug Symbols")
@@ -164,9 +207,9 @@ IF(WITH_NDB)
   SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
   SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
   SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
-
-  #Subfeature "nodejs"
-  SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
-  SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
-  SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
 ENDIF()
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> pr/231

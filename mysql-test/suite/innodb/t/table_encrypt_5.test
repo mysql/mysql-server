@@ -16,15 +16,23 @@
 --source include/no_valgrind_without_big.inc
 
 # Suppress warnings
+<<<<<<< HEAD
 -- disable_query_log
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("Operating system error number");
+=======
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted");
+call mtr.add_suppression("InnoDB: Operating system error number");
+>>>>>>> upstream/cluster-7.6
 call mtr.add_suppression("The error means the system cannot find the path specified");
 call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
 call mtr.add_suppression("Could not find a valid tablespace file");
 call mtr.add_suppression("Ignoring tablespace");
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
+<<<<<<< HEAD
 call mtr.add_suppression("\\[Warning\\] .* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded");
@@ -34,7 +42,20 @@ call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'keyring_
 call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] .* Tablespace [0-9]+, name 'tde_db.*t_encrypt.*', unable to open file '.*tde_db.*t_encrypt.*.ibd' - Data structure corruption");
 call mtr.add_suppression("\\[ERROR\\] .* Check keyring fail, please check the keyring is loaded.");
+=======
+<<<<<<< HEAD
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'tde_db.*t_encrypt.*', unable to open file '.*tde_db.*t_encrypt.*.ibd' - Data structure corruption");
+>>>>>>> pr/231
 -- enable_query_log
+=======
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+--enable_query_log
+>>>>>>> upstream/cluster-7.6
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 

@@ -922,6 +922,7 @@ DROP table t1,t2;
 --rmdir $mysql_tmp_dir/sp0_dir
 --rmdir $mysql_tmp_dir/sp3_dir
 
+<<<<<<< HEAD
 
 --echo check table_id after exchange partition
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
@@ -968,12 +969,17 @@ ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
 
 DROP TABLE t1,t2;
 
+=======
+>>>>>>> pr/231
 --echo #
 --echo Bug#28687608 exchange partition with different row_format
 --echo #
 
 SET @orig_default_row_format = @@global.innodb_default_row_format;
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 SET GLOBAL innodb_default_row_format=COMPACT;
 CREATE TABLE t1 (
   col1 INT UNSIGNED,
@@ -996,7 +1002,11 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN ('2000-01-01'));
 INSERT INTO t1 VALUES ('3','1999-10-13 05:28:46'), ('4', '1996-09-26 20:00:00');
 
 --replace_result #p# #P# #sp# #SP#
+<<<<<<< HEAD
 SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
+=======
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+>>>>>>> pr/231
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
 CREATE TABLE t2 LIKE t1;
@@ -1033,7 +1043,11 @@ INSERT INTO t1(b,a) VALUES('first',40),('second',91),('third',140),
 ('forth',191);
 
 --replace_result #p# #P# #sp# #SP#
+<<<<<<< HEAD
 SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
+=======
+SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+>>>>>>> pr/231
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
 CREATE TABLE t2 like t1;

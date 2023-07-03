@@ -34,8 +34,12 @@
 --source include/rpl_connection_slave.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
 --source include/stop_slave.inc
+<<<<<<< HEAD
 SET @@GLOBAL.replica_parallel_workers=2;
 SET @@GLOBAL.replica_preserve_commit_order=OFF;
+=======
+SET @@global.slave_parallel_workers=2;
+>>>>>>> pr/231
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -56,6 +60,7 @@ INSERT INTO d1.t VALUES (1, 'T1');
 BEGIN;
 INSERT INTO d2.t VALUES (2, 'Slave local'); # Hold T3
 
+<<<<<<< HEAD
 --source include/rpl_connection_master1.inc
 
 # Begin T4 so it is parallel using DATABASE | LOGICAL CLOCK (WRITESET) | LOGICAL CLOCK (COMMIT ORDER)
@@ -69,6 +74,13 @@ INSERT INTO d2.t VALUES (2, 'T3'); # This will be a gap when executed on the rep
 
 --source include/rpl_connection_master1.inc
 COMMIT;
+=======
+--source include/rpl_connection_master.inc
+INSERT INTO d2.t VALUES (1, 'T2');
+INSERT INTO d2.t VALUES (2, 'T3'); # This will be a gap when executed on slave
+INSERT INTO d2.t VALUES (3, 'T4'); # This will be a gap when executed on slave
+INSERT INTO d1.t VALUES (2, 'T5');
+>>>>>>> pr/231
 
 --source include/rpl_connection_slave1.inc
 --let $table=d2.t
@@ -82,10 +94,17 @@ COMMIT;
 # Wait for coordinator to populate worker's queues.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
+<<<<<<< HEAD
 --let $condition= = 'Replica has read all relay log; waiting for more updates'
 --source include/wait_show_condition.inc
 
 # Kill the replica server
+=======
+--let $condition= = 'Slave has read all relay log; waiting for more updates'
+--source include/wait_show_condition.inc
+
+# Kill the slave server
+>>>>>>> pr/231
 --let $rpl_server_number= 2
 --let $rpl_force_stop=1
 --source include/rpl_stop_server.inc

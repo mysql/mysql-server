@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
  * Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+=======
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +34,7 @@
 #ifndef MY_HOSTNAME_INCLUDED
 #define MY_HOSTNAME_INCLUDED
 
+<<<<<<< HEAD
 /*
    Note that this is the actual length available, and that room
    for a trailing '\0' is not included in this size.
@@ -40,18 +45,32 @@
    pre 8.0.17: 60 characters
 */
 static constexpr int HOSTNAME_LENGTH = 255;
+=======
+#include "mysql_com.h" // HOSTNAME_LENGTH
+>>>>>>> pr/231
 
 /*
   Number of characters that a port number can have.
   As per rfc6335 section 6, the range is 0 to 65535.
 */
+<<<<<<< HEAD
 static constexpr int PORTNUMBER_LENGTH = 5;
+=======
+#define PORTNUMBER_LENGTH 5
+>>>>>>> pr/231
 
 /**
   Length of "hostname:portnumber".
   This does not include the trailing '\0'.
 */
+<<<<<<< HEAD
 static constexpr int HOST_AND_PORT_LENGTH =
     (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH);
+=======
+#define HOST_AND_PORT_LENGTH (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH)
+
+/* HOSTNAME_LENGTH is 60 */
+#define HOST_AND_PORT_LENGTH_STR "66"
+>>>>>>> pr/231
 
 #endif /* MY_HOSTNAME_INCLUDED */

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,9 +211,11 @@ enum mysql_option {
   MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE,
+<<<<<<< HEAD
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+<<<<<<< HEAD
   MYSQL_OPT_SSL_FIPS_MODE,
   MYSQL_OPT_TLS_CIPHERSUITES,
   MYSQL_OPT_COMPRESSION_ALGORITHMS,
@@ -213,6 +223,25 @@ enum mysql_option {
   MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
   MYSQL_OPT_USER_PASSWORD,
   MYSQL_OPT_SSL_SESSION_DATA
+=======
+  MYSQL_OPT_SSL_FIPS_MODE
+=======
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY
+#ifndef MCP_BUG22389653
+/*
+  The option value 'MYSQL_OPT_RETRY_COUNT' is added to allow
+  libmysql clients to configure the retry count using the C
+  API, mysql_options(). This new option is an MCP addition.
+  NOTE! Using a high hardcoded value for the option to avoid
+  that it changes in case new option(s) are added to the version
+  which this version of MySQL Cluster is based on. The value does
+  not need to be same between major versions but should not fluctuate
+  betwen minor version numbers.
+*/
+  , MYSQL_OPT_RETRY_COUNT = 237 // Hardcoded
+#endif
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /**

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -621,6 +629,7 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
                        std::set<Gcs_member_identifier *> &pset);
 
   /**
+<<<<<<< HEAD
    Stores the member's state and protocol version.
 
    @param ms_info state
@@ -661,6 +670,16 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
    @returns the set of incompatible joiners
    */
   std::vector<Gcs_xcom_node_information> compute_incompatible_joiners();
+=======
+   * Stores the member's state and protocol version.
+   *
+   * @param ms_info state
+   * @param p_id member
+   * @param protocol_version protocol version
+   */
+  void save_member_state(Xcom_member_state *ms_info,
+                         const Gcs_member_identifier &p_id);
+>>>>>>> pr/231
 
   Gcs_communication_interface *m_broadcaster;
 

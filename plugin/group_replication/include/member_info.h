@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +70,15 @@
   So when member has DEFAULT_NOT_RECEIVED value, it means its
   lower_case_table_names value is not known.
 */
+<<<<<<< HEAD
 #define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES 65540
 #ifndef NDEBUG
 #define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES 65541
+=======
+#define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES  65540
+#ifndef NDEBUG
+#define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES         65541
+>>>>>>> pr/231
 #endif
 
 /*
@@ -1137,13 +1147,30 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   void set_member_reachable(const std::string &uuid) override;
 
+<<<<<<< HEAD:plugin/group_replication/include/member_info.h
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
                         std::string &purged_gtids,
                         std::string &gtid_retrieved) override;
 
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,
+<<<<<<< HEAD
                           Notification_context &ctx) override;
+=======
+                          Notification_context &ctx);
+=======
+  void set_member_unreachable(const std::string &uuid);
+
+  void set_member_reachable(const std::string &uuid);
+
+  void update_gtid_sets(const std::string& uuid,
+                        std::string& gtid_executed,
+                        std::string& gtid_retrieved);
+  void
+  update_member_role(const std::string& uuid,
+                     Group_member_info::Group_member_role new_role);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/member_info.h
+>>>>>>> pr/231
 
   void update_group_primary_roles(const std::string &uuid,
                                   Notification_context &ctx) override;

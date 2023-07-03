@@ -1,5 +1,9 @@
 #ifndef BINLOG_H_INCLUDED
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +97,204 @@ struct Binlog_user_var_event {
   bool unsigned_flag;
 };
 
+<<<<<<< HEAD
+=======
+/**
+  Class for maintaining the commit stages for binary log group commit.
+ */
+class Stage_manager {
+ public:
+  class Mutex_queue {
+    friend class Stage_manager;
+
+   public:
+    Mutex_queue() : m_first(NULL), m_last(&m_first), m_size(0) {}
+
+    void init(PSI_mutex_key key_LOCK_queue) {
+      mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
+    }
+
+    void deinit() { mysql_mutex_destroy(&m_lock); }
+
+    bool is_empty() const { return m_first == NULL; }
+
+    /**
+      Append a linked list of threads to the queue.
+      @retval true The queue was empty before this operation.
+      @retval false The queue was non-empty before this operation.
+    */
+    bool append(THD *first);
+
+    /**
+       Fetch the entire queue for a stage.
+
+       This will fetch the entire queue in one go.
+    */
+    THD *fetch_and_empty();
+
+    std::pair<bool, THD *> pop_front();
+
+    inline int32 get_size() { return m_size.load(); }
+
+   private:
+    void lock() { mysql_mutex_lock(&m_lock); }
+    void unlock() { mysql_mutex_unlock(&m_lock); }
+
+    /**
+       Pointer to the first thread in the queue, or NULL if the queue is
+       empty.
+    */
+    THD *m_first;
+
+    /**
+       Pointer to the location holding the end of the queue.
+
+       This is either @c &first, or a pointer to the @c next_to_commit of
+       the last thread that is enqueued.
+    */
+    THD **m_last;
+
+    /** size of the queue */
+    std::atomic<int32> m_size;
+
+    /** Lock for protecting the queue. */
+    mysql_mutex_t m_lock;
+
+    /*
+      This attribute did not have the desired effect, at least not according
+      to -fsanitize=undefined with gcc 5.2.1
+     */
+  };  // MY_ATTRIBUTE((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+
+ public:
+  Stage_manager() {}
+
+  ~Stage_manager() {}
+
+  /**
+     Constants for queues for different stages.
+   */
+  enum StageID { FLUSH_STAGE, SYNC_STAGE, COMMIT_STAGE, STAGE_COUNTER };
+
+  void init(PSI_mutex_key key_LOCK_flush_queue,
+            PSI_mutex_key key_LOCK_sync_queue,
+            PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
+            PSI_cond_key key_COND_done) {
+    mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_COND_done, &m_cond_done);
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF
+     */
+=======
+#ifndef NDEBUG
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !NDEBUG */
+>>>>>>> upstream/cluster-7.6
+    mysql_cond_init(key_COND_done, &m_cond_preempt);
+#endif
+    m_queue[FLUSH_STAGE].init(key_LOCK_flush_queue);
+    m_queue[SYNC_STAGE].init(key_LOCK_sync_queue);
+    m_queue[COMMIT_STAGE].init(key_LOCK_commit_queue);
+  }
+
+  void deinit() {
+    for (size_t i = 0; i < STAGE_COUNTER; ++i) m_queue[i].deinit();
+    mysql_cond_destroy(&m_cond_done);
+    mysql_mutex_destroy(&m_lock_done);
+  }
+
+  /**
+    Enroll a set of sessions for a stage.
+
+    This will queue the session thread for writing and flushing.
+
+    If the thread being queued is assigned as stage leader, it will
+    return immediately.
+
+    If wait_if_follower is true the thread is not the stage leader,
+    the thread will be wait for the queue to be processed by the
+    leader before it returns.
+    In DBUG-ON version the follower marks is preempt status as ready.
+
+    @param stage Stage identifier for the queue to append to.
+    @param first Queue to append.
+    @param stage_mutex
+                 Pointer to the currently held stage mutex, or NULL if
+                 we're not in a stage.
+
+    @retval true  Thread is stage leader.
+    @retval false Thread was not stage leader and processing has been done.
+   */
+  bool enroll_for(StageID stage, THD *first, mysql_mutex_t *stage_mutex);
+
+  std::pair<bool, THD *> pop_front(StageID stage) {
+    return m_queue[stage].pop_front();
+  }
+
+#ifndef NDEBUG
+  /**
+     The method ensures the follower's execution path can be preempted
+     by the leader's thread.
+     Preempt status of @c head follower is checked to engange the leader
+     into waiting when set.
+
+     @param head  THD* of a follower thread
+  */
+  void clear_preempt_status(THD *head);
+#endif
+
+  /**
+    Fetch the entire queue and empty it.
+
+    @return Pointer to the first session of the queue.
+   */
+  THD *fetch_queue_for(StageID stage) {
+    DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
+    return m_queue[stage].fetch_and_empty();
+  }
+
+  /**
+    Introduces a wait operation on the executing thread.  The
+    waiting is done until the timeout elapses or count is
+    reached (whichever comes first).
+
+    If count == 0, then the session will wait until the timeout
+    elapses. If timeout == 0, then there is no waiting.
+
+    @param usec     the number of microseconds to wait.
+    @param count    wait for as many as count to join the queue the
+                    session is waiting on
+    @param stage    which stage queue size to compare count against.
+   */
+  void wait_count_or_timeout(ulong count, long usec, StageID stage);
+
+  void signal_done(THD *queue);
+
+ private:
+  /**
+     Queues for sessions.
+
+     We need two queues:
+     - Waiting. Threads waiting to be processed
+     - Committing. Threads waiting to be committed.
+   */
+  Mutex_queue m_queue[STAGE_COUNTER];
+
+  /** Condition variable to indicate that the commit was processed */
+  mysql_cond_t m_cond_done;
+
+  /** Mutex used for the condition variable above */
+  mysql_mutex_t m_lock_done;
+#ifndef NDEBUG
+  /** Flag is set by Leader when it starts waiting for follower's all-clear */
+  bool leader_await_preempt_status;
+
+  /** Condition variable to indicate a follower started waiting for commit */
+  mysql_cond_t m_cond_preempt;
+#endif
+};
+
+>>>>>>> pr/231
 /* log info errors */
 #define LOG_INFO_EOF -1
 #define LOG_INFO_IO -2
@@ -410,7 +612,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
+<<<<<<< HEAD
                                       Gtid *first_gtid, std::string &errmsg);
+=======
+<<<<<<< HEAD
+                                      Gtid *first_gtid, const char **errmsg);
+=======
+                                      Gtid *first_gtid, std::string &errmsg);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -443,9 +653,16 @@ class MYSQL_BIN_LOG : public TC_LOG {
                       Gtid_monitoring_info *partial_trx,
                       bool is_server_starting = false);
 
+<<<<<<< HEAD
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param) {
     assert(is_relay_log);
     previous_gtid_set_relaylog = previous_gtid_set_param;
+=======
+  void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
+  {
+    assert(is_relay_log);
+    previous_gtid_set_relaylog= previous_gtid_set_param;
+>>>>>>> upstream/cluster-7.6
   }
   /**
     If the thread owns a GTID, this function generates an empty
@@ -666,13 +883,23 @@ class MYSQL_BIN_LOG : public TC_LOG {
                    be skipped and @c false otherwise (the normal case).
   */
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
+<<<<<<< HEAD
   void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
                                          const char *message);
   bool do_write_cache(Binlog_cache_storage *cache,
                       class Binlog_event_writer *writer);
   void report_binlog_write_error();
+=======
+<<<<<<< HEAD
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
+>>>>>>> pr/231
 
  public:
+=======
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
+                                         const char *message);
+public:
+>>>>>>> upstream/cluster-7.6
   int open_binlog(const char *opt_name);
   void close() override;
   enum_result commit(THD *thd, bool all) override;
@@ -685,17 +912,61 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event *event,
                                        bool is_transactional);
 
+<<<<<<< HEAD
 #endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
+<<<<<<< HEAD
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
+=======
+  void harvest_bytes_written(ulonglong *counter) {
+#ifndef DBUG_OFF
+    char buf1[22], buf2[22];
+#endif
+    DBUG_ENTER("harvest_bytes_written");
+    (*counter) += bytes_written;
+    DBUG_PRINT("info", ("counter: %s  bytes_written: %s", llstr(*counter, buf1),
+                        llstr(bytes_written, buf2)));
+    bytes_written = 0;
+    DBUG_VOID_RETURN;
+  }
+=======
+#endif /* !defined(MYSQL_CLIENT) */
+  void add_bytes_written(ulonglong inc)
+  {
+    bytes_written += inc;
+  }
+  void reset_bytes_written()
+  {
+    bytes_written = 0;
+  }
+  void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   void set_max_size(ulong max_size_arg);
 
   void update_binlog_end_pos(bool need_lock = true);
   void update_binlog_end_pos(const char *file, my_off_t pos);
 
+<<<<<<< HEAD
   /**
     Wait until we get a signal that the binary log has been updated.
+=======
+<<<<<<< HEAD
+  void update_binlog_end_pos(my_off_t pos) {
+    lock_binlog_end_pos();
+    if (pos > atomic_binlog_end_pos) atomic_binlog_end_pos = pos;
+=======
+  void update_binlog_end_pos(const char *file, my_off_t pos)
+  {
+    lock_binlog_end_pos();
+    if (is_active(file) && pos > binlog_end_pos)
+      binlog_end_pos= pos;
+>>>>>>> upstream/cluster-7.6
+    signal_update();
+    unlock_binlog_end_pos();
+  }
+>>>>>>> pr/231
 
     NOTES
     @param[in] timeout    a pointer to a timespec;
@@ -772,7 +1043,12 @@ class MYSQL_BIN_LOG : public TC_LOG {
      Gtid_log_event and BEGIN, COMMIT automatically.
 
      It is aimed to handle cases of "background" logging where a statement is
+<<<<<<< HEAD
      logged indirectly, like "TRUNCATE TABLE a_memory_table". So don't use it on
+=======
+<<<<<<< HEAD
+     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on
+>>>>>>> pr/231
      any normal statement.
 
      @param[in] thd  the THD object of current thread.
@@ -782,8 +1058,26 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
      @return Returns false if succeeds, otherwise true is returned.
   */
+<<<<<<< HEAD
   bool write_stmt_directly(THD *thd, const char *stmt, size_t stmt_len,
                            enum enum_sql_command sql_command);
+=======
+  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len);
+=======
+     logged indirectly, like "TRUNCATE TABLE a_memory_table". So don't use it on any
+     normal statement.
+
+     @param[IN] thd  the THD object of current thread.
+     @param[IN] stmt the DML statement.
+     @param[IN] stmt_len the length of the DML statement.
+     @param[IN] sql_command the type of SQL command.
+
+     @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool write_stmt_directly(THD* thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);
@@ -931,6 +1225,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
     @param slave_executed_gtid_set     GTID set executed by slave
     @param errmsg                      Pointer to the error message
+<<<<<<< HEAD
+=======
+
+    @return void
+>>>>>>> pr/231
   */
   void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
                                    std::string &errmsg);
@@ -954,11 +1253,20 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param previous_gtid_set           Previous GTID set found
     @param slave_executed_gtid_set     GTID set executed by slave
     @param errmsg                      Pointer to the error message
+<<<<<<< HEAD
+=======
+
+    @return void
+>>>>>>> pr/231
   */
   void report_missing_gtids(const Gtid_set *previous_gtid_set,
                             const Gtid_set *slave_executed_gtid_set,
                             std::string &errmsg);
+<<<<<<< HEAD
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
+=======
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE= 5;
+>>>>>>> pr/231
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want
     to read hot log without LOCK_log protection.
@@ -1010,7 +1318,11 @@ extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
   @retval false Otherwise.
 
 **/
+<<<<<<< HEAD
 bool is_transaction_empty(THD *thd);
+=======
+bool is_transaction_empty(THD* thd);
+>>>>>>> pr/231
 /**
   Check if the transaction has no rw flag set for any of the storage engines.
 
@@ -1033,6 +1345,7 @@ int check_trx_rw_engines(THD *thd, Transaction_ctx::enum_trx_scope trx_scope);
                 contains an empty transaction.
   @retval false Otherwise.
 */
+<<<<<<< HEAD
 bool is_empty_transaction_in_binlog_cache(const THD *thd);
 bool trans_has_updated_trans_table(const THD *thd);
 bool stmt_has_updated_trans_table(Ha_trx_info_list const &ha_list);
@@ -1040,6 +1353,23 @@ bool ending_trans(THD *thd, const bool all);
 bool ending_single_stmt_trans(THD *thd, const bool all);
 bool trans_cannot_safely_rollback(const THD *thd);
 bool stmt_cannot_safely_rollback(const THD *thd);
+=======
+bool is_empty_transaction_in_binlog_cache(const THD* thd);
+bool trans_has_updated_trans_table(const THD* thd);
+bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
+/**
+  This function checks if the transaction has no operation dml.
+
+  @param ha_list Registered storage engine handler list.
+  @return true  if the transaction has no operation dml.
+          false otherwise.
+*/
+bool trans_has_noop_dml(Ha_trx_info* ha_list);
+bool ending_trans(THD* thd, const bool all);
+bool ending_single_stmt_trans(THD* thd, const bool all);
+bool trans_cannot_safely_rollback(const THD* thd);
+bool stmt_cannot_safely_rollback(const THD* thd);
+>>>>>>> upstream/cluster-7.6
 
 int log_loaded_block(IO_CACHE *file);
 
@@ -1086,4 +1416,61 @@ extern ulong rpl_read_size;
 
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log);
 
+<<<<<<< HEAD
+=======
+  assert(from);
+
+  /* opt_name is not null and not empty and from is a relative path */
+  if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
+  {
+    // take the path from opt_name
+    // take the filename from from 
+    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
+    size_t log_dirpart_len, log_dirname_len;
+    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
+    dirname_part(log_dirname, from, &log_dirname_len);
+
+    /* log may be empty => relay-log or log-bin did not 
+        hold paths, just filename pattern */
+    if (log_dirpart_len > 0)
+    {
+      /* create the new path name */
+      if(fn_format(buff, from+log_dirname_len, log_dirpart, "",
+                   MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+      {
+        error= true;
+        goto end;
+      }
+
+      ptr= buff;
+    }
+  }
+
+  assert(ptr);
+  if (ptr)
+  {
+    size_t length= strlen(ptr);
+
+    // Strips the CR+LF at the end of log name and \0-terminates it.
+    if (length && ptr[length-1] == '\n')
+    {
+      ptr[length-1]= 0;
+      length--;
+      if (length && ptr[length-1] == '\r')
+      {
+        ptr[length-1]= 0;
+        length--;
+      }
+    }
+    if (!length)
+    {
+      error= true;
+      goto end;
+    }
+    strmake(to, ptr, length);
+  }
+end:
+  DBUG_RETURN(error);
+}
+>>>>>>> upstream/cluster-7.6
 #endif /* BINLOG_H_INCLUDED */

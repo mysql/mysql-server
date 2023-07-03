@@ -1718,6 +1718,7 @@ WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'
 DROP TABLE t1;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
 --echo #              BUT EMPTY SET
 --echo #
@@ -1851,6 +1852,15 @@ do inet_aton(aes_encrypt(left(@e,1),5));
 --echo #              SRC, FILE .\STRINGS\CTYPE-UTF8.CC, LINE 8686
 --echo #
 
+=======
+--echo # Bug 31320716 - SETTING VARIABLE TO CONCAT('') SETS IT TO NULL INSTEAD OF ''
+--echo #
+# expect empty string and not NULL
+SELECT @var:=CONCAT('');
+SELECT @var:=CONCAT_WS('','');
+
+# shouldn't cause an assertion to fail
+>>>>>>> upstream/cluster-7.6
 SET NAMES utf8;
 CREATE TABLE t(a INT) engine=innodb;
 INSERT INTO t VALUES(1);
@@ -1860,6 +1870,7 @@ SET NAMES DEFAULT;
 DROP TABLE t;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
 --echo #              CONSIDERING INDEXES
 CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
@@ -1966,6 +1977,7 @@ CREATE TABLE t3 AS SELECT quote('a');
 SHOW CREATE TABLE t3;
 SET NAMES DEFAULT;
 DROP TABLE t1, t2, t3;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug #27410088: LOWER(CHAR(51386)) NOT EVALUATED CONSISTENTLY IN
@@ -2359,6 +2371,9 @@ SET @@collation_connection = default;
 --source include/restore_strict_mode.inc
 
 --echo #
+=======
+=======
+>>>>>>> pr/231
 --echo # Bug#31374305 - FORMAT() NOT DISPLAYING WHOLE NUMBER SIDE CORRECTLY
 --echo #                FOR ES_MX AND ES_ES LOCALES
 --echo #
@@ -2394,6 +2409,7 @@ CALL load_locale_format_table();
 SELECT * FROM locale_format;
 DROP PROCEDURE load_locale_format_table;
 DROP TABLE locale_format;
+<<<<<<< HEAD
 
 --echo # Bug#33661337: more gcols corruption
 
@@ -2507,3 +2523,6 @@ SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
 SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
 
 SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

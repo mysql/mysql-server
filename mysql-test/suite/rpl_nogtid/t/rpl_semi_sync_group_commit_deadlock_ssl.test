@@ -1,7 +1,11 @@
 ################################################################################
 # Bug #26865538  THE ACK RECEIVER DOES NOT WORK WELL WITH YASSL IN SEMISYNC
 #
+<<<<<<< HEAD
 # The test verifies that ack receiver works well with ssl in semi-sync.
+=======
+# The test verifies that ack receiver works well with yassl in semi-sync.
+>>>>>>> pr/231
 #
 # ################################################################################
 --source include/not_group_replication_plugin.inc

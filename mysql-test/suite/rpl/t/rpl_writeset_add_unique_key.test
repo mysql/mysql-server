@@ -13,12 +13,22 @@
 # ==== Implementation ====
 #
 # 1) Create source-replica topology.
+<<<<<<< HEAD
 # 2) Save current variables on Source.
 #    2.1) Save current binlog_row_image.
 #    2.2) Save current tracking mode.
 # 3) Setup neccesary varibales on source.
 #    3.1) Set the binlog_row_image=MINIMAL.
 #    3.2) Set the global BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET.
+=======
+# 2) Save the current variable values.
+#    2.1) Save current binlog_row_image.
+#    2.2) Save current tracking mode and extraction algorithm.
+# 3) Setup neccesary variables on source.
+#    3.1) Set the binlog_row_image to MINIMAL on source.
+#    3.2) Set the global transaction extraction algorithm to XXHASH64
+#         and the tracking mode to WRITESET.
+>>>>>>> pr/231
 # 4) Create table and procedure on source.
 # 5) Switch to source and call procedure.
 # 6) Clear system variables on source.
@@ -29,6 +39,7 @@
 # Bug#31636339 MTS IS UNUSABLE; ERRNO 3030, AND WORKER HA_ERR_FOUND_DUPP_KEY OR HA_ERR_LOCK_WAIT_TIMEOUT
 #
 --source include/have_binlog_format_row.inc
+<<<<<<< HEAD
 --source include/only_mts_replica_parallel_workers.inc
 --let $option_name = replica_transaction_retries
 --let $option_operator = >
@@ -36,10 +47,20 @@
 --source include/only_with_option.inc
 --let $skip_configuration_privilege_checks_user= 'skip'
 --let $rpl_privilege_checks_user_grant_all= 1
+=======
+--source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/only_mts_slave_parallel_workers.inc
+--let $option_name = slave_transaction_retries
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+
+>>>>>>> pr/231
 --echo #
 --echo # 1. Create source-replica topology.
 --source include/master-slave.inc
 
+<<<<<<< HEAD
 --echo
 --echo # 2. Save the current variables on source.
 --echo #    2.1 Save current binlog_row_image.
@@ -58,6 +79,31 @@ SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
 
 --echo #
 --echo # 4.Create table and procedure on source.
+=======
+--echo #
+--echo # 2. Save the current variable values.
+# 2.1. Save binlog_row_image value.
+SET @old_binlog_row_image= @@binlog_row_image;
+--source include/rpl_connection_master.inc
+
+# 2.2. Save the current tracking mode and extraction algorithm.
+--let $old_trx_tracker = `SELECT @@GLOBAL.BINLOG_TRANSACTION_DEPENDENCY_TRACKING`
+--let $old_trx_write_set_extraction_session = `SELECT @@SESSION.TRANSACTION_WRITE_SET_EXTRACTION`
+--let $old_trx_write_set_extraction_global = `SELECT @@GLOBAL.TRANSACTION_WRITE_SET_EXTRACTION`
+
+--echo # 3. Setup neccesary variables on source.
+--echo # 3.1 Set the binlog_row_image to MINIMAL on source.
+--let $row_img_set=master:MINIMAL:N
+--source include/rpl_row_img_set.inc
+
+# 3.2 Set the global transaction extraction algorithm and tracking mode.
+SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION = 'XXHASH64';
+SET SESSION TRANSACTION_WRITE_SET_EXTRACTION = 'XXHASH64';
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
+
+--echo #
+--echo # 4. Create table and procedure on source.
+>>>>>>> pr/231
 CREATE TABLE t( a tinyint unsigned primary key, b tinyint, c int, d bigint,
 f char(10), g char(255), h text, i longtext, unique key(g,f),
 unique key(f,c), key(c,d,b), key(i(10),f(10),b)) ENGINE=InnoDB;
@@ -86,18 +132,35 @@ delimiter ;|
 --echo # 5. Switch to source and call procedure.
 --source include/rpl_connection_master.inc
 call p(1000);
+<<<<<<< HEAD
 
+=======
+# Sync replica's sql thread with source.
+>>>>>>> pr/231
 --source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # 6. Clear system variables on source.
 --echo #
 --source include/rpl_connection_master.inc
+<<<<<<< HEAD
 SET SESSION binlog_row_image= @old_binlog_row_image;
 --replace_result $old_trx_tracker OLD_TRX_TRACKER
 --eval SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = $old_trx_tracker
 
 # Supress the error warning on replica.
+=======
+SET GLOBAL binlog_row_image= @old_binlog_row_image;
+SET SESSION binlog_row_image= @old_binlog_row_image;
+--replace_result $old_trx_tracker OLD_TRX_TRACKER
+--eval SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = $old_trx_tracker
+--replace_result $old_trx_write_set_extraction_global OLD_TRX_WRITE_SET_EXTRACTION_GLOBAL
+--eval SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION = $old_trx_write_set_extraction_global
+--replace_result $old_trx_write_set_extraction_session OLD_TRX_WRITE_SET_EXTRACTION_SESSION
+--eval SET SESSION TRANSACTION_WRITE_SET_EXTRACTION = $old_trx_write_set_extraction_session
+
+# Supress the error warning on slave.
+>>>>>>> pr/231
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 

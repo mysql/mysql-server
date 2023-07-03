@@ -1,7 +1,33 @@
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+<<<<<<< HEAD
 # restart:--upgrade=FORCE --log-error=MYSQLD_LOG
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 # restart:--upgrade=FORCE --log-error=MYSQLD_LOG
+=======
+The --upgrade-system-tables option was used, databases won't be touched.
+Checking server version.
+Running queries to upgrade MySQL server.
+<<<<<<< HEAD
+Upgrading system table data.
+The sys schema is already up to date (version 1.6.0).
+=======
+The sys schema is already up to date (version 1.5.2).
+>>>>>>> upstream/cluster-7.6
+Upgrade process completed successfully.
+Checking if update is needed.
+call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+The --upgrade-system-tables option was used, databases won't be touched.
+Checking server version.
+Running queries to upgrade MySQL server.
+<<<<<<< HEAD
+Upgrading system table data.
+The sys schema is already up to date (version 1.6.0).
+=======
+The sys schema is already up to date (version 1.5.2).
+>>>>>>> upstream/cluster-7.6
+Upgrade process completed successfully.
+Checking if update is needed.
+>>>>>>> pr/231
 First initialize the binlog
 reset master;
 DROP TABLE IF EXISTS t1;

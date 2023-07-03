@@ -1,4 +1,15 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+#ifndef SQL_USER_CACHE_INCLUDED
+#define SQL_USER_CACHE_INCLUDED
+
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +46,7 @@
 #include <string>
 #include <unordered_map>
 
+<<<<<<< HEAD
 #include "lex_string.h"
 #include "lf.h"
 #include "m_ctype.h"
@@ -51,11 +63,20 @@
 #include "mysql_time.h"  // MYSQL_TIME
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"  // List_of_authid, Authid
+<<<<<<< HEAD
 #include "sql/auth/partial_revokes.h"
 #include "sql/malloc_allocator.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
 #include "violite.h"          // SSL_type
+=======
+#include "sql/sql_connect.h"         // USER_RESOURCES
+#include "violite.h"                 // SSL_type
+=======
+#include "prealloced_array.h"
+#include "log_event.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /* Forward declarations */
 class Security_context;
@@ -131,7 +152,9 @@ class ACL_HOST_AND_IP {
   */
   static const char *calc_ip(const char *ip_arg, long *val);
 
+<<<<<<< HEAD
  public:
+<<<<<<< HEAD
   ACL_HOST_AND_IP()
       : hostname(nullptr),
         hostname_length(0),
@@ -139,6 +162,13 @@ class ACL_HOST_AND_IP {
         ip_mask(0),
         ip_mask_type(ip_mask_type_implicit) {}
   const char *get_host() const { return hostname ? hostname : ""; }
+=======
+  const char *get_host() const { return hostname; }
+=======
+public:
+  const char *get_host() const { return hostname ? hostname : ""; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   size_t get_host_len() const { return hostname_length; }
 
   bool has_wildcard() {
@@ -151,8 +181,11 @@ class ACL_HOST_AND_IP {
   }
 
   void update_hostname(const char *host_arg);
-
   bool compare_hostname(const char *host_arg, const char *ip_arg);
+<<<<<<< HEAD
+=======
+  bool is_null() const { return hostname == NULL; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class ACL_ACCESS {
@@ -386,7 +419,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   void set_user(MEM_ROOT *mem, const char *user_arg);
   void set_host(MEM_ROOT *mem, const char *host_arg);
 
-  bool check_validity(bool check_no_resolve);
+  void check_validity(bool check_no_resolve);
 
   bool matches(const char *host_arg, const char *user_arg, const char *ip_arg,
                const char *proxied_user_arg, bool any_proxy_user);
@@ -397,6 +430,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
 
   bool pk_equals(ACL_PROXY_USER *grant);
 
+<<<<<<< HEAD
   bool granted_on(const char *host_arg, const char *user_arg) {
     return (
         ((!user && (!user_arg || !user_arg[0])) ||
@@ -405,7 +439,23 @@ class ACL_PROXY_USER : public ACL_ACCESS {
          (host.get_host() && host_arg && !strcmp(host.get_host(), host_arg))));
   }
 
+<<<<<<< HEAD
   void print_grant(THD *thd, String *str);
+=======
+  void print_grant(String *str);
+=======
+  bool granted_on(const char *host_arg, const char *user_arg)
+  {
+    return (((!user && (!user_arg || !user_arg[0])) ||
+             (user && user_arg && !strcmp(user, user_arg))) &&
+            ((host.is_null() && (!host_arg || !host_arg[0])) ||
+             (!host.is_null() && host_arg && !strcmp(host.get_host(), host_arg))));
+  }
+
+
+  void print_grant(THD *thd, String *str);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   void set_data(ACL_PROXY_USER *grant) { with_grant = grant->with_grant; }
 

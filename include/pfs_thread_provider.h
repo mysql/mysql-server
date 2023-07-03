@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,11 +131,16 @@ void pfs_delete_thread_vc(PSI_thread *thread);
 int pfs_set_thread_connect_attrs_vc(const char *buffer, uint length,
                                     const void *from_cs);
 
+<<<<<<< HEAD
 void pfs_get_current_thread_event_id_vc(ulonglong *internal_thread_id,
                                         ulonglong *event_id);
 
 void pfs_get_thread_event_id_vc(PSI_thread *thread,
                                 ulonglong *internal_thread_id,
+=======
+<<<<<<< HEAD
+void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
+>>>>>>> pr/231
                                 ulonglong *event_id);
 
 int pfs_get_thread_system_attrs_vc(PSI_thread_attrs *thread_attrs);
@@ -145,7 +158,16 @@ void pfs_notify_session_connect_vc(PSI_thread *thread);
 
 void pfs_notify_session_disconnect_vc(PSI_thread *thread);
 
+<<<<<<< HEAD
 void pfs_notify_session_change_user_vc(PSI_thread *thread);
+=======
+void pfs_notify_session_change_user_v1(PSI_thread *thread);
+=======
+void pfs_set_thread_peer_port_v1(PSI_thread *thread, uint port);
+
+C_MODE_END
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */

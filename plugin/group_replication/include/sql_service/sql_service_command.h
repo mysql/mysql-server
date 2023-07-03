@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/sql_service/sql_service_command.h
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/sql_service/sql_service_command.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,8 +97,14 @@ class Sql_service_commands {
     @param[in] variable_args  Tuple <string, bool, string>
 
     @return the error value returned
+<<<<<<< HEAD
       @retval 0      OK
       @retval !=0    Error on execution
+=======
+      @retval 0    OK
+      @retval -1   Timeout on the GTID wait
+      @retval 1    Error when executed
+>>>>>>> pr/231
   */
   long internal_execute_conditional_query(Sql_service_interface *sql_interface,
                                           void *variable_args = nullptr);
@@ -302,9 +316,16 @@ class Sql_service_command_interface {
 
     @param [in] query      The query to execute
 
+
     @return the error value returned
+<<<<<<< HEAD
       @retval 0      OK
       @retval !=0    Error on execution
+=======
+      @retval 0    OK
+      @retval -1   Timeout on the GTID wait
+      @retval 1    Error when executed
+>>>>>>> pr/231
   */
   long execute_query(std::string &query);
 

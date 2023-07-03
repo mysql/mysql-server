@@ -1,4 +1,12 @@
+<<<<<<< HEAD:mysys/crypt_genhash_impl.cc
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/crypt_genhash_impl.cc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +44,7 @@
 
 #include <sys/types.h>
 
+<<<<<<< HEAD
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -45,9 +54,21 @@
 #include <string.h>
 #include <time.h>
 
+=======
+#include <openssl/sha.h>
+#include <openssl/rand.h>
+>>>>>>> upstream/cluster-7.6
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 
+<<<<<<< HEAD:mysys/crypt_genhash_impl.cc
+=======
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
+
+<<<<<<< HEAD
+>>>>>>> pr/231:mysys_ssl/crypt_genhash_impl.cc
 #include <errno.h>
 
 #define DIGEST_CTX EVP_MD_CTX
@@ -77,6 +98,13 @@ static void DIGESTDestroy(DIGEST_CTX **ctx) {
     *ctx = nullptr;
   }
 }
+=======
+#define	DIGEST_CTX	SHA256_CTX
+#define	DIGESTInit	SHA256_Init
+#define	DIGESTUpdate	SHA256_Update
+#define	DIGESTFinal	SHA256_Final
+#define	DIGEST_LEN	SHA256_DIGEST_LENGTH
+>>>>>>> upstream/cluster-7.6
 
 static const char crypt_alg_magic[] = "$5";
 
@@ -418,10 +446,19 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */
+<<<<<<< HEAD
 void generate_user_salt(char *buffer, int buffer_len) {
   char *end = buffer + buffer_len - 1;
   RAND_bytes((unsigned char *)buffer, buffer_len);
 
+=======
+extern "C"
+void generate_user_salt(char *buffer, int buffer_len)
+{
+  char *end= buffer + buffer_len - 1;
+  RAND_bytes((unsigned char *) buffer, buffer_len);
+      
+>>>>>>> upstream/cluster-7.6
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++) {
     *buffer &= 0x7f;

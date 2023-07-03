@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 --source include/no_valgrind_without_big.inc
 
 # Save the initial number of concurrent sessions
@@ -42,6 +43,10 @@ INSERT INTO b28373001 VALUES (1), (2), (3), (4);
 
 --echo # Cleanup
 DROP TABLE b28373001;
+=======
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug #32141046: MYSQLDUMP SHOULD DUMP USERS REFERENCED IN DEFINER
@@ -117,6 +122,7 @@ DROP DATABASE IF EXISTS mysqk;
 DROP DATABASE IF EXISTS mysqll;
 DROP USER view_u1, view_u2@my.oracle.com, event_u1, event_u2@192.1.1.140, trig_u1, trig_u2@xyz.com,
           proc_u1, proc_u2@localhost, func_u1, func_u2, user_not_referenced_as_definer;
+<<<<<<< HEAD
 USE test;
 
 --echo #
@@ -138,3 +144,5 @@ DROP TABLE wl13292;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+=======
+>>>>>>> pr/231

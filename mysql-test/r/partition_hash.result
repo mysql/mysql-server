@@ -223,9 +223,17 @@ c int not null,
 primary key(a,b))
 partition by hash (a + 2)
 partitions 3
+<<<<<<< HEAD
 (partition x1,
 partition x2,
 partition x3);
+=======
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 insert into t1 values (1,1,1);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -271,9 +279,17 @@ a	b	c
 ALTER TABLE t1
 partition by hash (a + 3)
 partitions 3
+<<<<<<< HEAD
 (partition x1,
 partition x2,
 partition x3);
+=======
+(partition x1 tablespace ts1,
+partition x2 tablespace ts2,
+partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 select * from t1;
 a	b	c
 SHOW CREATE TABLE t1;

@@ -107,8 +107,24 @@ while ($_show_slave_status_items)
 
   --let $_show_slave_status_value= query_get_value($show_slave_status_cmd, $_show_slave_status_name, 1)
 
+<<<<<<< HEAD
   --let $_show_slave_status_value = escape("\,$_show_slave_status_value)
   --let $_slave_field_result_replace= /[\\\\]/\// $slave_field_result_replace
+=======
+  if ($_show_slave_status_value)
+  {
+      --let $escape_string= $_show_slave_status_value
+      --let $enclosing_char= "
+<<<<<<< HEAD
+      --source escape_sql.inc
+=======
+      --source include/escape_sql.inc
+>>>>>>> upstream/cluster-7.6
+      --let $_show_slave_status_value= $escape_string
+  }
+
+  --let $_slave_field_result_replace= /[\\]/\// $slave_field_result_replace
+>>>>>>> pr/231
   --replace_regex $_slave_field_result_replace
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo $_show_slave_status_name = '$_show_slave_status_value'

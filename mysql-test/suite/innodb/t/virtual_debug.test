@@ -314,12 +314,39 @@ CHECK TABLE t;
 SELECT * FROM t;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#26375771 INNODB: ASSERTION FAILURE: MACH0DATA.IC:308:VAL > 0X7F
+--echo #
+create table ibstd_07 (a int not null, d int not null, b blob not null, c text, vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d  desc), index(a  desc), index(vbidxcol  desc), index(vbidxcol  desc,d  asc), unique key (b(101)  desc, a  asc, d ), index(c(255)  desc, b(255)  asc), index(b(5)  desc, c(10)  asc, a ) ) engine=InnoDB default charset=latin1 row_format=redundant;
+
+insert into ibstd_07 values (2, 2, repeat('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc','281'),repeat('ouolrculuouocououooalcoraooaulouuacrolrocooraoaooooolaccralacalooolalocoaacoorarorcurccarocucla','317'), default, default, default);
+
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send alter table ibstd_07  add primary key (b(11)  desc,a  asc, d );
+
+# Do a concurrent update
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+
+update ibstd_07 set c=repeat('0.366710324443464crllooolarlollorlulololucrluacoorrrluroluroocouauacacruloulcurlraorcrclrolcocrrcoccolourrooclrcocruruauallo','70');
+
+
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT * FROM ibstd_07;
+DROP TABLE ibstd_07;
+
 disconnect con1;
 
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#24658707 ASSERT: BUF0BUF.CC:2469:BUF_BLOCK_GET_STATE(BLOCK)
 --echo # == BUF_BLOCK_FILE_PAGE#
@@ -449,6 +476,10 @@ CHECK TABLE t1;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> pr/231
 
 
 --echo #
@@ -625,6 +656,7 @@ UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
 SELECT j,a,isa,ab FROM t1;
 DROP TABLE t1;
 
+<<<<<<< HEAD
 
 
 # Test for the rollback scenario when both a virtual column and a virtual
@@ -698,16 +730,74 @@ SELECT NAME, ORDINAL_POSITION, TYPE, HIDDEN, GENERATION_EXPRESSION_UTF8 FROM mys
 
 DROP TABLE t1;
 
+=======
+--echo #
+--echo # Bug#29451999: CRASH WITH RANGE QUERIES
+--echo #
+
+CREATE TABLE t1 (c1 JSON, c2 TINYTEXT, c3 TIMESTAMP(4), c4 JSON, c5 DOUBLE, c6 TIME(4), c7 LONGTEXT GENERATED ALWAYS AS ('20:30:44') VIRTUAL NOT NULL, KEY k1 (c7(12))) ENGINE=INNODB;
+INSERT INTO t1 (c1, c2, c3, c4) VALUES('{}', 1, '1991-05-27', '{}');
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+SELECT COUNT(*) FROM t1;
+
+SET GLOBAL innodb_purge_stop_now= ON;
+DELETE FROM t1;
+
+SELECT c4 FROM t1 WHERE c7 BETWEEN '16383' AND '2015-01-01';
+
+#Cleanup
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  gc INT GENERATED ALWAYS AS (i) VIRTUAL NOT NULL,
+  KEY (gc)
+);
+
+INSERT INTO t2 (i) VALUES (-1), (0), (1), (2);
+
+BEGIN;
+--disable_query_log
+--let $i = 2000
+while ($i > 0)
+{
+  INSERT INTO t2 (i) VALUES (-10);
+  dec $i;
+}
+--enable_query_log
+
+CONNECT (con1,localhost,root,,);
+# This query used to return zero rows.
+SELECT i FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+# Similar query using covering index was correct even before.
+SELECT gc FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+DISCONNECT con1;
+CONNECTION default;
+
+COMMIT;
+
+DROP TABLE t2;
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
 --echo # ON TABLE WITH GCOLS
 --echo #
 
+<<<<<<< HEAD
 --echo # Set binlog_row_image = MINIMAL.
 SET @old_binlog_row_image = @@binlog_row_image;
 SET @@session.binlog_row_image = 'MINIMAL';
 
+=======
+>>>>>>> pr/231
 --echo # Testcase-1
 CREATE TABLE t (pid int PRIMARY KEY,
                 uid int,
@@ -792,7 +882,10 @@ connection con1;
 connection default;
 --echo # Read [2, 10, 10] row using idx_vid index key.
 --sleep 1
+<<<<<<< HEAD
 --skip_if_hypergraph  # Hits assertion. Bug#33888263.
+=======
+>>>>>>> pr/231
 select * from t where VID=10;
 disconnect con1;
 DROP TABLE t;
@@ -817,8 +910,15 @@ connection con1;
 --reap
 connection default;
 --echo # Delete a record.
+<<<<<<< HEAD
 --skip_if_hypergraph  # Hits assertion. Bug#33888263.
 delete from t limit 1;
 disconnect con1;
 DROP TABLE t;
 SET @@session.binlog_row_image = @old_binlog_row_image;
+=======
+delete from t limit 1;
+disconnect con1;
+DROP TABLE t;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

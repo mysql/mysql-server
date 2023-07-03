@@ -818,12 +818,20 @@ The following options may be given as the first argument:
  engine_condition_pushdown, index_condition_pushdown, mrr,
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, duplicateweedout,
+<<<<<<< HEAD
  subquery_materialization_cost_based, skip_scan,
  block_nested_loop, batched_key_access,
  use_index_extensions, condition_fanout_filter,
  derived_merge, hash_join, subquery_to_derived,
  prefer_ordering_index, derived_condition_pushdown} and
  val is one of {on, off, default}
+=======
+ subquery_materialization_cost_based, block_nested_loop,
+ batched_key_access, use_index_extensions,
+ condition_fanout_filter, derived_merge,
+ prefer_ordering_index} and val is one of {on, off,
+ default}
+>>>>>>> pr/231
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1274,6 +1282,7 @@ The following options may be given as the first argument:
  updates to tables in all databases that start with foo
  and whose table names start with bar.
  --replicate-wild-ignore-table=name 
+<<<<<<< HEAD
  Make replication applier threads skip changes to tables
  that match the specified wildcard pattern. To specify
  more than one pattern, use the option multiple times,
@@ -1285,11 +1294,22 @@ The following options may be given as the first argument:
  applier thread will not apply updates to tables in
  databases that start with foo and whose table names start
  with bar.
+=======
+ Tells the slave thread to not replicate to the tables
+ that match the given wildcard pattern. To specify more
+ than one table to ignore, use the directive multiple
+ times, once for each table. This will work for
+ cross-database updates. Example:
+ replicate-wild-ignore-table=foo%.bar% will not do updates
+ to tables in databases that start with foo and whose
+ table names start with bar.
+>>>>>>> pr/231
  --replication-optimize-for-static-plugin-config 
  Optional flag that blocks plugin install/uninstall and
  allows skipping the acquisition of the lock to read from
  the plugin list and the usage of read-optimized
  spin-locks. Use only when plugin hook callback needs
+<<<<<<< HEAD
  optimization (a lot of semi-sync replicas, for instance).
  --replication-sender-observe-commit-only 
  Optional flag that allows for only calling back observer
@@ -1303,6 +1323,21 @@ The following options may be given as the first argument:
  the replica connects: in the presence of NAT other
  routing features, that IP may not be valid for connecting
  to the replica from the source or other hosts.
+=======
+ optimization (a lot of semi-sync slaves, for instance).
+ --replication-sender-observe-commit-only 
+ Optional flag that allows for only calling back observer
+ hooks at commit.
+ --report-host=name  Hostname or IP of the slave to be reported to the master
+ during slave registration. Will appear in the output of
+ SHOW SLAVE HOSTS. Leave unset if you do not want the
+ slave to register itself with the master. Note that it is
+ not sufficient for the master to simply read the IP of
+ the slave off the socket once the slave connects. Due to
+ NAT and other routing issues, that IP may not be valid
+ for connecting to the slave from the master or other
+ hosts
+>>>>>>> pr/231
  --report-password=name 
  The account password that this replica will report to the
  source while initiating the replication connection.
@@ -1869,7 +1904,11 @@ old-style-user-limits FALSE
 optimizer-max-subgraph-pairs 100000
 optimizer-prune-level 1
 optimizer-search-depth 62
+<<<<<<< HEAD
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on
+=======
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,prefer_ordering_index=on
+>>>>>>> pr/231
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1924,7 +1963,11 @@ performance-schema-max-mutex-classes 350
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
+<<<<<<< HEAD
 performance-schema-max-rwlock-classes 60
+=======
+performance-schema-max-rwlock-classes 50
+>>>>>>> upstream/cluster-7.6
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1

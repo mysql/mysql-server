@@ -1374,7 +1374,15 @@ Access method can be range/ALL with #rows >= 500.
 Or it can be ref with #rows = 2, only when there is memory limit.
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+<<<<<<< HEAD
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	1000	50.00	Using where
+=======
+<<<<<<< HEAD
+1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	1000	50.20	Using where
+=======
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	502	100.00	Using where
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where ((`test`.`t2`.`a` = 1000) and (`test`.`t2`.`b` < 11))
 drop table t1, t2;
@@ -3894,6 +3902,7 @@ d VARCHAR(3) DEFAULT NULL,
 id INT DEFAULT NULL,
 KEY idx1 (id, c),
 KEY idx2 (id, d)) ENGINE=INNODB ;
+<<<<<<< HEAD
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	Table 'test.t1' doesn't exist
@@ -3911,12 +3920,31 @@ SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
 ORDER BY c, a
+=======
+ANALYZE TABLE test_ref;
+Table	Op	Msg_type	Msg_text
+test.test_ref	analyze	status	OK
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+>>>>>>> pr/231
 LIMIT 1;
 a	b	c	d	id
 34876	D003	gheennse	S	3
 EXPLAIN SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
+<<<<<<< HEAD
 ORDER BY c DESC, a DESC
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3927,10 +3955,23 @@ SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
 ORDER BY c DESC, a DESC
+=======
+ORDER BY c DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+>>>>>>> pr/231
 LIMIT 1;
 a	b	c	d	id
 1770649	D003	gheennse	S	3
 DROP TABLE test_ref;
+<<<<<<< HEAD
 #
 # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
 #                WHERE_CLAUSE
@@ -4093,4 +4134,6 @@ c
 z
 L
 DROP TABLE t1;
+=======
+>>>>>>> pr/231
 set optimizer_switch=default;

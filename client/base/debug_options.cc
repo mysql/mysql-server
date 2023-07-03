@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +61,7 @@ Debug_options::Debug_options(Abstract_program *program) : m_program(program) {
   }
 }
 
+<<<<<<< HEAD
 void Debug_options::create_options() {
 #ifdef NDEBUG
   this->create_new_disabled_option(
@@ -62,6 +71,18 @@ void Debug_options::create_options() {
       "debug-check", "This is a non-debug version. Catch this and exit.");
   this->create_new_disabled_option(
       "debug-info", "This is a non-debug version. Catch this and exit.");
+=======
+void Debug_options::create_options()
+{
+#ifdef NDEBUG
+  this->create_new_disabled_option("debug",
+    "This is a non-debug version. Catch this and exit.")
+    ->set_short_character('#');
+  this->create_new_disabled_option("debug-check",
+    "This is a non-debug version. Catch this and exit.");
+  this->create_new_disabled_option("debug-info",
+    "This is a non-debug version. Catch this and exit.");
+>>>>>>> upstream/cluster-7.6
 #else
   this->create_new_option(&this->m_dbug_option, "debug", "Output debug log.")
       ->set_short_character('#')

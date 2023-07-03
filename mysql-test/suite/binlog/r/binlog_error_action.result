@@ -98,8 +98,16 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
+<<<<<<< HEAD
 ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
+=======
+<<<<<<< HEAD
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+>>>>>>> pr/231
 Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'." found
+=======
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
+>>>>>>> upstream/cluster-7.6
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
 RESET MASTER;

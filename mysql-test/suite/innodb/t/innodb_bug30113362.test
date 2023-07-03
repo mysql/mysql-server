@@ -2,6 +2,10 @@
 # Test for Bug#30113362 : BTR_CUR_WILL_MODIFY_TREE() IS INSUFFICIENT FOR HIGHER TREE LEVEL
 #
 
+<<<<<<< HEAD
+=======
+--source include/have_innodb.inc
+>>>>>>> pr/231
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_innodb_16k.inc
@@ -12,6 +16,12 @@ SET @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
 SET @old_innodb_stats_persistent = @@innodb_stats_persistent;
 SET @old_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
 --enable_query_log
+<<<<<<< HEAD
+=======
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+>>>>>>> pr/231
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -64,12 +74,20 @@ DROP PROCEDURE data_load_t1;
 
 # all node pages are sparse (max 3 node_ptrs)
 ANALYZE TABLE t1;
+<<<<<<< HEAD
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 
 # causes "domino falling" merges to upper level
 SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
 DELETE FROM t1 WHERE a00 = 'cnm';
+<<<<<<< HEAD
 --source suite/innodb/include/force_purge.inc
+=======
+--source include/wait_innodb_all_purged.inc
+>>>>>>> pr/231
 
 # at this moment, in the tree,
 # ...
@@ -107,9 +125,15 @@ SET DEBUG_SYNC = "now SIGNAL pessimistic_row_purge_clust_continue";
 
 --connection default
 
+<<<<<<< HEAD
 --source suite/innodb/include/force_purge.inc
 ANALYZE TABLE t1;
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+--source include/wait_innodb_all_purged.inc
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 
 
 # (2) Confirm blocking domain caused by DELETE modify_tree for tall index tree
@@ -122,7 +146,11 @@ SET DEBUG_SYNC = 'RESET';
 
 # makes >17 records in level4 [(2^(4-1))*2 + 1]. (causes never left_most records)
 DELETE FROM t1 WHERE a00 = 'dpn';
+<<<<<<< HEAD
 --source suite/innodb/include/force_purge.inc
+=======
+--source include/wait_innodb_all_purged.inc
+>>>>>>> pr/231
 # at this moment, in the tree,
 # (* before "]" and after "[" records are treated as left_most possible records)
 # ...
@@ -184,7 +212,11 @@ SET DEBUG_SYNC = "now SIGNAL pessimistic_row_purge_clust_continue";
 
 --connection default
 ANALYZE TABLE t1;
+<<<<<<< HEAD
 SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+=======
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+>>>>>>> pr/231
 
 
 # Cleanup

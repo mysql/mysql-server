@@ -2986,6 +2986,11 @@ INSERT INTO test_ref VALUES
 ( 1635704, 'D007', 'gheennse', 'S',    7),
 ( 1762832, 'D003', 'gheennse', 'D',    3),
 ( 1770649, 'D003', 'gheennse', 'S',    3),
+<<<<<<< HEAD
+=======
+( 1770299, 'D003', 'gheennse', 'S',    3),
+( 1770399, 'D003', 'gheennse', 'S',    3),
+>>>>>>> pr/231
 ( 1896320, 'D005', 'gheennse', 'S',    5),
 ( 1946091, 'D007', 'gheennse', 'S',    7),
 ( 1955807, 'D007', 'gheennse', 'S',    7),
@@ -3038,18 +3043,26 @@ INSERT INTO test_ref VALUES
 ( 4363730, 'D007', 'cheennse', 'D',    7),
 ( 4455095, 'D005', 'cheennse', 'S',    5);
 --enable_query_log
+<<<<<<< HEAD
 ANALYZE TABLE t1;
 --disable_result_log
 --disable_query_log
 ANALYZE TABLE test_ref;
 --enable_query_log
 --enable_result_log
+=======
+ANALYZE TABLE test_ref;
+>>>>>>> pr/231
 
 let query1=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
+<<<<<<< HEAD
 ORDER BY c, a
+=======
+ORDER BY c
+>>>>>>> pr/231
 LIMIT 1;
 
 # test with descending order
@@ -3057,7 +3070,11 @@ let query2=
 SELECT *
 FROM test_ref
 WHERE id=3 AND c LIKE 'gh%'
+<<<<<<< HEAD
 ORDER BY c DESC, a DESC
+=======
+ORDER BY c DESC
+>>>>>>> pr/231
 LIMIT 1;
 
 eval EXPLAIN $query1;
@@ -3067,6 +3084,7 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE test_ref;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
@@ -3224,3 +3242,5 @@ ANALYZE TABLE t1;
 SELECT at1.c3 FROM (t1 AS at1 LEFT JOIN (SELECT at2.* FROM (t1 AS at2 JOIN t1 AS at3 ON ((1,2) IN (SELECT c1,c1 FROM t1 as at4)))) AS at5 ON at5.c1 = at1.c1);
 
 DROP TABLE t1;
+=======
+>>>>>>> pr/231

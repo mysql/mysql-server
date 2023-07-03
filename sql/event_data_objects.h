@@ -1,6 +1,10 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
+<<<<<<< HEAD
 /* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

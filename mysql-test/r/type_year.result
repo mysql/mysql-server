@@ -269,6 +269,7 @@ y
 2155
 2155
 DROP TABLE t;
+<<<<<<< HEAD
 #
 # Bug#28562930 AVG(YEAR(DATETIME_FIELD)) MAKES AN ERROR RESULT BEACUSE OF OVERFLOW
 #
@@ -441,3 +442,5 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '2085'
 DROP TABLE t1;
+=======
+>>>>>>> pr/231

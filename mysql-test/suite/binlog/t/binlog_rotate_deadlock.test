@@ -1,0 +1,51 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+--echo #
+--echo # Bug #30215068	BINLOG ROTATION DEADLOCK WHEN INNODB CONCURRENCY LIMIT SETTED
+--echo #
+
+--enable_connect_log
+--connect (con1, localhost, root,,)
+select  @@innodb_thread_concurrency;
+
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+CREATE TABLE t2 (c1 INT, c2 int, c3 varchar(200)) Engine=InnoDB;
+SET @debug_save= @@SESSION.DEBUG;
+SET SESSION DEBUG = '+d,force_rotate';
+SET DEBUG_SYNC = 'stop_binlog_rotation_after_acquiring_lock_log SIGNAL rotate_stopped WAIT_FOR proceed_rotate';
+--send INSERT INTO t1 VALUES (1);
+
+# Since innodb_thread_concurrency=1, Send txn from  a different connection
+
+--connect (con2, localhost, root,,)
+SET DEBUG_SYNC= 'now WAIT_FOR rotate_stopped';
+--SEND UPDATE t2 SET C2=1 WHERE C1 = 1;
+
+--connect (con3, localhost, root,,)
+# Verify that con1 is waiting in stop_binlog_rotation_after_acquiring_lock_log sync point and con 2 is waiting for con1 to commit
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: stop_binlog_rotation_after_acquiring_lock_log' and info = 'INSERT INTO t1 VALUES (1)'
+--source include/wait_condition.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'query end' and info = 'UPDATE t2 SET C2=1 WHERE C1 = 1'
+--source include/wait_condition.inc
+
+# Continue rotate thread (con1)
+SET DEBUG_SYNC= 'now SIGNAL proceed_rotate';
+
+--connection con1
+#without fix con1 will hang because it cannot get innodb concurrency ticket
+--reap
+SET @@SESSION.DEBUG= @debug_save;
+
+--connection con2
+--reap
+
+# Cleanup
+connection default;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disable_connect_log
+DROP TABLE t1,t2;

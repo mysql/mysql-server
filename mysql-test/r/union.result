@@ -3140,12 +3140,34 @@ DROP TEMPORARY TABLE t2;
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
 #
+<<<<<<< HEAD
 # Bug #27903792 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `DATA_TYPE() ==
 # MYSQL_TYPE_GEOMETRY' FAILED
+=======
+# Bug#27197235 USER VARIABLE + UINON + DECIMAL COLUMN RETURNS
+#              WRONG VALUES
+#
+SET NAMES utf8;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+a
+1000003.0
+1.0
+SET NAMES latin1;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+a
+1000003.0
+1.0
+#
+# Bug #29916900 (duplicate of #27903792) [ASSERTION `FIELD_TYPE() ==
+# MYSQL_TYPE_GEOMETRY' FAILED]
+>>>>>>> pr/231
 #
 SELECT ST_GEOMFROMTEXT('POINT(0 0)')
 UNION
 SELECT * FROM (SELECT NULL) AS a;
+<<<<<<< HEAD
 #
 # Bug#28237675: ASSERTION IN UNION QUERY WHEN MIXING CHARACTER SETS
 #
@@ -5682,3 +5704,5 @@ EXPLAIN
                         -> Rows fetched before execution  (rows=1)
 
 DROP TABLE r, s, t;
+=======
+>>>>>>> pr/231

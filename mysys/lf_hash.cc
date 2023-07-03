@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -329,12 +333,24 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, lf_cmp_func *cmp_func,
         (flags & LF_HASH_UNIQUE)) {
       res = 0; /* duplicate found */
       break;
+<<<<<<< HEAD:mysys/lf_hash.cc
     } else {
       node->link = cursor.curr;
       assert(node->link != node);         /* no circular references */
       assert(cursor.prev != &node->link); /* no circular references */
       if (atomic_compare_exchange_strong(cursor.prev, &cursor.curr, node)) {
         res = 1; /* inserted ok */
+=======
+    }
+    else
+    {
+      node->link= (intptr)cursor.curr;
+      assert(node->link != (intptr)node); /* no circular references */
+      assert(cursor.prev != &node->link); /* no circular references */
+      if (my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
+      {
+        res= 1; /* inserted ok */
+>>>>>>> upstream/cluster-7.6:mysys/lf_hash.c
         break;
       }
     }
@@ -490,6 +506,7 @@ void lf_hash_init_impl(LF_HASH *hash, uint element_size, uint flags,
   lf_alloc_init2(&hash->alloc, sizeof(LF_SLIST) + element_size,
                  offsetof(LF_SLIST, key), ctor, dtor);
   lf_dynarray_init(&hash->array, sizeof(LF_SLIST *));
+<<<<<<< HEAD:mysys/lf_hash.cc
   hash->size = 1;
   hash->count = 0;
   hash->element_size = element_size;
@@ -509,6 +526,7 @@ void lf_hash_init_impl(LF_HASH *hash, uint element_size, uint flags,
     hash->charset = charset ? charset : &my_charset_bin;
   }
   hash->initialize = init;
+<<<<<<< HEAD
   /*
     If a get_key() call back is provided:
     - key_offset should be 0
@@ -535,6 +553,22 @@ void lf_hash_init3(LF_HASH *hash, uint element_size, uint flags,
                    lf_allocator_func *dtor, lf_hash_init_func *init) {
   lf_hash_init_impl(hash, element_size, flags, 0, 0, get_key, nullptr,
                     hash_function, cmp_function, ctor, dtor, init);
+=======
+  DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
+=======
+  hash->size= 1;
+  hash->count= 0;
+  hash->element_size= element_size;
+  hash->flags= flags;
+  hash->charset= charset ? charset : &my_charset_bin;
+  hash->key_offset= key_offset;
+  hash->key_length= key_length;
+  hash->get_key= get_key;
+  hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
+  hash->initialize= init;
+  assert(get_key ? !key_offset && !key_length : key_length);
+>>>>>>> upstream/cluster-7.6:mysys/lf_hash.c
+>>>>>>> pr/231
 }
 
 void lf_hash_destroy(LF_HASH *hash) {

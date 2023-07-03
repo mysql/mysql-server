@@ -6,28 +6,48 @@ SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
 SET @@global.performance_schema_show_processlist = OFF;
 SHOW GRANTS;
 Grants for @localhost
+<<<<<<< HEAD
 GRANT USAGE ON *.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 SELECT * FROM performance_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+=======
+GRANT USAGE ON *.* TO ''@'localhost'
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+>>>>>>> pr/231
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 SET @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for @localhost
+<<<<<<< HEAD
 GRANT USAGE ON *.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 SELECT * FROM performance_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+=======
+GRANT USAGE ON *.* TO ''@'localhost'
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+>>>>>>> pr/231
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 GRANT PROCESS ON *.* TO ''@'localhost';
 SET @@global.performance_schema_show_processlist = OFF;
 SHOW GRANTS;
 Grants for @localhost
+<<<<<<< HEAD
 GRANT PROCESS ON *.* TO ``@`localhost`
+=======
+GRANT PROCESS ON *.* TO ''@'localhost'
+>>>>>>> pr/231
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
@@ -47,7 +67,11 @@ TRUNCATE TABLE performance_schema.events_statements_history;
 set @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for @localhost
+<<<<<<< HEAD
 GRANT PROCESS ON *.* TO ``@`localhost`
+=======
+GRANT PROCESS ON *.* TO ''@'localhost'
+>>>>>>> pr/231
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1

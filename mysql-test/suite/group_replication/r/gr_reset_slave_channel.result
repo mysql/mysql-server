@@ -43,19 +43,29 @@ include/assert.inc ['The group replication recovery channel is present']
 include/stop_group_replication.inc
 RESET SLAVE command clears master and slave info repositories and will flush master info
 RESET SLAVE;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc ['mysql.slave_relay_log_info contains flushed group replication channel information']
+=======
+include/assert.inc ['mysql.slave_relay_log_info contains no group replication channel information']
+>>>>>>> pr/231
 include/assert.inc ['mysql.slave_master_info contains flushed group replication channel information']
 include/start_group_replication.inc
 include/assert.inc ['The group replication applier and recovery channel are present']
 include/stop_group_replication.inc
 RESET SLAVE ALL;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc ['mysql.slave_relay_log_info does not contrain group replication channel information']
 include/assert.inc ['mysql.slave_master_info does not contrain group replication channel information']
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
+=======
+include/assert.inc ['mysql.slave_relay_log_info does not contrain group replication channel information']
+include/assert.inc ['mysql.slave_master_info does not contrain group replication channel information']
+CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+>>>>>>> pr/231
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

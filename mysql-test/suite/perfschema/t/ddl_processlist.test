@@ -1,5 +1,10 @@
 # Tests for PERFORMANCE_SCHEMA
 
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+
+>>>>>>> pr/231
 select @@global.performance_schema_show_processlist into @save_processlist;
 set @@global.performance_schema_show_processlist = 'on';
 
@@ -7,7 +12,11 @@ set @@global.performance_schema_show_processlist = 'on';
 alter table performance_schema.processlist
   add column foo integer;
 
+<<<<<<< HEAD
 --error ER_TABLEACCESS_DENIED_ERROR
+=======
+--error ER_WRONG_PERFSCHEMA_USAGE
+>>>>>>> pr/231
 truncate table performance_schema.processlist;
 
 --error ER_DBACCESS_DENIED_ERROR

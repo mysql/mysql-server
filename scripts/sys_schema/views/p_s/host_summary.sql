@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -49,6 +68,7 @@ VIEW host_summary (
 ) AS
 SELECT IF(accounts.host IS NULL, 'background', accounts.host) AS host,
        SUM(stmt.total) AS statements,
+<<<<<<< HEAD
        format_pico_time(SUM(stmt.total_latency)) AS statement_latency,
        format_pico_time(IFNULL(SUM(stmt.total_latency) / NULLIF(SUM(stmt.total), 0), 0)) AS statement_avg_latency,
        SUM(stmt.full_scans) AS table_scans,
@@ -59,6 +79,18 @@ SELECT IF(accounts.host IS NULL, 'background', accounts.host) AS host,
        COUNT(DISTINCT user) AS unique_users,
        format_bytes(SUM(mem.current_allocated)) AS current_memory,
        format_bytes(SUM(mem.total_allocated)) AS total_memory_allocated
+=======
+       sys.format_time(SUM(stmt.total_latency)) AS statement_latency,
+       sys.format_time(IFNULL(SUM(stmt.total_latency) / NULLIF(SUM(stmt.total), 0), 0)) AS statement_avg_latency,
+       SUM(stmt.full_scans) AS table_scans,
+       SUM(io.ios) AS file_ios,
+       sys.format_time(SUM(io.io_latency)) AS file_io_latency,
+       SUM(accounts.current_connections) AS current_connections,
+       SUM(accounts.total_connections) AS total_connections,
+       COUNT(DISTINCT user) AS unique_users,
+       sys.format_bytes(SUM(mem.current_allocated)) AS current_memory,
+       sys.format_bytes(SUM(mem.total_allocated)) AS total_memory_allocated
+>>>>>>> pr/231
   FROM performance_schema.accounts
   JOIN sys.x$host_summary_by_statement_latency AS stmt ON accounts.host = stmt.host
   JOIN sys.x$host_summary_by_file_io AS io ON accounts.host = io.host

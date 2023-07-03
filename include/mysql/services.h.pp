@@ -323,11 +323,156 @@ extern void *my_realloc(PSI_memory_key key, void *ptr, size_t size,
                         myf_t flags);
 extern void my_claim(const void *ptr, bool claim);
 extern void my_free(void *ptr);
+<<<<<<< HEAD
 extern void *my_memdup(PSI_memory_key key, const void *from, size_t length,
                        myf_t flags);
 extern char *my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char *my_strndup(PSI_memory_key key, const char *from, size_t length,
                         myf_t flags);
+=======
+extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
+extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
+extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
+#include <mysql/service_mysql_password_policy.h>
+extern struct mysql_password_policy_service_st {
+  int (*my_validate_password_policy_func)(const char *, unsigned int);
+  int (*my_calculate_password_strength_func)(const char *, unsigned int);
+} *mysql_password_policy_service;
+int my_validate_password_policy(const char *, unsigned int);
+int my_calculate_password_strength(const char *, unsigned int);
+#include <mysql/service_parser.h>
+#include "my_md5_size.h"
+#include <mysql/mysql_lex_string.h>
+typedef void* MYSQL_ITEM;
+typedef
+int (*parse_node_visit_function)(MYSQL_ITEM item, unsigned char* arg);
+typedef
+int (*sql_condition_handler_function)(int sql_errno,
+                                      const char* sqlstate,
+                                      const char* msg,
+                                      void *state);
+struct st_my_thread_handle;
+extern struct mysql_parser_service_st {
+  void* (*mysql_current_session)();
+  void* (*mysql_open_session)();
+  void (*mysql_start_thread)(void* thd, void *(*callback_fun)(void*),
+                             void *arg,
+                             struct st_my_thread_handle *thread_handle);
+  void (*mysql_join_thread)(struct st_my_thread_handle *thread_handle);
+  void (*mysql_set_current_database)(void* thd, const MYSQL_LEX_STRING db);
+  int (*mysql_parse)(void* thd, const MYSQL_LEX_STRING query,
+                     unsigned char is_prepared,
+                     sql_condition_handler_function handle_condition,
+                     void *condition_handler_state);
+  int (*mysql_get_statement_type)(void* thd);
+  int (*mysql_get_statement_digest)(void* thd, unsigned char *digest);
+  int (*mysql_get_number_params)(void* thd);
+  int (*mysql_extract_prepared_params)(void* thd, int *positions);
+  int (*mysql_visit_tree)(void* thd, parse_node_visit_function processor,
+                          unsigned char* arg);
+  MYSQL_LEX_STRING (*mysql_item_string)(MYSQL_ITEM item);
+  void (*mysql_free_string)(MYSQL_LEX_STRING string);
+  MYSQL_LEX_STRING (*mysql_get_query)(void* thd);
+  MYSQL_LEX_STRING (*mysql_get_normalized_query)(void* thd);
+} *mysql_parser_service;
+typedef void *(*callback_function)(void*);
+void* mysql_parser_current_session();
+void* mysql_parser_open_session();
+void mysql_parser_start_thread(void* thd, callback_function fun, void *arg,
+                               struct st_my_thread_handle *thread_handle);
+void mysql_parser_join_thread(struct st_my_thread_handle *thread_handle);
+void mysql_parser_set_current_database(void* thd,
+                                       const MYSQL_LEX_STRING db);
+int mysql_parser_parse(void* thd, const MYSQL_LEX_STRING query,
+                       unsigned char is_prepared,
+                       sql_condition_handler_function handle_condition,
+                       void *condition_handler_state);
+int mysql_parser_get_statement_type(void* thd);
+int mysql_parser_get_statement_digest(void* thd, unsigned char *digest);
+int mysql_parser_get_number_params(void* thd);
+int mysql_parser_extract_prepared_params(void* thd, int *positions);
+int mysql_parser_visit_tree(void* thd, parse_node_visit_function processor,
+                            unsigned char* arg);
+MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
+void mysql_parser_free_string(MYSQL_LEX_STRING string);
+MYSQL_LEX_STRING mysql_parser_get_query(void* thd);
+MYSQL_LEX_STRING mysql_parser_get_normalized_query(void* thd);
+#include <mysql/service_rpl_transaction_ctx.h>
+struct st_transaction_termination_ctx
+{
+  unsigned long m_thread_id;
+  unsigned int m_flags;
+  char m_rollback_transaction;
+  char m_generated_gtid;
+  int m_sidno;
+  long long int m_gno;
+};
+typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
+extern struct rpl_transaction_ctx_service_st {
+  int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
+} *rpl_transaction_ctx_service;
+int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
+#include <mysql/service_rpl_transaction_write_set.h>
+struct st_trans_write_set
+{
+  unsigned int m_flags;
+  unsigned long write_set_size;
+  unsigned long long* write_set;
+};
+typedef struct st_trans_write_set Transaction_write_set;
+extern struct transaction_write_set_service_st {
+  Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
+  void (*require_full_write_set)(int requires_ws);
+  void (*set_write_set_memory_size_limit)(long long size_limit);
+  void (*update_write_set_memory_size_limit)(long long  size_limit);
+} *transaction_write_set_service;
+Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+void require_full_write_set(int requires_ws);
+void set_write_set_memory_size_limit(long long size_limit);
+void update_write_set_memory_size_limit(long long size_limit);
+#include <mysql/service_security_context.h>
+typedef char my_svc_bool;
+extern struct security_context_service_st {
+  my_svc_bool (*thd_get_security_context)(void*, void* *out_ctx);
+  my_svc_bool (*thd_set_security_context)(void*, void* in_ctx);
+  my_svc_bool (*security_context_create)(void* *out_ctx);
+  my_svc_bool (*security_context_destroy)(void*);
+  my_svc_bool (*security_context_copy)(void* in_ctx, void* *out_ctx);
+  my_svc_bool (*security_context_lookup)(void* ctx,
+                                         const char *user, const char *host,
+                                         const char *ip, const char *db);
+  my_svc_bool (*security_context_get_option)(void*, const char *name, void *inout_pvalue);
+  my_svc_bool (*security_context_set_option)(void*, const char *name, void *pvalue);
+} *security_context_service;
+  my_svc_bool thd_get_security_context(void*, void* *out_ctx);
+  my_svc_bool thd_set_security_context(void*, void* in_ctx);
+  my_svc_bool security_context_create(void* *out_ctx);
+  my_svc_bool security_context_destroy(void* ctx);
+  my_svc_bool security_context_copy(void* in_ctx, void* *out_ctx);
+  my_svc_bool security_context_lookup(void* ctx,
+                                  const char *user, const char *host,
+                                  const char *ip, const char *db);
+  my_svc_bool security_context_get_option(void*, const char *name, void *inout_pvalue);
+  my_svc_bool security_context_set_option(void*, const char *name, void *pvalue);
+#include <mysql/service_locking.h>
+enum enum_locking_service_lock_type
+{ LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
+extern struct mysql_locking_service_st {
+  int (*mysql_acquire_locks)(void* opaque_thd, const char* lock_namespace,
+                             const char**lock_names, size_t lock_num,
+                             enum enum_locking_service_lock_type lock_type,
+                             unsigned long lock_timeout);
+  int (*mysql_release_locks)(void* opaque_thd, const char* lock_namespace);
+} *mysql_locking_service;
+int mysql_acquire_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace,
+                                        const char**lock_names,
+                                        size_t lock_num,
+                                        enum enum_locking_service_lock_type lock_type,
+                                        unsigned long lock_timeout);
+int mysql_release_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace);
+>>>>>>> upstream/cluster-7.6
 #include <mysql/service_mysql_keyring.h>
 extern "C" struct mysql_keyring_service_st {
   int (*my_key_store_func)(const char *, const char *, const char *,

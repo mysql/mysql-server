@@ -74,7 +74,16 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
+<<<<<<< HEAD
 INITIAL_SIZE = 12M;
+=======
+<<<<<<< HEAD
+INITIAL_SIZE = 4M;
+=======
+INITIAL_SIZE = 12M
+ENGINE=NDB;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 ########################################
 # Create a table using this tablespace
@@ -256,7 +265,11 @@ DROP TABLE t1;
 
 # Create a table with a disk column having offset > max offset
 
+<<<<<<< HEAD
 --error ER_CANT_CREATE_TABLE
+=======
+--error ER_GET_ERRMSG
+>>>>>>> pr/231
 create table t1(
   col1 int unsigned not null primary key,
   col2 int unsigned not null,

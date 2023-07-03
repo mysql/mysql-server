@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +61,7 @@ using std::min;
 
 Cached_item *new_Cached_item(THD *thd, Item *item) {
   switch (item->result_type()) {
+<<<<<<< HEAD
     case STRING_RESULT:
       if (item->is_temporal())
         return new (thd->mem_root) Cached_item_temporal(item);
@@ -67,6 +76,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
       return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
+<<<<<<< HEAD
       assert(0);
       return nullptr;
   }
@@ -77,6 +87,61 @@ bool Cached_item_str::cmp() {
   assert(!item->is_temporal());
   assert(item->data_type() != MYSQL_TYPE_JSON);
   String *res = item->val_str(&tmp_value);
+=======
+      DBUG_ASSERT(0);
+      return 0;
+=======
+  case STRING_RESULT:
+    if (item->is_temporal())
+      return new Cached_item_temporal((Item_field *) item);
+    if (item->field_type() == MYSQL_TYPE_JSON)
+      return new Cached_item_json(item);
+    return new Cached_item_str(thd, (Item_field *) item);
+  case INT_RESULT:
+    return new Cached_item_int((Item_field *) item);
+  case REAL_RESULT:
+    return new Cached_item_real(item);
+  case DECIMAL_RESULT:
+    return new Cached_item_decimal(item);
+  case ROW_RESULT:
+  default:
+    assert(0);
+    return 0;
+>>>>>>> upstream/cluster-7.6
+  }
+}
+
+Cached_item::~Cached_item() {}
+
+/**
+  Compare with old value and replace value with new value.
+
+  @return
+    Return true if values have changed
+*/
+
+Cached_item_str::Cached_item_str(THD *thd, Item *arg)
+    : Cached_item(arg),
+      value_max_length(
+          min<uint32>(arg->max_length, thd->variables.max_sort_length)),
+      value(value_max_length) {}
+
+bool Cached_item_str::cmp(void) {
+  String *res;
+  bool tmp;
+
+  DBUG_ENTER("Cached_item_str::cmp");
+<<<<<<< HEAD
+  DBUG_ASSERT(!item->is_temporal());
+  DBUG_ASSERT(item->data_type() != MYSQL_TYPE_JSON);
+  if ((res = item->val_str(&tmp_value)))
+=======
+  assert(!item->is_temporal());
+  assert(item->field_type() != MYSQL_TYPE_JSON);
+  if ((res=item->val_str(&tmp_value)))
+>>>>>>> upstream/cluster-7.6
+    res->length(min(res->length(), static_cast<size_t>(value_max_length)));
+>>>>>>> pr/231
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
                       res ? res->c_ptr_safe() : ""));
   if (item->null_value) {

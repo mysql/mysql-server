@@ -7,8 +7,18 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
+<<<<<<< HEAD
 # Test#1: Basic check that there are 61 GR variables.
 include/assert.inc [There are 61 GR variables at present.]
+=======
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_show_global_and_session_variables.result
+# Test#1: Basic check that there are 44 GR variables.
+include/assert.inc [There are 44 GR variables at present.]
+=======
+# Test#1: Basic check that there are 36 GR variables.
+include/assert.inc [There are 36 GR variables at present.]
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_show_global_and_session_variables.result
+>>>>>>> pr/231
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -75,10 +85,12 @@ SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 ERROR HY000: Variable 'group_replication_unreachable_majority_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_member_weight= 80;
 ERROR HY000: Variable 'group_replication_member_weight' is a GLOBAL variable and should be set with SET GLOBAL
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_show_global_and_session_variables.result
 SET @@SESSION.group_replication_recovery_public_key_path= "";
 ERROR HY000: Variable 'group_replication_recovery_public_key_path' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_recovery_get_public_key= 1;
 ERROR HY000: Variable 'group_replication_recovery_get_public_key' is a GLOBAL variable and should be set with SET GLOBAL
+<<<<<<< HEAD
 SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
 ERROR HY000: Variable 'group_replication_exit_state_action' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_member_expel_timeout= 120;
@@ -99,6 +111,14 @@ SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
 ERROR HY000: Variable 'group_replication_view_change_uuid' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_paxos_single_leader= 1;
 ERROR HY000: Variable 'group_replication_paxos_single_leader' is a GLOBAL variable and should be set with SET GLOBAL
+=======
+=======
+SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
+ERROR HY000: Variable 'group_replication_exit_state_action' is a GLOBAL variable and should be set with SET GLOBAL
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_show_global_and_session_variables.result
+>>>>>>> pr/231
 
 # Test#3: Verify group replication related variables at SESSION scope.
 SET @@SESSION.group_replication_consistency= "EVENTUAL";
@@ -236,6 +256,7 @@ include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
 include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
 include/assert.inc [Verify SESSION value of group_replication_member_weight]
 include/assert.inc [Verify SESSION value of group_replication_member_weight]
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_show_global_and_session_variables.result
 include/assert.inc [Verify GLOBAL value of group_replication_recovery_public_key_path]
 include/assert.inc [Verify GLOBAL value of group_replication_recovery_public_key_path]
 include/assert.inc [Verify SESSION value of group_replication_recovery_public_key_path]
@@ -244,10 +265,15 @@ include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public
 include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public_key]
 include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
 include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> pr/231
 include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
 include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
 include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
 include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
+<<<<<<< HEAD
 include/assert.inc [Verify GLOBAL value of group_replication_member_expel_timeout]
 include/assert.inc [Verify GLOBAL value of group_replication_member_expel_timeout]
 include/assert.inc [Verify SESSION value of group_replication_member_expel_timeout]
@@ -285,6 +311,9 @@ include/assert.inc [Verify GLOBAL value of group_replication_paxos_single_leader
 include/assert.inc [Verify GLOBAL value of group_replication_paxos_single_leader]
 include/assert.inc [Verify SESSION value of group_replication_paxos_single_leader]
 include/assert.inc [Verify SESSION value of group_replication_paxos_single_leader]
+=======
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_show_global_and_session_variables.result
+>>>>>>> pr/231
 
 # Clean up
 include/stop_group_replication.inc

@@ -1,4 +1,12 @@
+<<<<<<< HEAD:sql-common/json_binary.cc
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,9 +208,31 @@ static bool append_offset_or_size(String *dest, size_t offset_or_size,
                 otherwise, use the small storage format (2 bytes)
 */
 static void insert_offset_or_size(String *dest, size_t pos,
+<<<<<<< HEAD
                                   size_t offset_or_size, bool large) {
+<<<<<<< HEAD:sql-common/json_binary.cc
   assert(pos + offset_size(large) <= dest->alloced_length());
   write_offset_or_size(dest->ptr() + pos, offset_or_size, large);
+=======
+  DBUG_ASSERT(pos + offset_size(large) <= dest->alloced_length());
+  write_offset_or_size(const_cast<char *>(dest->ptr()) + pos, offset_or_size,
+                       large);
+=======
+                                  size_t offset_or_size, bool large)
+{
+  char *to= const_cast<char*>(dest->ptr()) + pos;
+  if (large)
+  {
+    assert(pos + LARGE_OFFSET_SIZE <= dest->alloced_length());
+    int4store(to, static_cast<uint32>(offset_or_size));
+  }
+  else
+  {
+    assert(pos + SMALL_OFFSET_SIZE <= dest->alloced_length());
+    int2store(to, static_cast<uint16>(offset_or_size));
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 }
 
 /**
@@ -595,12 +625,54 @@ static enum_serialization_result serialize_json_object(
   const size_t first_key_offset =
       dest->length() + size * (key_entry_size + value_entry_size) - start_pos;
 
+<<<<<<< HEAD
   // Append all the key entries.
   enum_serialization_result res =
       append_key_entries(object, dest, first_key_offset, large);
   if (res != OK) return res;
 
   const size_t start_of_value_entries = dest->length();
+=======
+#ifndef NDEBUG
+  const std::string *prev_key= NULL;
+#endif
+
+  // Add the key entries.
+  for (Json_object::const_iterator it= object->begin();
+       it != object->end(); ++it)
+  {
+    const std::string *key= &it->first;
+    size_t len= key->length();
+
+#ifndef NDEBUG
+    // Check that the DOM returns the keys in the correct order.
+    if (prev_key)
+    {
+      assert(prev_key->length() <= len);
+      if (len == prev_key->length())
+        assert(memcmp(prev_key->data(), key->data(), len) < 0);
+    }
+    prev_key= key;
+#endif
+
+    // We only have two bytes for the key size. Check if the key is too big.
+    if (len > UINT_MAX16)
+    {
+      my_error(ER_JSON_KEY_TOO_BIG, MYF(0));
+      return FAILURE;
+    }
+
+    if (is_too_big_for_json(offset, large))
+      return VALUE_TOO_BIG;                   /* purecov: inspected */
+
+    if (append_offset_or_size(dest, offset, large) ||
+        append_int16(dest, static_cast<int16>(len)))
+      return FAILURE;                         /* purecov: inspected */
+    offset+= len;
+  }
+
+  const size_t start_of_value_entries= dest->length();
+>>>>>>> upstream/cluster-7.6
 
   // Reserve space for the value entries. Will be filled in later.
   dest->fill(dest->length() + size * value_entry_size, 0);
@@ -706,11 +778,24 @@ static enum_serialization_result serialize_datetime(const Json_datetime *jdt,
                    which is stored in the small storage format
   @return          serialization status
 */
+<<<<<<< HEAD
 static enum_serialization_result serialize_json_value(
     const THD *thd, const Json_dom *dom, size_t type_pos, String *dest,
     size_t depth, bool small_parent) {
   const size_t start_pos = dest->length();
+<<<<<<< HEAD:sql-common/json_binary.cc
   assert(type_pos < start_pos);
+=======
+  DBUG_ASSERT(type_pos < start_pos);
+=======
+static enum_serialization_result
+serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
+                     size_t depth, bool small_parent)
+{
+  const size_t start_pos= dest->length();
+  assert(type_pos < start_pos);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
   enum_serialization_result result;
 
@@ -863,6 +948,7 @@ static enum_serialization_result serialize_json_value(
 }
 #endif  // ifdef MYSQL_SERVER
 
+<<<<<<< HEAD
 bool Value::is_valid() const {
   switch (m_type) {
     case ERROR:
@@ -873,6 +959,73 @@ bool Value::is_valid() const {
         if (!element(i).is_valid()) return false; /* purecov: inspected */
       return true;
     case OBJECT: {
+=======
+
+// Constructor for literals and errors.
+Value::Value(enum_type t)
+  : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
+    m_int_value(), m_double_value(), m_large()
+{
+  assert(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
+         t == ERROR);
+}
+
+
+// Constructor for int and uint.
+Value::Value(enum_type t, int64 val)
+  : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
+    m_int_value(val), m_double_value(), m_large()
+{
+  assert(t == INT || t == UINT);
+}
+
+
+// Constructor for double.
+Value::Value(double d)
+  : m_type(DOUBLE), m_field_type(), m_data(), m_element_count(), m_length(),
+    m_int_value(), m_double_value(d), m_large()
+{}
+
+
+// Constructor for string.
+Value::Value(const char *data, size_t len)
+  : m_type(STRING), m_field_type(), m_data(data), m_element_count(),
+    m_length(len), m_int_value(), m_double_value(), m_large()
+{}
+
+
+// Constructor for arrays and objects.
+Value::Value(enum_type t, const char *data, size_t bytes,
+             size_t element_count, bool large)
+  : m_type(t), m_field_type(), m_data(data), m_element_count(element_count),
+    m_length(bytes), m_int_value(), m_double_value(), m_large(large)
+{
+  assert(t == ARRAY || t == OBJECT);
+}
+
+
+// Constructor for opaque values.
+Value::Value(enum_field_types ft, const char *data, size_t len)
+  : m_type(OPAQUE), m_field_type(ft), m_data(data), m_element_count(),
+    m_length(len), m_int_value(), m_double_value(), m_large()
+{}
+
+
+bool Value::is_valid() const
+{
+  switch (m_type)
+  {
+  case ERROR:
+    return false;
+  case ARRAY:
+    // Check that all the array elements are valid.
+    for (size_t i= 0; i < element_count(); i++)
+      if (!element(i).is_valid())
+        return false;                         /* purecov: inspected */
+    return true;
+  case OBJECT:
+    {
+>>>>>>> upstream/cluster-7.6
       /*
         Check that all keys and values are valid, and that the keys come
         in the correct order.
@@ -903,6 +1056,84 @@ bool Value::is_valid() const {
   }
 }
 
+<<<<<<< HEAD
+=======
+
+/**
+  Get a pointer to the beginning of the STRING or OPAQUE data
+  represented by this instance.
+*/
+const char *Value::get_data() const
+{
+  assert(m_type == STRING || m_type == OPAQUE);
+  return m_data;
+}
+
+
+/**
+  Get the length in bytes of the STRING or OPAQUE value represented by
+  this instance.
+*/
+size_t Value::get_data_length() const
+{
+  assert(m_type == STRING || m_type == OPAQUE);
+  return m_length;
+}
+
+
+/**
+  Get the value of an INT.
+*/
+int64 Value::get_int64() const
+{
+  assert(m_type == INT);
+  return m_int_value;
+}
+
+
+/**
+  Get the value of a UINT.
+*/
+uint64 Value::get_uint64() const
+{
+  assert(m_type == UINT);
+  return static_cast<uint64>(m_int_value);
+}
+
+
+/**
+  Get the value of a DOUBLE.
+*/
+double Value::get_double() const
+{
+  assert(m_type == DOUBLE);
+  return m_double_value;
+}
+
+
+/**
+  Get the number of elements in an array, or the number of members in
+  an object.
+*/
+size_t Value::element_count() const
+{
+  assert(m_type == ARRAY || m_type == OBJECT);
+  return m_element_count;
+}
+
+
+/**
+  Get the MySQL field type of an opaque value. Identifies the type of
+  the value stored in the data portion of an opaque value.
+*/
+enum_field_types Value::field_type() const
+{
+  assert(m_type == OPAQUE);
+  return m_field_type;
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Create a Value object that represents an error condition.
 */
@@ -1009,8 +1240,18 @@ static uint32 read_offset_or_size(const char *data, bool large) {
   @return  an object that allows access to the array or object
 */
 static Value parse_array_or_object(Value::enum_type t, const char *data,
+<<<<<<< HEAD
                                    size_t len, bool large) {
+<<<<<<< HEAD:sql-common/json_binary.cc
   assert(t == Value::ARRAY || t == Value::OBJECT);
+=======
+  DBUG_ASSERT(t == Value::ARRAY || t == Value::OBJECT);
+=======
+                                   size_t len, bool large)
+{
+  assert(t == Value::ARRAY || t == Value::OBJECT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
   /*
     Make sure the document is long enough to contain the two length fields
@@ -1089,8 +1330,18 @@ Value parse_binary(const char *data, size_t len) {
   @return a value representing the specified element, or a value where
   type() returns ERROR if pos does not point to an element
 */
+<<<<<<< HEAD
 Value Value::element(size_t pos) const {
+<<<<<<< HEAD:sql-common/json_binary.cc
   assert(m_type == ARRAY || m_type == OBJECT);
+=======
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+=======
+Value Value::element(size_t pos) const
+{
+  assert(m_type == ARRAY || m_type == OBJECT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
   if (pos >= m_element_count) return err();
 
@@ -1127,8 +1378,18 @@ Value Value::element(size_t pos) const {
   @return the key of the specified member, or a value where type()
   returns ERROR if pos does not point to a member
 */
+<<<<<<< HEAD
 Value Value::key(size_t pos) const {
+<<<<<<< HEAD:sql-common/json_binary.cc
   assert(m_type == OBJECT);
+=======
+  DBUG_ASSERT(m_type == OBJECT);
+=======
+Value Value::key(size_t pos) const
+{
+  assert(m_type == OBJECT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
   if (pos >= m_element_count) return err();
 
@@ -1165,8 +1426,14 @@ Value Value::key(size_t pos) const {
   @return the value associated with the key, if there is one. otherwise,
   returns ERROR
 */
+<<<<<<< HEAD:sql-common/json_binary.cc
 Value Value::lookup(const char *key, size_t length) const {
   size_t index = lookup_index(key, length);
+=======
+<<<<<<< HEAD
+Value Value::lookup(const std::string &key) const {
+  size_t index = lookup_index(key);
+>>>>>>> pr/231:sql/json_binary.cc
   if (index == element_count()) return err();
   return element(index);
 }
@@ -1179,8 +1446,18 @@ Value Value::lookup(const char *key, size_t length) const {
   @return the index if the key is found, or `element_count()` if the
   key is not found
 */
+<<<<<<< HEAD:sql-common/json_binary.cc
 size_t Value::lookup_index(const char *key, size_t length) const {
   assert(m_type == OBJECT);
+=======
+size_t Value::lookup_index(const std::string &key) const {
+  DBUG_ASSERT(m_type == OBJECT);
+=======
+Value Value::lookup(const char *key, size_t len) const
+{
+  assert(m_type == OBJECT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/json_binary.cc
 
   const auto offset_size = json_binary::offset_size(m_large);
   const auto entry_size = key_entry_size(m_large);

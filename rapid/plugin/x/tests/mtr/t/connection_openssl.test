@@ -1,0 +1,2 @@
+--source include/have_ssl.inc
+--source  ../include/connection_ssl.inc

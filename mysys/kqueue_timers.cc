@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:mysys/kqueue_timers.cc
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:mysys/kqueue_timers.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,9 +76,20 @@ static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
       }
     }
 
+<<<<<<< HEAD:mysys/kqueue_timers.cc
     if (kev.filter == EVFILT_TIMER) {
       timer = static_cast<my_timer_t *>(kev.udata);
+<<<<<<< HEAD
       assert(timer->id == kev.ident);
+=======
+      DBUG_ASSERT(timer->id == kev.ident);
+=======
+    if (kev.filter == EVFILT_TIMER)
+    {
+      timer= kev.udata;
+      assert(timer->id == kev.ident);
+>>>>>>> upstream/cluster-7.6:mysys/kqueue_timers.c
+>>>>>>> pr/231
       timer->notify_function(timer);
     } else if (kev.filter == EVFILT_USER)
       break;
@@ -144,8 +163,29 @@ void my_timer_deinitialize(void) {
   my_thread_join(&timer_notify_thread, NULL);
 }
 
+<<<<<<< HEAD
 int my_timer_create(my_timer_t *timer) {
   assert(kq_fd >= 0);
+=======
+/**
+  Create a timer object.
+
+  @param  timer   Timer object.
+
+  @return On success, 0.
+          On error, -1 is returned, and errno is set to indicate the error.
+*/
+
+<<<<<<< HEAD:mysys/kqueue_timers.cc
+int my_timer_create(my_timer_t *timer) {
+  DBUG_ASSERT(kq_fd >= 0);
+=======
+int
+my_timer_create(my_timer_t *timer)
+{
+  assert(kq_fd >= 0);
+>>>>>>> upstream/cluster-7.6:mysys/kqueue_timers.c
+>>>>>>> pr/231
 
   timer->id = (uintptr_t)timer;
 

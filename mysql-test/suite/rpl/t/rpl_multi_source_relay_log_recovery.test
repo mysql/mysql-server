@@ -4,7 +4,11 @@
 # Problem:
 # ========
 # Enable MTS along with crash-safe replication tables. Make sure that the
+<<<<<<< HEAD
 # server is busily inserting data with multiple threads in parallel. Shutdown mysqld
+=======
+# server is busily inserting data with multiple threads in parallel. Shutdown
+>>>>>>> pr/231
 # mysqld uncleanly (kill -9 or power off server without notice).
 #
 # Now users are restarting the server with --relay-log-recovery=1 to recover
@@ -13,9 +17,15 @@
 # This results in following error:
 # ================================
 # 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot be executed
+<<<<<<< HEAD
 # when the slave was stopped with an error or killed in MTS mode; consider
 # using RESET SLAVE or restart the server with --relay-log-recovery = 0
 # followed by START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+=======
+# when the slave was stopped with an error or killed in MTS mode; consideri
+# using RESET SLAVE or restart the server with --relay-log-recovery = 0
+# followed by # START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+>>>>>>> pr/231
 #
 # i.e relay-log-recovery will not work in MTS mode.
 ###############################################################################

@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2014, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
 -- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -116,7 +135,11 @@ BEGIN
         SELECT CONCAT(IF(nesting_event_id IS NOT NULL, CONCAT(nesting_event_id, ' -> '), ''), 
                     event_id, '; ', event_id, ' [label="',
                     -- Convert from picoseconds to microseconds
+<<<<<<< HEAD
                     '(', format_pico_time(timer_wait), ') ',
+=======
+                    '(', sys.format_time(timer_wait), ') ',
+>>>>>>> pr/231
                     IF (event_name NOT LIKE 'wait/io%', 
                         SUBSTRING_INDEX(event_name, '/', -2), 
                         IF (event_name NOT LIKE 'wait/io/file%' OR event_name NOT LIKE 'wait/io/socket%',
@@ -188,7 +211,11 @@ BEGIN
                      CONCAT('statement: ', sql_text, '\\n',
                             'errors: ', errors, '\\n',
                             'warnings: ', warnings, '\\n',
+<<<<<<< HEAD
                             'lock time: ', format_pico_time(lock_time),'\\n',
+=======
+                            'lock time: ', sys.format_time(lock_time),'\\n',
+>>>>>>> pr/231
                             'rows affected: ', rows_affected, '\\n',
                             'rows sent: ', rows_sent, '\\n',
                             'rows examined: ', rows_examined, '\\n',

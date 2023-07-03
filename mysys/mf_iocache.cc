@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:mysys/mf_iocache.cc
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,9 +216,20 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
         the beginning of whatever this file is, then somebody made a bad
         assumption.
       */
+<<<<<<< HEAD
       assert(seek_offset == 0);
+=======
+<<<<<<< HEAD:mysys/mf_iocache.cc
+      DBUG_ASSERT(seek_offset == 0);
+>>>>>>> pr/231
     } else
       info->seek_not_done = (seek_offset != pos);
+=======
+      assert(seek_offset == 0);
+    }
+    else
+      info->seek_not_done= MY_TEST(seek_offset != pos);
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
   }
 
   info->disk_writes = 0;
@@ -331,9 +350,21 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
                        info, type, (ulong)seek_offset, (int)clear_cache));
 
   /* One can't do reinit with the following types */
+<<<<<<< HEAD
   assert(type != READ_NET && info->type != READ_NET && type != WRITE_NET &&
          info->type != WRITE_NET && type != SEQ_READ_APPEND &&
          info->type != SEQ_READ_APPEND);
+=======
+<<<<<<< HEAD:mysys/mf_iocache.cc
+  DBUG_ASSERT(type != READ_NET && info->type != READ_NET && type != WRITE_NET &&
+              info->type != WRITE_NET && type != SEQ_READ_APPEND &&
+              info->type != SEQ_READ_APPEND);
+=======
+  assert(type != READ_NET && info->type != READ_NET &&
+         type != WRITE_NET && info->type != WRITE_NET &&
+         type != SEQ_READ_APPEND && info->type != SEQ_READ_APPEND);
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+>>>>>>> pr/231
 
   /* If the whole file is in memory, avoid flushing to disk */
   if (!clear_cache && seek_offset >= info->pos_in_file &&
@@ -426,11 +457,20 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
   DBUG_TRACE;
 
   /* If the buffer is not empty yet, copy what is available. */
+<<<<<<< HEAD:mysys/mf_iocache.cc
   if ((left_length = (size_t)(info->read_end - info->read_pos))) {
     assert(Count >= left_length); /* User is not using my_b_read() */
     memcpy(Buffer, info->read_pos, left_length);
     Buffer += left_length;
     Count -= left_length;
+=======
+  if ((left_length= (size_t) (info->read_end-info->read_pos)))
+  {
+    assert(Count >= left_length);	/* User is not using my_b_read() */
+    memcpy(Buffer,info->read_pos, left_length);
+    Buffer+=left_length;
+    Count-=left_length;
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
   }
 
   /* pos_in_file always point on where info->buffer was read */
@@ -453,9 +493,20 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
         info->file is a pipe or socket or FIFO.  We never should have tried
         to seek on that.  See Bugs#25807 and #22828 for more info.
       */
+<<<<<<< HEAD
       assert(my_errno() != ESPIPE);
       info->error = -1;
       return 1;
+=======
+<<<<<<< HEAD:mysys/mf_iocache.cc
+      DBUG_ASSERT(my_errno() != ESPIPE);
+      info->error = -1;
+=======
+      assert(my_errno() != ESPIPE);
+      info->error= -1;
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+      DBUG_RETURN(1);
+>>>>>>> pr/231
     }
   }
 
@@ -925,8 +976,18 @@ int _my_b_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count) {
   IO_CACHE_SHARE *cshare = cache->share;
   DBUG_TRACE;
 
+<<<<<<< HEAD:mysys/mf_iocache.cc
   if ((left_length = (size_t)(cache->read_end - cache->read_pos))) {
+<<<<<<< HEAD
     assert(Count >= left_length); /* User is not using my_b_read() */
+=======
+    DBUG_ASSERT(Count >= left_length); /* User is not using my_b_read() */
+=======
+  if ((left_length= (size_t) (cache->read_end - cache->read_pos)))
+  {
+    assert(Count >= left_length);	/* User is not using my_b_read() */
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+>>>>>>> pr/231
     memcpy(Buffer, cache->read_pos, left_length);
     Buffer += left_length;
     Count -= left_length;
@@ -1086,11 +1147,20 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
   save_count = Count;
 
   /* first, read the regular buffer */
+<<<<<<< HEAD:mysys/mf_iocache.cc
   if ((left_length = (size_t)(info->read_end - info->read_pos))) {
     assert(Count > left_length); /* User is not using my_b_read() */
     memcpy(Buffer, info->read_pos, left_length);
     Buffer += left_length;
     Count -= left_length;
+=======
+  if ((left_length=(size_t) (info->read_end-info->read_pos)))
+  {
+    assert(Count > left_length);	/* User is not using my_b_read() */
+    memcpy(Buffer,info->read_pos, left_length);
+    Buffer+=left_length;
+    Count-=left_length;
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
   }
   lock_append_buffer(info);
 
@@ -1161,9 +1231,15 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
       Buffer += length;
 
       /*
+<<<<<<< HEAD:mysys/mf_iocache.cc
          added the line below to make
          assert(pos_in_file==info->end_of_file) pass.
          otherwise this does not appear to be needed
+=======
+	 added the line below to make
+	 assert(pos_in_file==info->end_of_file) pass.
+	 otherwise this does not appear to be needed
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
       */
       pos_in_file += length;
       goto read_append_buffer;
@@ -1193,8 +1269,18 @@ read_append_buffer:
     /*
       TODO: figure out if the assert below is needed or correct.
     */
+<<<<<<< HEAD
     assert(pos_in_file == info->end_of_file);
     copy_len = std::min(Count, len_in_buff);
+=======
+<<<<<<< HEAD:mysys/mf_iocache.cc
+    DBUG_ASSERT(pos_in_file == info->end_of_file);
+    copy_len = MY_MIN(Count, len_in_buff);
+=======
+    assert(pos_in_file == info->end_of_file);
+    copy_len= MY_MIN(Count, len_in_buff);
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+>>>>>>> pr/231
     memcpy(Buffer, info->append_read_pos, copy_len);
     info->append_read_pos += copy_len;
     Count -= copy_len;
@@ -1473,12 +1559,28 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
                                       info->myflags | MY_NABP))
         info->error = -1;
       else
+<<<<<<< HEAD:mysys/mf_iocache.cc
         info->error = 0;
       if (!append_cache) {
         info->end_of_file = std::max(info->end_of_file, (pos_in_file + length));
       } else {
         info->end_of_file += (info->write_pos - info->append_read_pos);
+<<<<<<< HEAD
         assert(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
+=======
+        DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
+=======
+	info->error= 0;
+      if (!append_cache)
+      {
+        set_if_bigger(info->end_of_file,(pos_in_file+length));
+      }
+      else
+      {
+	info->end_of_file+=(info->write_pos-info->append_read_pos);
+	assert(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
+>>>>>>> upstream/cluster-7.6:mysys/mf_iocache.c
+>>>>>>> pr/231
       }
 
       info->append_read_pos = info->write_pos = info->write_buffer;

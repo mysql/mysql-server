@@ -592,6 +592,11 @@ DROP TABLE `test`.`t1`;
 DROP TABLESPACE `mytbsp`;
 --remove_file $MYSQL_TMP_DIR/mysqlpump.sql
 
+<<<<<<< HEAD
+=======
+--remove_file $MYSQL_TMP_DIR/mysqlpump.sql
+
+>>>>>>> pr/231
 -- echo #
 -- echo # Bug#29023216: MYSQLPUMP SHOULD WRITE USERS AND GRANTS BEFORE VIEWS AND STORED PROGRAMS
 -- echo #
@@ -638,6 +643,7 @@ SELECT * FROM V_T1_C;
 #cleanup
 DROP DATABASE DB29023216;
 DROP USER 'VIEWUSER'@'LOCALHOST';
+<<<<<<< HEAD
 USE test;
 
 
@@ -756,3 +762,5 @@ SET GLOBAL sql_generate_invisible_primary_key =
              @saved_global_sql_generate_invisible_primary_key;
 SET SESSION sql_generate_invisible_primary_key =
               @saved_session_sql_generate_invisible_primary_key;
+=======
+>>>>>>> pr/231

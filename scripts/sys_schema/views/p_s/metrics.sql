@@ -1,13 +1,32 @@
+<<<<<<< HEAD
 -- Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 --
 --   This program is free software; you can redistribute it and/or modify
 --   it under the terms of the GNU General Public License as published by
 --   the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+--
+--   This program is free software; you can redistribute it and/or modify
+--   it under the terms of the GNU General Public License, version 2.0,
+--   as published by the Free Software Foundation.
+--
+--   This program is also distributed with certain software (including
+--   but not limited to OpenSSL) that is licensed under separate terms,
+--   as designated in a particular file or component or in included license
+--   documentation.  The authors of MySQL hereby grant you an additional
+--   permission to link the program and your derivative works with the
+--   separately licensed software that they have included with MySQL.
+>>>>>>> pr/231
 --
 --   This program is distributed in the hope that it will be useful,
 --   but WITHOUT ANY WARRANTY; without even the implied warranty of
 --   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 --   GNU General Public License for more details.
+=======
+--   GNU General Public License, version 2.0, for more details.
+>>>>>>> pr/231
 --
 --   You should have received a copy of the GNU General Public License
 --   along with this program; if not, write to the Free Software
@@ -26,6 +45,13 @@
 --    *  Performance Schema global memory usage information
 --    *  Current time
 --
+<<<<<<< HEAD
+=======
+-- This is the same as the metrics_56 view with the exception that the global status is taken from performance_schema.global_status instead of
+-- from the Information Schema. Use this view if the MySQL version is 5.7.6 or later and show_compatibility_56 = OFF.
+-- See also https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_show_compatibility_56
+-- 
+>>>>>>> pr/231
 -- For view has the following columns:
 -- 
 --    * Variable_name: The name of the variable
@@ -83,7 +109,11 @@ SELECT NAME AS Variable_name, COUNT AS Variable_value,
        CONCAT('InnoDB Metrics - ', SUBSYSTEM) AS Type,
        IF(STATUS = 'enabled', 'YES', 'NO') AS Enabled
   FROM information_schema.INNODB_METRICS
+<<<<<<< HEAD
   -- De duplication - some variables exists both in GLOBAL_STATUS and INNODB_METRICS
+=======
+  -- Deduplication - some variables exists both in GLOBAL_STATUS and INNODB_METRICS
+>>>>>>> pr/231
   -- Keep the one from GLOBAL_STATUS as it is always enabled and it's more likely to be used for existing tools.
  WHERE NAME NOT IN (
      'lock_row_lock_time', 'lock_row_lock_time_avg', 'lock_row_lock_time_max', 'lock_row_lock_waits',
@@ -94,19 +124,36 @@ SELECT NAME AS Variable_name, COUNT AS Variable_value,
      'buffer_data_reads', 'buffer_data_written', 'file_num_open_files',
      'os_log_bytes_written', 'os_log_fsyncs', 'os_log_pending_fsyncs', 'os_log_pending_writes',
      'log_waits', 'log_write_requests', 'log_writes', 'innodb_dblwr_writes', 'innodb_dblwr_pages_written', 'innodb_page_size')
+<<<<<<< HEAD
 ) UNION ALL (
 SELECT 'memory_current_allocated' AS Variable_name, SUM(CURRENT_NUMBER_OF_BYTES_USED) AS Variable_value, 'Performance Schema' AS Type,
         IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'YES') = 0, 'NO',
         IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'NO') = 0, 'YES',
+=======
+) /*!50702
+  -- memory instrumentation available in 5.7.2 and later
+  UNION ALL (
+SELECT 'memory_current_allocated' AS Variable_name, SUM(CURRENT_NUMBER_OF_BYTES_USED) AS Variable_value, 'Performance Schema' AS Type,
+        IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'YES') = 0, 'NO',
+        IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'YES') = (SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%'), 'YES',
+>>>>>>> pr/231
             'PARTIAL')) AS Enabled
   FROM performance_schema.memory_summary_global_by_event_name
 ) UNION ALL (
 SELECT 'memory_total_allocated' AS Variable_name, SUM(SUM_NUMBER_OF_BYTES_ALLOC) AS Variable_value, 'Performance Schema' AS Type,
         IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'YES') = 0, 'NO',
+<<<<<<< HEAD
         IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'NO') = 0, 'YES',
             'PARTIAL')) AS Enabled
   FROM performance_schema.memory_summary_global_by_event_name
 ) UNION ALL (
+=======
+        IF((SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%' AND ENABLED = 'YES') = (SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/%'), 'YES',
+            'PARTIAL')) AS Enabled
+  FROM performance_schema.memory_summary_global_by_event_name
+) */
+  UNION ALL (
+>>>>>>> pr/231
 SELECT 'NOW()' AS Variable_name, NOW(3) AS Variable_value, 'System Time' AS Type, 'YES' AS Enabled
 ) UNION ALL (
 SELECT 'UNIX_TIMESTAMP()' AS Variable_name, ROUND(UNIX_TIMESTAMP(NOW(3)), 3) AS Variable_value, 'System Time' AS Type, 'YES' AS Enabled

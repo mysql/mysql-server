@@ -1,5 +1,19 @@
 /* adler32.c -- compute the Adler-32 checksum of a data stream
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/adler32.c
  * Copyright (C) 1995-2011, 2016 Mark Adler
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/adler32.c
+ * Copyright (C) 1995-2011, 2017 Mark Adler
+========
+ * Copyright (C) 1995-2011, 2016 Mark Adler
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/adler32.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/adler32.c
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 

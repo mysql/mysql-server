@@ -1,7 +1,15 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,6 +154,7 @@ int safe_mutex_lock(safe_mutex_t *mp, bool try_lock, const char *file,
 int safe_mutex_unlock(safe_mutex_t *mp, const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line);
 
+<<<<<<< HEAD
 static inline void safe_mutex_assert_owner(safe_mutex_t *mp) {
   assert(mp != nullptr);
   native_mutex_lock(&mp->global);
@@ -158,6 +167,29 @@ static inline void safe_mutex_assert_not_owner(safe_mutex_t *mp) {
   native_mutex_lock(&mp->global);
   assert(!mp->count || !my_thread_equal(my_thread_self(), mp->thread));
   native_mutex_unlock(&mp->global);
+=======
+<<<<<<< HEAD
+static inline void safe_mutex_assert_owner(const safe_mutex_t *mp) {
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(mp->count > 0 && my_thread_equal(my_thread_self(), mp->thread));
+}
+
+static inline void safe_mutex_assert_not_owner(const safe_mutex_t *mp) {
+  DBUG_ASSERT(mp != NULL);
+  DBUG_ASSERT(!mp->count || !my_thread_equal(my_thread_self(), mp->thread));
+=======
+static inline void safe_mutex_assert_owner(const my_mutex_t *mp)
+{
+  assert(mp->count > 0 &&
+         my_thread_equal(my_thread_self(), mp->thread));
+}
+
+static inline void safe_mutex_assert_not_owner(const my_mutex_t *mp)
+{
+  assert(!mp->count ||
+         !my_thread_equal(my_thread_self(), mp->thread));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 #endif /* SAFE_MUTEX */
 

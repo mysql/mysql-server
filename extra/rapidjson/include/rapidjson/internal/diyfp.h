@@ -1,4 +1,26 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
+<<<<<<< HEAD
+//
+=======
+<<<<<<< HEAD
+// 
+>>>>>>> pr/231
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+//
+// Licensed under the MIT License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// http://opensource.org/licenses/MIT
+//
+<<<<<<< HEAD
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+=======
+// Unless required by applicable law or agreed to in writing, software distributed 
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+=======
 //
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
@@ -10,6 +32,8 @@
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 // specific language governing permissions and limitations under the License.
 
 // This is a C++ header-only implementation of Grisu2 algorithm from the publication:
@@ -20,11 +44,26 @@
 #define RAPIDJSON_DIYFP_H_
 
 #include "../rapidjson.h"
+<<<<<<< HEAD
+#include "clzll.h"
+#include <limits>
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
+
+#if defined(_MSC_VER) && defined(_M_AMD64) && !defined(__INTEL_COMPILER)
+#include <intrin.h>
+<<<<<<< HEAD
+=======
+#pragma intrinsic(_BitScanReverse64)
+=======
 #include "clzll.h"
 #include <limits>
 
 #if defined(_MSC_VER) && defined(_M_AMD64) && !defined(__INTEL_COMPILER)
 #include <intrin.h>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #pragma intrinsic(_umul128)
 #endif
 
@@ -129,6 +168,12 @@ struct DiyFp {
             double d;
             uint64_t u64;
         }u;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        const uint64_t be = (e == kDpDenormalExponent && (f & kDpHiddenBit) == 0) ? 0 : 
+=======
+>>>>>>> pr/231
         RAPIDJSON_ASSERT(f <= kDpHiddenBit + kDpSignificandMask);
         if (e < kDpDenormalExponent) {
             // Underflow.
@@ -139,6 +184,10 @@ struct DiyFp {
             return std::numeric_limits<double>::infinity();
         }
         const uint64_t be = (e == kDpDenormalExponent && (f & kDpHiddenBit) == 0) ? 0 :
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
             static_cast<uint64_t>(e + kDpExponentBias);
         u.u64 = (f & kDpSignificandMask) | (be << kDpSignificandSize);
         return u.d;
@@ -236,11 +285,24 @@ inline DiyFp GetCachedPower(int e, int* K) {
 }
 
 inline DiyFp GetCachedPower10(int exp, int *outExp) {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+     unsigned index = (static_cast<unsigned>(exp) + 348u) / 8u;
+     *outExp = -348 + static_cast<int>(index) * 8;
+     return GetCachedPowerByIndex(index);
+ }
+=======
+>>>>>>> pr/231
     RAPIDJSON_ASSERT(exp >= -348);
     unsigned index = static_cast<unsigned>(exp + 348) / 8u;
     *outExp = -348 + static_cast<int>(index) * 8;
     return GetCachedPowerByIndex(index);
 }
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef __GNUC__
 RAPIDJSON_DIAG_POP

@@ -1,4 +1,8 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo Testing the behaviour of ANALYZE TABLE before and
 --echo after table reorganisation, and then during subsequent
@@ -78,10 +82,17 @@ while ($cnt)
     --enable_result_log
   }
   --echo Restart node $nid
+<<<<<<< HEAD
   --exec $NDB_MGM --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
   --exec $NDB_WAITER --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
   --exec $NDB_MGM --execute "$nid start" >> $NDB_TOOLS_OUTPUT
   --exec $NDB_WAITER --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
+=======
+  --exec $NDB_MGM --no-defaults --verbose=0 --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --no-defaults --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --no-defaults --verbose=0 --execute "$nid start" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --no-defaults --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
   --echo Restart finished
 
   --echo Analyze the tables

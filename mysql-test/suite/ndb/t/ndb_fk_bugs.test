@@ -991,6 +991,10 @@ show create table t2;
 --echo #Drop tables
 drop table t2, t1;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --echo #
 --echo # Bug#27930382 : FOREIGN KEY CONSTRAINT VIOLATIONS INCORRECTLY REPORTED
 --echo
@@ -1066,5 +1070,9 @@ insert into t1 values (3,2,2,2,2);
 insert into t1 values (4,3,3,3,3);
 delete from t1;
 
+<<<<<<< HEAD
 drop table t1;
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+drop table t1;
+>>>>>>> pr/231

@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# Tests the statement based replication of tables in a cross version setup
+# where the master is a 8.0 server and slave is a 5.7 server, and verify
+# that there is no crash at the time of FLUSH LOGS on slave side.
+#
+# ==== Implementation ====
+#
+# Start a master server on 5.7
+# Copy the binary log file and index of a 8.0 master server to the datadir of 5.7 master server
+# Start the slave on a 5.7 server
+# Execute Flush logs command on the slave
+# Without the fix the Flush Logs command will trigger an ASAN failure
+#
+# ==== References ====
+#
+# Bug#29417234:CONTRIBUTION BY FACEBOOK: FIX WRITING FORMAT DESCRIPTION EVENT
+#
+
+--source include/have_binlog_format_statement.inc
+--source include/not_gtid_enabled.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--let $MYSQLD_MASTER_DATADIR= `select @@datadir`
+RESET MASTER;
+--let $is_windows = `SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`
+
+# Stop the master
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+# clear master datadir
+--remove_file $MYSQLD_MASTER_DATADIR/master-bin.000001
+--remove_file $MYSQLD_MASTER_DATADIR/master-bin.index
+
+# on Win* platforms path separator is backslash
+if ($is_windows)
+{
+    --copy_file std_data/slave-relay-bin-win.index $MYSQLD_MASTER_DATADIR/master-bin.index
+}
+if (!$is_windows)
+{
+   --copy_file std_data/slave-relay-bin.index $MYSQLD_MASTER_DATADIR/master-bin.index
+}
+
+--copy_file std_data/slave-relay-bin.000001 $MYSQLD_MASTER_DATADIR/master-bin.000001
+
+# Start the master
+--source include/rpl_start_server.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
+START SLAVE;
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
+
+FLUSH LOGS;
+STOP SLAVE;
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

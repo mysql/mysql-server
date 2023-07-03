@@ -1,6 +1,19 @@
+<<<<<<< HEAD
 -- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
+=======
+<<<<<<< HEAD
+-- Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
+=======
+-- Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+-- 
+-- This program is free software; you can redistribute it and/or modify
+>>>>>>> pr/231
 -- it under the terms of the GNU General Public License, version 2.0,
 -- as published by the Free Software Foundation.
 --
@@ -10,11 +23,23 @@
 -- documentation.  The authors of MySQL hereby grant you an additional
 -- permission to link the program and your derivative works with the
 -- separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
 -- GNU General Public License, version 2.0, for more details.
+=======
+<<<<<<< HEAD
+-- GNU General Public License for more details.
+=======
+-- GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software

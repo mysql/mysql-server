@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +51,7 @@ bool load_rewrite_rules_init(UDF_INIT *, UDF_ARGS *, char *message) {
   return true;
 }
 
+<<<<<<< HEAD
 char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,
                          unsigned char *is_null, unsigned char *) {
   assert(get_rewriter_plugin_info() != nullptr);
@@ -52,6 +61,20 @@ char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,
     *length = static_cast<unsigned long>(strlen(message));
   } else
     *is_null = 1;
+=======
+char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
+                         unsigned long *length, char *is_null, char *error)
+{
+  assert(get_rewriter_plugin_info() != NULL);
+  const char *message= NULL;
+  if (refresh_rules_table())
+  {
+    message= "Loading of some rule(s) failed.";
+    *length= static_cast<unsigned long>(strlen(message));
+  }
+  else
+    *is_null= 1;
+>>>>>>> upstream/cluster-7.6
 
   return const_cast<char *>(message);
 }

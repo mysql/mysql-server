@@ -111,8 +111,11 @@ connection default;
 set global super_read_only=0;
 # Revoke SUPER privilege from pfsuser.
 revoke SUPER on *.* from pfsuser@localhost;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
+=======
+>>>>>>> pr/231
 # Reset super_read_only mode.
 set global super_read_only=1;
 connection con1;

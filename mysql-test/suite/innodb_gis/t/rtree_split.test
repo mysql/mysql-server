@@ -103,7 +103,11 @@ drop table t1;
 --echo #
 
 # Create table with R-tree index.
+<<<<<<< HEAD
 create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
+=======
+create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+>>>>>>> pr/231
 
 # Insert enough values to let R-tree split.
 insert into t1 values(1, Point(1,1));

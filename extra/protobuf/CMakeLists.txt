@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +37,7 @@ IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     "-ftls-model=initial-exec" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ENDIF()
 
+<<<<<<< HEAD
 # Inhibit warning messages
 IF(MSVC AND NOT WIN32_CLANG)
   # no suitable definition provided for explicit template instantiation
@@ -36,6 +45,43 @@ IF(MSVC AND NOT WIN32_CLANG)
 ELSE()
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-sign-compare")
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-function")
+=======
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+# Turn off some warning flags when compiling protobuf
+<<<<<<< HEAD
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+=======
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-deprecated-declarations"
+  HAVE_NO_DEPRECATED_DECLARATIONS)
+IF(HAVE_NO_DEPRECATED_DECLARATIONS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
+IF(HAVE_NO_SIGN_COMPARE)
+>>>>>>> upstream/cluster-7.6
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-qualifiers")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+  IF(HAVE_MAYBE_UNINITIALIZED)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
+  IF(HAVE_UNUSED_BUT_SET)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-parameter")
+  ENDIF()
+>>>>>>> pr/231
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)

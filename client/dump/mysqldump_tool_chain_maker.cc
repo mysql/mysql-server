@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +34,7 @@
 
 #include <stddef.h>
 #include <boost/algorithm/string.hpp>
+<<<<<<< HEAD
 #include <functional>
 
 #include "client/dump/compression_lz4_writer.h"
@@ -35,8 +44,14 @@
 #include "client/dump/mysqldump_tool_chain_maker_options.h"
 #include "client/dump/sql_formatter.h"
 #include "client/dump/standard_writer.h"
+<<<<<<< HEAD
 #include "client/dump/view.h"
 #include "m_ctype.h"
+=======
+=======
+#include "m_ctype.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
@@ -61,9 +76,20 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
               dump_task->get_related_db_object()))) {
     return nullptr;
   }
+<<<<<<< HEAD
 
   if (m_main_object_reader == nullptr) {
+=======
+<<<<<<< HEAD
+  if (m_main_object_reader == NULL) {
+>>>>>>> pr/231
     I_output_writer *writer;
+=======
+
+  if (m_main_object_reader == NULL)
+  {
+    I_output_writer* writer;
+>>>>>>> upstream/cluster-7.6
     if (m_options->m_result_file.has_value())
       writer = new File_writer(this->get_message_handler(),
                                this->get_object_id_generator(),

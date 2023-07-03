@@ -8,6 +8,10 @@
 #########################################################################
 # RESTART 1 : WITH KEYRING PLUGIN
 #########################################################################
+<<<<<<< HEAD
+=======
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+>>>>>>> pr/231
 # Create a new 'unencrypted' table
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 C1 TEXT(500),

@@ -1,3 +1,9 @@
 CREATE TABLE mt
 (i int not null primary key, j mediumint unsigned) engine=ndb;
+<<<<<<< HEAD
+=======
+SELECT count(*) FROM mt;
+count(*)
+6
+>>>>>>> pr/231
 DROP TABLE mt;

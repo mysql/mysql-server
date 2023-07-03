@@ -1,0 +1,81 @@
+#=== Purpose ===
+#
+# This test verifies that the transaction dependency writeset
+# history map has protection from concurrent access.
+#
+# === Implementation ===
+#
+# 1. Do a DML on server such that it writes the GTID in the binlog and then halt
+#    the thread in get_dependency function using debug sync utility.
+# 2. Execute 'set global binlog_transaction_dependency_tracking=WRITESET or
+#    WRITESET_SESSION'.
+# 3. Verify that the thread in step 2 waits until LOCK_slave_trans_dep_tracker
+#    lock is released by the thread in step 1.
+#
+# === References ===
+#
+# Bug#29719364 THE BUGFIX FOR BUG#28511326 SEEMS INCORRECT
+#
+# This test case is binlog_format agnostic
+--source include/have_binlog_format_row.inc
+# This test case uses debug_sync
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+CREATE TABLE t1 (i INT PRIMARY KEY);
+
+# Save the current tracking mode and extraction algorithm.
+--let $old_trx_tracker = `SELECT @@GLOBAL.BINLOG_TRANSACTION_DEPENDENCY_TRACKING`
+--let $old_trx_write_set_extraction = `SELECT @@GLOBAL.TRANSACTION_WRITE_SET_EXTRACTION`
+
+# Set the global transaction extraction algorithm and tracking mode.
+SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION = 'XXHASH64';
+SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING = WRITESET;
+
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+
+# Do a DML such that it writes GTID and calls
+# get_dependency to update writeset history map.
+--connection con1
+BEGIN;
+INSERT INTO t1 VALUES(1);
+SET DEBUG_SYNC="wait_in_get_dependency SIGNAL dep_tracker WAIT_FOR go_ahead_dml";
+--send commit
+
+# Set transaction dependency tracking mode to writeset
+# so that it clears the writeset history.
+--connection con2
+--let $thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID =CONNECTION_ID()`
+SET DEBUG_SYNC= "now WAIT_FOR dep_tracker";
+--send SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING=WRITESET_SESSION
+
+--connection default
+# wait until it tries to take LOCK_slave_trans_dep_tracker.
+--let $wait_condition= SELECT EVENT_NAME= 'wait/synch/mutex/sql/LOCK_slave_trans_dep_tracker' FROM performance_schema.events_waits_current WHERE THREAD_ID=$thread_id
+--source include/wait_condition.inc
+
+# since one thread has taken the LOCK_slave_trans_dep_tracker,
+# the other thread has to wait in order to aquire this lock.
+--connection default
+--let $assert_text= con2 is waiting for LOCK_slave_trans_dep_tracker.
+--let $assert_cond= "[SELECT EVENT_NAME FROM performance_schema.events_waits_current WHERE THREAD_ID=$thread_id]" = "wait/synch/mutex/sql/LOCK_slave_trans_dep_tracker"
+--source include/assert.inc
+
+#Signal the thread waiting in get_dependency.
+SET DEBUG_SYNC="now SIGNAL go_ahead_dml";
+
+--connection con1
+--reap
+--connection con2
+--reap
+
+#Cleanup
+--disconnect con1
+--disconnect con2
+--connection default
+--replace_result $old_trx_tracker TRACKING_MODE
+--eval SET GLOBAL BINLOG_TRANSACTION_DEPENDENCY_TRACKING= $old_trx_tracker
+--replace_result $old_trx_write_set_extraction EXTRACTION_ALG
+--eval SET GLOBAL TRANSACTION_WRITE_SET_EXTRACTION= $old_trx_write_set_extraction
+SET DEBUG_SYNC="RESET";
+DROP TABLE t1;

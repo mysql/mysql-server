@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+>>>>>>> pr/231
 --echo # Bug#29998457 MYSQLDUMP GENERATES INVALID INSERT STATEMENTS WITH VARBINARY COLUMNS
 
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE = '';

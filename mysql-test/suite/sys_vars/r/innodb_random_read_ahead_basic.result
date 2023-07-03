@@ -77,13 +77,31 @@ set global innodb_random_read_ahead=-3;
 ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of '-3'
 select @@global.innodb_random_read_ahead;
 @@global.innodb_random_read_ahead
+<<<<<<< HEAD
 0
+=======
+<<<<<<< HEAD
+1
+>>>>>>> pr/231
 select * from performance_schema.global_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_random_read_ahead	OFF
 select * from performance_schema.session_variables where variable_name='innodb_random_read_ahead';
 VARIABLE_NAME	VARIABLE_VALUE
+<<<<<<< HEAD
 innodb_random_read_ahead	OFF
+=======
+innodb_random_read_ahead	ON
+=======
+0
+select * from information_schema.global_variables where variable_name='innodb_random_read_ahead';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_RANDOM_READ_AHEAD	OFF
+select * from information_schema.session_variables where variable_name='innodb_random_read_ahead';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_RANDOM_READ_AHEAD	OFF
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 set global innodb_random_read_ahead='AUTO';
 ERROR 42000: Variable 'innodb_random_read_ahead' can't be set to the value of 'AUTO'
 SET @@global.innodb_random_read_ahead = @start_global_value;

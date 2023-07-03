@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,10 +308,22 @@ String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
   @returns false if evaluation is successful, true otherwise
 */
 
+<<<<<<< HEAD
 bool eval_const_cond(THD *thd, Item *cond, bool *value) {
   // Function may be used both during resolving and during optimization:
+<<<<<<< HEAD
   assert(cond->may_evaluate_const(thd));
   *value = cond->val_bool();
+=======
+  DBUG_ASSERT(cond->may_evaluate_const(thd));
+  *value = cond->val_int();
+=======
+bool eval_const_cond(THD *thd, Item *cond, bool *value)
+{
+  assert(cond->const_item());
+  *value= cond->val_int();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return thd->is_error();
 }
 
@@ -391,8 +411,19 @@ bool Item_func::itemize(Parse_context *pc, Item **res) {
   true	Got error.  Stored with my_error().
 */
 
+<<<<<<< HEAD
 bool Item_func::fix_fields(THD *thd, Item **) {
+<<<<<<< HEAD
   assert(fixed == 0 || basic_const_item());
+=======
+  DBUG_ASSERT(fixed == 0 || basic_const_item());
+=======
+bool
+Item_func::fix_fields(THD *thd, Item **ref)
+{
+  assert(fixed == 0 || basic_const_item());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Item **arg, **arg_end;
   uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
@@ -417,9 +448,39 @@ bool Item_func::fix_fields(THD *thd, Item **) {
     }
   }
 
+<<<<<<< HEAD
   if (resolve_type(thd) || thd->is_error())  // Some impls still not error-safe
     return true;
   fixed = true;
+=======
+
+bool Item_func::fix_func_arg(THD *thd, Item **arg)
+{
+  if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg)))
+    return true;                                /* purecov: inspected */
+  Item *item= *arg;
+
+  if (allowed_arg_cols)
+  {
+    if (item->check_cols(allowed_arg_cols))
+      return true;
+  }
+  else
+  {
+    /*  we have to fetch allowed_arg_cols from first argument */
+    assert(arg == args); // it is first argument
+    allowed_arg_cols= item->cols();
+    assert(allowed_arg_cols); // Can't be 0 any more
+  }
+
+  maybe_null|=            item->maybe_null;
+  with_sum_func|=         item->with_sum_func;
+  used_tables_cache|=     item->used_tables();
+  not_null_tables_cache|= item->not_null_tables();
+  const_item_cache&=      item->const_item();
+  with_subselect|=        item->has_subquery();
+  with_stored_program|=   item->has_stored_program();
+>>>>>>> upstream/cluster-7.6
   return false;
 }
 
@@ -650,12 +711,40 @@ void Item_func::traverse_cond(Cond_traverser traverser, void *argument,
     of the Item_func object.
 */
 
+<<<<<<< HEAD
 Item *Item_func::transform(Item_transformer transformer, uchar *argument) {
   if (arg_count) {
     Item **arg, **arg_end;
     for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
+<<<<<<< HEAD
       *arg = (*arg)->transform(transformer, argument);
       if (*arg == nullptr) return nullptr; /* purecov: inspected */
+=======
+      Item *new_item = (*arg)->transform(transformer, argument);
+      if (new_item == NULL) return NULL; /* purecov: inspected */
+=======
+Item *Item_func::transform(Item_transformer transformer, uchar *argument)
+{
+  assert(!current_thd->stmt_arena->is_stmt_prepare());
+
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      Item *new_item= (*arg)->transform(transformer, argument);
+      if (!new_item)
+	return 0;
+>>>>>>> upstream/cluster-7.6
+
+      /*
+        THD::change_item_tree() should be called only if the tree was
+        really transformed, i.e. when a new item has been created.
+        Otherwise we'll be allocating a lot of unnecessary memory for
+        change records at each execution.
+      */
+      if (*arg != new_item) current_thd->change_item_tree(arg, new_item);
+>>>>>>> pr/231
     }
   }
   return (this->*transformer)(argument);
@@ -767,6 +856,7 @@ Field *Item_func::tmp_table_field(TABLE *table) {
   Field *field = nullptr;
 
   switch (result_type()) {
+<<<<<<< HEAD
     case INT_RESULT:
       if (this->data_type() == MYSQL_TYPE_YEAR)
         field = new (*THR_MALLOC) Field_year(is_nullable(), item_name.ptr());
@@ -800,31 +890,117 @@ Field *Item_func::tmp_table_field(TABLE *table) {
       assert(0);
       field = nullptr;
       break;
+=======
+  case INT_RESULT:
+    if (max_char_length() > MY_INT32_NUM_DECIMAL_DIGITS)
+      field= new Field_longlong(max_char_length(), maybe_null, item_name.ptr(),
+                                unsigned_flag);
+    else
+      field= new Field_long(max_char_length(), maybe_null, item_name.ptr(),
+                            unsigned_flag);
+    break;
+  case REAL_RESULT:
+    field= new Field_double(max_char_length(), maybe_null, item_name.ptr(), decimals);
+    break;
+  case STRING_RESULT:
+    return make_string_field(table);
+    break;
+  case DECIMAL_RESULT:
+    field= Field_new_decimal::create_from_item(this);
+    break;
+  case ROW_RESULT:
+  default:
+    // This case should never be chosen
+    assert(0);
+    field= 0;
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   if (field) field->init(table);
   return field;
 }
 
+<<<<<<< HEAD
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
   assert(fixed);
   longlong nr = val_int();
+<<<<<<< HEAD
   if (null_value) return nullptr; /* purecov: inspected */
+=======
+  if (null_value) return 0; /* purecov: inspected */
+=======
+
+my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
+{
+  assert(fixed);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
+<<<<<<< HEAD
+=======
+type_conversion_status Item_func::save_possibly_as_json(Field *field,
+                                                        bool no_conversions) {
+  if (data_type() == MYSQL_TYPE_JSON && field->type() == MYSQL_TYPE_JSON) {
+    // Store the value in the JSON binary format.
+    Field_json *f = down_cast<Field_json *>(field);
+    Json_wrapper wr;
+    if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+
+    if (null_value) return set_field_to_null(field);
+
+    field->set_notnull();
+    return f->store_json(&wr);
+  }
+
+  return Item_func::save_in_field_inner(field, no_conversions);
+}
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 String *Item_real_func::val_str(String *str) {
   assert(fixed == 1);
   double nr = val_real();
+<<<<<<< HEAD
   if (null_value) return nullptr; /* purecov: inspected */
+=======
+  if (null_value) return 0; /* purecov: inspected */
+=======
+String *Item_real_func::val_str(String *str)
+{
+  assert(fixed == 1);
+  double nr= val_real();
+  if (null_value)
+    return 0; /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   str->set_real(nr, decimals, collation.collation);
   return str;
 }
 
+<<<<<<< HEAD
 my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value) {
   assert(fixed);
   double nr = val_real();
+<<<<<<< HEAD
   if (null_value) return nullptr; /* purecov: inspected */
+=======
+  if (null_value) return 0; /* purecov: inspected */
+=======
+
+my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value)
+{
+  assert(fixed);
+  double nr= val_real();
+  if (null_value)
+    return 0; /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
   return decimal_value;
 }
@@ -845,8 +1021,159 @@ void Item_func::fix_num_length_and_dec() {
 
 void Item_func_numhybrid::fix_num_length_and_dec() {}
 
+<<<<<<< HEAD
 void Item_func::signal_divide_by_null() {
   THD *thd = current_thd;
+=======
+void Item_func_numhybrid::fix_num_length_and_dec()
+{}
+
+
+
+/**
+  Count max_length and decimals for temporal functions.
+
+  @param item    Argument array
+  @param nitems  Number of arguments in the array.
+
+  @retval        False on success, true on error.
+*/
+void Item_func::count_datetime_length(Item **item, uint nitems)
+{
+  unsigned_flag= 0;
+  decimals= 0;
+  if (field_type() != MYSQL_TYPE_DATE)
+  {
+    for (uint i= 0; i < nitems; i++)
+      set_if_bigger(decimals,
+                    field_type() == MYSQL_TYPE_TIME ?
+                    item[i]->time_precision() : item[i]->datetime_precision());
+  }
+  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
+  uint len= decimals ? (decimals + 1) : 0;
+  switch (field_type())
+  {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      len+= MAX_DATETIME_WIDTH;
+      break;
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_NEWDATE:
+      len+= MAX_DATE_WIDTH;
+      break;
+    case MYSQL_TYPE_TIME:
+      len+= MAX_TIME_WIDTH;
+      break;
+    default:
+      assert(0);
+  }
+  fix_char_length(len);
+}
+
+/**
+  Set max_length/decimals of function if function is fixed point and
+  result length/precision depends on argument ones.
+
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
+*/
+
+void Item_func::count_decimal_length(Item **item, uint nitems)
+{
+  int max_int_part= 0;
+  decimals= 0;
+  for (uint i=0 ; i < nitems ; i++)
+  {
+    set_if_bigger(decimals, item[i]->decimals);
+    set_if_bigger(max_int_part, item[i]->decimal_int_part());
+  }
+  int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+  fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
+                                                               decimals,
+                                                               unsigned_flag));
+}
+
+/**
+  Set char_length to the maximum number of characters required by any
+  of this function's arguments.
+
+  This function doesn't set unsigned_flag. Call agg_result_type()
+  first to do that.
+*/
+
+void Item_func::count_only_length(Item **item, uint nitems)
+{
+  uint32 char_length= 0;
+  for (uint i= 0; i < nitems; i++)
+    set_if_bigger(char_length, item[i]->max_char_length());
+  fix_char_length(char_length);
+}
+
+/**
+  Set max_length/decimals of function if function is floating point and
+  result length/precision depends on argument ones.
+
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+*/
+
+void Item_func::count_real_length(Item **item, uint nitems)
+{
+  uint32 length= 0;
+  decimals= 0;
+  max_length= 0;
+  for (uint i=0 ; i < nitems; i++)
+  {
+    if (decimals != NOT_FIXED_DEC)
+    {
+      set_if_bigger(decimals, item[i]->decimals);
+      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
+    }
+    set_if_bigger(max_length, item[i]->max_length);
+  }
+  if (decimals != NOT_FIXED_DEC)
+  {
+    max_length= length;
+    length+= decimals;
+    if (length < max_length)  // If previous operation gave overflow
+      max_length= UINT_MAX32;
+    else
+      max_length= length;
+  }
+}
+
+/**
+  Calculate max_length and decimals for STRING_RESULT functions.
+
+  @param field_type  Field type.
+  @param items       Argument array.
+  @param nitems      Number of arguments.
+
+  @retval            False on success, true on error.
+*/
+bool Item_func::count_string_result_length(enum_field_types field_type,
+                                           Item **items, uint nitems)
+{
+  if (agg_arg_charsets_for_string_result(collation, items, nitems))
+    return true;
+  if (is_temporal_type(field_type))
+    count_datetime_length(items, nitems);
+  else
+  {
+    decimals= NOT_FIXED_DEC;
+    count_only_length(items, nitems);
+  }
+  return false;
+}
+
+
+void Item_func::signal_divide_by_null()
+{
+  THD *thd= current_thd;
+>>>>>>> upstream/cluster-7.6
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER_THD(thd, ER_DIVISION_BY_ZERO));
@@ -883,10 +1210,23 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
   return result;
 }
 
+<<<<<<< HEAD
 const Item_field *Item_func::contributes_to_filter(
     table_map read_tables, table_map filter_for_table,
     const MY_BITMAP *fields_to_ignore) const {
+<<<<<<< HEAD
   assert((read_tables & filter_for_table) == 0);
+=======
+  DBUG_ASSERT((read_tables & filter_for_table) == 0);
+=======
+const Item_field* 
+Item_func::contributes_to_filter(table_map read_tables,
+                                 table_map filter_for_table,
+                                 const MY_BITMAP *fields_to_ignore) const
+{
+  assert((read_tables & filter_for_table) == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     Multiple equality (Item_equal) should not call this function
     because it would reject valid comparisons.
@@ -971,8 +1311,17 @@ const Item_field *Item_func::contributes_to_filter(
         Already checked that this predicate does not refer to tables
         later in the join sequence. Verify it:
       */
+<<<<<<< HEAD
       assert(!(used_tabs & (~read_tables & ~filter_for_table)));
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!(used_tabs & (~read_tables & ~filter_for_table)));
+>>>>>>> pr/231
       found_comparable = true;
+=======
+      assert(!(used_tabs & (~read_tables & ~filter_for_table)));
+      found_comparable= true;
+>>>>>>> upstream/cluster-7.6
     }
   }
   return (found_comparable ? usable_field : nullptr);
@@ -1067,6 +1416,15 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
     WHERE condition.  The exception is if user has explicitly used
     JSON_UNQUOTE in WHERE condition.
   */
+<<<<<<< HEAD
+=======
+  if (!strcmp(expr->func_name(), "json_unquote") &&
+      strcmp((*func)->func_name(), "json_unquote")) {
+    if (!expr->arguments()[0]->can_be_substituted_for_gc()) return NULL;
+    expr = down_cast<Item_func *>(expr->arguments()[0]);
+  }
+  assert(expr->can_be_substituted_for_gc());
+>>>>>>> pr/231
 
   for (Item_func::Functype functype :
        {Item_func::COLLATE_FUNC, Item_func::TYPECAST_FUNC,
@@ -1426,16 +1784,46 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
   return this;
 }
 
+<<<<<<< HEAD
 double Item_int_func::val_real() {
   assert(fixed == 1);
+=======
+void Item_func::replace_argument(THD *thd, Item **oldpp, Item *newp) {
+  thd->change_item_tree(oldpp, newp);
+}
+
+<<<<<<< HEAD
+double Item_int_func::val_real() {
+  DBUG_ASSERT(fixed == 1);
+=======
+
+double Item_int_func::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return unsigned_flag ? (double)((ulonglong)val_int()) : (double)val_int();
 }
 
+<<<<<<< HEAD
 String *Item_int_func::val_str(String *str) {
   assert(fixed == 1);
   longlong nr = val_int();
+<<<<<<< HEAD
   if (null_value) return nullptr;
+=======
+  if (null_value) return 0;
+=======
+
+String *Item_int_func::val_str(String *str)
+{
+  assert(fixed == 1);
+  longlong nr=val_int();
+  if (null_value)
+    return 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   str->set_int(nr, unsigned_flag, collation.collation);
   return str;
 }
@@ -1472,18 +1860,39 @@ longlong Item_func_connection_id::val_int() {
 void Item_num_op::set_numeric_type(void) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("name %s", func_name()));
+<<<<<<< HEAD
   assert(arg_count == 2);
   Item_result r0 = args[0]->numeric_context_result_type();
   Item_result r1 = args[1]->numeric_context_result_type();
 
   assert(r0 != STRING_RESULT && r1 != STRING_RESULT);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(arg_count == 2);
+  Item_result r0 = args[0]->numeric_context_result_type();
+  Item_result r1 = args[1]->numeric_context_result_type();
+
+  DBUG_ASSERT(r0 != STRING_RESULT && r1 != STRING_RESULT);
+=======
+  assert(arg_count == 2);
+  Item_result r0= args[0]->numeric_context_result_type();
+  Item_result r1= args[1]->numeric_context_result_type();
+  
+  assert(r0 != STRING_RESULT && r1 != STRING_RESULT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (r0 == REAL_RESULT || r1 == REAL_RESULT) {
     /*
       Since DATE/TIME/DATETIME data types return INT_RESULT/DECIMAL_RESULT
       type codes, we should never get to here when both fields are temporal.
     */
+<<<<<<< HEAD
     assert(!args[0]->is_temporal() || !args[1]->is_temporal());
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!args[0]->is_temporal() || !args[1]->is_temporal());
+>>>>>>> pr/231
     set_data_type(MYSQL_TYPE_DOUBLE);
     hybrid_type = REAL_RESULT;
     aggregate_float_properties(args, arg_count);
@@ -1497,6 +1906,23 @@ void Item_num_op::set_numeric_type(void) {
     set_data_type(MYSQL_TYPE_LONGLONG);
     decimals = 0;
     hybrid_type = INT_RESULT;
+=======
+    assert(!args[0]->is_temporal() || !args[1]->is_temporal());
+    count_real_length(args, arg_count);
+    max_length= float_length(decimals);
+    hybrid_type= REAL_RESULT;
+  }
+  else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT)
+  {
+    hybrid_type= DECIMAL_RESULT;
+    result_precision();
+  }
+  else
+  {
+    assert(r0 == INT_RESULT && r1 == INT_RESULT);
+    decimals= 0;
+    hybrid_type=INT_RESULT;
+>>>>>>> upstream/cluster-7.6
     result_precision();
   }
   DBUG_PRINT("info", ("Type: %s", (hybrid_type == REAL_RESULT
@@ -1517,6 +1943,7 @@ void Item_num_op::set_numeric_type(void) {
 void Item_func_num1::set_numeric_type() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("name %s", func_name()));
+<<<<<<< HEAD
   switch (hybrid_type = args[0]->result_type()) {
     case INT_RESULT:
       set_data_type(MYSQL_TYPE_LONGLONG);
@@ -1533,7 +1960,26 @@ void Item_func_num1::set_numeric_type() {
       unsigned_flag = args[0]->unsigned_flag;
       break;
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+  switch (hybrid_type= args[0]->result_type()) {
+  case INT_RESULT:
+    unsigned_flag= args[0]->unsigned_flag;
+    break;
+  case STRING_RESULT:
+  case REAL_RESULT:
+    hybrid_type= REAL_RESULT;
+    max_length= float_length(decimals);
+    break;
+  case DECIMAL_RESULT:
+    break;
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   DBUG_PRINT("info", ("Type: %s", (hybrid_type == REAL_RESULT
                                        ? "REAL_RESULT"
@@ -1627,6 +2073,7 @@ bool Item_func_numhybrid::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
+<<<<<<< HEAD
 bool Item_func_numhybrid::resolve_type_inner(THD *) {
   assert(args[0]->data_type() != MYSQL_TYPE_INVALID);
   assert(arg_count == 1 || args[1]->data_type() != MYSQL_TYPE_INVALID);
@@ -1637,6 +2084,16 @@ bool Item_func_numhybrid::resolve_type_inner(THD *) {
 
 String *Item_func_numhybrid::val_str(String *str) {
   assert(fixed == 1);
+=======
+<<<<<<< HEAD
+String *Item_func_numhybrid::val_str(String *str) {
+  DBUG_ASSERT(fixed == 1);
+=======
+String *Item_func_numhybrid::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   switch (hybrid_type) {
     case DECIMAL_RESULT: {
       my_decimal decimal_value, *val;
@@ -1646,6 +2103,7 @@ String *Item_func_numhybrid::val_str(String *str) {
       my_decimal2string(E_DEC_FATAL_ERROR, val, str);
       break;
     }
+<<<<<<< HEAD
     case INT_RESULT: {
       longlong nr = int_op();
       if (null_value) return nullptr; /* purecov: inspected */
@@ -1672,13 +2130,33 @@ String *Item_func_numhybrid::val_str(String *str) {
       }
       return str_op(&str_value);
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+    return str_op(&str_value);
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   return str;
 }
 
+<<<<<<< HEAD
 double Item_func_numhybrid::val_real() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+double Item_func_numhybrid::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   switch (hybrid_type) {
     case DECIMAL_RESULT: {
       my_decimal decimal_value, *val;
@@ -1687,6 +2165,7 @@ double Item_func_numhybrid::val_real() {
       my_decimal2double(E_DEC_FATAL_ERROR, val, &result);
       return result;
     }
+<<<<<<< HEAD
     case INT_RESULT: {
       longlong result = int_op();
       return unsigned_flag ? (double)((ulonglong)result) : (double)result;
@@ -1711,13 +2190,38 @@ double Item_func_numhybrid::val_real() {
                   : 0.0);
     }
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+    char *end_not_used;
+    int err_not_used;
+    String *res= str_op(&str_value);
+    return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+			     &end_not_used, &err_not_used) : 0.0);
+  }
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   return 0.0;
 }
 
+<<<<<<< HEAD
 longlong Item_func_numhybrid::val_int() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+longlong Item_func_numhybrid::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   switch (hybrid_type) {
     case DECIMAL_RESULT: {
       my_decimal decimal_value, *val;
@@ -1747,19 +2251,48 @@ longlong Item_func_numhybrid::val_int() {
       String *res;
       if (!(res = str_op(&str_value))) return 0;
 
+<<<<<<< HEAD
       const char *end = res->ptr() + res->length();
+=======
+<<<<<<< HEAD
+      char *end = (char *)res->ptr() + res->length();
+>>>>>>> pr/231
       const CHARSET_INFO *cs = res->charset();
       return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
     }
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+    char *end= (char*) res->ptr() + res->length();
+    const CHARSET_INFO *cs= res->charset();
+    return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
+  }
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   return 0;
 }
 
+<<<<<<< HEAD
 my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value) {
   my_decimal *val = decimal_value;
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
+{
+  my_decimal *val= decimal_value;
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   switch (hybrid_type) {
     case DECIMAL_RESULT:
       val = decimal_op(decimal_value);
@@ -1788,17 +2321,36 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value) {
       String *res;
       if (!(res = str_op(&str_value))) return nullptr;
 
+<<<<<<< HEAD
       str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
+=======
+<<<<<<< HEAD
+      str2my_decimal(E_DEC_FATAL_ERROR, (char *)res->ptr(), res->length(),
+>>>>>>> pr/231
                      res->charset(), decimal_value);
       break;
     }
     case ROW_RESULT:
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+    str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
+                   res->length(), res->charset(), decimal_value);
+    break;
+  }  
+  case ROW_RESULT:
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   return val;
 }
 
+<<<<<<< HEAD
 bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime,
                                    my_time_flags_t fuzzydate) {
   assert(fixed == 1);
@@ -1830,6 +2382,40 @@ bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime) {
       return get_time_from_int(ltime);
     default:
       return Item::get_time_from_non_temporal(ltime);
+=======
+
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  assert(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return date_op(ltime, fuzzydate);
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  default:
+    return Item::get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime)
+{
+  assert(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return time_op(ltime);
+  case MYSQL_TYPE_DATE:
+    return get_time_from_date(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return get_time_from_datetime(ltime);
+  default:
+    return Item::get_time_from_non_temporal(ltime);
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -2252,6 +2838,7 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
   return decimal_value;
 }
 
+<<<<<<< HEAD
 double Item_func_mul::real_op() {
   assert(fixed == 1);
   double val1 = args[0]->val_real();
@@ -2269,7 +2856,28 @@ longlong Item_func_mul::int_op() {
   longlong a = args[0]->val_int();
   if (current_thd->is_error()) return error_int();
   longlong b = args[1]->val_int();
+<<<<<<< HEAD
   if (current_thd->is_error()) return error_int();
+=======
+=======
+
+double Item_func_mul::real_op()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real() * args[1]->val_real();
+  if ((null_value=args[0]->null_value || args[1]->null_value))
+    return 0.0;
+  return check_float_overflow(value);
+}
+
+
+longlong Item_func_mul::int_op()
+{
+  assert(fixed == 1);
+  longlong a= args[0]->val_int();
+  longlong b= args[1]->val_int();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   longlong res;
   ulonglong res0, res1;
 
@@ -2378,15 +2986,34 @@ void Item_func_mul::result_precision() {
                                                             unsigned_flag);
 }
 
+<<<<<<< HEAD
 double Item_func_div_base::real_op() {
   assert(fixed);
   double val1 = args[0]->val_real();
   if (current_thd->is_error()) return error_real();
+=======
+<<<<<<< HEAD
+double Item_func_div::real_op() {
+  DBUG_ASSERT(fixed == 1);
+  double value = args[0]->val_real();
+>>>>>>> pr/231
   double val2 = args[1]->val_real();
   if (current_thd->is_error()) return error_real();
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
   if (val2 == 0.0) {
+=======
+
+double Item_func_div::real_op()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  double val2= args[1]->val_real();
+  if ((null_value= args[0]->null_value || args[1]->null_value))
+    return 0.0;
+  if (val2 == 0.0)
+  {
+>>>>>>> upstream/cluster-7.6
     signal_divide_by_null();
     return 0.0;
   }
@@ -2417,7 +3044,22 @@ void Item_func_div::result_precision() {
       args[0]->decimal_precision() + args[1]->decimals + m_prec_increment,
       DECIMAL_MAX_PRECISION);
 
+<<<<<<< HEAD
   if (result_type() == DECIMAL_RESULT) assert(precision > 0);
+=======
+<<<<<<< HEAD
+  if (result_type() == DECIMAL_RESULT) DBUG_ASSERT(precision > 0);
+=======
+void Item_func_div::result_precision()
+{
+  uint precision= min<uint>(args[0]->decimal_precision() +
+                            args[1]->decimals + prec_increment,
+                            DECIMAL_MAX_PRECISION);
+
+  if (result_type() == DECIMAL_RESULT)
+    assert(precision > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
@@ -2479,12 +3121,44 @@ bool Item_func_div::resolve_type(THD *thd) {
     default:
       assert(0);
   }
+<<<<<<< HEAD
   set_nullable(true);  // division by zero
   return false;
 }
 
 longlong Item_func_div_base::int_op() {
   assert(fixed);
+=======
+<<<<<<< HEAD
+  maybe_null = true;  // division by zero
+  DBUG_RETURN(false);
+=======
+  case INT_RESULT:
+    hybrid_type= DECIMAL_RESULT;
+    DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
+    result_precision();
+    break;
+  case DECIMAL_RESULT:
+    result_precision();
+    break;
+  default:
+    assert(0);
+  }
+  maybe_null= 1; // devision by zero
+  DBUG_VOID_RETURN;
+>>>>>>> upstream/cluster-7.6
+}
+
+/* Integer division */
+<<<<<<< HEAD
+longlong Item_func_int_div::val_int() {
+  DBUG_ASSERT(fixed == 1);
+=======
+longlong Item_func_int_div::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     Perform division using DECIMAL math if either of the operands has a
@@ -2560,12 +3234,24 @@ void Item_func_div_int::set_numeric_type() {
   result_precision();
 }
 
+<<<<<<< HEAD
 longlong Item_func_mod::int_op() {
   assert(fixed == 1);
   longlong val0 = args[0]->val_int();
   if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+<<<<<<< HEAD
   if (current_thd->is_error()) return error_int();
+=======
+=======
+
+longlong Item_func_mod::int_op()
+{
+  assert(fixed == 1);
+  longlong val0= args[0]->val_int();
+  longlong val1= args[1]->val_int();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   bool val0_negative, val1_negative;
   ulonglong uval0, uval1;
   ulonglong res;
@@ -2595,14 +3281,28 @@ longlong Item_func_mod::int_op() {
   MY_COMPILER_DIAGNOSTIC_POP()
 }
 
+<<<<<<< HEAD
 double Item_func_mod::real_op() {
   assert(fixed == 1);
   double val1 = args[0]->val_real();
   if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
+<<<<<<< HEAD
   if (current_thd->is_error()) return error_real();
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+=======
+  if ((null_value = args[0]->null_value || args[1]->null_value))
+=======
+double Item_func_mod::real_op()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  double val2=  args[1]->val_real();
+  if ((null_value= args[0]->null_value || args[1]->null_value))
+>>>>>>> upstream/cluster-7.6
+    return 0.0; /* purecov: inspected */
+>>>>>>> pr/231
   if (val2 == 0.0) {
     signal_divide_by_null();
     return 0.0;
@@ -2761,12 +3461,267 @@ bool Item_dec_func::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
+<<<<<<< HEAD
 /** Gateway to natural LOG function. */
 double Item_func_ln::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
   if (value <= 0.0) {
+=======
+
+/**
+  Decodes a geohash string into longitude and latitude.
+
+  The results are rounded,  based on the length of input geohash. The function
+  will stop evaluating when the error range, or "accuracy", has become 0.0 for
+  both latitude and longitude since no more changes can happen after this.
+
+  @param geohash The geohash to decode.
+  @param upper_latitude Upper limit of returned latitude (normally 90.0).
+  @param upper_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_latitude Upper limit of returned longitude (normally 180.0).
+  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param[out] result_latitude Calculated latitude.
+  @param[out] result_longitude Calculated longitude.
+
+  @return false on success, true on failure (invalid geohash string).
+*/
+bool
+Item_func_latlongfromgeohash::decode_geohash(String *geohash,
+                                             double upper_latitude,
+                                             double lower_latitude,
+                                             double upper_longitude,
+                                             double lower_longitude,
+                                             double *result_latitude,
+                                             double *result_longitude)
+{
+  double latitude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
+
+  double latitude_value= (upper_latitude + lower_latitude) / 2.0;
+  double longitude_value= (upper_longitude + lower_longitude) / 2.0;
+
+  uint number_of_bits_used= 0;
+  uint input_length= geohash->length();
+
+  for (uint i= 0;
+       i < input_length && latitude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i++)
+  {
+    char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
+
+    /*
+     The following part will convert from character value to a
+     contiguous value from 0 to 31, where "0" = 0, "1" = 1 ... "z" = 31.
+     It will also detect characters that aren't allowed.
+    */
+    int converted_character;
+    if (input_character >= '0' && input_character <= '9')
+    {
+      converted_character= input_character - '0';
+    }
+    else if (input_character >= 'b' && input_character <= 'z' &&
+             input_character != 'i' &&
+             input_character != 'l' &&
+             input_character != 'o')
+    {
+      if (input_character > 'o')
+        converted_character= input_character - ('b' - 10 + 3);
+      else if (input_character > 'l')
+        converted_character= input_character - ('b' - 10 + 2);
+      else if (input_character > 'i')
+        converted_character= input_character - ('b' - 10 + 1);
+      else
+        converted_character= input_character - ('b' - 10);
+    }
+    else
+    {
+      return true;
+    }
+
+    assert(converted_character >= 0 && converted_character <= 31);
+
+    /*
+     This loop decodes 5 bits of data. Every even bit (counting from 0) is 
+     used for longitude value, and odd bits are used for latitude value.
+    */
+    for (int bit_number= 4; bit_number >= 0; bit_number-= 1)
+    {
+      if (number_of_bits_used % 2 == 0)
+      {
+        longitude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          longitude_value+= longitude_accuracy;
+        else
+          longitude_value-= longitude_accuracy;
+      }
+      else
+      {
+        latitude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          latitude_value+= latitude_accuracy;
+        else
+          latitude_value-= latitude_accuracy;
+      }
+
+      number_of_bits_used++;
+
+      assert(latitude_value >= lower_latitude &&
+             latitude_value <= upper_latitude &&
+             longitude_value >= lower_longitude &&
+             longitude_value <= upper_longitude);
+    }
+  }
+
+  *result_latitude= round_latlongitude(latitude_value,
+                                       latitude_accuracy * 2.0,
+                                       latitude_value - latitude_accuracy,
+                                       latitude_value + latitude_accuracy);
+  *result_longitude= round_latlongitude(longitude_value,
+                                        longitude_accuracy * 2.0,
+                                        longitude_value - longitude_accuracy,
+                                        longitude_value + longitude_accuracy);
+
+  /*
+    Ensure that the rounded results are not ouside of the valid range. As
+    written in the specification:
+
+      Final rounding should be done carefully in a way that
+                min <= round(value) <= max
+  */
+  assert(latitude_value - latitude_accuracy <= *result_latitude);
+  assert(*result_latitude <= latitude_value + latitude_accuracy);
+
+  assert(longitude_value - longitude_accuracy <= *result_longitude);
+  assert(*result_longitude <= longitude_value + longitude_accuracy);
+
+  return false;
+}
+
+
+/**
+  Rounds a latitude or longitude value.
+
+  This will round a latitude or longitude value, based on error_range.
+  The error_range is the difference between upper and lower lat/longitude
+  (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
+  22.5).
+
+  The returned result will always be in the range [lower_limit, upper_limit]
+
+  @param latlongitude The latitude or longitude to round.
+  @param error_range The total error range of the calculated laglongitude.
+  @param lower_limit Lower limit of the returned result.
+  @param upper_limit Upper limit of the returned result.
+
+  @return A rounded latitude or longitude.
+*/
+double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
+                                                        double error_range,
+                                                        double lower_limit,
+                                                        double upper_limit)
+{
+  // Ensure that we don't start with an impossible case to solve.
+  assert(lower_limit <= latlongitude);
+  assert(upper_limit >= latlongitude);
+
+  if (error_range == 0.0)
+  {
+    return latlongitude;
+  }
+  else
+  {
+    uint number_of_decimals= 0;
+    while (error_range <= 0.1 && number_of_decimals <= DBL_DIG)
+    {
+      number_of_decimals++;
+      error_range*= 10.0;
+    }
+
+    double return_value;
+    do
+    {
+      return_value= my_double_round(latlongitude, number_of_decimals, false,
+                                    false);
+      number_of_decimals++;
+    } while ((lower_limit > return_value || return_value > upper_limit) &&
+             number_of_decimals <= DBL_DIG);
+
+    /*
+      We may in some cases still be outside of the allowed range. If this is the
+      case, return the input value (which we know for sure to be within the
+      allowed range).
+    */
+    if (lower_limit > return_value || return_value > upper_limit)
+      return_value= latlongitude;
+
+    // Avoid printing signed zero.
+    return return_value + 0.0;
+  }
+}
+
+
+/**
+  Decodes a geohash into longitude if start_on_even_bit == true, or latitude if
+  start_on_even_bit == false. The output will be rounded based on the length
+  of the geohash.
+*/
+double Item_func_latlongfromgeohash::val_real()
+{
+  assert(fixed == TRUE);
+
+  String buf;
+  String *input_value= args[0]->val_str_ascii(&buf);
+
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+
+  if (input_value->length() == 0)
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
+    return error_real();
+  }
+
+  double latitude= 0.0;
+  double longitude= 0.0;
+  if (decode_geohash(input_value, upper_latitude, lower_latitude,
+                     upper_longitude, lower_longitude, &latitude, &longitude))
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash",
+             input_value->c_ptr_safe(), func_name());
+    return error_real();
+  }
+
+  // Return longitude if start_on_even_bit == true. Otherwise, return latitude.
+  if (start_on_even_bit)
+    return longitude;
+  return latitude;
+}
+
+
+void Item_dec_func::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
+}
+
+
+/** Gateway to natural LOG function. */
+double Item_func_ln::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  if (value <= 0.0)
+  {
+>>>>>>> upstream/cluster-7.6
     signal_invalid_argument_for_log();
     return 0.0;
   }
@@ -2778,12 +3733,24 @@ double Item_func_ln::val_real() {
 
   We have to check if all values are > zero and first one is not one
   as these are the cases then result is not a number.
+<<<<<<< HEAD
 */
 double Item_func_log::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
   if (value <= 0.0) {
+=======
+*/ 
+double Item_func_log::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  if (value <= 0.0)
+  {
+>>>>>>> upstream/cluster-7.6
     signal_invalid_argument_for_log();
     return 0.0;
   }
@@ -2799,9 +3766,16 @@ double Item_func_log::val_real() {
   return log(value);
 }
 
+<<<<<<< HEAD
 double Item_func_log2::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
+=======
+double Item_func_log2::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+>>>>>>> upstream/cluster-7.6
 
   if ((null_value = args[0]->null_value)) return 0.0;
   if (value <= 0.0) {
@@ -2811,17 +3785,29 @@ double Item_func_log2::val_real() {
   return std::log2(value);
 }
 
+<<<<<<< HEAD
 double Item_func_log10::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
   if (value <= 0.0) {
+=======
+double Item_func_log10::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  if (value <= 0.0)
+  {
+>>>>>>> upstream/cluster-7.6
     signal_invalid_argument_for_log();
     return 0.0;
   }
   return log10(value);
 }
 
+<<<<<<< HEAD
 double Item_func_exp::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
@@ -2833,15 +3819,40 @@ double Item_func_sqrt::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = (args[0]->null_value || value < 0)))
+=======
+double Item_func_exp::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0; /* purecov: inspected */
+  return check_float_overflow(exp(value));
+}
+
+double Item_func_sqrt::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=(args[0]->null_value || value < 0)))
+>>>>>>> upstream/cluster-7.6
     return 0.0; /* purecov: inspected */
   return sqrt(value);
 }
 
+<<<<<<< HEAD
 double Item_func_pow::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   double val2 = args[1]->val_real();
   if ((null_value = (args[0]->null_value || args[1]->null_value)))
+=======
+double Item_func_pow::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  double val2= args[1]->val_real();
+  if ((null_value=(args[0]->null_value || args[1]->null_value)))
+>>>>>>> upstream/cluster-7.6
     return 0.0; /* purecov: inspected */
   const double pow_result = pow(value, val2);
   return check_float_overflow(pow_result);
@@ -2849,8 +3860,18 @@ double Item_func_pow::val_real() {
 
 // Trigonometric functions
 
+<<<<<<< HEAD
 double Item_func_acos::val_real() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+double Item_func_acos::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /* One can use this to defer SELECT processing. */
   DEBUG_SYNC(current_thd, "before_acos_function");
   double value = args[0]->val_real();
@@ -2859,14 +3880,27 @@ double Item_func_acos::val_real() {
   return acos(value);
 }
 
+<<<<<<< HEAD
 double Item_func_asin::val_real() {
+<<<<<<< HEAD
   assert(fixed == 1);
   double value = args[0]->val_real();
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+double Item_func_asin::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
+  volatile double value = args[0]->val_real();
+>>>>>>> pr/231
   if ((null_value = (args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return asin(value);
 }
 
+<<<<<<< HEAD
 double Item_func_atan::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
@@ -2875,10 +3909,25 @@ double Item_func_atan::val_real() {
     double val2 = args[1]->val_real();
     if ((null_value = args[1]->null_value)) return 0.0;
     return check_float_overflow(atan2(value, val2));
+=======
+double Item_func_atan::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+  if (arg_count == 2)
+  {
+    double val2= args[1]->val_real();
+    if ((null_value=args[1]->null_value))
+      return 0.0;
+    return check_float_overflow(atan2(value,val2));
+>>>>>>> upstream/cluster-7.6
   }
   return atan(value);
 }
 
+<<<<<<< HEAD
 double Item_func_cos::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
@@ -2904,11 +3953,51 @@ double Item_func_cot::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
+<<<<<<< HEAD
   double val2 = tan(value);
   if (val2 == 0.0) {
     return raise_float_overflow();
   }
   return check_float_overflow(1.0 / val2);
+=======
+=======
+double Item_func_cos::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+  return cos(value);
+}
+
+double Item_func_sin::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+  return sin(value);
+}
+
+double Item_func_tan::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+  return check_float_overflow(tan(value));
+}
+
+
+double Item_func_cot::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+>>>>>>> upstream/cluster-7.6
+  return check_float_overflow(1.0 / tan(value));
+>>>>>>> pr/231
 }
 
 // Bitwise functions
@@ -3005,6 +4094,7 @@ longlong Item_func_shift::eval_int_op() {
   ulonglong res = args[0]->val_uint();
   if (args[0]->null_value) return error_int();
 
+<<<<<<< HEAD
   ulonglong shift = args[1]->val_uint();
   if (args[1]->null_value) return error_int();
 
@@ -3081,6 +4171,33 @@ String *Item_func_shift::eval_str_op(String *) {
         to_c[i] = from_c[i - entire_bytes] >> mod;
       else
         to_c[i] = 0;
+=======
+longlong Item_func_shift_left::val_int()
+{
+  assert(fixed == 1);
+  uint shift;
+  ulonglong res= ((ulonglong) args[0]->val_int() <<
+		  (shift=(uint) args[1]->val_int()));
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value=1;
+    return 0;
+  }
+  null_value=0;
+  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
+}
+
+longlong Item_func_shift_right::val_int()
+{
+  assert(fixed == 1);
+  uint shift;
+  ulonglong res= (ulonglong) args[0]->val_int() >>
+    (shift=(uint) args[1]->val_int());
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value=1;
+    return 0;
+>>>>>>> upstream/cluster-7.6
   }
 
   null_value = false;
@@ -3091,6 +4208,7 @@ String *Item_func_shift::eval_str_op(String *) {
 template String *Item_func_shift::eval_str_op<true>(String *);
 template String *Item_func_shift::eval_str_op<false>(String *);
 
+<<<<<<< HEAD
 // Bit negation ('~')
 
 longlong Item_func_bit_neg::int_op() {
@@ -3098,6 +4216,14 @@ longlong Item_func_bit_neg::int_op() {
   ulonglong res = (ulonglong)args[0]->val_int();
   if (args[0]->null_value) return error_int();
   null_value = false;
+=======
+longlong Item_func_bit_neg::val_int()
+{
+  assert(fixed == 1);
+  ulonglong res= (ulonglong) args[0]->val_int();
+  if ((null_value=args[0]->null_value))
+    return 0;
+>>>>>>> upstream/cluster-7.6
   return ~res;
 }
 
@@ -3237,8 +4363,81 @@ bool Item::bit_func_returns_binary(const Item *a, const Item *b) {
 
 // Conversion functions
 
+<<<<<<< HEAD
 bool Item_func_int_val::resolve_type_inner(THD *) {
   DBUG_TRACE;
+=======
+bool Item_func_integer::resolve_type(THD *) {
+  max_length = args[0]->max_length - args[0]->decimals + 1;
+  uint tmp = float_length(decimals);
+  set_if_smaller(max_length, tmp);
+  return reject_geometry_args(arg_count, args, this);
+}
+
+<<<<<<< HEAD
+void Item_func_int_val::fix_num_length_and_dec() {
+  ulonglong tmp_max_length = (ulonglong)args[0]->max_length -
+                             (args[0]->decimals ? args[0]->decimals + 1 : 0) +
+                             2;
+  max_length = static_cast<uint32>(std::min(4294967295ULL, tmp_max_length));
+  /*
+    Avoid setting hybrid_type to INT_RESULT when we are in DECIMAL context.
+    See Item_func_int_val::find_num_type()
+  */
+  if (args[0]->result_type() != DECIMAL_RESULT) {
+    uint tmp = float_length(decimals);
+    set_if_smaller(max_length, tmp);
+=======
+void Item_func_int_val::fix_num_length_and_dec()
+{
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) 4294967295U ?
+    (uint32) 4294967295U : (uint32) tmp_max_length;
+  uint tmp= float_length(decimals);
+  set_if_smaller(max_length,tmp);
+  decimals= 0;
+}
+
+
+void Item_func_int_val::find_num_type()
+{
+  DBUG_ENTER("Item_func_int_val::find_num_type");
+  DBUG_PRINT("info", ("name %s", func_name()));
+  switch(hybrid_type= args[0]->result_type())
+  {
+  case STRING_RESULT:
+  case REAL_RESULT:
+    hybrid_type= REAL_RESULT;
+    max_length= float_length(decimals);
+    break;
+  case INT_RESULT:
+  case DECIMAL_RESULT:
+    /*
+      -2 because in most high position can't be used any digit for longlong
+      and one position for increasing value during operation
+    */
+    if ((args[0]->max_length - args[0]->decimals) >=
+        (DECIMAL_LONGLONG_DIGITS - 2))
+    {
+      hybrid_type= DECIMAL_RESULT;
+    }
+    else
+    {
+      unsigned_flag= args[0]->unsigned_flag;
+      hybrid_type= INT_RESULT;
+    }
+    break;
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+  }
+  decimals = 0;
+}
+
+void Item_func_int_val::set_numeric_type() {
+  DBUG_ENTER("Item_func_int_val::set_numeric_type");
+>>>>>>> pr/231
   DBUG_PRINT("info", ("name %s", func_name()));
   assert(args[0]->data_type() != MYSQL_TYPE_INVALID);
 
@@ -3434,8 +4633,59 @@ bool Item_func_round::resolve_type(THD *thd) {
       set_data_type_double();
       hybrid_type = REAL_RESULT;
       break;
+<<<<<<< HEAD
     default:
       assert(0); /* This result type isn't handled */
+=======
+    case INT_RESULT:
+      if ((!decimals_to_set && truncate) ||
+          (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)) {
+        bool length_can_increase = (!truncate && (val1 < 0) && !val1_unsigned);
+        max_length = args[0]->max_length + length_can_increase;
+        /* Here we can keep INT_RESULT */
+        set_data_type(MYSQL_TYPE_LONGLONG);
+        hybrid_type = INT_RESULT;
+        break;
+      }
+      /* fall through */
+    case DECIMAL_RESULT: {
+      set_data_type(MYSQL_TYPE_NEWDECIMAL);
+      hybrid_type = DECIMAL_RESULT;
+      decimals_to_set = min(DECIMAL_MAX_SCALE, decimals_to_set);
+      int decimals_delta = args[0]->decimals - decimals_to_set;
+      int precision = args[0]->decimal_precision();
+      int length_increase = ((decimals_delta <= 0) || truncate) ? 0 : 1;
+
+      precision -= decimals_delta - length_increase;
+      decimals = min(decimals_to_set, DECIMAL_MAX_SCALE);
+      max_length = my_decimal_precision_to_length_no_truncation(
+          precision, decimals, unsigned_flag);
+      break;
+    }
+<<<<<<< HEAD
+    default:
+      DBUG_ASSERT(0); /* This result type isn't handled */
+=======
+    /* fall through */
+  case DECIMAL_RESULT:
+  {
+    hybrid_type= DECIMAL_RESULT;
+    decimals_to_set= min(DECIMAL_MAX_SCALE, decimals_to_set);
+    int decimals_delta= args[0]->decimals - decimals_to_set;
+    int precision= args[0]->decimal_precision();
+    int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
+
+    precision-= decimals_delta - length_increase;
+    decimals= min(decimals_to_set, DECIMAL_MAX_SCALE);
+    max_length= my_decimal_precision_to_length_no_truncation(precision,
+                                                             decimals,
+                                                             unsigned_flag);
+    break;
+  }
+  default:
+    assert(0); /* This result type isn't handled */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   return false;
 }
@@ -3637,11 +4887,21 @@ bool Item_func_rand::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
+<<<<<<< HEAD
 double Item_func_rand::val_real() {
   assert(fixed);
   rand_struct *rand;
   if (arg_count > 0) {
     if (!args[0]->const_for_execution())
+=======
+
+double Item_func_rand::val_real()
+{
+  assert(fixed == 1);
+  if (arg_count)
+  {
+    if (!args[0]->const_item())
+>>>>>>> upstream/cluster-7.6
       seed_random(args[0]);
     else if (first_eval) {
       /*
@@ -3676,10 +4936,19 @@ bool Item_func_sign::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
+<<<<<<< HEAD
 longlong Item_func_sign::val_int() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   null_value = args[0]->null_value;
+=======
+
+longlong Item_func_sign::val_int()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  null_value=args[0]->null_value;
+>>>>>>> upstream/cluster-7.6
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
 }
 
@@ -3690,10 +4959,20 @@ bool Item_func_units::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
+<<<<<<< HEAD
 double Item_func_units::val_real() {
   assert(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0;
+=======
+
+double Item_func_units::val_real()
+{
+  assert(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0;
+>>>>>>> upstream/cluster-7.6
   return check_float_overflow(value * mul + add);
 }
 
@@ -3823,6 +5102,7 @@ String *Item_func_min_max::str_op(String *str) {
     longlong result = 0;
     if (cmp_datetimes(&result)) return error_str();
 
+<<<<<<< HEAD
     /*
       If result is greater than 0, the winning argument was successfully
       converted to a time value and should be converted to a string
@@ -3830,6 +5110,27 @@ String *Item_func_min_max::str_op(String *str) {
       the arguments should be compared based on their raw string value.
     */
     if (result > 0) {
+=======
+String *Item_func_min_max::val_str(String *str)
+{
+  assert(fixed == 1);
+  if (compare_as_dates)
+  {
+    if (is_temporal())
+    {
+      /*
+        In case of temporal data types, we always return
+        string value according the format of the data type.
+        For example, in case of LEAST(time_column, datetime_column)
+        the result date type is DATETIME,
+        so we return a 'YYYY-MM-DD hh:mm:ss' string even if time_column wins
+        (conversion from TIME to DATETIME happens in this case).
+      */
+      longlong result;
+      cmp_datetimes(&result);
+      if (null_value)
+        return 0;
+>>>>>>> upstream/cluster-7.6
       MYSQL_TIME ltime;
       enum_field_types field_type = temporal_item->data_type();
       TIME_from_longlong_packed(&ltime, field_type, result);
@@ -3869,6 +5170,7 @@ String *Item_func_min_max::str_op(String *str) {
       res_in_str = !res_in_str;
     }
   }
+<<<<<<< HEAD
   res->set_charset(collation.collation);
   return res;
 }
@@ -3888,10 +5190,61 @@ bool Item_func_min_max::time_op(MYSQL_TIME *ltime) {
   if (compare_as_dates()) {
     if (cmp_datetimes(&result)) return true;
     TIME_from_longlong_packed(ltime, data_type(), result);
+=======
+  case ROW_RESULT:
+  default:
+    // This case should never be chosen
+    assert(0);
+    return 0;
+  }
+  return 0;					// Keep compiler happy
+}
+
+
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  assert(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
+    int warnings;
+    return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+  }
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+    assert(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_min_max::get_time(MYSQL_TIME *ltime)
+{
+  assert(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
+>>>>>>> upstream/cluster-7.6
     datetime_to_time(ltime);
     return false;
   }
 
+<<<<<<< HEAD
   if (cmp_times(&result)) return true;
   TIME_from_longlong_time_packed(ltime, result);
   return false;
@@ -3904,6 +5257,40 @@ double Item_func_min_max::real_op() {
     longlong result = 0;
     if (cmp_datetimes(&result)) return 0;
     return double_from_datetime_packed(temporal_item->data_type(), result);
+=======
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    {
+      longlong result;
+      cmp_times(&result);
+      if (null_value)
+        return true;
+      TIME_from_longlong_time_packed(ltime, result);
+      return false;
+    }
+    break;
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    assert(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_time_from_non_temporal(ltime);
+    break;
+  }
+}
+
+
+double Item_func_min_max::val_real()
+{
+  assert(fixed == 1);
+  double value=0.0;
+  if (compare_as_dates)
+  {
+    longlong result= 0;
+    (void)cmp_datetimes(&result);
+    return double_from_datetime_packed(datetime_item->field_type(), result);
+>>>>>>> upstream/cluster-7.6
   }
 
   // Find the least/greatest argument based on double value.
@@ -3916,6 +5303,7 @@ double Item_func_min_max::real_op() {
   return result;
 }
 
+<<<<<<< HEAD
 longlong Item_func_min_max::int_op() {
   assert(fixed);
   null_value = false;
@@ -3923,8 +5311,21 @@ longlong Item_func_min_max::int_op() {
   if (compare_as_dates()) {
     if (cmp_datetimes(&res)) return 0;
     return longlong_from_datetime_packed(temporal_item->data_type(), res);
+=======
+
+longlong Item_func_min_max::val_int()
+{
+  assert(fixed == 1);
+  longlong value=0;
+  if (compare_as_dates)
+  {
+    longlong result= 0;
+    (void)cmp_datetimes(&result);
+    return longlong_from_datetime_packed(datetime_item->field_type(), result);
+>>>>>>> upstream/cluster-7.6
   }
 
+<<<<<<< HEAD
   // Find the least/greatest argument based on integer value.
   for (uint i = 0; i < arg_count; i++) {
     const longlong val = args[i]->val_int();
@@ -3937,10 +5338,86 @@ longlong Item_func_min_max::int_op() {
                                                     static_cast<ulonglong>(res)
                                               : val < res;
     if (i == 0 || val_is_smaller == m_is_least_func) res = val;
+=======
+mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
++------------------+--------------------+---------------------+
+| least('11', '2') | least('11', '2')+0 | concat(least(11,2)) |
++------------------+--------------------+---------------------+
+| 11               |                  2 | 2                   |
++------------------+--------------------+---------------------+
+1 row in set (0.00 sec)
+
+    Should not the second column return 11?
+    I.e. compare as strings and return '11', then convert to number.
+  */
+  for (uint i=0; i < arg_count ; i++)
+  {
+    if (i == 0)
+      value=args[i]->val_int();
+    else
+    {
+      longlong tmp=args[i]->val_int();
+      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
+	value=tmp;
+    }
+    if ((null_value= args[i]->null_value))
+      break;
+  }
+  return value;
+}
+
+
+my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
+{
+  assert(fixed == 1);
+  my_decimal tmp_buf, *tmp, *res= NULL;
+
+  if (compare_as_dates)
+  {
+    longlong value= 0;
+    (void)cmp_datetimes(&value);
+    return my_decimal_from_datetime_packed(dec, datetime_item->field_type(),
+                                           value);
+  }
+  for (uint i=0; i < arg_count ; i++)
+  {
+    if (i == 0)
+      res= args[i]->val_decimal(dec);
+    else
+    {
+      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
+      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
+      {
+        if (tmp == &tmp_buf)
+        {
+          /* Move value out of tmp_buf as this will be reused on next loop */
+          my_decimal2decimal(tmp, dec);
+          res= dec;
+        }
+        else
+          res= tmp;
+      }
+    }
+    if ((null_value= args[i]->null_value))
+    {
+      res= 0;
+      break;
+    }
+  }
+  
+  if (res)
+  {
+    /*
+      Need this to make val_str() always return fixed
+      number of fractional digits, according to "decimals".
+    */
+    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, res);
+>>>>>>> upstream/cluster-7.6
   }
   return res;
 }
 
+<<<<<<< HEAD
 my_decimal *Item_func_min_max::decimal_op(my_decimal *dec) {
   assert(fixed == 1);
   null_value = false;
@@ -4089,28 +5566,111 @@ longlong Item_func_length::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
   if (!res) {
+<<<<<<< HEAD
     null_value = true;
+=======
+    null_value = 1;
+=======
+double Item_func_rollup_const::val_real()
+{
+  assert(fixed == 1);
+  double res= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+  return res;
+}
+
+longlong Item_func_rollup_const::val_int()
+{
+  assert(fixed == 1);
+  longlong res= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+String *Item_func_rollup_const::val_str(String *str)
+{
+  assert(fixed == 1);
+  String *res= args[0]->val_str(str);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
+{
+  assert(fixed == 1);
+  my_decimal *res= args[0]->val_decimal(dec);
+  if ((null_value= args[0]->null_value))
+    return 0;
+  return res;
+}
+
+
+bool Item_func_rollup_const::val_json(Json_wrapper *result)
+{
+  assert(fixed == 1);
+  bool res= args[0]->val_json(result);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
+longlong Item_func_length::val_int()
+{
+  assert(fixed == 1);
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0; /* purecov: inspected */
   }
   null_value = false;
   return (longlong)res->length();
 }
 
+<<<<<<< HEAD
 longlong Item_func_char_length::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
   if (!res) {
+<<<<<<< HEAD
     null_value = true;
+=======
+    null_value = 1;
+=======
+
+longlong Item_func_char_length::val_int()
+{
+  assert(fixed == 1);
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0; /* purecov: inspected */
   }
   null_value = false;
   return (longlong)res->numchars();
 }
 
+<<<<<<< HEAD
 longlong Item_func_coercibility::val_int() {
   assert(fixed == 1);
   null_value = false;
   return (longlong)args[0]->collation.derivation;
+=======
+
+longlong Item_func_coercibility::val_int()
+{
+  assert(fixed == 1);
+  null_value= 0;
+  return (longlong) args[0]->collation.derivation;
+>>>>>>> upstream/cluster-7.6
 }
 
 bool Item_func_locate::resolve_type(THD *thd) {
@@ -4122,7 +5682,9 @@ bool Item_func_locate::resolve_type(THD *thd) {
   return false;
 }
 
+<<<<<<< HEAD
 longlong Item_func_locate::val_int() {
+<<<<<<< HEAD
   assert(fixed);
   // Evaluate the string argument first
   const CHARSET_INFO *cs = collation.collation;
@@ -4134,6 +5696,27 @@ longlong Item_func_locate::val_int() {
   if (b == nullptr) return error_int();
 
   null_value = false;
+=======
+  DBUG_ASSERT(fixed == 1);
+  String *a = args[0]->val_str(&value1);
+  String *b = args[1]->val_str(&value2);
+  if (!a || !b) {
+    null_value = 1;
+=======
+
+longlong Item_func_locate::val_int()
+{
+  assert(fixed == 1);
+  String *a=args[0]->val_str(&value1);
+  String *b=args[1]->val_str(&value2);
+  if (!a || !b)
+  {
+    null_value=1;
+>>>>>>> upstream/cluster-7.6
+    return 0; /* purecov: inspected */
+  }
+  null_value = 0;
+>>>>>>> pr/231
   /* must be longlong to avoid truncation */
   longlong start = 0;
   longlong start0 = 0;
@@ -4183,8 +5766,19 @@ longlong Item_func_validate_password_strength::val_int() {
   return (my_calculate_password_strength(field->ptr(), field->length()));
 }
 
+<<<<<<< HEAD
 longlong Item_func_field::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+longlong Item_func_field::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (cmp_type == STRING_RESULT) {
     const CHARSET_INFO *cs = collation.collation;
@@ -4241,22 +5835,51 @@ bool Item_func_field::resolve_type(THD *thd) {
   return false;
 }
 
+<<<<<<< HEAD
 longlong Item_func_ascii::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
   if (!res) {
+<<<<<<< HEAD
     null_value = true;
+=======
+    null_value = 1;
+=======
+
+longlong Item_func_ascii::val_int()
+{
+  assert(fixed == 1);
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0;
   }
   null_value = false;
   return (longlong)(res->length() ? (uchar)(*res)[0] : (uchar)0);
 }
 
+<<<<<<< HEAD
 longlong Item_func_ord::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
   if (!res) {
+<<<<<<< HEAD
     null_value = true;
+=======
+    null_value = 1;
+=======
+longlong Item_func_ord::val_int()
+{
+  assert(fixed == 1);
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0;
   }
   null_value = false;
@@ -4290,9 +5913,26 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
       if (thd->is_error()) return true;
       if (find != nullptr) {
         // find is not NULL pointer so args[0] is not a null-value
+<<<<<<< HEAD
         assert(!args[0]->null_value);
         m_enum_value = find_type(down_cast<Field_enum *>(field)->typelib,
                                  find->ptr(), find->length(), false);
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(!args[0]->null_value);
+        enum_value = find_type(((Field_enum *)field)->typelib, find->ptr(),
+                               find->length(), 0);
+        enum_bit = 0;
+        if (enum_value) enum_bit = 1LL << (enum_value - 1);
+=======
+        assert(!args[0]->null_value);
+	enum_value= find_type(((Field_enum*) field)->typelib,find->ptr(),
+			      find->length(), 0);
+	enum_bit=0;
+	if (enum_value)
+	  enum_bit= 1LL << (enum_value-1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -4301,8 +5941,25 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
 
 static const char separator = ',';
 
+<<<<<<< HEAD
 longlong Item_func_find_in_set::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed == 1);
+  if (enum_value) {
+    // enum_value is set iff args[0]->const_item() in resolve_type().
+    DBUG_ASSERT(args[0]->const_item());
+=======
+longlong Item_func_find_in_set::val_int()
+{
+  assert(fixed == 1);
+  if (enum_value)
+  {
+    // enum_value is set iff args[0]->const_item() in fix_length_and_dec().
+    assert(args[0]->const_item());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   null_value = false;
 
@@ -4379,11 +6036,22 @@ longlong Item_func_find_in_set::val_int() {
   return 0;
 }
 
+<<<<<<< HEAD
 longlong Item_func_bit_count::val_int() {
   assert(fixed);
   if (bit_func_returns_binary(args[0], nullptr)) {
     String *s = args[0]->val_str(&str_value);
     if (args[0]->null_value || !s) return error_int();
+=======
+longlong Item_func_bit_count::val_int()
+{
+  assert(fixed == 1);
+  ulonglong value= (ulonglong) args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return 0; /* purecov: inspected */
+  return (longlong) my_count_bits(value);
+}
+>>>>>>> upstream/cluster-7.6
 
     const char *val = s->ptr();
 
@@ -4583,8 +6251,96 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     return false;
   }
   if (u_d->func_init) {
+<<<<<<< HEAD
     if (call_init_func()) {
       return true;
+=======
+    char init_msg_buff[MYSQL_ERRMSG_SIZE];
+    char *to = num_buffer;
+    for (uint i = 0; i < arg_count; i++) {
+      /*
+       For a constant argument i, args->args[i] points to the argument value.
+       For non-constant, args->args[i] is NULL.
+      */
+      f_args.args[i] = NULL; /* Non-const unless updated below. */
+
+      f_args.lengths[i] = arguments[i]->max_length;
+      f_args.maybe_null[i] = arguments[i]->maybe_null;
+      f_args.attributes[i] = (char *)arguments[i]->item_name.ptr();
+      f_args.attribute_lengths[i] = arguments[i]->item_name.length();
+
+<<<<<<< HEAD
+      if (arguments[i]->may_evaluate_const(thd)) {
+        switch (arguments[i]->result_type()) {
+          case STRING_RESULT:
+          case DECIMAL_RESULT: {
+            String *res = arguments[i]->val_str(&buffers[i]);
+            if (arguments[i]->null_value) continue;
+            f_args.args[i] = res->c_ptr_safe();
+            f_args.lengths[i] = res->length();
+            break;
+          }
+          case INT_RESULT:
+            *((longlong *)to) = arguments[i]->val_int();
+            if (arguments[i]->null_value) continue;
+            f_args.args[i] = to;
+            to += ALIGN_SIZE(sizeof(longlong));
+            break;
+          case REAL_RESULT:
+            *((double *)to) = arguments[i]->val_real();
+            if (arguments[i]->null_value) continue;
+            f_args.args[i] = to;
+            to += ALIGN_SIZE(sizeof(double));
+            break;
+          case ROW_RESULT:
+          default:
+            // This case should never be chosen
+            DBUG_ASSERT(0);
+            break;
+=======
+      if (arguments[i]->const_item())
+      {
+        switch (arguments[i]->result_type()) 
+        {
+        case STRING_RESULT:
+        case DECIMAL_RESULT:
+        {
+          String *res= arguments[i]->val_str(&buffers[i]);
+          if (arguments[i]->null_value)
+            continue;
+          f_args.args[i]= res->c_ptr_safe();
+          f_args.lengths[i]= res->length();
+          break;
+        }
+        case INT_RESULT:
+          *((longlong*) to)= arguments[i]->val_int();
+          if (arguments[i]->null_value)
+            continue;
+          f_args.args[i]= to;
+          to+= ALIGN_SIZE(sizeof(longlong));
+          break;
+        case REAL_RESULT:
+          *((double*) to)= arguments[i]->val_real();
+          if (arguments[i]->null_value)
+            continue;
+          f_args.args[i]= to;
+          to+= ALIGN_SIZE(sizeof(double));
+          break;
+        case ROW_RESULT:
+        default:
+          // This case should never be chosen
+          assert(0);
+          break;
+>>>>>>> upstream/cluster-7.6
+        }
+      }
+    }
+    Udf_func_init init = u_d->func_init;
+    if ((error = (uchar)init(&initid, &f_args, init_msg_buff))) {
+      my_error(ER_CANT_INITIALIZE_UDF, MYF(0), u_d->name.str, init_msg_buff);
+      free_udf(u_d);
+      DBUG_RETURN(true);
+>>>>>>> pr/231
     }
     func->max_length = min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->m_nullable = initid.maybe_null;
@@ -4674,6 +6430,11 @@ bool udf_handler::get_arguments() {
       case DECIMAL_RESULT:
         get_string(i);
         break;
+<<<<<<< HEAD
+=======
+      }
+<<<<<<< HEAD
+>>>>>>> pr/231
       case INT_RESULT:
         *((longlong *)to) = args[i]->val_int();
         if (!args[i]->null_value) {
@@ -4693,6 +6454,29 @@ bool udf_handler::get_arguments() {
         // This case should never be chosen
         assert(0);
         break;
+=======
+    case INT_RESULT:
+      *((longlong*) to) = args[i]->val_int();
+      if (!args[i]->null_value)
+      {
+	f_args.args[i]=to;
+	to+= ALIGN_SIZE(sizeof(longlong));
+      }
+      break;
+    case REAL_RESULT:
+      *((double*) to)= args[i]->val_real();
+      if (!args[i]->null_value)
+      {
+	f_args.args[i]=to;
+	to+= ALIGN_SIZE(sizeof(double));
+      }
+      break;
+    case ROW_RESULT:
+    default:
+      // This case should never be chosen
+      assert(0);
+      break;
+>>>>>>> upstream/cluster-7.6
     }
   }
   return false;
@@ -4914,13 +6698,26 @@ void Item_udf_func::print(const THD *thd, String *str,
   str->append(')');
 }
 
+<<<<<<< HEAD
 double Item_func_udf_float::val_real() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+double Item_func_udf_float::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_udf_float::val");
+>>>>>>> pr/231
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
   return udf.val_real(&null_value);
 }
 
+<<<<<<< HEAD
 String *Item_func_udf_float::val_str(String *str) {
   assert(fixed == 1);
   double nr = val_real();
@@ -4930,14 +6727,51 @@ String *Item_func_udf_float::val_str(String *str) {
 }
 
 longlong Item_func_udf_int::val_int() {
+<<<<<<< HEAD
   assert(fixed == 1);
   return udf.val_int(&null_value);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+String *Item_func_udf_float::val_str(String *str)
+{
+  assert(fixed == 1);
+  double nr= val_real();
+  if (null_value)
+    return 0;					/* purecov: inspected */
+  str->set_real(nr,decimals,&my_charset_bin);
+  return str;
 }
 
+
+longlong Item_func_udf_int::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_udf_int::val_int");
+  DBUG_RETURN(udf.val_int(&null_value));
+>>>>>>> pr/231
+}
+
+<<<<<<< HEAD
 String *Item_func_udf_int::val_str(String *str) {
   assert(fixed == 1);
   longlong nr = val_int();
+<<<<<<< HEAD
   if (null_value) return nullptr;
+=======
+  if (null_value) return 0;
+=======
+
+String *Item_func_udf_int::val_str(String *str)
+{
+  assert(fixed == 1);
+  longlong nr=val_int();
+  if (null_value)
+    return 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
@@ -4958,8 +6792,24 @@ double Item_func_udf_decimal::val_real() {
   return result;
 }
 
+<<<<<<< HEAD
 my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf) {
+<<<<<<< HEAD
   return udf.val_decimal(&null_value, dec_buf);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_udf_decimal::val_decimal");
+  DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
+                      arg_count));
+
+  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+>>>>>>> pr/231
 }
 
 String *Item_func_udf_decimal::val_str(String *str) {
@@ -4989,14 +6839,30 @@ bool Item_func_udf_str::resolve_type(THD *) {
   return false;
 }
 
+<<<<<<< HEAD
 String *Item_func_udf_str::val_str(String *str) {
   assert(fixed == 1);
   String *res = udf.val_str(str, &str_value);
+=======
+String *Item_func_udf_str::val_str(String *str)
+{
+  assert(fixed == 1);
+  String *res=udf.val_str(str,&str_value);
+>>>>>>> upstream/cluster-7.6
   null_value = !res;
   return res;
 }
 
+<<<<<<< HEAD
 bool Item_source_pos_wait::itemize(Parse_context *pc, Item **res) {
+=======
+udf_handler::~udf_handler() {
+  /* Everything should be properly cleaned up by this moment. */
+  assert(not_original || !(initialized || buffers));
+}
+
+bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {
+>>>>>>> pr/231
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -5009,9 +6875,21 @@ bool Item_source_pos_wait::itemize(Parse_context *pc, Item **res) {
   on the slave.
 */
 
+<<<<<<< HEAD
 longlong Item_source_pos_wait::val_int() {
   assert(fixed == 1);
+=======
+<<<<<<< HEAD
+longlong Item_master_pos_wait::val_int() {
+  DBUG_ASSERT(fixed == 1);
+>>>>>>> pr/231
   THD *thd = current_thd;
+=======
+longlong Item_master_pos_wait::val_int()
+{
+  assert(fixed == 1);
+  THD* thd = current_thd;
+>>>>>>> upstream/cluster-7.6
   String *log_name = args[0]->val_str(&value);
   int event_count = 0;
 
@@ -5067,9 +6945,233 @@ longlong Item_source_pos_wait::val_int() {
   return event_count;
 }
 
+<<<<<<< HEAD
 longlong Item_master_pos_wait::val_int() {
   push_deprecated_warn(current_thd, "MASTER_POS_WAIT", "SOURCE_POS_WAIT");
   return Item_source_pos_wait::val_int();
+=======
+bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::itemize(pc, res)) return true;
+  /*
+    It is unsafe because the return value depends on timing. If the timeout
+    happens, the return value is different from the one in which the function
+    returns with success.
+  */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query = false;
+  return false;
+}
+
+/**
+  Wait until the given gtid_set is found in the executed gtid_set independent
+  of the slave threads.
+*/
+longlong Item_wait_for_executed_gtid_set::val_int() {
+  DBUG_ENTER("Item_wait_for_executed_gtid_set::val_int");
+<<<<<<< HEAD
+  DBUG_ASSERT(fixed == 1);
+  THD *thd = current_thd;
+  String *gtid_text = args[0]->val_str(&value);
+=======
+  assert(fixed == 1);
+  THD* thd= current_thd;
+  String *gtid_text= args[0]->val_str(&value);
+>>>>>>> upstream/cluster-7.6
+
+  null_value = 0;
+
+  if (gtid_text == NULL) {
+    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    DBUG_RETURN(0);
+  }
+
+  // Waiting for a GTID in a slave thread could cause the slave to
+  // hang/deadlock.
+  if (thd->slave_thread) {
+    null_value = 1;
+    DBUG_RETURN(0);
+  }
+
+  Gtid_set wait_for_gtid_set(global_sid_map, NULL);
+
+  global_sid_lock->rdlock();
+  if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF) {
+    global_sid_lock->unlock();
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value = 1;
+    DBUG_RETURN(0);
+  }
+
+  if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
+      RETURN_STATUS_OK) {
+    global_sid_lock->unlock();
+    // Error has already been generated.
+    DBUG_RETURN(1);
+  }
+
+  // Cannot wait for a GTID that the thread owns since that would
+  // immediately deadlock.
+  if (thd->owned_gtid.sidno > 0 &&
+      wait_for_gtid_set.contains_gtid(thd->owned_gtid)) {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    thd->owned_gtid.to_string(global_sid_map, buf);
+    global_sid_lock->unlock();
+    my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
+             buf);
+    DBUG_RETURN(0);
+  }
+
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
+
+  double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
+  if (timeout < 0) {
+    if (thd->is_strict_mode()) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_FOR_EXECUTED_GTID_SET.");
+    } else {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          ER_THD(thd, ER_WRONG_ARGUMENTS),
+                          "WAIT_FOR_EXECUTED_GTID_SET.");
+      null_value = 1;
+    }
+    gtid_state->end_gtid_wait();
+    global_sid_lock->unlock();
+    DBUG_RETURN(0);
+  }
+
+  bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
+  global_sid_lock->unlock();
+  gtid_state->end_gtid_wait();
+
+  DBUG_RETURN(result);
+}
+
+bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::itemize(pc, res)) return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query = false;
+  return false;
+}
+
+<<<<<<< HEAD
+longlong Item_master_gtid_set_wait::val_int() {
+  DBUG_ASSERT(fixed == 1);
+=======
+
+longlong Item_master_gtid_set_wait::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_master_gtid_set_wait::val_int");
+  int event_count = 0;
+
+  null_value = 0;
+
+  String *gtid = args[0]->val_str(&value);
+  THD *thd = current_thd;
+  Master_info *mi = NULL;
+  double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
+  if (timeout < 0) {
+    if (thd->is_strict_mode()) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0),
+               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+    } else {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          ER_THD(thd, ER_WRONG_ARGUMENTS),
+                          "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+      null_value = 1;
+    }
+    DBUG_RETURN(0);
+  }
+
+  if (thd->slave_thread || !gtid) {
+    null_value = 1;
+    DBUG_RETURN(0);
+  }
+
+  channel_map.rdlock();
+
+  /* If replication channel is mentioned */
+  if (arg_count == 3) {
+    String *channel_str;
+    if (!(channel_str = args[2]->val_str(&value))) {
+      channel_map.unlock();
+      null_value = 1;
+      DBUG_RETURN(0);
+    }
+    mi = channel_map.get_mi(channel_str->ptr());
+  } else {
+    if (channel_map.get_num_instances() > 1) {
+      channel_map.unlock();
+      mi = NULL;
+      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      DBUG_RETURN(0);
+    } else
+      mi = channel_map.get_default_channel_mi();
+  }
+
+  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF) {
+    null_value = 1;
+    channel_map.unlock();
+    DBUG_RETURN(0);
+  }
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
+
+  if (mi) mi->inc_reference();
+
+  channel_map.unlock();
+
+  if (mi && mi->rli) {
+    event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
+    if (event_count == -2) {
+      null_value = 1;
+      event_count = 0;
+    }
+  } else
+    /*
+      Replication has not been set up, we should return NULL;
+     */
+    null_value = 1;
+
+  if (mi != NULL) mi->dec_reference();
+
+  gtid_state->end_gtid_wait();
+
+  DBUG_RETURN(event_count);
+}
+
+/**
+  Return 1 if both arguments are Gtid_sets and the first is a subset
+  of the second.  Generate an error if any of the arguments is not a
+  Gtid_set.
+*/
+longlong Item_func_gtid_subset::val_int() {
+  DBUG_ENTER("Item_func_gtid_subset::val_int()");
+  if (args[0]->null_value || args[1]->null_value) {
+    null_value = true;
+    DBUG_RETURN(0);
+  }
+  String *string1, *string2;
+  const char *charp1, *charp2;
+  int ret = 1;
+  enum_return_status status;
+  // get strings without lock
+  if ((string1 = args[0]->val_str(&buf1)) != NULL &&
+      (charp1 = string1->c_ptr_safe()) != NULL &&
+      (string2 = args[1]->val_str(&buf2)) != NULL &&
+      (charp2 = string2->c_ptr_safe()) != NULL) {
+    Sid_map sid_map(NULL /*no rwlock*/);
+    // compute sets while holding locks
+    const Gtid_set sub_set(&sid_map, charp1, &status);
+    if (status == RETURN_STATUS_OK) {
+      const Gtid_set super_set(&sid_map, charp2, &status);
+      if (status == RETURN_STATUS_OK)
+        ret = sub_set.is_subset(&super_set) ? 1 : 0;
+    }
+  }
+  DBUG_RETURN(ret);
+>>>>>>> pr/231
 }
 
 /**
@@ -5320,10 +7422,18 @@ bool Item_func_get_lock::itemize(Parse_context *pc, Item **res) {
     0    : Timeout, error.
 */
 
+<<<<<<< HEAD
 longlong Item_func_get_lock::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
   ulonglong timeout = args[1]->val_int();
+=======
+longlong Item_func_get_lock::val_int()
+{
+  assert(fixed == 1);
+  String *res= args[0]->val_str(&value);
+  ulonglong timeout= args[1]->val_int();
+>>>>>>> upstream/cluster-7.6
   char name[NAME_LEN + 1];
   THD *thd = current_thd;
   DBUG_TRACE;
@@ -5424,9 +7534,16 @@ bool Item_func_release_lock::itemize(Parse_context *pc, Item **res) {
     - 0 if lock wasn't held/error.
 */
 
+<<<<<<< HEAD
 longlong Item_func_release_lock::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
+=======
+longlong Item_func_release_lock::val_int()
+{
+  assert(fixed == 1);
+  String *res= args[0]->val_str(&value);
+>>>>>>> upstream/cluster-7.6
   char name[NAME_LEN + 1];
   THD *thd = current_thd;
   DBUG_TRACE;
@@ -5482,11 +7599,24 @@ bool Item_func_release_all_locks::itemize(Parse_context *pc, Item **res) {
   @return Number of locks released including recursive lock count.
 */
 
+<<<<<<< HEAD
 longlong Item_func_release_all_locks::val_int() {
   assert(fixed == 1);
   THD *thd = current_thd;
   uint result = 0;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+longlong Item_func_release_all_locks::val_int()
+{
+  assert(fixed == 1);
+  THD *thd= current_thd;
+  uint result= 0;
+  User_level_lock *ull;
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_release_all_locks::val_int");
+>>>>>>> pr/231
 
   for (const auto &key_and_value : thd->ull_hash) {
     User_level_lock *ull = key_and_value.second;
@@ -5523,10 +7653,17 @@ bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res) {
     0		Already taken, or error
 */
 
+<<<<<<< HEAD
 longlong Item_func_is_free_lock::val_int() {
   assert(fixed == 1);
   value.length(0);
   String *res = args[0]->val_str(&value);
+=======
+longlong Item_func_is_free_lock::val_int()
+{
+  assert(fixed == 1);
+  String *res= args[0]->val_str(&value);
+>>>>>>> upstream/cluster-7.6
   char name[NAME_LEN + 1];
   THD *thd = current_thd;
 
@@ -5566,9 +7703,16 @@ bool Item_func_is_used_lock::itemize(Parse_context *pc, Item **res) {
   @return Connection id of lock owner, 0 if lock is free/on error.
 */
 
+<<<<<<< HEAD
 longlong Item_func_is_used_lock::val_int() {
   assert(fixed == 1);
   String *res = args[0]->val_str(&value);
+=======
+longlong Item_func_is_used_lock::val_int()
+{
+  assert(fixed == 1);
+  String *res= args[0]->val_str(&value);
+>>>>>>> upstream/cluster-7.6
   char name[NAME_LEN + 1];
   THD *thd = current_thd;
 
@@ -5598,12 +7742,24 @@ bool Item_func_last_insert_id::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+<<<<<<< HEAD
 longlong Item_func_last_insert_id::val_int() {
   THD *thd = current_thd;
   assert(fixed == 1);
   if (arg_count) {
     longlong value = args[0]->val_int();
     null_value = args[0]->null_value;
+=======
+
+longlong Item_func_last_insert_id::val_int()
+{
+  THD *thd= current_thd;
+  assert(fixed == 1);
+  if (arg_count)
+  {
+    longlong value= args[0]->val_int();
+    null_value= args[0]->null_value;
+>>>>>>> upstream/cluster-7.6
     /*
       LAST_INSERT_ID(X) must affect the client's mysql_insert_id() as
       documented in the manual. We don't want to touch
@@ -5628,8 +7784,18 @@ bool Item_func_benchmark::itemize(Parse_context *pc, Item **res) {
 
 /* This function is just used to test speed of different functions */
 
+<<<<<<< HEAD
 longlong Item_func_benchmark::val_int() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+longlong Item_func_benchmark::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), &my_charset_bin);
   my_decimal tmp_decimal;
@@ -5656,6 +7822,7 @@ longlong Item_func_benchmark::val_int() {
   null_value = false;
   for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
     switch (args[1]->result_type()) {
+<<<<<<< HEAD
       case REAL_RESULT:
         (void)args[1]->val_real();
         break;
@@ -5673,6 +7840,25 @@ longlong Item_func_benchmark::val_int() {
         // This case should never be chosen
         assert(0);
         return 0;
+=======
+    case REAL_RESULT:
+      (void) args[1]->val_real();
+      break;
+    case INT_RESULT:
+      (void) args[1]->val_int();
+      break;
+    case STRING_RESULT:
+      (void) args[1]->val_str(&tmp);
+      break;
+    case DECIMAL_RESULT:
+      (void) args[1]->val_decimal(&tmp_decimal);
+      break;
+    case ROW_RESULT:
+    default:
+      // This case should never be chosen
+      assert(0);
+      return 0;
+>>>>>>> upstream/cluster-7.6
     }
   }
   return 0;
@@ -5868,7 +8054,9 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists) {
   SELECT @a:= ).
 */
 
+<<<<<<< HEAD
 bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref) {
+<<<<<<< HEAD
   assert(!fixed);
 
   if (Item_func::fix_fields(thd, ref)) return true;
@@ -5876,6 +8064,19 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref) {
   // This is probably only to get an early validity check on user variable name
   if (set_entry(thd, true)) return true;
   entry = nullptr;
+=======
+  DBUG_ASSERT(fixed == 0);
+  // fix_fields will call Item_func_set_user_var::resolve_type()
+  if (Item_func::fix_fields(thd, ref) || set_entry(thd, true)) return true;
+=======
+bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
+{
+  assert(fixed == 0);
+  /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
+  if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
+    return TRUE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   null_item = (args[0]->type() == NULL_ITEM);
 
@@ -5984,9 +8185,16 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type) {
   if (type == STRING_RESULT) m_ptr[length] = 0;  // Store end \0
 
   // Avoid memcpy of a my_decimal object, use copy CTOR instead.
+<<<<<<< HEAD
   if (type == DECIMAL_RESULT) {
     assert(length == sizeof(my_decimal));
     const my_decimal *dec = static_cast<const my_decimal *>(from);
+=======
+  if (type == DECIMAL_RESULT)
+  {
+    assert(length == sizeof(my_decimal));
+    const my_decimal* dec= static_cast<const my_decimal*>(from);
+>>>>>>> upstream/cluster-7.6
     dec->sanity_check();
     new (m_ptr) my_decimal(*dec);
   } else
@@ -6015,13 +8223,29 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
   return false;
 }
 
+<<<<<<< HEAD
 void user_var_entry::lock() {
   assert(m_owner != nullptr);
   mysql_mutex_lock(&m_owner->LOCK_thd_data);
 }
 
 void user_var_entry::unlock() {
+<<<<<<< HEAD
   assert(m_owner != nullptr);
+=======
+  DBUG_ASSERT(m_owner != NULL);
+=======
+void user_var_entry::lock()
+{
+  assert(m_owner != NULL);
+  mysql_mutex_lock(&m_owner->LOCK_thd_data);
+}
+
+void user_var_entry::unlock()
+{
+  assert(m_owner != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   mysql_mutex_unlock(&m_owner->LOCK_thd_data);
 }
 
@@ -6037,9 +8261,21 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
   else
     null_value = args[0]->null_value;
 
+<<<<<<< HEAD
   if (ptr == nullptr) {
     assert(length == 0);
+=======
+<<<<<<< HEAD
+  if (ptr == NULL) {
+    DBUG_ASSERT(length == 0);
+>>>>>>> pr/231
     null_value = true;
+=======
+  if (ptr == NULL)
+  {
+    assert(length == 0);
+    null_value= true;
+>>>>>>> upstream/cluster-7.6
   }
 
   /*
@@ -6085,7 +8321,17 @@ double user_var_entry::val_real(bool *null_value) const {
       assert(false);  // Impossible
       break;
   }
+<<<<<<< HEAD
   return 0.0;  // Impossible
+=======
+  case STRING_RESULT:
+    return my_atof(m_ptr);                    // This is null terminated
+  case ROW_RESULT:
+    assert(1);				// Impossible
+    break;
+  }
+  return 0.0;					// Impossible
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Get the value of a variable as an integer. */
@@ -6124,7 +8370,20 @@ longlong user_var_entry::val_int(bool *null_value) const {
       assert(false);  // Impossible
       break;
   }
+<<<<<<< HEAD
   return 0LL;  // Impossible
+=======
+  case STRING_RESULT:
+  {
+    int error;
+    return my_strtoll10(m_ptr, (char**) 0, &error);// String is null terminated
+  }
+  case ROW_RESULT:
+    assert(1);				// Impossible
+    break;
+  }
+  return 0LL;					// Impossible
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Get the value of a variable as a string. */
@@ -6134,6 +8393,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
   if ((*null_value = (m_ptr == nullptr))) return (String *)nullptr;
 
   switch (m_type) {
+<<<<<<< HEAD
     case REAL_RESULT:
       str->set_real(*(double *)m_ptr, decimals, collation.collation);
       break;
@@ -6155,6 +8415,27 @@ String *user_var_entry::val_str(bool *null_value, String *str,
     case INVALID_RESULT:
       assert(false);  // Impossible
       break;
+=======
+  case REAL_RESULT:
+    str->set_real(*(double*) m_ptr, decimals, collation.collation);
+    break;
+  case INT_RESULT:
+    if (!unsigned_flag)
+      str->set(*(longlong*) m_ptr, collation.collation);
+    else
+      str->set(*(ulonglong*) m_ptr, collation.collation);
+    break;
+  case DECIMAL_RESULT:
+    str_set_decimal((my_decimal *) m_ptr, str, collation.collation);
+    break;
+  case STRING_RESULT:
+    if (str->copy(m_ptr, m_length, collation.collation))
+      str= 0;					// EOM error
+    break;
+  case ROW_RESULT:
+    assert(1);				// Impossible
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   return (str);
 }
@@ -6166,6 +8447,7 @@ my_decimal *user_var_entry::val_decimal(bool *null_value,
   if ((*null_value = (m_ptr == nullptr))) return nullptr;
 
   switch (m_type) {
+<<<<<<< HEAD
     case REAL_RESULT:
       double2my_decimal(E_DEC_FATAL_ERROR, *(double *)m_ptr, val);
       break;
@@ -6184,6 +8466,24 @@ my_decimal *user_var_entry::val_decimal(bool *null_value,
     case INVALID_RESULT:
       assert(false);  // Impossible
       break;
+=======
+  case REAL_RESULT:
+    double2my_decimal(E_DEC_FATAL_ERROR, *(double*) m_ptr, val);
+    break;
+  case INT_RESULT:
+    int2my_decimal(E_DEC_FATAL_ERROR, *(longlong*) m_ptr, 0, val);
+    break;
+  case DECIMAL_RESULT:
+    my_decimal2decimal((my_decimal *) m_ptr, val);
+    break;
+  case STRING_RESULT:
+    str2my_decimal(E_DEC_FATAL_ERROR, m_ptr, m_length,
+                   collation.collation, val);
+    break;
+  case ROW_RESULT:
+    assert(1);				// Impossible
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   return (val);
 }
@@ -6236,7 +8536,42 @@ bool Item_func_set_user_var::check(bool use_result_field) {
       assert(0);
       break;
   }
+<<<<<<< HEAD
   return false;
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(false);
+=======
+  case INT_RESULT:
+  {
+    save_result.vint= use_result_field ? result_field->val_int() :
+                       args[0]->val_int();
+    unsigned_flag= use_result_field ? ((Field_num*)result_field)->unsigned_flag:
+                    args[0]->unsigned_flag;
+    break;
+  }
+  case STRING_RESULT:
+  {
+    save_result.vstr= use_result_field ? result_field->val_str(&value) :
+                       args[0]->val_str(&value);
+    break;
+  }
+  case DECIMAL_RESULT:
+  {
+    save_result.vdec= use_result_field ?
+                       result_field->val_decimal(&decimal_buff) :
+                       args[0]->val_decimal(&decimal_buff);
+    break;
+  }
+  case ROW_RESULT:
+  default:
+    // This case should never be chosen
+    assert(0);
+    break;
+  }
+  DBUG_RETURN(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -6250,6 +8585,7 @@ void Item_func_set_user_var::save_item_result(Item *item) {
   DBUG_TRACE;
 
   switch (cached_result_type) {
+<<<<<<< HEAD
     case REAL_RESULT:
       save_result.vreal = item->val_real();
       break;
@@ -6268,6 +8604,26 @@ void Item_func_set_user_var::save_item_result(Item *item) {
       // Should never happen
       assert(0);
       break;
+=======
+  case REAL_RESULT:
+    save_result.vreal= item->val_result();
+    break;
+  case INT_RESULT:
+    save_result.vint= item->val_int_result();
+    unsigned_flag= item->unsigned_flag;
+    break;
+  case STRING_RESULT:
+    save_result.vstr= item->str_result(&value);
+    break;
+  case DECIMAL_RESULT:
+    save_result.vdec= item->val_decimal_result(&decimal_buff);
+    break;
+  case ROW_RESULT:
+  default:
+    // Should never happen
+    assert(0);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -6286,6 +8642,7 @@ bool Item_func_set_user_var::update() {
   bool res = false;
 
   switch (cached_result_type) {
+<<<<<<< HEAD
     case REAL_RESULT: {
       res = update_hash(&save_result.vreal, sizeof(save_result.vreal),
                         REAL_RESULT, default_charset(), DERIVATION_IMPLICIT,
@@ -6321,38 +8678,181 @@ bool Item_func_set_user_var::update() {
       // This case should never be chosen
       assert(0);
       break;
+=======
+  case REAL_RESULT:
+  {
+    res= update_hash(&save_result.vreal,sizeof(save_result.vreal),
+		     REAL_RESULT, default_charset(), DERIVATION_IMPLICIT, 0);
+    break;
+  }
+  case INT_RESULT:
+  {
+    res= update_hash(&save_result.vint, sizeof(save_result.vint),
+                     INT_RESULT, default_charset(), DERIVATION_IMPLICIT,
+                     unsigned_flag);
+    break;
+  }
+  case STRING_RESULT:
+  {
+    if (!save_result.vstr)					// Null value
+      res= update_hash(NULL, 0, STRING_RESULT, &my_charset_bin,
+		       DERIVATION_IMPLICIT, 0);
+    else
+      res= update_hash(save_result.vstr->ptr(),
+		       save_result.vstr->length(), STRING_RESULT,
+		       save_result.vstr->charset(),
+		       DERIVATION_IMPLICIT, 0);
+    break;
+  }
+  case DECIMAL_RESULT:
+  {
+    if (!save_result.vdec)					// Null value
+      res= update_hash(NULL, 0, DECIMAL_RESULT, &my_charset_bin,
+                       DERIVATION_IMPLICIT, false);
+    else
+      res= update_hash(save_result.vdec,
+                       sizeof(my_decimal), DECIMAL_RESULT,
+                       default_charset(), DERIVATION_IMPLICIT, 0);
+    break;
+  }
+  case ROW_RESULT:
+  default:
+    // This case should never be chosen
+    assert(0);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   return res;
 }
 
+<<<<<<< HEAD
 double Item_func_set_user_var::val_real() {
+<<<<<<< HEAD
   assert(fixed == 1);
   check(false);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+double Item_func_set_user_var::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  check(0);
+>>>>>>> pr/231
   update();  // Store expression
   return entry->val_real(&null_value);
 }
 
+<<<<<<< HEAD
 longlong Item_func_set_user_var::val_int() {
+<<<<<<< HEAD
   assert(fixed == 1);
   check(false);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+longlong Item_func_set_user_var::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  check(0);
+>>>>>>> pr/231
   update();  // Store expression
   return entry->val_int(&null_value);
 }
 
+<<<<<<< HEAD
 String *Item_func_set_user_var::val_str(String *str) {
+<<<<<<< HEAD
   assert(fixed == 1);
   check(false);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+String *Item_func_set_user_var::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  check(0);
+>>>>>>> pr/231
   update();  // Store expression
   return entry->val_str(&null_value, str, decimals);
 }
 
+<<<<<<< HEAD
 my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val) {
+<<<<<<< HEAD
   assert(fixed == 1);
   check(false);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  check(0);
+>>>>>>> pr/231
   update();  // Store expression
   return entry->val_decimal(&null_value, val);
 }
 
+<<<<<<< HEAD
+=======
+
+double Item_func_set_user_var::val_result()
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_real(&null_value);
+}
+
+longlong Item_func_set_user_var::val_int_result()
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value);
+}
+
+bool Item_func_set_user_var::val_bool_result()
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value) != 0;
+}
+
+String *Item_func_set_user_var::str_result(String *str)
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
+}
+
+
+my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_decimal(&null_value, val);
+}
+
+
+bool Item_func_set_user_var::is_null_result()
+{
+  assert(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return is_null();
+}
+
+>>>>>>> upstream/cluster-7.6
 // just the assignment, for use in "SET @a:=5" type self-prints
 void Item_func_set_user_var::print_assignment(
     const THD *thd, String *str, enum_query_type query_type) const {
@@ -6384,8 +8884,13 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg) {
 
 void Item_func_set_user_var::make_field(Send_field *tmp_field) {
   if (result_field) {
+<<<<<<< HEAD
     result_field->make_send_field(tmp_field);
     assert(tmp_field->table_name != nullptr);
+=======
+    result_field->make_field(tmp_field);
+    assert(tmp_field->table_name != 0);
+>>>>>>> pr/231
     if (Item::item_name.is_set())
       tmp_field->col_name = Item::item_name.ptr();  // Use user supplied name
   } else
@@ -6479,7 +8984,9 @@ type_conversion_status Item_func_set_user_var::save_in_field(
   return error;
 }
 
+<<<<<<< HEAD
 String *Item_func_get_user_var::val_str(String *str) {
+<<<<<<< HEAD
   assert(fixed);
   DBUG_TRACE;
   THD *thd = current_thd;
@@ -6487,6 +8994,18 @@ String *Item_func_get_user_var::val_str(String *str) {
       get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry))
     return error_str();
   if (var_entry == nullptr) return error_str();  // No such variable
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+String *
+Item_func_get_user_var::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_get_user_var::val_str");
+  if (!var_entry) DBUG_RETURN((String *)0);  // No such variable
+>>>>>>> pr/231
   String *res = var_entry->val_str(&null_value, str, decimals);
   if (res && !my_charset_same(res->charset(), collation.collation)) {
     String tmpstr;
@@ -6507,6 +9026,7 @@ String *Item_func_get_user_var::val_str(String *str) {
   return res;
 }
 
+<<<<<<< HEAD
 double Item_func_get_user_var::val_real() {
   assert(fixed);
   THD *thd;
@@ -6528,6 +9048,7 @@ my_decimal *Item_func_get_user_var::val_decimal(my_decimal *dec) {
 }
 
 longlong Item_func_get_user_var::val_int() {
+<<<<<<< HEAD
   assert(fixed);
   THD *thd;
   if (var_entry == nullptr && (thd = current_thd) &&
@@ -6555,6 +9076,37 @@ const CHARSET_INFO *Item_func_get_user_var::charset_for_protocol() {
   if (var_entry == nullptr) return &my_charset_bin;  // No such variable
   // @todo WL#6570 Should we return collation of Item node or variable entry?
   return result_type() == STRING_RESULT ? collation.collation : &my_charset_bin;
+=======
+  DBUG_ASSERT(fixed == 1);
+  if (!var_entry) return 0LL;  // No such variable
+=======
+
+double Item_func_get_user_var::val_real()
+{
+  assert(fixed == 1);
+  if (!var_entry)
+    return 0.0;					// No such variable
+  return (var_entry->val_real(&null_value));
+}
+
+
+my_decimal *Item_func_get_user_var::val_decimal(my_decimal *dec)
+{
+  assert(fixed == 1);
+  if (!var_entry)
+    return 0;
+  return var_entry->val_decimal(&null_value, dec);
+}
+
+
+longlong Item_func_get_user_var::val_int()
+{
+  assert(fixed == 1);
+  if (!var_entry)
+    return 0LL;				// No such variable
+>>>>>>> upstream/cluster-7.6
+  return (var_entry->val_int(&null_value));
+>>>>>>> pr/231
 }
 
 /**
@@ -6687,11 +9239,21 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     user_var_event->value = nullptr;
   } else {
     // Avoid memcpy of a my_decimal object, use copy CTOR instead.
+<<<<<<< HEAD
     user_var_event->length = var_entry->length();
     if (user_var_event->type == DECIMAL_RESULT) {
       assert(var_entry->length() == sizeof(my_decimal));
       const my_decimal *dec = static_cast<const my_decimal *>(
           static_cast<const void *>(var_entry->ptr()));
+=======
+    user_var_event->length= var_entry->length();
+    if (user_var_event->type == DECIMAL_RESULT)
+    {
+      assert(var_entry->length() == sizeof(my_decimal));
+      const my_decimal* dec=
+        static_cast<const my_decimal*>
+        (static_cast<const void*>(var_entry->ptr()));
+>>>>>>> upstream/cluster-7.6
       dec->sanity_check();
       new (user_var_event->value) my_decimal(*dec);
     } else
@@ -6729,6 +9291,11 @@ bool Item_func_get_user_var::resolve_type(THD *thd) {
     // Variable exists - assign type information from the entry.
     m_cached_result_type = var_entry->type();
 
+<<<<<<< HEAD
+=======
+    collation.set(var_entry->collation);
+<<<<<<< HEAD
+>>>>>>> pr/231
     switch (m_cached_result_type) {
       case REAL_RESULT:
         set_data_type_double();
@@ -6747,6 +9314,27 @@ bool Item_func_get_user_var::resolve_type(THD *thd) {
       default:
         assert(0);
         break;
+=======
+    switch(m_cached_result_type) {
+    case REAL_RESULT:
+      fix_char_length(DBL_DIG + 8);
+      break;
+    case INT_RESULT:
+      fix_char_length(MAX_BIGINT_WIDTH);
+      decimals=0;
+      break;
+    case STRING_RESULT:
+      max_length= MAX_BLOB_WIDTH - 1;
+      break;
+    case DECIMAL_RESULT:
+      fix_char_length(DECIMAL_MAX_STR_LENGTH);
+      decimals= DECIMAL_MAX_SCALE;
+      break;
+    case ROW_RESULT:                            // Keep compiler happy
+    default:
+      assert(0);
+      break;
+>>>>>>> upstream/cluster-7.6
     }
 
     // Override collation for all data types
@@ -6886,12 +9474,20 @@ bool Item_func_get_user_var::set_value(THD *thd, sp_rcontext * /*ctx*/,
           suv->update());
 }
 
+<<<<<<< HEAD
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref) {
   assert(fixed == 0);
 
   assert(thd->lex->sql_command == SQLCOM_LOAD);
   auto exchange_cs =
       down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)->m_exchange.cs;
+=======
+
+bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
+{
+  assert(fixed == 0);
+  assert(thd->lex->exchange);
+>>>>>>> upstream/cluster-7.6
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
@@ -6925,6 +9521,7 @@ void Item_user_var_as_out_param::set_value(const char *str, size_t length,
   entry->unlock();
 }
 
+<<<<<<< HEAD
 double Item_user_var_as_out_param::val_real() {
   assert(0);
   return 0.0;
@@ -6941,8 +9538,40 @@ String *Item_user_var_as_out_param::val_str(String *) {
 }
 
 my_decimal *Item_user_var_as_out_param::val_decimal(my_decimal *) {
+<<<<<<< HEAD
   assert(0);
   return nullptr;
+=======
+  DBUG_ASSERT(0);
+=======
+
+double Item_user_var_as_out_param::val_real()
+{
+  assert(0);
+  return 0.0;
+}
+
+
+longlong Item_user_var_as_out_param::val_int()
+{
+  assert(0);
+  return 0;
+}
+
+
+String* Item_user_var_as_out_param::val_str(String *str)
+{
+  assert(0);
+  return 0;
+}
+
+
+my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
+{
+  assert(0);
+>>>>>>> upstream/cluster-7.6
+  return 0;
+>>>>>>> pr/231
 }
 
 void Item_user_var_as_out_param::print(const THD *thd, String *str,
@@ -6951,6 +9580,7 @@ void Item_user_var_as_out_param::print(const THD *thd, String *str,
   append_identifier(thd, str, name.ptr(), name.length());
 }
 
+<<<<<<< HEAD
 Item_func_get_system_var::Item_func_get_system_var(
     const System_variable_tracker &var_tracker, enum_var_type scope)
     : var_scope{scope}, cache_present{0}, var_tracker{var_tracker} {
@@ -6961,6 +9591,88 @@ bool Item_func_get_system_var::resolve_type(THD *) {
   set_nullable(true);
 
   switch (var_tracker.cached_show_type()) {
+=======
+<<<<<<< HEAD
+Item_func_get_system_var::Item_func_get_system_var(sys_var *var_arg,
+                                                   enum_var_type var_type_arg,
+                                                   LEX_STRING *component_arg,
+                                                   const char *name_arg,
+                                                   size_t name_len_arg)
+    : var(var_arg),
+      var_type(var_type_arg),
+      orig_var_type(var_type_arg),
+      component(*component_arg),
+      cache_present(0) {
+=======
+
+Item_func_get_system_var::
+Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
+                       LEX_STRING *component_arg, const char *name_arg,
+                       size_t name_len_arg)
+  :var(NULL), var_type(var_type_arg), orig_var_type(var_type_arg),
+  component(*component_arg), cache_present(0),
+  var_tracker(var_arg)
+{
+>>>>>>> upstream/cluster-7.6
+  /* copy() will allocate the name */
+  item_name.copy(name_arg, (uint)name_len_arg);
+}
+
+<<<<<<< HEAD
+bool Item_func_get_system_var::is_written_to_binlog() {
+  return var->is_written_to_binlog(var_type);
+}
+
+bool Item_func_get_system_var::resolve_type(THD *thd) {
+=======
+
+void Item_func_get_system_var::update_null_value()
+{
+  THD *thd= current_thd;
+  int save_no_errors= thd->no_errors;
+  thd->no_errors= TRUE;
+  Item::update_null_value();
+  thd->no_errors= save_no_errors;
+}
+
+
+void Item_func_get_system_var::fix_length_and_dec()
+{
+>>>>>>> upstream/cluster-7.6
+  char *cptr;
+  maybe_null = true;
+
+<<<<<<< HEAD
+  if (!var->check_scope(var_type)) {
+    if (var_type != OPT_DEFAULT) {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
+               var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      return true;
+=======
+  THD *const thd= current_thd;
+
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  assert(var == NULL);
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+    return;
+
+  if (!var->check_scope(var_type))
+  {
+    if (var_type != OPT_DEFAULT)
+    {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
+               var->name.str, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      return;
+>>>>>>> upstream/cluster-7.6
+    }
+    /* As there was no local variable, return the global value */
+    var_type = OPT_GLOBAL;
+  }
+
+  switch (var->show_type()) {
+>>>>>>> pr/231
     case SHOW_LONG:
     case SHOW_INT:
     case SHOW_HA_ROWS:
@@ -6976,9 +9688,50 @@ bool Item_func_get_system_var::resolve_type(THD *) {
       break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
+<<<<<<< HEAD
     case SHOW_LEX_STRING:
       collation.set(system_charset_info, DERIVATION_SYSCONST);
       set_data_type_string(65535U / collation.collation->mbmaxlen);
+=======
+      set_data_type(MYSQL_TYPE_VARCHAR);
+      mysql_mutex_lock(&LOCK_global_system_variables);
+<<<<<<< HEAD
+      cptr =
+          var->show_type() == SHOW_CHAR
+              ? pointer_cast<char *>(var->value_ptr(thd, var_type, &component))
+              : *pointer_cast<char **>(
+                    var->value_ptr(thd, var_type, &component));
+=======
+      cptr= var->show_type() == SHOW_CHAR ? 
+        (char*) var->value_ptr(thd, var_type, &component) :
+        *(char**) var->value_ptr(thd, var_type, &component);
+>>>>>>> upstream/cluster-7.6
+      if (cptr)
+        max_length = system_charset_info->cset->numchars(
+            system_charset_info, cptr, cptr + strlen(cptr));
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      collation.set(system_charset_info, DERIVATION_SYSCONST);
+<<<<<<< HEAD
+      max_length *= system_charset_info->mbmaxlen;
+      decimals = NOT_FIXED_DEC;
+=======
+      max_length*= system_charset_info->mbmaxlen;
+      decimals=NOT_FIXED_DEC;
+      break;
+    case SHOW_LEX_STRING:
+      {
+        mysql_mutex_lock(&LOCK_global_system_variables);
+        LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(thd, var_type, &component));
+        max_length= system_charset_info->cset->numchars(system_charset_info,
+                                                        ls->str,
+                                                        ls->str + ls->length);
+        mysql_mutex_unlock(&LOCK_global_system_variables);
+        collation.set(system_charset_info, DERIVATION_SYSCONST);
+        max_length*= system_charset_info->mbmaxlen;
+        decimals=NOT_FIXED_DEC;
+      }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       break;
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
@@ -7156,6 +9909,7 @@ String *Item_func_get_system_var::val_str(String *str) {
                                                 GET_SYS_VAR_CACHE_STRING);
   assert(fixed);
 
+<<<<<<< HEAD
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_STRING) {
       null_value = cached_null_value;
@@ -7167,6 +9921,49 @@ String *Item_func_get_system_var::val_str(String *str) {
       return null_value ? nullptr : &cached_strval;
     } else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE) {
       null_value = cached_null_value;
+=======
+/*
+  Uses var, var_type, component, cache_present, used_query_id, thd,
+  cached_llval, null_value, cached_null_value
+*/
+#define get_sys_var_safe(type) \
+do { \
+  type value; \
+  mysql_mutex_lock(&LOCK_global_system_variables); \
+  value= *(type*) var->value_ptr(thd, var_type, &component); \
+  mysql_mutex_unlock(&LOCK_global_system_variables); \
+  cache_present |= GET_SYS_VAR_CACHE_LONG; \
+  used_query_id= thd->query_id; \
+  cached_llval= null_value ? 0 : (longlong) value; \
+  cached_null_value= null_value; \
+  return cached_llval; \
+} while (0)
+
+
+longlong Item_func_get_system_var::val_int()
+{
+  THD *thd= current_thd;
+
+  assert(var != NULL);
+
+  if (cache_present && thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_LONG)
+    {
+      null_value= cached_null_value;
+      return cached_llval;
+    } 
+    else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+      cached_llval= (longlong) cached_dval;
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_STRING)
+    {
+      null_value= cached_null_value;
+>>>>>>> upstream/cluster-7.6
       if (!null_value)
         cached_strval.set_real(cached_dval, decimals, collation.collation);
       cache_present |= GET_SYS_VAR_CACHE_STRING;
@@ -7176,6 +9973,7 @@ String *Item_func_get_system_var::val_str(String *str) {
 
   str = &cached_strval;
   null_value = false;
+<<<<<<< HEAD
 
   auto f = [this, thd, &str](const System_variable_tracker &, sys_var *var) {
     switch (var->show_type()) {
@@ -7201,6 +9999,91 @@ String *Item_func_get_system_var::val_str(String *str) {
             str = nullptr;
           }
         } else {
+=======
+  switch (var->show_type()) {
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+<<<<<<< HEAD
+    case SHOW_LEX_STRING: {
+=======
+    case SHOW_LEX_STRING:
+      {
+        String *str_val= val_str(NULL);
+        // Treat empty strings as NULL, like val_real() does.
+        if (str_val && str_val->length())
+          cached_llval= longlong_from_string_with_check (system_charset_info,
+                                                          str_val->c_ptr(), 
+                                                          str_val->c_ptr() + 
+                                                          str_val->length());
+        else
+        {
+          null_value= TRUE;
+          cached_llval= 0;
+        }
+
+        cache_present|= GET_SYS_VAR_CACHE_LONG;
+        return cached_llval;
+      }
+
+    default:            
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str); 
+      return 0;                               // keep the compiler happy
+  }
+}
+
+
+String* Item_func_get_system_var::val_str(String* str)
+{
+  THD *thd= current_thd;
+
+  assert(var != NULL);
+
+  if (cache_present && thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_STRING)
+    {
+      null_value= cached_null_value;
+      return null_value ? NULL : &cached_strval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_LONG)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_strval.set (cached_llval, collation.collation);
+      cache_present|= GET_SYS_VAR_CACHE_STRING;
+      return null_value ? NULL : &cached_strval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_strval.set_real (cached_dval, decimals, collation.collation);
+      cache_present|= GET_SYS_VAR_CACHE_STRING;
+      return null_value ? NULL : &cached_strval;
+    }
+  }
+
+  str= &cached_strval;
+  null_value= FALSE;
+  switch (var->show_type())
+  {
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+    case SHOW_LEX_STRING:
+    {
+>>>>>>> upstream/cluster-7.6
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      char *cptr = var->show_type() == SHOW_CHAR
+                       ? (char *)var->value_ptr(thd, var_type, &component)
+                       : *(char **)var->value_ptr(thd, var_type, &component);
+      if (cptr) {
+        size_t len =
+            var->show_type() == SHOW_LEX_STRING
+                ? ((LEX_STRING *)(var->value_ptr(thd, var_type, &component)))
+                      ->length
+                : strlen(cptr);
+        if (str->copy(cptr, len, collation.collation)) {
+>>>>>>> pr/231
           null_value = true;
           str = nullptr;
         }
@@ -7248,9 +10131,23 @@ double Item_func_get_system_var::val_real() {
                                                 GET_SYS_VAR_CACHE_DOUBLE);
   assert(fixed);
 
+<<<<<<< HEAD
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_DOUBLE) {
       null_value = cached_null_value;
+=======
+double Item_func_get_system_var::val_real()
+{
+  THD *thd= current_thd;
+
+  assert(var != NULL);
+
+  if (cache_present && thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+>>>>>>> upstream/cluster-7.6
       return cached_dval;
     } else if (cache_present & GET_SYS_VAR_CACHE_LONG) {
       null_value = cached_null_value;
@@ -7334,17 +10231,30 @@ bool Item_func_get_system_var::eq(const Item *item, bool) const {
   if (this == item) return true;  // Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
+<<<<<<< HEAD
       down_cast<const Item_func *>(item)->functype() != functype())
     return false;
   const Item_func_get_system_var *other =
       down_cast<const Item_func_get_system_var *>(item);
   return var_tracker == other->var_tracker;
+=======
+      ((Item_func *)item)->functype() != functype())
+    return 0;
+<<<<<<< HEAD
+  Item_func_get_system_var *other = (Item_func_get_system_var *)item;
+  return (var == other->var && var_type == other->var_type);
+=======
+  Item_func_get_system_var *other=(Item_func_get_system_var*) item;
+  return (var_tracker == other->var_tracker && var_type == other->var_type);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Item_func_get_system_var::cleanup() {
   Item_func::cleanup();
   cache_present = 0;
   cached_strval.mem_free();
+  var= NULL;
 }
 
 bool Item_func_match::itemize(Parse_context *pc, Item **res) {
@@ -7440,11 +10350,24 @@ bool Item_func_match::init_search(THD *thd) {
     return true;
   }
 
+<<<<<<< HEAD
   assert(master == nullptr);
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
   if (ft_handler == nullptr || thd->is_error()) {
     return true;
   }
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(master == NULL);
+  ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
+  if (thd->is_error()) DBUG_RETURN(true);
+=======
+  assert(master == NULL);
+  ft_handler= table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
+  if (thd->is_error())
+    DBUG_RETURN(true);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (score_from_index_scan) table->file->ft_handler = ft_handler;
 
@@ -7479,10 +10402,25 @@ static void update_table_read_set(const Field *field) {
     table->covering_keys.intersect(field->part_of_key);
 }
 
+<<<<<<< HEAD
 bool Item_func_match::fix_fields(THD *thd, Item **ref) {
+<<<<<<< HEAD
   assert(fixed == 0);
   assert(arg_count > 0);
   Item *item = nullptr;  // Safe as arg_count is > 1
+=======
+  DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(arg_count > 0);
+  Item *item = NULL;  // Safe as arg_count is > 1
+=======
+
+bool Item_func_match::fix_fields(THD *thd, Item **ref)
+{
+  assert(fixed == 0);
+  assert(arg_count > 0);
+  Item *item= NULL;                        // Safe as arg_count is > 1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   set_nullable(true);
 
@@ -7702,7 +10640,9 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
   return false;
 }
 
+<<<<<<< HEAD
 double Item_func_match::val_real() {
+<<<<<<< HEAD
   assert(fixed);
 
   // MATCH only knows how to get the score for base columns. Other types of
@@ -7715,6 +10655,17 @@ double Item_func_match::val_real() {
 
   DBUG_TRACE;
   if (ft_handler == nullptr) return -1.0;
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+double Item_func_match::val_real()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Item_func_match::val");
+  if (ft_handler == NULL) DBUG_RETURN(-1.0);
+>>>>>>> pr/231
 
   TABLE *const table = table_ref->table;
   if (key != NO_SUCH_KEY && table->has_null_row())  // NULL row from outer join
@@ -7757,9 +10708,20 @@ void Item_func_match::print(const THD *thd, String *str,
   @param no_cond  true if MATCH is not used in WHERE condition.
 */
 
+<<<<<<< HEAD
 void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
                                 bool no_cond) {
+<<<<<<< HEAD
   assert(!master);
+=======
+  DBUG_ASSERT(!master);
+=======
+void Item_func_match::set_hints(JOIN *join, uint ft_flag,
+                                ha_rows ft_limit, bool no_cond)
+{
+  assert(!master);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!join)  // used for count() optimization
   {
@@ -7787,6 +10749,7 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
     hints->set_hint_limit(ft_limit);
 }
 
+<<<<<<< HEAD
 NonAggregatedFullTextSearchVisitor::NonAggregatedFullTextSearchVisitor(
     std::function<bool(Item_func_match *)> func)
     : m_func(std::move(func)) {}
@@ -7835,6 +10798,23 @@ bool NonAggregatedFullTextSearchVisitor::operator()(Item *item) {
   }
 }
 
+=======
+<<<<<<< HEAD
+=======
+
+longlong Item_func_bit_xor::val_int()
+{
+  assert(fixed == 1);
+  ulonglong arg1= (ulonglong) args[0]->val_int();
+  ulonglong arg2= (ulonglong) args[1]->val_int();
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    return 0;
+  return (longlong) (arg1 ^ arg2);
+}
+
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /***************************************************************************
   System variables
 ****************************************************************************/
@@ -7849,6 +10829,9 @@ bool NonAggregatedFullTextSearchVisitor::operator()(Item *item) {
   @param unsafe_for_replication If true and if the variable is written to a
                                 binlog then mark the statement as unsafe.
 
+  @param unsafe                 If true and if the variable is written to a
+                                binlog then mark the statement as unsafe.
+
   @note
     If component.str = 0 then the variable name is in 'name'
 
@@ -7857,10 +10840,27 @@ bool NonAggregatedFullTextSearchVisitor::operator()(Item *item) {
     - #  : constant item
 */
 
+<<<<<<< HEAD
 Item *get_system_variable(Parse_context *pc, enum_var_type scope,
                           const LEX_CSTRING &prefix, const LEX_CSTRING &suffix,
                           bool unsafe_for_replication) {
   THD *thd = pc->thd;
+=======
+<<<<<<< HEAD
+Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component) {
+  THD *thd = pc->thd;
+=======
+
+Item *get_system_var(Parse_context *pc,
+                     enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component, bool unsafe)
+{
+  THD *thd= pc->thd;
+>>>>>>> upstream/cluster-7.6
+  sys_var *var;
+  LEX_STRING *base_name, *component_name;
+>>>>>>> pr/231
 
   enum_var_type resolved_scope;
   bool written_to_binlog_flag = false;
@@ -7897,7 +10897,61 @@ Item *get_system_variable(Parse_context *pc, enum_var_type scope,
 
   thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
 
+<<<<<<< HEAD
   return new Item_func_get_system_var(var_tracker, resolved_scope);
+=======
+  set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
+
+  var->do_deprecated_warning(thd);
+
+<<<<<<< HEAD
+  return new Item_func_get_system_var(var, var_type, component_name, nullptr,
+                                      0);
+=======
+  Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+  if (item == NULL)
+    return NULL;  // OOM
+
+  if (unsafe && !var->is_written_to_binlog(var_type))
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
+
+#ifndef EMBEDDED_LIBRARY
+  if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
+  {
+    String str;
+    String *outStr;
+    /* This object is just created for variable to string conversion.
+       item object cannot be used after the conversion of the variable
+       to string. It caches the data. */
+    Item_func_get_system_var *si= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+
+    /* Disable deprecation warning during var to string conversion. */
+    Silence_deprecation_warnings silencer;
+    thd->push_internal_handler(&silencer);
+
+    if (si)
+      (void) si->fix_length_and_dec();
+    outStr= si ? si->val_str(&str) : &str;
+
+    thd->pop_internal_handler();
+
+    if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                           var->name.str,
+                           outStr ? outStr->ptr() : NULL,
+                           outStr ? outStr->length() : 0))
+      {
+        return 0;
+      }
+  }
+#endif
+
+  return item;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool Item_func_row_count::itemize(Parse_context *pc, Item **res) {
@@ -7910,9 +10964,16 @@ bool Item_func_row_count::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+<<<<<<< HEAD
 longlong Item_func_row_count::val_int() {
   assert(fixed == 1);
   THD *thd = current_thd;
+=======
+longlong Item_func_row_count::val_int()
+{
+  assert(fixed == 1);
+  THD *thd= current_thd;
+>>>>>>> upstream/cluster-7.6
 
   return thd->get_row_count_func();
 }
@@ -7944,11 +11005,34 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   context = lex->current_context();
   lex->safe_to_cache_query = false;
 
+<<<<<<< HEAD
   if (m_name->m_db.str == nullptr) {
     if (thd->lex->copy_db_to(&m_name->m_db.str, &m_name->m_db.length)) {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
+=======
+<<<<<<< HEAD
+  if (m_name->m_db.str == NULL)  // use the default database name
+  {
+    /* Cannot match the function since no database is selected */
+    if (thd->db().str == NULL) {
+      my_error(ER_NO_DB_ERROR, MYF(0));
+      return true;
+    }
+    m_name->m_db = thd->db();
+    m_name->m_db.str = thd->strmake(m_name->m_db.str, m_name->m_db.length);
+=======
+  context= lex->current_context();
+  lex->safe_to_cache_query= false;
+
+  if (m_name->m_db.str == NULL)
+  {
+    /* Cannot match the function since no database is selected */
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    return true;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   m_name->init_qname(thd);
@@ -8028,8 +11112,13 @@ bool Item_func_sp::init_result_field(THD *thd) {
   LEX_CSTRING empty_name = {STRING_WITH_LEN("")};
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(m_sp == nullptr);
   assert(sp_result_field == nullptr);
+=======
+  assert(m_sp == NULL);
+  assert(sp_result_field == NULL);
+>>>>>>> pr/231
 
   Internal_error_handler_holder<View_error_handler, Table_ref> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
@@ -8075,10 +11164,20 @@ bool Item_func_sp::init_result_field(THD *thd) {
 bool Item_func_sp::resolve_type(THD *) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(sp_result_field);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(sp_result_field);
+>>>>>>> pr/231
   set_data_type(sp_result_field->type());
   decimals = sp_result_field->decimals();
   max_length = sp_result_field->field_length;
+=======
+  assert(sp_result_field);
+  decimals= sp_result_field->decimals();
+  max_length= sp_result_field->field_length;
+>>>>>>> upstream/cluster-7.6
   collation.set(sp_result_field->charset());
   set_nullable(true);
   unsigned_flag = sp_result_field->is_flag_set(UNSIGNED_FLAG);
@@ -8242,17 +11341,46 @@ error:
 }
 
 void Item_func_sp::make_field(Send_field *tmp_field) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(sp_result_field);
   sp_result_field->make_send_field(tmp_field);
+=======
+  DBUG_ENTER("Item_func_sp::make_field");
+  assert(sp_result_field);
+  sp_result_field->make_field(tmp_field);
+>>>>>>> pr/231
   if (item_name.is_set()) tmp_field->col_name = item_name.ptr();
 }
 
+<<<<<<< HEAD
 Item_result Item_func_sp::result_type() const {
   DBUG_TRACE;
   DBUG_PRINT("info", ("m_sp = %p", (void *)m_sp));
+<<<<<<< HEAD
   assert(sp_result_field);
   return sp_result_field->result_type();
+=======
+  DBUG_ASSERT(sp_result_field);
+=======
+
+enum enum_field_types
+Item_func_sp::field_type() const
+{
+  DBUG_ENTER("Item_func_sp::field_type");
+  assert(sp_result_field);
+  DBUG_RETURN(sp_result_field->type());
+}
+
+Item_result
+Item_func_sp::result_type() const
+{
+  DBUG_ENTER("Item_func_sp::result_type");
+  DBUG_PRINT("info", ("m_sp = %p", (void *) m_sp));
+  assert(sp_result_field);
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(sp_result_field->result_type());
+>>>>>>> pr/231
 }
 
 bool Item_func_found_rows::itemize(Parse_context *pc, Item **res) {
@@ -8266,8 +11394,19 @@ bool Item_func_found_rows::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+<<<<<<< HEAD
 longlong Item_func_found_rows::val_int() {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+longlong Item_func_found_rows::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return current_thd->found_rows();
 }
 
@@ -8275,7 +11414,11 @@ Field *Item_func_sp::tmp_table_field(TABLE *) {
   DBUG_TRACE;
 
   assert(sp_result_field);
+<<<<<<< HEAD
   return sp_result_field;
+=======
+  DBUG_RETURN(sp_result_field);
+>>>>>>> pr/231
 }
 
 /**
@@ -8293,11 +11436,28 @@ Field *Item_func_sp::tmp_table_field(TABLE *) {
 */
 
 bool Item_func_sp::sp_check_access(THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(m_sp);
   if (check_routine_access(thd, EXECUTE_ACL, m_sp->m_db.str, m_sp->m_name.str,
                            false, false))
     return true;
+=======
+  DBUG_ENTER("Item_func_sp::sp_check_access");
+<<<<<<< HEAD
+  DBUG_ASSERT(m_sp);
+  if (check_routine_access(thd, EXECUTE_ACL, m_sp->m_db.str, m_sp->m_name.str,
+                           0, false))
+    DBUG_RETURN(true);
+=======
+  assert(m_sp);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (check_routine_access(thd, EXECUTE_ACL,
+			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
+    DBUG_RETURN(TRUE);
+#endif
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return false;
 }
@@ -8305,7 +11465,11 @@ bool Item_func_sp::sp_check_access(THD *thd) {
 bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
   Security_context *save_security_ctx = thd->security_context();
 
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Item_func_sp::fix_fields");
+>>>>>>> pr/231
   assert(fixed == 0);
 
   /*

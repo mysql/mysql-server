@@ -57,6 +57,7 @@ GRANT `r1`@`%`,`r2`@`%` TO `u1`@`localhost`
 REVOKE r1 FROM r2;
 SET @@global.debug="+d,induce_acl_load_failure";
 FLUSH PRIVILEGES;
+<<<<<<< HEAD
 ERROR HY000: Unknown error
 # Grant should not have changed
 SHOW GRANTS FOR u1@localhost USING r1;
@@ -97,3 +98,57 @@ USE mysql;
 SET @@global.debug="-d, dbug_fail_in_role_cache_reinit";
 DROP USER u1;
 DROP ROLE r1;
+=======
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+#Now it should pass as mysql.tables_priv.Grantor is 77 chars
+GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+ERROR 42000: Can't find any matching row in the user table
+SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
+Grantor
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
+LENGTH(Grantor)
+#Now it should pass as mysql.procs_priv.Grantor is 77 chars
+GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+ERROR 42000: Can't find any matching row in the user table
+SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
+Grantor
+SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
+LENGTH(Grantor)
+#cleanup
+Restore mysql.procs_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.procs_priv
+MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Restore mysql.tables_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.tables_priv
+MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+DROP PROCEDURE db_1.p_def;
+DROP DATABASE db_1;
+###
+### Bug#27302337: MYSQL ABORTS WITHOUT PROPER ERROR MESSAGE ON
+###               STARTUP IF GRANT TABLES ARE CORRUPT
+###
+# Shutdown the server
+# Start the server to simulate acl_init() failure
+Pattern "Table 'user' is marked as crashed and should be repaired" found
+Pattern "Fatal error: Failed to initialize ACL/grant/time zones structures or failed to remove temporary table files." found
+Pattern "Aborting" found
+# Restart the server
+>>>>>>> upstream/cluster-7.6

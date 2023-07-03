@@ -22,6 +22,45 @@ call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm 
 call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
+<<<<<<< HEAD
+=======
+# Create a table with encryption, should fail since keyring is not
+# loaded
+<<<<<<< HEAD
+=======
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("ibd can't be decrypted");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+--enable_query_log
+
+>>>>>>> upstream/cluster-7.6
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- send_shutdown
+-- source include/wait_until_disconnected.inc
+--exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+>>>>>>> pr/231
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 SET GLOBAL innodb_file_per_table = 0;

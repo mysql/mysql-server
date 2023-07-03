@@ -1,6 +1,10 @@
 -- source include/have_ndb.inc
 -- source include/count_sessions.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+-- source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # 18075170 - sql node restart required to avoid deadlock after

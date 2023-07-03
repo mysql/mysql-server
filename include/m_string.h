@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +44,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+<<<<<<< HEAD
 #include <algorithm>
 
 #include "decimal.h"
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include "lex_string.h"
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+=======
+#define bfill please_use_memset_rather_than_bfill
+#ifdef bzero
+#undef bzero
+#endif
+#define bzero please_use_memset_rather_than_bzero
+#define bmove please_use_memmove_rather_than_bmove
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
+>>>>>>> upstream/cluster-7.6
 
 /**
   Definition of the null string (a null pointer of type char *),
@@ -318,6 +340,7 @@ static inline char *ullstr(longlong value, char *buff) {
 
   @return New end of the string.
 */
+<<<<<<< HEAD
 static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
   const uchar *end = ptr + len;
   while (end - ptr >= 8) {
@@ -325,6 +348,35 @@ static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
     memcpy(&chunk, end - 8, sizeof(chunk));
     if (chunk != 0x2020202020202020ULL) break;
     end -= 8;
+=======
+#if defined(__sparc) || defined(__sparcv9)
+static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
+{
+  /* SPACE_INT is a word that contains only spaces */
+#if SIZEOF_INT == 4
+  const unsigned SPACE_INT= 0x20202020U;
+#elif SIZEOF_INT == 8
+  const unsigned SPACE_INT= 0x2020202020202020ULL;
+#else
+#error define the appropriate constant for a word full of spaces
+#endif
+
+  const uchar *end= ptr + len;
+
+  if (len > 20)
+  {
+    const uchar *end_words= (const uchar *)(intptr)
+      (((ulonglong)(intptr)end) / SIZEOF_INT * SIZEOF_INT);
+    const uchar *start_words= (const uchar *)(intptr)
+       ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
+
+    assert(end_words > ptr);
+    while (end > end_words && end[-1] == 0x20)
+      end--;
+    if (end[-1] == 0x20 && start_words < end_words)
+      while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+        end -= SIZEOF_INT;
+>>>>>>> upstream/cluster-7.6
   }
   while (end > ptr && end[-1] == 0x20) end--;
   return (end);

@@ -40,7 +40,11 @@ ndb$tables	CREATE TABLE `ndb$tables` (
   `table_id` int unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
   `comment` varchar(512) DEFAULT NULL,
+<<<<<<< HEAD
   `rows_estimate` int unsigned DEFAULT NULL
+=======
+  `rows_estimate` int(10) unsigned DEFAULT NULL
+>>>>>>> pr/231
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
 
 SELECT table_id, table_name, comment FROM ndb$tables;
@@ -612,6 +616,7 @@ desc restart_info;
 Field	Type	Null	Key	Default	Extra
 node_id	int unsigned	YES		NULL	
 node_restart_status	varchar(512)	YES		NULL	
+<<<<<<< HEAD
 node_restart_status_int	int unsigned	YES		NULL	
 secs_to_complete_node_failure	int unsigned	YES		NULL	
 secs_to_allocate_node_id	int unsigned	YES		NULL	
@@ -632,6 +637,28 @@ secs_to_synchronize_starting_node	int unsigned	YES		NULL
 secs_wait_lcp_for_restart	int unsigned	YES		NULL	
 secs_wait_subscription_handover	int unsigned	YES		NULL	
 total_restart_secs	int unsigned	YES		NULL	
+=======
+node_restart_status_int	int(10) unsigned	YES		NULL	
+secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
+secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
+secs_to_include_in_heartbeat_protocol	int(10) unsigned	YES		NULL	
+secs_until_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_to_get_start_permitted	int(10) unsigned	YES		NULL	
+secs_to_wait_for_lcp_for_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_include_node	int(10) unsigned	YES		NULL	
+secs_starting_node_to_request_local_recovery	int(10) unsigned	YES		NULL	
+secs_for_local_recovery	int(10) unsigned	YES		NULL	
+secs_restore_fragments	int(10) unsigned	YES		NULL	
+secs_undo_disk_data	int(10) unsigned	YES		NULL	
+secs_exec_redo_log	int(10) unsigned	YES		NULL	
+secs_index_rebuild	int(10) unsigned	YES		NULL	
+secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL	
+secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
+secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
+total_restart_secs	int(10) unsigned	YES		NULL	
+>>>>>>> pr/231
 select * from restart_info where node_restart_status <> 'Restart completed';
 node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
@@ -1045,17 +1072,38 @@ create unique index ix2 on t1(b) using hash;
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
 select type, state, parent_obj_type,
+<<<<<<< HEAD
   replace(replace(fq_name,
                   concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
           concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
   if(parent_obj_id=@t1_id, "child_of_t1",
     if(parent_obj_id=0, "root", "error!")) as  nesting
   from ndbinfo.ndb$dict_obj_info
+=======
+<<<<<<< HEAD
+  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+  where id >= @t1_id and id < @t1_id + 5 and type <= 6
+  order by type, id;
+=======
+  replace(replace(fq_name,
+                  concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
+          concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+>>>>>>> pr/231
   where type <= 6
   and (id = @t1_id or
        instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
        instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
   order by type, state, parent_obj_type, fq_name;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 type	state	parent_obj_type	fq_name	nesting
 2	4	0	ndbinfo/def/t1	root
 2	4	2	ndbinfo/def/NDB$BLOB_<t1 id>_4	child_of_t1
@@ -1099,12 +1147,19 @@ where pool_name='Index memory';
 used_bytes - hash_index_alloc_bytes
 0
 
+<<<<<<< HEAD
 select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
   into @diff
   from pool_sum, frag_sum 
   where pool_name='Data memory';
 select @diff;
 @diff
+=======
+select @diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+@diff:=used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+>>>>>>> pr/231
 0
 
 
@@ -1279,9 +1334,15 @@ parent_fq_name	ndbinfo/def/t1
 type	User table
 frag_count	16
 tot_key_reads	0
+<<<<<<< HEAD
 tot_key_inserts	100
 tot_key_updates	0
 tot_key_writes	100
+=======
+tot_key_inserts	200
+tot_key_updates	0
+tot_key_writes	0
+>>>>>>> pr/231
 tot_key_deletes	0
 tot_key_refs	0
 log_tot_key_attrinfo_bytes	16
@@ -1432,7 +1493,158 @@ delete from t1 where a%30=0;
 
 
 
+<<<<<<< HEAD
 
+=======
+select * from frag_ops;;
+<<<<<<< HEAD
+fq_name	ndbinfo/def/t1
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	19
+tot_key_inserts	205
+tot_key_updates	236
+tot_key_writes	0
+tot_key_deletes	10
+tot_key_refs	4
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	3760
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	4220
+tot_frag_scans	56
+tot_scan_rows_examined	306
+tot_scan_rows_returned	215
+tot_scan_bytes_returned	5468
+tot_scan_prog_bytes	288
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	305
+conc_qd_frag_scans	0
+tot_commits	450
+=======
+>>>>>>> upstream/cluster-7.6
+fq_name	ndbinfo/def/NDB$BLOB_
+parent_fq_name	ndbinfo/def/t1
+type	User table
+frag_count	16
+tot_key_reads	1
+tot_key_inserts	218
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	28
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	2964
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	268
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_qd_frag_scans	0
+tot_commits	246
+fq_name	ndbinfo/def/t1
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	19
+tot_key_inserts	205
+tot_key_updates	236
+tot_key_writes	0
+tot_key_deletes	10
+tot_key_refs	4
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	3760
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	4220
+tot_frag_scans	56
+tot_scan_rows_examined	306
+tot_scan_rows_returned	215
+tot_scan_bytes_returned	5564
+tot_scan_prog_bytes	288
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	305
+conc_qd_frag_scans	0
+tot_commits	450
+fq_name	ix1$unique
+parent_fq_name	ndbinfo/def/t1
+type	Unique hash index
+frag_count	16
+tot_key_reads	3
+tot_key_inserts	222
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	28
+tot_key_refs	3
+log_tot_key_attrinfo_bytes	12
+tot_key_keyinfo_bytes	1012
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_qd_frag_scans	0
+tot_commits	250
+fq_name	PRIMARY
+parent_fq_name	ndbinfo/def/t1
+type	Ordered index
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	0
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	0
+tot_key_keyinfo_bytes	0
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	32
+tot_scan_rows_examined	20
+tot_scan_rows_returned	20
+tot_scan_bytes_returned	588
+tot_scan_prog_bytes	576
+tot_scan_bound_bytes	9888
+tot_scan_inst_exec	58
+conc_qd_frag_scans	0
+tot_commits	0
+fq_name	ndbinfo/def/t2
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	6
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	7
+tot_key_keyinfo_bytes	24
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	8
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	32
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_qd_frag_scans	0
+tot_commits	6
+>>>>>>> pr/231
 explain select count(*)
 from t2 as tx, t2 as ty
 where tx.a in (1,3,5)
@@ -1490,10 +1702,10 @@ new.tot_key_updates - old.tot_key_updates	0
 new.tot_key_writes - old.tot_key_writes	0
 new.tot_key_deletes - old.tot_key_deletes	0
 new.tot_key_refs - old.tot_key_refs	1
-new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	1
 new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
-new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
-new.tot_key_inst_exec - old.tot_key_inst_exec	7
+new.tot_key_prog_bytes - old.tot_key_prog_bytes	0
+new.tot_key_inst_exec - old.tot_key_inst_exec	0
 new.tot_key_bytes_returned - old.tot_key_bytes_returned	56
 new.tot_frag_scans - old.tot_frag_scans	0
 new.tot_scan_rows_examined - old.tot_scan_rows_examined	0

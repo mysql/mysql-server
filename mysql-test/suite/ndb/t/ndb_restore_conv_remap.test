@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
 
 --disable_query_log
@@ -8,6 +9,13 @@ set ndb_autoincrement_prefetch_sz = 1;
 
 use test;
 
+=======
+-- source include/not_embedded.inc
+
+use test;
+
+
+>>>>>>> pr/231
 --echo More complex example
 create table idx_tbl (entry_key bigint unsigned not null auto_increment,
                       k1 varchar(100), 
@@ -37,7 +45,11 @@ create table type2_2 (entry_key bigint unsigned not null,
 --echo a couple of type_1 rows and 2 sets of type_2 rows
 
 insert into idx_tbl (k1,k2,data) values ('Edinburgh', 'UK', 1);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 11);
   insert into type1_2 values (@ek, 12);
   insert into type2_1 (entry_key, data) values (@ek, 110);
@@ -48,7 +60,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0122", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Bristol', 'UK', 2);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 21);
   insert into type1_2 values (@ek, 22);
   insert into type2_1 (entry_key, data) values (@ek, 210);
@@ -59,7 +75,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0222", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Glasgow', 'UK', 3);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 31);
   insert into type1_2 values (@ek, 32);
   insert into type2_1 (entry_key, data) values (@ek, 310);
@@ -70,7 +90,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0322", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('London', 'UK', 4);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 41);
   insert into type1_2 values (@ek, 42);
   insert into type2_1 (entry_key, data) values (@ek, 410);
@@ -81,7 +105,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0422", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Paris', 'France', 5);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 51);
   insert into type1_2 values (@ek, 52);
   insert into type2_1 (entry_key, data) values (@ek, 510);
@@ -92,7 +120,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0522", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Heidelberg', 'Germany', 6);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 61);
   insert into type1_2 values (@ek, 62);
   insert into type2_1 (entry_key, data) values (@ek, 610);
@@ -103,7 +135,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0622", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Riga', 'Latvia', 7);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 71);
   insert into type1_2 values (@ek, 72);
   insert into type2_1 (entry_key, data) values (@ek, 710);
@@ -114,7 +150,11 @@ select last_insert_id() into @ek;
   insert into type2_2 (entry_key, data) values (@ek, repeat("0722", 10000));
 
 insert into idx_tbl (k1,k2,data) values ('Orlando', 'USA', 8);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 81);
   insert into type1_2 values (@ek, 82);
   insert into type2_1 (entry_key, data) values (@ek, 810);
@@ -157,11 +197,19 @@ select idx_tbl.entry_key,
 
 --echo Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
+<<<<<<< HEAD
 show create table idx_tbl;
 select count(1), max(mv_idx) from test.type2_1;
 show create table type2_1;
 select count(1), max(mv_idx) from test.type2_2;
 show create table type2_2;
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+select count(1), max(mv_idx) from test.type2_1;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+select count(1), max(mv_idx) from test.type2_2;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+>>>>>>> pr/231
 
 --echo No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
@@ -223,11 +271,19 @@ select idx_tbl.entry_key,
 
 --echo Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
+<<<<<<< HEAD
 show create table idx_tbl;
 select count(1), max(mv_idx) from test.type2_1;
 show create table type2_1;
 select count(1), max(mv_idx) from test.type2_2;
 show create table type2_2;
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+select count(1), max(mv_idx) from test.type2_1;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+select count(1), max(mv_idx) from test.type2_2;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+>>>>>>> pr/231
 
 --echo No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
@@ -245,6 +301,7 @@ having ct > 1;
 drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;                      
 
 --echo Run normal restore for first set of content
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $first_backup_id -n 1 -m $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $first_backup_id -n 1 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $first_backup_id -n 2 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
@@ -254,6 +311,15 @@ drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
 --let next_entry_key=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl', AUTO_INCREMENT, 1)
 --let next_type2_1=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1', AUTO_INCREMENT, 1)
 --let next_type2_2=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2', AUTO_INCREMENT, 1)
+=======
+--exec $NDB_RESTORE --no-defaults -b $first_backup_id -n 1 -m $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $first_backup_id -n 1 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $first_backup_id -n 2 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+
+--let next_entry_key=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl', auto_increment, 1)
+--let next_type2_1=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1', auto_increment, 1)
+--let next_type2_2=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2', auto_increment, 1)
+>>>>>>> pr/231
 
 --let remap_args = -x test.idx_tbl.entry_key:offset:$next_entry_key
 --let remap_args = $remap_args -x test.type1_1.entry_key:offset:$next_entry_key
@@ -266,8 +332,13 @@ drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
 --echo Remap args : $remap_args
 
 --echo Run offset restore for second set of content
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $second_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $second_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $second_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $second_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Combined dataset
 --echo -----------------
@@ -296,11 +367,19 @@ select idx_tbl.entry_key,
 
 --echo Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
+<<<<<<< HEAD
 show create table idx_tbl;
 select count(1), max(mv_idx) from test.type2_1;
 show create table type2_1;
 select count(1), max(mv_idx) from test.type2_2;
 show create table type2_2;
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+select count(1), max(mv_idx) from test.type2_1;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+select count(1), max(mv_idx) from test.type2_2;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+>>>>>>> pr/231
 
 --echo No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
@@ -312,7 +391,11 @@ having ct > 1;
 
 --echo Verify the insert of further entity succeeds
 insert into idx_tbl (k1,k2,data) values ('Sancerre', 'France', 9);
+<<<<<<< HEAD
 select last_insert_id() into @ek;
+=======
+select @ek:=last_insert_id();
+>>>>>>> pr/231
   insert into type1_1 values (@ek, 91);
   insert into type1_2 values (@ek, 92);
   insert into type2_1 (entry_key, data) values (@ek, 910);
@@ -349,11 +432,19 @@ select idx_tbl.entry_key,
 
 --echo Show auto-inc values
 select count(1), max(entry_key) from test.idx_tbl;
+<<<<<<< HEAD
 show create table idx_tbl;
 select count(1), max(mv_idx) from test.type2_1;
 show create table type2_1;
 select count(1), max(mv_idx) from test.type2_2;
 show create table type2_2;
+=======
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl';
+select count(1), max(mv_idx) from test.type2_1;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1';
+select count(1), max(mv_idx) from test.type2_2;
+select table_name, auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2';
+>>>>>>> pr/231
 
 --echo No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
@@ -364,6 +455,7 @@ select mv_idx, count(1) as ct
 having ct > 1;
 
 drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
+<<<<<<< HEAD
 
 --disable_query_log
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
@@ -371,3 +463,5 @@ set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

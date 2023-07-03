@@ -3,6 +3,11 @@
 --echo #        FAILED WITH MYSQL CLIENT
 --echo #
 
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+
+>>>>>>> pr/231
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 create database test1;
 create database test2;

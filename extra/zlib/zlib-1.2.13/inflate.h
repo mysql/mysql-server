@@ -1,5 +1,19 @@
 /* inflate.h -- internal inflate state definition
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.h
  * Copyright (C) 1995-2019 Mark Adler
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.h
+ * Copyright (C) 1995-2016 Mark Adler
+========
+ * Copyright (C) 1995-2019 Mark Adler
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.h
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.h
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +45,18 @@ const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
 const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
     "certification_info_error";
 
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
 static void *launch_broadcast_thread(void *arg) {
   Certifier_broadcast_thread *handler = (Certifier_broadcast_thread *)arg;
+=======
+const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
+const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
+    "certification_info_error";
+
+static void *launch_broadcast_thread(void* arg)
+{
+  Certifier_broadcast_thread *handler= (Certifier_broadcast_thread*) arg;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
   handler->dispatcher();
   return nullptr;
 }
@@ -234,8 +252,17 @@ int Certifier_broadcast_thread::broadcast_gtid_executed() {
     error = 1;                                          /* purecov: inspected */
   }
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   char *encoded_gtid_executed_string =
+=======
+#if !defined(NDEBUG)
+  char *encoded_gtid_executed_string=
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
   DBUG_PRINT("info", ("Certifier broadcast executed_set: %s",
                       encoded_gtid_executed_string));
@@ -261,8 +288,17 @@ Certifier::Certifier()
       conflict_detection_enable(!local_member_info->in_primary_mode()) {
   last_conflict_free_transaction.clear();
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   certifier_garbage_collection_block = false;
+=======
+#if !defined(NDEBUG)
+  certifier_garbage_collection_block= false;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
   /*
     Debug flag to block the garbage collection and discard incoming stable
     set messages while garbage collection is on going.
@@ -491,29 +527,69 @@ void Certifier::compute_group_available_gtid_intervals() {
   }
 
   // For each used interval find the upper bound and from there
+<<<<<<< HEAD
   // add the free GTIDs up to the next interval or GNO_END.
   while ((iv = ivit.get()) != nullptr) {
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+  // add the free GTIDs up to the next interval or MAX_GNO.
+  while ((iv = ivit.get()) != NULL) {
+=======
+  // add the free GTIDs up to the next interval or GNO_END.
+  while ((iv= ivit.get()) != NULL)
+  {
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
     ivit.next();
     iv_next = ivit.get();
 
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
     rpl_gno start = iv->end;
     rpl_gno end = GNO_END;
     if (iv_next != nullptr) end = iv_next->start - 1;
 
+<<<<<<< HEAD
     assert(start <= end);
     Gtid_set::Interval interval = {start, end, nullptr};
+=======
+    DBUG_ASSERT(start <= end);
+    Gtid_set::Interval interval = {start, end, NULL};
+=======
+    rpl_gno start= iv->end;
+    rpl_gno end= GNO_END;
+    if (iv_next != NULL)
+      end= iv_next->start - 1;
+
+    assert(start <= end);
+    Gtid_set::Interval interval= {start, end, NULL};
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
     group_available_gtid_intervals.push_back(interval);
   }
 
   // No GTIDs used, so the available interval is the complete set.
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   if (group_available_gtid_intervals.size() == 0) {
+<<<<<<< HEAD
     Gtid_set::Interval interval = {1, GNO_END, nullptr};
+=======
+    Gtid_set::Interval interval = {1, MAX_GNO, NULL};
+=======
+  if (group_available_gtid_intervals.size() == 0)
+  {
+    Gtid_set::Interval interval= {1, GNO_END, NULL};
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
     group_available_gtid_intervals.push_back(interval);
   }
 }
 
 Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Certifier::reserve_gtid_block");
+>>>>>>> pr/231
   assert(block_size > 1);
   mysql_mutex_assert_owner(&LOCK_certification_info);
 
@@ -523,9 +599,18 @@ Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
   if (group_available_gtid_intervals.size() == 0)
     compute_group_available_gtid_intervals();
 
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   std::list<Gtid_set::Interval>::iterator it =
       group_available_gtid_intervals.begin();
+<<<<<<< HEAD
   assert(it != group_available_gtid_intervals.end());
+=======
+  DBUG_ASSERT(it != group_available_gtid_intervals.end());
+=======
+  std::list<Gtid_set::Interval>::iterator it= group_available_gtid_intervals.begin();
+  assert(it != group_available_gtid_intervals.end());
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
 
   /*
     We always have one or more intervals, the only thing to check
@@ -535,12 +620,28 @@ Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
   if (block_size > it->end - it->start) {
     result = *it;
     group_available_gtid_intervals.erase(it);
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   } else {
     result.start = it->start;
     result.end = it->start + block_size - 1;
     it->start = result.end + 1;
+<<<<<<< HEAD
     assert(result.start <= result.end);
     assert(result.start < it->start);
+=======
+    DBUG_ASSERT(result.start <= result.end);
+    DBUG_ASSERT(result.start < it->start);
+=======
+  }
+  else
+  {
+    result.start= it->start;
+    result.end= it->start + block_size - 1;
+    it->start= result.end + 1;
+    assert(result.start <= result.end);
+    assert(result.start < it->start);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
   }
 
   return result;
@@ -551,6 +652,19 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
   group_gtid_executed->_add_gtid(sidno, gno);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+  if (local) {
+    DBUG_ASSERT(sidno > 0 && gno > 0);
+=======
+  if (local)
+  {
+    assert(sidno >0 && gno >0);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+    last_local_gtid.set(sidno, gno);
+  }
+>>>>>>> pr/231
   /*
     We only need to track certified transactions on
     group_gtid_extracted while:
@@ -601,8 +715,17 @@ int Certifier::initialize(ulonglong gtid_assignment_block_size) {
     goto end;  /* purecov: inspected */
   }
 
+<<<<<<< HEAD
   assert(gtid_assignment_block_size >= 1);
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+  DBUG_ASSERT(gtid_assignment_block_size >= 1);
+>>>>>>> pr/231
   this->gtid_assignment_block_size = gtid_assignment_block_size;
+=======
+  assert(gtid_assignment_block_size >= 1);
+  this->gtid_assignment_block_size= gtid_assignment_block_size;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
 
   /*
     We need to initialize group_gtid_executed from both GTID_EXECUTED
@@ -687,9 +810,21 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       !group_gtid_extracted->is_subset_not_equals(group_gtid_executed)) {
     certifying_already_applied_transactions = false;
 
+<<<<<<< HEAD
 #ifndef NDEBUG
     char *group_gtid_executed_string = nullptr;
     char *group_gtid_extracted_string = nullptr;
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+#ifndef DBUG_OFF
+    char *group_gtid_executed_string = NULL;
+    char *group_gtid_extracted_string = NULL;
+=======
+#ifndef NDEBUG
+    char *group_gtid_executed_string= NULL;
+    char *group_gtid_extracted_string= NULL;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
     group_gtid_executed->to_string(&group_gtid_executed_string, true);
     group_gtid_extracted->to_string(&group_gtid_extracted_string, true);
     DBUG_PRINT(
@@ -903,11 +1038,25 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       transaction_last_committed = parallel_applier_sequence_number - 1;
     }
 
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
     gle->last_committed = transaction_last_committed;
     gle->sequence_number = parallel_applier_sequence_number;
+<<<<<<< HEAD
     assert(gle->last_committed >= 0);
     assert(gle->sequence_number > 0);
     assert(gle->last_committed < gle->sequence_number);
+=======
+    DBUG_ASSERT(gle->last_committed >= 0);
+    DBUG_ASSERT(gle->sequence_number > 0);
+    DBUG_ASSERT(gle->last_committed < gle->sequence_number);
+=======
+    gle->last_committed= transaction_last_committed;
+    gle->sequence_number= parallel_applier_sequence_number;
+    assert(gle->last_committed >= 0);
+    assert(gle->sequence_number > 0);
+    assert(gle->last_committed < gle->sequence_number);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
 
     increment_parallel_applier_sequence_number(
         !has_write_set || update_parallel_applier_last_committed_global);
@@ -993,11 +1142,28 @@ rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
   mysql_mutex_assert_owner(&LOCK_certification_info);
   rpl_gno result = 0;
 
+<<<<<<< HEAD
   if (member_uuid == nullptr || gtid_assignment_block_size <= 1) {
     result = get_next_available_gtid_candidate(sidno, 1, GNO_END);
     if (result < 0) {
       assert(result == -1);
       return result;
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+  if (member_uuid == NULL || gtid_assignment_block_size <= 1) {
+    result = get_group_next_available_gtid_candidate(1, MAX_GNO);
+    if (result < 0) {
+      DBUG_ASSERT(result == -1);
+=======
+  if (member_uuid == NULL || gtid_assignment_block_size <= 1)
+  {
+    result= get_group_next_available_gtid_candidate(1, GNO_END);
+    if (result < 0)
+    {
+      assert(result == -1);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+      DBUG_RETURN(result);
+>>>>>>> pr/231
     }
 
     /*
@@ -1027,6 +1193,7 @@ rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
 
     if (it == member_gtids.end()) {
       // There is no block assigned to this member so get one.
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
       std::pair<std::map<std::string, Gtid_set::Interval>::iterator, bool>
           insert_ret;
       std::pair<std::string, Gtid_set::Interval> member_pair(
@@ -1034,6 +1201,14 @@ rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
       insert_ret = member_gtids.insert(member_pair);
       assert(insert_ret.second == true);
       it = insert_ret.first;
+=======
+      std::pair<std::map<std::string, Gtid_set::Interval>::iterator, bool> insert_ret;
+      std::pair<std::string, Gtid_set::Interval> member_pair(member,
+          reserve_gtid_block(gtid_assignment_block_size));
+      insert_ret= member_gtids.insert(member_pair);
+      assert(insert_ret.second == true);
+      it= insert_ret.first;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
     }
 
     result = get_next_available_gtid_candidate(sidno, it->second.start,
@@ -1051,6 +1226,7 @@ rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
   }
 
   assert(result > 0);
+<<<<<<< HEAD
   return result;
 }
 
@@ -1058,6 +1234,14 @@ rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
                                                      rpl_gno start,
                                                      rpl_gno end) const {
   DBUG_TRACE;
+=======
+  DBUG_RETURN(result);
+}
+
+rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
+                                                           rpl_gno end) const {
+  DBUG_ENTER("Certifier::get_group_next_available_gtid_candidate");
+>>>>>>> pr/231
   assert(start > 0);
   assert(start <= end);
   mysql_mutex_assert_owner(&LOCK_certification_info);
@@ -1066,7 +1250,11 @@ rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
   Gtid_set::Const_interval_iterator ivit(certifying_already_applied_transactions
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
+<<<<<<< HEAD
                                          sidno);
+=======
+                                         group_gtid_sid_map_group_sidno);
+>>>>>>> pr/231
 #ifndef NDEBUG
   if (certifying_already_applied_transactions)
     DBUG_PRINT("Certifier::get_next_available_gtid_candidate()",
@@ -1077,10 +1265,22 @@ rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
     Walk through available intervals until we find the correct one
     or return GNO exhausted error.
   */
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   while (true) {
     assert(candidate >= start);
     const Gtid_set::Interval *iv = ivit.get();
+<<<<<<< HEAD
     rpl_gno next_interval_start = iv != nullptr ? iv->start : GNO_END;
+=======
+    rpl_gno next_interval_start = iv != NULL ? iv->start : MAX_GNO;
+=======
+  while (true)
+  {
+    assert(candidate >= start);
+    const Gtid_set::Interval *iv= ivit.get();
+    rpl_gno next_interval_start= iv != NULL ? iv->start : GNO_END;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
 
     // Correct interval.
     if (candidate < next_interval_start) {
@@ -1230,9 +1430,18 @@ void Certifier::garbage_collect() {
   */
   Certification_info::iterator it = certification_info.begin();
   stable_gtid_set_lock->wrlock();
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   while (it != certification_info.end()) {
     if (it->second->is_subset_not_equals(stable_gtid_set)) {
       if (it->second->unlink() == 0) delete it->second;
+=======
+  while (it != certification_info.end())
+  {
+    if (it->second->is_subset_not_equals(stable_gtid_set))
+    {
+      if (it->second->unlink() == 0)
+        delete it->second;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
       certification_info.erase(it++);
     } else
       ++it;
@@ -1304,9 +1513,16 @@ int Certifier::handle_certifier_data(
   }
 
   mysql_mutex_lock(&LOCK_members);
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   std::string member_id = gcs_member_id.get_member_id();
 #if !defined(NDEBUG)
   if (same_member_message_discarded) {
+=======
+  std::string member_id= gcs_member_id.get_member_id();
+#if !defined(NDEBUG)
+  if (same_member_message_discarded)
+  {
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
     /*
       Injecting the member_id in the member's vector to simulate the case of
       same member sending multiple messages.
@@ -1338,11 +1554,65 @@ int Certifier::handle_certifier_data(
       this->incoming->push(
           new Data_packet(data, len, key_certification_data_gc));
     }
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
     // else: ignore the message, no point in alerting the user about this.
+<<<<<<< HEAD
   }
 
 #if !defined(NDEBUG)
+=======
+=======
+    else
+    {
+      /*
+        As member is already received we can throw the necessary warning of the
+        member message already received.
+      */
+      Group_member_info *member_info=
+          group_member_mgr->get_group_member_info_by_member_id(gcs_member_id);
+      if (member_info != NULL)
+      {
+        log_message(MY_WARNING_LEVEL, "The member with address %s:%u has "
+                    "already sent the stable set. Therefore discarding the second "
+                    "message.", member_info->get_hostname().c_str(),
+                    member_info->get_port());
+        delete member_info;
+      }
+    }
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+
+    mysql_mutex_unlock(&LOCK_members);
+
+    /*
+      If the incoming message queue size is equal to the number of the
+      members in the group, we are sure that each member has sent their
+      gtid_executed. So we can go ahead with the stable set handling.
+    */
+    if (plugin_get_group_members_number() == this->incoming->size()) {
+      int error = stable_set_handle();
+      /*
+        Clearing the members to proceed with the next round of garbage
+        collection.
+      */
+      clear_members();
+      DBUG_RETURN(error);
+    }
+  } else {
+    LogPluginErr(
+        WARNING_LEVEL,
+        ER_GRP_RPL_SKIP_COMPUTATION_TRANS_COMMITTED); /* purecov: inspected */
+    mysql_mutex_unlock(&LOCK_members);                /* purecov: inspected */
+  }
+
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   if (same_member_message_discarded) {
+=======
+#if !defined(NDEBUG)
+  if (same_member_message_discarded)
+  {
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
     /*
       Clearing the flag here as the members vector is not cleaned above.
     */
@@ -1495,10 +1765,22 @@ void Certifier::get_certification_info(
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_certification_info);
 
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
   for (Certification_info::iterator it = certification_info.begin();
        it != certification_info.end(); ++it) {
     std::string key = it->first;
+<<<<<<< HEAD
     assert(key.compare(GTID_EXTRACTED_NAME) != 0);
+=======
+    DBUG_ASSERT(key.compare(GTID_EXTRACTED_NAME) != 0);
+=======
+  for(Certification_info::iterator it = certification_info.begin();
+      it != certification_info.end(); ++it)
+  {
+    std::string key= it->first;
+    assert(key.compare(GTID_EXTRACTED_NAME) != 0);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
 
     size_t len = it->second->get_encoded_length();
     uchar *buf = (uchar *)my_malloc(key_certification_data, len, MYF(0));
@@ -1528,8 +1810,15 @@ Gtid Certifier::generate_view_change_group_gtid() {
   rpl_gno result =
       get_next_available_gtid(nullptr, views_sidno_group_representation);
 
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5", assert(result == 5););
   DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7", assert(result == 7););
+=======
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5",
+                  assert(result == 5););
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7",
+                  assert(result == 7););
+>>>>>>> pr/231
 
   if (result > 0)
     add_to_group_gtid_executed_internal(views_sidno_group_representation,
@@ -1541,17 +1830,29 @@ Gtid Certifier::generate_view_change_group_gtid() {
 
 int Certifier::set_certification_info(
     std::map<std::string, std::string> *cert_info) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(cert_info != nullptr);
+=======
+  DBUG_ENTER("Certifier::set_certification_info");
+  assert(cert_info != NULL);
+>>>>>>> pr/231
 
   if (cert_info->size() == 1) {
     std::map<std::string, std::string>::iterator it =
         cert_info->find(CERTIFICATION_INFO_ERROR_NAME);
     if (it != cert_info->end()) {
+<<<<<<< HEAD
       // The certification database could not be transmitted
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL,
                    it->second.c_str());
       return 1;
+=======
+      log_message(MY_ERROR_LEVEL,
+                  "The certification information could not be set in this server: '%s'",
+                  it->second.c_str());
+      DBUG_RETURN(1);
+>>>>>>> pr/231
     }
   }
 
@@ -1606,9 +1907,21 @@ int Certifier::set_certification_info(
     certifying_already_applied_transactions = true;
     compute_group_available_gtid_intervals();
 
+<<<<<<< HEAD
 #ifndef NDEBUG
     char *group_gtid_executed_string = nullptr;
     char *group_gtid_extracted_string = nullptr;
+=======
+<<<<<<< HEAD:plugin/group_replication/src/certifier.cc
+#ifndef DBUG_OFF
+    char *group_gtid_executed_string = NULL;
+    char *group_gtid_extracted_string = NULL;
+=======
+#ifndef NDEBUG
+    char *group_gtid_executed_string= NULL;
+    char *group_gtid_extracted_string= NULL;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/src/certifier.cc
+>>>>>>> pr/231
     group_gtid_executed->to_string(&group_gtid_executed_string, true);
     group_gtid_extracted->to_string(&group_gtid_extracted_string, true);
     DBUG_PRINT(
@@ -1685,7 +1998,12 @@ end:
 }
 
 void Certifier::enable_conflict_detection() {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Certifier::enable_conflict_detection");
+  assert(local_member_info->in_primary_mode());
+>>>>>>> pr/231
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable = true;
@@ -1694,7 +2012,11 @@ void Certifier::enable_conflict_detection() {
 }
 
 void Certifier::disable_conflict_detection() {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Certifier::disable_conflict_detection");
+>>>>>>> pr/231
   assert(local_member_info->in_primary_mode());
 
   mysql_mutex_lock(&LOCK_certification_info);

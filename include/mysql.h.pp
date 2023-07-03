@@ -270,9 +270,15 @@ bool check_scramble(const unsigned char *reply, const char *message,
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
+<<<<<<< HEAD
 bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size, const char *rnd,
                               size_t rnd_size);
+=======
+my_bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
+                                 const char *src, size_t src_size, const char *rnd,
+                                 size_t rnd_size);
+>>>>>>> upstream/cluster-7.6
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);
@@ -445,9 +451,11 @@ enum mysql_option {
   MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE,
+<<<<<<< HEAD
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+<<<<<<< HEAD
   MYSQL_OPT_SSL_FIPS_MODE,
   MYSQL_OPT_TLS_CIPHERSUITES,
   MYSQL_OPT_COMPRESSION_ALGORITHMS,
@@ -455,6 +463,13 @@ enum mysql_option {
   MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
   MYSQL_OPT_USER_PASSWORD,
   MYSQL_OPT_SSL_SESSION_DATA
+=======
+  MYSQL_OPT_SSL_FIPS_MODE
+=======
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY
+  , MYSQL_OPT_RETRY_COUNT = 237
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

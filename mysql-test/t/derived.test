@@ -3013,6 +3013,7 @@ SET optimizer_switch = default;
 
 DROP TABLE t1, t2, t3, t4;
 
+<<<<<<< HEAD
 --echo # Bug#26798989: Sig 11 in find_table_in_global_list
 
 CREATE TABLE t1(a INTEGER);
@@ -3022,6 +3023,7 @@ SET a=5
 WHERE a IN (SELECT a FROM t2
             ORDER BY (SELECT a FROM (SELECT SUM(a) FROM t1) AS dt));
 DROP TABLE t1, t2;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#30381092 WRONG BEHAVIOR OF '=' CONDITION WHEN WORKING WITH COMPLEX SUBQUERIES
@@ -3080,6 +3082,9 @@ eval $query;
 
 DROP TABLE t1,t2;
 
+=======
+=======
+>>>>>>> pr/231
 --echo # Bug#30488700: Mysql chooses different execution plan in 5.7
 
 CREATE TABLE tbl1 (
@@ -3120,6 +3125,7 @@ eval explain $select_statement;
 eval explain $update_statement;
 
 DROP TABLE tbl1, tbl2;
+<<<<<<< HEAD
 
 --echo # Bug#26542829: Assertion !(check_datetime_range(ltime)) failed
 
@@ -3375,3 +3381,6 @@ INSERT INTO t1 (a, b) VALUES (999, (SELECT a UNION SELECT a));
 SELECT a, b FROM t1;
 
 DROP TABLE t1;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

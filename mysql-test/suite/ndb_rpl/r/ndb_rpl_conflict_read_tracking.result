@@ -707,8 +707,13 @@ select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 NDB$OP_TYPE	b$old	b$new	NDB$CFT_CAUSE
 UPDATE_ROW	Initial data 3	Secondary first change 3	TRANS_IN_CONFLICT
+<<<<<<< HEAD
 starting secondary replica
 start replica;
+=======
+starting secondary slave
+start slave;
+>>>>>>> pr/231
 Secondary should have been realigned to Primary
 **** Primary ****
 select * from test.t1 order by a;

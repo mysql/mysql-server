@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12,6 +20,14 @@
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
 
+<<<<<<< HEAD
+=======
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+
+>>>>>>> upstream/cluster-7.6
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -21,7 +37,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include "sql/auth/sha2_password_common.h" /* validate_sha256_scramble */
+=======
+>>>>>>> upstream/cluster-7.6
 
 #include "my_config.h"
 
@@ -35,8 +54,13 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"      /* DBUG instrumentation */
+<<<<<<< HEAD
 #include "my_inttypes.h"  // IWYU pragma: keep
 #include "sql/auth/i_sha2_password_common.h"
+=======
+#include "my_global.h"
+#include "i_sha2_password_common.h"
+>>>>>>> upstream/cluster-7.6
 
 namespace sha2_password {
 /**
@@ -49,13 +73,28 @@ namespace sha2_password {
   it indicates a problem in initialization.
 */
 
+<<<<<<< HEAD
 SHA256_digest::SHA256_digest() : m_ok(false) { init(); }
+=======
+SHA256_digest::SHA256_digest()
+  : m_ok(false)
+{
+  init();
+}
+>>>>>>> upstream/cluster-7.6
 
 /**
   Release acquired memory
 */
 
+<<<<<<< HEAD
 SHA256_digest::~SHA256_digest() { deinit(); }
+=======
+SHA256_digest::~SHA256_digest()
+{
+  deinit();
+}
+>>>>>>> upstream/cluster-7.6
 
 /**
   Update digest with plaintext
@@ -68,15 +107,31 @@ SHA256_digest::~SHA256_digest() { deinit(); }
     @retval false Success
 */
 
+<<<<<<< HEAD
 bool SHA256_digest::update_digest(const void *src, unsigned int length) {
   DBUG_TRACE;
   if (!m_ok || !src) {
+=======
+bool SHA256_digest::update_digest(const void *src, unsigned int length)
+{
+  DBUG_ENTER("SHA256_digest::update_digest");
+  if (!m_ok || !src)
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Either digest context is not ok or "
                         "source is emptry string"));
     return true;
   }
+<<<<<<< HEAD
   m_ok = EVP_DigestUpdate(md_context, src, length);
+<<<<<<< HEAD
   return !m_ok;
+=======
+=======
+  m_ok= EVP_DigestUpdate(md_context, src, length);
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(!m_ok);
+>>>>>>> pr/231
 }
 
 /**
@@ -93,15 +148,32 @@ bool SHA256_digest::update_digest(const void *src, unsigned int length) {
 */
 
 bool SHA256_digest::retrieve_digest(unsigned char *digest,
+<<<<<<< HEAD
                                     unsigned int length) {
   DBUG_TRACE;
   if (!m_ok || !digest || length != CACHING_SHA2_DIGEST_LENGTH) {
+=======
+                                    unsigned int length)
+{
+  DBUG_ENTER("SHA256_digest::retrieve_digest");
+  if (!m_ok || !digest || length != CACHING_SHA2_DIGEST_LENGTH)
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Either digest context is not ok or "
                         "digest length is not as expected."));
     return true;
   }
+<<<<<<< HEAD
   m_ok = EVP_DigestFinal_ex(md_context, m_digest, nullptr);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+=======
+<<<<<<< HEAD
+  m_ok = EVP_DigestFinal_ex(md_context, m_digest, NULL);
+=======
+  m_ok= EVP_DigestFinal_ex(md_context, m_digest, NULL);
+>>>>>>> upstream/cluster-7.6
+#if defined(HAVE_WOLFSSL) || OPENSSL_VERSION_NUMBER < 0x10100000L
+>>>>>>> pr/231
   EVP_MD_CTX_cleanup(md_context);
 #else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_MD_CTX_reset(md_context);
@@ -114,7 +186,12 @@ bool SHA256_digest::retrieve_digest(unsigned char *digest,
   Cleanup and reinit
 */
 
+<<<<<<< HEAD
 void SHA256_digest::scrub() {
+=======
+void SHA256_digest::scrub()
+{
+>>>>>>> upstream/cluster-7.6
   deinit();
   init();
 }
@@ -126,20 +203,47 @@ void SHA256_digest::scrub() {
   2. Call initialization function(s)
 */
 
+<<<<<<< HEAD
 void SHA256_digest::init() {
   DBUG_TRACE;
   m_ok = false;
   md_context = EVP_MD_CTX_create();
   if (!md_context) {
+=======
+void SHA256_digest::init()
+{
+  DBUG_ENTER("SHA256_digest::init");
+  m_ok= false;
+  md_context= EVP_MD_CTX_create();
+  if (!md_context)
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Failed to create digest context"));
     return;
   }
 
+<<<<<<< HEAD
   m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), nullptr);
 
   if (!m_ok) {
     EVP_MD_CTX_destroy(md_context);
     md_context = nullptr;
+=======
+<<<<<<< HEAD
+  m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), NULL);
+
+  if (!m_ok) {
+    EVP_MD_CTX_destroy(md_context);
+    md_context = NULL;
+=======
+  m_ok= (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), NULL);
+
+  if (!m_ok)
+  {
+    EVP_MD_CTX_destroy(md_context);
+    md_context= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     DBUG_PRINT("info", ("Failed to initialize digest context"));
   }
 }
@@ -148,10 +252,21 @@ void SHA256_digest::init() {
   Release allocated memory for digest context
 */
 
+<<<<<<< HEAD
 void SHA256_digest::deinit() {
   if (md_context) EVP_MD_CTX_destroy(md_context);
   md_context = nullptr;
   m_ok = false;
+=======
+void SHA256_digest::deinit()
+{
+  if (md_context)
+  {
+    EVP_MD_CTX_destroy(md_context);
+    md_context= NULL;
+  }
+  m_ok= false;
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -161,6 +276,7 @@ void SHA256_digest::deinit() {
   @param [in] rnd    Salt
   @param [in] digest_type Digest type
 */
+<<<<<<< HEAD
 Generate_scramble::Generate_scramble(
     const std::string source, const std::string rnd,
     Digest_info digest_type) /* = Digest_info::SHA256_DIGEST */
@@ -172,7 +288,30 @@ Generate_scramble::Generate_scramble(
       break;
     }
     default:
+<<<<<<< HEAD
       assert(false);
+=======
+      DBUG_ASSERT(false);
+=======
+Generate_scramble::Generate_scramble(const std::string source,
+                                     const std::string rnd,
+                                     Digest_info digest_type) /*= Digest_info::SHA256_DIGEST */
+  : m_src(source),
+    m_rnd(rnd),
+    m_digest_type(digest_type)
+{
+  switch (m_digest_type)
+  {
+    case SHA256_DIGEST:
+    {
+      m_digest_generator= new SHA256_digest();
+      m_digest_length= CACHING_SHA2_DIGEST_LENGTH;
+      break;
+    }
+    default:
+      assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   };
 }
 
@@ -180,9 +319,23 @@ Generate_scramble::Generate_scramble(
   Generate_scramble destructor
 */
 
+<<<<<<< HEAD
 Generate_scramble::~Generate_scramble() {
   if (m_digest_generator) delete m_digest_generator;
+<<<<<<< HEAD
   m_digest_generator = nullptr;
+=======
+  m_digest_generator = 0;
+=======
+Generate_scramble::~Generate_scramble()
+{
+  if (m_digest_generator)
+  {
+    delete m_digest_generator;
+    m_digest_generator= 0;
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -203,19 +356,34 @@ Generate_scramble::~Generate_scramble() {
 */
 
 bool Generate_scramble::scramble(unsigned char *scramble,
+<<<<<<< HEAD
                                  unsigned int scramble_length) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+                                 unsigned int scramble_length)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Generate_scramble::scramble");
+>>>>>>> pr/231
   unsigned char *digest_stage1;
   unsigned char *digest_stage2;
   unsigned char *scramble_stage1;
 
+<<<<<<< HEAD
   if (!scramble || scramble_length != m_digest_length) {
+=======
+  if (!scramble || scramble_length != m_digest_length)
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Unexpected scrable length"
                         "Expected: %d, Actual: %d",
                         m_digest_length, !scramble ? 0 : scramble_length));
     return true;
   }
 
+<<<<<<< HEAD
   switch (m_digest_type) {
     case Digest_info::SHA256_DIGEST: {
       digest_stage1 = (unsigned char *)alloca(m_digest_length);
@@ -224,14 +392,43 @@ bool Generate_scramble::scramble(unsigned char *scramble,
       break;
     }
     default: {
+<<<<<<< HEAD
       assert(false);
       return true;
+=======
+      DBUG_ASSERT(false);
+=======
+  switch (m_digest_type)
+  {
+    case SHA256_DIGEST:
+    {
+      /*
+        We are using alloca only for a small amount of
+        memory - 48 bytes. And we do not make recursive calls
+        to ::scramble function. So it is relatively safe.
+      */
+      digest_stage1= (unsigned char *)alloca(m_digest_length);
+      digest_stage2= (unsigned char *)alloca(m_digest_length);
+      scramble_stage1= (unsigned char *)alloca(m_digest_length);
+      break;
+    }
+    default:
+    {
+      assert(false);
+>>>>>>> upstream/cluster-7.6
+      DBUG_RETURN(true);
+>>>>>>> pr/231
     }
   }
 
   /* SHA2(src) => digest_stage1 */
   if (m_digest_generator->update_digest(m_src.c_str(), m_src.length()) ||
+<<<<<<< HEAD
       m_digest_generator->retrieve_digest(digest_stage1, m_digest_length)) {
+=======
+      m_digest_generator->retrieve_digest(digest_stage1, m_digest_length))
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Failed to generate digest_stage1: SHA2(src)"));
     return true;
   }
@@ -239,7 +436,12 @@ bool Generate_scramble::scramble(unsigned char *scramble,
   /* SHA2(digest_stage1) => digest_stage2 */
   m_digest_generator->scrub();
   if (m_digest_generator->update_digest(digest_stage1, m_digest_length) ||
+<<<<<<< HEAD
       m_digest_generator->retrieve_digest(digest_stage2, m_digest_length)) {
+=======
+      m_digest_generator->retrieve_digest(digest_stage2, m_digest_length))
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info",
                ("Failed to generate digest_stage2: SHA2(digest_stage1)"));
     return true;
@@ -249,13 +451,20 @@ bool Generate_scramble::scramble(unsigned char *scramble,
   m_digest_generator->scrub();
   if (m_digest_generator->update_digest(digest_stage2, m_digest_length) ||
       m_digest_generator->update_digest(m_rnd.c_str(), m_rnd.length()) ||
+<<<<<<< HEAD
       m_digest_generator->retrieve_digest(scramble_stage1, m_digest_length)) {
     DBUG_PRINT("info", ("Failed to generate scrmable_stage1: "
+=======
+      m_digest_generator->retrieve_digest(scramble_stage1, m_digest_length))
+  {
+    DBUG_PRINT("info", ("Failed to generate scramble_stage1: "
+>>>>>>> upstream/cluster-7.6
                         "SHA2(digest_stage2, m_rnd)"));
     return true;
   }
 
   /* XOR(digest_stage1, scramble_stage1) => scramble */
+<<<<<<< HEAD
   for (uint i = 0; i < m_digest_length; ++i)
     scramble[i] = (digest_stage1[i] ^ scramble_stage1[i]);
 
@@ -361,6 +570,18 @@ bool Validate_scramble::validate() {
 }
 }  // namespace sha2_password
 
+=======
+  for (uint i= 0; i < m_digest_length; ++i)
+  {
+    scramble[i]= (digest_stage1[i] ^ scramble_stage1[i]);
+  }
+
+  DBUG_RETURN(false);
+}
+}  // namespace sha2_password
+
+C_MODE_START
+>>>>>>> upstream/cluster-7.6
 /*
   Generate scramble from password and random number.
 
@@ -383,14 +604,26 @@ bool Validate_scramble::validate() {
 
 */
 
+<<<<<<< HEAD
 bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
                               const char *src, size_t src_size, const char *rnd,
                               size_t rnd_size) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+my_bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
+                                 const char *src, size_t src_size, const char *rnd,
+                                 size_t rnd_size)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("generate_scramble");
+>>>>>>> pr/231
   std::string source(src, src_size);
   std::string random(rnd, rnd_size);
 
   sha2_password::Generate_scramble scramble_generator(source, random);
+<<<<<<< HEAD
   if (scramble_generator.scramble(scramble, scramble_size)) {
     DBUG_PRINT("info", ("Failed to generate SHA256 based scramble"));
     return true;
@@ -443,3 +676,14 @@ bool validate_sha256_scramble(const unsigned char *scramble,
                                                       rnd_size);
   return scramble_validator.validate();
 }
+=======
+  if (scramble_generator.scramble(scramble, scramble_size))
+  {
+    DBUG_PRINT("info", ("Failed to generate SHA256 based scramble"));
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(FALSE);
+}
+C_MODE_END
+>>>>>>> upstream/cluster-7.6

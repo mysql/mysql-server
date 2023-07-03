@@ -146,9 +146,18 @@ while ($_dt_tables)
   let $_dt_order_by_length=
     `SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ SUM(LENGTH(column_name) + 3) FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
+<<<<<<< HEAD
                   table_name = '$_dt_table' AND
+<<<<<<< HEAD
                   column_type != 'JSON'
                   $mask_column_clause`;
+=======
+                  column_type != 'JSON'`;
+=======
+                  table_name = '$_dt_table'
+                  $mask_column_clause`;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (!$_dt_order_by_length)
   {
     --echo ERROR IN TEST: table $_dt_database.$_dt_table not found in INFORMATION_SCHEMA.COLUMNS. Did you misspell it?
@@ -172,9 +181,18 @@ while ($_dt_tables)
     `SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
             FROM information_schema.columns
             WHERE table_schema = '$_dt_database' AND
+<<<<<<< HEAD
                   table_name = '$_dt_table' AND
+<<<<<<< HEAD
                   column_type != 'json'
                   $mask_column_clause`;
+=======
+                  column_type != 'json'`;
+=======
+                  table_name = '$_dt_table'
+                  $mask_column_clause`;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   # Restore group_concat_max_len.
   if ($_dt_old_group_concat_max_len)
   {
@@ -189,16 +207,31 @@ while ($_dt_tables)
   # the table to a file.
   --let $_dt_outfile= `SELECT @@datadir`
   --let $_dt_outfile= $_dt_outfile/diff_table-$_dt_connection-$_dt_database-$_dt_table
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  --let $statement = SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+=======
+>>>>>>> pr/231
 
   # Certain columns which contain current timestamps can be masked out.
   # $mask_column_list can be set in the test. If it is not defined,
   # all the columns can be written to the file.
   if ($mask_column_list) {
+<<<<<<< HEAD
     --let $statement = SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ `$_dt_column_list` FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
   }
   if (!$mask_column_list) {
     --let $statement = SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
   }
+=======
+    --let $statement = SELECT `$_dt_column_list` FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+  }
+  if (!$mask_column_list) {
+    --let $statement = SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if ($rpl_debug)
   {
     --echo $statement

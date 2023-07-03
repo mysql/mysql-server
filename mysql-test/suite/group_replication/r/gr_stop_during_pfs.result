@@ -8,7 +8,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [connection server1]
 SET @debug_save= @@GLOBAL.DEBUG;
+<<<<<<< HEAD
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
+=======
+SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_stop';
+>>>>>>> pr/231
 #
 # Send STOP GR command. The query shall wait before
 # "leave_group_and_terminate_plugin_modules()" function until it is signaled.
@@ -18,7 +22,11 @@ STOP GROUP_REPLICATION;
 # Wait for STOP GR to reach the debug sync point.
 #
 [connection server_1_1]
+<<<<<<< HEAD
 SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
+=======
+SET DEBUG_SYNC= "now WAIT_FOR signal.stop_waiting";
+>>>>>>> pr/231
 #
 # Send PS query from different session. The query shall halt in
 # "get_group_member_stats()" function.
@@ -32,7 +40,11 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 #
 [connection server_1_1]
 SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats";
+<<<<<<< HEAD
 SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
+=======
+SET DEBUG_SYNC= "now SIGNAL signal.stop_continue";
+>>>>>>> pr/231
 [connection server1]
 #
 # Allow the PS query to continue.

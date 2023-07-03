@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +122,17 @@ void Per_thread_connection_handler::init() {
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
+<<<<<<< HEAD
   waiting_channel_info_list = new (std::nothrow) std::list<Channel_info *>;
+<<<<<<< HEAD
   assert(waiting_channel_info_list != nullptr);
+=======
+  DBUG_ASSERT(waiting_channel_info_list != NULL);
+=======
+  waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
+  assert(waiting_channel_info_list != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Per_thread_connection_handler::destroy() {
@@ -153,7 +166,15 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       before picking another session in the thread cache.
     */
     DBUG_POP();
+<<<<<<< HEAD
     assert(!_db_is_pushed_());
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!_db_is_pushed_());
+=======
+    assert( ! _db_is_pushed_());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     // Block pthread
     blocked_pthread_count++;
@@ -163,6 +184,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
 
     if (shrink_cache && blocked_pthread_count <= max_blocked_pthreads) {
       mysql_cond_signal(&COND_flush_thread_cache);
+<<<<<<< HEAD
     }
 
     if (wake_pthread) {
@@ -174,6 +196,30 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       } else {
         assert(0);  // We should not get here.
       }
+=======
+<<<<<<< HEAD
+    else if (!connection_events_loop_aborted() && wake_pthread) {
+      wake_pthread--;
+      DBUG_ASSERT(!waiting_channel_info_list->empty());
+      new_conn = waiting_channel_info_list->front();
+      waiting_channel_info_list->pop_front();
+      DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+=======
+    else if (wake_pthread)
+    {
+      wake_pthread--;
+      if (!waiting_channel_info_list->empty())
+      {
+        new_conn = waiting_channel_info_list->front();
+        waiting_channel_info_list->pop_front();
+        DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+      }
+      else
+      {
+        assert(0);
+      }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
   mysql_mutex_unlock(&LOCK_thread_cache);
@@ -331,9 +377,11 @@ static void *handle_connection(void *arg) {
     // Server is shutting down so end the pthread.
     if (connection_events_loop_aborted()) break;
 
+<<<<<<< HEAD
     channel_info = Per_thread_connection_handler::block_until_new_connection();
     if (channel_info == nullptr) break;
     pthread_reused = true;
+<<<<<<< HEAD
     if (connection_events_loop_aborted()) {
       // Close the channel and exit as server is undergoing shutdown.
       channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
@@ -342,6 +390,23 @@ static void *handle_connection(void *arg) {
       Connection_handler_manager::dec_connection_count();
       break;
     }
+=======
+=======
+    channel_info= Per_thread_connection_handler::block_until_new_connection();
+    if (channel_info == NULL)
+      break;
+    pthread_reused= true;
+    if (abort_loop)
+    {
+      // Close the channel and exit as server is undergoing shutdown.
+      channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
+      delete channel_info;
+      channel_info = NULL;
+      Connection_handler_manager::dec_connection_count();
+      break;
+    }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   my_thread_end();
@@ -357,6 +422,11 @@ void Per_thread_connection_handler::modify_thread_cache_size(
     mysql_mutex_unlock(&LOCK_thread_cache);
     return;
   }
+<<<<<<< HEAD
+=======
+  kill_blocked_pthreads_flag--;
+<<<<<<< HEAD
+>>>>>>> pr/231
 
   shrink_cache = true;
   if (thread_cache_size == 0) {
@@ -366,10 +436,15 @@ void Per_thread_connection_handler::modify_thread_cache_size(
     for (ulong i = 0; i < num_threads; i++)
       mysql_cond_signal(&COND_thread_cache);
   }
+<<<<<<< HEAD
   // Wait until threads have been unblocked from thread cache.
   while (blocked_pthread_count > thread_cache_size)
     mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
   shrink_cache = false;
+=======
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   mysql_mutex_unlock(&LOCK_thread_cache);
 }
 
@@ -410,12 +485,26 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
     connection. Create a new thread to handle the connection
   */
   channel_info->set_prior_thr_create_utime();
+<<<<<<< HEAD
   error =
       mysql_thread_create(key_thread_one_connection, &id, &connection_attrib,
                           handle_connection, (void *)channel_info);
 #ifndef NDEBUG
 handle_error:
+<<<<<<< HEAD
 #endif  // !NDEBUG
+=======
+#endif  // !DBUG_OFF
+=======
+  error= mysql_thread_create(key_thread_one_connection, &id,
+                             &connection_attrib,
+                             handle_connection,
+                             (void*) channel_info);
+#ifndef NDEBUG
+handle_error:
+#endif // !NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (error) {
     connection_errors_internal++;

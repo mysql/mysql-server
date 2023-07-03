@@ -32,6 +32,10 @@
 
 --source include/have_debug_sync.inc
 --source include/have_log_bin.inc
+<<<<<<< HEAD
+=======
+--source include/have_perfschema.inc
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug 92108: Deadlock by concurrent SHOW BINLOGS,
@@ -70,7 +74,11 @@ SET DEBUG_SYNC="now SIGNAL finish_pfs";
 SET DEBUG_SYNC="now SIGNAL finish_show";
 
 --connection con1
+<<<<<<< HEAD
 replace_regex /\.[\\\/]binlog/binlog/;
+=======
+replace_regex /\.[\\\/]master/master/;
+>>>>>>> pr/231
 reap;
 --disconnect con1
 

@@ -97,7 +97,12 @@ password_expired FROM mysql.user WHERE USER='tu2';
 
 --echo
 CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' BY '%auth_O0s-tring';
+<<<<<<< HEAD
 query_vertical SELECT user,plugin,password_expired
+=======
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired
+>>>>>>> upstream/cluster-7.6
 FROM mysql.user WHERE USER='tu3';
 
 --echo
@@ -114,7 +119,12 @@ CREATE USER tu4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'djgsj743$'
 query_vertical SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu4';
 
 CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd$!' REQUIRE X509;
+<<<<<<< HEAD
 query_vertical SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu5';
+=======
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu5';
+>>>>>>> upstream/cluster-7.6
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER 'cipher';

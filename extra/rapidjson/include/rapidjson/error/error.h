@@ -104,8 +104,16 @@ enum ParseErrorCode {
     \see GenericReader::Parse, GenericDocument::Parse
 */
 struct ParseResult {
+<<<<<<< HEAD
     //!! Unspecified boolean type
     typedef bool (ParseResult::*BooleanType)() const;
+=======
+<<<<<<< HEAD
+=======
+    //!! Unspecified boolean type
+    typedef bool (ParseResult::*BooleanType)() const;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 public:
     //! Default constructor, no error.
     ParseResult() : code_(kParseErrorNone), offset_(0) {}

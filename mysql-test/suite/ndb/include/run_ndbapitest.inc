@@ -46,10 +46,14 @@ $cmd .= " $args" if $args;
 my $res = exec_print_on_error($cmd, $max_lines);
 if (!$res)
 {
+<<<<<<< HEAD
   # No need to remove run_ndbapitest_result.inc when test case dies. Because,
   # when it dies MTR fails and returns without executing check-testcase.test.
 
   print $F "die Test program failed!;\n";
+=======
+  # Test program failed
+>>>>>>> pr/231
 }
 $F->close(); 
 

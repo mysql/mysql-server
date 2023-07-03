@@ -6,6 +6,7 @@ create table t2 (id serial primary key auto_increment,a varchar(100),b tinytext)
 insert into t1 (a, b) values('a', '746d847beb7e'),('a','746d847beb7e'),('a', '746d847beb7e'),('a','746d847beb7e'),('a','746d847beb7e');
 insert into t1 (a, b) select 'a', '746d847beb7e' from t1 t1,t1 t2,t1 t3,t1 t4;
 insert into t1 (a, b) select 'a', '746d847beb7e' from t1 t1,t1 t2;
+<<<<<<< HEAD
 insert into t1 (a, b) select 'a', '746d847beb7e' from t1;
 insert into t2 (a, b) values('a', '746d847beb7e'),('a','746d847beb7e'),('a', '746d847beb7e'),('a','746d847beb7e'),('a','746d847beb7e');
 insert into t2 (a, b) select 'a', '746d847beb7e' from t2 t1,t2 t2,t2 t3,t2 t4;
@@ -31,4 +32,30 @@ b	count(*)
 select b, count(*) from t2 group by b;
 b	count(*)
 746d847beb7e	795060
+=======
+insert into t2 (a, b) values('a', '746d847beb7e'),('a','746d847beb7e'),('a', '746d847beb7e'),('a','746d847beb7e'),('a','746d847beb7e');
+insert into t2 (a, b) select 'a', '746d847beb7e' from t2 t1,t2 t2,t2 t3,t2 t4;
+insert into t2 (a, b) select 'a', '746d847beb7e' from t2 t1,t2 t2;
+select count(*) from t1;
+count(*)
+397530
+select count(*) from t2;
+count(*)
+397530
+set global internal_tmp_disk_storage_engine = 'innodb';
+select b, count(*) from t1 group by b;
+b	count(*)
+746d847beb7e	397530
+select b, count(*) from t2 group by b;
+b	count(*)
+746d847beb7e	397530
+set global internal_tmp_disk_storage_engine = 'myisam';
+select b, count(*) from t1 group by b;
+b	count(*)
+746d847beb7e	397530
+select b, count(*) from t2 group by b;
+b	count(*)
+746d847beb7e	397530
+set global internal_tmp_disk_storage_engine = default;
+>>>>>>> pr/231
 drop table t1, t2;

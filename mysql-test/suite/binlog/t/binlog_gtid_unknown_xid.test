@@ -1,0 +1,153 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that the server properly disregards XA
+# transaction related statements that try to operate upon an unknown XID, when
+# on SBR.
+#
+# ==== Requirements ====
+#
+# R1. Ensure that execution proceeds normaly after trying - and failling - to
+#     execute `XA COMMIT / ROLLBACK` with an unkown XID.
+#
+# ==== Implementation ====
+#
+# Ensure that the server properly disregards XA related statements that operate
+# on unknown XIDs given the following setup / statements combinations:
+#
+# TC1. Manual GTID and apply `XA ROLLBACK` with unkown XID
+# --------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+# 2) Set `GTID_NEXT` to manually introduced value.
+# 3) Execute a DML statement.
+# 4) Execute `XA ROLLBACK` with an unknown XID.
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+#
+# TC2. Manual GTID and apply `XA ROLLBACK` with unkown XID
+# --------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+# 2) Set `GTID_NEXT` to manually introduced value.
+# 3) Execute a DML statement.
+# 4) Execute `XA ROLLBACK` with an unknown XID.
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+#
+# TC3. Manual GTID and apply `XA ROLLBACK` to an existent XA transaction
+# --------------------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+# 2) Set `GTID_NEXT` to manually introduced value.
+# 3) Execute a DML statement.
+# 4) Execute `XA ROLLBACK` with an existent XID.
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+#
+# TC4. Manual GTID and apply `XA COMMIT` to an existent XA transaction
+# -----------------------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+# 2) Set `GTID_NEXT` to manually introduced value.
+# 3) Execute a DML statement.
+# 4) Execute `XA COMMIT` with an existent XID.
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+#
+# ==== References ====
+#
+# BUG#27928837 `HEAD->VARIABLES.GTID_NEXT.TYPE != UNDEFINED_GTID`
+
+--source include/have_gtid.inc
+
+--let $current_autocommit= `SELECT @@AUTOCOMMIT`
+
+CREATE TABLE t2(a INT);
+
+# TC1. Manual GTID and apply `XA ROLLBACK` with unkown XID
+# --------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+SET @@AUTOCOMMIT=0;
+# 2) Set `GTID_NEXT` to manually introduced value.
+SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1';
+# 3) Execute a DML statement.
+INSERT INTO t2 VALUES(1);
+# 4) Execute `XA ROLLBACK` with an unknown XID.
+--error ER_XAER_NOTA
+XA ROLLBACK 'xa1';
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+SET @@AUTOCOMMIT=1;
+#
+
+# TC2. Manul GTID and apply `XA ROLLBACK` with unkown XID
+# -----------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+SET @@AUTOCOMMIT=0;
+# 2) Set `GTID_NEXT` to manually introduced value.
+SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:2';
+# 3) Execute a DML statement.
+INSERT INTO t2 VALUES(2);
+# 4) Execute `XA COMMIT` with an unknown XID.
+--error ER_XAER_NOTA
+XA COMMIT 'xa1';
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+SET @@AUTOCOMMIT=1;
+#
+
+--connect (other_conn, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+XA START 'xa1';
+XA END 'xa1';
+XA PREPARE 'xa1';
+--let $connection_id= `SELECT CONNECTION_ID()`
+--disconnect other_conn
+# Wait for the `other_conn` to be cleared from the server
+--connection default
+--let $wait_condition = SELECT COUNT(*) = 0 FROM information_schema.processlist WHERE id = '$connection_id'
+--source include/wait_condition.inc
+
+--connection default
+# TC3. Manual GTID and apply `XA ROLLBACK` to an existent XA transaction
+# --------------------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+SET @@AUTOCOMMIT=0;
+# 2) Set `GTID_NEXT` to manually introduced value.
+SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:3';
+# 3) Execute a DML statement.
+INSERT INTO t2 VALUES(3);
+# 4) Execute `XA ROLLBACK` with an existent XID.
+--error ER_XAER_RMFAIL
+XA ROLLBACK 'xa1';
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+SET @@AUTOCOMMIT=1;
+#
+
+# TC4. Manual GTID and apply `XA COMMIT` to an existent XA transaction
+# -----------------------------------------------------------------------
+# 1) Ensure that `AUTOCOMMIT` is OFF.
+SET @@AUTOCOMMIT=0;
+# 2) Set `GTID_NEXT` to manually introduced value.
+SET SESSION GTID_NEXT='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:4';
+# 3) Execute a DML statement.
+INSERT INTO t2 VALUES(4);
+# 4) Execute `XA COMMIT` with an existent XID.
+--error ER_XAER_RMFAIL
+XA COMMIT 'xa1';
+# 5) Set `AUTOCOMMIT` to the default value so that the DML statement gets
+#    commited.
+SET @@AUTOCOMMIT=1;
+#
+
+--let $assert_text= All inserts were committed, XA statements and respective failures, were disregarded
+--let $assert_cond= "[SELECT COUNT(1) FROM t2]" = "4"
+--source include/assert.inc
+
+# CLEAN UP
+SET SESSION GTID_NEXT='AUTOMATIC';
+XA ROLLBACK 'xa1';
+--let $pending = query_get_value(XA RECOVER, data, 1)
+--let $assert_text= All XA transactions were cleared
+--let $assert_cond= "$pending" = "No such row"
+--source include/assert.inc
+DROP TABLE t2;
+--replace_result $current_autocommit DEFAULT_AUTOCOMMIT
+--eval SET @@AUTOCOMMIT=$current_autocommit
+RESET MASTER;

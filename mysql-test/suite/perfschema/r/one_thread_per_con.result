@@ -16,19 +16,31 @@ create table test.t3(a int) engine=MYISAM;
 "----------------- Connection default"
 execute stmt_dump_events using @tid;
 event_name	short_source	operation	number_of_bytes
+<<<<<<< HEAD
 wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+=======
+wait/synch/mutex/mysys/THR_LOCK_myisam		lock	NULL
+>>>>>>> upstream/cluster-7.6
 execute stmt_dump_thread using @tid;
 name
 thread/sql/one_connection
 execute stmt_dump_events using @tid;
 event_name	short_source	operation	number_of_bytes
+<<<<<<< HEAD
 wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+=======
+wait/synch/mutex/mysys/THR_LOCK_myisam		lock	NULL
+>>>>>>> upstream/cluster-7.6
 execute stmt_dump_thread using @tid;
 name
 thread/sql/one_connection
 execute stmt_dump_events using @tid;
 event_name	short_source	operation	number_of_bytes
+<<<<<<< HEAD
 wait/synch/mutex/mysys/THR_LOCK_myisam	mi_create.cc:	lock	NULL
+=======
+wait/synch/mutex/mysys/THR_LOCK_myisam		lock	NULL
+>>>>>>> upstream/cluster-7.6
 execute stmt_dump_thread using @tid;
 name
 thread/sql/one_connection

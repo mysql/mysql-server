@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
+=======
+<<<<<<< HEAD
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,7 +29,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
 ADD_WSHADOW_WARNING()
+=======
+INCLUDE_DIRECTORIES(
+<<<<<<< HEAD
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+=======
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/libmysql
+  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/strings
+  ${SSL_INCLUDE_DIRS}
+  ${SSL_INTERNAL_INCLUDE_DIRS})
+>>>>>>> upstream/cluster-7.6
+ADD_DEFINITIONS(${SSL_DEFINES})
+>>>>>>> pr/231
 
 SET(CLIENT_API_FUNCTIONS
   mysql_affected_rows
@@ -186,11 +211,21 @@ SET(CLIENT_SOURCES
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
+<<<<<<< HEAD
   ../sql-common/compression.cc
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql-common/bind_params.cc
   ../sql/auth/password.cc
+=======
+  ../sql-common/get_password.c
+  ../sql/net_serv.cc
+  ../sql-common/pack.c 
+  ../sql/auth/password.c
+>>>>>>> upstream/cluster-7.6
   ../sql/auth/sha2_password_common.cc
 )
 
@@ -221,9 +256,36 @@ ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES} DEPENDENCIES GenError)
 
 SET(LIBS_TO_MERGE
+<<<<<<< HEAD
   clientlib mytime strings vio mysys
   )
 SET(LIBS_TO_LINK ${LIBDL})
+=======
+  clientlib dbug strings vio mysys mysys_ssl
+  )
+SET(LIBS_TO_LINK ${LIBDL})
+
+IF(WITH_ZLIB STREQUAL "bundled")
+  LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+ELSE()
+  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
+ENDIF()
+
+IF(WIN32)
+  OPTION(LINK_DYNAMIC_OPENSSL "On Windows link OpenSSL dynamically" OFF)
+ENDIF()
+IF(WITH_SSL STREQUAL "system" OR LINK_DYNAMIC_OPENSSL)
+  LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
+  IF(WIN32)
+    LIST(APPEND LIBS_TO_LINK crypt32)
+  ENDIF()
+ELSE()
+  LIST(APPEND LIBS_TO_MERGE ${SSL_LIBRARIES})
+  IF(WIN32)
+    LIST(APPEND LIBS_TO_MERGE crypt32)
+  ENDIF()
+ENDIF()
+>>>>>>> pr/231
 
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
@@ -287,10 +349,15 @@ ADD_SUBDIRECTORY(authentication_kerberos)
 ADD_SUBDIRECTORY(authentication_oci_client)
 
 # Merge several convenience libraries into one big mysqlclient
+<<<<<<< HEAD
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
   COMPONENT Development
   LINK_LIBRARIES ${LIBS_TO_LINK}
   )
+=======
+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
+TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
+>>>>>>> pr/231
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -301,6 +368,16 @@ IF(MSVC)
   INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(vio DESTINATION ${INSTALL_LIBDIR}/debug)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  IF(WITH_SSL STREQUAL "wolfssl")
+    INSTALL_DEBUG_TARGET(wolfcrypt DESTINATION ${INSTALL_LIBDIR}/debug)
+    INSTALL_DEBUG_TARGET(wolfssl DESTINATION ${INSTALL_LIBDIR}/debug)
+  ENDIF()
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   IF(WITH_ZLIB STREQUAL "bundled")
     INSTALL_DEBUG_TARGET(zlib DESTINATION ${INSTALL_LIBDIR}/debug)
   ENDIF()
@@ -323,11 +400,56 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
+<<<<<<< HEAD
 IF(UNIX)
   SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
   IF(NOT FREEBSD AND NOT APPLE)
     STRING_APPEND(OS_SHARED_LIB_VERSION
       ".${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
+=======
+IF(NOT DISABLE_SHARED)
+  # Merge several convenience libraries into one big mysqlclient
+  # and link them together into shared library.
+  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
+    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
+    COMPONENT SharedLibraries)
+  TARGET_LINK_LIBRARIES(libmysql ${LIBS_TO_LINK})
+  IF(UNIX)
+    # libtool compatability
+    IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
+      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
+    ELSE()
+      SET(OS_SHARED_LIB_VERSION
+        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
+    ENDIF()
+    # Name of shared library is mysqlclient on Unix
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
+      OUTPUT_NAME mysqlclient 
+      VERSION "${OS_SHARED_LIB_VERSION}" 
+      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+
+    IF(APPLE)
+      SET_TARGET_PROPERTIES(libmysql PROPERTIES
+        MACOSX_RPATH ON 
+      )
+    ENDIF()
+
+    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
+    IF(LINK_FLAG_NO_UNDEFINED)
+      SET(libmysql_link_flags
+        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+      SET(libmysql_link_flags
+        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
+      SET_TARGET_PROPERTIES(libmysql
+        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+    ENDIF() 
+    # clean direct output needs to be set several targets have the same name
+    #(mysqlclient in this case)
+    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+
+>>>>>>> pr/231
   ENDIF()
   # Name of shared library is libmysqlclient on Unix
   SET(UNIX_OUTPUT_NAME OUTPUT_NAME mysqlclient)
@@ -411,19 +533,36 @@ MYSQL_ADD_EXECUTABLE(libmysql_api_test
 # Clang/UBSAN needs this on some platforms.
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 
+<<<<<<< HEAD
 IF(MY_COMPILER_IS_GNU)
+=======
+<<<<<<< HEAD
+IF(CMAKE_COMPILER_IS_GNUCXX)
+>>>>>>> pr/231
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
     COMPILE_FLAGS -Wstrict-prototypes
     )
 ENDIF()
 
+<<<<<<< HEAD
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
     COMPILE_FLAGS ${HAS_WARN_FLAG}
     )
+=======
+# We need to find both SSL .dlls and libmysql.dll, link statically on WIN32
+IF(DISABLE_SHARED OR WIN32)
+  TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
+=======
+IF(DISABLE_SHARED)
+  TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS_TO_MERGE})
+>>>>>>> upstream/cluster-7.6
+ELSE()
+  TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
+>>>>>>> pr/231
 ENDIF()
 
 # Verify that libmysql_api_test runs OK

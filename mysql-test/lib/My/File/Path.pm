@@ -1,5 +1,14 @@
 # -*- cperl -*-
+<<<<<<< HEAD
 # Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+# Use is subject to license terms.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +28,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
+=======
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/dump
+)
+
+>>>>>>> upstream/cluster-7.6
 # Prevent Boost from including external precompiled Boost libraries,
 # and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
@@ -28,7 +45,36 @@ IF(USING_LOCAL_BOOST)
     -DBOOST_SYSTEM_NO_DEPRECATED)
 ENDIF()
 
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+=======
+SET(BOOST_LIB_SOURCES
+  ${BOOST_SOURCES_DIR}/libs/chrono/src/chrono.cpp
+  ${BOOST_SOURCES_DIR}/libs/system/src/error_code.cpp
+)
+
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+
+IF(USING_LOCAL_BOOST)
+  ADD_CONVENIENCE_LIBRARY(boost_lib ${BOOST_LIB_SOURCES})
+
+  # Do not build library unless it is needed by some other target.
+  SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
+
+  IF(HAVE_clock_gettime_IN_rt)
+    TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
+  ENDIF()
+
+  # Need explicit pthread for gcc -fsanitize=address
+  IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+    TARGET_LINK_LIBRARIES(boost_lib pthread)
+  ENDIF()
+  SET(LOCAL_BOOST_LIB boost_lib)
+ENDIF()
+>>>>>>> upstream/cluster-7.6
 
 SET(MYSQLPUMP_LIB_SOURCES
   abstract_chain_element.cc

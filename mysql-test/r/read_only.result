@@ -198,6 +198,7 @@ DROP USER user1;
 SET GLOBAL read_only= 0;
 DROP TABLE t1;
 set sql_mode= @orig_sql_mode;
+<<<<<<< HEAD
 #
 # Bug#28490368   INNODB: ASSERTION FAILURE: DICT0DD.CC:1071:!FAIL
 #
@@ -211,13 +212,23 @@ SET @@global.read_only=default;
 DROP TABLE t1;
 DROP TABLE t1;
 DROP TABLE t3;
+=======
+<<<<<<< HEAD
+=======
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 #
 # BUG#28438114: SET READ_ONLY=1 SOMETIMES DOESN'T BLOCK CONCURRENT DDL.
 #
 # Prepare the sql file for testing DDLS.
 SET @save_read_only= @@global.read_only;
 CREATE USER test@localhost;
+<<<<<<< HEAD
 GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE, RELOAD ON *.* TO test@localhost;
+=======
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, RELOAD ON *.* TO test@localhost;
+>>>>>>> pr/231
 connect (con1,localhost,test,,test);
 connect (con2,localhost,root,,test);
 # Test CREATE DATABASE statement.
@@ -258,6 +269,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 CREATE DATABASE new;
 # Test CREATE DATABASE statement which doesn't update DD tables.
 connection default;
@@ -279,6 +291,10 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 connection default;
 SET GLOBAL READ_ONLY= 0;
 # Test DROP DATABASE statement.
+=======
+# Test DROP DATABASE statement.
+CREATE DATABASE new;
+>>>>>>> pr/231
 connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
@@ -317,6 +333,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test CREATE TABLE which doesn't update update DD tables.
 CREATE TABLE t1(fld1 INT);
 connection default;
@@ -358,6 +375,10 @@ connection default;
 SET GLOBAL READ_ONLY= 0;
 # Test ALTER TABLE statement which doesn't update DD tables
 ALTER TABLE t1 RENAME COLUMN fld1 TO fld1;
+=======
+# Test ALTER TABLE statement.
+CREATE TABLE t1(fld1 INT);
+>>>>>>> pr/231
 connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
@@ -395,6 +416,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test DROP TABLE statement which doesn't update DD tables.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -414,6 +436,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+=======
+>>>>>>> pr/231
 # Test CREATE INDEX statement.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -454,6 +478,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 connection default;
 SET GLOBAL READ_ONLY= 0;
 DROP INDEX idx1 ON t1;
+<<<<<<< HEAD
 # Test IMPORT TABLE statement.
 # Setup test environment.
 CREATE TABLE t2(fld1 INT) ENGINE=MYISAM;
@@ -478,6 +503,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+=======
+>>>>>>> pr/231
 # Test CREATE TRIGGER statement.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -597,6 +624,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test DROP VIEW statement which doesn't update DD tables.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -616,6 +644,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+=======
+>>>>>>> pr/231
 DROP VIEW v1;
 DROP TABLE t1;
 # Test CREATE TABLESPACE statement
@@ -717,6 +747,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test DROP FUNCTION statement which doesn't update DD tables.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -736,6 +767,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+=======
+>>>>>>> pr/231
 DROP FUNCTION f1;
 # Test CREATE PROCEDURE statement
 connection default;
@@ -795,6 +828,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test DROP PROCEDURE statement which doesn't update DD tables.
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -818,6 +852,10 @@ DROP PROCEDURE p1;
 # Test CREATE EVENT statement
 SET @saved_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler= OFF;
+=======
+DROP PROCEDURE p1;
+# Test CREATE EVENT statement
+>>>>>>> pr/231
 connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
@@ -837,6 +875,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+<<<<<<< HEAD
 # Test CREATE EVENT statement which doesn't update DD tables
 CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 connection default;
@@ -858,6 +897,10 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 connection default;
 SET GLOBAL READ_ONLY= 0;
 # Test ALTER EVENT statement
+=======
+# Test ALTER EVENT statement
+CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+>>>>>>> pr/231
 connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
@@ -896,6 +939,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 connection default;
 SET GLOBAL READ_ONLY= 0;
 DROP EVENT event1;
+<<<<<<< HEAD
 # Test DROP EVENT statement which doesn't update DD tables
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -916,6 +960,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 connection default;
 SET GLOBAL READ_ONLY= 0;
 SET GLOBAL event_scheduler= @saved_event_scheduler;
+=======
+>>>>>>> pr/231
 # Test case added for coverage.
 CREATE TABLE t1(fld1 INT);
 # FTWRL and FLUSH TABLE..FOR EXPORT is not blocked
@@ -928,6 +974,7 @@ UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;
+<<<<<<< HEAD
 #
 # BUG#30274240: ALTER INSTANCE ROTATE INNODB MASTER KEY NOT
 #               BLOCKED IN READ_ONLY/SUPER_READ_ONLY
@@ -970,3 +1017,6 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 SET GLOBAL read_only= @save_read_only;
 SET GLOBAL super_read_only= @save_super_read_only;
 DROP USER user1@localhost;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

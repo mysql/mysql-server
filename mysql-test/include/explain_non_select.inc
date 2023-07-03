@@ -650,7 +650,15 @@ CREATE TABLE t1 ( a INT, KEY( a ) );
 INSERT INTO t1 VALUES (0), (1);
 CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 SET SESSION sql_safe_updates = 1;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+>>>>>>> pr/231
 EXPLAIN UPDATE IGNORE v1 SET a = 1;
+=======
+EXPLAIN EXTENDED UPDATE IGNORE v1 SET a = 1;
+>>>>>>> upstream/cluster-7.6
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 UPDATE IGNORE v1 SET a = 1;
 SET SESSION sql_safe_updates = DEFAULT;

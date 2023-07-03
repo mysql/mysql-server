@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +156,12 @@ bool Connection_handler_manager::init() {
   */
   Per_thread_connection_handler::init();
 
+<<<<<<< HEAD
   Connection_handler *connection_handler = nullptr;
+=======
+<<<<<<< HEAD
+  Connection_handler *connection_handler = NULL;
+>>>>>>> pr/231
   switch (Connection_handler_manager::thread_handling) {
     case SCHEDULER_ONE_THREAD_PER_CONNECTION:
       connection_handler = new (std::nothrow) Per_thread_connection_handler();
@@ -157,7 +170,24 @@ bool Connection_handler_manager::init() {
       connection_handler = new (std::nothrow) One_thread_connection_handler();
       break;
     default:
+<<<<<<< HEAD
       assert(false);
+=======
+      DBUG_ASSERT(false);
+=======
+  Connection_handler *connection_handler= NULL;
+  switch (Connection_handler_manager::thread_handling)
+  {
+  case SCHEDULER_ONE_THREAD_PER_CONNECTION:
+    connection_handler= new (std::nothrow) Per_thread_connection_handler();
+    break;
+  case SCHEDULER_NO_THREADS:
+    connection_handler= new (std::nothrow) One_thread_connection_handler();
+    break;
+  default:
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   if (connection_handler == nullptr) {
@@ -228,7 +258,13 @@ void Connection_handler_manager::reset_max_used_connections() {
 void Connection_handler_manager::load_connection_handler(
     Connection_handler *conn_handler) {
   // We don't support loading more than one dynamic connection handler
+<<<<<<< HEAD
   assert(Connection_handler_manager::thread_handling != SCHEDULER_TYPES_COUNT);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(Connection_handler_manager::thread_handling !=
+              SCHEDULER_TYPES_COUNT);
+>>>>>>> pr/231
   m_saved_connection_handler = m_connection_handler;
   m_saved_thread_handling = Connection_handler_manager::thread_handling;
   m_connection_handler = conn_handler;
@@ -237,8 +273,30 @@ void Connection_handler_manager::load_connection_handler(
 }
 
 bool Connection_handler_manager::unload_connection_handler() {
+<<<<<<< HEAD
   assert(m_saved_connection_handler != nullptr);
   if (m_saved_connection_handler == nullptr) return true;
+=======
+  DBUG_ASSERT(m_saved_connection_handler != NULL);
+  if (m_saved_connection_handler == NULL) return true;
+=======
+  assert(Connection_handler_manager::thread_handling !=
+         SCHEDULER_TYPES_COUNT);
+  m_saved_connection_handler= m_connection_handler;
+  m_saved_thread_handling= Connection_handler_manager::thread_handling;
+  m_connection_handler= conn_handler;
+  Connection_handler_manager::thread_handling= SCHEDULER_TYPES_COUNT;
+  max_threads= m_connection_handler->get_max_threads();
+}
+
+
+bool Connection_handler_manager::unload_connection_handler()
+{
+  assert(m_saved_connection_handler != NULL);
+  if (m_saved_connection_handler == NULL)
+    return true;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   delete m_connection_handler;
   m_connection_handler = m_saved_connection_handler;
   Connection_handler_manager::thread_handling = m_saved_thread_handling;
@@ -276,15 +334,37 @@ void destroy_channel_info(Channel_info *channel_info) { delete channel_info; }
 void dec_connection_count() {
   Connection_handler_manager::dec_connection_count();
 }
+<<<<<<< HEAD
+=======
+
+void increment_aborted_connects()
+{
+  Connection_handler_manager::get_instance()->inc_aborted_connects();
+}
+#endif // !EMBEDDED_LIBRARY
+>>>>>>> upstream/cluster-7.6
 
 void increment_aborted_connects() {
   Connection_handler_manager::get_instance()->inc_aborted_connects();
 }
 
 int my_connection_handler_set(Connection_handler_functions *chf,
+<<<<<<< HEAD
                               THD_event_functions *tef) {
+<<<<<<< HEAD
   assert(chf != nullptr && tef != nullptr);
   if (chf == nullptr || tef == nullptr) return 1;
+=======
+  DBUG_ASSERT(chf != NULL && tef != NULL);
+  if (chf == NULL || tef == NULL) return 1;
+=======
+                              THD_event_functions *tef)
+{
+  assert(chf != NULL && tef != NULL);
+  if (chf == NULL || tef == NULL)
+    return 1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Plugin_connection_handler *conn_handler =
       new (std::nothrow) Plugin_connection_handler(chf);

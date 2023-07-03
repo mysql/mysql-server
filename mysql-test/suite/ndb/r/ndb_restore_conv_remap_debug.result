@@ -25,6 +25,7 @@ insert into t1 (b,c) values
 insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
 delete from t1 where b=4;
 update t1 set a=1010 where a=2;
+<<<<<<< HEAD
 begin;
 insert into t1 (a,b,c) values (500, 500, repeat('AR', 1000));
 update t1 set c=repeat('AG', 3000) where a=500;
@@ -79,6 +80,8 @@ delete from t1 where a=515;
 insert into t1 (a,b,c) values (515, 51500, repeat('TR', 2222));
 update t1 set b=515000 where a=515;
 commit;
+=======
+>>>>>>> pr/231
 select a, b, length(c), sha1(c) from t1 order by a;
 a	b	length(c)	sha1(c)
 1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
@@ -86,6 +89,7 @@ a	b	length(c)	sha1(c)
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
 7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+<<<<<<< HEAD
 500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
 501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
 504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
@@ -104,6 +108,13 @@ t1	CREATE TABLE `t1` (
   `c` text,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+1011
+>>>>>>> pr/231
 Waiting for backup to complete
 Backup completed
 drop table test.t1;
@@ -118,6 +129,7 @@ a	b	length(c)	sha1(c)
 4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
 4007	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+<<<<<<< HEAD
 4500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
 4501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
 4504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
@@ -126,6 +138,8 @@ a	b	length(c)	sha1(c)
 4513	51300	3576	51a211bff79d8f0ab426c333ba70241d5ec32889
 4514	5140	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
 4515	515000	4444	b1d8dc80a0475de078a57628b29d5547e373975a
+=======
+>>>>>>> pr/231
 5000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
 5010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
 Check restored auto-inc metadata :
@@ -133,6 +147,7 @@ Expect that auto-increment next is 5011, e.g. > highest remapped row that
 existed at end of backup time
 (note that SNAPSHOTSTART does not snapshot autoinc metadata)
 
+<<<<<<< HEAD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -141,6 +156,11 @@ t1	CREATE TABLE `t1` (
   `c` text,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+5011
+>>>>>>> pr/231
 drop table test.t1;
 Backup type 1
 create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
@@ -160,13 +180,18 @@ a	b	length(c)	sha1(c)
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
 Cause backup stall
+<<<<<<< HEAD
 Starting SNAPSHOTSTART backup
+=======
+Starting backup
+>>>>>>> pr/231
 Backup started
 insert into t1 (b,c) values
 (7, repeat('D', 999));
 insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
 delete from t1 where b=4;
 update t1 set a=1010 where a=2;
+<<<<<<< HEAD
 begin;
 insert into t1 (a,b,c) values (500, 500, repeat('AR', 1000));
 update t1 set c=repeat('AG', 3000) where a=500;
@@ -221,6 +246,8 @@ delete from t1 where a=515;
 insert into t1 (a,b,c) values (515, 51500, repeat('TR', 2222));
 update t1 set b=515000 where a=515;
 commit;
+=======
+>>>>>>> pr/231
 select a, b, length(c), sha1(c) from t1 order by a;
 a	b	length(c)	sha1(c)
 1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
@@ -228,6 +255,7 @@ a	b	length(c)	sha1(c)
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
 7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+<<<<<<< HEAD
 500	500	6000	a84096e6f4cfd316b4399fb030b4eb3d01de46e3
 501	5010	2000	192337269ed710279d4f3373cf8f597230708f3a
 504	5040	5000	c80ac9df1867ca5866f87d1275519f8873966e8f
@@ -246,6 +274,13 @@ t1	CREATE TABLE `t1` (
   `c` text,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+1011
+>>>>>>> pr/231
 Waiting for backup to complete
 Backup completed
 drop table test.t1;
@@ -266,6 +301,7 @@ Expect that auto-increment next is 5011, e.g. > highest remapped row that
 existed at end of backup time
 (note that SNAPSHOTSTART does not snapshot autoinc metadata)
 
+<<<<<<< HEAD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -274,4 +310,9 @@ t1	CREATE TABLE `t1` (
   `c` text,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+5011
+>>>>>>> pr/231
 drop table test.t1;

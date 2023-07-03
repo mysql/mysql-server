@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +28,7 @@
 # Configuration for building LDAP SASL Authentication Plugin (client-side)
 #
 
+<<<<<<< HEAD
 # Skip it if disabled.
 IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
   MESSAGE(STATUS "Skipping the LDAP client authentication plugin")
@@ -66,6 +71,25 @@ IF(KERBEROS_FOUND AND (NOT WIN32))
   # Adding mysys only when build has Kerberos support
   SET(MY_SYS "mysys")
   SET(LDAP_KERBEROS_LIBS ${KERBEROS_LIBRARIES})
+=======
+INCLUDE(CheckIncludeFile)
+
+# If cmake was invoked with -DWITH_AUTHENTICATION_LDAP=1
+# then fail if we are unable to build the LDAP plugin.
+MACRO(CROAK_AND_RETURN)
+  IF (WITH_AUTHENTICATION_LDAP)
+    MESSAGE(FATAL_ERROR ${ARGV})
+  ELSE()
+    MESSAGE(STATUS ${ARGV}
+      "Skipping the LDAP SASL client authentication plugin.")
+    RETURN()
+  ENDIF()
+ENDMACRO()
+
+<<<<<<< HEAD
+IF(HAVE_SASL_H)
+  SET(CMAKE_EXTRA_INCLUDE_FILES sasl/sasl.h)
+>>>>>>> pr/231
 ELSE()
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client WITHOUT Kerberos")
@@ -73,22 +97,51 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+<<<<<<< HEAD
   auth_ldap_sasl_client.cc
   auth_ldap_sasl_mechanism.cc
   ${AUTH_LDAP_KERBEROS_CC}
+=======
+                 auth_ldap_sasl_client.cc log_client.cc
+                 LINK_LIBRARIES ${SASL_LIBRARY_PATH}
+                 CLIENT_ONLY MODULE_ONLY
+                 MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+=======
+IF(NOT HAVE_SASL_SASL_H)
+  CROAK_AND_RETURN("Required SASL header is missing.")
+ENDIF()
+
+# On windows the LDAP system header is Winldap.h and is in some Windows SDK.
+IF(NOT WIN32 AND NOT HAVE_LBER_H)
+  CROAK_AND_RETURN("Required LBER header is missing.")
+ENDIF()
+
+IF(FREEBSD)
+  # To locate /usr/local/include/sasl/sasl.h
+  INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+ENDIF()
+
+MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+  auth_ldap_sasl_client.cc
+>>>>>>> pr/231
   log_client.cc
   LINK_LIBRARIES
   ${SASL_LIBRARY}
   # Uncomment to verify that all symbols are found.
+<<<<<<< HEAD
   # ${LINK_FLAG_NO_UNDEFINED}
   ${LDAP_KERBEROS_LIBS}
   ${SSL_LIBRARIES}
   ${LIBDL}
   ${MY_SYS}
+=======
+  # ${LINK_FLAG_NO_UNDEFINED} ${SSL_LIBRARIES}
+>>>>>>> pr/231
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
 
+<<<<<<< HEAD
 # MYSQL_ADD_PLUGIN may have decided not to build it.
 IF(NOT TARGET authentication_ldap_sasl_client)
   RETURN()
@@ -112,6 +165,11 @@ ENDIF()
 
 IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
   ADD_DEPENDENCIES(authentication_ldap_sasl_client ${kerberos_target})
+=======
+# The plugin may need symbols which are not loaded by the client.
+IF(STATIC_SASL_LIBRARY)
+  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client ${SSL_LIBRARIES})
+>>>>>>> pr/231
 ENDIF()
 
 IF(WIN32)
@@ -132,6 +190,7 @@ IF(WIN32)
           COMPONENT SharedLibraries)
 
   # To run client executables that load the plug-in from the build tree we need
+<<<<<<< HEAD
   # to copy the SASL library DLL and SASL SCRAM library DLL to the same
   # directory as the client executables.
   ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
@@ -141,7 +200,22 @@ IF(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_SCRAM_PLUGIN}"
       "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
+=======
+  # to copy the SASL library DLL and SASL SCRAM library DLL to the
+  # same directory as the client executables.
+  ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${SASL_LIBRARY_DLL}"
+      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${SASL_SCRAM_PLUGIN}"
+      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
+>>>>>>> pr/231
   )
   ADD_DEPENDENCIES(authentication_ldap_sasl_client mysqltest)
 
 ENDIF()
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

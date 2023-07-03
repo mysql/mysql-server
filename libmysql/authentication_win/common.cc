@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +69,18 @@ int opt_auth_win_log_level = 2;
                   connection - it can not be NULL
 */
 
+<<<<<<< HEAD
 Connection::Connection(MYSQL_PLUGIN_VIO *vio) : m_vio(vio), m_error(0) {
+<<<<<<< HEAD
   assert(vio);
+=======
+  DBUG_ASSERT(vio);
+=======
+Connection::Connection(MYSQL_PLUGIN_VIO *vio): m_vio(vio), m_error(0)
+{
+  assert(vio);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -80,8 +98,18 @@ int Connection::write(const Blob &blob) {
   m_error =
       m_vio->write_packet(m_vio, blob.ptr(), static_cast<int>(blob.len()));
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   if (m_error) DBUG_PRINT("error", ("vio write error %d", m_error));
+=======
+#ifndef NDEBUG
+  if (m_error)
+    DBUG_PRINT("error", ("vio write error %d", m_error));
+>>>>>>> upstream/cluster-7.6
 #endif
 
   return m_error;
@@ -122,11 +150,17 @@ Blob Connection::read() {
   method returns @c false.
 */
 
+<<<<<<< HEAD
 Sid::Sid(const wchar_t *account_name)
     : m_data(NULL)
 #ifndef NDEBUG
       ,
       m_as_string(NULL)
+=======
+Sid::Sid(const wchar_t *account_name): m_data(NULL)
+#ifndef NDEBUG
+, m_as_string(NULL)
+>>>>>>> upstream/cluster-7.6
 #endif
 {
   DWORD sid_size = 0, domain_size = 0;
@@ -137,8 +171,18 @@ Sid::Sid(const wchar_t *account_name)
   success = LookupAccountNameW(NULL, account_name, NULL, &sid_size, NULL,
                                &domain_size, &m_type);
 
+<<<<<<< HEAD
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+  {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "LookupAccountName() failed with error %X (%s)",
@@ -156,8 +200,18 @@ Sid::Sid(const wchar_t *account_name)
   success = LookupAccountNameW(NULL, account_name, m_data->User.Sid, &sid_size,
                                domain, &domain_size, &m_type);
 
+<<<<<<< HEAD
   if (!success || !is_valid()) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  if (!success || !is_valid())
+  {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID of '%S', "
                          "LookupAccountName() failed with error %X (%s)",
@@ -186,11 +240,17 @@ end:
   method returns @c false.
 */
 
+<<<<<<< HEAD
 Sid::Sid(HANDLE token)
     : m_data(NULL)
 #ifndef NDEBUG
       ,
       m_as_string(NULL)
+=======
+Sid::Sid(HANDLE token): m_data(NULL)
+#ifndef NDEBUG
+, m_as_string(NULL)
+>>>>>>> upstream/cluster-7.6
 #endif
 {
   DWORD req_size = 0;
@@ -198,9 +258,20 @@ Sid::Sid(HANDLE token)
 
   // Determine required buffer size
 
+<<<<<<< HEAD
   success = GetTokenInformation(token, TokenUser, NULL, 0, &req_size);
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  success= GetTokenInformation(token, TokenUser, NULL, 0, &req_size);
+  if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+  {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "GetTokenInformation() failed with error %X (%s)",
@@ -212,11 +283,21 @@ Sid::Sid(HANDLE token)
   m_data = (TOKEN_USER *)new BYTE[req_size];
   success = GetTokenInformation(token, TokenUser, m_data, req_size, &req_size);
 
+<<<<<<< HEAD
   if (!success || !is_valid()) {
     delete[] m_data;
     m_data = NULL;
 #ifndef NDEBUG
     if (!success) {
+=======
+  if (!success || !is_valid())
+  {
+    delete [] m_data;
+    m_data= NULL;
+#ifndef NDEBUG
+    if (!success)
+    {
+>>>>>>> upstream/cluster-7.6
       Error_message_buf error_buf;
       DBUG_PRINT("error", ("Could not read SID from security token, "
                            "GetTokenInformation() failed with error %X (%s)",
@@ -226,10 +307,21 @@ Sid::Sid(HANDLE token)
   }
 }
 
+<<<<<<< HEAD
 Sid::~Sid() {
   if (m_data) delete[] m_data;
 #ifndef NDEBUG
   if (m_as_string) LocalFree(m_as_string);
+=======
+
+Sid::~Sid()
+{
+  if (m_data)
+    delete [] m_data;
+#ifndef NDEBUG
+  if (m_as_string)
+    LocalFree(m_as_string);
+>>>>>>> upstream/cluster-7.6
 #endif
 }
 
@@ -238,7 +330,16 @@ bool Sid::is_valid(void) const {
   return m_data && m_data->User.Sid && IsValidSid(m_data->User.Sid);
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /**
   Produces string representation of the SID.
@@ -255,8 +356,18 @@ const char *Sid::as_string() {
   if (!m_as_string) {
     bool success = ConvertSidToStringSid(m_data->User.Sid, &m_as_string);
 
+<<<<<<< HEAD
     if (!success) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+    if (!success)
+    {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       Error_message_buf error_buf;
       DBUG_PRINT("error", ("Could not get textual representation of a SID, "
                            "ConvertSidToStringSid() failed with error %X (%s)",
@@ -292,9 +403,21 @@ UPN::UPN() : m_buf(NULL) {
 
   m_len = sizeof(buf1) / sizeof(wchar_t);
 
+<<<<<<< HEAD
   if (!GetUserNameExW(NameUserPrincipal, buf1, (PULONG)&m_len)) {
     if (GetLastError()) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  if (!GetUserNameExW(NameUserPrincipal, buf1, (PULONG)&m_len))
+  {
+    if (GetLastError())
+    {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       Error_message_buf error_buf;
       DBUG_PRINT("note", ("When determining UPN"
                           ", GetUserNameEx() failed with error %X (%s)",
@@ -465,10 +588,21 @@ wchar_t *utf8_to_wchar(const char *string, size_t *len) {
 const char *get_last_error_message(Error_message_buf buf) {
   int error = GetLastError();
 
+<<<<<<< HEAD
   buf[0] = '\0';
   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)buf,
+<<<<<<< HEAD
                 sizeof(Error_message_buf), NULL);
+=======
+                sizeof(buf), NULL);
+=======
+  buf[0]= '\0';
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)buf, sizeof(Error_message_buf), NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return buf;
 }

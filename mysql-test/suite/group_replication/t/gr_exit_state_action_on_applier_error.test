@@ -20,15 +20,26 @@
 # 5) Cleanup.
 #
 ################################################################################
+<<<<<<< HEAD
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
+=======
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
 --echo # 0) Setup group of 2 members (M1 and M2).
 --echo #########################################################################
 --echo
+<<<<<<< HEAD
 --source include/group_replication.inc
+=======
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 # Supress log errors since they are expected.
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
@@ -39,11 +50,19 @@ call mtr.add_suppression("Fatal error during execution on the Applier process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+<<<<<<< HEAD
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during execution on the Applier module of Group Replication.");
+=======
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+>>>>>>> pr/231
 SET SESSION sql_log_bin = 1;
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+<<<<<<< HEAD
+=======
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -77,7 +96,11 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection.inc
 --let $group_replication_member_state= ERROR
 --let $group_replication_member_id= $member1_uuid
+<<<<<<< HEAD
 --source include/gr_wait_for_member_state.inc
+=======
+--source ../inc/gr_wait_for_member_state.inc
+>>>>>>> pr/231
 # Then verify that it enabled super_read_only
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -95,9 +118,15 @@ INSERT INTO t1 VALUES (1);
 
 # Delete the transaction that clashed, so the server doesn't error out right
 # when starting the applier channel.
+<<<<<<< HEAD
 SET SESSION sql_log_bin= 0;
 DELETE FROM t1 WHERE a = 1;
 SET SESSION sql_log_bin= 1;
+=======
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE a = 1;
+SET sql_log_bin = 1;
+>>>>>>> pr/231
 
 # Set the exit state action sysvar to ABORT_SERVER
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
@@ -131,7 +160,11 @@ INSERT INTO t1 VALUES (2);
 # For simplicity, let's assume that once the group size is 1, then member 1 has
 # abort()'ed
 --let $group_replication_number_of_members = 1
+<<<<<<< HEAD
 --source include/gr_wait_for_number_of_members.inc
+=======
+--source ../inc/gr_wait_for_number_of_members.inc
+>>>>>>> pr/231
 # Also, the member should not be in the group view of any of the other members
 --let $assert_text = Member 1 should have aborted
 --let $assert_cond = COUNT(*) = 0 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$member1_uuid"
@@ -159,10 +192,19 @@ SET SESSION sql_log_bin= 1;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
 --eval SET @@global.group_replication_local_address="$local_address_server1"
+<<<<<<< HEAD
 --source include/start_group_replication.inc
 
 --let $group_replication_number_of_members = 2
 --source include/gr_wait_for_number_of_members.inc
+=======
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -171,4 +213,8 @@ SET SESSION sql_log_bin= 1;
 --echo
 DROP TABLE t1;
 
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

@@ -37,6 +37,11 @@ set global innodb_buffer_pool_filename="bye";
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
 bye
+<<<<<<< HEAD
+=======
+set global innodb_buffer_pool_filename=NULL;
+ERROR 42000: Variable 'innodb_buffer_pool_filename' can't be set to the value of 'NULL'
+>>>>>>> pr/231
 set global innodb_buffer_pool_filename=default;
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
@@ -66,6 +71,7 @@ select @@innodb_ft_aux_table;
 @@innodb_ft_aux_table
 NULL
 drop table t1,t2;
+<<<<<<< HEAD
 set @blah = 'label1:/home/guest/redo_log_archive_1';
 SET global innodb_redo_log_archive_dirs = @blah;
 select @@innodb_redo_log_archive_dirs;
@@ -80,3 +86,5 @@ select @@innodb_redo_log_archive_dirs;
 @@innodb_redo_log_archive_dirs
 NULL
 SET @@global.innodb_redo_log_archive_dirs = '';
+=======
+>>>>>>> pr/231

@@ -597,6 +597,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                           'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                           'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";';
+<<<<<<< HEAD
 ANALYZE TABLE test_table UPDATE HISTOGRAM ON a;
 Table	Op	Msg_type	Msg_text
 super_test.test_table	histogram	status	Histogram statistics created for column 'a'.
@@ -606,6 +607,14 @@ EVENT-ORDER-OK
 ANALYZE TABLE test_table DROP HISTOGRAM ON a;
 Table	Op	Msg_type	Msg_text
 super_test.test_table	histogram	status	Histogram statistics removed for column 'a'.
+=======
+ANALYZE TABLE test_table;
+Table	Op	Msg_type	Msg_text
+super_test.test_table	analyze	status	OK
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+>>>>>>> pr/231
 ###########################
 ## TABLE_ACCESS - INSERT ##
 ###########################

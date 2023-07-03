@@ -12,9 +12,15 @@
 #    and SHOW SLAVE STATUS between retry attempts.
 # 3. Clean up.
 ################################################################################
+<<<<<<< HEAD
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 
 --echo
@@ -22,7 +28,11 @@
 --echo # 1. Bootstrap group on server1 and create table t1 on it.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 --source include/start_and_bootstrap_group_replication.inc
+=======
+--source ../inc/start_and_bootstrap_group_replication.inc
+>>>>>>> pr/231
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 
@@ -38,8 +48,12 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
+<<<<<<< HEAD
 call mtr.add_suppression("Slave: Table 't1' already exists Error_code: MY-001050");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
+=======
+call mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
+>>>>>>> pr/231
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 SET SESSION sql_log_bin= 1;
@@ -88,4 +102,8 @@ SET SESSION sql_log_bin= 1;
 --source include/rpl_connection.inc
 DROP TABLE t1;
 
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

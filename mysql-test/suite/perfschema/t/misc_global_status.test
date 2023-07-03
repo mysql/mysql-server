@@ -1,6 +1,12 @@
 # Tests for PERFORMANCE_SCHEMA
 
+<<<<<<< HEAD
 --source include/not_hypergraph.inc  # Fails because of bug#34096590.
+=======
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/have_query_cache_disabled.inc
+>>>>>>> pr/231
 
 CREATE USER user1@localhost;
 CREATE USER user2@localhost;
@@ -10,6 +16,12 @@ grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
 
+<<<<<<< HEAD
+=======
+# To aggregate to accounts
+SET GLOBAL show_compatibility_56=0;
+
+>>>>>>> pr/231
 TRUNCATE TABLE performance_schema.accounts;
 
 FLUSH PRIVILEGES;
@@ -123,5 +135,10 @@ DROP USER user1@localhost;
 DROP USER user2@localhost;
 DROP USER user3@localhost;
 
+<<<<<<< HEAD
+=======
+SET GLOBAL show_compatibility_56=1;
+
+>>>>>>> pr/231
 FLUSH PRIVILEGES;
 

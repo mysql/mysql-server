@@ -3,6 +3,10 @@
 --echo # AFTER DUPLICATE IS ALREADY FOUND
 --echo #
 
+<<<<<<< HEAD
+=======
+--source include/have_innodb.inc
+>>>>>>> pr/231
 --source include/count_sessions.inc
 
 #Test 1
@@ -64,6 +68,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 
+<<<<<<< HEAD
 # Following two lines are added because of Bug#28523025
 # We don't really care about tt's content, nor about the exact body
 # of the TRIGGER. What we care is that the mere fact of processing the
@@ -76,6 +81,10 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 
 --echo # Scenario 3: Interleaved transactions (trx1 conflicts on index b)
 INSERT INTO t1 VALUES (0,0,0), (1, 1, 1);
+=======
+--echo # Scenario 3: Interleaved transactions (trx1 conflicts on index b)
+INSERT INTO t1 VALUES (1, 1, 1);
+>>>>>>> pr/231
 SELECT * FROM t1;
 
 --echo # Connection default:
@@ -117,7 +126,10 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+<<<<<<< HEAD
 DROP TABLE tt;
+=======
+>>>>>>> pr/231
 
 #Test 4
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
@@ -168,7 +180,10 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 #Test 6
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
@@ -235,9 +250,16 @@ connection default;
 --echo # Verify Results:
 SELECT * FROM t1;
 
+<<<<<<< HEAD
 DROP TABLE t1;
 
 disconnect other;
+=======
+disconnect other;
+
+DROP TABLE t1;
+
+>>>>>>> pr/231
 
 #Test 8
 #Test added to cover the undo update path

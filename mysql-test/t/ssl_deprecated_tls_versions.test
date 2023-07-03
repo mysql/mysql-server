@@ -1,0 +1,31 @@
+--echo # Bug 32565996: backport of WL#14519: Deprecate the use of TLS v1.[01]
+
+# Can't test with embedded server
+-- source include/not_embedded.inc
+# Test needs suport for TLSv1.0 and v1.1
+--source include/not_min_protocol_tlsv12.inc
+
+--let $assert_select = A deprecated TLS version TLSv1 is enabled
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count = 1
+--let $assert_text = Found a cmdline TLSv1 deprecation warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
+--source include/assert_grep.inc
+
+--let $assert_select = A deprecated TLS version TLSv1.1 is enabled
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count = 1
+--let $assert_text = Found a cmdline TLSv1.1 deprecation warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
+--source include/assert_grep.inc
+
+--echo # Test for the connect warning
+--exec $MYSQL test --tls-version=tlsv1.1 --ssl_mode=required -e "select 1"
+--let $assert_select = Accepted a connection with deprecated protocol .TLSv1.1.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count = 1
+--let $assert_text = An old tls version client triggers a warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
+--source include/assert_grep.inc
+
+--echo # End of 5.7 tests

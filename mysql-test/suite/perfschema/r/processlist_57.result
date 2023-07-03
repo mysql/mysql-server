@@ -1,0 +1,345 @@
+call mtr.add_suppression("Optional native table 'performance_schema'.'processlist' has the wrong structure or is missing.");
+call mtr.add_suppression("Column count of performance_schema.processlist is wrong. Expected 8, found 2. The table is probably corrupted");
+##
+## Verify fresh 5.7 instance
+##
+SELECT @@global.performance_schema_show_processlist;
+@@global.performance_schema_show_processlist
+0
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+##
+## Simulate old 5.7 instance
+##
+DROP TABLE performance_schema.processlist;
+SHOW CREATE TABLE performance_schema.processlist;
+ERROR 42S02: Table 'performance_schema.processlist' doesn't exist
+##
+## Server shutdown
+##
+##
+### Server restart
+##
+##
+## Verify old 5.7 instance
+##
+SELECT @@global.performance_schema_show_processlist;
+@@global.performance_schema_show_processlist
+0
+SHOW CREATE TABLE performance_schema.processlist;
+ERROR 42S02: Table 'performance_schema.processlist' doesn't exist
+SELECT * FROM performance_schema.processlist;
+ERROR 42S02: Table 'performance_schema.processlist' doesn't exist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ERROR 42S02: Table 'performance_schema.processlist' doesn't exist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+ERROR 42S02: Table 'performance_schema.processlist' doesn't exist
+##
+## Perform broken upgrade (case 1)
+##
+CREATE TABLE performance_schema.processlist (a int, b int);
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+a	b
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+a	b
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+ERROR 42S22: Unknown column 'ID' in 'field list'
+##
+## Server shutdown
+##
+##
+### Server restart
+##
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+a	b
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+a	b
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+ERROR 42S22: Unknown column 'ID' in 'field list'
+##
+## Perform broken upgrade (case 2)
+##
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist (
+`ID` bigint(20) unsigned NOT NULL,
+`USER` varchar(32) DEFAULT NULL,
+`HOST` varchar(66) DEFAULT NULL,
+`DB` varchar(64) DEFAULT NULL,
+`COMMAND` varchar(16) DEFAULT NULL,
+`TIME` bigint(20) DEFAULT NULL,
+`STATE` varchar(64) DEFAULT NULL,
+`INFO` longtext
+);
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+##
+## Server shutdown
+##
+##
+### Server restart
+##
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+##
+## Perform broken upgrade (case 3)
+##
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist
+LIKE INFORMATION_SCHEMA.PROCESSLIST;
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `USER` varchar(32) NOT NULL DEFAULT '',
+  `HOST` varchar(64) NOT NULL DEFAULT '',
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) NOT NULL DEFAULT '',
+  `TIME` int(7) NOT NULL DEFAULT '0',
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+##
+## Server shutdown
+##
+##
+### Server restart
+##
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `USER` varchar(32) NOT NULL DEFAULT '',
+  `HOST` varchar(64) NOT NULL DEFAULT '',
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) NOT NULL DEFAULT '',
+  `TIME` int(7) NOT NULL DEFAULT '0',
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+##
+## Perform correct upgrade
+##
+DROP TABLE performance_schema.processlist;
+CREATE TABLE performance_schema.processlist (
+`ID` bigint(20) unsigned NOT NULL,
+`USER` varchar(32) DEFAULT NULL,
+`HOST` varchar(66) DEFAULT NULL,
+`DB` varchar(64) DEFAULT NULL,
+`COMMAND` varchar(16) DEFAULT NULL,
+`TIME` bigint(20) DEFAULT NULL,
+`STATE` varchar(64) DEFAULT NULL,
+`INFO` longtext
+) ENGINE = 'PERFORMANCE_SCHEMA';
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SELECT * FROM performance_schema.processlist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SELECT * FROM performance_schema.processlist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SHOW PROCESSLIST
+##
+## Server shutdown
+##
+##
+### Server restart
+##
+SHOW CREATE TABLE performance_schema.processlist;
+Table	Create Table
+processlist	CREATE TABLE `processlist` (
+  `ID` bigint(20) unsigned NOT NULL,
+  `USER` varchar(32) DEFAULT NULL,
+  `HOST` varchar(66) DEFAULT NULL,
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) DEFAULT NULL,
+  `TIME` bigint(20) DEFAULT NULL,
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+SET GLOBAL performance_schema_show_processlist = 'OFF';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SELECT * FROM performance_schema.processlist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	starting	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'ON';
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SELECT * FROM performance_schema.processlist
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+2	root	[HOST:PORT]	test	Query	[TIME]	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+2	root	[HOST:PORT]	test	Query	[TIME]	Sending data	SHOW PROCESSLIST
+SET GLOBAL performance_schema_show_processlist = 'OFF';

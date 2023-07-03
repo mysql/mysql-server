@@ -448,6 +448,8 @@ c1
 1
 1
 1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 #
 # Additional coverage for handling of key algorithm in index definition.

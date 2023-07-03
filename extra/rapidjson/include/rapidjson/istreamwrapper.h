@@ -17,12 +17,29 @@
 
 #include "stream.h"
 #include <iosfwd>
+<<<<<<< HEAD
 #include <ios>
+=======
+<<<<<<< HEAD
+=======
+#include <ios>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(padded)
+<<<<<<< HEAD
 #elif defined(_MSC_VER)
+=======
+<<<<<<< HEAD
+#endif
+
+#ifdef _MSC_VER
+=======
+#elif defined(_MSC_VER)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(4351) // new behavior: elements of array 'array' will be default initialized
 #endif
@@ -49,6 +66,43 @@ template <typename StreamType>
 class BasicIStreamWrapper {
 public:
     typedef typename StreamType::char_type Ch;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    BasicIStreamWrapper(StreamType& stream) : stream_(stream), count_(), peekBuffer_() {}
+>>>>>>> pr/231
+
+    //! Constructor.
+    /*!
+        \param stream stream opened for read.
+    */
+    BasicIStreamWrapper(StreamType &stream) : stream_(stream), buffer_(peekBuffer_), bufferSize_(4), bufferLast_(0), current_(buffer_), readCount_(0), count_(0), eof_(false) { 
+        Read();
+    }
+
+    //! Constructor.
+    /*!
+        \param stream stream opened for read.
+        \param buffer user-supplied buffer.
+        \param bufferSize size of buffer in bytes. Must >=4 bytes.
+    */
+    BasicIStreamWrapper(StreamType &stream, char* buffer, size_t bufferSize) : stream_(stream), buffer_(buffer), bufferSize_(bufferSize), bufferLast_(0), current_(buffer_), readCount_(0), count_(0), eof_(false) { 
+        RAPIDJSON_ASSERT(bufferSize >= 4);
+        Read();
+    }
+
+    Ch Peek() const { return *current_; }
+    Ch Take() { Ch c = *current_; Read(); return c; }
+    size_t Tell() const { return count_ + static_cast<size_t>(current_ - buffer_); }
+
+    // Not implemented
+    void Put(Ch) { RAPIDJSON_ASSERT(false); }
+<<<<<<< HEAD
+    void Flush() { RAPIDJSON_ASSERT(false); } 
+    Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
+=======
+    void Flush() { RAPIDJSON_ASSERT(false); }
+=======
 
     //! Constructor.
     /*!
@@ -77,10 +131,45 @@ public:
     void Put(Ch) { RAPIDJSON_ASSERT(false); }
     void Flush() { RAPIDJSON_ASSERT(false); } 
     Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     size_t PutEnd(Ch*) { RAPIDJSON_ASSERT(false); return 0; }
 
     // For encoding detection only.
     const Ch* Peek4() const {
+<<<<<<< HEAD
+        return (current_ + 4 - !eof_ <= bufferLast_) ? current_ : 0;
+=======
+<<<<<<< HEAD
+        RAPIDJSON_ASSERT(sizeof(Ch) == 1); // Only usable for byte stream.
+        int i;
+        bool hasError = false;
+        for (i = 0; i < 4; ++i) {
+            typename StreamType::int_type c = stream_.get();
+            if (c == StreamType::traits_type::eof()) {
+                hasError = true;
+                stream_.clear();
+                break;
+            }
+            peekBuffer_[i] = static_cast<Ch>(c);
+        }
+        for (--i; i >= 0; --i)
+            stream_.putback(peekBuffer_[i]);
+        return !hasError ? peekBuffer_ : 0;
+>>>>>>> pr/231
+    }
+
+private:
+    BasicIStreamWrapper();
+    BasicIStreamWrapper(const BasicIStreamWrapper&);
+    BasicIStreamWrapper& operator=(const BasicIStreamWrapper&);
+
+<<<<<<< HEAD
+=======
+    StreamType& stream_;
+    size_t count_;  //!< Number of characters read. Note:
+    mutable Ch peekBuffer_[4];
+=======
         return (current_ + 4 - !eof_ <= bufferLast_) ? current_ : 0;
     }
 
@@ -89,6 +178,7 @@ private:
     BasicIStreamWrapper(const BasicIStreamWrapper&);
     BasicIStreamWrapper& operator=(const BasicIStreamWrapper&);
 
+>>>>>>> pr/231
     void Read() {
         if (current_ < bufferLast_)
             ++current_;
@@ -114,6 +204,10 @@ private:
     size_t readCount_;
     size_t count_;  //!< Number of characters read
     bool eof_;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 typedef BasicIStreamWrapper<std::istream> IStreamWrapper;

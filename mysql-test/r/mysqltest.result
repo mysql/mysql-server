@@ -1636,6 +1636,7 @@ mysqltest: At line 1: A number between 0 and 16 is required for the precision in
 # The minimum value which can be passed is 0
 mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
 #
+<<<<<<< HEAD
 # BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
 #
 # if condition evalutes to false
@@ -1680,13 +1681,20 @@ The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this instal
 Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test: 3
 reason: Skipping bug25929826.test
 #
+=======
+>>>>>>> upstream/cluster-7.6
 # BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
 #               STRINGS IN PATH NAME
 #
 REPLACE_STRING
+<<<<<<< HEAD
 SELECT REPLACE_STRING FROM t1;
 mysqltest: At line 1: Query 'SELECT REPLACE_STRING FROM t1' failed.
 ERROR 1146 (42S02): Table 'test.t1' doesn't exist
+=======
+mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist
+<<<<<<< HEAD
+>>>>>>> pr/231
 #
 # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
 #
@@ -1732,6 +1740,7 @@ Integer value '2147483648' is out of range. mysqltest: At line 1: Invalid value 
 SELECT NUMBER_OF_CPUS;
 NUMBER_OF_CPUS
 NUMBER_OF_CPUS
+<<<<<<< HEAD
 #
 # WL#11811: Rename and enhance [disable|enable]_parser test commands
 #
@@ -2207,3 +2216,7 @@ mysqltest: At line 2: Assertion failed: assert(`SELECT $false_var`)
 mysqltest: At line 4: Assertion failed: assert(`SELECT 0`)
 mysqltest: At line 6: Assertion failed: assert($myvar)
 mysqltest: At line 14: Assertion failed: assert($counter)
+=======
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

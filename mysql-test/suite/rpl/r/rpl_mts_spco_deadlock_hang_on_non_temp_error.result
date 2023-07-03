@@ -7,12 +7,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 #
 # 2. Setup testing environment.
+<<<<<<< HEAD
 #    2.1 Create table on source and insert few rows.
 #
+=======
+#    2.1 Create tables on source.
+>>>>>>> pr/231
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE = InnoDB;
 #
 # 2.2 Setup necessary variables on replica server.
+<<<<<<< HEAD
 #
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
@@ -26,6 +31,16 @@ SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
+=======
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+SET @saved_slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET GLOBAL slave_preserve_commit_order = ON;
+SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
+SET GLOBAL slave_parallel_workers = 3;
+>>>>>>> pr/231
 #
 # 2.3 Set innodb_lock_wait_timeout to 300 to make test work without issues
 # on slow platform runs.
@@ -58,6 +73,7 @@ INSERT INTO t1 VALUES(1, 1),(2, 2);
 #     run parallely by two worker threads on Slave.
 #
 # Adding debug point 'set_commit_parent_100' to @@SESSION.debug
+<<<<<<< HEAD
 #
 # 3.3 Execute Transaction-1
 #
@@ -65,10 +81,14 @@ INSERT INTO t1 VALUES(3, 1);
 #
 # 3.4 Execute Transaction-2
 #
+=======
+INSERT INTO t1 VALUES(3, 1);
+>>>>>>> pr/231
 BEGIN;
 DELETE FROM t1 WHERE c2 <= 1;
 INSERT INTO t2 values(1);
 COMMIT;
+<<<<<<< HEAD
 #
 # 3.5 Execute Transaction-3
 #
@@ -77,18 +97,31 @@ INSERT INTO t1 values(10,10);
 # 3.6 On Slave, begin a transaction (Transacation-4)
 #     which will acquire MDL lock on t1
 #     (that blocks 'Transacation-1').
+=======
+INSERT INTO t1 values(10,10);
+#
+# 3.3 On Slave, begin a transaction (Transacation 4)
+#     which will acquire MDL lock on t1
+#     (that blocks 'Transacation 1').
+>>>>>>> pr/231
 #
 [connection slave1]
 BEGIN;
 INSERT INTO t1 VALUES(3, 3);
 #
+<<<<<<< HEAD
 # 3.7 On Slave, begin a transaction (Transacation-5)
 #     that can block INSERT in 'Transacation-2'.
+=======
+# 3.4 On Slave, begin a transaction (Transacation 5)
+#     that can block INSERT in 'Transacation 2'.
+>>>>>>> pr/231
 #
 [connection slave]
 BEGIN;
 INSERT INTO t2 VALUES(1);
 #
+<<<<<<< HEAD
 # 3.8 Start SQL thread, let Transaction-1 & 2 reach SQL workers
 #
 include/start_slave_sql.inc
@@ -98,30 +131,57 @@ include/start_slave_sql.inc
 #     local transacations (4 & 5).
 #
 # 3.10 Rollback Transaction-4 which will release MDL lock required for
+=======
+# 3.5 Start SQL thread, let Transaction-1 & 2 reach SQL workers
+#
+include/start_slave_sql.inc
+#
+# 3.6 Wait till the worker threads pick up those transacations
+#     (Transaction 1 and Transaction 2). They will wait for locks due
+#     local transacations (4 & 5).
+#
+# 3.7 Rollback Transaction-4 which will release MDL lock required for
+>>>>>>> pr/231
 #      Transaction-1.
 #
 [connection slave1]
 ROLLBACK;
 #
+<<<<<<< HEAD
 # 3.11 Wait till the worker thread detects commit order deadlock
+=======
+# 3.8 Wait till the worker thread detects commit order deadlock
+>>>>>>> pr/231
 #      between two workers
 #      (Worker1 : Transaction-1 & Worker-2: Transaction-2).
 #
 SET debug_sync = "now WAIT_FOR reported_deadlock";
 #
+<<<<<<< HEAD
 # 3.12 Commit Transaction-5 which will release MDL lock required for
+=======
+# 3.9 Commit Transaction-5 which will release MDL lock required for
+>>>>>>> pr/231
 #      Transaction-2.
 #
 [connection slave]
 COMMIT;
 #
+<<<<<<< HEAD
 # 3.13 Step 3.11 will cause worker 2 ("Transacation-2")
+=======
+# 3.10 Step 3.8 will cause worker 2 ("Transacation-2")
+>>>>>>> pr/231
 #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 #      detected the 'commit order deadlock').
 #
 include/wait_for_slave_sql_error.inc [errno=1062]
 #
+<<<<<<< HEAD
 # 3.13 Check that worker 2 did not *retry* transaction-2
+=======
+# 3.11 Check that worker 2 did not *retry* transaction-2
+>>>>>>> pr/231
 #      before throwing ER_DUP_ENTRY error (non-temporary error).
 #
 include/assert_grep.inc [Found 'Duplicate entry' error only once time which proves that transaction is not retried after getting 'non-temporary error'.]
@@ -135,18 +195,28 @@ include/assert_grep.inc [Found 'Duplicate entry' error only once time which prov
 #
 include/stop_slave_io.inc
 RESET SLAVE;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+=======
+>>>>>>> pr/231
 DROP TABLE t1, t2;
 #
 # 4.3 Clear system variables.
 #
+<<<<<<< HEAD
 SET GLOBAL replica_preserve_commit_order = @saved_replica_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+=======
+SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
+SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
+SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+>>>>>>> pr/231
 #
 # 4.4 Clear debug point.
 #

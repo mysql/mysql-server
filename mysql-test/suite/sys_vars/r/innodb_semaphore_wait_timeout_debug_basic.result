@@ -6,10 +6,17 @@ SELECT @@global.innodb_semaphore_wait_timeout_debug;
 600
 SET GLOBAL innodb_semaphore_wait_timeout_debug = 10;
 Warnings:
+<<<<<<< HEAD
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_debug value: '10'
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
 25
+=======
+Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_de value: '10'
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+@@global.innodb_semaphore_wait_timeout_debug
+100
+>>>>>>> pr/231
 SET GLOBAL innodb_semaphore_wait_timeout_debug = 200;
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
@@ -20,16 +27,27 @@ SET innodb_semaphore_wait_timeout_debug = 100;
 ERROR HY000: Variable 'innodb_semaphore_wait_timeout_debug' is a GLOBAL variable and should be set with SET GLOBAL
 SET GLOBAL innodb_semaphore_wait_timeout_debug = 6000;
 Warnings:
+<<<<<<< HEAD
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_debug value: '6000'
+=======
+Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_de value: '6000'
+>>>>>>> pr/231
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
 600
 SET GLOBAL innodb_semaphore_wait_timeout_debug = -1;
 Warnings:
+<<<<<<< HEAD
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_debug value: '-1'
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
 25
+=======
+Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_de value: '-1'
+SELECT @@global.innodb_semaphore_wait_timeout_debug;
+@@global.innodb_semaphore_wait_timeout_debug
+100
+>>>>>>> pr/231
 SET GLOBAL innodb_semaphore_wait_timeout_debug = default;
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug

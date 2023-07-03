@@ -1,0 +1,498 @@
+#
+# WL#6326: InnoDB: fix index->lock contention
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+SET @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+SET @old_innodb_stats_persistent = @@innodb_stats_persistent;
+--enable_query_log
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_adaptive_hash_index = false;
+SET GLOBAL innodb_stats_persistent = false;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+--connect (con3,localhost,root,,)
+
+CREATE TABLE t1 (
+  a00 CHAR(255) NOT NULL DEFAULT 'a',
+  a01 CHAR(255) NOT NULL DEFAULT 'a',
+  a02 CHAR(255) NOT NULL DEFAULT 'a',
+  a03 CHAR(255) NOT NULL DEFAULT 'a',
+  a04 CHAR(255) NOT NULL DEFAULT 'a',
+  a05 CHAR(255) NOT NULL DEFAULT 'a',
+  a06 CHAR(255) NOT NULL DEFAULT 'a',
+  b INT NOT NULL DEFAULT 0
+) charset latin1 ENGINE = InnoDB;
+
+ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
+  a00,
+  a01,
+  a02,
+  a03,
+  a04,
+  a05,
+  a06
+);
+
+#
+# Prepare primary key index tree to be used for this test.
+#
+
+# Only root (1)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+# Make the first records sparse artificially,
+# not to cause modify_tree by single node_ptr insert operation.
+# * (7 - 2) records should be larger than a half of the page size
+# * (7 + 2) records should be fit to the page
+# (above t1 definition is already adjusted)
+SET GLOBAL innodb_limit_optimistic_insert_debug = 7;
+
+INSERT INTO t1 (a00) VALUES ('aa');
+INSERT INTO t1 (a00) VALUES ('ab');
+INSERT INTO t1 (a00) VALUES ('ac');
+INSERT INTO t1 (a00) VALUES ('ad');
+INSERT INTO t1 (a00) VALUES ('ae');
+INSERT INTO t1 (a00) VALUES ('af');
+INSERT INTO t1 (a00) VALUES ('ag');
+INSERT INTO t1 (a00) VALUES ('ah');
+# Raise root (1-2)
+# (aa,ad)
+# (aa,ab,ac)(ad,ae,af,ag,ah)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('ai');
+INSERT INTO t1 (a00) VALUES ('aj');
+INSERT INTO t1 (a00) VALUES ('ak');
+# Split leaf (1-3)
+# (aa,ad,ak)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('al');
+INSERT INTO t1 (a00) VALUES ('am');
+INSERT INTO t1 (a00) VALUES ('an');
+INSERT INTO t1 (a00) VALUES ('ao');
+INSERT INTO t1 (a00) VALUES ('ap');
+INSERT INTO t1 (a00) VALUES ('aq');
+INSERT INTO t1 (a00) VALUES ('ar');
+# Split leaf (1-4)
+# (aa,ad,ak,ar)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak,al,am,an,ao,ap,aq)(ar)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('as');
+INSERT INTO t1 (a00) VALUES ('at');
+INSERT INTO t1 (a00) VALUES ('au');
+INSERT INTO t1 (a00) VALUES ('av');
+INSERT INTO t1 (a00) VALUES ('aw');
+INSERT INTO t1 (a00) VALUES ('ax');
+INSERT INTO t1 (a00) VALUES ('ay');
+# Split leaf (1-5)
+# (aa,ad,ak,ar,ay)
+# (aa,ab,ac)(ad,ae,af,ag,ah,ai,aj)(ak,al,am,an,ao,ap,aq)(ar,as,at,au,av,aw,ax)(ay)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('az');
+INSERT INTO t1 (a00) VALUES ('ba');
+INSERT INTO t1 (a00) VALUES ('bb');
+INSERT INTO t1 (a00) VALUES ('bc');
+INSERT INTO t1 (a00) VALUES ('bd');
+INSERT INTO t1 (a00) VALUES ('be');
+INSERT INTO t1 (a00) VALUES ('bf');
+# Split leaf (1-6)
+# (aa,ad,ak,ar,ay,bf)
+# (aa,ab,ac)(ad..)(ak..)(ar,as,at,au,av,aw,ax)(ay,az,ba,bb,bc,bd,be)(bf)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+INSERT INTO t1 (a00) VALUES ('bg');
+INSERT INTO t1 (a00) VALUES ('bh');
+INSERT INTO t1 (a00) VALUES ('bi');
+INSERT INTO t1 (a00) VALUES ('bj');
+INSERT INTO t1 (a00) VALUES ('bk');
+INSERT INTO t1 (a00) VALUES ('bl');
+INSERT INTO t1 (a00) VALUES ('bm');
+# Split leaf (1-7)
+# (aa,ad,ak,ar,ay,bf,bm)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay,az,ba,bb,bc,bd,be)(bf,bg,bh,bi,bj,bk,bl)(bm)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('bn');
+INSERT INTO t1 (a00) VALUES ('bo');
+INSERT INTO t1 (a00) VALUES ('bp');
+INSERT INTO t1 (a00) VALUES ('bq');
+INSERT INTO t1 (a00) VALUES ('br');
+INSERT INTO t1 (a00) VALUES ('bs');
+INSERT INTO t1 (a00) VALUES ('bt');
+# Raise root (1-2-8)
+# (aa,ar)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+INSERT INTO t1 (a00) VALUES ('bu');
+INSERT INTO t1 (a00) VALUES ('bv');
+INSERT INTO t1 (a00) VALUES ('bw');
+INSERT INTO t1 (a00) VALUES ('bx');
+INSERT INTO t1 (a00) VALUES ('by');
+INSERT INTO t1 (a00) VALUES ('bz');
+INSERT INTO t1 (a00) VALUES ('ca');
+
+INSERT INTO t1 (a00) VALUES ('cb');
+INSERT INTO t1 (a00) VALUES ('cc');
+INSERT INTO t1 (a00) VALUES ('cd');
+INSERT INTO t1 (a00) VALUES ('ce');
+INSERT INTO t1 (a00) VALUES ('cf');
+INSERT INTO t1 (a00) VALUES ('cg');
+INSERT INTO t1 (a00) VALUES ('ch');
+
+INSERT INTO t1 (a00) VALUES ('ci');
+INSERT INTO t1 (a00) VALUES ('cj');
+INSERT INTO t1 (a00) VALUES ('ck');
+INSERT INTO t1 (a00) VALUES ('cl');
+INSERT INTO t1 (a00) VALUES ('cm');
+INSERT INTO t1 (a00) VALUES ('cn');
+INSERT INTO t1 (a00) VALUES ('co');
+# Split also at level 1 (1-3-11)
+# (aa,ar,co)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+INSERT INTO t1 (a00) VALUES ('cp');
+INSERT INTO t1 (a00) VALUES ('cq');
+INSERT INTO t1 (a00) VALUES ('cr');
+INSERT INTO t1 (a00) VALUES ('cs');
+INSERT INTO t1 (a00) VALUES ('ct');
+INSERT INTO t1 (a00) VALUES ('cu');
+INSERT INTO t1 (a00) VALUES ('cv');
+
+INSERT INTO t1 (a00) VALUES ('cw');
+INSERT INTO t1 (a00) VALUES ('cx');
+INSERT INTO t1 (a00) VALUES ('cy');
+INSERT INTO t1 (a00) VALUES ('cz');
+INSERT INTO t1 (a00) VALUES ('da');
+INSERT INTO t1 (a00) VALUES ('db');
+INSERT INTO t1 (a00) VALUES ('dc');
+
+INSERT INTO t1 (a00) VALUES ('dd');
+INSERT INTO t1 (a00) VALUES ('de');
+INSERT INTO t1 (a00) VALUES ('df');
+INSERT INTO t1 (a00) VALUES ('dg');
+INSERT INTO t1 (a00) VALUES ('dh');
+INSERT INTO t1 (a00) VALUES ('di');
+INSERT INTO t1 (a00) VALUES ('dj');
+
+INSERT INTO t1 (a00) VALUES ('dk');
+INSERT INTO t1 (a00) VALUES ('dl');
+INSERT INTO t1 (a00) VALUES ('dm');
+INSERT INTO t1 (a00) VALUES ('dn');
+INSERT INTO t1 (a00) VALUES ('do');
+INSERT INTO t1 (a00) VALUES ('dp');
+INSERT INTO t1 (a00) VALUES ('dq');
+
+INSERT INTO t1 (a00) VALUES ('dr');
+INSERT INTO t1 (a00) VALUES ('ds');
+INSERT INTO t1 (a00) VALUES ('dt');
+INSERT INTO t1 (a00) VALUES ('du');
+INSERT INTO t1 (a00) VALUES ('dv');
+INSERT INTO t1 (a00) VALUES ('dw');
+INSERT INTO t1 (a00) VALUES ('dx');
+
+INSERT INTO t1 (a00) VALUES ('dy');
+INSERT INTO t1 (a00) VALUES ('dz');
+INSERT INTO t1 (a00) VALUES ('ea');
+INSERT INTO t1 (a00) VALUES ('eb');
+INSERT INTO t1 (a00) VALUES ('ec');
+INSERT INTO t1 (a00) VALUES ('ed');
+INSERT INTO t1 (a00) VALUES ('ee');
+
+INSERT INTO t1 (a00) VALUES ('ef');
+INSERT INTO t1 (a00) VALUES ('eg');
+INSERT INTO t1 (a00) VALUES ('eh');
+INSERT INTO t1 (a00) VALUES ('ei');
+INSERT INTO t1 (a00) VALUES ('ej');
+INSERT INTO t1 (a00) VALUES ('ek');
+INSERT INTO t1 (a00) VALUES ('el');
+# Split also at level 1 (1-4-18)
+# (aa,ar,co,el)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co,cv,dc,dj,dq,dx,ee)                    (el)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co..)(cv..)(dc..)(dj..)(dq..)(dx..)(ee..)(el)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+INSERT INTO t1 (a00) VALUES ('em');
+INSERT INTO t1 (a00) VALUES ('en');
+INSERT INTO t1 (a00) VALUES ('eo');
+INSERT INTO t1 (a00) VALUES ('ep');
+INSERT INTO t1 (a00) VALUES ('eq');
+INSERT INTO t1 (a00) VALUES ('er');
+INSERT INTO t1 (a00) VALUES ('es');
+
+INSERT INTO t1 (a00) VALUES ('et');
+INSERT INTO t1 (a00) VALUES ('eu');
+INSERT INTO t1 (a00) VALUES ('ev');
+INSERT INTO t1 (a00) VALUES ('ew');
+INSERT INTO t1 (a00) VALUES ('ex');
+INSERT INTO t1 (a00) VALUES ('ey');
+INSERT INTO t1 (a00) VALUES ('ez');
+
+INSERT INTO t1 (a00) VALUES ('fa');
+INSERT INTO t1 (a00) VALUES ('fb');
+INSERT INTO t1 (a00) VALUES ('fc');
+INSERT INTO t1 (a00) VALUES ('fd');
+INSERT INTO t1 (a00) VALUES ('fe');
+INSERT INTO t1 (a00) VALUES ('ff');
+INSERT INTO t1 (a00) VALUES ('fg');
+
+INSERT INTO t1 (a00) VALUES ('fh');
+INSERT INTO t1 (a00) VALUES ('fi');
+INSERT INTO t1 (a00) VALUES ('fj');
+INSERT INTO t1 (a00) VALUES ('fk');
+INSERT INTO t1 (a00) VALUES ('fl');
+INSERT INTO t1 (a00) VALUES ('fm');
+INSERT INTO t1 (a00) VALUES ('fn');
+
+INSERT INTO t1 (a00) VALUES ('fo');
+INSERT INTO t1 (a00) VALUES ('fp');
+INSERT INTO t1 (a00) VALUES ('fq');
+INSERT INTO t1 (a00) VALUES ('fr');
+INSERT INTO t1 (a00) VALUES ('fs');
+INSERT INTO t1 (a00) VALUES ('ft');
+INSERT INTO t1 (a00) VALUES ('fu');
+
+INSERT INTO t1 (a00) VALUES ('fv');
+INSERT INTO t1 (a00) VALUES ('fw');
+INSERT INTO t1 (a00) VALUES ('fx');
+INSERT INTO t1 (a00) VALUES ('fy');
+INSERT INTO t1 (a00) VALUES ('fz');
+INSERT INTO t1 (a00) VALUES ('ga');
+INSERT INTO t1 (a00) VALUES ('gb');
+
+INSERT INTO t1 (a00) VALUES ('gc');
+INSERT INTO t1 (a00) VALUES ('gd');
+INSERT INTO t1 (a00) VALUES ('ge');
+INSERT INTO t1 (a00) VALUES ('gf');
+INSERT INTO t1 (a00) VALUES ('gg');
+INSERT INTO t1 (a00) VALUES ('gh');
+
+
+# Current tree form (1-4-24)
+# (aa,ar,co,el)
+# (aa,ad,ak)            (ar,ay,bf,bm,bt,ca,ch)                    (co,cv,dc,dj,dq,dx,ee)                    (el..,gb)
+# (aa,ab,ac)(ad..)(ak..)(ar..)(ay..)(bf..)(bm..)(bt..)(ca..)(ch..)(co..)(cv..)(dc..)(dj..)(dq..)(dx..)(ee..)(el..)..(gb..)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+
+# Insert the rest of records normally
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+
+
+--echo # Test start
+
+# (1) Insert records to leaf page (bf..) and cause modify_page.
+#     - root page is not X latched
+#     - latched from level 1 page (ar,ay,bf,bm,bt,ca,ch)
+
+SET DEBUG_SYNC = 'RESET';
+
+# Filling leaf page (bf..)
+INSERT INTO t1 (a00) VALUES ('bfa');
+
+--connection con1
+SET DEBUG_SYNC = 'before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# Cause modify_tree
+--send
+INSERT INTO t1 (a00) VALUES ('bfb');
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR reached';
+# Not blocked searches
+SELECT a00,a01 FROM t1 WHERE a00 = 'aa';
+SELECT a00,a01 FROM t1 WHERE a00 = 'aq';
+# "where a00 = 'co'" is blocked because searching from smaller ('co','a','a',..).
+SELECT a00,a01 FROM t1 WHERE a00 = 'cp';
+SELECT a00,a01 FROM t1 WHERE a00 = 'el';
+
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'ar';
+
+--connection con3
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait2';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'cn';
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait1';
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait2';
+SET DEBUG_SYNC = 'now SIGNAL continue';
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+
+--connection con3
+--reap
+
+--connection default
+
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+
+# (2) Insert records to leaf page (co..) and cause modify_page
+#     - root page is X latched, because node_ptr for 'co'
+#       is 1st record for (co,cv,dc,dj,dq,dx,ee)
+#
+# * ordinary pessimitic insert might be done by pessistic update
+#   and we should consider possibility node_ptr to be deleted.
+
+SET DEBUG_SYNC = 'RESET';
+
+# Filling leaf page (co..)
+INSERT INTO t1 (a00) VALUES ('coa');
+
+--connection con1
+SET DEBUG_SYNC = 'before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# Cause modify_tree
+--send
+INSERT INTO t1 (a00) VALUES ('cob');
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR reached';
+# All searches are blocked because root page is X latched
+
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'aa';
+
+--connection con3
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait2';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'el';
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait1';
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait2';
+SET DEBUG_SYNC = 'now SIGNAL continue';
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+
+--connection con3
+--reap
+
+--connection default
+
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+
+# (3) Insert records to rightmost leaf page (gb..) and cause modify_page
+#     - root page is not X latched, because node_ptr for 'gb' is the last record
+#       of the level 1 though it is last record in the page.
+#     - lathed from level 1 page (el..,gb)
+
+SET DEBUG_SYNC = 'RESET';
+
+# Filling leaf page (gb..)
+INSERT INTO t1 (a00) VALUES ('gba');
+
+--connection con1
+SET DEBUG_SYNC = 'before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
+# Cause modify_tree
+--send
+INSERT INTO t1 (a00) VALUES ('gbb');
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR reached';
+# Not blocked searches
+SELECT a00,a01 FROM t1 WHERE a00 = 'aa';
+SELECT a00,a01 FROM t1 WHERE a00 = 'ek';
+
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'el';
+
+--connection con3
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait2';
+# Blocked
+--send
+SELECT a00,a01 FROM t1 WHERE a00 = 'gb';
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait1';
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait2';
+SET DEBUG_SYNC = 'now SIGNAL continue';
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+
+--connection con3
+--reap
+
+--connection default
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+
+# Cleanup
+SET DEBUG_SYNC = 'RESET';
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+DROP TABLE t1;
+
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_stats_persistent = @old_innodb_stats_persistent;
+--enable_query_log
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc

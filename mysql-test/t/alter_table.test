@@ -2669,6 +2669,7 @@ DROP TABLE t1, t2;
 
 
 --echo #
+<<<<<<< HEAD
 --echo # WL#10761 : ALTER TABLE RENAME COLUMN
 --echo #
 
@@ -2857,6 +2858,7 @@ ALTER TABLE t
 ADD COLUMN e DATE GENERATED ALWAYS AS (NULL) STORED NOT NULL;
 SELECT * FROM t;
 DROP TABLE t;
+<<<<<<< HEAD
 
 --echo #
 --echo # Basic test coverage for ALGORITHM=INSTANT support on SQL-layer.
@@ -2987,6 +2989,16 @@ SET SQL_MODE=default;
 --echo #               TO VARCHAR(40) INSTANTANEOUSLY
 
 SET @orig_sql_mode = @@sql_mode;
+=======
+=======
+--echo # BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+--echo #               TO VARCHAR(40) INSTANTANEOUSLY
+
+SET @orig_sql_mode= @@sql_mode;
+SET @orig_innodb_large_prefix= @@global.innodb_large_prefix;
+
+SET GLOBAL innodb_large_prefix= ON;
+>>>>>>> pr/231
 
 --echo # Tests where an error is reported under strict mode when the index
 --echo # limit exceeds the maximum supported length by SE.
@@ -3018,9 +3030,21 @@ ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
 --error ER_TOO_LONG_KEY
 ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= COPY;
 
+<<<<<<< HEAD
 DROP TABLE t1, t2;
 
 SET sql_mode= '';
+=======
+--echo # Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+--error ER_TOO_LONG_KEY
+CREATE TABLE t3 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+
+DROP TABLE t1, t2;
+
+SET sql_mode= '';
+SET GLOBAL innodb_large_prefix= ON;
+>>>>>>> pr/231
 
 --enable_warnings
 
@@ -3056,9 +3080,21 @@ ROW_FORMAT=COMPACT;
 --error ER_TOO_LONG_KEY
 CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
 
+<<<<<<< HEAD
 DROP TABLE t1, t2, t3, t4;
 
 SET sql_mode= @orig_sql_mode;
+=======
+--echo # Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+CREATE TABLE t5 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+
+--disable_warnings
+DROP TABLE t1, t2, t3, t4, t5;
+
+SET sql_mode= @orig_sql_mode;
+SET GLOBAL innodb_large_prefix= ON;
+>>>>>>> pr/231
 
 --echo # Tests added for coverage.
 CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
@@ -3087,6 +3123,7 @@ ALTER TABLE t2 ADD INDEX idx1(fld1(769));
 --echo # Cleanup.
 DROP TABLE t1, t2;
 SET sql_mode= @orig_sql_mode;
+<<<<<<< HEAD
 
 
 --echo #
@@ -3113,6 +3150,9 @@ ALTER TABLE t1 MODIFY fld3 INT GENERATED ALWAYS AS (-fld1) STORED DEFAULT -1;
 
 DROP TABLE t1;
 
+=======
+SET GLOBAL innodb_large_prefix= @orig_innodb_large_prefix;
+>>>>>>> pr/231
 
 --echo #
 --echo # BUG#27788685: NO WARNING WHEN TRUNCATING A STRING WITH DATA LOSS
@@ -3164,6 +3204,7 @@ DROP TABLE t1, t2, t3;
 
 SET SQL_MODE=default;
 SET GLOBAL max_allowed_packet=default;
+<<<<<<< HEAD
 
 
 --echo #
@@ -3759,3 +3800,6 @@ ALTER TABLE t3 MODIFY c2 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

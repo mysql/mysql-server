@@ -7,7 +7,11 @@ SET @@global.performance_schema_show_processlist = OFF;
 CREATE USER 'regular'@'localhost';
 SHOW GRANTS;
 Grants for regular@localhost
+<<<<<<< HEAD
 GRANT USAGE ON *.* TO `regular`@`localhost`
+=======
+GRANT USAGE ON *.* TO 'regular'@'localhost'
+>>>>>>> pr/231
 SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 USER	INFO
 regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
@@ -27,7 +31,11 @@ TRUNCATE TABLE performance_schema.events_statements_history;
 SET @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for regular@localhost
+<<<<<<< HEAD
 GRANT USAGE ON *.* TO `regular`@`localhost`
+=======
+GRANT USAGE ON *.* TO 'regular'@'localhost'
+>>>>>>> pr/231
 SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 USER	INFO
 regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
@@ -48,7 +56,11 @@ GRANT PROCESS ON *.* TO 'regular'@'localhost';
 SET @@global.performance_schema_show_processlist = OFF;
 SHOW GRANTS;
 Grants for regular@localhost
+<<<<<<< HEAD
 GRANT PROCESS ON *.* TO `regular`@`localhost`
+=======
+GRANT PROCESS ON *.* TO 'regular'@'localhost'
+>>>>>>> pr/231
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
@@ -68,7 +80,11 @@ TRUNCATE TABLE performance_schema.events_statements_history;
 SET @@global.performance_schema_show_processlist = ON;
 SHOW GRANTS;
 Grants for regular@localhost
+<<<<<<< HEAD
 GRANT PROCESS ON *.* TO `regular`@`localhost`
+=======
+GRANT PROCESS ON *.* TO 'regular'@'localhost'
+>>>>>>> pr/231
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1

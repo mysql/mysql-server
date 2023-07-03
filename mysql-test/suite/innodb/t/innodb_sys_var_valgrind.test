@@ -34,6 +34,12 @@ select @@innodb_buffer_pool_filename;
 set global innodb_buffer_pool_filename="bye";
 select @@innodb_buffer_pool_filename;
 
+<<<<<<< HEAD
+=======
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_buffer_pool_filename=NULL;
+
+>>>>>>> pr/231
 set global innodb_buffer_pool_filename=default;
 select @@innodb_buffer_pool_filename;
 
@@ -62,6 +68,7 @@ SET GLOBAL innodb_ft_aux_table =default;
 select @@innodb_ft_aux_table;
 
 drop table t1,t2;
+<<<<<<< HEAD
 
 #Test innodb_redo_log_archive_dirs
 --let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
@@ -81,3 +88,5 @@ eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';
 
 
 
+=======
+>>>>>>> pr/231

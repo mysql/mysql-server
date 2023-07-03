@@ -187,6 +187,7 @@ DELETE FROM t1 WHERE c1=1;
 
 # Scenario 3
 
+<<<<<<< HEAD
 # 3.1 Enable binlog_encryption on M1.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -217,6 +218,9 @@ SET GLOBAL binlog_encryption = OFF;
 # Uninstall keyring plugin and remove dummy keyring file on server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+=======
+# Uninstall keyring plugin and remove dummy keyring file on server2
+>>>>>>> pr/231
 UNINSTALL PLUGIN keyring_file;
 --remove_file $MYSQL_TMP_DIR/mydummy_key2
 

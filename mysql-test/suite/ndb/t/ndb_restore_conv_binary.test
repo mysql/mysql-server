@@ -1,6 +1,11 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source include/not_windows.inc
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+-- source include/not_embedded.inc
+-- source include/not_windows.inc
+>>>>>>> pr/231
 
 --echo ***********************
 --echo Test binary conversions
@@ -69,8 +74,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no data differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -99,8 +109,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no data differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -130,8 +145,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no data differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -160,8 +180,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no data differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -190,8 +215,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no data differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -220,8 +250,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 
 --echo Expect no data differences between orig and restored
@@ -258,8 +293,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -291,8 +331,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -326,8 +371,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -362,8 +412,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -398,8 +453,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -433,8 +493,13 @@ create table test.t1 (
 ) engine=ndb;
 
 --echo # run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo Expect no unexpected differences between orig and restored
 select o.a, o.b, sha1(o.c), length(o.c), sha1(o.d), length(o.d), sha1(o.e), length(o.e), sha1(o.f), length(o.f), sha1(o.g), length(o.g), sha1(o.h), length(o.h),
@@ -479,7 +544,11 @@ create table test.t2 (
   longtext2 longtext,
   longtext3 longtext,
   longtext4 longtext
+<<<<<<< HEAD
 ) engine=ndb character set UTF8MB4;
+=======
+) engine=ndb character set utf8;
+>>>>>>> pr/231
 
 insert into test.t2 values (1,
   repeat('Tartan', 40),    # tinytext
@@ -541,8 +610,13 @@ create table test.t2 (
   longtext4 longblob     # longtext -> longblob
 ) engine=ndb;
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select count(*) from test.t2;
 
@@ -581,7 +655,11 @@ create table test.t2 (
   longblob2 longblob,
   longblob3 longblob,
   longblob4 longblob
+<<<<<<< HEAD
 ) engine=ndb character set UTF8MB4;
+=======
+) engine=ndb character set utf8;
+>>>>>>> pr/231
 
 insert into test.t2 values (1,
   repeat('Tartan', 40),    # tinyblob
@@ -643,8 +721,13 @@ create table test.t2 (
   longblob4 longtext     # longblob -> longtext
 ) engine=ndb;
 
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 select count(*) from test.t2;
 
@@ -665,9 +748,15 @@ drop table test.t2_orig;
 --echo Charset-aware truncation in blob -> tinytext and text ->tinyblob conversions
 --echo *****************************************************************************
 
+<<<<<<< HEAD
 --echo # ndb_restore TEXT -> TINYBLOB and BLOB->TINYTEXT truncation with UTF8MB4
 set character_set_client=UTF8MB4;
 create table t2(id int primary key, text_val text character set UTF8MB4, blob_val blob)engine=ndb;
+=======
+--echo # ndb_restore TEXT -> TINYBLOB and BLOB->TINYTEXT truncation with utf8
+set character_set_client=utf8;
+create table t2(id int primary key, text_val text character set utf8, blob_val blob)engine=ndb;
+>>>>>>> pr/231
 insert into t2 values(11111, REPEAT(UNHEX("E38182"), 100), REPEAT(UNHEX("E38182"), 100));
 insert into t2 values(22222, CONCAT("AA",REPEAT(UNHEX("E38182"), 100)), CONCAT("AA",REPEAT(UNHEX("E38182"), 100)));
 select length(text_val), char_length(text_val), length(blob_val), char_length(blob_val) from t2 order by id;
@@ -675,11 +764,19 @@ select length(text_val), char_length(text_val), length(blob_val), char_length(bl
 --source include/ndb_backup.inc
 
 drop table t2;
+<<<<<<< HEAD
 create table t2(id int primary key, text_val tinyblob, blob_val tinytext character set UTF8MB4)engine=ndb;
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+create table t2(id int primary key, text_val tinyblob, blob_val tinytext character set utf8)engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 --echo # run ndb_select_all to see charset-aware truncation in ndb
 --echo # text_val = TINYBLOB, truncation on byte boundary, mid-character
@@ -690,7 +787,11 @@ create table t2(id int primary key, text_val tinyblob, blob_val tinytext charact
 
 --echo # run mysql select to see charset-aware truncation in mysqld
 --echo # blob_val = TINYTEXT, truncation on well-formed char boundary
+<<<<<<< HEAD
 --echo # length = well-formed char length * sizeof(UTF8MB4 char)
+=======
+--echo # length = well-formed char length * sizeof(utf8 char)
+>>>>>>> pr/231
 --echo # 1. pk-based read
 select length(blob_val), char_length(blob_val) from t2 where id = 11111;
 select length(blob_val), char_length(blob_val) from t2 where id = 22222;
@@ -706,5 +807,8 @@ select length(text_val), char_length(text_val) from t2 where id = 22222;
 select length(text_val), char_length(text_val) from t2 order by id;
 
 drop table t2;
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

@@ -1,0 +1,82 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Failed during slave thread initialization.*");
+include/stop_slave_sql.inc
+[connection slave1]
+SET DEBUG_SYNC='start_slave_thread_after_signal_on_start_cond SIGNAL reached_start_slave_thread WAIT_FOR continue_start_slave_thread';
+# Adding debug point 'simulate_sql_slave_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'pause_after_sql_thread_stop_hook' to @@GLOBAL.debug
+[connection slave1]
+START SLAVE SQL_THREAD;
+[connection slave2]
+SET DEBUG_SYNC='dsync_show_heartbeat_period SIGNAL reached_show_heartbeat_period WAIT_FOR continue_show_thread';
+SHOW STATUS LIKE 'Slave_heartbeat_period';
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR reached_start_slave_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_stopping_sql_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_show_heartbeat_period';
+SET DEBUG_SYNC='now SIGNAL continue_to_stop_sql_thread';
+SET DEBUG_SYNC='now SIGNAL continue_show_thread';
+SET DEBUG_SYNC='now SIGNAL continue_start_slave_thread';
+[connection slave1]
+[connection slave2]
+include/wait_for_slave_sql_error.inc [errno=1593]
+# Removing debug point 'simulate_sql_slave_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'pause_after_sql_thread_stop_hook' from @@GLOBAL.debug
+SET DEBUG_SYNC='RESET';
+include/stop_slave_sql.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+[connection slave1]
+SET DEBUG_SYNC='start_slave_thread_after_signal_on_start_cond SIGNAL reached_start_slave_thread WAIT_FOR continue_start_slave_thread';
+# Adding debug point 'simulate_sql_slave_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'pause_after_sql_thread_stop_hook' to @@GLOBAL.debug
+[connection slave1]
+START SLAVE SQL_THREAD;
+[connection slave2]
+SET DEBUG_SYNC='dsync_show_heartbeat_period SIGNAL reached_show_heartbeat_period WAIT_FOR continue_show_thread';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS;
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR reached_start_slave_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_stopping_sql_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_show_heartbeat_period';
+SET DEBUG_SYNC='now SIGNAL continue_to_stop_sql_thread';
+SET DEBUG_SYNC='now SIGNAL continue_show_thread';
+SET DEBUG_SYNC='now SIGNAL continue_start_slave_thread';
+[connection slave1]
+[connection slave2]
+include/wait_for_slave_sql_error.inc [errno=1593]
+# Removing debug point 'simulate_sql_slave_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'pause_after_sql_thread_stop_hook' from @@GLOBAL.debug
+SET DEBUG_SYNC='RESET';
+include/stop_slave_sql.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+[connection slave1]
+SET DEBUG_SYNC='start_slave_thread_after_signal_on_start_cond SIGNAL reached_start_slave_thread WAIT_FOR continue_start_slave_thread';
+# Adding debug point 'simulate_sql_slave_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'pause_after_sql_thread_stop_hook' to @@GLOBAL.debug
+[connection slave1]
+START SLAVE SQL_THREAD;
+[connection slave2]
+SET DEBUG_SYNC='dsync_show_heartbeat_period SIGNAL reached_show_heartbeat_period WAIT_FOR continue_show_thread';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS;
+[connection slave]
+SET DEBUG_SYNC='now WAIT_FOR reached_start_slave_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_stopping_sql_thread';
+SET DEBUG_SYNC='now WAIT_FOR reached_show_heartbeat_period';
+SET DEBUG_SYNC='now SIGNAL continue_to_stop_sql_thread';
+SET DEBUG_SYNC='now SIGNAL continue_show_thread';
+SET DEBUG_SYNC='now SIGNAL continue_start_slave_thread';
+[connection slave1]
+[connection slave2]
+include/wait_for_slave_sql_error.inc [errno=1593]
+# Removing debug point 'simulate_sql_slave_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'pause_after_sql_thread_stop_hook' from @@GLOBAL.debug
+SET DEBUG_SYNC='RESET';
+include/start_slave_sql.inc
+include/rpl_end.inc

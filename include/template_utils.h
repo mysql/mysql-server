@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +91,7 @@ inline const T pointer_cast(const void *p) {
 /**
   Casts from one pointer type to another in a type hierarchy.
   In debug mode, we verify the cast is indeed legal.
+<<<<<<< HEAD
 
   @tparam Target The descendent type, must be a pointer type.
   @tparam Source The parent type.
@@ -93,11 +102,22 @@ inline const T pointer_cast(const void *p) {
 */
 template <typename Target, typename Source>
 inline Target down_cast(Source *arg) {
+<<<<<<< HEAD
   static_assert(
       !std::is_base_of<typename std::remove_pointer<Target>::type,
                        Source>::value,
       "Do not use down_cast for upcasts; use implicit_cast or nothing");
   assert(nullptr != dynamic_cast<Target>(arg));
+=======
+  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+=======
+ */
+template<typename Target, typename Source>
+inline Target down_cast(Source arg)
+{
+  assert(NULL != dynamic_cast<Target>(arg));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return static_cast<Target>(arg);
 }
 

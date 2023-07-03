@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+--source include/have_statement_timeout.inc
+--source include/have_query_cache.inc
+>>>>>>> pr/231
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/big_test.inc

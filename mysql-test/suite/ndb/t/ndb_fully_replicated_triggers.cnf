@@ -1,7 +1,10 @@
 !include suite/ndb/my.cnf
 
 [cluster.config]
+<<<<<<< HEAD
 ThreadConfig=main,rep,recv,ldm={count=4}
+=======
+>>>>>>> pr/231
 
 [cluster_config.1]
 ndbd=,,,,,

@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that 'UNINSTALL PLUGIN' and 'STOP GROUP_REPLICATION' commands
-# run well in parallel.
+# don't run in parallel in mysql 5.7.
 #
 # ==== Implementation ====
 #
@@ -34,6 +34,10 @@ SET SESSION sql_log_bin= 1;
 ## query "STOP GROUP_REPLICATION" and "UNINSTALL PLUGIN group_replication"
 --disable_warnings
 
+## Warnings depends upon sequence of execution of
+## query "STOP GROUP_REPLICATION" and "UNINSTALL PLUGIN group_replication"
+--disable_warnings
+
 --send UNINSTALL PLUGIN group_replication
 
 --let $rpl_connection_name= server_1
@@ -41,18 +45,34 @@ SET SESSION sql_log_bin= 1;
 --echo #
 --echo # STOP GROUP_REPLICATION in parallel.
 --echo #
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_concurrent_uninstall_stop.test
 ## Uninstall will not fail.
 ## However, STOP GR may fail if UNINSTALL is executed first.
+=======
+## Uninstall will fail as STOP GR is already running.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_concurrent_uninstall_stop.test
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION
 STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_concurrent_uninstall_stop.test
+=======
+--error 0, ER_PLUGIN_CANNOT_BE_UNINSTALLED
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_concurrent_uninstall_stop.test
 --reap
 
 --enable_warnings
 
 SET @@GLOBAL.read_only= 0;
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_concurrent_uninstall_stop.test
+=======
+
+# The previous UNINSTALL attempt may have failed due to SUPER_READ_ONLY=1, as
+# such we uninstall the plugin again.
+--error 0, ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN group_replication;
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_concurrent_uninstall_stop.test
 
 --source include/install_group_replication_plugin.inc
 

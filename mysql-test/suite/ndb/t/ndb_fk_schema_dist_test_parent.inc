@@ -30,7 +30,11 @@ if (!$expect_alter_failure)
 if ($expect_alter_failure)
 {
   --echo #altering column should fail with error
+<<<<<<< HEAD
   --error ER_FK_INCOMPATIBLE_COLUMNS
+=======
+  --error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+>>>>>>> pr/231
 }
 alter table parent
   change column a a varchar(64) not null;

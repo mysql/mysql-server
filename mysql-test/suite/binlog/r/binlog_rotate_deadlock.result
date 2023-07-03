@@ -1,0 +1,26 @@
+#
+# Bug #30215068	BINLOG ROTATION DEADLOCK WHEN INNODB CONCURRENCY LIMIT SETTED
+#
+connect  con1, localhost, root,,;
+select  @@innodb_thread_concurrency;
+@@innodb_thread_concurrency
+1
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+CREATE TABLE t2 (c1 INT, c2 int, c3 varchar(200)) Engine=InnoDB;
+SET @debug_save= @@SESSION.DEBUG;
+SET SESSION DEBUG = '+d,force_rotate';
+SET DEBUG_SYNC = 'stop_binlog_rotation_after_acquiring_lock_log SIGNAL rotate_stopped WAIT_FOR proceed_rotate';
+INSERT INTO t1 VALUES (1);;
+connect  con2, localhost, root,,;
+SET DEBUG_SYNC= 'now WAIT_FOR rotate_stopped';
+UPDATE t2 SET C2=1 WHERE C1 = 1;;
+connect  con3, localhost, root,,;
+SET DEBUG_SYNC= 'now SIGNAL proceed_rotate';
+connection con1;
+SET @@SESSION.DEBUG= @debug_save;
+connection con2;
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+DROP TABLE t1,t2;

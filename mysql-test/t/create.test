@@ -1905,6 +1905,7 @@ SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
 
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
 --echo #
 --echo # Make sure that it is possible to create enums using binary string
@@ -2056,6 +2057,8 @@ SET GLOBAL sql_require_primary_key= OFF;
 
 
 --echo #
+=======
+>>>>>>> pr/231
 --echo # Bug#28022129: NOW() DOESN?T HONOR NO_ZERO_DATE SQL_MODE
 --echo #
 
@@ -2115,6 +2118,7 @@ SHOW CREATE TABLE t2;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE= @saved_mode;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug #29283055: CREATE TABLE IF NOT EXISTS .. SHOULD NOT ALWAYS
@@ -2376,3 +2380,5 @@ SHOW CREATE TABLE t1;
 CREATE TABLE t2 AS SELECT @max_error_count UNION SELECT 'a';
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
+=======
+>>>>>>> pr/231

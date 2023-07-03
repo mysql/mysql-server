@@ -4,10 +4,16 @@
 ndb-cluster-connection-pool=1
 
 [mysqld.1.1]
+<<<<<<< HEAD
 ndb-cluster-connection-pool-nodeids=49
 server_id=1
 
 [mysqld.2.1]
 ndb-cluster-connection-pool-nodeids=16
+=======
+server_id=1
+
+[mysqld.2.1]
+>>>>>>> pr/231
 server_id=2
 ndb-log-fail-terminate=1

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +72,19 @@ void set_log_level(unsigned int);
   to fprintf() (see error_log_vprint() function).
 */
 
+<<<<<<< HEAD
 #if defined(DEBUG_ERROR_LOG) && defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
+>>>>>>> pr/231
 #define ERROR_LOG(Level, Msg) \
   do {                        \
   } while (0)
+=======
+#if defined(DEBUG_ERROR_LOG) && defined(NDEBUG)
+#define ERROR_LOG(Level, Msg)     do {} while (0)
+>>>>>>> upstream/cluster-7.6
 #else
 #define ERROR_LOG(Level, Msg) error_log_print<error_log_level::Level> Msg
 #endif
@@ -138,6 +155,21 @@ inline void debug_msg(const char *fmt, ...) {
 #undef DBUG_RETURN
 #define DBUG_RETURN(X) return (X)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#undef DBUG_ASSERT
+#ifndef DBUG_OFF
+#define DBUG_ASSERT(X) assert(X)
+#else
+#define DBUG_ASSERT(X) \
+  do {                 \
+  } while (0)
+#endif
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #undef DBUG_DUMP
 #define DBUG_DUMP(A, B, C) \
   do {                     \

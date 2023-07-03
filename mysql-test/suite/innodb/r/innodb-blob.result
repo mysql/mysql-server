@@ -134,11 +134,19 @@ data longtext COLLATE utf8mb4_unicode_ci NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY unq_id (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'');
 SET @old_mode=@@sql_mode;
 SET GLOBAL SQL_MODE="";
+=======
+INSERT INTO t1 VALUES (1,'');
+SET @old_mode=@@sql_mode;
+SET GLOBAL SQL_MODE="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 ALTER TABLE t1 ADD COLUMN d3 DATETIME NOT NULL;
 ALTER TABLE t1 ADD COLUMN d2 DATETIME NOT NULL;
 ALTER TABLE t1 ADD COLUMN d1 DATETIME NOT NULL;

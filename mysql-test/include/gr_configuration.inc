@@ -74,10 +74,17 @@ while ($_rpl_server)
   --dec $_rpl_server
 }
 
+<<<<<<< HEAD
 --let $_group_replication_ip_allowlist= 127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fe80::/10,fd00::/8,
 --let $_group_replication_host_name= `SELECT @@GLOBAL.hostname;`
 --let $_group_replication_ip_allowlist= $_group_replication_ip_allowlist$_group_replication_host_name
 --let $_group_replication_ip_allowlist= $_group_replication_ip_allowlist/8
+=======
+--let $_group_replication_ip_whitelist= 127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,
+--let $_group_replication_host_name= `SELECT @@GLOBAL.hostname;`
+--let $_group_replication_ip_whitelist= $_group_replication_ip_whitelist$_group_replication_host_name
+--let $_group_replication_ip_whitelist= $_group_replication_ip_whitelist/8
+>>>>>>> pr/231
 
 # Set XCom configuration on all servers.
 # Order is from last to first server like on rpl_init.inc.
@@ -112,7 +119,11 @@ while ($_rpl_server)
   --eval SET GLOBAL group_replication_local_address= "$_group_replication_local_address"
   --eval SET GLOBAL group_replication_group_seeds= "$_group_replication_group_seeds"
   --eval SET GLOBAL group_replication_bootstrap_group= $_group_replication_bootstrap_group
+<<<<<<< HEAD
   --eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+=======
+  --eval SET GLOBAL group_replication_ip_whitelist= "$_group_replication_ip_whitelist"
+>>>>>>> pr/231
 
   if (!$skip_recovery_configuration)
   {

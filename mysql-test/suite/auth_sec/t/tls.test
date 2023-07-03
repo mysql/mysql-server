@@ -31,7 +31,15 @@ let $MYSQL_PORT= `SELECT @@port`;
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
 
 --echo #T2: Default SSL cipher
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo #T3: Setting TLS version TLSv1.2 from the client
@@ -52,7 +60,11 @@ let $MYSQL_PORT= `SELECT @@port`;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
+<<<<<<< HEAD
 --exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --tls-version=TLSv1.2 --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
+=======
+--exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
+>>>>>>> pr/231
 
 --echo #T10: Permanently restricted cipher, setting in the server as well
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,9 +121,16 @@ class Priority_queue : public Less {
   typedef Less Base;
 
   // Returns the index of the parent node of node i.
+<<<<<<< HEAD
   static size_type parent(size_type i) {
     assert(i != 0);
     return (--i) >> 1;  // (i - 1) / 2
+=======
+  static size_type parent(size_type i)
+  {
+    assert(i != 0);
+    return (--i) >> 1; // (i - 1) / 2
+>>>>>>> upstream/cluster-7.6
   }
 
   // Returns the index of the left child of node i.
@@ -132,8 +143,18 @@ class Priority_queue : public Less {
     return (++i) << 1;  // 2 * i + 2
   }
 
+<<<<<<< HEAD
   void heapify(size_type i, size_type last) {
+<<<<<<< HEAD
     assert(i < size());
+=======
+    DBUG_ASSERT(i < size());
+=======
+  void heapify(size_type i, size_type last)
+  {
+    assert(i < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     size_type largest = i;
 
     do {
@@ -159,13 +180,25 @@ class Priority_queue : public Less {
 
   void heapify(size_type i) { heapify(i, m_container.size()); }
 
+<<<<<<< HEAD
   void reverse_heapify(size_type i) {
     assert(i < size());
     while (i > 0 && !Base::operator()(m_container[i], m_container[parent(i)])) {
+<<<<<<< HEAD
       size_t parent_idx = parent(i);
       std::swap(m_container[parent_idx], m_container[i]);
       m_marker(parent_idx, &m_container[parent_idx]);
       m_marker(i, &m_container[i]);
+=======
+=======
+  void reverse_heapify(size_type i)
+  {
+    assert(i < size());
+    while (i > 0 && !Base::operator()(m_container[i], m_container[parent(i)]))
+    {
+>>>>>>> upstream/cluster-7.6
+      std::swap(m_container[parent(i)], m_container[i]);
+>>>>>>> pr/231
       i = parent(i);
     }
   }
@@ -219,14 +252,34 @@ class Priority_queue : public Less {
   }
 
   /// Returns a const reference to the top element of the priority queue.
+<<<<<<< HEAD
   value_type const &top() const {
+<<<<<<< HEAD
     assert(!empty());
+=======
+    DBUG_ASSERT(!empty());
+=======
+  value_type const &top() const
+  {
+    assert(!empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_container[0];
   }
 
   /// Returns a reference to the top element of the priority queue.
+<<<<<<< HEAD
   value_type &top() {
+<<<<<<< HEAD
     assert(!empty());
+=======
+    DBUG_ASSERT(!empty());
+=======
+  value_type& top()
+  {
+    assert(!empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_container[0];
   }
 
@@ -252,8 +305,18 @@ class Priority_queue : public Less {
   void pop() { remove(0); }
 
   /// Removes the element at position i from the priority queue.
+<<<<<<< HEAD
   void remove(size_type i) {
+<<<<<<< HEAD
     assert(i < size());
+=======
+    DBUG_ASSERT(i < size());
+=======
+  void remove(size_type i)
+  {
+    assert(i < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (i == m_container.size() - 1) {
       m_container.pop_back();
@@ -270,9 +333,21 @@ class Priority_queue : public Less {
     Decreases the priority of the element at position i, where the
     new priority is x.
   */
+<<<<<<< HEAD
   void decrease(size_type i, value_type const &x) {
+<<<<<<< HEAD
     assert(i < size());
     assert(!Base::operator()(m_container[i], x));
+=======
+    DBUG_ASSERT(i < size());
+    DBUG_ASSERT(!Base::operator()(m_container[i], x));
+=======
+  void decrease(size_type i, value_type const &x)
+  {
+    assert(i < size());
+    assert(!Base::operator()(m_container[i], x));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     decrease_key(i, x);
   }
 
@@ -280,9 +355,21 @@ class Priority_queue : public Less {
     Increases the priority of the element at position i, where the
     new priority is x.
   */
+<<<<<<< HEAD
   void increase(size_type i, value_type const &x) {
+<<<<<<< HEAD
     assert(i < size());
     assert(!Base::operator()(x, m_container[i]));
+=======
+    DBUG_ASSERT(i < size());
+    DBUG_ASSERT(!Base::operator()(x, m_container[i]));
+=======
+  void increase(size_type i, value_type const &x)
+  {
+    assert(i < size());
+    assert(!Base::operator()(x, m_container[i]));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     increase_key(i, x);
   }
 
@@ -290,9 +377,17 @@ class Priority_queue : public Less {
     Changes the priority of the element at position i, where the
     new priority is x.
   */
+<<<<<<< HEAD
   void update(size_type i, value_type const &x) {
     assert(i < size());
     if (Base::operator()(x, m_container[i])) {
+=======
+  void update(size_type i, value_type const &x)
+  {
+    assert(i < size());
+    if (Base::operator()(x, m_container[i]))
+    {
+>>>>>>> upstream/cluster-7.6
       decrease_key(i, x);
     } else {
       increase_key(i, x);
@@ -315,9 +410,17 @@ class Priority_queue : public Less {
     Assumes that the i-th element's value has changed
     and rebuilds the priority queue.
   */
+<<<<<<< HEAD
   void update(size_type i) {
     assert(i < size());
     if (i == 0 || Base::operator()(m_container[i], m_container[parent(i)])) {
+=======
+  void update(size_type i)
+  {
+    assert(i < size());
+    if (i == 0 || Base::operator()(m_container[i], m_container[parent(i)]))
+    {
+>>>>>>> upstream/cluster-7.6
       heapify(i);
     } else {
       reverse_heapify(i);
@@ -328,8 +431,18 @@ class Priority_queue : public Less {
     Assumes that the top element's value has changed
     and rebuilds the priority queue.
   */
+<<<<<<< HEAD
   void update_top() {
+<<<<<<< HEAD
     assert(!empty());
+=======
+    DBUG_ASSERT(!empty());
+=======
+  void update_top()
+  {
+    assert(!empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     heapify(0);
   }
 
@@ -340,14 +453,34 @@ class Priority_queue : public Less {
   bool empty() const { return m_container.empty(); }
 
   /// Returns a const reference to the i-th element in the underlying container.
+<<<<<<< HEAD
   value_type const &operator[](size_type i) const {
+<<<<<<< HEAD
     assert(i < size());
+=======
+    DBUG_ASSERT(i < size());
+=======
+  value_type const& operator[](size_type i) const
+  {
+    assert(i < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_container[i];
   }
 
   /// Returns a reference to the i-th element in the underlying container.
+<<<<<<< HEAD
   value_type &operator[](size_type i) {
+<<<<<<< HEAD
     assert(i < size());
+=======
+    DBUG_ASSERT(i < size());
+=======
+  value_type& operator[](size_type i)
+  {
+    assert(i < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_container[i];
   }
 
@@ -413,9 +546,23 @@ class Priority_queue : public Less {
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
   */
+<<<<<<< HEAD
   [[nodiscard]] bool reserve(size_type n) {
     assert(n <= m_container.max_size());
+=======
+  MY_ATTRIBUTE((warn_unused_result))
+<<<<<<< HEAD
+  bool reserve(size_type n) {
+    DBUG_ASSERT(n <= m_container.max_size());
+>>>>>>> pr/231
     try {
+=======
+  bool reserve(size_type n)
+  {
+    assert(n <= m_container.max_size());
+    try
+    {
+>>>>>>> upstream/cluster-7.6
       m_container.reserve(n);
     } catch (std::bad_alloc const &) {
       return true;

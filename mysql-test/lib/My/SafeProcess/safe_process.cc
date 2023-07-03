@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,11 +63,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+<<<<<<< HEAD
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+=======
+#include <errno.h>
+#include <string>
+
+#include "my_config.h"
+>>>>>>> upstream/cluster-7.6
 
 #include <string>
 
@@ -264,6 +279,7 @@ int main(int argc, char *const argv[]) {
     // Close write end
     close(pfd[1]);
 
+<<<<<<< HEAD
 #if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
 #include "asan_library_name.h"
     std::string ld_preload = "LD_PRELOAD=";
@@ -283,7 +299,24 @@ int main(int argc, char *const argv[]) {
       putenv(strdup(ld_preload.c_str()));
     }
 #endif
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
     if (execvp(child_argv[0], child_argv) < 0) die("Failed to exec child");
+=======
+#if defined(HAVE_ASAN) && defined(HAVE_TIRPC)
+#include "asan_library_name.h"
+    std::string ld_preload = "LD_PRELOAD=";
+    if (strlen(asan_library_name) > 0) {
+      ld_preload.append(asan_library_name);
+      ld_preload.append(":");
+    }
+    ld_preload.append("/lib64/libtirpc.so");
+    putenv(strdup(ld_preload.c_str()));
+#endif
+    if (execvp(child_argv[0], child_argv) < 0)
+      die("Failed to exec child");
+>>>>>>> upstream/cluster-7.6
   }
 
   close(pfd[1]);  // Close unused write end

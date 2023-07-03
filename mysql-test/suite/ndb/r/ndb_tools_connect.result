@@ -7,9 +7,12 @@ Unable to connect to management server.
 Testing ndb_mgm
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Testing ndb_blob_tool
+<<<<<<< HEAD
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
+=======
+>>>>>>> pr/231
 Disconnected
 
 NDBT_ProgramExit: 1 - Failed
@@ -75,6 +78,7 @@ Unable to resolve any of the address in connect string: nodeid=0,no_such_host:11
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
+<<<<<<< HEAD
  - Error: '1001: Illegal connect string: Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 '
 
@@ -82,3 +86,15 @@ Testing ndb_waiter
 Connecting to mgmsrv at no_such_host
 Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
 latest_error=1001, line=no_such_host
+=======
+ - Error: '1011: Could not connect to socket: Unable to connect with connect string: nodeid=0,no_such_host:1186'
+
+Testing ndb_waiter
+Connecting to management server at nodeid=0,localhost:<MGMD-PORT>
+Node 1: STARTED
+Node 2: STARTED
+Connecting to management server at nodeid=0,no_such_host:1186
+Unable to connect with connect string: nodeid=0,no_such_host:1186
+Retrying every 1 seconds. Attempts left: 2 1, failed.
+latest_error=1011, line=no_such_host
+>>>>>>> pr/231

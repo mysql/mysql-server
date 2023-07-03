@@ -19,7 +19,11 @@ CREATE DATABASE db3;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
+<<<<<<< HEAD
 --let $rpl_channel_name= 'channel_1'
+=======
+--let $rpl_channel_name= channel_1
+>>>>>>> pr/231
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -27,12 +31,20 @@ CREATE DATABASE db3;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
+<<<<<<< HEAD
 --let $rpl_channel_name= 'channel_3'
+=======
+--let $rpl_channel_name= channel_3
+>>>>>>> pr/231
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
 # Restart slave for channel_3 so that SELECT returns unsorted data.
+<<<<<<< HEAD
 --let $rpl_channel_name= 'channel_3'
+=======
+--let $rpl_channel_name= channel_3
+>>>>>>> pr/231
 --source include/stop_slave.inc
 --source include/start_slave.inc
 
@@ -52,7 +64,11 @@ SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_conn
 SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration;
 SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
 
+<<<<<<< HEAD
 --let $is_mts= `SELECT @@global.replica_parallel_workers`
+=======
+--let $is_mts= `SELECT @@global.slave_parallel_workers`
+>>>>>>> pr/231
 if ($is_mts)
 {
   --echo
@@ -78,7 +94,11 @@ DROP DATABASE db3;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
+<<<<<<< HEAD
 --let $rpl_channel_name= 'channel_1'
+=======
+--let $rpl_channel_name= channel_1
+>>>>>>> pr/231
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -86,6 +106,10 @@ DROP DATABASE db3;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
+<<<<<<< HEAD
 --let $rpl_channel_name= 'channel_3'
+=======
+--let $rpl_channel_name= channel_3
+>>>>>>> pr/231
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc

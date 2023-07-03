@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +32,17 @@
 
 #include "sql/conn_handler/socket_connection.h"
 
+<<<<<<< HEAD
 #include "my_config.h"
+=======
+#include "violite.h"                    // Vio
+#include "channel_info.h"               // Channel_info
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "init_net_server_extension.h"
+#include "mysqld.h"                     // key_socket_tcpip
+#include "log.h"                        // sql_print_error
+#include "sql_class.h"                  // THD
+>>>>>>> upstream/cluster-7.6
 
 #include <errno.h>
 #include <fcntl.h>
@@ -88,6 +106,7 @@ extern "C" {
 
 using std::max;
 
+<<<<<<< HEAD
 // Test accept this many times
 static constexpr const uint MAX_ACCEPT_RETRY{10};
 
@@ -132,6 +151,17 @@ ulong get_connection_errors_tcpwrap() {
 #ifdef HAVE_LIBWRAP
 static const char *libwrap_name;
 #endif
+=======
+<<<<<<< HEAD
+ulong Mysqld_socket_listener::connection_errors_select = 0;
+ulong Mysqld_socket_listener::connection_errors_accept = 0;
+ulong Mysqld_socket_listener::connection_errors_tcpwrap = 0;
+=======
+ulong Mysqld_socket_listener::connection_errors_select= 0;
+ulong Mysqld_socket_listener::connection_errors_accept= 0;
+ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 ///////////////////////////////////////////////////////////////////////////
 // Channel_info_local_socket implementation

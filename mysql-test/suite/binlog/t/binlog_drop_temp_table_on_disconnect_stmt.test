@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ====== Purpose =======
 #
 # This test verifies that DROP for a temporary table created
@@ -15,8 +16,36 @@
 #
 # Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
 #
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
+=======
+# ====== Purpose =======
+#
+# This test verifies that DROP for a temporary table created
+# in Row mode is not logged in binlog at session disconnect.
+#
+# ====== Implementation ======
+#
+# Create temporary tables in statement or mixed mode using different engines,
+# also create a temporary table in Row mode, now when you connect to the session
+# after a disconnect print the output of show binlog events.
+# This will verify that the DROP for temporary table created in stmt or mixed
+# mode is written to binary log at session disconnect, but for  the temporary table
+# created in Row mode no DROP statement for temporary table is logged at session
+# disconnect.
+#
+# ====== References =======
+#
+# Bug#28606948:BACKPORT OF BUG #24670909 TO 5.7.22
+#
+
+--source include/have_log_bin.inc
+--source include/have_myisam.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+>>>>>>> upstream/cluster-7.6
 
 RESET MASTER;
 

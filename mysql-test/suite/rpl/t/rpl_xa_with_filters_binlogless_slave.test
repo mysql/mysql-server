@@ -17,8 +17,11 @@
 #
 # BUG#27442477: ASSERT `THD->GET_HA_DATA...HAS_STATE(XID_STATE::XA_ACTIVE))' AT HANDLER.CC:1396
 
+<<<<<<< HEAD
 # The test cannot run in Valgrind since it generates an assert on the slave
 --source include/not_valgrind.inc
+=======
+>>>>>>> pr/231
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
@@ -60,7 +63,11 @@ XA COMMIT '1';
 #
 # Retry the transaction
 #
+<<<<<<< HEAD
 START REPLICA SQL_THREAD;
+=======
+START SLAVE SQL_THREAD;
+>>>>>>> pr/231
 --let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
 --source include/wait_for_slave_sql_error.inc
 
@@ -97,6 +104,10 @@ CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
 # 4) Ensure that the error message get logged to the slave error log file.
 #
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+<<<<<<< HEAD
+=======
+--let $assert_only_after= CURRENT_TEST: rpl:rpl_xa_with_filters_error_msg
+>>>>>>> pr/231
 --let $assert_match= The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave
 --let $assert_select= Slave SQL
 --let $assert_text= Found error message regarding usage of replication filters with XA transactions

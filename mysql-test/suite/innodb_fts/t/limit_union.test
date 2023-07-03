@@ -151,6 +151,14 @@ SELECT * FROM articles
 SET DEBUG = '-d,fts_union_limit_off';
 
 DROP TABLE articles;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+--disable_query_log
+--eval SET GLOBAL query_cache_size = $default_cache_size
+--enable_query_log
+>>>>>>> pr/231
 
 --echo #
 --echo # Bug #31228694 FTS QUERY WITH LIMIT CRASH
@@ -175,3 +183,7 @@ DROP TABLE t1;
 # restore config
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

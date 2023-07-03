@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +126,17 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
                        nchars * sizeof(wchar_t), &my_charset_utf16le_bin,
                        &dummy_errors);
 
+<<<<<<< HEAD
   assert(mblen < mbbufsize); /* Safety */
+=======
+<<<<<<< HEAD:mysys/my_conio.cc
+  DBUG_ASSERT(mblen < mbbufsize); /* Safety */
+>>>>>>> pr/231
   mbbuf[mblen] = 0;
+=======
+  assert(mblen < mbbufsize); /* Safety */
+  mbbuf[mblen]= 0;
+>>>>>>> upstream/cluster-7.6:mysys/my_conio.c
   return mbbuf;
 }
 
@@ -197,8 +210,18 @@ static size_t my_mbstou16s(const CHARSET_INFO *cs, const uchar *from,
 void my_win_console_write(const CHARSET_INFO *cs, const char *data,
                           size_t datalen) {
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
+<<<<<<< HEAD
   size_t nchars = my_mbstou16s(cs, (const uchar *)data, datalen, u16buf,
                                sizeof(u16buf) / sizeof(u16buf[0]));
+=======
+<<<<<<< HEAD:mysys/my_conio.cc
+  size_t nchars =
+      my_mbstou16s(cs, (const uchar *)data, datalen, u16buf, sizeof(u16buf));
+=======
+  size_t nchars= my_mbstou16s(cs, (const uchar *) data, datalen,
+                              u16buf, sizeof(u16buf) / sizeof(u16buf[0]));
+>>>>>>> upstream/cluster-7.6:mysys/my_conio.c
+>>>>>>> pr/231
   DWORD nwritten;
   WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), u16buf, (DWORD)nchars,
                 &nwritten, NULL);
@@ -262,6 +285,7 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc,
 
   for (i = 0; i < ac; i++) {
     uint dummy_errors;
+<<<<<<< HEAD:mysys/my_conio.cc
     size_t arg_len = wcslen(wargs[i]);
     size_t len, alloced_len = arg_len * cs->mbmaxlen + 1;
     av[i] = (char *)my_once_alloc(alloced_len, MYF(0));
@@ -270,6 +294,16 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc,
                      &dummy_errors);
     assert(len < alloced_len);
     av[i][len] = '\0';
+=======
+    size_t arg_len= wcslen(wargs[i]);
+    size_t len, alloced_len= arg_len * cs->mbmaxlen + 1;
+    av[i]= (char *) my_once_alloc(alloced_len, MYF(0));
+    len= my_convert(av[i], alloced_len, cs,
+                    (const char *) wargs[i], arg_len * sizeof(wchar_t),
+                    &my_charset_utf16le_bin, &dummy_errors);
+    assert(len < alloced_len);
+    av[i][len]= '\0';
+>>>>>>> upstream/cluster-7.6:mysys/my_conio.c
   }
   *argv = av;
   *argc = ac;

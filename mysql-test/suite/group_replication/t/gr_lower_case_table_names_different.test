@@ -55,19 +55,40 @@ call mtr.add_suppression("lower_case_table_names was set to 2, .*");
 set session sql_log_bin=1;
 
 --echo
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_lower_case_table_names_different.test
 --echo ## 3A. Test GR does not start on boot when lower_case_table_names
+<<<<<<< HEAD
 --echo ##     does not match. And verifies only one member is shown in the
 --echo ##     group as the join failed.
+=======
+=======
+--echo ## 3A. Test GR start with command when lower_case_table_names matches.
+>>>>>>> pr/231
 --echo
+--source include/start_group_replication.inc
 
+<<<<<<< HEAD
 --let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$_group_replication_comm_stack --lower_case_table_names=2 --loose-debug="+d,group_replication_wait_before_leave_on_error"
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
+=======
+--let $assert_text= 'Assert server-1 and server-2 are ONLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--echo
+--echo ## 3B. Test GR start on boot when lower_case_table_names matches.
+--echo
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=1 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+>>>>>>> pr/231
 --source include/restart_mysqld.inc
 
 #Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
+<<<<<<< HEAD
 # Wait for the debug sync to be reached.
 SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
 
@@ -81,6 +102,34 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.wait_leave_process";
 
 # now unblock debug sync point
 SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
+=======
+--let $wait_condition= SELECT COUNT(*) = 2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--echo
+--echo ## 4A. Test GR does not start on boot when lower_case_table_names
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_lower_case_table_names.test
+--echo ##     does not match.
+--echo
+
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--source include/restart_mysqld.inc
+
+#Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_lower_case_table_names_different.test
+## Wait for server-2 to join group, needed to get group lower_case_table_names
+--let $group_replication_number_of_members=2
+--source include/gr_wait_for_number_of_members.inc
+
+=======
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_lower_case_table_names.test
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="OFFLINE"
+--source include/wait_condition.inc
+>>>>>>> pr/231
 
 --echo
 --echo ## 3B. Test GR does not start with command when lower_case_table_names

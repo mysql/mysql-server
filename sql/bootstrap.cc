@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +155,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
       We disable SQL_LOG_BIN session variable while processing compiled
       statements.
     */
+<<<<<<< HEAD
     Disable_binlog_guard disable_binlog(thd);
     Disable_sql_log_bin_guard disable_sql_log_bin(thd);
 
@@ -201,6 +210,50 @@ static int process_iterator(THD *thd, Command_iterator *it,
     if (rc == READ_BOOTSTRAP_EOF) {
       break;
     }
+=======
+<<<<<<< HEAD
+    if (has_binlog_option && query_source != last_query_source) {
+      switch (query_source) {
+        case QUERY_SOURCE_COMPILED:
+          thd->variables.option_bits &= ~OPTION_BIN_LOG;
+          break;
+        case QUERY_SOURCE_FILE:
+          /*
+            Some compiled script might have disable binary logging session
+            variable during compiled scripts. Enabling it again as it was
+            enabled before applying the compiled statements.
+          */
+          thd->variables.sql_log_bin = true;
+          thd->variables.option_bits |= OPTION_BIN_LOG;
+          break;
+        default:
+          DBUG_ASSERT(false);
+          break;
+=======
+    if (has_binlog_option && query_source != last_query_source)
+    {
+      switch (query_source)
+      {
+      case QUERY_SOURCE_COMPILED:
+        thd->variables.option_bits&= ~OPTION_BIN_LOG;
+        break;
+      case QUERY_SOURCE_FILE:
+        /*
+          Some compiled script might have disable binary logging session
+          variable during compiled scripts. Enabling it again as it was
+          enabled before applying the compiled statements.
+        */
+        thd->variables.sql_log_bin= true;
+        thd->variables.option_bits|= OPTION_BIN_LOG;
+        break;
+      default:
+        assert(false);
+        break;
+>>>>>>> upstream/cluster-7.6
+      }
+    }
+    last_query_source = query_source;
+>>>>>>> pr/231
 
     /*
       Check for bootstrap file errors. SQL syntax errors will be
@@ -214,7 +267,40 @@ static int process_iterator(THD *thd, Command_iterator *it,
       */
       thd->get_stmt_da()->reset_diagnostics_area();
 
+<<<<<<< HEAD
       it->report_error_details(bootstrap_log_error);
+=======
+      /* Get the nearest query text for reference. */
+      const char *err_ptr =
+          query.c_str() + (query.length() <= MAX_BOOTSTRAP_ERROR_LEN
+                               ? 0
+                               : (query.length() - MAX_BOOTSTRAP_ERROR_LEN));
+      switch (rc) {
+        case READ_BOOTSTRAP_ERROR:
+          my_printf_error(ER_UNKNOWN_ERROR,
+                          "Bootstrap file error, return code (%d). "
+                          "Nearest query: '%s'",
+                          MYF(0), error, err_ptr);
+          break;
+
+        case READ_BOOTSTRAP_QUERY_SIZE:
+          my_printf_error(ER_UNKNOWN_ERROR,
+                          "Bootstrap file error. Query size "
+                          "exceeded %d bytes near '%s'.",
+                          MYF(0), MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
+          break;
+
+<<<<<<< HEAD
+        default:
+          DBUG_ASSERT(false);
+          break;
+=======
+      default:
+        assert(false);
+        break;
+>>>>>>> upstream/cluster-7.6
+      }
+>>>>>>> pr/231
 
       thd->send_statement_status();
       error = true;
@@ -268,7 +354,16 @@ static int process_iterator(THD *thd, Command_iterator *it,
       break;
     }
 
+<<<<<<< HEAD
     thd->mem_root->ClearForReuse();
+=======
+<<<<<<< HEAD
+    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
+=======
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Make sure bootstrap statements do not change binlog options.

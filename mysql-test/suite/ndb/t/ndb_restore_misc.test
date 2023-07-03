@@ -441,7 +441,11 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 1
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+>>>>>>> pr/231
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
 UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
@@ -562,7 +566,11 @@ if (`SELECT COUNT(*) FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id`)
 #
 # Bug#51432
 #
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
+=======
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b 1 -n 2 -m $backup_data_dir/hashmap >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
 #
 # Bug#56285
@@ -691,7 +699,11 @@ drop table t1;
 CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 2
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+>>>>>>> pr/231
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
 UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
@@ -700,7 +712,11 @@ select output_line from ndb_restore_output where output_line like '%not specifie
 --disable_query_log
 
 --error 2
+<<<<<<< HEAD
 --exec $NDB_RESTORE --nodeid=2 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults --nodeid=2 -r $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+>>>>>>> pr/231
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
 UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file
@@ -710,6 +726,7 @@ select output_line from ndb_restore_output where output_line like '%not specifie
 
 DROP TABLE ndb_restore_output;
 --enable_query_log
+<<<<<<< HEAD
 
 # Reset metadata check value
 --connection server2
@@ -719,3 +736,5 @@ SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

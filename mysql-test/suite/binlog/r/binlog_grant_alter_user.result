@@ -90,7 +90,11 @@ plugin	mysql_native_password
 password_expired	N
 
 CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' BY '%auth_O0s-tring';
+<<<<<<< HEAD
 SELECT user,plugin,password_expired
+=======
+SELECT user,plugin,authentication_string,password_expired
+>>>>>>> upstream/cluster-7.6
 FROM mysql.user WHERE USER='tu3';
 user	tu3
 plugin	mysql_native_password
@@ -114,7 +118,11 @@ user	tu4
 plugin	mysql_native_password
 ssl_type	ANY
 CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd$!' REQUIRE X509;
+<<<<<<< HEAD
 SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu5';
+=======
+SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu5';
+>>>>>>> upstream/cluster-7.6
 user	tu5
 plugin	mysql_native_password
 ssl_type	X509
@@ -1124,7 +1132,15 @@ CREATE USER `u3`@`localhost` IDENTIFIED WITH 'mysql_native_password' REQUIRE NON
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SHOW CREATE USER u4@localhost;
 CREATE USER for u4@localhost
+<<<<<<< HEAD
 CREATE USER `u4`@`localhost` IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+=======
+<<<<<<< HEAD
+CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+=======
+CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SHOW CREATE USER user1@localhost;
 CREATE USER for user1@localhost
@@ -1258,8 +1274,22 @@ DROP USER user1@localhost,user2@localhost,user3@localhost;
 
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
 CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
+<<<<<<< HEAD
 SET PASSWORD FOR user1@localhost='auth_xyz@';
 SET PASSWORD FOR user2@localhost='gd636@gj';
+=======
+SELECT PASSWORD('plaintext_pwd');
+PASSWORD('plaintext_pwd')
+*F42EC6870C44E0E26316EC1D4A953A4B9C2D8958
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
+SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+>>>>>>> upstream/cluster-7.6
 
 CREATE USER user4@localhost;
 ALTER USER user4@localhost PASSWORD EXPIRE;
@@ -1339,8 +1369,13 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user8'@'localhost' IDENTIF
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*688BC28176C50B8E37AB2D9BDFDCC945AD0CAD61'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4CB92EE3F6DCB4480A1ED46B0B82E3E6180947D5'
+<<<<<<< HEAD
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509
+>>>>>>> upstream/cluster-7.6
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D38B5A8766439BA457E3FDFAF84D794245A1C8B' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*87CAAC9F8E0664808E450E3E9D4CCCA455FB90F0' REQUIRE X509
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
@@ -1348,12 +1383,21 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D0B4490FF0452CF4EAA50F79F6B06F859FA2B012' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6F268C32216139F3B99FEBA90FC68F8D9651382A' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
+<<<<<<< HEAD
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u16'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u19'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password','u16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'mysql_native_password','u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u20'@'localhost' IDENTIFIED WITH 'mysql_native_password','u21'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u22'@'localhost' IDENTIFIED WITH 'mysql_native_password','u23'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK
+>>>>>>> upstream/cluster-7.6
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER tu1@localhost,tu2@localhost,tu3@localhost,tu4@localhost,tu5@localhost,
 tu6@localhost,user1@'%',user2@'%',user4@localhost,user6@localhost,
 user7@localhost,user8@localhost, u1@localhost,u2@localhost,u3@localhost,
@@ -1400,7 +1444,11 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu2'@'localhost' IDENTIFIE
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'tu2'@'localhost' WITH MAX_QUERIES_PER_HOUR 543 MAX_USER_CONNECTIONS 12 PASSWORD EXPIRE INTERVAL 365 DAY
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u16'@'localhost' IDENTIFIED WITH 'mysql_native_password','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password','u16'@'localhost','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' PASSWORD EXPIRE DEFAULT
+<<<<<<< HEAD
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u19'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'mysql_native_password','u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u20'@'localhost' IDENTIFIED WITH 'mysql_native_password','u21'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*8A92C25096CC077349306CDC1CA8BE466ED357E3','u22'@'localhost' IDENTIFIED WITH 'mysql_native_password','u23'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
+>>>>>>> upstream/cluster-7.6
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u18'@'localhost','u19'@'localhost','u20'@'localhost','u21'@'localhost','u22'@'localhost','u23'@'localhost' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER tu1@localhost,tu2@localhost,u1@localhost, u2@localhost, u3@localhost,
 u4@localhost,u5@localhost,u6@localhost, u7@localhost, u8@localhost,
@@ -1427,8 +1475,13 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u3'@'localhost' IDENTIFIED
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+<<<<<<< HEAD
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509
+>>>>>>> upstream/cluster-7.6
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
@@ -1450,9 +1503,15 @@ slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON *.* TO 
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4ACFE3202A5FF5CF467898FC58AAB1D615029441' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER user1@localhost,user2@localhost,user3@localhost
+<<<<<<< HEAD
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BB2A6C4B68EBE1B781C294D655785971401FB13B'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+=======
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BB2A6C4B68EBE1B781C294D655785971401FB13B'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5BC789A788B4F867BF1B8DB2A6A20ACDF5B32C49'
+>>>>>>> upstream/cluster-7.6
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F03819CC796CCA4052B8928179B81D18288B05A8'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' PASSWORD EXPIRE

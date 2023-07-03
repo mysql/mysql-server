@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,6 +152,7 @@ static int mecab_parser_plugin_init(void *) {
     delete mecab_tagger;
     mecab_tagger = NULL;
 
+<<<<<<< HEAD
     delete mecab_model;
     mecab_model = NULL;
 
@@ -153,6 +162,20 @@ static int mecab_parser_plugin_init(void *) {
     LogErr(INFORMATION_LEVEL, ER_MECAB_CHARSET_LOADED, mecab_dict->charset);
     return (0);
   }
+=======
+		sql_print_error("Mecab: Unsupported dictionary charset %s",
+				mecab_dict->charset);
+
+		delete mecab_model;
+		mecab_model = NULL;
+
+		return(1);
+	} else {
+		sql_print_information("Mecab: Loaded dictionary charset is %s",
+				      mecab_dict->charset);
+		return(0);
+	}
+>>>>>>> upstream/cluster-7.6
 }
 
 /** MeCab parser plugin deinit
@@ -233,9 +256,19 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
     ret = param->mysql_add_word(param, NULL, 0, bool_info);
 
+<<<<<<< HEAD
     assert(bool_info->quot == NULL);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(bool_info->quot == NULL);
+>>>>>>> pr/231
     bool_info->type = FT_TOKEN_WORD;
   }
+=======
+		assert(bool_info->quot == NULL);
+		bool_info->type = FT_TOKEN_WORD;
+	}
+>>>>>>> upstream/cluster-7.6
 
   return (ret);
 }
@@ -275,7 +308,15 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
     return (1);
   }
 
+<<<<<<< HEAD
   assert(param->cs->mbminlen == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(param->cs->mbminlen == 1);
+=======
+	assert(param->cs->mbminlen == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Create mecab lattice for parsing */
   mecab_lattice = mecab_model->createLattice();
@@ -284,11 +325,19 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
     return (1);
   }
 
+<<<<<<< HEAD
   /* Allocate a new string with '\0' in the end to avoid
   valgrind error "Invalid read of size 1" in mecab. */
   assert(param->length >= 0);
   int doc_length = param->length;
   char *doc = reinterpret_cast<char *>(malloc(doc_length + 1));
+=======
+	/* Allocate a new string with '\0' in the end to avoid
+	valgrind error "Invalid read of size 1" in mecab. */
+	assert(param->length >= 0);
+	int	doc_length = param->length;
+	char*	doc = reinterpret_cast<char*>(malloc(doc_length + 1));
+>>>>>>> upstream/cluster-7.6
 
   if (doc == NULL) {
     my_error(ER_OUTOFMEMORY, MYF(0), doc_length);

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +158,15 @@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
+<<<<<<< HEAD
 #cmakedefine HAVE_TM_GMTOFF 1
+=======
+<<<<<<< HEAD
+=======
+#cmakedefine HAVE_STRUCT_TIMESPEC
+#cmakedefine HAVE_TM_GMTOFF 1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /* Support for tagging symbols with __attribute__((visibility("hidden"))) */
 #cmakedefine HAVE_VISIBILITY_HIDDEN 1
@@ -201,7 +213,10 @@
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
 #cmakedefine APPLE_ARM 1
+<<<<<<< HEAD
 #cmakedefine HAVE_BUILD_ID_SUPPORT
+=======
+>>>>>>> pr/231
 
 /*
  * From main CMakeLists.txt
@@ -252,7 +267,10 @@
 #cmakedefine USE_NEW_EDITLINE_INTERFACE 1
 #cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
 #cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 
 /*
  * Libedit

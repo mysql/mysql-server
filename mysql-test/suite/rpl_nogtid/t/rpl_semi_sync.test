@@ -126,6 +126,11 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
   SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 }
 
+if ($rpl_test_optimize_for_static_plugin_config == 1)
+{
+  SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+}
+
 # reset master and slave so the following test starts in a clean environment
 --let $rpl_only_running_threads= 1
 --let $rpl_no_start_slave= 1
@@ -596,7 +601,11 @@ if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
   SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 }
+<<<<<<< HEAD
 UNINSTALL PLUGIN rpl_semi_sync_source;
+=======
+UNINSTALL PLUGIN rpl_semi_sync_master;
+>>>>>>> pr/231
 enable_query_log;
 SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 
@@ -615,14 +624,24 @@ SHOW STATUS LIKE 'Rpl_semi_sync_replica_status';
 --echo #
 
 connection master;
+<<<<<<< HEAD
 replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_SOURCE_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+=======
+replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+>>>>>>> pr/231
 if ($rpl_test_optimize_for_static_plugin_config == 1)
 {
   SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 }
+<<<<<<< HEAD
 set global rpl_semi_sync_source_timeout= 60000; /* 60s */
 set global rpl_semi_sync_source_enabled= 1;
+=======
+set global rpl_semi_sync_master_timeout= 60000; /* 60s */
+set global rpl_semi_sync_master_enabled= 1;
+>>>>>>> pr/231
 
 source include/rpl_connection_slave.inc;
 source include/stop_slave.inc;

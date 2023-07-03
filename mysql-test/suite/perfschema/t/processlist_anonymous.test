@@ -4,6 +4,10 @@
 --echo ##
 
 --source include/no_protocol.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
 

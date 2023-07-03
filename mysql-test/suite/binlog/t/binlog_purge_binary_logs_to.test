@@ -23,6 +23,7 @@
 RESET MASTER;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
+<<<<<<< HEAD
 --let $INDEX=$MYSQLD_DATADIR/binlog.index
 
 --let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
@@ -40,6 +41,25 @@ FLUSH BINARY LOGS;
 --let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
 
 --echo # Generate binlog.000005
+=======
+--let $INDEX=$MYSQLD_DATADIR/master-bin.index
+
+--let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000002
+FLUSH BINARY LOGS;
+--let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000003
+FLUSH BINARY LOGS;
+--let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000004
+FLUSH BINARY LOGS;
+--let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
+
+--echo # Generate master-bin.000005
+>>>>>>> pr/231
 FLUSH BINARY LOGS;
 --let $binlog_file5= query_get_value(SHOW MASTER STATUS, File, 1)
 
@@ -51,11 +71,19 @@ FLUSH BINARY LOGS;
 --move_file $MYSQLD_DATADIR/$binlog_file4 $MYSQLTEST_VARDIR/tmp/$binlog_file4
 
 # Generate a new index file having the absolute path of the binlogs
+<<<<<<< HEAD
 --exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file1 > $MYSQLD_DATADIR/binlog.index.tmp
 --exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file2 >> $MYSQLD_DATADIR/binlog.index.tmp
 --exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file3 >> $MYSQLD_DATADIR/binlog.index.tmp
 --exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file4 >> $MYSQLD_DATADIR/binlog.index.tmp
 --exec echo ./$binlog_file5 >> $MYSQLD_DATADIR/binlog.index.tmp
+=======
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file1 > $MYSQLD_DATADIR/master-bin.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file2 >> $MYSQLD_DATADIR/master-bin.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file3 >> $MYSQLD_DATADIR/master-bin.index.tmp
+--exec echo $MYSQLTEST_VARDIR/tmp/$binlog_file4 >> $MYSQLD_DATADIR/master-bin.index.tmp
+--exec echo ./$binlog_file5 >> $MYSQLD_DATADIR/master-bin.index.tmp
+>>>>>>> pr/231
 
 # Since the binlog index file has been opened by server, deleting/renaming
 # the index file will fail in Windows. So, shutdown the server, move the file
@@ -67,7 +95,11 @@ FLUSH BINARY LOGS;
 --source include/wait_until_disconnected.inc
 
 --remove_file $INDEX
+<<<<<<< HEAD
 --move_file $MYSQLD_DATADIR/binlog.index.tmp $INDEX
+=======
+--move_file $MYSQLD_DATADIR/master-bin.index.tmp $INDEX
+>>>>>>> pr/231
 
 # Restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

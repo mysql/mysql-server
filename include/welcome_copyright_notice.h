@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +31,27 @@
 #ifndef _welcome_copyright_notice_h_
 #define _welcome_copyright_notice_h_
 
+<<<<<<< HEAD
 /**
   @file include/welcome_copyright_notice.h
 */
 
 #include <string.h>
 
+<<<<<<< HEAD
 #define COPYRIGHT_NOTICE_CURRENT_YEAR "2023"
+=======
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2018"
+=======
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2023"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /*
   This define specifies copyright notice which is displayed by every MySQL
   program on start, or on help screen.
 */
+<<<<<<< HEAD
 #define ORACLE_WELCOME_COPYRIGHT_NOTICE(first_year)                            \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                           \
        ? "Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR        \
@@ -126,5 +143,17 @@
        : "/* Copyright (c) " first_year                                    \
          ", Oracle and/or its affiliates.\n"                               \
          "\n" ORACLE_GPL_FOSS_LICENSE_TEXT)
+=======
+#define ORACLE_WELCOME_COPYRIGHT_NOTICE(first_year) \
+  (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR) ? \
+   "Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR ", " \
+   "Oracle and/or its affiliates.\n\nOracle is a " \
+   "registered trademark of Oracle Corporation and/or its\naffiliates. " \
+   "Other names may be trademarks of their respective\nowners.\n" : \
+   "Copyright (c) " first_year ", Oracle and/or its affiliates. " \
+   "\n\nOracle is a registered trademark of " \
+   "Oracle Corporation and/or its\naffiliates. Other names may be " \
+   "trademarks of their respective\nowners.\n")
+>>>>>>> upstream/cluster-7.6
 
 #endif /* _welcome_copyright_notice_h_ */

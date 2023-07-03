@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +84,7 @@ MACRO(FIND_CURL_VERSION)
     STRING(REGEX REPLACE
       "^.*LIBCURL_VERSION_MINOR[\t ]+([0-9]+).*$" "\\1"
       CURL_VERSION_MINOR "${CURL_VERSION_NUMBERS}"
+<<<<<<< HEAD
       )
     SET(CURL_VERSION "${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
     SET(CURL_VERSION "${CURL_VERSION}" CACHE INTERNAL "CURL major.minor")
@@ -259,5 +268,117 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
       MESSAGE(STATUS "Cannot find CURL dynamic libraries")
     ENDIF()
 
+=======
+    )
+    MESSAGE(STATUS "CURL version: ${CURL_VERSION_MAJOR}.${CURL_VERSION_MINOR}")
+ENDMACRO()
+
+MACRO(MYSQL_CHECK_CURL)
+<<<<<<< HEAD
+  IF(WITH_CURL STREQUAL "system")
+    #  FindCURL.cmake will set
+    #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
+    #  CURL_LIBRARIES      - List of libraries when using curl.
+    #  CURL_FOUND          - True if curl found.
+    #  CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
+    FIND_PACKAGE(CURL)
+    IF(CURL_FOUND AND
+       CURL_LIBRARIES AND
+       NOT CURL_LIBRARIES MATCHES "CURL_LIBRARY-NOTFOUND" AND
+       NOT CURL_INCLUDE_DIRS MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
+      SET(CURL_LIBRARY ${CURL_LIBRARIES} CACHE FILEPATH "Curl library")
+      SET(CURL_INCLUDE_DIR ${CURL_INCLUDE_DIRS} CACHE PATH "Curl include")
+      GET_CURL_VERSION()
+    ELSE()
+      SET(CURL_LIBRARY "")
+      SET(CURL_INCLUDE_DIR "")
+    ENDIF()
+    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
+
+  ELSEIF(WITH_CURL STREQUAL "bundled")
+    MESSAGE(FATAL_ERROR "There is no bundled CURL library.")
+
+  ELSEIF(WITH_CURL)
+=======
+  IF(NOT WIN32)
+   IF(WITH_CURL STREQUAL "system")
+     #  FindCURL.cmake will set
+     #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
+     #  CURL_LIBRARIES      - List of libraries when using curl.
+     #  CURL_FOUND          - True if curl found.
+     #  CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
+     FIND_PACKAGE(CURL)
+     IF(CURL_FOUND)
+       SET(CURL_LIBRARY ${CURL_LIBRARIES} CACHE PATH "Curl library")
+     ENDIF()
+     MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+   ELSEIF(WITH_CURL)
+>>>>>>> upstream/cluster-7.6
+    # Explicit path given. Normalize path for the following regex replace.
+    FILE(TO_CMAKE_PATH "${WITH_CURL}" WITH_CURL)
+    # Pushbuild adds /lib to the CURL path
+    STRING(REGEX REPLACE "/lib$" "" WITH_CURL "${WITH_CURL}")
+<<<<<<< HEAD
+    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    FIND_LIBRARY(CURL_LIBRARY
+      NAMES curl libcurl
+=======
+
+    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    FIND_LIBRARY(CURL_LIBRARY
+      NAMES curl
+>>>>>>> upstream/cluster-7.6
+      PATHS ${WITH_CURL} ${WITH_CURL}/lib
+      NO_DEFAULT_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+<<<<<<< HEAD
+    IF(CURL_LIBRARY MATCHES "CURL_LIBRARY-NOTFOUND")
+      MESSAGE(FATAL_ERROR "CURL library not found under '${WITH_CURL}'")
+    ENDIF()
+=======
+    IF(NOT CURL_LIBRARY)
+      MESSAGE(FATAL_ERROR "CURL library not found under '${WITH_CURL}'")
+    ENDIF()
+
+>>>>>>> upstream/cluster-7.6
+    FIND_PATH(CURL_INCLUDE_DIR
+      NAMES curl/curl.h
+      PATHS ${WITH_CURL} ${WITH_CURL}/include
+      NO_DEFAULT_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+<<<<<<< HEAD
+    IF(CURL_INCLUDE_DIR MATCHES "CURL_INCLUDE_DIR-NOTFOUND")
+      MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
+    ENDIF()
+    GET_CURL_VERSION()
+    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
+
+  ELSE()
+    MESSAGE(STATUS "No WITH_CURL has been set. Not using any curl library.")
+    SET(CURL_LIBRARY "")
+    SET(CURL_INCLUDE_DIR "")
+    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
+=======
+    IF(NOT CURL_INCLUDE_DIR)
+      MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
+    ENDIF()
+
+    MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
+   ELSE()
+     MESSAGE(STATUS
+       "You need to set WITH_CURL. This"
+       " variable needs to point to curl library.")
+   ENDIF()
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ENDIF()
 ENDMACRO()

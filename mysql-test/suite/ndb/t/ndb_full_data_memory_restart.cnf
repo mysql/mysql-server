@@ -1,8 +1,12 @@
 !include suite/ndb/my.cnf
 
 [cluster_config.1]
+<<<<<<< HEAD
 PartitionsPerNode=1
 ThreadConfig=main,rep,recv,ldm={count=1}
+=======
+ThreadConfig=ldm={count=1}
+>>>>>>> pr/231
 DataMemory=5M
 
 [cluster_config.ndbd.1.1]

@@ -3290,6 +3290,7 @@ ALTER TABLE t2 MODIFY fld0 POINT NOT NULL;
 ERROR 22004: Invalid use of NULL value
 DROP TABLE t1, t2;
 #
+<<<<<<< HEAD
 # WL#10761 : ALTER TABLE RENAME COLUMN
 #
 CREATE TABLE t1(a INT, b VARCHAR(30), c FLOAT);
@@ -3599,6 +3600,7 @@ SELECT * FROM t;
 a	b	c	d
 NULL	1999-09-09	1999-09-09	0000-00-00
 DROP TABLE t;
+<<<<<<< HEAD
 #
 # Basic test coverage for ALGORITHM=INSTANT support on SQL-layer.
 #
@@ -3836,6 +3838,16 @@ SET SQL_MODE=default;
 # BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
 #               TO VARCHAR(40) INSTANTANEOUSLY
 SET @orig_sql_mode = @@sql_mode;
+=======
+=======
+# BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+#               TO VARCHAR(40) INSTANTANEOUSLY
+SET @orig_sql_mode= @@sql_mode;
+SET @orig_innodb_large_prefix= @@global.innodb_large_prefix;
+SET GLOBAL innodb_large_prefix= ON;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+>>>>>>> pr/231
 # Tests where an error is reported under strict mode when the index
 # limit exceeds the maximum supported length by SE.
 CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) CHARSET latin1 ENGINE =InnoDB
@@ -3857,8 +3869,24 @@ ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= COPY;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
+<<<<<<< HEAD
 DROP TABLE t1, t2;
 SET sql_mode= '';
+=======
+# Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE t3 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+DROP TABLE t1, t2;
+SET sql_mode= '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET GLOBAL innodb_large_prefix= ON;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+>>>>>>> pr/231
 # Test where the indexes are truncated to fit the index limit and
 # a warning is reported under non-strict mode when the index exceeds
 # the SE limit.
@@ -3871,16 +3899,28 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 # Test with innodb prefix indexes where the index limit is 767 bytes.
 CREATE TABLE t3 (fld1 VARCHAR(767), KEY(fld1))ENGINE=INNODB ROW_FORMAT=COMPACT;
+<<<<<<< HEAD
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
 ALTER TABLE t3 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+=======
+ALTER TABLE t3 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+>>>>>>> pr/231
 ALTER TABLE t3 MODIFY fld1 VARCHAR(800), ALGORITHM= COPY;
 # Test with innodb prefix indexes where the index limit is 3072 bytes.
 CREATE TABLE t4 (fld1 VARCHAR(3072), KEY(fld1))ENGINE=INNODB
 ROW_FORMAT=DYNAMIC;
+<<<<<<< HEAD
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 ALTER TABLE t4 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+=======
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+>>>>>>> pr/231
 ALTER TABLE t4 MODIFY fld1 VARCHAR(3074), ALGORITHM= COPY;
 # For unique and primary keys, an error is reported even in non-strict
 # mode.
@@ -3889,8 +3929,21 @@ ROW_FORMAT=COMPACT;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
+<<<<<<< HEAD
 DROP TABLE t1, t2, t3, t4;
 SET sql_mode= @orig_sql_mode;
+=======
+# Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE t5 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+DROP TABLE t1, t2, t3, t4, t5;
+SET sql_mode= @orig_sql_mode;
+SET GLOBAL innodb_large_prefix= ON;
+>>>>>>> pr/231
 # Tests added for coverage.
 CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
 # Conversion of unpacked keys to packed keys reports
@@ -3911,6 +3964,7 @@ ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used le
 # Cleanup.
 DROP TABLE t1, t2;
 SET sql_mode= @orig_sql_mode;
+<<<<<<< HEAD
 #
 # BUG#27164393: ALTER COLUMN SET DEFAULT DOES NOT RETURN ERROR
 #               ON GENERATED COLUMNS
@@ -3927,6 +3981,9 @@ ERROR HY000: Incorrect usage of DEFAULT and generated column
 ALTER TABLE t1 MODIFY fld3 INT GENERATED ALWAYS AS (-fld1) STORED DEFAULT -1;
 ERROR HY000: Incorrect usage of DEFAULT and generated column
 DROP TABLE t1;
+=======
+SET GLOBAL innodb_large_prefix= @orig_innodb_large_prefix;
+>>>>>>> pr/231
 #
 # BUG#27788685: NO WARNING WHEN TRUNCATING A STRING WITH DATA LOSS
 #
@@ -3950,6 +4007,10 @@ LENGTH(t3_fld1)
 SET SQL_MODE='STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+<<<<<<< HEAD
+=======
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 ALTER TABLE t1 CHANGE `t1_fld1` `my_t1_fld1` TINYTEXT;
 ERROR 22001: Data too long for column 'my_t1_fld1' at row 1
 ALTER TABLE t2 CHANGE `t2_fld1` `my_t2_fld1` TEXT;
@@ -3969,6 +4030,7 @@ Warnings:
 Warning	1265	Data truncated for column 'my_t3_fld1' at row 1
 SELECT LENGTH(my_t1_fld1) FROM t1;
 LENGTH(my_t1_fld1)
+<<<<<<< HEAD
 255
 SELECT LENGTH(my_t2_fld1) FROM t2;
 LENGTH(my_t2_fld1)
@@ -4649,3 +4711,16 @@ ALTER TABLE t3 MODIFY c2 VARCHAR(10) CHARSET utf8mb4, ALGORITHM=INPLACE;
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
+=======
+44
+SELECT LENGTH(my_t2_fld1) FROM t2;
+LENGTH(my_t2_fld1)
+144
+SELECT LENGTH(my_t3_fld1) FROM t3;
+LENGTH(my_t3_fld1)
+84
+DROP TABLE t1, t2, t3;
+SET SQL_MODE=default;
+SET GLOBAL max_allowed_packet=default;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

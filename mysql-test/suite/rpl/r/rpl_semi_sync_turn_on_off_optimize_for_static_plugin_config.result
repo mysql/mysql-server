@@ -28,6 +28,7 @@ CREATE TABLE t (a int);
 [connection server_2]
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
 SET GLOBAL replication_sender_observe_commit_only = 1;
+<<<<<<< HEAD
 SHOW VARIABLES LIKE 'rpl_semi_sync_source_enabled';
 Variable_name	Value
 CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
@@ -84,6 +85,63 @@ CALL mtr.add_suppression("Semi-sync slave net_flush.*");
 include/install_semisync_replica.inc
 [connection server_2]
 SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 7;
+=======
+SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+include/install_semisync_master.inc
+[connection server_3]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_4]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_5]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_6]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_7]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_8]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_9]
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+SET GLOBAL replication_sender_observe_commit_only = 1;
+SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_2]
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 7;
+>>>>>>> pr/231
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 SET GLOBAL replication_optimize_for_static_plugin_config = 0,
@@ -259,7 +317,10 @@ replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_1]
+<<<<<<< HEAD
 [connection server_1]
+=======
+>>>>>>> pr/231
 include/rpl_sync.inc
 [connection server_2]
 include/rpl_sync.inc
@@ -267,6 +328,7 @@ include/diff_tables.inc [server_1:t, server_9:t, server_8:t, server_7:t, server_
 [connection server_9]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
+<<<<<<< HEAD
 include/uninstall_semisync_replica.inc
 [connection server_8]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
@@ -296,6 +358,37 @@ include/uninstall_semisync_replica.inc
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 SET GLOBAL replication_sender_observe_commit_only = 0;
 include/uninstall_semisync_source.inc
+=======
+include/uninstall_semisync_slave.inc
+[connection server_8]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_7]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_6]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_5]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_4]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_3]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_slave.inc
+[connection server_2]
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+SET GLOBAL replication_sender_observe_commit_only = 0;
+include/uninstall_semisync_master.inc
+>>>>>>> pr/231
 [connection server_1]
 DROP TABLE t;
 include/rpl_end.inc

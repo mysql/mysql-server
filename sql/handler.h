@@ -2,7 +2,15 @@
 #define HANDLER_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2749,9 +2757,11 @@ struct handlerton {
     Log_resource functions that must be supported by storage engines
     with relevant log information to be collected.
   */
+<<<<<<< HEAD
   lock_hton_log_t lock_hton_log;
   unlock_hton_log_t unlock_hton_log;
   collect_hton_log_info_t collect_hton_log_info;
+<<<<<<< HEAD
 
   /** Flags describing details of foreign key support by storage engine. */
   uint32 foreign_keys_flags;
@@ -2812,6 +2822,67 @@ struct handlerton {
 
   /** Page tracking interface */
   Page_track_t page_track;
+=======
+=======
+  bool (*notify_exclusive_mdl)(THD *thd, const MDL_key *mdl_key,
+                               ha_notification_type notification_type,
+                               bool *victimized);
+
+  /**
+    Notify/get permission from storage engine before or after execution of
+    ALTER TABLE operation on the table identified by the MDL key.
+
+    @param thd                Thread context.
+    @param mdl_key            MDL key identifying table which is going to be
+                              or was ALTERed.
+    @param notification_type  Indicates whether this is pre-ALTER TABLE or
+                              post-ALTER TABLE notification.
+
+    @note This hook is necessary because for ALTER TABLE upgrade to X
+          metadata lock happens fairly late during the execution process,
+          so it can be expensive to abort ALTER TABLE operation at this
+          stage by returning failure from notify_exclusive_mdl() hook.
+
+    @note This hook follows the same error reporting convention as
+          @see notify_exclusive_mdl().
+
+    @note Similarly to notify_exclusive_mdl() in some cases post-ALTER
+          notification might happen even if there were no prior pre-ALTER
+          notification.
+
+    @note Post-ALTER notification can happen before post-release notification
+          for exclusive metadata lock acquired by this ALTER TABLE.
+
+    @return False - if notification was successful/ALTER TABLE can proceed.
+            True - if it has failed/ALTER TABLE should be aborted.
+  */
+  bool (*notify_alter_table)(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type);
+
+
+  /**
+    @brief
+    Initiate master key rotation
+
+    @returns false on success,
+             true on failure
+  */
+  bool (*rotate_encryption_master_key)(void);
+  /**
+    Check if the given database name is reserved.
+
+    @param  hton          Handlerton for SE.
+    @param  name          Database name.
+
+    @retval true          Database name is reserved by SE.
+    @retval false         Database name is not reserved.
+  */
+  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
+
+   uint32 license; /* Flag for Engine License */
+   void *data; /* Location for engines to keep personal structures */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */
@@ -2859,11 +2930,22 @@ struct handlerton {
 
 #define HTON_SUPPORTS_FOREIGN_KEYS (1 << 11)
 
+<<<<<<< HEAD
 /**
   Engine supports atomic DDL. That is rollback of transaction for DDL
   statement will also rollback all changes in SE, commit of transaction
   of DDL statement will make it durable.
 */
+=======
+// Engine supports packed keys.
+#define HTON_SUPPORTS_PACKED_KEYS    (1 << 12)
+
+// Engine supports table or tablespace encryption.
+#define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 13)
+
+enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
+			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+>>>>>>> upstream/cluster-7.6
 
 #define HTON_SUPPORTS_ATOMIC_DDL (1 << 12)
 
@@ -2983,8 +3065,10 @@ enum enum_stats_auto_recalc : int {
   HA_STATS_AUTO_RECALC_OFF
 };
 
+<<<<<<< HEAD
 /* struct to hold information about the table that should be created */
 struct HA_CREATE_INFO {
+<<<<<<< HEAD
   const CHARSET_INFO *table_charset{nullptr};
   const CHARSET_INFO *default_table_charset{nullptr};
   bool schema_read_only{false};
@@ -2992,6 +3076,19 @@ struct HA_CREATE_INFO {
   const char *password{nullptr};
   const char *tablespace{nullptr};
   LEX_STRING comment{nullptr, 0};
+=======
+  HA_CREATE_INFO() { memset(this, 0, sizeof(*this)); }
+=======
+typedef struct st_ha_create_information
+{
+  st_ha_create_information() { memset(this, 0, sizeof(*this)); }
+
+>>>>>>> upstream/cluster-7.6
+  const CHARSET_INFO *table_charset, *default_table_charset;
+  LEX_STRING connect_string;
+  const char *password, *tablespace;
+  LEX_STRING comment;
+>>>>>>> pr/231
 
   /**
   Algorithm (and possible options) to be used for InnoDB's transparent
@@ -3120,9 +3217,14 @@ class inplace_alter_handler_ctx {
  public:
   inplace_alter_handler_ctx() = default;
 
+<<<<<<< HEAD
   virtual void set_shared_data(const inplace_alter_handler_ctx *ctx
                                [[maybe_unused]]) {}
   virtual ~inplace_alter_handler_ctx() = default;
+=======
+  virtual ~inplace_alter_handler_ctx() {}
+  virtual void set_shared_data(const inplace_alter_handler_ctx *ctx) {};
+>>>>>>> pr/231
 };
 
 /**
@@ -3302,6 +3404,7 @@ class Alter_inplace_info {
     For example, change in index length due to column expansion like
     varchar(X) changed to varchar(X + N).
   */
+<<<<<<< HEAD
   static const HA_ALTER_FLAGS ALTER_COLUMN_INDEX_LENGTH = 1ULL << 43;
 
   /**
@@ -3327,6 +3430,10 @@ class Alter_inplace_info {
 
   // Alter column visibility.
   static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
+=======
+  static const HA_ALTER_FLAGS ALTER_COLUMN_INDEX_LENGTH = 1ULL << 42;
+
+>>>>>>> pr/231
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -3683,8 +3790,18 @@ class Cost_estimate {
   }
 
   /// Multiply io, cpu and import costs by parameter
+<<<<<<< HEAD
   void multiply(double m) {
+<<<<<<< HEAD
     assert(!is_max_cost());
+=======
+    DBUG_ASSERT(!is_max_cost());
+=======
+  void multiply(double m)
+  {
+    assert(!is_max_cost());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     io_cost *= m;
     cpu_cost *= m;
@@ -3692,8 +3809,18 @@ class Cost_estimate {
     /* Don't multiply mem_cost */
   }
 
+<<<<<<< HEAD
   Cost_estimate &operator+=(const Cost_estimate &other) {
+<<<<<<< HEAD
     assert(!is_max_cost() && !other.is_max_cost());
+=======
+    DBUG_ASSERT(!is_max_cost() && !other.is_max_cost());
+=======
+  Cost_estimate& operator+= (const Cost_estimate &other)
+  {
+    assert(!is_max_cost() && !other.is_max_cost());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     io_cost += other.io_cost;
     cpu_cost += other.cpu_cost;
@@ -3731,6 +3858,7 @@ class Cost_estimate {
   }
 
   /// Add to IO cost
+<<<<<<< HEAD
   void add_io(double add_io_cost) {
     assert(!is_max_cost());
     io_cost += add_io_cost;
@@ -3752,6 +3880,33 @@ class Cost_estimate {
   void add_mem(double add_mem_cost) {
     assert(!is_max_cost());
     mem_cost += add_mem_cost;
+=======
+  void add_io(double add_io_cost)
+  {
+    assert(!is_max_cost());
+    io_cost+= add_io_cost;
+  }
+
+  /// Add to CPU cost
+  void add_cpu(double add_cpu_cost)
+  {
+    assert(!is_max_cost());
+    cpu_cost+= add_cpu_cost;
+  }
+
+  /// Add to import cost
+  void add_import(double add_import_cost)
+  {
+    assert(!is_max_cost());
+    import_cost+= add_import_cost;
+  }
+
+  /// Add to memory cost
+  void add_mem(double add_mem_cost)
+  {
+    assert(!is_max_cost());
+    mem_cost+= add_mem_cost;
+>>>>>>> upstream/cluster-7.6
   }
 };
 
@@ -4428,10 +4583,17 @@ class handler {
   key_range *end_range;
   /**
     Flag which tells if #end_range contains a virtual generated column.
+<<<<<<< HEAD
     The content is invalid when #end_range is @c nullptr.
   */
   bool m_virt_gcol_in_end_range = false;
   uint errkey; /* Last dup key */
+=======
+    The content is invalid when #end_range is NULL.
+  */
+  bool m_virt_gcol_in_end_range;
+  uint errkey;				/* Last dup key */
+>>>>>>> upstream/cluster-7.6
   uint key_used_on_scan;
   uint active_index;
   /** Length of ref (1-8 or the clustered key length) */
@@ -4579,6 +4741,7 @@ class handler {
 
  public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
+<<<<<<< HEAD
       : table_share(share_arg),
         table(nullptr),
         estimation_rows_to_insert(0),
@@ -4612,11 +4775,50 @@ class handler {
   }
 
   virtual ~handler(void) {
+<<<<<<< HEAD
     assert(m_psi == nullptr);
     assert(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
     assert(m_psi_locker == nullptr);
     assert(m_lock_type == F_UNLCK);
     assert(inited == NONE);
+=======
+    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    DBUG_ASSERT(m_psi_locker == NULL);
+    DBUG_ASSERT(m_lock_type == F_UNLCK);
+    DBUG_ASSERT(inited == NONE);
+=======
+    :table_share(share_arg), table(0),
+    estimation_rows_to_insert(0), ht(ht_arg),
+    ref(0), range_scan_direction(RANGE_SCAN_ASC),
+    in_range_check_pushed_down(false), end_range(NULL),
+    m_virt_gcol_in_end_range(false),
+    key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    ref_length(sizeof(my_off_t)),
+    ft_handler(0), inited(NONE),
+    implicit_emptied(0),
+    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    next_insert_id(0), insert_id_for_cur_row(0),
+    auto_inc_intervals_count(0),
+    m_psi(NULL),
+    m_psi_batch_mode(PSI_BATCH_MODE_NONE),
+    m_psi_numrows(0),
+    m_psi_locker(NULL),
+    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
+    {
+      DBUG_PRINT("info",
+                 ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
+                  F_UNLCK, F_RDLCK, F_WRLCK));
+    }
+  virtual ~handler(void)
+  {
+    assert(m_psi == NULL);
+    assert(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    assert(m_psi_locker == NULL);
+    assert(m_lock_type == F_UNLCK);
+    assert(inited == NONE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /**
@@ -4881,6 +5083,7 @@ class handler {
   virtual bool get_foreign_dup_key(char *child_table_name,
                                    uint child_table_name_len,
                                    char *child_key_name,
+<<<<<<< HEAD
                                    uint child_key_name_len);
   /**
     Change the internal TABLE_SHARE pointer.
@@ -4894,6 +5097,14 @@ class handler {
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share) {
     table = table_arg;
     table_share = share;
+=======
+                                   uint child_key_name_len)
+  { assert(false); return(false); }
+  virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+  {
+    table= table_arg;
+    table_share= share;
+>>>>>>> upstream/cluster-7.6
   }
   const TABLE_SHARE *get_table_share() const { return table_share; }
 
@@ -4995,7 +5206,11 @@ class handler {
     This method is mainly provided as a temporary workaround for
     bug#33317872, where we fix problems caused by calling
     Cost_model::page_read_cost() directly from the optimizer.
+<<<<<<< HEAD
     That should be avoided, as it introduced assumption about all
+=======
+    That should be avoide, as it introduced assumption about all
+>>>>>>> pr/231
     storage engines being disk-page based, and having a 'page' cost.
     Furthermore, this page cost was even compared against read_cost(),
     which was computed with an entirely different algorithm, and thus
@@ -5003,12 +5218,20 @@ class handler {
 
     The default implementation still call Cost_model::page_read_cost(),
     thus behaving just as before. However, handler implementation may
+<<<<<<< HEAD
     override it to call handler::read_cost() instead(), which probably
+=======
+    override it to call handler::read_cost() instead(), which propably
+>>>>>>> pr/231
     will be more correct. (If a page_read_cost should be included
     in the cost estimate, that should preferable be done inside
     each read_cost() implementation)
 
+<<<<<<< HEAD
     Longer term we should consider to remove all page_read_cost()
+=======
+    Longer term we should considder to remove all page_read_cost()
+>>>>>>> pr/231
     usage from the optimizer itself, making this method obsolete.
 
     @param index  the index number
@@ -5223,6 +5446,7 @@ class handler {
       @retval 0 for OK, one of the HA_xxx values in case of error.
   */
   int ha_records(ha_rows *num_rows) {
+<<<<<<< HEAD
     return handle_records_error(records(num_rows), num_rows);
   }
 
@@ -5236,6 +5460,39 @@ class handler {
   */
   int ha_records(ha_rows *num_rows, uint index) {
     return handle_records_error(records_from_index(num_rows, index), num_rows);
+=======
+    int error = records(num_rows);
+    // A return value of HA_POS_ERROR was previously used to indicate error.
+<<<<<<< HEAD
+    if (error != 0) DBUG_ASSERT(*num_rows == HA_POS_ERROR);
+    if (*num_rows == HA_POS_ERROR) DBUG_ASSERT(error != 0);
+    if (error != 0) {
+=======
+    if (error != 0)
+      assert(*num_rows == HA_POS_ERROR);
+    if (*num_rows == HA_POS_ERROR)
+      assert(error != 0);
+    if (error != 0)
+    {
+>>>>>>> upstream/cluster-7.6
+      /*
+        ha_innobase::records may have rolled back internally.
+        In this case, thd_mark_transaction_to_rollback() will have been called.
+        For the errors below, we need to abort right away.
+      */
+      switch (error) {
+        case HA_ERR_LOCK_DEADLOCK:
+        case HA_ERR_LOCK_TABLE_FULL:
+        case HA_ERR_LOCK_WAIT_TIMEOUT:
+        case HA_ERR_QUERY_INTERRUPTED:
+          print_error(error, MYF(0));
+          return error;
+        default:
+          return error;
+      }
+    }
+    return 0;
+>>>>>>> pr/231
   }
 
   /**
@@ -5261,6 +5518,7 @@ class handler {
                       : ROW_TYPE_FIXED);
   }
 
+<<<<<<< HEAD
   /**
     Get default key algorithm for SE. It is used when user has not provided
     algorithm explicitly or when algorithm specified is not supported by SE.
@@ -5268,6 +5526,9 @@ class handler {
   virtual enum ha_key_alg get_default_index_algorithm() const {
     return HA_KEY_ALG_SE_SPECIFIC;
   }
+=======
+  virtual const char *index_type(uint key_number) { assert(0); return "";}
+>>>>>>> upstream/cluster-7.6
 
   /**
     Check if SE supports specific key algorithm.
@@ -5311,8 +5572,19 @@ class handler {
     @retval  0           Success
     @retval  >0          Error code
   */
+<<<<<<< HEAD
   virtual int exec_bulk_update(uint *dup_key_found [[maybe_unused]]) {
     assert(false);
+=======
+<<<<<<< HEAD
+  virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(false);
+=======
+  virtual int exec_bulk_update(uint *dup_key_found)
+  {
+    assert(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -5326,8 +5598,18 @@ class handler {
     @retval 0             Success
     @retval >0            Error code
   */
+<<<<<<< HEAD
   virtual int end_bulk_delete() {
+<<<<<<< HEAD
     assert(false);
+=======
+    DBUG_ASSERT(false);
+=======
+  virtual int end_bulk_delete()
+  {
+    assert(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -5426,9 +5708,20 @@ class handler {
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION set.
     It will return the row with the PK given in the record argument.
   */
+<<<<<<< HEAD
   virtual int rnd_pos_by_record(uchar *record) {
     int error;
+<<<<<<< HEAD
     assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+=======
+    DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+=======
+  virtual int rnd_pos_by_record(uchar *record)
+    {
+      int error;
+      assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     error = ha_rnd_init(false);
     if (error != 0) return error;
@@ -5466,6 +5759,7 @@ class handler {
     the record).
     Otherwise it set ref to the current row.
   */
+<<<<<<< HEAD
   virtual void position(const uchar *record) = 0;
 
   /**
@@ -5532,6 +5826,16 @@ class handler {
                         ulong cache_size [[maybe_unused]]) {
     return extra(operation);
   }
+=======
+  virtual void position(const uchar *record)=0;
+  virtual int info(uint)=0; // see my_base.h for full description
+  virtual uint32 calculate_key_hash_value(Field **field_array)
+  { assert(0); return 0; }
+  virtual int extra(enum ha_extra_function operation)
+  { return 0; }
+  virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
+  { return extra(operation); }
+>>>>>>> upstream/cluster-7.6
 
   /**
     Get the handlerton of the storage engine if the SE is capable of
@@ -5555,20 +5859,30 @@ class handler {
     Start read (before write) removal on the current table.
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
+<<<<<<< HEAD
   virtual bool start_read_removal(void) {
     assert(0);
     return false;
   }
+=======
+  virtual bool start_read_removal(void)
+  { assert(0); return false; }
+>>>>>>> upstream/cluster-7.6
 
   /**
     End read (before write) removal and return the number of rows
     really written
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
+<<<<<<< HEAD
   virtual ha_rows end_read_removal(void) {
     assert(0);
     return (ha_rows)0;
   }
+=======
+  virtual ha_rows end_read_removal(void)
+  { assert(0); return (ha_rows) 0; }
+>>>>>>> upstream/cluster-7.6
 
   /**
     Normally, when running UPDATE or DELETE queries, we need to wait for other
@@ -5721,21 +6035,44 @@ class handler {
   uint max_key_length() const {
     return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
+<<<<<<< HEAD
   uint max_key_part_length(HA_CREATE_INFO *create_info) const {
     return std::min(MAX_KEY_LENGTH, max_supported_key_part_length(create_info));
+=======
+<<<<<<< HEAD
+  uint max_key_part_length() const {
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
+=======
+  uint max_key_part_length(HA_CREATE_INFO *create_info) const
+  {
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length(create_info));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
+<<<<<<< HEAD
   virtual uint max_supported_key_part_length(HA_CREATE_INFO *create_info
                                              [[maybe_unused]]) const {
     return 255;
   }
   virtual uint min_record_length(uint options [[maybe_unused]]) const {
+=======
+<<<<<<< HEAD
+  virtual uint max_supported_key_part_length() const { return 255; }
+  virtual uint min_record_length(uint options MY_ATTRIBUTE((unused))) const {
+>>>>>>> pr/231
     return 1;
   }
+=======
+  virtual uint max_supported_key_part_length(HA_CREATE_INFO
+                            *create_info MY_ATTRIBUTE((unused))) const
+  { return 255; }
+  virtual uint min_record_length(uint options) const { return 1; }
+>>>>>>> upstream/cluster-7.6
 
   virtual bool low_byte_first() const { return true; }
   virtual ha_checksum checksum() const { return 0; }
@@ -6319,7 +6656,16 @@ class handler {
   */
   virtual void use_hidden_primary_key();
 
+<<<<<<< HEAD
  protected:
+=======
+/**
+  A helper function to mark a transaction as noop_read_write if it is started.
+*/
+  void mark_trx_noop_dml();
+
+protected:
+>>>>>>> upstream/cluster-7.6
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong System_status_var::*offset) const;
   THD *ha_thd() const;
@@ -6498,8 +6844,18 @@ class handler {
      to specify CHECK option to use to call check()
      upon the table.
   */
+<<<<<<< HEAD
   virtual int repair(THD *, HA_CHECK_OPT *) {
+<<<<<<< HEAD
     assert(!(ha_table_flags() & HA_CAN_REPAIR));
+=======
+    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+=======
+  virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
+  {
+    assert(!(ha_table_flags() & HA_CAN_REPAIR));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ADMIN_NOT_IMPLEMENTED;
   }
   virtual void start_bulk_insert(ha_rows) {}
@@ -6626,10 +6982,24 @@ class handler {
     @param    dup_key_found  Number of duplicate keys found
 
   */
+<<<<<<< HEAD
   virtual int bulk_update_row(const uchar *old_data [[maybe_unused]],
                               uchar *new_data [[maybe_unused]],
                               uint *dup_key_found [[maybe_unused]]) {
     assert(false);
+=======
+<<<<<<< HEAD
+  virtual int bulk_update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
+                              uchar *new_data MY_ATTRIBUTE((unused)),
+                              uint *dup_key_found MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(false);
+=======
+  virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
+                              uint *dup_key_found)
+  {
+    assert(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -6754,6 +7124,7 @@ class handler {
   /**
     Create table (implementation).
 
+<<<<<<< HEAD
     @param  [in]      name      Table name.
     @param  [in]      form      TABLE object describing the table to be
                                 created.
@@ -6806,6 +7177,15 @@ class handler {
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share) {
     ha_share = arg_ha_share;
+=======
+  virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
+  {
+    assert(!ha_share);
+    assert(arg_ha_share);
+    if (ha_share || !arg_ha_share)
+      return true;
+    ha_share= arg_ha_share;
+>>>>>>> upstream/cluster-7.6
     return false;
   }
 
@@ -6984,8 +7364,18 @@ class DsMrr_impl {
       exist. This must be closed and deleted (this is the case for
       internally created temporary tables).
     */
+<<<<<<< HEAD
     if (h2) reset();
+<<<<<<< HEAD
     assert(h2 == nullptr);
+=======
+    DBUG_ASSERT(h2 == NULL);
+=======
+    if (h2)
+      reset();
+    assert(h2 == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
  private:
@@ -7022,9 +7412,18 @@ class DsMrr_impl {
     @param table_arg pointer to the TABLE that owns the handler
   */
 
+<<<<<<< HEAD
   void init(TABLE *table_arg) {
     assert(table_arg != nullptr);
     table = table_arg;
+=======
+  void init(handler *h_arg, TABLE *table_arg)
+  {
+    assert(h_arg != NULL);
+    assert(table_arg != NULL);
+    h= h_arg; 
+    table= table_arg;
+>>>>>>> upstream/cluster-7.6
   }
 
   int dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param, uint n_ranges,
@@ -7168,6 +7567,7 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
                    const uchar *after_record, Log_func *log_func);
 
 /* discovery */
+<<<<<<< HEAD
 int ha_create_table_from_engine(THD *thd, const char *db, const char *name);
 bool ha_check_if_table_exists(THD *thd, const char *db, const char *name,
                               bool *exists);
@@ -7178,6 +7578,20 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
                                         const char *table_name);
 bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files);
 bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files);
+=======
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
+bool ha_check_if_table_exists(THD* thd, const char *db, const char *name,
+                             bool *exists);
+int ha_discover(THD* thd, const char* dbname, const char* name,
+                uchar** frmblob, size_t* frmlen);
+int ha_find_files(THD *thd,const char *db,const char *path,
+                  const char *wild, bool dir, List<LEX_STRING>* files);
+int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
+bool ha_is_supported_system_table(handlerton *hton, const char *db,
+                                  const char *table_name);
+bool ha_is_valid_system_or_user_table(handlerton *hton, const char *db,
+                                      const char *table_name);
+>>>>>>> upstream/cluster-7.6
 
 /* key cache */
 int ha_init_key_cache(std::string_view name, KEY_CACHE *key_cache);
@@ -7329,7 +7743,14 @@ bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
                          const char *old_table_name, const char *new_db_name,
                          const char *new_table_name);
 
+<<<<<<< HEAD
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
+=======
+int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
+int commit_owned_gtid_by_partial_command(THD *thd);
+<<<<<<< HEAD
+int check_table_for_old_types(const TABLE *table);
+>>>>>>> pr/231
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
 bool is_index_access_error(int error);
 
@@ -7373,5 +7794,11 @@ class ha_tablespace_statistics {
   dd::String_type m_status;
   dd::String_type m_extra;  // NDB only
 };
+=======
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
+bool ha_check_reserved_db_name(const char *name);
+>>>>>>> upstream/cluster-7.6
 
 #endif /* HANDLER_INCLUDED */

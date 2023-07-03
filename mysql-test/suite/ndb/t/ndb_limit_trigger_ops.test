@@ -3,6 +3,10 @@
 ### correctly and it eases the resource usage like job buffer ###
 
 -- source include/have_ndb.inc
+<<<<<<< HEAD
+=======
+-- source include/not_embedded.inc
+>>>>>>> pr/231
 
 ### Test a table with many immediate triggers in breadth
 
@@ -64,7 +68,11 @@ create table t1(
   unique key uk24(c24)
 ) engine=ndbcluster;
 
+<<<<<<< HEAD
 let $max_rows = 3000;
+=======
+let $max_rows = 1000;
+>>>>>>> pr/231
 
 --disable_query_log
 let $loops = $max_rows;
@@ -144,8 +152,13 @@ create table grandchild(
   unique key uk3(c3),
   key k4(c4),
   key k5(c5),
+<<<<<<< HEAD
   foreign key fk4(c2) references child(c2) on update restrict on delete cascade,
   foreign key fk5(c3) references child(c3) on update restrict on delete cascade
+=======
+  foreign key fk2(c2) references child(c2) on update restrict on delete cascade,
+  foreign key fk3(c3) references child(c3) on update restrict on delete cascade
+>>>>>>> pr/231
 ) engine=ndbcluster;
 
 
@@ -177,7 +190,11 @@ set ndb_deferred_constraints = 0;
 
 eval update parent set c2=$max_rows+c2, c3=$max_rows+c3,
   c4=$max_rows+c4, c5=$max_rows+c5
+<<<<<<< HEAD
   where c1 < 1500;
+=======
+  where c1 < 500;
+>>>>>>> pr/231
 
 select * from parent where c1=1;
 select * from child where c1=1;
@@ -195,8 +212,13 @@ select count(*) from grandchild;
 
 # Split the table delete into batches
 
+<<<<<<< HEAD
 eval delete from parent where c1<1500;
 eval delete from parent where c1<3001;
+=======
+eval delete from parent where c1<500;
+eval delete from parent where c1<1001;
+>>>>>>> pr/231
 
 select count(*) from parent;
 select count(*) from child;

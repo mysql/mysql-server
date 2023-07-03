@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ====== Purpose =======
 #
 # This test verifies that DROP for a temporary table created
@@ -16,8 +17,38 @@
 # Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
 #
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed_or_row.inc
+=======
+# ====== Purpose =======
+#
+# This test verifies that DROP for a temporary table created
+# in Row mode is not logged in binlog at session disconnect.
+#
+# ====== Implementation ======
+#
+# Create temporary tables in Row mode using different engines,
+# also create a temporary table in Statement mode, now when you connect to the session
+# after a disconnect print the output of show binlog events.
+# This will verify that the DROP for temporary table created in statement
+# mode is written to binary log at session disconnect, but for  the temporary table
+# created in Row mode no DROP statement for temporary table is logged at session
+# disconnect.
+#
+# ====== References =======
+#
+# Bug#28606948:BACKPORT OF BUG #24670909 TO 5.7.22
+#
+# The name of this file has row_mix even though we are just testing in row
+# format because we want the name of tests to be consistent in 5.7 and 8.0
+
+--source include/have_log_bin.inc
+--source include/have_myisam.inc
+--source include/have_binlog_format_row.inc
+>>>>>>> upstream/cluster-7.6
 
 RESET MASTER;
 
@@ -27,6 +58,20 @@ CREATE TABLE t1(a INT) ENGINE=InnoDB;
 
 --connect(con1,localhost,root)
 
+<<<<<<< HEAD
+=======
+SET @saved_binlog_format= @@SESSION.binlog_format;
+# A DROP for tmp10 should be binlogged because CREATE TABLE is
+<<<<<<< HEAD
+=======
+# created in Statement mode
+
+>>>>>>> upstream/cluster-7.6
+SET SESSION binlog_format= 'STATEMENT';
+CREATE TEMPORARY TABLE tmp10 (a INT);
+SET SESSION binlog_format= @saved_binlog_format;
+
+>>>>>>> pr/231
 # No DROP should be logged for any of the statements below
 CREATE TEMPORARY TABLE tmp1 ENGINE=InnoDB SELECT * FROM t1;
 CREATE TEMPORARY TABLE tmp5 (a INT) ENGINE=InnoDB;
@@ -38,5 +83,12 @@ CREATE TEMPORARY TABLE tmp7 LIKE t1;
 
 --source include/show_binlog_events.inc
 
+<<<<<<< HEAD
 DROP TABLE t1;
+=======
+DROP TABLE t1, t2;
+<<<<<<< HEAD
+>>>>>>> pr/231
 
+=======
+>>>>>>> upstream/cluster-7.6

@@ -2035,6 +2035,7 @@ DROP TABLE t1, t2, t3, t4;
 SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
 SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
 #
+<<<<<<< HEAD
 # Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
 #
 # Make sure that it is possible to create enums using binary string
@@ -2200,6 +2201,8 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIA
 DROP USER subuser@localhost;
 SET GLOBAL sql_require_primary_key= OFF;
 #
+=======
+>>>>>>> pr/231
 # Bug#28022129: NOW() DOESN?T HONOR NO_ZERO_DATE SQL_MODE
 #
 SET @saved_mode= @@sql_mode;
@@ -2211,18 +2214,32 @@ CREATE TABLE t3 AS SELECT now();
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
+<<<<<<< HEAD
   `fld1` int DEFAULT NULL,
   `fld2` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `fld1` int(11) DEFAULT NULL,
+  `fld2` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `now()` datetime NOT NULL
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 DROP TABLE t2, t3;
 SET SQL_MODE= "NO_ZERO_DATE";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+<<<<<<< HEAD
+=======
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 # NO_ZERO_DATE SQL mode.
 CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
 CREATE TABLE t3 AS SELECT now();
@@ -2230,20 +2247,33 @@ CREATE TABLE t3 AS SELECT now();
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
+<<<<<<< HEAD
   `fld1` int DEFAULT NULL,
   `fld2` date NOT NULL DEFAULT '0000-00-00'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `fld1` int(11) DEFAULT NULL,
+  `fld2` date NOT NULL DEFAULT '0000-00-00'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `now()` datetime NOT NULL DEFAULT '0000-00-00 00:00:00'
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 DROP TABLE t1, t2, t3;
 SET SQL_MODE= DEFAULT;
 # Test cases added for coverage.
 CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+<<<<<<< HEAD
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
+=======
+>>>>>>> pr/231
 # CREATE TABLE..SELECT using fields of another table.
 CREATE TABLE t2 AS SELECT * FROM t1;
 # Default value is copied from the source table column.
@@ -2251,12 +2281,19 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `fld1` datetime NOT NULL DEFAULT '1111-11-11 00:00:00'
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 # CREATE TABLE..SELECT based on trigger fields.
 CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '1211:1:1' at row 1 is deprecated. Prefer the standard '-'.
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1, t2;
+# CREATE TABLE..SELECT based on trigger fields.
+CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+>>>>>>> pr/231
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
 BEGIN
@@ -2264,6 +2301,7 @@ CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
 END
 |
 INSERT INTO t1 VALUES (1, '1111:11:11');
+<<<<<<< HEAD
 Warnings:
 Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
 SHOW CREATE TABLE t2;
@@ -3149,3 +3187,14 @@ t2	CREATE TABLE `t2` (
   `@max_error_count` longtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
+=======
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int(11) DEFAULT NULL,
+  `fld2` datetime DEFAULT '1211-01-01 00:00:00'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE= @saved_mode;
+>>>>>>> pr/231

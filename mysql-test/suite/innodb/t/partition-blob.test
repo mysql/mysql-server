@@ -33,6 +33,10 @@ ORDER BY f3;
 
 DROP TABLE t1;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 --echo #
 --echo # Bug #28491099 [FATAL] MEMORY BLOCK IS INVALID | INNODB: ASSERTION
 --echo # FAILURE: UT0UT.CC:670

@@ -1,3 +1,12 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+--source include/not_valgrind.inc
+=======
+--source include/not_embedded.inc
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
 --echo #
 --echo # Bug#26199978 - WRONG ERROR MESSAGE FOR PARTIAL BACKUPS WITH GTID_MODE = ON
 --echo #

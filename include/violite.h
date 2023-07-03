@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,10 +198,17 @@ my_socket vio_fd(MYSQL_VIO vio);
 /* Remote peer's address and name in text form */
 bool vio_peer_addr(MYSQL_VIO vio, char *buf, uint16 *port, size_t buflen);
 /* Wait for an I/O event notification. */
+<<<<<<< HEAD
 int vio_io_wait(MYSQL_VIO vio, enum enum_vio_io_event event, int timeout);
 bool vio_is_connected(MYSQL_VIO vio);
 #ifndef NDEBUG
 ssize_t vio_pending(MYSQL_VIO vio);
+=======
+int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout);
+my_bool vio_is_connected(Vio *vio);
+#ifndef NDEBUG
+ssize_t vio_pending(Vio *vio);
+>>>>>>> upstream/cluster-7.6
 #endif
 /* Set timeout for a network operation. */
 int vio_timeout(MYSQL_VIO vio, uint which, int timeout_sec);
@@ -227,8 +242,25 @@ extern "C" {
 #define HAVE_OPENSSL11 1
 #endif  // OPENSSL_VERSION_NUMBER
 
+<<<<<<< HEAD
+=======
+/* apple deprecated openssl in MacOSX Lion */
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 #define HEADER_DES_LOCL_H dummy_something
 
+<<<<<<< HEAD
+=======
+// clang-format off
+#include <wolfssl_fix_namespace_pollution_pre.h>
+=======
+#include <openssl/ssl.h>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 

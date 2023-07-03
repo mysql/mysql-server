@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,6 +194,26 @@ extern PSI_memory_key key_memory_max_alloca;
 #define my_safe_afree(ptr, size, max_alloca_sz) \
   if (size > max_alloca_sz) my_free(ptr)
 
+<<<<<<< HEAD
+=======
+#if !defined(NDEBUG) || defined(HAVE_VALGRIND)
+/**
+  Put bad content in memory to be sure it will segfault if dereferenced.
+  With Valgrind, verify that memory is addressable, and mark it undefined.
+  We cache value of B because if B is expression which depends on A, memset()
+  trashes value of B.
+*/
+#define TRASH(A,B) do {                                                 \
+    void *p = (A);                                                      \
+    const size_t l= (B);                                                \
+    MEM_CHECK_ADDRESSABLE(A, l);                                        \
+    memset(p, 0x8F, l);                                                 \
+    MEM_UNDEFINED(A, l);                                                \
+  } while (0)
+#else
+#define TRASH(A,B) do {} while(0)
+#endif
+>>>>>>> upstream/cluster-7.6
 #if defined(ENABLED_DEBUG_SYNC)
 using DebugSyncCallbackFp = void (*)(const char *, size_t);
 extern DebugSyncCallbackFp debug_sync_C_callback_ptr;

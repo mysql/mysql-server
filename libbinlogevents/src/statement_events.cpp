@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,11 +183,19 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
   data_len = data_len - status_vars_len;
 
   /* variable-part: the status vars; only in MySQL 5.0  */
+<<<<<<< HEAD
   end_variable_part = READER_CALL(position) + status_vars_len;
   while (READER_CALL(position) < end_variable_part) {
     uint8_t variable_type;
     READER_TRY_SET(variable_type, read<uint8_t>);
     switch (variable_type) {
+=======
+  start = (Log_event_header::Byte *)(buf + post_header_len);
+  end = (const Log_event_header::Byte *)(start + status_vars_len);
+  for (const Log_event_header::Byte *pos = start; pos < end;) {
+    switch (*pos++) {
+<<<<<<< HEAD
+>>>>>>> pr/231
       case Q_FLAGS2_CODE:
         flags2_inited = true;
         READER_TRY_SET(flags2, read<uint32_t>);
@@ -257,6 +269,160 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         unsigned char i = 0;
 #ifndef NDEBUG
         bool is_corruption_injected = false;
+=======
+    case Q_FLAGS2_CODE:
+      CHECK_SPACE(pos, end, 4);
+      flags2_inited= 1;
+      memcpy(&flags2, pos, sizeof(flags2));
+      flags2= le32toh(flags2);
+      pos+= 4;
+      break;
+    case Q_SQL_MODE_CODE:
+    {
+      CHECK_SPACE(pos, end, 8);
+      sql_mode_inited= 1;
+      memcpy(&sql_mode, pos, sizeof(sql_mode));
+      sql_mode= le64toh(sql_mode);
+      pos+= 8;
+      break;
+    }
+    case Q_CATALOG_NZ_CODE:
+      if ((catalog_len= *pos))
+        catalog= (const char*) (pos + 1);
+      CHECK_SPACE(pos, end, catalog_len + 1);
+      pos+= catalog_len + 1;
+      break;
+    case Q_AUTO_INCREMENT:
+      CHECK_SPACE(pos, end, 4);
+      memcpy(&auto_increment_increment, pos, sizeof(auto_increment_increment));
+      auto_increment_increment= le16toh(auto_increment_increment);
+      memcpy(&auto_increment_offset, pos + 2, sizeof(auto_increment_offset));
+      auto_increment_offset= le16toh(auto_increment_offset);
+      pos+= 4;
+      break;
+    case Q_CHARSET_CODE:
+    {
+      CHECK_SPACE(pos, end, 6);
+      charset_inited= 1;
+      memcpy(charset, pos, 6);
+      pos+= 6;
+      break;
+    }
+    case Q_TIME_ZONE_CODE:
+    {
+      if ((time_zone_len= *pos))
+        time_zone_str= (const char*)(pos + 1);
+      pos+= time_zone_len + 1;
+      break;
+    }
+    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      CHECK_SPACE(pos, end, 1);
+      if ((catalog_len= *pos))
+        catalog= (const char*) (pos+1);
+      CHECK_SPACE(pos, end, catalog_len + 2);
+      pos+= catalog_len + 2; // leap over end 0
+      break;
+    case Q_LC_TIME_NAMES_CODE:
+      CHECK_SPACE(pos, end, 2);
+      memcpy(&lc_time_names_number, pos, sizeof(lc_time_names_number));
+      lc_time_names_number= le16toh(lc_time_names_number);
+      pos+= 2;
+      break;
+    case Q_CHARSET_DATABASE_CODE:
+      CHECK_SPACE(pos, end, 2);
+      memcpy(&charset_database_number, pos, sizeof(lc_time_names_number));
+      charset_database_number= le16toh(charset_database_number);
+      pos+= 2;
+      break;
+    case Q_TABLE_MAP_FOR_UPDATE_CODE:
+      CHECK_SPACE(pos, end, 8);
+      memcpy(&table_map_for_update, pos, sizeof(table_map_for_update));
+      table_map_for_update= le64toh(table_map_for_update);
+      pos+= 8;
+      break;
+    case Q_MASTER_DATA_WRITTEN_CODE:
+      CHECK_SPACE(pos, end, 4);
+      memcpy(&master_data_written, pos, sizeof(master_data_written));
+      master_data_written= le32toh(static_cast<uint32_t>(master_data_written));
+      header()->data_written= master_data_written;
+      pos+= 4;
+      break;
+    case Q_MICROSECONDS:
+    {
+      CHECK_SPACE(pos, end, 3);
+      uint32_t temp_usec= 0;
+      memcpy(&temp_usec, pos, 3);
+      header()->when.tv_usec= le32toh(temp_usec);
+      pos+= 3;
+break;
+    }
+    case Q_INVOKER:
+    {
+      CHECK_SPACE(pos, end, 1);
+      user_len= *pos++;
+      CHECK_SPACE(pos, end, user_len);
+      user= (const char*)pos;
+      if (user_len == 0)
+        user= (const char *)"";
+      pos+= user_len;
+
+      CHECK_SPACE(pos, end, 1);
+      host_len= *pos++;
+      CHECK_SPACE(pos, end, host_len);
+      host= (const char*)pos;
+      if (host_len == 0)
+        host= (const char *)"";
+      pos+= host_len;
+      break;
+    }
+    case Q_UPDATED_DB_NAMES:
+    {
+      unsigned char i= 0;
+#ifndef NDEBUG
+      bool is_corruption_injected= false;
+#endif
+
+      CHECK_SPACE(pos, end, 1);
+      mts_accessed_dbs= *pos++;
+      /*
+         Notice, the following check is positive also in case of
+         the master's MAX_DBS_IN_EVENT_MTS > the slave's one and the event
+         contains e.g the master's MAX_DBS_IN_EVENT_MTS db:s.
+      */
+      if (mts_accessed_dbs > MAX_DBS_IN_EVENT_MTS)
+      {
+        mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+        break;
+      }
+
+      BAPI_ASSERT(mts_accessed_dbs != 0);
+
+      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
+      {
+        #ifndef NDEBUG
+        /*
+          This is specific to mysql test run on the server
+          for the keyword "query_log_event_mts_corrupt_db_names"
+        */
+        if (binary_log_debug::debug_query_mts_corrupt_db_names)
+        {
+          if (mts_accessed_dbs == 2)
+          {
+            BAPI_ASSERT(pos[sizeof("d?") - 1] == 0);
+            ((char*) pos)[sizeof("d?") - 1]= 'a';
+            is_corruption_injected= true;
+          }
+        }
+        #endif
+        strncpy(mts_accessed_db_names[i], (char*) pos,
+                std::min<unsigned long>(NAME_LEN, start + status_vars_len - pos));
+        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
+        pos+= 1 + strlen((const char*) pos);
+      }
+      if (i != mts_accessed_dbs
+#ifndef NDEBUG
+          || is_corruption_injected
+>>>>>>> upstream/cluster-7.6
 #endif
 
         READER_TRY_SET(mts_accessed_dbs, read<uint8_t>);
@@ -454,8 +620,46 @@ User_var_event::User_var_event(const char *buf,
       Old events will not have this extra byte, thence,
       we keep the flags set to UNDEF_F.
     */
+<<<<<<< HEAD
     if (READER_CALL(available_to_read) > 0) {
       READER_TRY_SET(flags, read<uint8_t>);
+=======
+<<<<<<< HEAD
+    size_t bytes_read = ((val + val_len) - start);
+    if (bytes_read > event_len) {
+      error = true;
+      goto err;
+    }
+#ifndef DBUG_OFF
+    bool old_pre_checksum_fd = description_event->is_version_before_checksum();
+    bool checksum_verify =
+        (old_pre_checksum_fd || (description_event->footer()->checksum_alg ==
+                                 BINLOG_CHECKSUM_ALG_OFF));
+    size_t data_written = (header()->data_written - checksum_verify);
+    BAPI_ASSERT(((bytes_read == data_written) ? false : true) ||
+                ((bytes_read == data_written - 1) ? false : true));
+=======
+  size_t bytes_read= ((val + val_len) - start);
+  if (bytes_read > event_len)
+  {
+    error= true;
+    goto err;
+  }
+#ifndef NDEBUG
+  bool old_pre_checksum_fd= description_event->is_version_before_checksum();
+  bool checksum_verify= (old_pre_checksum_fd ||
+                         (description_event->footer()->checksum_alg ==
+                          BINLOG_CHECKSUM_ALG_OFF));
+  size_t data_written= (header()->data_written- checksum_verify);
+  BAPI_ASSERT(((bytes_read == data_written) ? false : true) ||
+              ((bytes_read == data_written - 1) ? false : true));
+>>>>>>> upstream/cluster-7.6
+#endif
+    if ((header()->data_written - bytes_read) > 0) {
+      flags =
+          (unsigned int)*(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                          UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE + val_len);
+>>>>>>> pr/231
     }
   }
 

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +168,18 @@ ulong get_max_connections(void);
 */
 my_thread_attr_t *get_connection_attrib(void);
 
+<<<<<<< HEAD
 /* Increment the status variable 'Aborted_connects'. */
 void increment_aborted_connects();
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #endif  // THREAD_POOL_PRIV_INCLUDED
+=======
+/* Increment the status variable 'Aborted_connects'. */
+#ifndef EMBEDDED_LIBRARY
+void increment_aborted_connects();
+#endif
+#endif // THREAD_POOL_PRIV_INCLUDED
+>>>>>>> upstream/cluster-7.6

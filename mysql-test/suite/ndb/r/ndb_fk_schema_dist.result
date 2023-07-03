@@ -21,7 +21,11 @@ algorithm = copy;
 #altering column should fail with error
 alter table parent
 change column a a varchar(64) not null;
+<<<<<<< HEAD
 ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk1' are incompatible.
+=======
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+>>>>>>> pr/231
 #Testing drop FK, using inplace algorithm
 #cache parent table in server1
 select * from parent order by a;
@@ -39,10 +43,17 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
+<<<<<<< HEAD
   `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #restore fk for further testing
@@ -64,10 +75,17 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
+<<<<<<< HEAD
   `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #Testing create table
@@ -79,13 +97,21 @@ a	b
 #now run the DDL query in server2
 create table child(
 ref int,
+<<<<<<< HEAD
 constraint fk1 foreign key (ref) references parent(a)
+=======
+foreign key fk1(ref) references parent(a)
+>>>>>>> pr/231
 ) engine ndb;
 #check if the parent metadata has been reset in server1
 #altering column should fail with error
 alter table parent
 change column a a varchar(64) not null;
+<<<<<<< HEAD
 ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk1' are incompatible.
+=======
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+>>>>>>> pr/231
 #Testing multiple alter FK create/drops : I
 #cache parent table in server1
 select * from parent order by a;
@@ -95,7 +121,11 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
+<<<<<<< HEAD
 add constraint fk2 foreign key (ref) references parent(b);
+=======
+add foreign key fk2(ref) references parent(b);
+>>>>>>> pr/231
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent
@@ -105,10 +135,17 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
+<<<<<<< HEAD
   `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #setup for child referring multiple parents
@@ -118,6 +155,7 @@ a int unique
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
+<<<<<<< HEAD
   `ref` int DEFAULT NULL,
   KEY `fk2` (`ref`),
   CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`)
@@ -125,6 +163,15 @@ child	CREATE TABLE `child` (
 alter table child
 drop foreign key fk2,
 add constraint fk1 foreign key (ref) references parent(a);
+=======
+  `ref` int(11) DEFAULT NULL,
+  KEY `fk2` (`ref`),
+  CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table child
+drop foreign key fk2,
+add foreign key fk1(ref) references parent(a);
+>>>>>>> pr/231
 #Testing multiple alter FK create/drops : II
 #This also tests the fix for Bug#27646160
 #Also cache parent2
@@ -138,7 +185,11 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
+<<<<<<< HEAD
 add constraint fk2 foreign key (ref) references parent2(a);
+=======
+add foreign key fk2(ref) references parent2(a);
+>>>>>>> pr/231
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent
@@ -148,17 +199,28 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
+<<<<<<< HEAD
   `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should fail with error
 flush tables parent2;
 alter table parent2
 change column a a varchar(64) not null;
+<<<<<<< HEAD
 ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk2' are incompatible.
+=======
+ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk2' of table 'test.child'
+>>>>>>> pr/231
 #setup to test drop database
 drop table child;
 create database test1;
@@ -188,10 +250,17 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
+<<<<<<< HEAD
   `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should also pass
@@ -229,7 +298,11 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 #restore parent to old definition
 alter table parent change column a a int;
 #cleanup

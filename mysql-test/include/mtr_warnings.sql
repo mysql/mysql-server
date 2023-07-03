@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 -- Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+-- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+-- Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -183,6 +191,12 @@ INSERT INTO global_suppressions VALUES
  ("Query partially completed"),
  ("Slave SQL thread is stopped because UNTIL condition"),
  ("Slave SQL thread retried transaction"),
+<<<<<<< HEAD
+=======
+ ("Slave SQL thread : NDB : --slave_allow_batching is OFF"),
+ ("Slave \\(additional info\\)"),
+ ("Slave: .*Duplicate column name"),
+>>>>>>> pr/231
  ("Slave: .*master may suffer from"),
  ("Slave: Table .* doesn't exist"),
  ("Slave: Unknown error.* MY-001105"),
@@ -237,6 +251,10 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== I   refs:      [0-9]+"),
  ("==[0-9]*== Massif"),
  ("==[0-9]*== Helgrind"),
+
+ /* Suppress warnings caused by foreign clients, see Bug#31893901 */
+
+ ("IP address .* could not be resolved.*"),
 
  /* Suppress warnings caused by foreign clients, see Bug#31893901 */
 
@@ -316,6 +334,7 @@ INSERT INTO global_suppressions VALUES
  ("Member with address .* is reachable again."),
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
+<<<<<<< HEAD
  ("Error while sending message for group replication recovery"),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are .*"),
  ("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001160 - Got an error writing communication packets.*"),
@@ -326,6 +345,17 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] local_server: error reading from the signalling connection.*"),
  ("\\[GCS\\] Unable to start XCom Network Provider.*"),
  ("\\[GCS\\] Error initializing the group communication engine.*"),
+=======
+ /*
+   Missing Private/Public key files
+ */
+ ("RSA private key file not found"),
+ ("RSA public key file not found"),
+
+ /* TLS v1.0 and v1.1 deprecated */
+ ("A deprecated TLS version TLSv1 is enabled"),
+ ("A deprecated TLS version TLSv1.1 is enabled"),
+>>>>>>> pr/231
 
  /*
    Warnings/errors related to SSL connection by mysqlx

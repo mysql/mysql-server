@@ -10,13 +10,20 @@
 #
 # Test:
 # 0) Setup group of 2 members (M1 and M2).
+<<<<<<< HEAD
 # 1) Block the applier on M2.
 # 2) Replicate TRX from M1 to M2 but without M2 applying it.
 # 3) Force GR to stop on M2 without commit the received transaction.
+=======
+# 1) Stop the applier on M2.
+# 2) Replicate TRX from M1 to M2 but without M2 applying it.
+# 3) Stop GR on M2.
+>>>>>>> pr/231
 # 4) Start GR on M2 again so he tries to join the group. M2 should go to
 #    OFFLINE state.
 # 5) Set group_replication_exit_state_action sysvar to ABORT_SERVER on M2.
 # 6) Start GR on M2 again, so he tries to join the group. M2 should not abort.
+<<<<<<< HEAD
 # 7) Stop GR on M2, drop its replication channel for recovery and manully
 #    issue START GROUP_REPLICATION. M2 should not abort.
 # 8) Cleanup.
@@ -25,12 +32,22 @@
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
+=======
+# 7) Cleanup.
+#
+################################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
 --echo # 0) Setup group of 3 members (M1, M2 and M3).
 --echo #########################################################################
 --echo
+<<<<<<< HEAD
 --source include/group_replication.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -38,6 +55,11 @@
 SET @debug_saved = @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_before_joining_the_group';
 
+=======
+--source ../inc/group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+>>>>>>> pr/231
 --let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
@@ -52,23 +74,39 @@ SET sql_log_bin = 0;
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Error 'Table 't1'*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
 call mtr.add_suppression("Error writing relay log configuration.");
+<<<<<<< HEAD
 call mtr.add_suppression("Error reading relay log event for channel.*");
+=======
+>>>>>>> pr/231
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
+<<<<<<< HEAD
+=======
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+>>>>>>> pr/231
 SET sql_log_bin = 1;
 
 --echo
 --echo #########################################################################
+<<<<<<< HEAD
 --echo # 1) Block the applier on M2.
+=======
+--echo # 1) Stop the applier on M2.
+>>>>>>> pr/231
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+=======
+
+--source ../inc/gr_stop_applier_sql_thread.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -77,16 +115,28 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 CREATE TABLE t1 (a INT PRIMARY KEY);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 # Verify that M2 certified one transaction but hasn't yet applied any
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 1 AND count_transactions_remote_in_applier_queue = 1
+=======
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Verify that M2 certified one transaction but hasn't yet applied any
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 1
+>>>>>>> pr/231
 --source include/wait_condition.inc
 
 --echo
 --echo #########################################################################
+<<<<<<< HEAD
 --echo # 3) Force GR to stop on M2 without commit the received transaction.
 --echo #########################################################################
 --echo
@@ -96,6 +146,11 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --let $group_replication_member_state= ERROR
 --source include/gr_wait_for_member_state.inc
 SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+=======
+--echo # 3) Stop GR on M2.
+--echo #########################################################################
+--echo
+>>>>>>> pr/231
 --source include/stop_group_replication.inc
 
 --echo
@@ -108,6 +163,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 SET SESSION sql_log_bin = 1;
 
 # Start GR
+<<<<<<< HEAD
 --send START GROUP_REPLICATION
 
 --let $rpl_connection_name= server_2
@@ -128,6 +184,10 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 
 --error ER_GROUP_REPLICATION_CONFIGURATION,ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 --reap
+=======
+--error ER_GROUP_REPLICATION_CONFIGURATION,ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+>>>>>>> pr/231
 
 # Verify that the applier errored out
 --let $assert_file = $error_file
@@ -139,18 +199,37 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 --let $assert_file = $error_file
 --let $assert_text = The applier should error out trying to create an already existing table
 --let $assert_select = The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.
+<<<<<<< HEAD
 --let $assert_count = 2
+=======
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_file = $error_file
+--let $assert_text = The applier should error out trying to create an already existing table
+--let $assert_select = Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.
+--let $assert_count = 1
+>>>>>>> pr/231
 --source include/assert_grep.inc
 
 # Verify that M2 goes into OFFLINE state
 --let $group_replication_member_state= OFFLINE
 --let $group_replication_member_id= $member2_uuid
+<<<<<<< HEAD
 --source include/gr_wait_for_member_state.inc
+=======
+--source ../inc/gr_wait_for_member_state.inc
+
+>>>>>>> pr/231
 # Lastly, verify that the member is not viewed as part of the group on M1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $group_replication_number_of_members= 1
+<<<<<<< HEAD
 --source include/gr_wait_for_number_of_members.inc
+=======
+--source ../inc/gr_wait_for_number_of_members.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -170,6 +249,7 @@ SET GLOBAL group_replication_exit_state_action = ABORT_SERVER;
 --echo #########################################################################
 --echo
 # Start GR on M2
+<<<<<<< HEAD
 --send START GROUP_REPLICATION;
 
 --let $rpl_connection_name= server_2
@@ -190,6 +270,10 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 
 --error ER_GROUP_REPLICATION_CONFIGURATION,ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 --reap
+=======
+--error ER_GROUP_REPLICATION_CONFIGURATION,ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+>>>>>>> pr/231
 
 # Verify that the applier errored out
 --let $assert_file = $error_file
@@ -201,19 +285,37 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 --let $assert_file = $error_file
 --let $assert_text = The applier should error out trying to create an already existing table
 --let $assert_select = The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.
+<<<<<<< HEAD
 --let $assert_count = 3
+=======
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--let $assert_file = $error_file
+--let $assert_text = The applier should error out trying to create an already existing table
+--let $assert_select = Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.
+--let $assert_count = 2
+>>>>>>> pr/231
 --source include/assert_grep.inc
 
 # Verify that M2 goes into OFFLINE state
 --let $group_replication_member_state= OFFLINE
 --let $group_replication_member_id= $member2_uuid
+<<<<<<< HEAD
 --source include/gr_wait_for_member_state.inc
+=======
+--source ../inc/gr_wait_for_member_state.inc
+>>>>>>> pr/231
 
 # Lastly, verify that the member is not viewed as part of the group on M1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $group_replication_number_of_members= 1
+<<<<<<< HEAD
 --source include/gr_wait_for_number_of_members.inc
+=======
+--source ../inc/gr_wait_for_number_of_members.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -226,11 +328,18 @@ DROP TABLE t1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET DEBUG_SYNC= 'RESET';
+=======
+>>>>>>> pr/231
 SET SESSION sql_log_bin = 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin = 1;
 SET GLOBAL group_replication_exit_state_action = @group_replication_exit_state_action_saved;
 
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

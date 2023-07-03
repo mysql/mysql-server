@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,8 +106,127 @@ std::string *Buffered_file_io::get_backup_filename() {
 
   @param backup_file - handle to opened backup file (output)
 
+<<<<<<< HEAD
   @retval false - backup handle was successfully passed via parameter
   @retval true  - backup file could not be opened (probably missing)
+=======
+<<<<<<< HEAD
+  @return
+    @retval false - backup handle was successfully passed via parameter
+    @retval true  - backup file could not be opened (probably missing)
+=======
+my_bool Buffered_file_io::is_file_tag_correct(File file)
+{
+  uchar tag[EOF_TAG_SIZE+1];
+  if (unlikely(file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR ||
+               file_io.tell(file, MYF(MY_WME)) < EOF_TAG_SIZE) ||
+               file_io.seek(file, -static_cast<int>(EOF_TAG_SIZE), MY_SEEK_END, MYF(MY_WME)) ==
+                            MY_FILEPOS_ERROR ||
+               file_io.read(file, tag, EOF_TAG_SIZE, MYF(MY_WME)) != EOF_TAG_SIZE ||
+               file_io.seek(file, 0, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+    return FALSE; // File does not contain tag
+
+  tag[3]='\0';
+  return eofTAG == reinterpret_cast<char*>(tag);
+}
+
+my_bool Buffered_file_io::is_file_version_correct(File file)
+{
+  boost::movelib::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
+  version.get()[file_version.length()]= '\0';
+  if (unlikely(file_io.seek(file, 0, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR ||
+               file_io.read(file, version.get(), file_version.length(), MYF(MY_WME)) !=
+                            file_version.length() ||
+               file_version != reinterpret_cast<char*>(version.get()) ||
+               file_io.seek(file, 0, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR))
+  {
+    logger->log(MY_ERROR_LEVEL, "Incorrect Keyring file version");
+    return FALSE;
+  }
+  return TRUE;
+}
+
+my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
+{
+  // Check if the file exists
+  int file_exist= !my_access(this->keyring_filename.c_str(), F_OK);
+
+  // try creating file or opening existing
+  File file= file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
+                          file_exist && keyring_open_mode ? O_RDONLY :
+                          O_RDWR | O_CREAT, MYF(MY_WME));
+  if (file < 0 ||
+      file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+    return TRUE;
+  my_off_t file_size= file_io.tell(file, MYF(MY_WME));
+  if ((file_size == ((my_off_t) - 1)) || file_io.close(file, MYF(MY_WME)) < 0)
+    return TRUE;
+  if (file_size == 0 && file_io.remove(this->keyring_filename.c_str(), MYF(MY_WME))) //remove empty file
+    return TRUE;
+  return FALSE;
+}
+
+my_bool Buffered_file_io::check_file_structure(File file, size_t file_size)
+{
+  return file_size < ((size_t)EOF_TAG_SIZE + file_version.length()) ||
+         is_file_tag_correct(file) == FALSE ||
+         is_file_version_correct(file) == FALSE;
+}
+
+my_bool Buffered_file_io::check_keyring_file_stat(File file)
+{
+  if (file >= 0 && saved_keyring_stat.is_initialized == TRUE)
+  {
+    static MY_STAT keyring_file_stat;
+    memset(&keyring_file_stat, 0, sizeof(MY_STAT));
+    if (file_io.fstat(file, &keyring_file_stat, MYF(MY_WME)))
+      return TRUE;
+    if (saved_keyring_stat != keyring_file_stat)
+    {
+      logger->log(MY_ERROR_LEVEL, "Keyring file has been changed outside the "
+                                  "server.");
+      return TRUE;
+    }
+    return FALSE;
+  }
+  //if keyring_file does not exist it means saved_keyring_stat cannot
+  //be initialized - i.e. we are initializing keyring_file
+  return saved_keyring_stat.is_initialized == TRUE;
+}
+
+my_bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
+{
+  if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+    return TRUE;
+  my_off_t file_size= file_io.tell(file, MYF(MY_WME));
+  if (file_size == ((my_off_t) - 1))
+    return TRUE;
+  if (file_size == 0)
+    return FALSE; //it is OK if file is empty
+  if (check_file_structure(file, file_size))
+    return TRUE;
+  size_t input_buffer_size= file_size - EOF_TAG_SIZE - file_version.length(); //result has to be positive
+  if (input_buffer_size % sizeof(size_t) != 0)
+    return TRUE; //buffer size in the keyring file must be multiplication of size_t
+  if (file_io.seek(file, file_version.length(), MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR) //skip file version
+    return TRUE;
+  if (likely(input_buffer_size > 0))
+  {
+    buffer->reserve(input_buffer_size);
+    if (file_io.read(file, buffer->data, input_buffer_size, MYF(MY_WME)) !=
+        input_buffer_size)
+      return TRUE;
+  }
+  memory_needed_for_buffer= buffer->size;
+  return FALSE;
+}
+
+/*!
+  Recovers from backup if backup file exists
+  if backup is malformed - remove it,
+  else if backup is good restore keyring file from it.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 */
 bool Buffered_file_io::open_backup_file(File *backup_file) {
   // try opening backup file
@@ -254,6 +381,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
   return remove_backup(MYF(MY_WME));
 }
 
+<<<<<<< HEAD
 /**
   checks if keyring file exists, whether empty or not
   - if keyring file is empty, it shall be deleted
@@ -303,6 +431,11 @@ bool Buffered_file_io::init(std::string *keyring_filename) {
   // file name can't be empty
   assert(keyring_filename->empty() == false);
 
+=======
+my_bool Buffered_file_io::init(std::string *keyring_filename)
+{
+  assert(keyring_filename->empty() == FALSE);
+>>>>>>> upstream/cluster-7.6
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
 #endif
@@ -430,6 +563,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
     return true;  // failure - bad or missing keyring file
   }
 
+<<<<<<< HEAD
   // upcast serialized object to buffer, verify result
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
   assert(buffer != nullptr);
@@ -442,7 +576,15 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   DBUG_EXECUTE_IF("keyring_file_backup_fail", DBUG_SUICIDE(););
 
   // store buffer to backup file and close it, leave on error
+<<<<<<< HEAD
   return buffer == nullptr ||
+=======
+=======
+  Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
+  assert(buffer != NULL);
+>>>>>>> upstream/cluster-7.6
+  return buffer == NULL ||
+>>>>>>> pr/231
          flush_buffer_to_file(buffer, &buffer_digest, backup_file) ||
          file_io.close(backup_file, MYF(MY_WME)) < 0;
 }
@@ -490,6 +632,7 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
   (override) stores keys from serialized object to keyring file
   - serialized object has to point to Buffer implementation
 
+<<<<<<< HEAD
   @param serialized_object - object holding keys to be stored
 
   @retval false - keys from serialized object were stored to keyring file
@@ -497,8 +640,20 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
 */
 bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object) {
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
+<<<<<<< HEAD
   assert(buffer != nullptr);
   assert(serialized_object->get_key_operation() != NONE);
+=======
+  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
+=======
+my_bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
+{
+  Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
+  assert(buffer != NULL);
+  assert(serialized_object->get_key_operation() != NONE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // open keyring file
   File keyring_file =
@@ -536,9 +691,21 @@ ISerializer *Buffered_file_io::get_serializer() {
   return &hash_to_buffer_serializer;
 }
 
+<<<<<<< HEAD
 /**
   (override) retrieves serialized implementation of keys stored in keyring file
   - keys object could be empty, if keyring file is empty
+=======
+my_bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_object)
+{
+  // Check if the file exists
+  int file_exist= !my_access(keyring_filename.c_str(), F_OK);
+
+  // try creating file or opening existing
+  File file= file_io.open(keyring_file_data_key, keyring_filename.c_str(),
+                          file_exist && keyring_open_mode ? O_RDONLY :
+                          O_RDWR | O_CREAT, MYF(MY_WME));
+>>>>>>> upstream/cluster-7.6
 
   @param serialized_object - pointer-to-pointer of location to store keys
 

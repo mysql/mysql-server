@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,7 +135,15 @@ type_conversion_status set_field_to_null(Field *field) {
       my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
       return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
+<<<<<<< HEAD
   assert(false);  // impossible
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(false);  // impossible
+=======
+  assert(false); // impossible
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;  // to avoid compiler's warning
@@ -175,6 +191,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     no special value.
   */
   if (field->type() == MYSQL_TYPE_TIMESTAMP &&
+<<<<<<< HEAD
       !thd->variables.explicit_defaults_for_timestamp) {
     /*
       With explicit_defaults_for_timestamp disabled, if a NULL value is inserted
@@ -189,6 +206,32 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
       Item_func_now_local::store_in(field);
       return TYPE_OK;  // Ok to set time to NULL
     }
+=======
+<<<<<<< HEAD
+      !field->table->in_use->variables.explicit_defaults_for_timestamp) {
+    Item_func_now_local::store_in(field);
+    return TYPE_OK;  // Ok to set time to NULL
+=======
+      !field->table->in_use->variables.explicit_defaults_for_timestamp)
+  {
+   /*
+     With explicit_defaults_for_timestamp disabled, if a NULL value is inserted
+     into a timestamp column with NOT NULL attribute, would attempt to convert
+     the column value to CURRENT_TIMESTAMP. However, this is inconsistent with
+     the source of the generated value, so the insertion is rejected.
+   */
+   if (field->is_gcol())
+   {
+     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+   }
+   else
+   {
+     Item_func_now_local::store_in(field);
+     return TYPE_OK;  // Ok to set time to NULL
+   }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   // Note: we ignore any potential failure of reset() here.
@@ -205,6 +248,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     return TYPE_OK;
   }
 
+<<<<<<< HEAD
   // Conversion of NULL to empty string does not apply to geometry columns.
   if (field->type() == MYSQL_TYPE_GEOMETRY) {
     my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
@@ -231,6 +275,27 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
   }
   assert(false);  // impossible
   my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+=======
+  switch (field->table->in_use->count_cuted_fields) {
+  case CHECK_FIELD_WARN:
+    // There's no valid conversion for geometry values.
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
+
+    field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
+    /* fall through */
+  case CHECK_FIELD_IGNORE:
+    return TYPE_OK;
+  case CHECK_FIELD_ERROR_FOR_NULL:
+    if (!field->table->in_use->no_errors)
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  }
+  assert(false); // impossible
+>>>>>>> upstream/cluster-7.6
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
@@ -289,6 +354,7 @@ static void do_copy_next_number(Copy_field *copy, const Field *from_field,
     copy->invoke_do_copy2(from_field, to_field);
 }
 
+<<<<<<< HEAD
 static void do_copy_blob(Copy_field *, const Field *from_field,
                          Field *to_field) {
   const Field_blob *from_blob = down_cast<const Field_blob *>(from_field);
@@ -303,6 +369,35 @@ static void do_copy_blob(Copy_field *, const Field *from_field,
       to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     }
   }
+=======
+<<<<<<< HEAD
+static void do_copy_blob(Copy_field *copy) {
+  ulong length = ((Field_blob *)copy->from_field())->get_length();
+  ((Field_blob *)copy->to_field())->store_length(length);
+  memcpy(copy->to_ptr, copy->from_ptr, sizeof(char *));
+=======
+
+static void do_copy_blob(Copy_field *copy)
+{
+  ulong from_length=((Field_blob*) copy->from_field())->get_length();
+  ((Field_blob*) copy->to_field())->store_length(from_length);
+  memcpy(copy->to_ptr, copy->from_ptr, sizeof(char*));
+  ulong to_length=((Field_blob*) copy->to_field())->get_length();
+  if (to_length < from_length)
+  {
+    if (copy->to_field()->table->in_use->is_strict_mode())
+    {
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    ER_DATA_TOO_LONG, 1);
+    }
+    else
+    {
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    WARN_DATA_TRUNCATED, 1);
+    }
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 static void do_conv_blob(Copy_field *copy, const Field *from_field,
@@ -467,9 +562,24 @@ static void do_expand_string(Copy_field *, const Field *from_field,
   @param to   Variable length field we're copying to
   @param from Variable length field we're copying from
 */
+<<<<<<< HEAD
 static void copy_field_varstring(Field_varstring *const to,
                                  const Field_varstring *const from) {
+<<<<<<< HEAD
   assert(from->get_length_bytes() == to->get_length_bytes());
+=======
+  const uint length_bytes = from->length_bytes;
+  DBUG_ASSERT(length_bytes == to->length_bytes);
+  DBUG_ASSERT(length_bytes == 1 || length_bytes == 2);
+=======
+static void copy_field_varstring(Field_varstring * const to,
+                                 const Field_varstring * const from)
+{
+  const uint length_bytes= from->length_bytes;
+  assert(length_bytes == to->length_bytes);
+  assert(length_bytes == 1 || length_bytes == 2);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   size_t bytes_to_copy;
   const CHARSET_INFO *const from_cs = from->charset();
@@ -500,8 +610,14 @@ static void copy_field_varstring(Field_varstring *const to,
     }
   }
 
+<<<<<<< HEAD
   to->store(pointer_cast<const char *>(from->data_ptr()), bytes_to_copy,
             from_cs);
+=======
+  // memcpy should not be used for overlaping memory blocks
+  assert(to->ptr != from->ptr);
+  memcpy(to->ptr + length_bytes, from->ptr + length_bytes, bytes_to_copy);
+>>>>>>> pr/231
 }
 
 static void do_varstring(Copy_field *, const Field *from_field,

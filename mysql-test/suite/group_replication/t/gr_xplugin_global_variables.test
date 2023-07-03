@@ -31,7 +31,14 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_xplugin_global_variables.test
 --source include/xplugin_wait_for_interfaces.inc
+=======
+SET @@GLOBAL.group_replication_ip_whitelist= "AUTOMATIC";
+--source ../inc/start_and_bootstrap_group_replication.inc
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_xplugin_global_variables.test
 --let $mysqlx_port1= `Select @@Global.mysqlx_port`
 
 # File for starting GR through X-protocol

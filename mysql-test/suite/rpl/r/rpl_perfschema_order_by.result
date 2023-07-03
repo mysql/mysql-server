@@ -6,6 +6,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server_2]
+<<<<<<< HEAD
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 # Test for Single Threaded Slave
 SET GLOBAL replica_parallel_workers= 0;
@@ -14,6 +15,12 @@ Warning	1287	'0' is deprecated and will be removed in a future release. Please u
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+# Test for Single Threaded Slave
+SET GLOBAL slave_parallel_workers= 0;
+START SLAVE;
+>>>>>>> pr/231
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -22,11 +29,19 @@ CREATE DATABASE db1;
 CREATE DATABASE db3;
 # 3)  sync the slave (server_2) with both masters (server_1 and server_3).
 [connection server_1]
+<<<<<<< HEAD
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 include/start_slave.inc [FOR CHANNEL 'channel_3']
+=======
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+>>>>>>> pr/231
 
 SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME
@@ -78,6 +93,7 @@ DROP DATABASE db1;
 [connection server_3]
 DROP DATABASE db3;
 [connection server_1]
+<<<<<<< HEAD
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
@@ -89,6 +105,15 @@ SET GLOBAL replica_parallel_workers = 2;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+=======
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+# Test for Multi Threaded Slave
+STOP SLAVE;
+SET GLOBAL slave_parallel_workers = 2;
+START SLAVE;
+>>>>>>> pr/231
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -97,11 +122,19 @@ CREATE DATABASE db1;
 CREATE DATABASE db3;
 # 3)  sync the slave (server_2) with both masters (server_1 and server_3).
 [connection server_1]
+<<<<<<< HEAD
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 include/start_slave.inc [FOR CHANNEL 'channel_3']
+=======
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+>>>>>>> pr/231
 
 SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME
@@ -166,6 +199,7 @@ DROP DATABASE db1;
 [connection server_3]
 DROP DATABASE db3;
 [connection server_1]
+<<<<<<< HEAD
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
@@ -179,3 +213,14 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/rpl_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_3';
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
+=======
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+STOP SLAVE;
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+START SLAVE;
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL  'channel_1';
+>>>>>>> pr/231

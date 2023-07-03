@@ -6,14 +6,27 @@
 # ==== Implementation ====
 #
 # 1) SET GLOBAL debug='d,error_unique_log_filename' to
+<<<<<<< HEAD
 #    cause 'FLUSH LOGS' and 'RESET MASTER' commands to error out.
+=======
+<<<<<<< HEAD
+#    cause 'FLUSH LOGS' error and 'RESET MASTER' error.
+=======
+#    cause 'FLUSH LOGS' and 'RESET MASTER' commands to error out.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 2) Execute 'FLUSH LOGS' to verify that it does not cause
 #    assertion failure any more.
 #
 # ==== References ====
 #
+<<<<<<< HEAD
 # Bug #20592961  'FLUSH LOGS' POST FAULT INJECTION HITS ASSERT `! IS_SET()' AT SQL_ERROR.CC:381
 # Bug #22732184  HEAP-USE-AFTER-FREE IN BINLOG.BINLOG_CHECK_FLUSH_LOG_ASSERTION
+=======
+# Bug#20592961: 'FLUSH LOGS' POST FAULT INJECTION HITS ASSERT `! IS_SET()' AT SQL_ERROR.CC:381
+# Bug#29201665: ASAN MEMORY LEAK IN LOG_EVENT::WRITE_HEADER() IN MYSQL-5.7
+>>>>>>> upstream/cluster-7.6
 
 # Test in this file is binlog format agnostic, thus no need
 # to rerun them for every format.

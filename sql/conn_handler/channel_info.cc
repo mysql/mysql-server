@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +61,21 @@ THD *Channel_info::create_thd() {
   return thd;
 }
 
+<<<<<<< HEAD
 void Channel_info::send_error_and_close_channel(uint errorcode, int error,
                                                 bool senderror) {
   assert(errorcode != 0);
   if (!errorcode) return;
+=======
+
+void Channel_info::send_error_and_close_channel(uint errorcode,
+                                                int error,
+                                                bool senderror)
+{
+  assert(errorcode != 0);
+  if (!errorcode)
+    return;
+>>>>>>> upstream/cluster-7.6
 
   char error_message_buff[MYSQL_ERRMSG_SIZE];
 

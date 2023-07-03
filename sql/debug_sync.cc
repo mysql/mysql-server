@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -654,7 +662,11 @@ static void debug_sync_emergency_disable(void) {
 */
 
 void debug_sync_init_thread(THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_init_thread");
+>>>>>>> pr/231
   assert(thd);
 
   if (opt_debug_sync_timeout) {
@@ -671,8 +683,13 @@ void debug_sync_init_thread(THD *thd) {
   }
 }
 
+<<<<<<< HEAD
 void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
   DBUG_TRACE;
+=======
+void debug_sync_claim_memory_ownership(THD *thd) {
+  DBUG_ENTER("debug_sync_claim_memory_ownership");
+>>>>>>> pr/231
   assert(thd);
 
   st_debug_sync_control *ds_control = thd->debug_sync_control;
@@ -700,7 +717,11 @@ void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
 */
 
 void debug_sync_end_thread(THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_end_thread");
+>>>>>>> pr/231
   assert(thd);
 
   if (thd->debug_sync_control) {
@@ -747,17 +768,43 @@ void debug_sync_end_thread(THD *thd) {
   @return       pointer to end of copied string
 */
 
+<<<<<<< HEAD
 static char *debug_sync_bmove_len(char *to, char *to_end, const char *from,
                                   size_t length) {
+<<<<<<< HEAD
   assert(to);
   assert(to_end);
   assert(!length || from);
   length = std::min(length, size_t(to_end - to));
+=======
+  DBUG_ASSERT(to);
+  DBUG_ASSERT(to_end);
+  DBUG_ASSERT(!length || from);
+  set_if_smaller(length, (size_t)(to_end - to));
+=======
+static char *debug_sync_bmove_len(char *to, char *to_end,
+                                  const char *from, size_t length)
+{
+  assert(to);
+  assert(to_end);
+  assert(!length || from);
+  set_if_smaller(length, (size_t) (to_end - to));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   memcpy(to, from, length);
   return (to + length);
 }
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+=======
+
+#if !defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /**
   Create a string that describes an action.
@@ -768,6 +815,7 @@ static char *debug_sync_bmove_len(char *to, char *to_end, const char *from,
 */
 
 static void debug_sync_action_string(char *result, uint size,
+<<<<<<< HEAD
                                      st_debug_sync_action *action) {
   char *wtxt = result;
   char *wend = wtxt + size - 1; /* Allow emergency '\0'. */
@@ -775,8 +823,25 @@ static void debug_sync_action_string(char *result, uint size,
   assert(action);
 
   /* If an execute count is present, signal or wait_for are needed too. */
+<<<<<<< HEAD
   assert(!action->execute || action->signal.length() ||
          action->wait_for.length());
+=======
+  DBUG_ASSERT(!action->execute || action->signal.length() ||
+              action->wait_for.length());
+=======
+                                     st_debug_sync_action *action)
+{
+  char  *wtxt= result;
+  char  *wend= wtxt + size - 1; /* Allow emergency '\0'. */
+  assert(result);
+  assert(action);
+
+  /* If an execute count is present, signal or wait_for are needed too. */
+  assert(!action->execute ||
+         action->signal.length() || action->wait_for.length());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (action->execute) {
     if (action->signal.length()) {
@@ -819,7 +884,11 @@ static void debug_sync_action_string(char *result, uint size,
 static void debug_sync_print_actions(THD *thd) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   uint idx;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_print_actions");
+>>>>>>> pr/231
   assert(thd);
 
   if (!ds_control) return;
@@ -836,6 +905,38 @@ static void debug_sync_print_actions(THD *thd) {
 
 #endif /* !defined(NDEBUG) */
 
+<<<<<<< HEAD
+=======
+
+/**
+  Compare two actions by sync point name length, string.
+
+  @param[in]    arg1            reference to action1
+  @param[in]    arg2            reference to action2
+
+  @return       difference
+    @retval     == 0            length1/string1 is same as length2/string2
+    @retval     < 0             length1/string1 is smaller
+    @retval     > 0             length1/string1 is bigger
+*/
+
+static int debug_sync_qsort_cmp(const void* arg1, const void* arg2)
+{
+  st_debug_sync_action *action1= (st_debug_sync_action*) arg1;
+  st_debug_sync_action *action2= (st_debug_sync_action*) arg2;
+  int diff;
+  assert(action1);
+  assert(action2);
+
+  if (!(diff= static_cast<int>(action1->sync_point.length() - action2->sync_point.length())))
+    diff= memcmp(action1->sync_point.ptr(), action2->sync_point.ptr(),
+                 action1->sync_point.length());
+
+  return diff;
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Find a debug sync action.
 
@@ -853,6 +954,7 @@ static void debug_sync_print_actions(THD *thd) {
 */
 
 static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
+<<<<<<< HEAD
                                              int quantity, const char *dsp_name,
                                              size_t name_len) {
   st_debug_sync_action *action;
@@ -860,9 +962,29 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
   int high;
   int mid;
   int diff;
+<<<<<<< HEAD
   assert(actionarr);
   assert(dsp_name);
   assert(name_len);
+=======
+  DBUG_ASSERT(actionarr);
+  DBUG_ASSERT(dsp_name);
+  DBUG_ASSERT(name_len);
+=======
+                                             int quantity,
+                                             const char *dsp_name,
+                                             size_t name_len)
+{
+  st_debug_sync_action  *action;
+  int                   low ;
+  int                   high ;
+  int                   mid ;
+  int                   diff ;
+  assert(actionarr);
+  assert(dsp_name);
+  assert(name_len);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   low = 0;
   high = quantity;
@@ -901,7 +1023,11 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
 
 static void debug_sync_reset(THD *thd) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_reset");
+>>>>>>> pr/231
   assert(thd);
   assert(ds_control);
 
@@ -930,10 +1056,16 @@ static void debug_sync_reset(THD *thd) {
 static void debug_sync_remove_action(st_debug_sync_control *ds_control,
                                      st_debug_sync_action *action) {
   uint dsp_idx = static_cast<uint>(action - ds_control->ds_action);
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(ds_control);
   assert(current_thd == nullptr ||
          ds_control == current_thd->debug_sync_control);
+=======
+  DBUG_ENTER("debug_sync_remove_action");
+  assert(ds_control);
+  assert(ds_control == current_thd->debug_sync_control);
+>>>>>>> pr/231
   assert(action);
   assert(dsp_idx < ds_control->ds_active);
 
@@ -954,17 +1086,37 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
     st_debug_sync_action save_action = std::move(*action);
 
     /* Move actions down. */
+<<<<<<< HEAD
     st_debug_sync_action *dest_action = ds_control->ds_action + dsp_idx;
     st_debug_sync_action *src_action = ds_control->ds_action + dsp_idx + 1;
     uint num_actions = ds_control->ds_active - dsp_idx;
 
     std::move(src_action, src_action + num_actions, dest_action);
+=======
+<<<<<<< HEAD
+    memmove(ds_control->ds_action + dsp_idx,
+            ds_control->ds_action + dsp_idx + 1,
+            (ds_control->ds_active - dsp_idx) * sizeof(st_debug_sync_action));
+=======
+    void *dest= ds_control->ds_action + dsp_idx;
+    const void *src= ds_control->ds_action + dsp_idx + 1;
+    memmove(dest, src,
+            (ds_control->ds_active - dsp_idx) *
+            sizeof(st_debug_sync_action));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Copy back the saved action object to the now free array slot.
     */
+<<<<<<< HEAD
     dest_action = ds_control->ds_action + ds_control->ds_active;
     *dest_action = std::move(save_action);
+=======
+    dest= ds_control->ds_action + ds_control->ds_active;
+    memmove(dest, save_action,
+            sizeof(st_debug_sync_action));
+>>>>>>> pr/231
   }
 }
 
@@ -988,14 +1140,32 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
                                                    size_t name_len) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   st_debug_sync_action *action;
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(thd);
   assert(dsp_name);
   assert(name_len);
   assert(ds_control);
+=======
+  DBUG_ENTER("debug_sync_get_action");
+<<<<<<< HEAD
+  DBUG_ASSERT(thd);
+  DBUG_ASSERT(dsp_name);
+  DBUG_ASSERT(name_len);
+  DBUG_ASSERT(ds_control);
+>>>>>>> pr/231
   DBUG_PRINT("debug_sync", ("sync_point: '%.*s'", (int)name_len, dsp_name));
   DBUG_PRINT("debug_sync", ("active: %u  allocated: %u", ds_control->ds_active,
                             ds_control->ds_allocated));
+=======
+  assert(thd);
+  assert(dsp_name);
+  assert(name_len);
+  assert(ds_control);
+  DBUG_PRINT("debug_sync", ("sync_point: '%.*s'", (int) name_len, dsp_name));
+  DBUG_PRINT("debug_sync", ("active: %u  allocated: %u",
+                            ds_control->ds_active, ds_control->ds_allocated));
+>>>>>>> upstream/cluster-7.6
 
   /* There cannot be more active actions than allocated. */
   assert(ds_control->ds_active <= ds_control->ds_allocated);
@@ -1039,10 +1209,22 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
 
       ds_control->ds_action = (st_debug_sync_action *)new_action;
       ds_control->ds_allocated = new_alloc;
+<<<<<<< HEAD
       /* Clear new entries. */
       st_debug_sync_action *dest_action = ds_control->ds_action + dsp_idx;
       std::uninitialized_fill_n(dest_action, (new_alloc - dsp_idx),
                                 st_debug_sync_action());
+=======
+      /* Clear memory as we do not run string constructors here. */
+<<<<<<< HEAD
+      memset((ds_control->ds_action + dsp_idx), 0,
+             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
+=======
+      void *dest= (ds_control->ds_action + dsp_idx);
+      memset(dest, 0,
+            (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));
     action = ds_control->ds_action + dsp_idx;
@@ -1052,10 +1234,23 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
     }
     action->need_sort = true;
   }
+<<<<<<< HEAD
   assert(action >= ds_control->ds_action);
   assert(action < ds_control->ds_action + ds_control->ds_active);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(action >= ds_control->ds_action);
+  DBUG_ASSERT(action < ds_control->ds_action + ds_control->ds_active);
+>>>>>>> pr/231
   DBUG_PRINT("debug_sync", ("action: %p  array: %p  count: %u", action,
                             ds_control->ds_action, ds_control->ds_active));
+=======
+  assert(action >= ds_control->ds_action);
+  assert(action < ds_control->ds_action + ds_control->ds_active);
+  DBUG_PRINT("debug_sync", ("action: 0x%lx  array: 0x%lx  count: %u",
+                            (long) action, (long) ds_control->ds_action,
+                            ds_control->ds_active));
+>>>>>>> upstream/cluster-7.6
 
   return action;
 }
@@ -1097,7 +1292,11 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
 static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   bool is_dsp_now = false;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_set_action");
+>>>>>>> pr/231
   assert(thd);
   assert(action);
   assert(ds_control);
@@ -1257,11 +1456,25 @@ static inline const char *get_token_end_ptr(const char *ptr) {
     to the string terminator ASCII NUL ('\0').
 */
 
+<<<<<<< HEAD
 static char *debug_sync_token(char **token_p, size_t *token_length_p,
                               char *ptr) {
+<<<<<<< HEAD
   assert(token_p);
   assert(token_length_p);
   assert(ptr);
+=======
+  DBUG_ASSERT(token_p);
+  DBUG_ASSERT(token_length_p);
+  DBUG_ASSERT(ptr);
+=======
+static char *debug_sync_token(char **token_p, size_t *token_length_p, char *ptr)
+{
+  assert(token_p);
+  assert(token_length_p);
+  assert(ptr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Skip leading space */
   ptr = const_cast<char *>(skip_whitespace(ptr));
@@ -1318,13 +1531,29 @@ static char *debug_sync_token(char **token_p, size_t *token_length_p,
     undefined in this case.
 */
 
+<<<<<<< HEAD
 static char *debug_sync_number(ulong *number_p, char *actstrptr) {
   char *ptr;
   char *ept;
   char *token;
   size_t token_length;
+<<<<<<< HEAD
   assert(number_p);
   assert(actstrptr);
+=======
+  DBUG_ASSERT(number_p);
+  DBUG_ASSERT(actstrptr);
+=======
+static char *debug_sync_number(ulong *number_p, char *actstrptr)
+{
+  char                  *ptr;
+  char                  *ept;
+  char                  *token;
+  size_t                token_length;
+  assert(number_p);
+  assert(actstrptr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Get token from string. */
   if (!(ptr = debug_sync_token(&token, &token_length, actstrptr))) goto end;
@@ -1374,7 +1603,11 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
   char *ptr;
   char *token;
   size_t token_length = 0;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_eval_action");
+>>>>>>> pr/231
   assert(thd);
   assert(action_str);
 
@@ -1746,13 +1979,26 @@ static inline void clear_signal_event(const std::string *signal_name) {
     This is to be called only if activation count > 0.
 */
 
+<<<<<<< HEAD
 static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
 #ifndef NDEBUG
   const char *dsp_name = action->sync_point.c_ptr();
   const char *sig_emit = action->signal.c_ptr();
   const char *sig_wait = action->wait_for.c_ptr();
+=======
+static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
+{
+#ifndef NDEBUG
+  const char *dsp_name= action->sync_point.c_ptr();
+  const char *sig_emit= action->signal.c_ptr();
+  const char *sig_wait= action->wait_for.c_ptr();
+>>>>>>> upstream/cluster-7.6
 #endif
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_execute");
+>>>>>>> pr/231
   assert(thd);
   assert(action);
   DBUG_PRINT("debug_sync",
@@ -1919,7 +2165,11 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
 
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   st_debug_sync_action *action;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync");
+>>>>>>> pr/231
   assert(thd);
   assert(sync_point_name);
   assert(name_len);
@@ -1971,7 +2221,11 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
 bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   bool rc;
   char *value;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("debug_sync_set_action");
+>>>>>>> pr/231
   assert(thd);
   assert(action_str);
 

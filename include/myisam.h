@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -369,6 +377,7 @@ struct MI_CHECK {
     The next two are used to collect statistics, see update_key_parts for
     description.
   */
+<<<<<<< HEAD
   ulonglong unique_count[MI_MAX_KEY_SEG + 1]{0};
   ulonglong notnull_count[MI_MAX_KEY_SEG + 1]{0};
 
@@ -379,6 +388,18 @@ struct MI_CHECK {
   const char *op_name{nullptr};
   enum_mi_stats_method stats_method{MI_STATS_METHOD_NULLS_NOT_EQUAL};
 };
+=======
+  ulonglong unique_count[MI_MAX_KEY_SEG+1];
+  ulonglong notnull_count[MI_MAX_KEY_SEG+1];
+  
+  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
+  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY];
+  void *thd;
+  const char *db_name, *table_name;
+  const char *op_name;
+  enum_mi_stats_method stats_method;
+} MI_CHECK;
+>>>>>>> upstream/cluster-7.6
 
 struct SORT_FT_BUF {
   uchar *buf, *end;
@@ -386,6 +407,7 @@ struct SORT_FT_BUF {
   uchar lastkey[MI_MAX_KEY_BUFF];
 };
 
+<<<<<<< HEAD
 struct SORT_INFO {
   my_off_t filelength{0}, dupp{0}, buff_length{0};
   ha_rows max_records{0};
@@ -398,6 +420,21 @@ struct SORT_INFO {
   SORT_KEY_BLOCKS *key_block{nullptr}, *key_block_end{nullptr};
   SORT_FT_BUF *ft_buf{nullptr};
 };
+=======
+typedef struct st_sort_info
+{
+  my_off_t filelength,dupp,buff_length;
+  ha_rows max_records;
+  uint current_key, total_keys;
+  myf myf_rw;
+  enum data_file_type new_data_file_type;
+  MI_INFO *info;
+  MI_CHECK *param;
+  uchar *buff;
+  SORT_KEY_BLOCKS *key_block,*key_block_end;
+  SORT_FT_BUF *ft_buf;
+} SORT_INFO;
+>>>>>>> upstream/cluster-7.6
 
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);
@@ -405,6 +442,7 @@ int chk_status(MI_CHECK *param, MI_INFO *info);
 int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag);
 int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);
+<<<<<<< HEAD
 int chk_data_link(MI_CHECK *param, MI_INFO *info, int extend);
 int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
               bool no_copy_stat);
@@ -416,6 +454,19 @@ int change_to_newfile(const char *filename, const char *old_ext,
                       const char *new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, int lock_type, const char *filetype,
               const char *filename);
+=======
+int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend);
+int mi_repair(MI_CHECK *param, MI_INFO *info,
+	      char * name, int rep_quick, my_bool no_copy_stat);
+int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name,
+                  my_bool no_copy_stat);
+int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
+		      const char * name, int rep_quick, my_bool no_copy_stat);
+int change_to_newfile(const char * filename, const char * old_ext,
+		      const char * new_ext, myf myflags);
+int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
+	      const char *filetype, const char *filename);
+>>>>>>> upstream/cluster-7.6
 void lock_memory(MI_CHECK *param);
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info, bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info, uint update);

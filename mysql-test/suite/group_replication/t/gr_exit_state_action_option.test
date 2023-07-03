@@ -20,9 +20,15 @@
 #
 ################################################################################
 --source include/have_debug.inc
+<<<<<<< HEAD
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -48,6 +54,7 @@ SET @@GLOBAL.group_replication_exit_state_action = default;
 --echo # 2) Set the sysvar to the possible valid values.
 --echo #########################################################################
 --echo
+<<<<<<< HEAD
 SET GLOBAL group_replication_exit_state_action = "OFFLINE_MODE";
 --let $assert_text= The value of group_replication_exit_state_action should be OFFLINE_MODE
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "OFFLINE_MODE"
@@ -60,6 +67,16 @@ SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
 --let $assert_text= The value of group_replication_exit_state_action should be READ_ONLY
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "READ_ONLY"
 --source include/assert.inc
+=======
+SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
+--let $assert_text= The default of group_replication_exit_state_action should be READ_ONLY
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "READ_ONLY"
+--source include/assert.inc
+SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
+--let $assert_text= The default of group_replication_exit_state_action should be ABORT_SERVER
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+--source include/assert.inc
+>>>>>>> pr/231
 
 --echo
 --echo #########################################################################
@@ -73,7 +90,12 @@ SET GLOBAL group_replication_exit_state_action = 42;
 SET GLOBAL group_replication_exit_state_action = on;
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL group_replication_exit_state_action = "abort";
+<<<<<<< HEAD
 --let $assert_text= The value of group_replication_exit_state_action should be READ_ONLY
+=======
+SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
+--let $assert_text= The default of group_replication_exit_state_action should be READ_ONLY
+>>>>>>> pr/231
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "READ_ONLY"
 --source include/assert.inc
 
@@ -83,4 +105,8 @@ SET GLOBAL group_replication_exit_state_action = "abort";
 --echo #########################################################################
 --echo
 SET GLOBAL group_replication_exit_state_action = @exit_state_action_saved;
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

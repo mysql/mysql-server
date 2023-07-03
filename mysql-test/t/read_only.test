@@ -364,6 +364,7 @@ DROP TABLE t1;
 
 set sql_mode= @orig_sql_mode;
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#28490368   INNODB: ASSERTION FAILURE: DICT0DD.CC:1071:!FAIL
 --echo #
@@ -380,6 +381,8 @@ SET @@global.read_only=default;
 DROP TABLE t1;
 DROP TABLE t1;
 DROP TABLE t3;
+=======
+>>>>>>> pr/231
 
 --echo #
 --echo # BUG#28438114: SET READ_ONLY=1 SOMETIMES DOESN'T BLOCK CONCURRENT DDL.
@@ -390,7 +393,11 @@ DROP TABLE t3;
 SET @save_read_only= @@global.read_only;
 
 CREATE USER test@localhost;
+<<<<<<< HEAD
 GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE, RELOAD ON *.* TO test@localhost;
+=======
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, RELOAD ON *.* TO test@localhost;
+>>>>>>> pr/231
 
 --echo connect (con1,localhost,test,,test);
 connect (con1,localhost,test,,test);
@@ -404,11 +411,16 @@ let $query= CREATE DATABASE new;
 --echo # Test ALTER DATABASE statement
 --let query= ALTER DATABASE test CHARACTER SET utf8;
 --source include/read_only_bug28438114.inc
+<<<<<<< HEAD
 CREATE DATABASE new;
 --echo # Test CREATE DATABASE statement which doesn't update DD tables.
 --let query= CREATE DATABASE IF NOT EXISTS new;
 --source include/read_only_bug28438114.inc
 --echo # Test DROP DATABASE statement.
+=======
+--echo # Test DROP DATABASE statement.
+CREATE DATABASE new;
+>>>>>>> pr/231
 let $query= DROP DATABASE new;
 --source include/read_only_bug28438114.inc
 DROP DATABASE new;
@@ -416,6 +428,7 @@ DROP DATABASE new;
 --echo # Test CREATE TABLE statement.
 let $query= CREATE TABLE t1(fld1 INT);
 --source include/read_only_bug28438114.inc
+<<<<<<< HEAD
 --echo # Test CREATE TABLE which doesn't update update DD tables.
 CREATE TABLE t1(fld1 INT);
 let $query= CREATE TABLE IF NOT EXISTS t1(fld1 INT);
@@ -432,6 +445,15 @@ let $query= DROP TABLE t1;
 --echo # Test DROP TABLE statement which doesn't update DD tables.
 let $query= DROP TABLE IF EXISTS no_such_table;
 --source include/read_only_bug28438114.inc
+=======
+--echo # Test ALTER TABLE statement.
+CREATE TABLE t1(fld1 INT);
+let $query= ALTER TABLE t1 ADD fld2 INT;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP TABLE statement.
+let $query= DROP TABLE t1;
+--source include/read_only_bug28438114.inc
+>>>>>>> pr/231
 --echo # Test CREATE INDEX statement.
 let $query= CREATE INDEX idx1 ON t1 (fld1) USING BTREE;
 --source include/read_only_bug28438114.inc
@@ -441,6 +463,7 @@ let $query= DROP INDEX idx1 ON t1;
 --source include/read_only_bug28438114.inc
 DROP INDEX idx1 ON t1;
 
+<<<<<<< HEAD
 --echo # Test IMPORT TABLE statement.
 --echo # Setup test environment.
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
@@ -460,6 +483,8 @@ let $query= IMPORT TABLE FROM 'test/t2*.sdi';
 --source include/read_only_bug28438114.inc
 --force-rmdir $EXPORT_DIR
 
+=======
+>>>>>>> pr/231
 --echo # Test CREATE TRIGGER statement.
 let $query= CREATE TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW BEGIN END;
@@ -485,9 +510,12 @@ let $query= ALTER VIEW v1 AS SELECT 1;
 --echo # Test DROP VIEW statement.
 let $query= DROP VIEW v1;
 --source include/read_only_bug28438114.inc
+<<<<<<< HEAD
 --echo # Test DROP VIEW statement which doesn't update DD tables.
 let $query= DROP VIEW IF EXISTS no_such_view;
 --source include/read_only_bug28438114.inc 
+=======
+>>>>>>> pr/231
 DROP VIEW v1;
 DROP TABLE t1;
 
@@ -511,9 +539,12 @@ let $query= ALTER FUNCTION f1 COMMENT 'test';
 --echo # Test DROP FUNCTION statement.
 let $query= DROP FUNCTION f1;
 --source include/read_only_bug28438114.inc
+<<<<<<< HEAD
 --echo # Test DROP FUNCTION statement which doesn't update DD tables.
 let $query= DROP FUNCTION IF EXISTS f1;
 --source include/read_only_bug28438114.inc
+=======
+>>>>>>> pr/231
 DROP FUNCTION f1;
 
 --echo # Test CREATE PROCEDURE statement
@@ -526,6 +557,7 @@ let $query= ALTER PROCEDURE p1 comment 'test';
 --echo # Test DROP PROCEDURE statement.
 let $query= DROP PROCEDURE p1;
 --source include/read_only_bug28438114.inc
+<<<<<<< HEAD
 --echo # Test DROP PROCEDURE statement which doesn't update DD tables.
 let $query= DROP PROCEDURE IF EXISTS no_such_procedure;
 --source include/read_only_bug28438114.inc
@@ -542,16 +574,29 @@ CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 let $query= CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 --source include/read_only_bug28438114.inc
 --echo # Test ALTER EVENT statement
+=======
+DROP PROCEDURE p1;
+
+--echo # Test CREATE EVENT statement
+let $query= CREATE EVENT event1 ON SCHEDULE
+EVERY 10 HOUR DO SELECT 1;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER EVENT statement
+CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+>>>>>>> pr/231
 let $query= ALTER EVENT event1 DISABLE;
 --source include/read_only_bug28438114.inc
 --echo # Test DROP EVENT statement.
 let $query= DROP EVENT event1;
 --source include/read_only_bug28438114.inc
 DROP EVENT event1;
+<<<<<<< HEAD
 --echo # Test DROP EVENT statement which doesn't update DD tables
 let $query= DROP EVENT IF EXISTS no_such_event;
 --source include/read_only_bug28438114.inc
 SET GLOBAL event_scheduler= @saved_event_scheduler;
+=======
+>>>>>>> pr/231
 
 --echo # Test case added for coverage.
 CREATE TABLE t1(fld1 INT);
@@ -568,6 +613,7 @@ connection default;
 DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;
+<<<<<<< HEAD
 --remove_files_wildcard $MYSQLD_DATADIR/test t2*
 --disconnect con1
 --disconnect con2
@@ -610,6 +656,8 @@ connection default;
 SET GLOBAL read_only= @save_read_only;
 SET GLOBAL super_read_only= @save_super_read_only;
 DROP USER user1@localhost;
+=======
+>>>>>>> pr/231
 --disconnect con1
 --disconnect con2
 

@@ -57,7 +57,11 @@ SET ndb_use_transactions= 1;
 CREATE TABLE t2 (a int) engine=Ndb;
 
 --echo Will fail with too many concurrent operations error
+<<<<<<< HEAD
 --error 1297, 921, 1296, 1217
+=======
+--error 1297, 1217
+>>>>>>> pr/231
 INSERT INTO t2 SELECT * FROM t1;
 
 SELECT COUNT(*) FROM t2;

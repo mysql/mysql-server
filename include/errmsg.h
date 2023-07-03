@@ -1,7 +1,15 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -13,11 +21,14 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
 
    Without limiting anything contained in the foregoing, this file,
    which is part of C Driver for MySQL (Connector/C), is also subject to the
    Universal FOSS Exception, version 1.0, a copy of which can be found at
    http://oss.oracle.com/licenses/universal-foss-exception.
+=======
+>>>>>>> upstream/cluster-7.6
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,9 +48,18 @@
   containing the symbolic name and the number from this file,
   and the english error messages in libmysql/errmsg.c.
 
+<<<<<<< HEAD
   Dynamic error messages for the daemon are in share/language/errmsg.sys.
   The server equivalent to <errmsg.h> is <mysqld_error.h>.
   The server equivalent to <mysqlclient_ername.h> is <mysqld_ername.h>.
+=======
+#define CR_MIN_ERROR		2000	/* For easier client code */
+#define CR_MAX_ERROR		2999
+#if !defined(ER)
+#define ER(X) (((X) >= CR_ERROR_FIRST && (X) <= CR_ERROR_LAST)? \
+               client_errors[(X)-CR_ERROR_FIRST]: \
+               client_errors[CR_UNKNOWN_ERROR -CR_ERROR_FIRST])
+>>>>>>> upstream/cluster-7.6
 
   Note that the auth subsystem also uses codes with a CR_ prefix.
 */
@@ -104,6 +124,7 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_SHARED_MEMORY_MAP_ERROR 2043
 #define CR_SHARED_MEMORY_EVENT_ERROR 2044
 #define CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR 2045
+<<<<<<< HEAD
 #define CR_SHARED_MEMORY_CONNECT_SET_ERROR 2046
 #define CR_CONN_UNKNOW_PROTOCOL 2047
 #define CR_INVALID_CONN_HANDLE 2048
@@ -123,6 +144,7 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_INSECURE_API_ERR 2062
 #define CR_FILE_NAME_TOO_LONG 2063
 #define CR_SSL_FIPS_MODE_ERR 2064
+<<<<<<< HEAD
 #define CR_DEPRECATED_COMPRESSION_NOT_SUPPORTED 2065
 #define CR_COMPRESSION_WRONGLY_CONFIGURED 2066
 #define CR_KERBEROS_USER_NOT_FOUND 2067
@@ -133,6 +155,30 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_INVALID_FACTOR_NO 2072
 #define CR_CANT_GET_SESSION_DATA 2073
 #define CR_ERROR_LAST /*Copy last error nr:*/ 2073
+=======
+#define CR_ERROR_LAST /*Copy last error nr:*/ 2064
+=======
+#define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2046
+#define CR_CONN_UNKNOW_PROTOCOL 		2047
+#define CR_INVALID_CONN_HANDLE			2048
+#define CR_UNUSED_1                             2049
+#define CR_FETCH_CANCELED                       2050
+#define CR_NO_DATA                              2051
+#define CR_NO_STMT_METADATA                     2052
+#define CR_NO_RESULT_SET                        2053
+#define CR_NOT_IMPLEMENTED                      2054
+#define CR_SERVER_LOST_EXTENDED			2055
+#define CR_STMT_CLOSED				2056
+#define CR_NEW_STMT_METADATA                    2057
+#define CR_ALREADY_CONNECTED                    2058
+#define CR_AUTH_PLUGIN_CANNOT_LOAD              2059
+#define CR_DUPLICATE_CONNECTION_ATTR            2060
+#define CR_AUTH_PLUGIN_ERR                      2061
+#define CR_INSECURE_API_ERR                     2062
+#define CR_INVALID_CLIENT_CHARSET               2063
+#define CR_ERROR_LAST  /*Copy last error nr:*/  2063
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */

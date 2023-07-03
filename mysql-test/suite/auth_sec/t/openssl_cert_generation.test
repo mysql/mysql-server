@@ -1,5 +1,16 @@
 --source include/no_valgrind_without_big.inc
+<<<<<<< HEAD
 --source include/allowed_ciphers.inc
+=======
+<<<<<<< HEAD
+--source include/have_openssl.inc
+
+=======
+--source include/not_embedded.inc
+--source include/have_sha256_rsa_auth.inc
+--source include/allowed_ciphers.inc
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #-----------------------------------------------------------------------------
 
@@ -160,7 +171,15 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # Ensure that server is ssl enabled
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
@@ -252,7 +271,15 @@ create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -314,7 +341,15 @@ SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.global_variables
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
@@ -324,7 +359,15 @@ create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.

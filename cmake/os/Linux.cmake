@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +36,7 @@ INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
 
+<<<<<<< HEAD
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   SET(LINUX_ARM 1)
 ENDIF()
@@ -35,10 +45,14 @@ ENDIF()
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
 
+<<<<<<< HEAD
 IF(EXISTS "/etc/fedora-release")
   SET(LINUX_FEDORA 1)
   FILE(READ "/etc/fedora-release" FEDORA_RELEASE)
@@ -65,6 +79,12 @@ IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
 ENDIF()
 
 # We require at least GCC 7.1 Clang 5
+=======
+# We require at least GCC 4.8 or Clang 3.4.
+=======
+# We require at least GCC 4.4 or Clang 3.3.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
     IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)

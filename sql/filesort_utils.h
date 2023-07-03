@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +82,7 @@ class Sort_param;
   rows.
 
   The buffer must be kept available for multiple executions of the
+<<<<<<< HEAD
   same sort operation, so one can call reset() for reuse. Again similar
   to MEM_ROOT, this keeps the last (largest) block and discards the others.
 */
@@ -85,6 +94,35 @@ class Filesort_buffer {
         m_max_size_in_bytes(0),
         m_current_block_size(0),
         m_space_used_other_blocks(0) {}
+=======
+  same sort operation, so we have explicit allocate and free functions,
+  rather than doing alloc/free in CTOR/DTOR.
+ */
+<<<<<<< HEAD
+class Filesort_buffer {
+ public:
+  Filesort_buffer()
+      : m_next_rec_ptr(NULL),
+        m_rawmem(NULL),
+        m_record_pointers(NULL),
+        m_sort_keys(NULL),
+        m_num_records(0),
+        m_record_length(0),
+        m_size_in_bytes(0),
+        m_idx(0) {}
+=======
+class Filesort_buffer
+{
+public:
+  Filesort_buffer() :
+    m_next_rec_ptr(NULL), m_rawmem(NULL), m_record_pointers(NULL),
+    m_sort_keys(NULL),
+    m_num_records(0), m_record_length(0),
+    m_sort_length(0),
+    m_size_in_bytes(0), m_idx(0)
+  {}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /** Sort me...
     @return Number of records, after any deduplication
@@ -95,7 +133,49 @@ class Filesort_buffer {
   /**
     Prepares the buffer for the next batch of records to process.
    */
+<<<<<<< HEAD
   void reset();
+=======
+  void init_next_record_pointer() {
+    m_idx = 0;
+    m_next_rec_ptr = m_rawmem;
+    m_sort_keys = NULL;
+  }
+
+  /**
+    @returns the number of bytes currently in use for data.
+   */
+  size_t space_used_for_data() const {
+    return m_next_rec_ptr ? m_next_rec_ptr - m_rawmem : 0;
+  }
+
+  /**
+    @returns the number of bytes left in the buffer.
+  */
+<<<<<<< HEAD
+  size_t spaceleft() const {
+    DBUG_ASSERT(m_next_rec_ptr >= m_rawmem);
+    const size_t spaceused = (m_next_rec_ptr - m_rawmem) +
+                             (static_cast<size_t>(m_idx) * sizeof(uchar *));
+=======
+  size_t spaceleft() const
+  {
+    assert(m_next_rec_ptr >= m_rawmem);
+    const size_t spaceused=
+      (m_next_rec_ptr - m_rawmem) +
+      (static_cast<size_t>(m_idx) * sizeof(uchar*));
+>>>>>>> upstream/cluster-7.6
+    return m_size_in_bytes - spaceused;
+  }
+
+  /**
+    Is the buffer full?
+  */
+  bool isfull() const {
+    if (m_idx < m_num_records) return false;
+    return spaceleft() < (m_record_length + sizeof(uchar *));
+  }
+>>>>>>> pr/231
 
   /**
     Where should the next record be stored?

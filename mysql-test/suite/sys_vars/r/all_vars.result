@@ -14,6 +14,7 @@ There should be *no* long test name listed below:
 select variable_name as `There should be *no* variables listed below:` from t2
 left join t1 on variable_name=test_name where test_name is null ORDER BY variable_name;
 There should be *no* variables listed below:
+<<<<<<< HEAD
 activate_all_roles_on_login
 activate_all_roles_on_login
 authentication_policy
@@ -110,6 +111,7 @@ replication_optimize_for_static_plugin_config
 replication_sender_observe_commit_only
 replication_sender_observe_commit_only
 resultset_metadata
+<<<<<<< HEAD
 rpl_stop_replica_timeout
 rpl_stop_replica_timeout
 rpl_stop_slave_timeout
@@ -173,5 +175,21 @@ tls_ciphersuites
 use_secondary_engine
 xa_detach_on_prepare
 xa_detach_on_prepare
+=======
+tls_version
+tls_version
+=======
+DISABLED_STORAGE_ENGINES
+DISABLED_STORAGE_ENGINES
+KEYRING_OPERATIONS
+KEYRING_OPERATIONS
+REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG
+REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG
+REPLICATION_SENDER_OBSERVE_COMMIT_ONLY
+REPLICATION_SENDER_OBSERVE_COMMIT_ONLY
+TLS_VERSION
+TLS_VERSION
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 drop table t1;
 drop table t2;

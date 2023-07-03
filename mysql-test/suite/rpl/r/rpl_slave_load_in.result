@@ -8,6 +8,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/assert.inc [Datadir is the new secure file path]
 include/start_slave.inc
 [connection master]
+<<<<<<< HEAD
+=======
+create table t1(a int not null auto_increment, b int, primary key(a)) engine=myisam;
+>>>>>>> pr/231
 create table t2(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 start transaction;
 insert into t2(b) values (1);
@@ -19,8 +23,15 @@ include/sync_slave_sql_with_master.inc
 # Restore the old secure path on slave.
 include/assert.inc [Old secure file path is restored.]
 include/start_slave.inc
+<<<<<<< HEAD
 include/diff_tables.inc [master:t2, slave:t2]
 [connection master]
+=======
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+[connection master]
+drop table t1;
+>>>>>>> pr/231
 drop table t2;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

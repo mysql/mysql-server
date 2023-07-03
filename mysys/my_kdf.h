@@ -1,4 +1,8 @@
+<<<<<<< HEAD:mysys/my_kdf.h
 /* Copyright (c) 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -48,25 +52,40 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
                    vector<string> *kdf_options);
 
 class Key_derivation_function {
+<<<<<<< HEAD:mysys/my_kdf.h
  protected:
   vector<string> *kdf_options_{nullptr};
   bool options_valid_{false};
 
  public:
+=======
+ public:
+  Key_derivation_function();
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
   virtual ~Key_derivation_function() {}
   virtual int derive_key(const unsigned char *key,
                          const unsigned int key_length, unsigned char *rkey,
                          unsigned int key_size) = 0;
   virtual int validate_options() = 0;
+<<<<<<< HEAD:mysys/my_kdf.h
+=======
+
+ protected:
+  vector<string> *kdf_options_;
+  bool options_valid_;
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
 };
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 
 /** Class to implement KDF method hkdf. */
 class Key_hkdf_function : public Key_derivation_function {
+<<<<<<< HEAD:mysys/my_kdf.h
   string salt_;
   string info_;
 
+=======
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
  public:
   /**
      hkdf Constructor
@@ -84,18 +103,32 @@ class Key_hkdf_function : public Key_derivation_function {
      3. KDF info: The context and application specific information.
   */
   Key_hkdf_function(vector<string> *kdf_options);
+<<<<<<< HEAD:mysys/my_kdf.h
   virtual ~Key_hkdf_function() override {}
   int derive_key(const unsigned char *key, const unsigned int key_length,
                  unsigned char *rkey, unsigned int key_size) override;
   int validate_options() override;
+=======
+  virtual ~Key_hkdf_function() {}
+  int derive_key(const unsigned char *key, const unsigned int key_length,
+                 unsigned char *rkey, unsigned int key_size);
+  int validate_options();
+
+private:
+  string salt_;
+  string info_;
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
 };
 #endif
 
 /** Class to implement KDF method pbkdf2_hmac. */
 class Key_pbkdf2_hmac_function : public Key_derivation_function {
+<<<<<<< HEAD:mysys/my_kdf.h
   string salt_;
   int iterations_{0};
 
+=======
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
  public:
   /**
      pbkdf2_hmac Constructor
@@ -116,8 +149,19 @@ class Key_pbkdf2_hmac_function : public Key_derivation_function {
      to brute-force attacks.
   */
   Key_pbkdf2_hmac_function(vector<string> *kdf_options);
+<<<<<<< HEAD:mysys/my_kdf.h
   virtual ~Key_pbkdf2_hmac_function() override {}
   int derive_key(const unsigned char *key, const unsigned int key_length,
                  unsigned char *rkey, unsigned int key_size) override;
   int validate_options() override;
+=======
+  virtual ~Key_pbkdf2_hmac_function(){}
+  int derive_key(const unsigned char *key, const unsigned int key_length,
+                 unsigned char *rkey, unsigned int key_size);
+  int validate_options();
+
+private:
+  string salt_;
+  int iterations_;
+>>>>>>> pr/231:mysys_ssl/my_kdf.h
 };

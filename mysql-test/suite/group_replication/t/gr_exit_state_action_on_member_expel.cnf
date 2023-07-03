@@ -2,7 +2,10 @@
 
 [mysqld.1]
 local-infile=       true
+<<<<<<< HEAD
 group_replication_autorejoin_tries= 0
+=======
+>>>>>>> pr/231
 
 [mysqld.2]
 

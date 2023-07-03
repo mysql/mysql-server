@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 --source include/have_tlsv13.inc
 
+=======
+--source include/have_openssl_version_1.1.0.inc
+>>>>>>> pr/231
 --echo # Tests of the AES KDF hkdf functionality
 
 --echo #### AES_ENCRYPT return type
@@ -41,4 +45,8 @@ eval SET SESSION block_encryption_mode="aes-128-cbc";
 SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'hkdf'), 'my_key_string', @IV, 'hkdf');
 SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'hkdf', 'salt'), 'my_key_string', @IV, 'hkdf', 'salt');
 SELECT 'my_text' = AES_DECRYPT(AES_ENCRYPT('my_text', 'my_key_string', @IV, 'hkdf', 'salt', 'info'), 'my_key_string', @IV, 'hkdf', 'salt', 'info');
+<<<<<<< HEAD
 SET SESSION block_encryption_mode=@save_block_encryption_mode;
+=======
+SET SESSION block_encryption_mode=@save_block_encryption_mode;
+>>>>>>> pr/231

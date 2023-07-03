@@ -18,7 +18,11 @@ a	d
 103	3
 select table_name, auto_increment 
 from information_schema.tables where table_schema='test';
+<<<<<<< HEAD
 TABLE_NAME	AUTO_INCREMENT
+=======
+table_name	auto_increment
+>>>>>>> pr/231
 t1	404
 t2	104
 Run backup
@@ -43,6 +47,7 @@ a	d
 302	2
 303	3
 304	4
+<<<<<<< HEAD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -57,6 +62,13 @@ t2	CREATE TABLE `t2` (
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=305 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment 
+from information_schema.tables where table_schema='test';
+table_name	auto_increment
+t1	605
+t2	305
+>>>>>>> pr/231
 Restore with negative offset of 50
 truncate test.t1;
 truncate test.t2;
@@ -78,6 +90,7 @@ a	d
 52	2
 53	3
 104	4
+<<<<<<< HEAD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -92,6 +105,13 @@ t2	CREATE TABLE `t2` (
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment 
+from information_schema.tables where table_schema='test';
+table_name	auto_increment
+t1	405
+t2	105
+>>>>>>> pr/231
 Restore with negative offset of 200
 truncate test.t1;
 truncate test.t2;
@@ -113,6 +133,7 @@ a	d
 -98	2
 -97	3
 104	4
+<<<<<<< HEAD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -127,5 +148,12 @@ t2	CREATE TABLE `t2` (
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_name, auto_increment 
+from information_schema.tables where table_schema='test';
+table_name	auto_increment
+t1	405
+t2	105
+>>>>>>> pr/231
 drop table test.t1;
 drop table test.t2;

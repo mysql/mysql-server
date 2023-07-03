@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -656,6 +664,7 @@ class Control_notification : public Parameterized_notification<false> {
   Control_notification(Control_notification const &);
   Control_notification &operator=(Control_notification const &);
 };
+<<<<<<< HEAD
 
 typedef void(xcom_expel_functor)(void);
 /**
@@ -754,4 +763,50 @@ class Protocol_change_notification : public Parameterized_notification<false> {
   Protocol_change_notification &operator=(Protocol_change_notification const &);
 };
 
+=======
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h
+>>>>>>> pr/231
 #endif  // GCS_XCOM_NOTIFICATION_INCLUDED
+=======
+
+typedef void(xcom_expel_functor)(void);
+
+/**
+  Notification used to inform that the node has been expelled or is about
+  to be.
+*/
+class Expel_notification : public Parameterized_notification<false> {
+ public:
+  /**
+    Constructor for Expel_notification.
+    @param functor Pointer to a function that contains that actual core of
+    the execution.
+  */
+  explicit Expel_notification(xcom_expel_functor *functor);
+
+  /**
+    Destructor for Expel_notification.
+  */
+  ~Expel_notification();
+
+ private:
+  /**
+    Task implemented by this notification.
+  */
+  void do_execute();
+
+  /*
+    Pointer to a function that contains that actual core of the execution.
+  */
+  xcom_expel_functor *m_functor;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Expel_notification(Expel_notification const &);
+  Expel_notification &operator=(Expel_notification const &);
+
+};
+
+#endif // GCS_XCOM_NOTIFICATION_INCLUDED
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,9 +178,11 @@ Sasl_client::Sasl_client() {
 
 int Sasl_client::initilize() {
   std::stringstream log_stream;
+<<<<<<< HEAD
   int rc_sasl = SASL_FAIL;
   strncpy(m_service_name, SASL_SERVICE_NAME, sizeof(m_service_name) - 1);
   m_service_name[sizeof(m_service_name) - 1] = '\0';
+<<<<<<< HEAD
 
   if (m_sasl_mechanism) {
     m_sasl_mechanism->set_user_info(m_user_name, m_user_pwd);
@@ -194,6 +200,47 @@ int Sasl_client::initilize() {
       return rc_sasl;
     }
     m_sasl_mechanism->get_ldap_host(m_ldap_server_host);
+=======
+=======
+  int rc_sasl= SASL_FAIL;
+#ifdef _WIN32
+  char sasl_plugin_dir[MAX_PATH]= "";
+  int ret_executable_path= 0;
+  /**
+    Getting the current executable path, SASL SCRAM dll will be copied in executable path.
+    Using/Setting the path from cmake file may not work as during installation SASL SCRAM DLL may be
+    copied to any path based on installable path.
+  */
+  ret_executable_path= GetModuleFileName(NULL, sasl_plugin_dir, sizeof(sasl_plugin_dir));
+  if ((ret_executable_path == 0) || (ret_executable_path == sizeof(sasl_plugin_dir)))
+  {
+    log_error("sasl client initilize: failed to find executable path or buffer size for path is too small.");
+    goto EXIT;
+  }
+  char *pos= strrchr(sasl_plugin_dir, '\\');
+  if (pos != NULL)
+  {
+    *pos = '\0';
+  }
+  /**
+    Sasl SCRAM dll default search path is C:\CMU2,
+    This is the reason we have copied in the executable folder and setting the same
+    from the code.
+  */
+  sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
+  log_stream << "Sasl_client::initilize sasl scrum plug-in path : "
+             << sasl_plugin_dir;
+  log_dbg(log_stream.str());
+  log_stream.clear();
+#endif
+  strncpy(m_service_name, SASL_SERVICE_NAME, sizeof(m_service_name)-1);
+  m_service_name[sizeof(m_service_name)-1]= '\0';
+>>>>>>> upstream/cluster-7.6
+  /** Initialize client-side of SASL. */
+  rc_sasl = sasl_client_init(NULL);
+  if (rc_sasl != SASL_OK) {
+    goto EXIT;
+>>>>>>> pr/231
   }
 #if defined(KERBEROS_LIB_CONFIGURED)
   if (strcmp(m_mechanism, SASL_GSSAPI) == 0) {

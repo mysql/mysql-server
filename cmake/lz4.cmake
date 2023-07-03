@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +57,18 @@ MACRO (FIND_SYSTEM_LZ4)
     NAMES lz4)
   IF (LZ4_INCLUDE_DIR AND LZ4_SYSTEM_LIBRARY)
     SET(SYSTEM_LZ4_FOUND 1)
+<<<<<<< HEAD
     SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
+=======
+<<<<<<< HEAD
+    INCLUDE_DIRECTORIES(SYSTEM ${PATH_TO_LZ4})
+    SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
+    MESSAGE(STATUS "PATH_TO_LZ4 ${PATH_TO_LZ4}")
+    MESSAGE(STATUS "LZ4_LIBRARY ${LZ4_LIBRARY}")
+=======
+    SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ENDIF()
 ENDMACRO()
 
@@ -57,12 +76,26 @@ SET(LZ4_VERSION "lz4-1.9.4")
 SET(BUNDLED_LZ4_PATH "${CMAKE_SOURCE_DIR}/extra/lz4/${LZ4_VERSION}/lib")
 
 MACRO (MYSQL_USE_BUNDLED_LZ4)
+<<<<<<< HEAD
   SET(WITH_LZ4 "bundled" CACHE STRING "Bundled lz4 library")
   SET(BUILD_BUNDLED_LZ4 1)
   INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_LZ4_PATH})
   SET(LZ4_INCLUDE_DIR ${BUNDLED_LZ4_PATH})
   SET(LZ4_LIBRARY lz4_lib)
   ADD_LIBRARY(lz4_lib STATIC
+=======
+<<<<<<< HEAD
+  SET(WITH_LZ4 "bundled" CACHE STRING "By default use bundled lz4 library")
+  SET(BUILD_BUNDLED_LZ4 1)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/lz4)
+=======
+  SET(WITH_LZ4 "bundled" CACHE STRING "Bundled lz4 library")
+  SET(BUILD_BUNDLED_LZ4 1)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_LZ4_PATH})
+>>>>>>> upstream/cluster-7.6
+  SET(LZ4_LIBRARY lz4_lib)
+  ADD_CONVENIENCE_LIBRARY(lz4_lib
+>>>>>>> pr/231
     ${BUNDLED_LZ4_PATH}/lz4.c
     ${BUNDLED_LZ4_PATH}/lz4frame.c
     ${BUNDLED_LZ4_PATH}/lz4hc.c

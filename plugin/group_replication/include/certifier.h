@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/certifier.h
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/certifier.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +79,18 @@ class Gtid_set_ref : public Gtid_set {
 
     @return the number of references
   */
+<<<<<<< HEAD:plugin/group_replication/include/certifier.h
   size_t unlink() {
+<<<<<<< HEAD
     assert(reference_counter > 0);
+=======
+    DBUG_ASSERT(reference_counter > 0);
+=======
+  size_t unlink()
+  {
+    assert(reference_counter > 0);
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/certifier.h
+>>>>>>> pr/231
     return --reference_counter;
   }
 
@@ -208,6 +226,12 @@ class Certifier : public Certifier_interface {
   static const std::string CERTIFICATION_INFO_ERROR_NAME;
 
   /**
+    Key used to store errors in the certification info
+    on View_change_log_event.
+  */
+  static const std::string CERTIFICATION_INFO_ERROR_NAME;
+
+  /**
     Initialize certifier.
 
     @param gtid_assignment_block_size the group gtid assignment block size
@@ -307,7 +331,16 @@ class Certifier : public Certifier_interface {
     @note if concurrent access is introduce to these variables,
     locking is needed in this method
 
+<<<<<<< HEAD
     @param[in] cert_info  certification info retrieved from recovery procedure
+=======
+<<<<<<< HEAD:plugin/group_replication/include/certifier.h
+    @param cert_info              certification info retrieved from recovery
+    procedure
+=======
+    @param[in] cert_info  certification info retrieved from recovery procedure
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/certifier.h
+>>>>>>> pr/231
 
     @retval  > 0  Error during setting certification info.
     @retval  = 0  Everything went fine.

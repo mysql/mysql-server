@@ -151,7 +151,11 @@ RESET MASTER;
 --source include/stop_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
+<<<<<<< HEAD
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
+=======
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+>>>>>>> pr/231
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

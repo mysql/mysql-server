@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
 Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -199,13 +207,23 @@ static char *full_username = nullptr, *part_username = nullptr,
 static char *current_os_user = nullptr, *current_os_sudouser = nullptr;
 static int wait_time = 5;
 static STATUS status;
+<<<<<<< HEAD
 static ulong select_limit, max_join_size, opt_connect_timeout = 0;
 static char mysql_charsets_dir[FN_REFLEN + 1];
+<<<<<<< HEAD
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static char *opt_load_data_local_dir = nullptr;
 #ifdef HAVE_SETNS
 static char *opt_network_namespace = nullptr;
 #endif
+=======
+static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+=======
+static ulong select_limit,max_join_size,opt_connect_timeout=0;
+static char mysql_charsets_dir[FN_REFLEN+1];
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 static const char *xmlmeta[] = {
     "&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;",
     /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
@@ -257,8 +275,17 @@ static void *ssl_session_data = nullptr;
 
   For using this feature in test case, we add the option in debug code.
 */
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
 static bool opt_build_completion_hash = false;
+=======
+#ifndef NDEBUG
+static my_bool opt_build_completion_hash = FALSE;
+>>>>>>> upstream/cluster-7.6
 #endif
 
 #ifdef _WIN32
@@ -327,8 +354,20 @@ static int com_nopager(String *str, char *), com_pager(String *str, char *),
 #endif
 
 static int read_and_execute(bool interactive);
+<<<<<<< HEAD
 static bool init_connection_options(MYSQL *mysql);
 static int sql_connect(char *host, char *database, char *user, uint silent);
+=======
+<<<<<<< HEAD
+static void init_connection_options(MYSQL *mysql);
+static int sql_connect(char *host, char *database, char *user, char *password,
+                       uint silent);
+=======
+static bool init_connection_options(MYSQL *mysql);
+static int sql_connect(char *host,char *database,char *user,char *password,
+		       uint silent);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 static const char *server_version_string(MYSQL *mysql);
 static int put_info(const char *str, INFO_TYPE info, uint error = 0,
                     const char *sql_state = nullptr);
@@ -1643,6 +1682,7 @@ void window_resize(int) {
 }
 #endif
 
+<<<<<<< HEAD
 static struct my_option my_long_options[] = {
     {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1698,11 +1738,71 @@ static struct my_option my_long_options[] = {
     {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
      nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
+<<<<<<< HEAD
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", 'T', "This is a non-debug version. Catch this and exit.",
      nullptr, nullptr, nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+=======
+     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+     0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+static struct my_option my_long_options[] =
+{
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"auto-rehash", OPT_AUTO_REHASH,
+   "Enable automatic rehashing. One doesn't need to use 'rehash' to get table "
+   "and field completion, but startup and reconnecting may take a longer time. "
+   "Disable with --disable-auto-rehash.",
+   &opt_rehash, &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   0, 0},
+  {"no-auto-rehash", 'A',
+   "No automatic rehashing. One has to use 'rehash' to get table and field "
+   "completion. This gives a quicker start of mysql and disables rehashing "
+   "on reconnect.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"auto-vertical-output", OPT_AUTO_VERTICAL_OUTPUT,
+    "Automatically switch to vertical output mode if the result is wider "
+    "than the terminal width.",
+    &auto_vertical_output, &auto_vertical_output, 0, GET_BOOL, NO_ARG, 0,
+    0, 0, 0, 0, 0},
+  {"batch", 'B',
+   "Don't use history file. Disable interactive behavior. (Enables --silent.)",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-as-hex", 0, "Print binary data as hex", &opt_binhex, &opt_binhex,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory for character set files.", &charsets_dir,
+   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"column-type-info", OPT_COLUMN_TYPES, "Display column type information.",
+   &column_types_flag, &column_types_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " The default is --skip-comments (discard comments), enable with --comments.",
+   &preserve_comments, &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+#ifdef NDEBUG
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log.", &default_dbug_option,
      &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
@@ -1845,6 +1945,7 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
+<<<<<<< HEAD
 
     {"table", 't', "Output in table format.", &output_tables, &output_tables,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -1926,8 +2027,94 @@ static struct my_option my_long_options[] = {
     {"build-completion-hash", 0,
      "Build completion hash even when it is in batch mode. It is used for "
      "test purpose, so it is just built when DEBUG is on.",
+<<<<<<< HEAD
      &opt_build_completion_hash, &opt_build_completion_hash, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+     &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+#include "caching_sha2_passwordopt-longopts.h"
+  {"table", 't', "Output in table format.", &output_tables,
+   &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tee", OPT_TEE,
+   "Append everything into outfile. See interactive help (\\h) also. "
+   "Does not work in batch mode. Disable with --disable-tee. "
+   "This option is disabled by default.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user.", &current_user,
+   &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
+   &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
+   &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+   "Number of seconds before connection timeout.",
+   &opt_connect_timeout, &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG,
+   0, 0, 3600*12, 0, 0, 0},
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
+   "The maximum packet length to send to or receive from server.",
+   &opt_max_allowed_packet, &opt_max_allowed_packet, 0,
+   GET_ULONG, REQUIRED_ARG, 16 *1024L*1024L, 4096,
+   (longlong) 2*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
+   "The buffer size for TCP/IP and socket communication.",
+   &opt_net_buffer_length, &opt_net_buffer_length, 0, GET_ULONG,
+   REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"select_limit", OPT_SELECT_LIMIT,
+   "Automatic limit for SELECT when using --safe-updates.",
+   &select_limit, &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L,
+   1, ULONG_MAX, 0, 1, 0},
+  {"max_join_size", OPT_MAX_JOIN_SIZE,
+   "Automatic limit for rows in a join when using --safe-updates.",
+   &max_join_size, &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L,
+   1, ULONG_MAX, 0, 1, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
+    &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"syslog", 'j', "Log filtered interactive commands to syslog. Filtering of "
+   "commands depends on the patterns supplied via histignore option besides "
+   "the default patterns." , 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+    &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+    "Default authentication client-side plugin to use.",
+    &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-mode", OPT_BINARY_MODE,
+   "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
+   "piped to mysql or loaded using the 'source' command). This is necessary "
+   "when processing output from mysqlbinlog that may contain blobs.",
+   &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef NDEBUG
+  {"build-completion-hash", 0,
+   "Build completion hash even when it is in batch mode. It is used for "
+   "test purpose, so it is just built when DEBUG is on.",
+   &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
 #ifdef HAVE_SETNS
     {"network-namespace", 0,
@@ -2399,7 +2586,11 @@ static COMMANDS *find_command(char *name) {
   char *end;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(name != nullptr);
+=======
+  assert(name != NULL);
+>>>>>>> pr/231
   DBUG_PRINT("enter", ("name: '%s'", name));
 
   while (my_isspace(charset_info, *name)) name++;
@@ -2485,6 +2676,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
           (mysql.server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES))) {
       // Found possbile one character command like \c
 
+<<<<<<< HEAD
       if (!(inchar = (uchar) * ++pos)) break;  // readline adds one '\'
       if (*in_string || inchar == 'N')         // \N is short for NULL
       {                                        // Don't allow commands in string
@@ -2494,6 +2686,18 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         else
           *out++ = (char)inchar;
         continue;
+=======
+      if (!(inchar = (uchar) *++pos))
+	break;				// readline adds one '\'
+      if (*in_string || inchar == 'N')	// \N is short for NULL
+      {					// Don't allow commands in string
+	*out++='\\';
+        if ((inchar == '`') && (*in_string == inchar))
+          pos--;
+        else
+	  *out++= (char) inchar;
+	continue;
+>>>>>>> upstream/cluster-7.6
       }
       if ((com = find_command((char)inchar))) {
         // Flush previously accepted characters
@@ -2686,10 +2890,25 @@ static char **new_mysql_completion(const char *text, int start, int end);
   if not.
 */
 
+<<<<<<< HEAD
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int) { return nullptr; }
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
 int no_completion(const char *, int) { return 0; }
+=======
+<<<<<<< HEAD
+#if defined(USE_NEW_EDITLINE_INTERFACE)
+static int fake_magic_space(int, int);
+char *no_completion(const char *, int)
+#elif defined(USE_LIBEDIT_INTERFACE)
+static int fake_magic_space(const char *, int);
+=======
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
+char *no_completion(const char *, int)
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+>>>>>>> upstream/cluster-7.6
+int no_completion(const char *, int)
+>>>>>>> pr/231
 #else
 char *no_completion() { return nullptr; }
 #endif
@@ -2720,19 +2939,47 @@ static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
+<<<<<<< HEAD
   /* Accept all locales. */
   setlocale(LC_ALL, "");
+=======
+<<<<<<< HEAD
+  /* Tell the completer that we want a crack first. */
+#if defined(USE_NEW_EDITLINE_INTERFACE)
+  rl_attempted_completion_function =
+      (rl_completion_func_t *)&new_mysql_completion;
+  rl_completion_entry_function = (rl_compentry_func_t *)&no_completion;
+>>>>>>> pr/231
 
   /* Tell the completer that we want a crack first. */
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
+<<<<<<< HEAD
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);
+=======
+  rl_add_defun("magic-space", (Function *)&fake_magic_space, -1);
+=======
+  /* Accept all locales. */
+  setlocale(LC_ALL,"");
+
+  /* Tell the completer that we want a crack first. */
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
+  rl_attempted_completion_function= &new_mysql_completion;
+  rl_completion_entry_function= &no_completion;
+
+  rl_add_defun("magic-space", &fake_magic_space, -1);
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+  rl_attempted_completion_function= &new_mysql_completion;
+  rl_completion_entry_function= &no_completion;
+  rl_add_defun("magic-space", &fake_magic_space, -1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
   rl_attempted_completion_function = (CPPFunction *)&new_mysql_completion;
   rl_completion_entry_function = &no_completion;
@@ -2752,7 +2999,16 @@ static char **new_mysql_completion(const char *text, int start [[maybe_unused]],
 #if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
+<<<<<<< HEAD
     return completion_matches(const_cast<char *>(text), new_command_generator);
+=======
+<<<<<<< HEAD
+    return completion_matches((char *)text,
+                              (CPFunction *)new_command_generator);
+=======
+    return completion_matches(const_cast<char*>(text), new_command_generator);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
   else
     return (char **)nullptr;
@@ -3421,7 +3677,16 @@ end:
   /* Show warnings if any or error occurred */
   if (show_warnings == 1 && (warnings >= 1 || error)) print_warnings();
 
+<<<<<<< HEAD
   if (!error && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+=======
+<<<<<<< HEAD
+  if (!error && !status.batch &&
+      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+=======
+  if (!error && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     get_current_db();
 
   executing_query = false;
@@ -3724,10 +3989,21 @@ static int get_result_width(MYSQL_RES *result) {
   unsigned int len = 0;
   MYSQL_FIELD *field;
   MYSQL_FIELD_OFFSET offset;
+<<<<<<< HEAD
 
 #ifndef NDEBUG
   offset = mysql_field_tell(result);
+<<<<<<< HEAD
   assert(offset == 0);
+=======
+  DBUG_ASSERT(offset == 0);
+=======
+  
+#ifndef NDEBUG
+  offset= mysql_field_tell(result);
+  assert(offset == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
   offset = 0;
 #endif
@@ -4537,11 +4813,21 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
   }
 
   mysql_init(&mysql);
+<<<<<<< HEAD
   if (init_connection_options(&mysql)) {
     put_error_if_any(&mysql);
     (void)fflush(stdout);
     return ignore_errors ? -1 : 1;
   }
+=======
+  if (init_connection_options(&mysql))
+  {
+    (void) put_error(&mysql);
+    (void) fflush(stdout);
+    return ignore_errors ? -1 : 1;		// Abort
+  }
+
+>>>>>>> pr/231
 #ifdef _WIN32
   uint cnv_errors;
   String converted_database, converted_user;
@@ -4675,8 +4961,20 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
 }
 
 /* Initialize options for the given connection handle. */
+<<<<<<< HEAD
 static bool init_connection_options(MYSQL *mysql) {
+=======
+<<<<<<< HEAD
+static void init_connection_options(MYSQL *mysql) {
+>>>>>>> pr/231
   bool handle_expired = (opt_connect_expired_password || !status.batch);
+=======
+static bool
+init_connection_options(MYSQL *mysql)
+{
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
+>>>>>>> upstream/cluster-7.6
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
@@ -4724,7 +5022,7 @@ static bool init_connection_options(MYSQL *mysql) {
     mysql_options(mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_set_character_set(mysql, default_charset);
+  if (mysql_set_character_set(mysql, default_charset)) return true;
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -4738,7 +5036,10 @@ static bool init_connection_options(MYSQL *mysql) {
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   set_server_public_key(mysql);
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/cluster-7.6
   set_get_server_public_key_option(mysql);
 
   if (using_opt_enable_cleartext_plugin)
@@ -4755,6 +5056,7 @@ static bool init_connection_options(MYSQL *mysql) {
                    current_os_sudouser);
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
+<<<<<<< HEAD
 
   set_password_options(mysql);
 
@@ -4783,6 +5085,8 @@ static bool init_connection_options(MYSQL *mysql) {
   }
 #endif
 
+=======
+>>>>>>> pr/231
   return false;
 }
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,8 +104,17 @@ void Key::store_in_buffer(uchar *buffer, size_t *buffer_position) const {
   size_t padding =
       (sizeof(size_t) - (*buffer_position % sizeof(size_t))) % sizeof(size_t);
 
+<<<<<<< HEAD
   *buffer_position += padding;
+<<<<<<< HEAD
   assert(*buffer_position % sizeof(size_t) == 0);
+=======
+  DBUG_ASSERT(*buffer_position % sizeof(size_t) == 0);
+=======
+  *buffer_position+= padding;
+  assert(*buffer_position % sizeof(size_t) == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
@@ -162,10 +175,21 @@ bool Key::load_from_buffer(uchar *buffer,
   memcpy(this->key.get(), buffer + buffer_position, key_len);
   buffer_position += key_len;
 
+<<<<<<< HEAD
   size_t padding =
       (sizeof(size_t) - (buffer_position % sizeof(size_t))) % sizeof(size_t);
   buffer_position += padding;
+<<<<<<< HEAD
   assert(buffer_position % sizeof(size_t) == 0);
+=======
+  DBUG_ASSERT(buffer_position % sizeof(size_t) == 0);
+=======
+  size_t padding= (sizeof(size_t) - (buffer_position % sizeof(size_t))) %
+                  sizeof(size_t);
+  buffer_position+= padding;
+  assert(buffer_position % sizeof(size_t) == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   *number_of_bytes_read_from_buffer = buffer_position;
 
@@ -184,8 +208,17 @@ size_t Key::get_key_pod_size() const {
   size_t padding =
       (sizeof(size_t) - (key_pod_size % sizeof(size_t))) % sizeof(size_t);
 
+<<<<<<< HEAD
   size_t key_pod_size_aligned = key_pod_size + padding;
+<<<<<<< HEAD
   assert(key_pod_size_aligned % sizeof(size_t) == 0);
+=======
+  DBUG_ASSERT(key_pod_size_aligned % sizeof(size_t) == 0);
+=======
+  size_t key_pod_size_aligned= key_pod_size + padding;
+  assert(key_pod_size_aligned % sizeof(size_t) == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return key_pod_size_aligned;
 }
 

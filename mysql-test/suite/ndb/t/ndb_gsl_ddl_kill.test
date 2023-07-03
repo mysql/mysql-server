@@ -9,6 +9,10 @@
 --source include/have_ndb.inc
 # Test uses DEBUG_SYNC
 --source include/have_debug_sync.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 CREATE TABLE t1 (
   id INT PRIMARY KEY,

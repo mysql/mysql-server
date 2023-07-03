@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +198,31 @@ struct MYSQL_XID {
 
 #include <mysql/components/services/bits/system_variables_bits.h>
 
+<<<<<<< HEAD
 struct SYS_VAR;
+=======
+#define PLUGIN_VAR_BOOL         0x0001
+#define PLUGIN_VAR_INT          0x0002
+#define PLUGIN_VAR_LONG         0x0003
+#define PLUGIN_VAR_LONGLONG     0x0004
+#define PLUGIN_VAR_STR          0x0005
+#define PLUGIN_VAR_ENUM         0x0006
+#define PLUGIN_VAR_SET          0x0007
+#define PLUGIN_VAR_DOUBLE       0x0008
+#define PLUGIN_VAR_UNSIGNED     0x0080
+#define PLUGIN_VAR_THDLOCAL     0x0100 /* Variable is per-connection */
+#define PLUGIN_VAR_READONLY     0x0200 /* Server variable is read only */
+#define PLUGIN_VAR_NOSYSVAR     0x0400 /* Not a server variable */
+#define PLUGIN_VAR_NOCMDOPT     0x0800 /* Not a command line option */
+#define PLUGIN_VAR_NOCMDARG     0x1000 /* No argument for cmd line */
+#define PLUGIN_VAR_RQCMDARG     0x0000 /* Argument required for cmd line */
+#define PLUGIN_VAR_OPCMDARG     0x2000 /* Argument optional for cmd line */
+#define PLUGIN_VAR_NODEFAULT    0x4000 /* SET DEFAULT is prohibited */
+#define PLUGIN_VAR_MEMALLOC     0x8000 /* String needs memory allocated */
+#define PLUGIN_VAR_INVISIBLE    0x10000 /* Variable should not be shown */
+
+struct st_mysql_sys_var;
+>>>>>>> upstream/cluster-7.6
 struct st_mysql_value;
 
 /*
@@ -234,12 +266,29 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
 
 /* the following declarations are for internal use only */
 
+<<<<<<< HEAD
 #define PLUGIN_VAR_MASK                                                \
   (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT |   \
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |   \
    PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
    PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE |            \
    PLUGIN_VAR_SENSITIVE)
+=======
+<<<<<<< HEAD
+#define PLUGIN_VAR_MASK                                                  \
+  (PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL | PLUGIN_VAR_NOCMDOPT | \
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |     \
+   PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST |   \
+   PLUGIN_VAR_PERSIST_AS_READ_ONLY)
+=======
+
+#define PLUGIN_VAR_MASK \
+        (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
+         PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG | \
+         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC | \
+         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_INVISIBLE)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

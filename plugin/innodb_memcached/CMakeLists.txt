@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +29,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF(WITH_INNODB_MEMCACHED AND UNIX)
+<<<<<<< HEAD
   IF(MY_COMPILER_IS_GNU)
     STRING_APPEND(CMAKE_C_FLAGS " -Wno-discarded-qualifiers")
   ELSEIF(MY_COMPILER_IS_CLANG)
@@ -35,7 +44,37 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-parameter")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-variable")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-vla")
+=======
+<<<<<<< HEAD
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-discarded-qualifiers")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-fallthrough")
+=======
+  MY_CHECK_C_COMPILER_FLAG("-Wdiscarded-qualifiers" HAVE_DISCARDED_QUALIFIERS)
+  IF (HAVE_DISCARDED_QUALIFIERS)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-discarded-qualifiers")
+  ENDIF()
+  MY_CHECK_C_COMPILER_FLAG("-Wimplicit-fallthrough" HAVE_IMPLICIT_FALLTHROUGH)
+  IF (HAVE_IMPLICIT_FALLTHROUGH)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-fallthrough")
+  ENDIF()
+>>>>>>> upstream/cluster-7.6
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-field-initializers")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-undef")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-vla")
+>>>>>>> pr/231
 
+<<<<<<< HEAD
+=======
+  MY_CHECK_C_COMPILER_FLAG("-Wdeclaration-after-statement"
+    HAVE_DECLARATION_AFTER_STATEMENT)
+  IF (HAVE_DECLARATION_AFTER_STATEMENT)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-declaration-after-statement")
+  ENDIF()
+
+>>>>>>> upstream/cluster-7.6
   MY_CHECK_C_COMPILER_FLAG("-Wduplicate-decl-specifier"
     HAVE_DUPLICATE_DECL_SPECIFIER)
   IF(HAVE_DUPLICATE_DECL_SPECIFIER)

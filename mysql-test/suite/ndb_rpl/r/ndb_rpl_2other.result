@@ -46,7 +46,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -144,7 +152,15 @@ t1	CREATE TABLE `t1` (
   `total` bigint unsigned DEFAULT NULL,
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -479,7 +495,15 @@ t1	CREATE TABLE `t1` (
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -577,7 +601,15 @@ t1	CREATE TABLE `t1` (
   `total` bigint unsigned DEFAULT NULL,
   `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+=======
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;

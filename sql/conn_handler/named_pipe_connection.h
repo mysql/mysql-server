@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,9 +58,21 @@ class Named_pipe_listener {
     @param  pipe_name name for pipe used in CreateNamedPipe function.
   */
   Named_pipe_listener(const std::string *pipe_name)
+<<<<<<< HEAD
       : m_pipe_name(*pipe_name),
         mp_sa_pipe_security(nullptr),
         m_pipe_handle(INVALID_HANDLE_VALUE) {}
+=======
+<<<<<<< HEAD
+      : m_pipe_name(*pipe_name), m_pipe_handle(INVALID_HANDLE_VALUE) {}
+=======
+  : m_pipe_name(*pipe_name),
+    m_pipe_handle(INVALID_HANDLE_VALUE),
+    mp_sa_pipe_security(nullptr)
+  { }
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Set up a listener.
@@ -80,6 +100,7 @@ class Named_pipe_listener {
   bool update_named_pipe_full_access_group(const char *new_group_name);
 
   /**
+<<<<<<< HEAD
     Spawn admin connection handler thread if separate thread is required to
     accept admin connections. Currently we do not support named pipe admin
     connections. Hence this method is noop.
@@ -91,6 +112,8 @@ class Named_pipe_listener {
   bool check_and_spawn_admin_connection_handler_thread() const { return false; }
 
   /**
+=======
+>>>>>>> pr/231
     Close the listener
   */
   void close_listener();

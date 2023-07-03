@@ -151,6 +151,13 @@ id	title	body
 8	MySQL Tutorial	request support@oraclehelp.com ...
 SET DEBUG = '-d,fts_union_limit_off';
 DROP TABLE articles;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
+>>>>>>> pr/231
 #
 # Bug #31228694 FTS QUERY WITH LIMIT CRASH
 #
@@ -164,8 +171,11 @@ name VARCHAR(45) NOT NULL,
 PRIMARY KEY (id) USING BTREE,
 FULLTEXT KEY search_name (name)  WITH PARSER ngram
 ) ENGINE=InnoDB;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+=======
+>>>>>>> pr/231
 INSERT INTO t1(name) VALUES('x'), ('mx'), ('mx'), ('mx'), ('mx');
 SELECT * FROM t1 WHERE MATCH (`name`) AGAINST ('mx*' IN BOOLEAN MODE) LIMIT 3;
 id	name
@@ -174,3 +184,7 @@ id	name
 4	mx
 DROP TABLE t1;
 # restart: 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

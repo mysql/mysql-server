@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,14 +235,31 @@ class Prealloced_array {
     return using_inline_buffer() ? m_inline_size : m_ext.m_alloced_size;
   }
 
+<<<<<<< HEAD
   Element_type &at(size_t n) {
     assert(n < size());
     return buffer()[n];
   }
 
   const Element_type &at(size_t n) const {
+<<<<<<< HEAD
     assert(n < size());
     return buffer()[n];
+=======
+    DBUG_ASSERT(n < size());
+=======
+  Element_type &at(size_t n)
+  {
+    assert(n < size());
+    return m_array_ptr[n];
+  }
+
+  const Element_type &at(size_t n) const
+  {
+    assert(n < size());
+>>>>>>> upstream/cluster-7.6
+    return m_array_ptr[n];
+>>>>>>> pr/231
   }
 
   Element_type &operator[](size_t n) { return at(n); }
@@ -345,10 +370,23 @@ class Prealloced_array {
     Removes the last element in the array, effectively reducing the
     container size by one. This destroys the removed element.
    */
+<<<<<<< HEAD
   void pop_back() {
     assert(!empty());
     if (!Has_trivial_destructor) back().~Element_type();
+<<<<<<< HEAD
     adjust_size(-1);
+=======
+    m_size -= 1;
+=======
+  void pop_back()
+  {
+    assert(!empty());
+    if (!Has_trivial_destructor)
+      back().~Element_type();
+    m_size-= 1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /**
@@ -466,20 +504,37 @@ class Prealloced_array {
     We use std::move to move objects, hence Element_type must be
     move-assignable.
   */
+<<<<<<< HEAD
   iterator erase(const_iterator position) {
     assert(position != end());
     return erase(position - begin());
+=======
+  iterator erase(iterator position)
+  {
+    assert(position != end());
+    if (position + 1 != end())
+      std::copy(position + 1, end(), position);
+    this->pop_back();
+    return position;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
     Removes a single element from the array.
   */
+<<<<<<< HEAD
   iterator erase(size_t ix) {
     assert(ix < size());
     iterator pos = begin() + ix;
     if (pos + 1 != end()) std::move(pos + 1, end(), pos);
     pop_back();
     return pos;
+=======
+  iterator erase(size_t ix)
+  {
+    assert(ix < size());
+    return erase(begin() + ix);
+>>>>>>> upstream/cluster-7.6
   }
 
   /**

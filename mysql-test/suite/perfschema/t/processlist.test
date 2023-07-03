@@ -12,6 +12,10 @@
 --source include/no_protocol.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+>>>>>>> pr/231
 
 --echo
 --echo ### Setup ###
@@ -116,7 +120,10 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --echo # Connection default, reap
 --connection default
 --replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+<<<<<<< HEAD
 --replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
+=======
+>>>>>>> pr/231
 --sorted_result
 --reap
 
@@ -145,7 +152,10 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --echo # Connection default, reap
 --connection default
 --replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+<<<<<<< HEAD
 --replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
+=======
+>>>>>>> pr/231
 --sorted_result
 --reap
 

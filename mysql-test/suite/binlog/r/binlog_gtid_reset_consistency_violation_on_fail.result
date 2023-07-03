@@ -1,0 +1,13 @@
+# TC1. Test if GTID consistency state is rolled back after failure
+# ----------------------------------------------------------------
+XA START 'xa1';
+XA END 'xa1';
+XA PREPARE 'xa1';
+CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+SET @@SESSION.GTID_NEXT='ANONYMOUS';
+XA COMMIT 'xa1';
+# TC2. Test if GTID consistency state is persisted after success
+# --------------------------------------------------------------
+CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
+DROP TABLE t1;

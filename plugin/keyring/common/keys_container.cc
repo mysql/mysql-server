@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,9 +115,21 @@ void Keys_container::allocate_and_set_data_for_key(
   key->set_key_data(key_data, source_key_data_size);
 }
 
+<<<<<<< HEAD
 IKey *Keys_container::fetch_key(IKey *key) {
+<<<<<<< HEAD
   assert(key->get_key_data() == nullptr);
   assert(key->get_key_type_as_string()->empty());
+=======
+  DBUG_ASSERT(key->get_key_data() == NULL);
+  DBUG_ASSERT(key->get_key_type()->empty());
+=======
+IKey*Keys_container::fetch_key(IKey *key)
+{
+  assert(key->get_key_data() == NULL);
+  assert(key->get_key_type()->empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   IKey *fetched_key = get_key_from_hash(key);
 

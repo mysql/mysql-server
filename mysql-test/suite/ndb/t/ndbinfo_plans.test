@@ -17,10 +17,13 @@ select count(*) from dict_obj_types;
 let $extra= query_get_value(explain select count(*) from dict_obj_types, Extra, 1);
 echo $extra;
 
+<<<<<<< HEAD
 ## error_messages
 let $extra= query_get_value(explain select count(*) from error_messages, Extra, 1);
 echo $extra;
 
+=======
+>>>>>>> pr/231
 ## config_params
 let $extra= query_get_value(explain select count(*) from config_params, Extra, 1);
 echo $extra;
@@ -29,10 +32,13 @@ echo $extra;
 let $extra= query_get_value(explain select count(*) from blocks, Extra, 1);
 echo $extra;
 
+<<<<<<< HEAD
 ## backup_id
 let $extra= query_get_value(explain select count(*) from backup_id, Extra, 1);
 echo $extra;
 
+=======
+>>>>>>> pr/231
 ## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
 let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
 echo $extra;
@@ -44,8 +50,12 @@ set ndbinfo_show_hidden=1;
 SELECT table_name, table_rows, avg_row_length
   FROM information_schema.tables
   WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+<<<<<<< HEAD
   AND table_name not like '%cpu%'
   ORDER BY table_name;
+=======
+  AND table_name not like '%cpu%';
+>>>>>>> pr/231
 
 --disable_query_log
 CREATE TEMPORARY TABLE rowcounts
@@ -87,15 +97,22 @@ END|;
 ## List the tables where estimated size equals actual size.
 CALL populate_sizes();
 SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+<<<<<<< HEAD
 SELECT table_name from rowcounts WHERE est_rows = actual_rows
   ORDER BY table_name;
 
 ## Check that no tables have zero estimates
+=======
+SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+
+## List tables with row estimate of zero
+>>>>>>> pr/231
 SELECT table_name from rowcounts WHERE est_rows = 0;
 
 DROP TEMPORARY TABLE rowcounts;
 DROP PROCEDURE populate_sizes;
 
+<<<<<<< HEAD
 ## Show the indexes on virtual tables
 SELECT table_name, constraint_name, column_name, ordinal_position
   FROM information_schema.key_column_usage
@@ -225,3 +242,10 @@ explain format=tree select * from memory_per_fragment;
 DROP VIEW memory_per_fragment;
 DROP TABLE ndb$frag_mem_use , ndb$dict_obj_info , ndb$dict_obj_types;
 
+=======
+## The plan for counters
+explain select * from counters;
+
+## The plan for memory_per_fragment
+explain select * from memory_per_fragment;
+>>>>>>> pr/231

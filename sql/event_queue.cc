@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -490,9 +498,22 @@ void Event_queue::empty_queue() {
       now  Current timestamp
 */
 
+<<<<<<< HEAD
 void Event_queue::dbug_dump_queue(time_t now [[maybe_unused]]) {
 #ifndef NDEBUG
   DBUG_TRACE;
+=======
+<<<<<<< HEAD
+void Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+=======
+void
+Event_queue::dbug_dump_queue(time_t now)
+{
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Event_queue::dbug_dump_queue");
+>>>>>>> pr/231
   DBUG_PRINT("info", ("Dumping queue . Elements=%u",
                       static_cast<unsigned>(queue.size())));
   for (size_t i = 0; i < queue.size(); i++) {

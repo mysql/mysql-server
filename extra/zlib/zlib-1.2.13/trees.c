@@ -1,5 +1,19 @@
 /* trees.c -- output deflated data using Huffman coding
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
  * Copyright (C) 1995-2021 Jean-loup Gailly
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+ * Copyright (C) 1995-2017 Jean-loup Gailly
+========
+ * Copyright (C) 1995-2021 Jean-loup Gailly
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
  * detect_data_type() function provided freely by Cosmin Truta, 2006
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
@@ -149,7 +163,21 @@ local void send_all_trees OF((deflate_state *s, int lcodes, int dcodes,
 local void compress_block OF((deflate_state *s, const ct_data *ltree,
                               const ct_data *dtree));
 local int  detect_data_type OF((deflate_state *s));
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
 local unsigned bi_reverse OF((unsigned code, int len));
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+local unsigned bi_reverse OF((unsigned value, int length));
+========
+local unsigned bi_reverse OF((unsigned code, int len));
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
 local void bi_windup      OF((deflate_state *s));
 local void bi_flush       OF((deflate_state *s));
 
@@ -583,7 +611,21 @@ local void gen_codes(tree, max_code, bl_count)
      * without bit reversal.
      */
     for (bits = 1; bits <= MAX_BITS; bits++) {
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
         code = (code + bl_count[bits - 1]) << 1;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+        code = (code + bl_count[bits-1]) << 1;
+========
+        code = (code + bl_count[bits - 1]) << 1;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
         next_code[bits] = (ush)code;
     }
     /* Check that the bit counts in bl_count are consistent. The last code
@@ -819,7 +861,21 @@ local int build_bl_tree(s)
         if (s->bl_tree[bl_order[max_blindex]].Len != 0) break;
     }
     /* Update opt_len to include the bit length tree and counts */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     s->opt_len += 3*((ulg)max_blindex + 1) + 5 + 5 + 4;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    s->opt_len += 3*((ulg)max_blindex+1) + 5+5+4;
+========
+    s->opt_len += 3*((ulg)max_blindex + 1) + 5 + 5 + 4;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
     Tracev((stderr, "\ndyn trees: dyn %ld, stat %ld",
             s->opt_len, s->static_len));
 
@@ -866,18 +922,59 @@ void ZLIB_INTERNAL _tr_stored_block(s, buf, stored_len, last)
     ulg stored_len;   /* length of input block */
     int last;         /* one if this is the last block for a file */
 {
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     send_bits(s, (STORED_BLOCK<<1) + last, 3);  /* send block type */
     bi_windup(s);        /* align on byte boundary */
     put_short(s, (ush)stored_len);
     put_short(s, (ush)~stored_len);
     if (stored_len)
         zmemcpy(s->pending_buf + s->pending, (Bytef *)buf, stored_len);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    send_bits(s, (STORED_BLOCK<<1)+last, 3);    /* send block type */
+    bi_windup(s);        /* align on byte boundary */
+    put_short(s, (ush)stored_len);
+    put_short(s, (ush)~stored_len);
+    if (stored_len != 0) {
+	/* Avoid calling memcpy when stored_len equals to zero to
+	avoid UBSAN errors */
+	zmemcpy(s->pending_buf + s->pending, (Bytef *)buf, stored_len);
+    }
+========
+    send_bits(s, (STORED_BLOCK<<1) + last, 3);  /* send block type */
+    bi_windup(s);        /* align on byte boundary */
+    put_short(s, (ush)stored_len);
+    put_short(s, (ush)~stored_len);
+    if (stored_len)
+        zmemcpy(s->pending_buf + s->pending, (Bytef *)buf, stored_len);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
     s->pending += stored_len;
 #ifdef ZLIB_DEBUG
     s->compressed_len = (s->compressed_len + 3 + 7) & (ulg)~7L;
     s->compressed_len += (stored_len + 4) << 3;
     s->bits_sent += 2*16;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     s->bits_sent += stored_len << 3;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    s->bits_sent += stored_len<<3;
+========
+    s->bits_sent += stored_len << 3;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
 #endif
 }
 
@@ -974,17 +1071,55 @@ void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
          */
         _tr_stored_block(s, buf, stored_len, last);
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     } else if (static_lenb == opt_lenb) {
         send_bits(s, (STATIC_TREES<<1) + last, 3);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+#ifdef FORCE_STATIC
+    } else if (static_lenb >= 0) { /* force static trees */
+#else
+    } else if (s->strategy == Z_FIXED || static_lenb == opt_lenb) {
+#endif
+        send_bits(s, (STATIC_TREES<<1)+last, 3);
+========
+    } else if (static_lenb == opt_lenb) {
+        send_bits(s, (STATIC_TREES<<1) + last, 3);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
         compress_block(s, (const ct_data *)static_ltree,
                        (const ct_data *)static_dtree);
 #ifdef ZLIB_DEBUG
         s->compressed_len += 3 + s->static_len;
 #endif
     } else {
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
         send_bits(s, (DYN_TREES<<1) + last, 3);
         send_all_trees(s, s->l_desc.max_code + 1, s->d_desc.max_code + 1,
                        max_blindex + 1);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+        send_bits(s, (DYN_TREES<<1)+last, 3);
+        send_all_trees(s, s->l_desc.max_code+1, s->d_desc.max_code+1,
+                       max_blindex+1);
+========
+        send_bits(s, (DYN_TREES<<1) + last, 3);
+        send_all_trees(s, s->l_desc.max_code + 1, s->d_desc.max_code + 1,
+                       max_blindex + 1);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
         compress_block(s, (const ct_data *)s->dyn_ltree,
                        (const ct_data *)s->dyn_dtree);
 #ifdef ZLIB_DEBUG
@@ -1003,15 +1138,45 @@ void ZLIB_INTERNAL _tr_flush_block(s, buf, stored_len, last)
         s->compressed_len += 7;  /* align on byte boundary */
 #endif
     }
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     Tracev((stderr,"\ncomprlen %lu(%lu) ", s->compressed_len >> 3,
            s->compressed_len - 7*last));
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    Tracev((stderr,"\ncomprlen %lu(%lu) ", s->compressed_len>>3,
+           s->compressed_len-7*last));
+========
+    Tracev((stderr,"\ncomprlen %lu(%lu) ", s->compressed_len >> 3,
+           s->compressed_len - 7*last));
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
 }
 
 /* ===========================================================================
  * Save the match info and tally the frequency counts. Return true if
  * the current block must be flushed.
  */
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
 int ZLIB_INTERNAL _tr_tally(s, dist, lc)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+int ZLIB_INTERNAL _tr_tally (s, dist, lc)
+========
+int ZLIB_INTERNAL _tr_tally(s, dist, lc)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
     deflate_state *s;
     unsigned dist;  /* distance of matched string */
     unsigned lc;    /* match length - MIN_MATCH or unmatched char (dist==0) */
@@ -1090,9 +1255,27 @@ local void compress_block(s, ltree, dtree)
  * Check if the data type is TEXT or BINARY, using the following algorithm:
  * - TEXT if the two conditions below are satisfied:
  *    a) There are no non-portable control characters belonging to the
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
  *       "block list" (0..6, 14..25, 28..31).
  *    b) There is at least one printable character belonging to the
  *       "allow list" (9 {TAB}, 10 {LF}, 13 {CR}, 32..255).
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+ *       "black list" (0..6, 14..25, 28..31).
+ *    b) There is at least one printable character belonging to the
+ *       "white list" (9 {TAB}, 10 {LF}, 13 {CR}, 32..255).
+========
+ *       "block list" (0..6, 14..25, 28..31).
+ *    b) There is at least one printable character belonging to the
+ *       "allow list" (9 {TAB}, 10 {LF}, 13 {CR}, 32..255).
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
  * - BINARY otherwise.
  * - The following partially-portable control characters form a
  *   "gray list" that is ignored in this detection algorithm:
@@ -1102,6 +1285,44 @@ local void compress_block(s, ltree, dtree)
 local int detect_data_type(s)
     deflate_state *s;
 {
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
+    /* block_mask is the bit mask of block-listed bytes
+========
+<<<<<<<< HEAD:extra/zlib/trees.c
+    /* black_mask is the bit mask of black-listed bytes
+>>>>>>>> pr/231:extra/zlib/trees.c
+     * set bits 0..6, 14..25, and 28..31
+     * 0xf3ffc07f = binary 11110011111111111100000001111111
+     */
+    unsigned long block_mask = 0xf3ffc07fUL;
+    int n;
+
+    /* Check for non-textual ("block-listed") bytes. */
+    for (n = 0; n <= 31; n++, block_mask >>= 1)
+        if ((block_mask & 1) && (s->dyn_ltree[n].Freq != 0))
+            return Z_BINARY;
+
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
+    /* Check for textual ("allow-listed") bytes. */
+========
+=======
+<<<<<<<< HEAD:extra/zlib/trees.c
+    /* black_mask is the bit mask of black-listed bytes
+     * set bits 0..6, 14..25, and 28..31
+     * 0xf3ffc07f = binary 11110011111111111100000001111111
+     */
+    unsigned long black_mask = 0xf3ffc07fUL;
+    int n;
+
+    /* Check for non-textual ("black-listed") bytes. */
+    for (n = 0; n <= 31; n++, black_mask >>= 1)
+        if ((black_mask & 1) && (s->dyn_ltree[n].Freq != 0))
+            return Z_BINARY;
+
+>>>>>>> pr/231
+    /* Check for textual ("white-listed") bytes. */
+========
     /* block_mask is the bit mask of block-listed bytes
      * set bits 0..6, 14..25, and 28..31
      * 0xf3ffc07f = binary 11110011111111111100000001111111
@@ -1115,6 +1336,11 @@ local int detect_data_type(s)
             return Z_BINARY;
 
     /* Check for textual ("allow-listed") bytes. */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
     if (s->dyn_ltree[9].Freq != 0 || s->dyn_ltree[10].Freq != 0
             || s->dyn_ltree[13].Freq != 0)
         return Z_TEXT;
@@ -1122,7 +1348,21 @@ local int detect_data_type(s)
         if (s->dyn_ltree[n].Freq != 0)
             return Z_TEXT;
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     /* There are no "block-listed" or "allow-listed" bytes:
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    /* There are no "black-listed" or "white-listed" bytes:
+========
+    /* There are no "block-listed" or "allow-listed" bytes:
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
      * this stream either is empty or has tolerated ("gray-listed") bytes only.
      */
     return Z_BINARY;
@@ -1176,6 +1416,20 @@ local void bi_windup(s)
     s->bi_buf = 0;
     s->bi_valid = 0;
 #ifdef ZLIB_DEBUG
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/trees.c
     s->bits_sent = (s->bits_sent + 7) & ~7;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/trees.c
+    s->bits_sent = (s->bits_sent+7) & ~7;
+========
+    s->bits_sent = (s->bits_sent + 7) & ~7;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/trees.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/trees.c
+=======
+>>>>>>> pr/231
 #endif
 }

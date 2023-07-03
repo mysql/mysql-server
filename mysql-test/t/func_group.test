@@ -1267,6 +1267,7 @@ WHERE 0 = (SELECT group_concat(b)
 DROP TABLE t1;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug#25738624: ASSERTION `FALSE' FAILED IN SQL/SQL_EXECUTOR.CC
 --echo #
 
@@ -1350,6 +1351,7 @@ DROP TABLE t1, t2, t3, t4;
 
 --echo # End of test for bug#25541454
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#29596977 MYSQL OPTIMIZER SCAN FULL INDEX FOR MAX() ON INDEXED COLUMN.
 --echo #
@@ -1432,6 +1434,9 @@ EXECUTE evc USING @vc;
 DROP TABLE t1;
 
 --echo #
+=======
+=======
+>>>>>>> pr/231
 --echo # Bug#32552332 - CAN'T WRITE; DUPLICATE KEY IN TABLE '/TMP/#SQL...'
 --echo #
 
@@ -1465,6 +1470,7 @@ SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
 
 DROP TABLE t1, tr;
 DROP FUNCTION seq_1_to_2;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug #34030363 virtual double Item_sum_std::val_real():
@@ -1504,3 +1510,6 @@ INSERT INTO t2 VALUES
 SELECT VARIANCE(value) FROM t2 GROUP BY grp;
 
 DROP TABLE t2;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

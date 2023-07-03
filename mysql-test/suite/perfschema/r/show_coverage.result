@@ -69,6 +69,11 @@ Expect 1
 SELECT @bytes_after AS 'Expect 0';
 Expect 0
 0
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> pr/231
 
 # TEST 6
 #
@@ -99,3 +104,9 @@ FLUSH STATUS;
 
 include/assert.inc [Global value requested from the default session after FLUSH must remain the same]
 include/assert.inc [Default session value after FLUSH must remain zero]
+<<<<<<< HEAD
+=======
+# CLEANUP
+set @@global.show_compatibility_56 = @show_compatibility_56_save;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

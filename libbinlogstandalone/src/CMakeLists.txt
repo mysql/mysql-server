@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +51,49 @@ SET(REPLICATION_SOURCES
 # Configure for building static library
 ADD_LIBRARY(binlogstandalone_static STATIC ${REPLICATION_SOURCES})
 
+<<<<<<< HEAD
 TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZSTD_LIBRARY})
+=======
+TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZLIB_LIBRARY})
+>>>>>>> pr/231
 
 SET_TARGET_PROPERTIES(binlogstandalone_static
   PROPERTIES OUTPUT_NAME "binlogstandalone"
   )
 
+<<<<<<< HEAD
 SET_TARGET_PROPERTIES(binlogstandalone_static
   PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogstandalone/lib
   )
+=======
+SET_TARGET_PROPERTIES(binlogstandalone_static PROPERTIES
+  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogstandalone/lib)
+<<<<<<< HEAD
+=======
+
+IF (NOT DISABLE_SHARED)
+  # Configure for building shared library
+  ADD_LIBRARY(binlogstandalone_shared SHARED ${REPLICATION_SOURCES})
+  TARGET_LINK_LIBRARIES(binlogstandalone_shared ${ZLIB_LIBRARY})
+  SET_TARGET_PROPERTIES(binlogstandalone_shared
+    PROPERTIES OUTPUT_NAME "binlogstandalone")
+  SET_TARGET_PROPERTIES(binlogstandalone_shared
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+    ${PROJECT_BINARY_DIR}/libbinlogstandalone/lib)
+
+  # For gcc on SunOS we need to add C flags to the link command
+  GET_TARGET_PROPERTY(binlogstandalone_shared_link_flags
+    binlogstandalone_shared LINK_FLAGS)
+  IF(NOT binlogstandalone_shared_link_flags)
+    SET(binlogstandalone_shared_link_flags)
+  ENDIF()
+  SET(binlogstandalone_shared_link_flags
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${binlogstandalone_shared_link_flags}")
+  SET_TARGET_PROPERTIES(binlogstandalone_shared
+    PROPERTIES LINK_FLAGS "${binlogstandalone_shared_link_flags}")
+ENDIF()
+
+# INSTALL(TARGETS binlogstandalone_shared LIBRARY DESTINATION lib)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

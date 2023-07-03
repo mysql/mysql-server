@@ -1,4 +1,8 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
+=======
+--source suite/ndb/include/ndb_find_import_tool.inc
+>>>>>>> pr/231
 
 --echo # ndb_import tests with auto inc columns:
 

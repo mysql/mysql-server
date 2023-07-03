@@ -21,6 +21,11 @@ ST_AsText(g) FROM t1;
 u='basic'	HEX(b)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(blo)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(g)='000000000101000000000000000000F03F000000000000F03F'	HEX(bi)='EE0C6D03C34C11E5'	ST_AsText(g)
 1	1	1	1	1	POINT(1 1)
 DROP TABLE t1;
+<<<<<<< HEAD
+=======
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -29,7 +34,11 @@ t1	CREATE TABLE `t1` (
   `blo` blob,
   `g` geometry DEFAULT NULL,
   `bi` bit(64) DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 SELECT
 u='basic',
 HEX(b)='EE0C6D03C34C11E5B1640026B977EB17',
@@ -40,6 +49,11 @@ ST_AsText(g) FROM t1;
 u='basic'	HEX(b)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(blo)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(g)='000000000101000000000000000000F03F000000000000F03F'	HEX(bi)='EE0C6D03C34C11E5'	ST_AsText(g)
 1	1	1	1	1	POINT(1 1)
 DROP TABLE t1;
+<<<<<<< HEAD
+=======
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -48,7 +62,11 @@ t1	CREATE TABLE `t1` (
   `blo` blob,
   `g` geometry DEFAULT NULL,
   `bi` bit(64) DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 SELECT
 u='basic',
 HEX(b)='EE0C6D03C34C11E5B1640026B977EB17',
@@ -59,7 +77,13 @@ ST_AsText(g) FROM t1;
 u='basic'	HEX(b)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(blo)='EE0C6D03C34C11E5B1640026B977EB17'	HEX(g)='000000000101000000000000000000F03F000000000000F03F'	HEX(bi)='EE0C6D03C34C11E5'	ST_AsText(g)
 1	1	1	1	1	POINT(1 1)
 DROP TABLE t1;
+<<<<<<< HEAD
 Note (Code 1007): Can't create database 'test'; database exists
+=======
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Note (Code 1007): Can't create database 'test'; database exists
+Warning (Code 3090): Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -68,7 +92,11 @@ t1	CREATE TABLE `t1` (
   `blo` blob,
   `g` geometry DEFAULT NULL,
   `bi` bit(64) DEFAULT NULL
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 SELECT
 u='basic',
 HEX(b)='EE0C6D03C34C11E5B1640026B977EB17',

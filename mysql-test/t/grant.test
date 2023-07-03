@@ -2018,7 +2018,11 @@ GRANT REFERENCES ON mysqltest_db1.* TO mysqltest_u1@localhost;
 
 --echo
 --echo # -- 
+<<<<<<< HEAD
 --echo # -- Check that DB-level CREATE VIEW allows SHOW CREATE TABLE.
+=======
+--echo # -- Check that global CREATE VIEW allows SHOW CREATE TABLE.
+>>>>>>> pr/231
 --echo # -- 
 
 --echo
@@ -2675,6 +2679,7 @@ DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
 
 --echo #
+<<<<<<< HEAD
 --echo # Regression test added in WL#8657
 --echo #
 
@@ -2723,6 +2728,18 @@ SHOW CREATE TABLE db8063.t1;
 
 DROP USER 'untrusted8063'@localhost;
 DROP DATABASE db8063;
+=======
+--echo # Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+--echo #
+
+connection default;
+CREATE USER bug33578113;
+
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+
+DROP USER bug33578113;
+>>>>>>> upstream/cluster-7.6
 
 --echo #
 --echo # Bug#30542333 CASE INSENSITIVE COMPARISON OF

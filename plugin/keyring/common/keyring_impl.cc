@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +48,23 @@ PSI_rwlock_key key_LOCK_keyring;
 
 extern mysql_rwlock_t LOCK_keyring;
 
+<<<<<<< HEAD
 std::unique_ptr<IKeys_container> keys(nullptr);
 volatile bool is_keys_container_initialized = false;
 std::unique_ptr<ILogger> logger(nullptr);
+<<<<<<< HEAD
 char *keyring_file_data(nullptr);
 bool keyring_open_mode = false;  // 0 - Read|Write|Create; 1 - Read only
+=======
+std::unique_ptr<char[]> keyring_file_data(nullptr);
+=======
+boost::movelib::unique_ptr<IKeys_container> keys(NULL);
+volatile my_bool is_keys_container_initialized= FALSE;
+boost::movelib::unique_ptr<ILogger> logger(NULL);
+boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
+my_bool keyring_open_mode= FALSE; // 0 - Read|Write|Create; 1 - Read only
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[] = {

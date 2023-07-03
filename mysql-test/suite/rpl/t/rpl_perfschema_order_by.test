@@ -14,8 +14,11 @@
 # Bug #22958077: ORDER BY LAST_SEEN_TRANSACTION RESULTS IN EMPTY SET (OR DEBUG
 #                ASSERTION)
 
+<<<<<<< HEAD
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+=======
+>>>>>>> pr/231
 --let $rpl_topology= 3->2,1->2
 --let $rpl_multi_source= 1
 --let $rpl_skip_start_slave= 1
@@ -23,24 +26,39 @@
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+<<<<<<< HEAD
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 
 --echo # Test for Single Threaded Slave
 SET GLOBAL replica_parallel_workers= 0;
+=======
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+
+--echo # Test for Single Threaded Slave
+SET GLOBAL slave_parallel_workers= 0;
+>>>>>>> pr/231
 START SLAVE;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 --echo # Test for Multi Threaded Slave
 STOP SLAVE;
+<<<<<<< HEAD
 SET GLOBAL replica_parallel_workers = 2;
+=======
+SET GLOBAL slave_parallel_workers = 2;
+>>>>>>> pr/231
 START SLAVE;
 --source extra/rpl_tests/rpl_perfschema_order_by.test
 
 #Cleanup
 STOP SLAVE;
+<<<<<<< HEAD
 --disable_warnings
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 --enable_warnings
+=======
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+>>>>>>> pr/231
 START SLAVE;
 
 --let $rpl_skip_sync= 1

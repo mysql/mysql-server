@@ -89,6 +89,17 @@ perl mysql-test-run.pl --timer --force --parallel=8 --comment=rpl_compression --
 
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
+<<<<<<< HEAD
+=======
+# Run innodb suite including big-test with innodb-page-size=4k and 8k
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=all_default_4k_size --vardir=var-all_default_4k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=all_default_8k_size --vardir=var-all_default_8k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
+
+
+# Run innodb_undo suite with innodb_undo_tablespace set to > 0
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_rollback_segments=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
+>>>>>>> upstream/cluster-7.6
 
 #######SECTION 4 : EXTENDED RUNS FOR INNODB SUITES #####
 # Run innodb suite including big-test with innodb-page-size=4k

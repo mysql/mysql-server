@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,8 +196,17 @@ bool Group_check::check_query(THD *thd) {
     ++number_in_list;
   }
 
+<<<<<<< HEAD
   // Aggregate without GROUP BY has no ORDER BY at this stage
+<<<<<<< HEAD
   assert(!(select->is_implicitly_grouped() && select->is_ordered()));
+=======
+  DBUG_ASSERT(!(select->is_implicitly_grouped() && select->is_ordered()));
+=======
+  // aggregate without GROUP BY has no ORDER BY at this stage.
+  assert(!(select->is_implicitly_grouped() && select->is_ordered()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   // Validate ORDER BY list
   if (order) {
     number_in_list = 1;
@@ -264,9 +281,18 @@ err:
    @param  in_select_list  whether this expression is coming from the SELECT
    list.
 */
+<<<<<<< HEAD
 bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
   assert(!is_child());
   if (!in_select_list) {
+=======
+bool Group_check::check_expression(THD *thd, Item *expr,
+                                   bool in_select_list)
+{
+  assert(!is_child());
+  if (!in_select_list)
+  {
+>>>>>>> upstream/cluster-7.6
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
@@ -280,9 +306,20 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
     }
   }
 
+<<<<<<< HEAD
   expr = unwrap_rollup_group(expr);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
+=======
+  for (ORDER *grp= select->group_list.first; grp; grp= grp->next)
+  {
+    if ((*grp->item)->type() == Item::INT_ITEM &&
+        (*grp->item)->basic_const_item()) /* group by position */
+      return false;
+>>>>>>> upstream/cluster-7.6
     if ((*grp->item)->eq(expr, false))
       return false;  // Expression is in GROUP BY so is ok
   }
@@ -462,10 +499,25 @@ bool Group_check::is_fd_on_source(Item *item) {
     map_of_new_fds &= ~PSEUDO_TABLE_BITS;
     if (map_of_new_fds != 0)  // something new, check again
     {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT((map_of_new_fds & PSEUDO_TABLE_BITS) == 0);
+>>>>>>> pr/231
       if (is_in_fd(item)) return true;
       // Recheck keys only in tables with something new:
       tested_map_for_keys &= ~map_of_new_fds;
     } else {
+=======
+      assert((map_of_new_fds & PSEUDO_TABLE_BITS) == 0);
+      if (is_in_fd(item))
+        return true;
+       // Recheck keys only in tables with something new:
+      tested_map_for_keys&= ~map_of_new_fds;
+    }
+    else
+    {
+>>>>>>> upstream/cluster-7.6
       // If already searched in expressions underlying identifiers.
       if (search_in_underlying) return false;
 
@@ -582,6 +634,7 @@ void Group_check::find_group_in_fd(Item *item) {
    @returns the idx-th expression in the SELECT list of our query block.
 */
 Item *Group_check::select_expression(uint idx) {
+<<<<<<< HEAD
   for (Item *item : select->visible_fields()) {
     if (idx == 0) {
       return item;
@@ -591,6 +644,20 @@ Item *Group_check::select_expression(uint idx) {
   }
   assert(false);
   return nullptr;
+=======
+  List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
+<<<<<<< HEAD
+  Item *expr_under = NULL;
+  for (uint k = 0; k <= idx; k++) expr_under = it_select_list_of_subq++;
+  DBUG_ASSERT(expr_under);
+=======
+  Item *expr_under;
+  for (uint k= 0; k <= idx ; k++)
+    expr_under= it_select_list_of_subq++;
+  assert(expr_under);
+>>>>>>> upstream/cluster-7.6
+  return expr_under;
+>>>>>>> pr/231
 }
 
 /**
@@ -763,8 +830,18 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       todo When we eliminate all uses of cached_table, we can probably add a
       derived_table_ref field to Item_view_ref objects and use it here.
     */
+<<<<<<< HEAD
     Table_ref *const tl = item->cached_table;
     assert(tl->is_view_or_derived());
+=======
+<<<<<<< HEAD
+    TABLE_LIST *const tl = item->cached_table;
+    DBUG_ASSERT(tl->is_view_or_derived());
+=======
+    TABLE_LIST *const tl= item->cached_table;
+    assert(tl->is_view_or_derived());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       We might find expression-based FDs in the result of the view's query
       expression; but if this view is on the weak side of an outer join,
@@ -799,9 +876,21 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
     Table_ref *const tl = item_field->field->table->pos_in_table_list;
     if (item_field->field->is_gcol())  // Generated column
     {
+<<<<<<< HEAD
       assert(!tl->uses_materialization());
       Item *const expr = item_field->field->gcol_info->expr_item;
       assert(expr->fixed);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!tl->uses_materialization());
+      Item *const expr = item_field->field->gcol_info->expr_item;
+      DBUG_ASSERT(expr->fixed);
+=======
+      assert(!tl->uses_materialization());
+      Item *const expr= item_field->field->gcol_info->expr_item;
+      assert(expr->fixed);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       Used_tables ut(select);
       item_field->used_tables_for_level(pointer_cast<uchar *>(&ut));
       const bool weak_side_upwards = tl->is_inner_table_of_outer_join();
@@ -1033,7 +1122,15 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
         This may be constant=right_item and thus not be an NFFD, but WHERE is
         exterior to join nests so propagation is not needed.
       */
+<<<<<<< HEAD
       assert(!weak_side_upwards);  // cannot be inner join
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!weak_side_upwards);  // cannot be inner join
+=======
+      assert(!weak_side_upwards);          // cannot be inner join
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       add_to_fd(right_item, true);
     } else {
       // Outer join. So condition must be deterministic.

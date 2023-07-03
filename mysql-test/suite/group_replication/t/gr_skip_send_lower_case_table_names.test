@@ -14,9 +14,15 @@
 ################################################################################
 
 --source include/have_debug.inc
+<<<<<<< HEAD
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+>>>>>>> pr/231
 
 --echo
 --echo ## 1.  Set debug flag so server1 does not send its value of
@@ -28,7 +34,11 @@
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
 
+<<<<<<< HEAD
 --source include/start_and_bootstrap_group_replication.inc
+=======
+--source ../inc/start_and_bootstrap_group_replication.inc
+>>>>>>> pr/231
 
 --echo
 --echo ## 2.  Start server2.
@@ -55,4 +65,8 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_lower_case_table_names';
 --echo ## 4.  Cleanup.
 --echo
 SET @@GLOBAL.DEBUG= @debug_save;
+<<<<<<< HEAD
 --source include/group_replication_end.inc
+=======
+--source ../inc/group_replication_end.inc
+>>>>>>> pr/231

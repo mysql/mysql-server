@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +24,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
 ADD_WSHADOW_WARNING()
+=======
+INCLUDE_DIRECTORIES(
+<<<<<<< HEAD
+=======
+  ${CMAKE_SOURCE_DIR}/client
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/mysys_ssl
+  ${SSL_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/libmysql
+>>>>>>> upstream/cluster-7.6
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+)
+>>>>>>> pr/231
 
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
@@ -247,6 +265,7 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   LINK_LIBRARIES ${MYSQLBINLOG_LIBRARIES}
   )
 
+<<<<<<< HEAD
 # __builtin_strncpy specified bound depends on the length of the source argument
 # mysqlbinlog.cc:2169:22: note: length computed here
 IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND
@@ -254,6 +273,10 @@ IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND
     CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11)
   MY_TARGET_LINK_OPTIONS(mysqlbinlog "-Wno-stringop-truncation")
 ENDIF()
+=======
+MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
+TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL_SOLARIS} mysqlclient)
+>>>>>>> pr/231
 
 IF(WITH_JSON_BINLOG_LIBRARY)
   IF(APPLE)
@@ -268,6 +291,7 @@ IF(WITH_JSON_BINLOG_LIBRARY)
   ENDIF()
 ENDIF()
 
+<<<<<<< HEAD
 TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
 TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
 
@@ -295,6 +319,25 @@ MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
   path.cc
   LINK_LIBRARIES mysys
   )
+=======
+<<<<<<< HEAD
+=======
+IF(UNIX AND NOT WITHOUT_SERVER)
+  MYSQL_ADD_EXECUTABLE(mysql_install_db
+    mysql_install_db.cc auth_utils.cc path.cc logger.cc)
+  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL_SOLARIS} mysqlclient)
+  ADD_COMPILE_FLAGS(
+    auth_utils.cc mysql_install_db.cc
+    COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
+    )
+  ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv GenSysSchema)
+ENDIF()
+
+>>>>>>> upstream/cluster-7.6
+MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
+TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
+SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
+>>>>>>> pr/231
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

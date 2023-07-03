@@ -1,6 +1,10 @@
 CREATE TABLE g (
 id INT PRIMARY KEY,
+<<<<<<< HEAD
 p GEOMETRY NOT NULL SRID 0,
+=======
+p GEOMETRY NOT NULL,
+>>>>>>> pr/231
 SPATIAL KEY p_idx(p)
 ) ENGINE=InnoDB;
 create procedure populate_g(IN `rows` INT)

@@ -103,7 +103,12 @@ ANALYZE TABLE t6;
 connection con1;
 use mysqltest_db1;
 --echo ** Connect as restricted user mysqltest_u1.
+<<<<<<< HEAD
 --echo ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
+=======
+--echo # The user does not have table level grants on table t5. Hence cannot get
+--echo # information about it from INFORMATION_SCHEMA.STATISTICS
+>>>>>>> upstream/cluster-7.6
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
 #
 # Bug27145 EXTRA_ACL trouble

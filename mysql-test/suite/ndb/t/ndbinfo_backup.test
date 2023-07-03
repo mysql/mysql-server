@@ -1,6 +1,9 @@
 --source include/have_ndb.inc
 --source have_ndb_error_insert.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+>>>>>>> pr/231
 
 create table t1(id int primary key, val blob) engine=ndb;
 
@@ -71,5 +74,8 @@ while($mysql_errno)
 
 --echo "Backup complete, backup buffer usage should return to zero"
 select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

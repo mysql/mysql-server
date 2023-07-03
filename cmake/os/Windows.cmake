@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -148,10 +153,17 @@ IF(MSVC)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
 
+<<<<<<< HEAD
   FOREACH(flag
       CMAKE_C_FLAGS_MINSIZEREL
       CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO
       CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT
+=======
+  FOREACH(flag 
+      CMAKE_C_FLAGS_MINSIZEREL
+      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
+      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
+>>>>>>> pr/231
       CMAKE_CXX_FLAGS_MINSIZEREL
       CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
       CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
@@ -164,9 +176,26 @@ IF(MSVC)
       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
     ENDIF()
     SET("${flag}" "${${flag}} /EHsc")
+<<<<<<< HEAD
     # Due to a bug in VS2019 we need the full paths of files in error messages
     # See bug #30255096 for details
     SET("${flag}" "${${flag}} /FC")
+=======
+  ENDFOREACH()
+  
+  FOREACH(type EXE SHARED MODULE)
+<<<<<<< HEAD
+    SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
+	    "${CMAKE_${type}_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+    SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
+	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
+=======
+    FOREACH(config DEBUG RELWITHDEBINFO RELEASE MINSIZEREL)
+      SET(flag "CMAKE_${type}_LINKER_FLAGS_${config}")
+      SET("${flag}" "${${flag}} /INCREMENTAL:NO")
+    ENDFOREACH()
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ENDFOREACH()
 
   # Turn on c++17 mode explicitly so that using c++20 features is disabled.

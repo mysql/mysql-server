@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,6 +25,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
+=======
+
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+<<<<<<< HEAD
+=======
+  ${CMAKE_SOURCE_DIR}/sql 
+  ${CMAKE_SOURCE_DIR}/sql/auth
+  ${CMAKE_SOURCE_DIR}/regex 
+  ${SSL_INCLUDE_DIRS}
+  ${CMAKE_BINARY_DIR}/sql
+>>>>>>> upstream/cluster-7.6
+)
+>>>>>>> pr/231
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
@@ -580,6 +600,7 @@ SET(SQL_SHARED_SOURCES
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
+  sql_cmd_show.cc
   sql_show.cc
   sql_show_status.cc
   sql_show_processlist.cc
@@ -762,11 +783,23 @@ SET(SQL_SOURCE
   ${GEN_KEYWORD_LIST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+<<<<<<< HEAD
   ${SQL_HEADERS}
   ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
+=======
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  ../libmysql/errmsg.c
+  ../sql-common/client.c
+  ../sql-common/client_plugin.c
+  ../sql-common/get_password.c
+  ../sql-common/my_path_permissions.cc
+  ../sql-common/my_time.c
+  ../sql-common/my_user.c 
+  ../sql-common/pack.c
+>>>>>>> upstream/cluster-7.6
   ../sql-common/client_authentication.cc
   ../sql-common/compression.cc
   ../sql-common/get_password.cc
@@ -788,6 +821,10 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
   conn_handler/init_net_server_extension.cc
+<<<<<<< HEAD
+=======
+  des_key_file.cc
+>>>>>>> upstream/cluster-7.6
   event_data_objects.cc
   event_db_repository.cc
   event_parse_data.cc
@@ -802,6 +839,7 @@ SET(SQL_SOURCE
   srv_session.cc
   srv_session_info_service.cc
   srv_session_service.cc
+  auth/sha2_password_common.cc
   )
 
 IF(NOT HAVE_SETNS)
@@ -821,9 +859,84 @@ IF(WIN32)
       )
 ENDIF()
 
+<<<<<<< HEAD
 MY_ADD_COMPILE_DEFINITIONS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
+=======
+<<<<<<< HEAD
+=======
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+
+ADD_COMPILE_FLAGS(
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_ -I${BUNDLED_LZ4_PATH}
+)
+
+ADD_COMPILE_FLAGS(
+  rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
+
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+  ADD_COMPILE_FLAGS(item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
+ENDIF()
+
+# Boost source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  ADD_COMPILE_FLAGS(
+    debug_sync.cc
+    handler.cc
+    geometry_rtree.cc
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_internal.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    item_json_func.cc
+    spatial.cc
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+
+>>>>>>> upstream/cluster-7.6
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "REL")
+    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
+ENDIF()
+
+<<<<<<< HEAD
+# Assertion in Developer Studio 12.5 (fixed in 12.6 beta).
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+=======
+# MD5_Init() MD5_Update() MD5_Final() are all deprecated
+IF(SOLARIS AND CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    des_key_file.cc
+    item_strfunc.cc
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+>>>>>>> upstream/cluster-7.6
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-DBOOST_NO_CXX11_VARIADIC_TEMPLATES"
+>>>>>>> pr/231
   )
 
 # Workaround for Apple Clang bug on ARM.
@@ -918,6 +1031,14 @@ IF(WIN32)
   # conversion from 'uint' to 'Item *' of greater size
   ADD_COMPILE_FLAGS(range_optimizer/range_analysis.cc
     COMPILE_FLAGS "/wd4312")
+ENDIF()
+
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
@@ -1088,6 +1209,26 @@ ADD_DEPENDENCIES(slave GenError)
 TARGET_LINK_LIBRARIES(slave
   binlog sql_main ${PROTOBUF_LITE_LIBRARY} ${RPL_PROTOBUF_LITE_LIB})
 
+<<<<<<< HEAD
+=======
+######################### GUnit Lib #################################
+
+SET(SQL_GUNIT_LIB_SOURCE 
+  filesort_utils.cc 
+  mdl.cc 
+  sql_list.cc 
+  ../sql-common/sql_string.cc
+  thr_malloc.cc
+  locks/shared_spin_lock.cc
+  )
+
+ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_DEPENDENCIES(sqlgunitlib GenError)
+
+######################### GUnit Lib #################################
+
+
+>>>>>>> upstream/cluster-7.6
 IF(WIN32)
   # Silence warnings about: needs to have dll-interface
   TARGET_COMPILE_OPTIONS(slave PRIVATE "/wd4251")
@@ -1266,8 +1407,37 @@ IF(SOLARIS)
   TARGET_LINK_LIBRARIES(mysqld mtmalloc)
 ENDIF()
 
+<<<<<<< HEAD
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
+=======
+# Plugins may need more symbols than the server does.
+IF(UNIX AND STATIC_SSL_LIBRARY)
+  IF(APPLE)
+    TARGET_LINK_LIBRARIES(mysqld
+      -Wl,-force_load ${CRYPTO_LIBRARY}
+      -Wl,-force_load ${OPENSSL_LIBRARY}
+      )
+  ELSE()
+    TARGET_LINK_LIBRARIES(mysqld
+      -Wl,--whole-archive ${SSL_LIBRARIES} -Wl,--no-whole-archive
+      )
+  ENDIF()
+ENDIF()
+
+# Provide plugins with minimal set of libraries
+SET(INTERFACE_LIBS ${LIBRT})
+IF(INTERFACE_LIBS)
+ SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
+  "${INTERFACE_LIBS}")
+ENDIF()
+
+# On Solaris, some extra effort is required in order to get dtrace probes
+# from static libraries
+DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
+ "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS}")
+ 
+>>>>>>> upstream/cluster-7.6
 
 IF(TARGET copy_jemalloc_dll)
   ADD_DEPENDENCIES(mysqld copy_jemalloc_dll)

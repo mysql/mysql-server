@@ -41,7 +41,11 @@ SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
 SET DEBUG_SYNC='now SIGNAL waiting';
 SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
 [connection server_1]
+<<<<<<< HEAD
 ERROR 40000: Plugin instructed the server to rollback the current transaction.
+=======
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+>>>>>>> pr/231
 
 ############################################################
 #  7. Make sure the pipeline is suspended on server2.

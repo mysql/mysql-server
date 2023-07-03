@@ -311,8 +311,21 @@ while ($i <= $number_of_channels)
   # Step 4.4: SHOW SLAVE STATUS FOR CHANNEL 'channel_name'
   #############################################################################
 
+<<<<<<< HEAD
   --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel $channel_name.
 
+<<<<<<< HEAD
+=======
+    # Wait until slave threads are synced with master
+    --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_sql" AND PROCESSLIST_STATE="Slave has read all relay log; waiting for more updates";
+  --source include/wait_condition_or_abort.inc
+  --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_io" AND PROCESSLIST_STATE="Waiting for master to send event";
+  --source include/wait_condition_or_abort.inc
+=======
+  --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel '$channel_name'.
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   --let $status_items=Slave_IO_State,Slave_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
   --let $rpl_channel_name=$channel_name
 
@@ -321,11 +334,19 @@ while ($i <= $number_of_channels)
   --let $slave_timeout= 60
 
   --let $slave_param= Slave_IO_State
+<<<<<<< HEAD
   --let $slave_param_value= Waiting for source to send event
   --source include/wait_for_slave_param.inc
 
   --let $slave_param= Slave_SQL_Running_State
   --let $slave_param_value= Replica has read all relay log; waiting for more updates
+=======
+  --let $slave_param_value= Waiting for master to send event
+  --source include/wait_for_slave_param.inc
+
+  --let $slave_param= Slave_SQL_Running_State
+  --let $slave_param_value= Slave has read all relay log; waiting for more updates
+>>>>>>> pr/231
   --source include/wait_for_slave_param.inc
 
   --let $status_items=Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name

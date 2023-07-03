@@ -6,6 +6,11 @@
 # Creation Date: 2019-12-22
 # Author : Pedro Figueiredo
 
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+
+>>>>>>> pr/231
 --let $saved_global_replication_sender_observe_commit_only = `SELECT @@global.replication_sender_observe_commit_only`
 
 ####################################################################

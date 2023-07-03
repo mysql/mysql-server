@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,6 +276,15 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   void finalize_xcom();
 
+<<<<<<< HEAD:plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h
+=======
+  /**
+    Triggers the termination of GCS when an error has caused XCom to terminate
+    unexpectedly.
+  */
+  void make_gcs_leave_group_on_error();
+
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h
   /**
     Makes GCS leave the group when an error has caused XCom to terminate
     unexpectedly.

@@ -1,0 +1,115 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that GTID_PURGED variable is
+# properly set when binlogs need to be purged by means of
+# `expire_logs_days` usage during server startup process.
+#
+# ==== Requirements ====
+#
+# R1. When `expire_logs_days` has been expired upon server
+#     restart, binary logs should be purged and GTID_PURGED should be updated
+#     accordingly.
+#
+# ==== Implementation ====
+#
+# TC1. Restart the server with simulated `expire_logs_days` expiration
+# ---------------------------------------------------------------------------
+# 1. Create a table.
+# 2. Stop the server.
+# 3. Start the server with `--expire-logs-days` sinthetically set to
+#    expire.
+# 4. Ensure GTID_PURGED is set at the correct value.
+# 5. Ensure that we have only one binary log file.
+#
+# TC2. Restart the server with simulated `expire_logs_days`
+#      expiration and after flush
+# ----------------------------------------------------------------
+# 1. Create a table.
+# 2. Flush the logs.
+# 3. Insert a row.
+# 4. Stop the server.
+# 5. Start the server with `--expire-logs-days` sinthetically set to
+#    expire.
+# 6. Ensure GTID_PURGED is set at the correct value.
+# 7. Ensure that we have only one binary log file.
+#
+# ==== References ====
+#
+# BUG#32008512 ASSERTION `LOST_GTIDS->IS_EMPTY()' FAILED WHEN MYSQLD
+#              STARTED
+# BUG#32134875 PURGE BINLOG IN INSTANCE STARTUP CAUSE PREVIOUS_GTIDS WRONG
+#              IN NEW BINLOG FILE
+#
+--source include/have_binlog_format_row.inc
+--source include/have_gtid.inc
+--source include/have_debug.inc
+
+--let $saved_debug = `SELECT @@debug`
+
+# TC1. Restart the server with simulated `expire_logs_days` expiration
+# ---------------------------------------------------------------------------
+--let $debug_point = "+d,expire_logs_always_at_start"
+RESET MASTER;
+# 1. Create a table.
+CREATE TABLE t (a INT);
+
+# 2. Stop the server.
+--source include/stop_mysqld.inc
+# 3. Start the server with `--expire-logs-days` sinthetically set to
+#    expire.
+--let $restart_parameters = restart: --debug=$debug_point --expire-logs-days=1
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@server_uuid`
+
+# 4. Ensure GTID_PURGED is set at the correct value.
+--let $assert_text = GTID_PURGED is consistent
+--let $assert_cond = "[SELECT @@gtid_purged]" = "$server_uuid:1"
+--source include/assert.inc
+
+# 5. Ensure that we have only one binary log file.
+--let $statement = SHOW BINARY LOGS
+--let $column = Log_name
+--source include/get_row_count.inc
+--let $assert_text = We have 1 binlog file
+--let $assert_cond = $row_count = 1
+--source include/assert.inc
+
+DROP TABLE t;
+
+# TC2. Restart the server with simulated `expire_logs_days`
+#      expiration and after flush
+# ----------------------------------------------------------------
+--let $debug_point = "+d,expire_logs_always_at_start"
+RESET MASTER;
+# 1. Create a table.
+CREATE TABLE t (a INT);
+# 2. Flush the logs.
+FLUSH LOGS;
+# 3. Insert a row
+INSERT INTO t VALUES (1), (2), (3);
+
+# 4. Stop the server.
+--source include/stop_mysqld.inc
+# 5. Start the server with `--expire-logs-days` sinthetically set to
+#    expire.
+--let $restart_parameters = restart: --debug=$debug_point --expire-logs-days=1
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@server_uuid`
+
+# 7. Ensure GTID_PURGED is set at the correct value.
+--let $assert_text = GTID_PURGED is consistent
+--let $assert_cond = "[SELECT @@gtid_purged]" = "$server_uuid:1-2"
+--source include/assert.inc
+
+# 8. Ensure that we have only one binary log file.
+--let $statement = SHOW BINARY LOGS
+--let $column = Log_name
+--source include/get_row_count.inc
+--let $assert_text = We have 1 binlog file
+--let $assert_cond = $row_count = 1
+--source include/assert.inc
+
+DROP TABLE t;
+SET GLOBAL debug = "-d,expire_logs_always_at_start";

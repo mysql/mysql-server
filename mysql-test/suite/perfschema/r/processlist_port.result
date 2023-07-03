@@ -25,7 +25,11 @@ flush privileges;
 
 show grants for user1@localhost;
 Grants for user1@localhost
+<<<<<<< HEAD
 GRANT USAGE ON *.* TO `user1`@`localhost`
+=======
+GRANT USAGE ON *.* TO 'user1'@'localhost'
+>>>>>>> pr/231
 
 # Connect (con_user0, 127.0.0.1, user0, , , MASTER_MYPORT, )
 
@@ -54,6 +58,7 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
@@ -62,6 +67,16 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+>>>>>>> pr/231
 
 # Information Schema processlist table
 
@@ -94,6 +109,7 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
+<<<<<<< HEAD
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
@@ -102,6 +118,16 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+=======
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+>>>>>>> pr/231
 
 # Information Schema processlist table
 

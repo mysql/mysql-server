@@ -38,6 +38,33 @@ where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 count(*)
 4
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# simple hidden-pk test
+create table t3 (
+b int not null,
+# unique key would turn into pk
+key bx (b)
+) engine=ndb;
+create table t3ver like t3;
+select count(*) from t3;
+count(*)
+1000
+select count(*) from t3ver;
+count(*)
+1000
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+count(*)
+1000
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # test with rejects and no --keep-state
 create table t4 (
 a int primary key,
@@ -157,13 +184,19 @@ last_name VARCHAR(16) NOT NULL COLUMN_FORMAT FIXED,
 gender CHAR(1) NOT NULL,
 date_died DATE NOT NULL
 ) engine=ndb CHARACTER SET latin1;
+<<<<<<< HEAD
 include/assert_grep.inc [Require CSV parser to fail with syntax error]
+=======
+>>>>>>> pr/231
 create table t10 (
 a int primary key,
 b int not null,
 c varchar(16) not null
 ) engine=ndb CHARACTER SET latin1;
+<<<<<<< HEAD
 include/assert_grep.inc [No --table argument and csv filename does not match any table name]
+=======
+>>>>>>> pr/231
 delete from t10;
 create table t10ver like t10;
 select count(*) from t10 x, t10ver y
@@ -175,6 +208,7 @@ delete from t10;
 # check .rej file matching the table name does not exists
 delete from t10;
 # check order matters when using --csvopt and --fields-terminated-by
+<<<<<<< HEAD
 create table t11 (
 a varchar(16) null
 ) engine=ndb CHARACTER SET latin1;
@@ -216,3 +250,8 @@ drop table tpersons;
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
 t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
 t11, t11ver, t12, t12ver;
+=======
+drop table tpersons;
+drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
+t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver;
+>>>>>>> pr/231

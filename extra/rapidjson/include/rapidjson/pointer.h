@@ -21,7 +21,17 @@
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(switch-enum)
+<<<<<<< HEAD
 #elif defined(_MSC_VER)
+=======
+<<<<<<< HEAD
+#endif
+
+#ifdef _MSC_VER
+=======
+#elif defined(_MSC_VER)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(4512) // assignment operator could not be generated
 #endif
@@ -163,12 +173,22 @@ public:
     GenericPointer(const Token* tokens, size_t tokenCount) : allocator_(), ownAllocator_(), nameBuffer_(), tokens_(const_cast<Token*>(tokens)), tokenCount_(tokenCount), parseErrorOffset_(), parseErrorCode_(kPointerParseErrorNone) {}
 
     //! Copy constructor.
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    GenericPointer(const GenericPointer& rhs, Allocator* allocator = 0) : allocator_(allocator), ownAllocator_(), nameBuffer_(), tokens_(), tokenCount_(), parseErrorOffset_(), parseErrorCode_(kPointerParseErrorNone) {
+=======
+>>>>>>> pr/231
     GenericPointer(const GenericPointer& rhs) : allocator_(rhs.allocator_), ownAllocator_(), nameBuffer_(), tokens_(), tokenCount_(), parseErrorOffset_(), parseErrorCode_(kPointerParseErrorNone) {
         *this = rhs;
     }
 
     //! Copy constructor.
     GenericPointer(const GenericPointer& rhs, Allocator* allocator) : allocator_(allocator), ownAllocator_(), nameBuffer_(), tokens_(), tokenCount_(), parseErrorOffset_(), parseErrorCode_(kPointerParseErrorNone) {
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         *this = rhs;
     }
 
@@ -200,6 +220,11 @@ public:
         return *this;
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> pr/231
     //! Swap the content of this pointer with an other.
     /*!
         \param other The pointer to swap with.
@@ -230,6 +255,10 @@ public:
      */
     friend inline void swap(GenericPointer& a, GenericPointer& b) RAPIDJSON_NOEXCEPT { a.Swap(b); }
 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     //@}
 
     //!@name Append token
@@ -273,7 +302,15 @@ public:
     template <typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch> >), (GenericPointer))
     Append(T* name, Allocator* allocator = 0) const {
+<<<<<<< HEAD
         return Append(name, internal::StrLen(name), allocator);
+=======
+<<<<<<< HEAD
+        return Append(name, StrLen(name), allocator);
+=======
+        return Append(name, internal::StrLen(name), allocator);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
 #if RAPIDJSON_HAS_STDSTRING
@@ -307,7 +344,15 @@ public:
         else {
             Ch name[21];
             for (size_t i = 0; i <= length; i++)
+<<<<<<< HEAD
                 name[i] = static_cast<Ch>(buffer[i]);
+=======
+<<<<<<< HEAD
+                name[i] = buffer[i];
+=======
+                name[i] = static_cast<Ch>(buffer[i]);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
             Token token = { name, length, index };
             return Append(token, allocator);
         }
@@ -386,6 +431,11 @@ public:
     */
     bool operator!=(const GenericPointer& rhs) const { return !(*this == rhs); }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> pr/231
     //! Less than operator.
     /*!
         \note Invalid pointers are always greater than valid ones.
@@ -413,6 +463,10 @@ public:
         return false;
     }
 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     //@}
 
     //!@name Stringify
@@ -488,11 +542,26 @@ public:
                     v = &((*v)[t->index]);
                 }
                 else {
+<<<<<<< HEAD
                     typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
                     if (m == v->MemberEnd()) {
                         v->AddMember(ValueType(t->name, t->length, allocator).Move(), ValueType().Move(), allocator);
                         m = v->MemberEnd();
                         v = &(--m)->value; // Assumes AddMember() appends at the end
+=======
+<<<<<<< HEAD
+                    typename ValueType::MemberIterator m = v->FindMember(GenericStringRef<Ch>(t->name, t->length));
+                    if (m == v->MemberEnd()) {
+                        v->AddMember(ValueType(t->name, t->length, allocator).Move(), ValueType().Move(), allocator);
+                        v = &(--v->MemberEnd())->value; // Assumes AddMember() appends at the end
+=======
+                    typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
+                    if (m == v->MemberEnd()) {
+                        v->AddMember(ValueType(t->name, t->length, allocator).Move(), ValueType().Move(), allocator);
+                        m = v->MemberEnd();
+                        v = &(--m)->value; // Assumes AddMember() appends at the end
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
                         exist = false;
                     }
                     else
@@ -544,7 +613,15 @@ public:
             switch (v->GetType()) {
             case kObjectType:
                 {
+<<<<<<< HEAD
                     typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
+=======
+<<<<<<< HEAD
+                    typename ValueType::MemberIterator m = v->FindMember(GenericStringRef<Ch>(t->name, t->length));
+=======
+                    typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
                     if (m == v->MemberEnd())
                         break;
                     v = &m->value;
@@ -593,14 +670,30 @@ public:
     */
     ValueType& GetWithDefault(ValueType& root, const ValueType& defaultValue, typename ValueType::AllocatorType& allocator) const {
         bool alreadyExist;
+<<<<<<< HEAD
         ValueType& v = Create(root, allocator, &alreadyExist);
+=======
+<<<<<<< HEAD
+        Value& v = Create(root, allocator, &alreadyExist);
+=======
+        ValueType& v = Create(root, allocator, &alreadyExist);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         return alreadyExist ? v : v.CopyFrom(defaultValue, allocator);
     }
 
     //! Query a value in a subtree with default null-terminated string.
     ValueType& GetWithDefault(ValueType& root, const Ch* defaultValue, typename ValueType::AllocatorType& allocator) const {
         bool alreadyExist;
+<<<<<<< HEAD
         ValueType& v = Create(root, allocator, &alreadyExist);
+=======
+<<<<<<< HEAD
+        Value& v = Create(root, allocator, &alreadyExist);
+=======
+        ValueType& v = Create(root, allocator, &alreadyExist);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         return alreadyExist ? v : v.SetString(defaultValue, allocator);
     }
 
@@ -608,7 +701,15 @@ public:
     //! Query a value in a subtree with default std::basic_string.
     ValueType& GetWithDefault(ValueType& root, const std::basic_string<Ch>& defaultValue, typename ValueType::AllocatorType& allocator) const {
         bool alreadyExist;
+<<<<<<< HEAD
         ValueType& v = Create(root, allocator, &alreadyExist);
+=======
+<<<<<<< HEAD
+        Value& v = Create(root, allocator, &alreadyExist);
+=======
+        ValueType& v = Create(root, allocator, &alreadyExist);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         return alreadyExist ? v : v.SetString(defaultValue, allocator);
     }
 #endif
@@ -780,7 +881,15 @@ public:
             switch (v->GetType()) {
             case kObjectType:
                 {
+<<<<<<< HEAD
                     typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
+=======
+<<<<<<< HEAD
+                    typename ValueType::MemberIterator m = v->FindMember(GenericStringRef<Ch>(t->name, t->length));
+=======
+                    typename ValueType::MemberIterator m = v->FindMember(GenericValue<EncodingType>(GenericStringRef<Ch>(t->name, t->length)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
                     if (m == v->MemberEnd())
                         return false;
                     v = &m->value;
@@ -819,7 +928,15 @@ private:
     */
     Ch* CopyFromRaw(const GenericPointer& rhs, size_t extraToken = 0, size_t extraNameBufferSize = 0) {
         if (!allocator_) // allocator is independently owned.
+<<<<<<< HEAD
             ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
+=======
+<<<<<<< HEAD
+            ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator());
+=======
+            ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         size_t nameBufferSize = rhs.tokenCount_; // null terminators for tokens
         for (Token *t = rhs.tokens_; t != rhs.tokens_ + rhs.tokenCount_; ++t)
@@ -867,7 +984,15 @@ private:
 
         // Create own allocator if user did not supply.
         if (!allocator_)
+<<<<<<< HEAD
             ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
+=======
+<<<<<<< HEAD
+            ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator());
+=======
+            ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         // Count number of '/' as tokenCount
         tokenCount_ = 0;
@@ -1090,8 +1215,18 @@ private:
             unsigned char u = static_cast<unsigned char>(c);
             static const char hexDigits[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
             os_.Put('%');
+<<<<<<< HEAD
             os_.Put(static_cast<typename OutputStream::Ch>(hexDigits[u >> 4]));
             os_.Put(static_cast<typename OutputStream::Ch>(hexDigits[u & 15]));
+=======
+<<<<<<< HEAD
+            os_.Put(hexDigits[u >> 4]);
+            os_.Put(hexDigits[u & 15]);
+=======
+            os_.Put(static_cast<typename OutputStream::Ch>(hexDigits[u >> 4]));
+            os_.Put(static_cast<typename OutputStream::Ch>(hexDigits[u & 15]));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         }
     private:
         OutputStream& os_;
@@ -1408,7 +1543,19 @@ bool EraseValueByPointer(T& root, const CharType(&source)[N]) {
 
 RAPIDJSON_NAMESPACE_END
 
+<<<<<<< HEAD
 #if defined(__clang__) || defined(_MSC_VER)
+=======
+<<<<<<< HEAD
+#ifdef __clang__
+RAPIDJSON_DIAG_POP
+#endif
+
+#ifdef _MSC_VER
+=======
+#if defined(__clang__) || defined(_MSC_VER)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 RAPIDJSON_DIAG_POP
 #endif
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +26,10 @@
 
 # cmake -DWITH_LDAP=system|</path/to/custom/installation>
 # system is the default
+<<<<<<< HEAD
 # Custom path is only supported for LINUX_STANDALONE platforms.
+=======
+>>>>>>> pr/231
 
 INCLUDE (CheckIncludeFile)
 INCLUDE (CheckIncludeFiles)
@@ -32,6 +39,7 @@ STRING_APPEND(WITH_LDAP_DOC ", \n</path/to/custom/installation>")
 
 STRING(REPLACE "\n" "| " WITH_LDAP_DOC_STRING "${WITH_LDAP_DOC}")
 
+<<<<<<< HEAD
 FUNCTION(WARN_MISSING_SYSTEM_LDAP OUTPUT_WARNING)
   IF(NOT LDAP_FOUND AND WITH_LDAP STREQUAL "system")
     MESSAGE(WARNING "Cannot find LDAP development libraries. "
@@ -44,6 +52,8 @@ FUNCTION(WARN_MISSING_SYSTEM_LDAP OUTPUT_WARNING)
   ENDIF()
 ENDFUNCTION()
 
+=======
+>>>>>>> pr/231
 MACRO(FIND_SYSTEM_LDAP)
   IF(WIN32)
     SET(LDAP_SYSTEM_LIBRARY Wldap32 CACHE INTERNAL
@@ -91,6 +101,13 @@ MACRO(FIND_CUSTOM_LDAP)
     NO_SYSTEM_ENVIRONMENT_PATH
     )
 
+<<<<<<< HEAD
+=======
+  # On mac this list is <.dylib;.so;.a>
+  # We prefer static libraries, so we reverse it here.
+  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+
+>>>>>>> pr/231
   FIND_LIBRARY(LDAP_CUSTOM_LIBRARY
     NAMES ldap_r ldap
     PATHS ${WITH_LDAP_PATH}/lib
@@ -106,6 +123,11 @@ MACRO(FIND_CUSTOM_LDAP)
     NO_SYSTEM_ENVIRONMENT_PATH
     )
 
+<<<<<<< HEAD
+=======
+  LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+
+>>>>>>> pr/231
   IF(LDAP_INCLUDE_DIR)
     INCLUDE_DIRECTORIES(BEFORE SYSTEM ${LDAP_INCLUDE_DIR})
 
@@ -119,6 +141,13 @@ MACRO(FIND_CUSTOM_LDAP)
   IF(LDAP_CUSTOM_LIBRARY AND LBER_CUSTOM_LIBRARY)
     SET(LDAP_LIBRARY ${LDAP_CUSTOM_LIBRARY})
     SET(LBER_LIBRARY ${LBER_CUSTOM_LIBRARY})
+<<<<<<< HEAD
+=======
+    GET_FILENAME_COMPONENT(LDAP_LIBRARY_EXT ${LDAP_LIBRARY} EXT)
+    IF(LDAP_LIBRARY_EXT STREQUAL ".a")
+      SET(STATIC_LDAP_LIBRARY 1)
+    ENDIF()
+>>>>>>> pr/231
     MESSAGE(STATUS "LDAP_LIBRARY ${LDAP_LIBRARY}")
     MESSAGE(STATUS "LBER_LIBRARY ${LBER_LIBRARY}")
   ENDIF()
@@ -138,6 +167,7 @@ MACRO(MYSQL_CHECK_LDAP)
 
   IF(WITH_LDAP STREQUAL "system")
     FIND_SYSTEM_LDAP()
+<<<<<<< HEAD
   ELSEIF(WITH_LDAP_PATH)
     IF(LINUX_STANDALONE)
       FIND_CUSTOM_LDAP()
@@ -146,6 +176,10 @@ MACRO(MYSQL_CHECK_LDAP)
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Could not find LDAP")
+=======
+  ELSE()
+    FIND_CUSTOM_LDAP()
+>>>>>>> pr/231
   ENDIF()
 
   IF(WIN32 AND WITH_LDAP STREQUAL "system")
@@ -154,6 +188,7 @@ MACRO(MYSQL_CHECK_LDAP)
     SET(LDAP_FOUND 1)
   ELSE()
     SET(LDAP_FOUND 0)
+<<<<<<< HEAD
     # FATAL_ERROR later if WITH_AUTHENTICATION_LDAP == ON
     MESSAGE(WARNING "Could not find LDAP")
   ENDIF()
@@ -170,3 +205,8 @@ MACRO(MYSQL_CHECK_LDAP_DLLS)
       LBER_LIBRARY lber_target)
   ENDIF()
 ENDMACRO()
+=======
+  ENDIF()
+
+ENDMACRO()
+>>>>>>> pr/231

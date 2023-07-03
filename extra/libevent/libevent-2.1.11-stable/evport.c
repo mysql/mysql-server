@@ -28,7 +28,11 @@
  */
 
 /*
+<<<<<<< HEAD
  * Copyright (c) 2007 Sun Microsystems. All rights reserved.
+=======
+ * Copyright (c) 2007 Sun Microsystems, Inc.
+>>>>>>> pr/231
  * Use is subject to license terms.
  */
 

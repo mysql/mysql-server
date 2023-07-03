@@ -1,5 +1,19 @@
 /* infback.c -- inflate using a call-back interface
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/infback.c
  * Copyright (C) 1995-2022 Mark Adler
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/infback.c
+ * Copyright (C) 1995-2016 Mark Adler
+========
+ * Copyright (C) 1995-2022 Mark Adler
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/infback.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/infback.c
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 

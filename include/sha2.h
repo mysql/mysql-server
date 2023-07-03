@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +38,11 @@
 #include <openssl/evp.h>
 #include <stddef.h>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#if !defined(HAVE_WOLFSSL)
+>>>>>>> pr/231
 #include <openssl/sha.h>
 
 #define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                      \
@@ -42,4 +55,16 @@ GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
 GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
 #undef GEN_OPENSSL_EVP_SHA2_BRIDGE
 
+<<<<<<< HEAD
+=======
+#if defined(HAVE_WOLFSSL) && defined(__cplusplus)
+}
+#endif  // defined(HAVE_WOLFSSL) && defined(__cplusplus)
+=======
+#include <openssl/sha.h>
+
+>>>>>>> upstream/cluster-7.6
+
+#endif /* HAVE_OPENSSL */
+>>>>>>> pr/231
 #endif /* included_sha2_h */

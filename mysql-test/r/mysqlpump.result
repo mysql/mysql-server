@@ -493,6 +493,7 @@ master_info_repository	TABLE
 SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	TABLE
+<<<<<<< HEAD
 #
 # Dump a table that has column statistics
 #
@@ -512,6 +513,20 @@ SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets
 column_statistics_dump	t1	col1	22
 include/assert_grep.inc [Check for ANALYZE TABLE with histogram clause]
 DROP SCHEMA column_statistics_dump;
+<<<<<<< HEAD
+=======
+=======
+Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
+Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
+SHOW VARIABLES LIKE "master_info_repository";
+Variable_name	Value
+master_info_repository	FILE
+SHOW VARIABLES LIKE "relay_log_info_repository";
+Variable_name	Value
+relay_log_info_repository	FILE
+>>>>>>> pr/231
 #
 # Bug #27096081: MYSQLPUMP VALIDATES ALL DATABASE OBJECTS BY
 #                IGNORING --INCLUDE_DATABASES OPTION
@@ -532,6 +547,7 @@ USE db2;
 CREATE VIEW v2 AS SELECT * FROM t2;
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
+<<<<<<< HEAD
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 DROP USER 'u1'@'%';
 Warnings:
@@ -546,3 +562,13 @@ Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
 DROP DATABASE db1;
 DROP DATABASE db2;
+=======
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+DROP USER 'u1'@'%';
+FLUSH PRIVILEGES;
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+DROP USER 'u1'@'%';
+DROP DATABASE db1;
+DROP DATABASE db2;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

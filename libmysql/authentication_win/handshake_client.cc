@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,8 +173,17 @@ int Handshake_client::write_packet(Blob &data) {
 
 #endif
 
+<<<<<<< HEAD
     assert(block_count < (unsigned)0x100);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(block_count < (unsigned)0x100);
+>>>>>>> pr/231
     saved_byte = data[254];
+=======
+    assert(block_count < (unsigned)0x100);
+    saved_byte= data[254];
+>>>>>>> upstream/cluster-7.6
     data[254] = block_count;
 
     data.trim(255);
@@ -209,8 +226,18 @@ int Handshake_client::write_packet(Blob &data) {
   needs to be exchanged or in case of error.
 */
 
+<<<<<<< HEAD
 Blob Handshake_client::process_data(const Blob &data) {
+<<<<<<< HEAD
 #if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
+=======
+#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+=======
+Blob Handshake_client::process_data(const Blob &data)
+{
+#if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     Code for testing the logic for sending the first client payload.
 

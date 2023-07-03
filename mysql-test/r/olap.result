@@ -119,15 +119,25 @@ Computer	1	4200
 Computer	2	2700
 Computer	NULL	6900
 NULL	NULL	7785
+<<<<<<< HEAD
 Phone	3	10
 Phone	NULL	10
 TV	1	400
 TV	2	200
 TV	NULL	600
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
 product	country_id	year	SUM(profit)
+=======
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup limit 5;
+product	country_id	year	sum(profit)
+>>>>>>> upstream/cluster-7.6
 Calculator	1	1999	50
 Calculator	1	2000	75
 Calculator	1	NULL	125
@@ -912,6 +922,8 @@ GROUP BY 1 WITH ROLLUP ORDER BY 1 DESC;
 NOT EXISTS (SELECT 1)
 0
 NULL
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 #
 # Tests for WL#1979 - IMPLEMENTATION OF GROUPING FUNCTION

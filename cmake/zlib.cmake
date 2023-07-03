@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +24,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+MACRO (MYSQL_USE_BUNDLED_ZLIB)
+  SET(BUILD_BUNDLED_ZLIB 1)
+  SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
+  SET(ZLIB_FOUND  TRUE)
+  SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
+  ADD_SUBDIRECTORY(extra/zlib)
+=======
+>>>>>>> pr/231
 # Usage:
 #  cmake -DWITH_ZLIB="bundled"|"system"
 #
@@ -49,6 +64,10 @@ MACRO(FIND_ZLIB_VERSION)
   MESSAGE(STATUS "ZLIB_VERSION (${WITH_ZLIB}) is ${ZLIB_VERSION}")
   MESSAGE(STATUS "ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR}")
   MESSAGE(STATUS "ZLIB_LIBRARY ${ZLIB_LIBRARY}")
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_ZLIB)
@@ -92,12 +111,17 @@ MACRO (MYSQL_USE_BUNDLED_ZLIB)
 
   SET(ZLIB_INCLUDE_DIR ${BUNDLED_ZLIB_PATH})
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
+<<<<<<< HEAD
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
+=======
+  SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib" FORCE)
+>>>>>>> pr/231
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
     ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
     ${CMAKE_BINARY_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
     )
   ADD_SUBDIRECTORY(extra/zlib/${ZLIB_VERSION_DIR})
+<<<<<<< HEAD
 
   # Add support for bundled curl.
   IF(NOT CMAKE_VERSION VERSION_LESS 3.4)
@@ -111,6 +135,13 @@ MACRO (MYSQL_USE_BUNDLED_ZLIB)
 ENDMACRO()
 
 
+=======
+ENDMACRO()
+
+# If system zlib is not found, or is too old, use bundled copy.
+# ZLIB_LIBRARY, ZLIB_INCLUDE_DIR
+# are set after this macro has run
+>>>>>>> pr/231
 MACRO (MYSQL_CHECK_ZLIB)
 
   IF(NOT WITH_ZLIB)
@@ -131,8 +162,16 @@ MACRO (MYSQL_CHECK_ZLIB)
   ENDIF()
   FIND_ZLIB_VERSION()
   IF(ZLIB_VERSION VERSION_LESS MIN_ZLIB_VERSION_REQUIRED)
+<<<<<<< HEAD
     MESSAGE(FATAL_ERROR
       "ZLIB version must be at least ${MIN_ZLIB_VERSION_REQUIRED}, "
       "found ${ZLIB_VERSION}.\nPlease use -DWITH_ZLIB=bundled")
+=======
+    MESSAGE(WARNING
+      "ZLIB version must be at least ${MIN_ZLIB_VERSION_REQUIRED}, "
+      "found ${ZLIB_VERSION}.\nUsing -DWITH_ZLIB=bundled")
+    RESET_ZLIB_VARIABLES()
+    MYSQL_USE_BUNDLED_ZLIB()
+>>>>>>> pr/231
   ENDIF()
 ENDMACRO()

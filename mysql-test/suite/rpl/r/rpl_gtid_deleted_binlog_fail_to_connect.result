@@ -1,0 +1,67 @@
+#
+# 1) Create a master-slave setup.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 2) Create a table on master, sync it, stop the slave threads and dump
+#    thread on master.
+#
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+#
+# 3) On master, generate a transaction, flush the binary log and delete
+#    the first binary logs so that only remaining binlog only contains
+#    transaction UUID:3.
+#
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+#
+# 4) Verify that the slave fails if it tries to connect using CHANGE
+#    MASTER TO MASTER_AUTO_POSITION=1.
+#
+[connection slave]
+CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1236 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
+include/stop_slave_sql.inc
+#
+# 5) Verify that appropriate messages are logged into master's and slave's
+#    error log.
+#
+include/assert_grep.inc [Found warning containing lost GTIDs in the master error log.]
+include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
+#
+# 6) Verify that replication succeeds if it tries to connect using CHANGE
+#    MASTER TO MASTER_LOG_POS.
+#
+CHANGE MASTER TO MASTER_LOG_FILE = 'MASTER_FILE', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
+include/start_slave.inc
+include/assert.inc [t1 should contain only one row with the value 2]
+include/stop_slave.inc
+[connection master]
+CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
+CALL mtr.add_suppression("Failed to open log");
+CALL mtr.add_suppression("Could not open log");
+[connection slave]
+CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
+#
+# 7) Cleanup.
+#
+RESET MASTER;
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+[connection slave]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

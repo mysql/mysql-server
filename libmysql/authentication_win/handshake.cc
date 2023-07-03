@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +47,7 @@
 */
 
 Handshake::Handshake(const char *ssp, side_t side)
+<<<<<<< HEAD
     : m_atts(0L),
       m_error(0),
       m_complete(false),
@@ -47,6 +56,12 @@ Handshake::Handshake(const char *ssp, side_t side)
 #ifndef NDEBUG
       ,
       m_ssp_info(NULL)
+=======
+: m_atts(0L), m_error(0), m_complete(FALSE),
+  m_have_credentials(false), m_have_sec_context(false)
+#ifndef NDEBUG
+  , m_ssp_info(NULL)
+>>>>>>> upstream/cluster-7.6
 #endif
 {
   SECURITY_STATUS ret;
@@ -75,8 +90,18 @@ Handshake::~Handshake() {
   if (m_have_sec_context) DeleteSecurityContext(&m_sctx);
   m_output.mem_free();
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   if (m_ssp_info) FreeContextBuffer(m_ssp_info);
+=======
+#ifndef NDEBUG
+  if (m_ssp_info)
+    FreeContextBuffer(m_ssp_info);
+>>>>>>> upstream/cluster-7.6
 #endif
 }
 
@@ -159,7 +184,16 @@ int Handshake::packet_processing_loop() {
   return 0;
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /**
   Get name of the security package which was used in authentication.

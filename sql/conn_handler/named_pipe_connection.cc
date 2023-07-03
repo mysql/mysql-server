@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +30,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "init_net_server_extension.h"
 #include "named_pipe_connection.h"
 
+<<<<<<< HEAD
 #include <errno.h>
+=======
+#include <AclAPI.h>                     // Windows access control API
+#include "violite.h"                    // Vio
+#include "channel_info.h"               // Channel_info
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "log.h"                        // sql_print_error
+#include "named_pipe.h"                 // create_server_named_pipe.
+#include "sql_class.h"                  // THD
+>>>>>>> upstream/cluster-7.6
 
 #include <AclAPI.h>                      // Windows access control API
 #include "channel_info.h"                // Channel_info
@@ -66,8 +85,13 @@ class Channel_info_named_pipe : public Channel_info {
     THD *thd = Channel_info::create_thd();
 
     if (thd != NULL) {
+<<<<<<< HEAD
       init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+=======
+        init_net_server_extension(thd);
+        thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+>>>>>>> upstream/cluster-7.6
     }
     return thd;
   }
@@ -92,18 +116,38 @@ bool Named_pipe_listener::setup_listener() {
     return true;
   }
 
+<<<<<<< HEAD
   m_pipe_handle = create_server_named_pipe(
       &mp_sa_pipe_security, global_system_variables.net_buffer_length,
       m_pipe_name.c_str(), m_pipe_path_name, sizeof(m_pipe_path_name),
       named_pipe_full_access_group);
   if (m_pipe_handle == INVALID_HANDLE_VALUE) return true;
+=======
+  m_pipe_handle= create_server_named_pipe(
+    &mp_sa_pipe_security, global_system_variables.net_buffer_length,
+    m_pipe_name.c_str(), m_pipe_path_name, sizeof(m_pipe_path_name),
+    named_pipe_full_access_group);
+  if (m_pipe_handle == INVALID_HANDLE_VALUE)
+    return true;
+>>>>>>> upstream/cluster-7.6
 
   return false;
 }
 
+<<<<<<< HEAD
 Channel_info *Named_pipe_listener::listen_for_connection_event() {
+<<<<<<< HEAD
   TCHAR last_error_msg[256];
 
+=======
+=======
+
+Channel_info* Named_pipe_listener::listen_for_connection_event()
+{
+  TCHAR last_error_msg[256];
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /* wait for named pipe connection */
   BOOL fConnected = ConnectNamedPipe(m_pipe_handle, &m_connect_overlapped);
   if (!fConnected && (GetLastError() == ERROR_IO_PENDING)) {
@@ -115,10 +159,12 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
     fConnected =
         GetOverlappedResult(m_pipe_handle, &m_connect_overlapped, &bytes, true);
   }
+<<<<<<< HEAD
   if (connection_events_loop_aborted()) return NULL;
   if (!fConnected) fConnected = GetLastError() == ERROR_PIPE_CONNECTED;
   if (!fConnected) {
     CloseHandle(m_pipe_handle);
+<<<<<<< HEAD
     mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
     m_pipe_handle = CreateNamedPipe(
         m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | WRITE_DAC,
@@ -141,11 +187,57 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
       /* A new pipe has been successfully created, it's not connected yet so
          return NULL to spin around and wait for connection on it.
       */
+=======
+    if ((m_pipe_handle = CreateNamedPipe(
+             m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+             PIPE_UNLIMITED_INSTANCES,
+             (int)global_system_variables.net_buffer_length,
+             (int)global_system_variables.net_buffer_length,
+             NMPWAIT_USE_DEFAULT_WAIT, &m_sa_pipe_security)) ==
+        INVALID_HANDLE_VALUE) {
+      LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_PIPE, strerror(errno));
+=======
+  if (abort_loop)
+    return NULL;
+  if (!fConnected)
+    fConnected= GetLastError() == ERROR_PIPE_CONNECTED;
+  if (!fConnected)
+  {
+    CloseHandle(m_pipe_handle);
+    mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
+    m_pipe_handle= CreateNamedPipe(
+      m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | WRITE_DAC,
+      PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+      PIPE_UNLIMITED_INSTANCES,
+      (int)global_system_variables.net_buffer_length,
+      (int)global_system_variables.net_buffer_length,
+      NMPWAIT_USE_DEFAULT_WAIT, mp_sa_pipe_security);
+    mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
+    if (m_pipe_handle == INVALID_HANDLE_VALUE)
+    {
+      DWORD last_error_num= GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+        FORMAT_MESSAGE_MAX_WIDTH_MASK,
+        NULL, last_error_num,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+        sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("Can't create new named pipe: %s", last_error_msg);
+      return NULL;
+    }
+    else
+    {
+      /* A new pipe has been successfully created, it's not connected yet so
+      return NULL to spin around and wait for connection on it.
+      */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       return NULL;
     }
   }
-  HANDLE hConnectedPipe = m_pipe_handle;
+  HANDLE hConnectedPipe= m_pipe_handle;
   /* create new pipe for new connection */
+<<<<<<< HEAD
   mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
   m_pipe_handle = CreateNamedPipe(
       m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | WRITE_DAC,
@@ -162,8 +254,41 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
                   sizeof(last_error_msg) / sizeof(TCHAR), NULL);
     LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_PIPE, last_error_msg);
+=======
+<<<<<<< HEAD
+  if ((m_pipe_handle = CreateNamedPipe(
+           m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+           PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+           PIPE_UNLIMITED_INSTANCES,
+           (int)global_system_variables.net_buffer_length,
+           (int)global_system_variables.net_buffer_length,
+           NMPWAIT_USE_DEFAULT_WAIT, &m_sa_pipe_security)) ==
+      INVALID_HANDLE_VALUE) {
+    LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_PIPE, strerror(errno));
+>>>>>>> pr/231
     m_pipe_handle = hConnectedPipe;
     return NULL;  // We have to try again
+=======
+  mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
+  m_pipe_handle= CreateNamedPipe(
+    m_pipe_path_name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | WRITE_DAC,
+    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES,
+    (int)global_system_variables.net_buffer_length,
+    (int)global_system_variables.net_buffer_length, NMPWAIT_USE_DEFAULT_WAIT,
+    mp_sa_pipe_security);
+  mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
+  if (m_pipe_handle == INVALID_HANDLE_VALUE)
+  {
+    DWORD last_error_num= GetLastError();
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+      FORMAT_MESSAGE_MAX_WIDTH_MASK,
+      NULL, last_error_num,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+      sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+    sql_print_error("Can't create new named pipe: %s", last_error_msg);
+    m_pipe_handle= hConnectedPipe;
+    return NULL;         // We have to try again
+>>>>>>> upstream/cluster-7.6
   }
 
   Channel_info *channel_info =
@@ -176,6 +301,7 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
   return channel_info;
 }
 
+<<<<<<< HEAD
 bool Named_pipe_listener::update_named_pipe_full_access_group(
     const char *new_group_name) {
   SECURITY_ATTRIBUTES *p_new_sa = nullptr;
@@ -240,18 +366,99 @@ bool Named_pipe_listener::update_named_pipe_full_access_group(
   return false;
 }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 void Named_pipe_listener::close_listener() {
   if (m_pipe_handle == INVALID_HANDLE_VALUE) return;
+=======
+bool Named_pipe_listener::update_named_pipe_full_access_group(
+  const char *new_group_name)
+{
+  SECURITY_ATTRIBUTES *p_new_sa= nullptr;
+  const char *perror= nullptr;
+  TCHAR last_error_msg[256];
+
+  // Set up security attributes to provide full access to the owner
+  // and minimal read/write access to others.
+  if (my_security_attr_create(&p_new_sa, &perror, NAMED_PIPE_OWNER_PERMISSIONS,
+    NAMED_PIPE_EVERYONE_PERMISSIONS) != 0)
+  {
+    sql_print_error("my_security_attr_create: %s", perror);
+    return true;
+  }
+  if (new_group_name && new_group_name[0] != '\0')
+  {
+    if (my_security_attr_add_rights_to_group(
+      p_new_sa, new_group_name,
+      NAMED_PIPE_FULL_ACCESS_GROUP_PERMISSIONS))
+    {
+      sql_print_error("my_security_attr_add_rights_to_group failed for group: %s",
+        new_group_name);
+      return false;
+    }
+  }
+
+  mp_sa_pipe_security= p_new_sa;
+
+  // Set the DACL for the existing "listener" named pipe instance...
+  if (m_pipe_handle != INVALID_HANDLE_VALUE) {
+    PACL pdacl= NULL;
+    BOOL dacl_present_in_descriptor= FALSE;
+    BOOL dacl_defaulted= FALSE;
+    if (!GetSecurityDescriptorDacl(p_new_sa->lpSecurityDescriptor,
+      &dacl_present_in_descriptor, &pdacl,
+      &dacl_defaulted) ||
+      !dacl_present_in_descriptor)
+    {
+      DWORD last_error_num= GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, last_error_num,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+        sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("GetSecurityDescriptorDacl failed: %s", last_error_msg);
+      return true;
+    }
+    DWORD res =
+      SetSecurityInfo(m_pipe_handle, SE_KERNEL_OBJECT,
+      DACL_SECURITY_INFORMATION, NULL, NULL, pdacl, NULL);
+    if (res != ERROR_SUCCESS)
+    {
+      char num_buff[20];
+      int10_to_str(res, num_buff, 10);
+      sql_print_error("SetSecurityInfo failed to update DACL on named pipe: %s", num_buff);
+      return true;
+    }
+  }
+  return false;
+}
+
+void Named_pipe_listener::close_listener()
+{
+  if (m_pipe_handle == INVALID_HANDLE_VALUE)
+    return;
+>>>>>>> upstream/cluster-7.6
 
   DBUG_PRINT("quit", ("Deintializing Named_pipe_connection_acceptor"));
 
   /* Create connection to the handle named pipe handler to break the loop */
   HANDLE temp;
+<<<<<<< HEAD
   if ((temp = CreateFile(m_pipe_path_name, NAMED_PIPE_EVERYONE_PERMISSIONS, 0,
+=======
+<<<<<<< HEAD
+  if ((temp = CreateFile(m_pipe_path_name, GENERIC_READ | GENERIC_WRITE, 0,
+>>>>>>> pr/231
                          NULL, OPEN_EXISTING, 0, NULL)) !=
       INVALID_HANDLE_VALUE) {
+=======
+  if ((temp= CreateFile(m_pipe_path_name, NAMED_PIPE_EVERYONE_PERMISSIONS, 0,
+                         NULL, OPEN_EXISTING, 0, NULL)) !=
+      INVALID_HANDLE_VALUE)
+  {
+>>>>>>> upstream/cluster-7.6
     WaitNamedPipe(m_pipe_path_name, 1000);
-    DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
+    DWORD dwMode= PIPE_READMODE_BYTE | PIPE_WAIT;
     SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
     CancelIo(temp);
     DisconnectNamedPipe(temp);
@@ -259,5 +466,9 @@ void Named_pipe_listener::close_listener() {
   }
   CloseHandle(m_connect_overlapped.hEvent);
   my_security_attr_free(mp_sa_pipe_security);
+<<<<<<< HEAD
   mp_sa_pipe_security = nullptr;
+=======
+  mp_sa_pipe_security= nullptr;
+>>>>>>> pr/231
 }

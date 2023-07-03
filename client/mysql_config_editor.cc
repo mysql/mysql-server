@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,10 +140,24 @@ struct my_command_data {
 }
 
 /* mysql_config_editor utility options. */
+<<<<<<< HEAD
 static struct my_option my_program_long_options[] = {
+<<<<<<< HEAD
 #ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", nullptr,
      nullptr, nullptr, GET_DISABLED, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+#ifdef DBUG_OFF
+    {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
+     GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+=======
+static struct my_option my_program_long_options[]=
+{
+#ifdef NDEBUG
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+  0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
      nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},

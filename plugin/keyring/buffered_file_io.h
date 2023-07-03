@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +32,7 @@
 #define BUFFEREDFILEIO_INCLUDED
 
 #include <mysql/plugin.h>
+<<<<<<< HEAD
 #include <stddef.h>
 
 #include "my_inttypes.h"
@@ -47,6 +56,32 @@ class Buffered_file_io : public IKeyring_io {
  public:
   Buffered_file_io(ILogger *logger,
                    std::vector<std::string> const *versions = nullptr);
+=======
+#include "i_keyring_io.h"
+#include "keyring.h"
+#include "logger.h"
+#include "keyring_memory.h"
+#include "buffer.h"
+#include "hash_to_buffer_serializer.h"
+#include "keyring_stat.h"
+#include "file_io.h"
+
+namespace keyring {
+
+class Buffered_file_io : public IKeyring_io
+{
+public:
+  Buffered_file_io(ILogger *logger)
+    : eofTAG("EOF")
+    , file_version("Keyring file version:1.0")
+    , logger(logger)
+    , backup_exists(FALSE)
+    , memory_needed_for_buffer(0)
+    , file_io(logger)
+    , keyring_file(-1)
+  {
+  }
+>>>>>>> upstream/cluster-7.6
 
   // ================= IKeyring_io implementation ================= //
 

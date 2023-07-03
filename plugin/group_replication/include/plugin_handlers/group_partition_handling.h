@@ -1,4 +1,12 @@
+<<<<<<< HEAD:plugin/group_replication/include/plugin_handlers/group_partition_handling.h
 /* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/group_partition_handling.h
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/group_partition_handling.h
+>>>>>>> pr/231:plugin/group_replication/include/group_partition_handling.h
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

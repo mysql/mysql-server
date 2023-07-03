@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +79,28 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       dont_set_created(false) {
   binlog_version = binlog_ver;
   switch (binlog_ver) {
+<<<<<<< HEAD
     case 4: /* MySQL 5.0 and above*/
+=======
+  case 4: /* MySQL 5.0 and above*/
+  {
+    /*
+     As we are copying from a char * it might be the case at times that some
+     part of the array server_version remains uninitialized so memset will help
+     in getting rid of the valgrind errors.
+    */
+    memset(server_version, 0, ST_SERVER_VER_LEN);
+    strncpy(server_version, server_ver, ST_SERVER_VER_LEN - 1);
+    if (binary_log_debug::debug_pretend_version_50034_in_binlog)
+      strcpy(server_version, "5.0.34");
+    common_header_len= LOG_EVENT_HEADER_LEN;
+    number_of_event_types= LOG_EVENT_TYPES;
+    /**
+      This will be used to initialze the post_header_len,
+      for binlog version 4.
+    */
+    static uint8_t server_event_header_length[]=
+>>>>>>> upstream/cluster-7.6
     {
       /*
        As we are copying from a char * it might be the case at times that some
@@ -117,8 +142,73 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
           TRANSACTION_PAYLOAD_EVENT, 0 /* HEARTBEAT_LOG_EVENT_V2*/
       };
       /*
+<<<<<<< HEAD
         Allows us to sanity-check that all events initialized their
         events (see the end of this 'if' block).
+=======
+       The PRE_GA events are never be written to any binlog, but
+       their lengths are included in Format_description_log_event.
+       Hence, we need to be assign some value here, to avoid reading
+       uninitialized memory when the array is written to disk.
+      */
+      0,                                       /* PRE_GA_WRITE_ROWS_EVENT */
+      0,                                       /* PRE_GA_UPDATE_ROWS_EVENT*/
+      0,                                       /* PRE_GA_DELETE_ROWS_EVENT*/
+      ROWS_HEADER_LEN_V1,                      /* WRITE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1,                      /* UPDATE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1,                      /* DELETE_ROWS_EVENT_V1*/
+      INCIDENT_HEADER_LEN,
+      0,                                       /* HEARTBEAT_LOG_EVENT*/
+      IGNORABLE_HEADER_LEN,
+      IGNORABLE_HEADER_LEN,
+      ROWS_HEADER_LEN_V2,
+      ROWS_HEADER_LEN_V2,
+      ROWS_HEADER_LEN_V2,
+       Gtid_event::POST_HEADER_LENGTH,         /*GTID_EVENT*/
+       Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
+       IGNORABLE_HEADER_LEN,
+      TRANSACTION_CONTEXT_HEADER_LEN,
+      VIEW_CHANGE_HEADER_LEN,
+      XA_PREPARE_HEADER_LEN
+    };
+     /*
+       Allows us to sanity-check that all events initialized their
+       events (see the end of this 'if' block).
+    */
+    post_header_len.insert(post_header_len.begin(), server_event_header_length,
+                            server_event_header_length + number_of_event_types);
+    // Sanity-check that all post header lengths are initialized.
+#ifndef NDEBUG
+    for (int i= 0; i < number_of_event_types; i++)
+      BAPI_ASSERT(post_header_len[i] != 255);
+#endif
+    break;
+  }
+  case 1: /* 3.23 */
+  case 3: /* 4.0.x x >= 2 */
+  {
+    /*
+      We build an artificial (i.e. not sent by the master) event, which
+      describes what those old master versions send.
+    */
+    if (binlog_version == 1)
+      strcpy(server_version, server_ver ? server_ver : "3.23");
+    else
+      strcpy(server_version, server_ver ? server_ver : "4.0");
+    common_header_len= binlog_ver == 1 ? OLD_HEADER_LEN :
+      LOG_EVENT_MINIMAL_HEADER_LEN;
+    /*
+      The first new event in binlog version 4 is Format_desc. So any event type
+      after that does not exist in older versions. We use the events known by
+      version 3, even if version 1 had only a subset of them (this is not a
+      problem: it uses a few bytes for nothing but unifies code; it does not
+      make the slave detect less corruptions).
+    */
+    number_of_event_types= FORMAT_DESCRIPTION_EVENT - 1;
+     /**
+      This will be used to initialze the post_header_len, for binlog version
+      1 and 3
+>>>>>>> upstream/cluster-7.6
      */
       post_header_len.insert(
           post_header_len.begin(), server_event_header_length,
@@ -213,6 +303,7 @@ Format_description_event::Format_description_event(
   READER_TRY_SET(created, read<uint64_t>, 4);
   dont_set_created = true;
 
+<<<<<<< HEAD
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN +
                          ST_COMMON_HEADER_LEN_OFFSET);
   READER_TRY_SET(common_header_len, read<uint8_t>);
@@ -223,10 +314,24 @@ Format_description_event::Format_description_event(
   available_bytes = READER_CALL(available_to_read);
   if (available_bytes == 0)
     READER_THROW("Invalid Format_description common header length");
+=======
+<<<<<<< HEAD
+  post_header_len.insert(
+      post_header_len.begin(),
+      reinterpret_cast<const uint8_t *>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1),
+      reinterpret_cast<const uint8_t *>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
+                                        number_of_event_types));
+>>>>>>> pr/231
 
   calc_server_version_split();
   if ((ver_calc = get_product_version()) >= checksum_version_product) {
+=======
+  calc_server_version_split();
+  ver_calc = get_product_version();
+  if (ver_calc >= checksum_version_product) {
+>>>>>>> upstream/cluster-7.6
     /* the last bytes are the checksum alg desc and value (or value's room) */
+<<<<<<< HEAD
     available_bytes -= BINLOG_CHECKSUM_ALG_DESC_LEN;
   }
 
@@ -234,6 +339,19 @@ Format_description_event::Format_description_event(
   READER_TRY_CALL(assign, &post_header_len, number_of_event_types);
 
   if ((ver_calc = get_product_version()) >= checksum_version_product) {
+=======
+    number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+  }
+
+  const uint8_t *ubuf = reinterpret_cast<const uint8_t*>(buf) +
+                        ST_COMMON_HEADER_LEN_OFFSET + 1;
+  post_header_len.insert(post_header_len.begin(),
+                         ubuf, (ubuf + number_of_event_types));
+
+  ubuf += number_of_event_types;
+  if (ver_calc >= checksum_version_product)
+  {
+>>>>>>> pr/231
     /*
       FD from the checksum-home version server (ver_calc ==
       checksum_version_product) must have
@@ -241,11 +359,20 @@ Format_description_event::Format_description_event(
     */
     BAPI_ASSERT(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
+<<<<<<< HEAD
     uint8_t alg;
     READER_TRY_SET(alg, read<uint8_t>);
     footer()->checksum_alg = static_cast<enum_binlog_checksum_alg>(alg);
+=======
+<<<<<<< HEAD
+    footer()->checksum_alg =
+        (enum_binlog_checksum_alg)post_header_len[number_of_event_types];
+>>>>>>> pr/231
   } else {
     footer()->checksum_alg = BINLOG_CHECKSUM_ALG_UNDEF;
+=======
+    footer()->checksum_alg= static_cast<enum_binlog_checksum_alg> (*ubuf);
+>>>>>>> upstream/cluster-7.6
   }
 
   if (!header_is_valid()) READER_THROW("Invalid Format_description header");
@@ -666,13 +793,37 @@ Transaction_context_event::~Transaction_context_event() {
   clear_set(&read_set);
 }
 
+<<<<<<< HEAD
 View_change_event::View_change_event(const char *raw_view_id)
+=======
+/**
+  Constructor of View_change_event
+
+  This event is used to add view change events in the binary log when a member
+  enters or leaves the group.
+*/
+
+<<<<<<< HEAD
+View_change_event::View_change_event(char *raw_view_id)
+>>>>>>> pr/231
     : Binary_log_event(VIEW_CHANGE_EVENT),
       view_id(),
       seq_number(0),
       certification_info() {
+<<<<<<< HEAD
   strncpy(view_id, raw_view_id, sizeof(view_id) - 1);
   view_id[sizeof(view_id) - 1] = 0;
+=======
+  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+=======
+View_change_event::View_change_event(char* raw_view_id)
+: Binary_log_event(VIEW_CHANGE_EVENT),
+  view_id(), seq_number(0), certification_info()
+{
+  strncpy(view_id, raw_view_id, sizeof(view_id)-1);
+  view_id[sizeof(view_id)-1]= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 View_change_event::View_change_event(const char *buffer,

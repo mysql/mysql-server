@@ -81,6 +81,10 @@ insert into t7 values(1,'a');
 drop table t8;
 
 "Restore with --print-sql-log option"
+<<<<<<< HEAD
 Found column of type blob with print-sql-log option set. Exiting...
+=======
+XXXX-XX-XX XX:XX:XX Found column of type blob with print-sql-log option set. Exiting...
+>>>>>>> pr/231
 drop table t7;
 drop table if exists t8;

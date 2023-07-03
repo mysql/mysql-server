@@ -1,6 +1,11 @@
 # -*- cperl -*-
+<<<<<<< HEAD
 # Copyright (c) 2004, 2022, Oracle and/or its affiliates.
 #
+=======
+# Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -53,6 +58,11 @@ our @EXPORT = qw(
 );
 
 use File::Spec;
+<<<<<<< HEAD
+=======
+use My::Platform;
+use POSIX qw(_exit floor);
+>>>>>>> pr/231
 use IO::Handle qw[ flush ];
 use POSIX qw(_exit floor);
 
@@ -62,12 +72,17 @@ use mtr_results;
 
 require "mtr_io.pl";
 
+<<<<<<< HEAD
 my $offload_count_file;
 my $offload_count_file_path;
 
 my $done_percentage = 0;
 my $tests_completed = 0;
 my $tot_real_time   = 0;
+=======
+my $done_percentage= 0;
+my $tests_completed= 0;
+>>>>>>> pr/231
 
 our $name;
 our $summary_report_file;
@@ -131,9 +146,22 @@ sub _name {
   return $name ? $name . " " : undef;
 }
 
+<<<<<<< HEAD
 sub _mtr_report_test_name ($$) {
   my $tinfo           = shift;
   my $done_percentage = shift;
+=======
+<<<<<<< HEAD
+sub _mtr_report_test_name ($) {
+=======
+sub _mtr_report_test_name ($$)
+{
+>>>>>>> upstream/cluster-7.6
+  my $tinfo= shift;
+  my $done_percentage= shift;
+
+  my $tname= $tinfo->{name};
+>>>>>>> pr/231
 
   return unless defined $verbose;
 
@@ -201,6 +229,7 @@ sub mtr_report_test ($) {
   my $warnings = $tinfo->{'warnings'};
   my $skip_ignored   = $tinfo->{'skip_ignored'};
 
+<<<<<<< HEAD
   if ($::opt_test_progress and $tinfo->{'name'} and !$retry) {
     $tests_completed = $tests_completed + 1;
     $done_percentage =
@@ -208,6 +237,26 @@ sub mtr_report_test ($) {
   }
 
   my ($report, $test_name) = _mtr_report_test_name($tinfo, $done_percentage);
+=======
+<<<<<<< HEAD
+  if ( $::opt_test_progress ) {
+    if ( $tinfo->{'name'} && !$retry )  {
+      $::remaining= $::remaining - 1; 
+      $done_percentage = 100 - int (($::remaining * 100) / ($::num_tests_for_report));
+=======
+  if ($::opt_test_progress)
+  {
+    if ($tinfo->{'name'} && !$retry)
+    {
+      $tests_completed= $tests_completed + 1;
+      $done_percentage=
+        floor(($tests_completed / $::num_tests_for_report) * 100);
+>>>>>>> upstream/cluster-7.6
+    }
+  }
+
+  my $test_name = _mtr_report_test_name($tinfo, $done_percentage);
+>>>>>>> pr/231
 
   if ($::secondary_engine_support) {
     # Fetch offload count value

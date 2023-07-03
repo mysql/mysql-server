@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,6 +189,7 @@
 #define FIELD_FLAGS_STORAGE_MEDIA_MASK (3 << FIELD_FLAGS_STORAGE_MEDIA)
 #define FIELD_FLAGS_COLUMN_FORMAT 24 /**< Field column format, bit 24-25 */
 #define FIELD_FLAGS_COLUMN_FORMAT_MASK (3 << FIELD_FLAGS_COLUMN_FORMAT)
+<<<<<<< HEAD
 #define FIELD_IS_DROPPED (1 << 26) /**< Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG                        \
   (1 << 27) /**< Field is explicitly specified as \
@@ -197,6 +202,12 @@
 #define FIELD_IS_INVISIBLE (1 << 30)
 
 /** @}*/
+=======
+#define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
+#define EXPLICIT_NULL_FLAG (1<< 27)     /* Field is explicitly specified as
+                                           NULL by the user */
+#define SERIAL_FLAG (1<< 28)            /* Field is "SERIAL" */
+>>>>>>> upstream/cluster-7.6
 
 /**
    @defgroup group_cs_com_refresh_flags COM_REFRESH Flags
@@ -1153,6 +1164,7 @@ char *octet2hex(char *to, const char *str, unsigned int len);
 
 /* end of password.c */
 
+<<<<<<< HEAD
 bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size, const char *rnd,
                               size_t rnd_size);
@@ -1160,6 +1172,27 @@ bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
 // extern "C" since it is an (undocumented) part of the libmysql ABI.
 #ifdef __cplusplus
 extern "C" {
+=======
+my_bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
+                                 const char *src, size_t src_size, const char *rnd,
+                                 size_t rnd_size);
+
+char *get_tty_password(const char *opt_message);
+const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
+
+/* Some other useful functions */
+
+my_bool my_thread_init(void);
+void my_thread_end(void);
+
+#ifdef MY_GLOBAL_INCLUDED
+ulong STDCALL net_field_length(uchar **packet);
+ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length);
+my_ulonglong net_field_length_ll(uchar **packet);
+uchar *net_store_length(uchar *pkg, ulonglong length);
+unsigned int net_length_size(ulonglong num);
+unsigned int net_field_length_size(const unsigned char *pos);
+>>>>>>> upstream/cluster-7.6
 #endif
 char *get_tty_password(const char *opt_message);
 #ifdef __cplusplus

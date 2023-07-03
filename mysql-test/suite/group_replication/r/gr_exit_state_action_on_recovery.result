@@ -22,12 +22,20 @@ call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Er
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
+<<<<<<< HEAD
 call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error in the recovery module of Group Replication.");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
+=======
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+call mtr.add_suppression("Error while starting the group replication recovery receiver/applier threads");
+>>>>>>> pr/231
 SET sql_log_bin = 1;
 
 #########################################################################
@@ -84,6 +92,10 @@ SET SESSION sql_log_bin= 1;
 RESET MASTER;
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
+<<<<<<< HEAD
+=======
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
+>>>>>>> pr/231
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 

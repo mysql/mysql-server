@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -10,6 +15,26 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+/*
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -381,6 +406,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
       my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Event_queue_element));
       goto err_with_rollback;
     }
+<<<<<<< HEAD
 
     if (Event_db_repository::load_named_event(
             thd, parse_data->dbname, parse_data->name, new_element.get()))
@@ -416,6 +442,38 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
         goto err_with_rollback;
     }
   }
+=======
+    /*
+      binlog the create event unless it's been successfully dropped
+    */
+    if (!dropped)
+    {
+      /* Binlog the create event. */
+      assert(thd->query().str && thd->query().length);
+      String log_query;
+      if (create_query_string(thd, &log_query))
+      {
+        sql_print_error("Event Error: An error occurred while creating query string, "
+                        "before writing it into binary log.");
+        ret= true;
+      }
+      else
+      {
+        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+        /*
+          If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
+          will be written into the binary log as the definer for the SQL thread.
+        */
+        ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      }
+    }
+  }
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= save_binlog_format;
+>>>>>>> upstream/cluster-7.6
 
   // Commit changes to the data-dictionary and binary log.
   if (DBUG_EVALUATE_IF("simulate_create_event_failure", true, false) ||
@@ -540,16 +598,31 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       goto err_with_rollback;
     }
 
+<<<<<<< HEAD
     LEX_CSTRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
     LEX_CSTRING name = new_name ? *new_name : parse_data->name;
     if (Event_db_repository::load_named_event(thd, dbname, name,
                                               new_element.get()))
+=======
+<<<<<<< HEAD
+    LEX_STRING dbname = new_dbname ? *new_dbname : parse_data->dbname;
+    LEX_STRING name = new_name ? *new_name : parse_data->name;
+    if (db_repository->load_named_event(thd, dbname, name, new_element.get()))
+>>>>>>> pr/231
       goto err_with_rollback;
   }
 
   /* Binlog the alter event. */
   {
+<<<<<<< HEAD
     assert(thd->query().str && thd->query().length);
+=======
+    DBUG_ASSERT(thd->query().str && thd->query().length);
+=======
+    /* Binlog the alter event. */
+    assert(thd->query().str && thd->query().length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
     if (new_dbname) thd->add_to_binlog_accessed_dbs(new_dbname->str);
@@ -557,6 +630,14 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
     if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
       goto err_with_rollback;
   }
+<<<<<<< HEAD
+=======
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= save_binlog_format;
+>>>>>>> upstream/cluster-7.6
 
   // Commit changes to the data-dictionary and binary log.
   if (DBUG_EVALUATE_IF("simulate_alter_event_failure", true, false) ||
@@ -656,7 +737,18 @@ bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
 
   // Binlog the drop event.
   {
+<<<<<<< HEAD
     assert(thd->query().str && thd->query().length);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(thd->query().str && thd->query().length);
+=======
+    if (event_queue)
+      event_queue->drop_event(thd, dbname, name);
+    /* Binlog the drop event. */
+    assert(thd->query().str && thd->query().length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     if (write_bin_log(thd, true, thd->query().str, thd->query().length,
@@ -894,6 +986,72 @@ bool Events::show_create_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name) {
   return ret;
 }
 
+<<<<<<< HEAD
+=======
+
+/**
+  Check access rights and fill INFORMATION_SCHEMA.events table.
+
+  @param[in,out]  thd     Thread context
+  @param[in]      tables  The temporary table to fill.
+
+  In MySQL INFORMATION_SCHEMA tables are temporary tables that are
+  created and filled on demand. In this function, we fill
+  INFORMATION_SCHEMA.events. It is a callback for I_S module, invoked from
+  sql_show.cc
+
+  @return Has to be integer, as such is the requirement of the I_S API
+  @retval  0  success
+  @retval  1  an error, pushed into the error stack
+*/
+
+int
+Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
+{
+  char *db= NULL;
+  int ret;
+  DBUG_ENTER("Events::fill_schema_events");
+
+  if (check_if_system_tables_error())
+    DBUG_RETURN(1);
+
+  /*
+    If it's SHOW EVENTS then thd->lex->select_lex->db is guaranteed not to
+    be NULL. Let's do an assert anyway.
+  */
+  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
+  {
+    db= thd->lex->select_lex->db;
+    assert(db != NULL);
+    /*
+      Nobody has EVENT_ACL for I_S and P_S,
+      even with a GRANT ALL to *.*,
+      because these schemas have additional ACL restrictions:
+      see ACL_internal_schema_registry.
+
+      Yet there are no events in I_S and P_S to hide either,
+      so this check voluntarily does not enforce ACL for
+      SHOW EVENTS in I_S or P_S,
+      to return an empty list instead of an access denied error.
+
+      This is more user friendly, in particular for tools.
+
+      EVENT_ACL is not fine grained enough to differentiate:
+      - creating / updating / deleting events
+      - viewing existing events
+    */
+    if (! is_infoschema_db(db) &&
+        ! is_perfschema_db(db) &&
+        check_access(thd, EVENT_ACL, db, NULL, NULL, 0, 0))
+      DBUG_RETURN(1);
+  }
+  ret= db_repository->fill_schema_events(thd, tables, db);
+
+  DBUG_RETURN(ret);
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Initializes the scheduler's structures.
 
@@ -951,8 +1109,34 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
+<<<<<<< HEAD
   assert(opt_event_scheduler == Events::EVENTS_ON ||
          opt_event_scheduler == Events::EVENTS_OFF);
+=======
+  //  If run with --skip-grant-tables or --initialize, disable the event
+  //  scheduler.
+  if (opt_noacl_or_bootstrap) {
+    opt_event_scheduler = EVENTS_DISABLED;
+    goto end;
+  }
+
+<<<<<<< HEAD
+  DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
+              opt_event_scheduler == Events::EVENTS_OFF);
+=======
+  /*
+    Was disabled explicitly from the command line, or because we're running
+    with --skip-grant-tables, or --bootstrap, or because we have no system
+    tables.
+  */
+  if (opt_event_scheduler == Events::EVENTS_DISABLED)
+    goto end;
+
+
+  assert(opt_event_scheduler == Events::EVENTS_ON ||
+         opt_event_scheduler == Events::EVENTS_OFF);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!(event_queue = new Event_queue) ||
       !(scheduler = new Event_scheduler(event_queue))) {

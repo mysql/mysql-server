@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +30,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+<<<<<<< HEAD
 #include "client/dump/mysql_crawler.h"
 
 #include <stdlib.h>
 #include <functional>
+<<<<<<< HEAD
 #include <optional>
+=======
+=======
+#include "mysql_crawler.h"
+#include "mysql_function.h"
+#include "stored_procedure.h"
+#include "table_definition_dump_task.h"
+#include "mysqldump_tool_chain_maker_options.h"
+#include "table_rows_dump_task.h"
+#include "table_deferred_indexes_dump_task.h"
+#include "event_scheduler_event.h"
+#include "privilege.h"
+#include "trigger.h"
+#include "view.h"
+#include "base/mysql_query_runner.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #include <string>
 #include <vector>
 
@@ -48,6 +74,7 @@ using std::vector;
 
 using namespace Mysql::Tools::Dump;
 
+<<<<<<< HEAD
 Mysql_crawler::Mysql_crawler(
     I_connection_provider *connection_provider,
     std::function<bool(const Mysql::Tools::Base::Message_data &)>
@@ -58,8 +85,25 @@ Mysql_crawler::Mysql_crawler(
     Mysql::Tools::Base::Abstract_program *program)
     : Abstract_crawler(message_handler, object_id_generator, program),
       Abstract_mysql_chain_element_extension(connection_provider,
+<<<<<<< HEAD
                                              message_handler, options),
       m_mysqldump_tool_cmaker_options(mysqldump_tool_cmaker_options) {}
+=======
+                                             message_handler, options) {}
+=======
+Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
+  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    message_handler, Simple_id_generator* object_id_generator,
+  Mysql_chain_element_options* options,
+  Mysqldump_tool_chain_maker_options* mysqldump_tool_cmaker_options,
+  Mysql::Tools::Base::Abstract_program* program)
+  : Abstract_crawler(message_handler, object_id_generator, program),
+  Abstract_mysql_chain_element_extension(
+  connection_provider, message_handler, options),
+  m_mysqldump_tool_cmaker_options(mysqldump_tool_cmaker_options)
+{}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 void Mysql_crawler::enumerate_objects() {
   Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
@@ -115,8 +159,13 @@ void Mysql_crawler::enumerate_objects() {
         runner, "", db_name, "DATABASE IF NOT EXISTS");
     if (!stmt.has_value()) continue;  // some error occurred
 
+<<<<<<< HEAD
     Database *database =
         new Database(this->generate_new_object_id(), db_name, stmt.value());
+=======
+<<<<<<< HEAD
+    db_list.push_back(database);
+>>>>>>> pr/231
     m_current_database_start_dump_task = new Database_start_dump_task(database);
     Abstract_data_object *db_object = dynamic_cast<Abstract_data_object *>(
         m_current_database_start_dump_task->get_related_db_object());
@@ -133,6 +182,27 @@ void Mysql_crawler::enumerate_objects() {
     }
     db_list.push_back(database);
     m_current_database_end_dump_task = new Database_end_dump_task(database);
+=======
+    m_current_database_start_dump_task=
+      new Database_start_dump_task(database);
+
+    Abstract_data_object* db_object = dynamic_cast<Abstract_data_object*>(
+    m_current_database_start_dump_task->get_related_db_object());
+
+    /*
+     This check is introduced so that only the database objects that are
+     included in the dump are validated.
+    */
+    if (!m_mysqldump_tool_cmaker_options->is_object_included_in_dump(db_object))
+    {
+      delete m_current_database_start_dump_task;
+      delete database;
+      continue;
+    }
+    db_list.push_back(database);
+    m_current_database_end_dump_task=
+      new Database_end_dump_task(database);
+>>>>>>> upstream/cluster-7.6
     db_end_task_list.push_back(m_current_database_end_dump_task);
 
     m_current_database_start_dump_task->add_dependency(m_dump_start_task);
@@ -147,12 +217,25 @@ void Mysql_crawler::enumerate_objects() {
   m_dump_end_task->add_dependency(m_tables_definition_ready_dump_task);
   this->process_dump_task(m_tables_definition_ready_dump_task);
 
+<<<<<<< HEAD
   /* SHOW CREATE USER is introduced in 5.7.6 */
   if (use_show_create_user) this->enumerate_users();
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   std::vector<Database *>::iterator it;
   std::vector<Database_end_dump_task *>::iterator it_end;
   for (it = db_list.begin(), it_end = db_end_task_list.begin();
+=======
+  /* SHOW CREATE USER is introduced in 5.7.6 */
+  if (use_show_create_user)
+    this->enumerate_users();
+
+  std::vector<Database* >::iterator it;
+  std::vector<Database_end_dump_task* >::iterator it_end;
+  for (it= db_list.begin(),it_end= db_end_task_list.begin();
+>>>>>>> upstream/cluster-7.6
        ((it != db_list.end()) && (it_end != db_end_task_list.end()));
        ++it, ++it_end) {
     m_current_database_end_dump_task = *it_end;
@@ -349,9 +432,11 @@ void Mysql_crawler::enumerate_views(const Database &db) {
       const Mysql::Tools::Base::Mysql_query_runner::Row &is_view = **view_it;
       if (is_view[0] == "1") {
         /* Check if view dependent objects exists */
+<<<<<<< HEAD
         if (runner->run_query(
                 std::string("LOCK TABLES ") +
                 this->get_quoted_object_full_name(db.get_name(), table_name) +
+<<<<<<< HEAD
                 " READ") != 0) {
           Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&check_view);
           Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
@@ -371,6 +456,39 @@ void Mysql_crawler::enumerate_views(const Database &db) {
 
         View *view = new View(this->generate_new_object_id(), table_name,
                               db.get_name(), stmt.value());
+=======
+                " READ") != 0)
+=======
+        if (runner->run_query(std::string("LOCK TABLES ")
+              + this->get_quoted_object_full_name(db.get_name(), table_name)
+              + " READ") != 0)
+        {
+          Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&check_view);
+          Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
+          delete runner;
+>>>>>>> upstream/cluster-7.6
+          return;
+        }
+        else
+          runner->run_query(std::string("UNLOCK TABLES"));
+<<<<<<< HEAD
+        View *view =
+            new View(this->generate_new_object_id(), table_name, db.get_name(),
+                     this->get_create_statement(runner, db.get_name(),
+                                                table_name, "TABLE")
+                         .value());
+=======
+
+        View* view= new View(this->generate_new_object_id(),
+                              table_name,
+                              db.get_name(),
+                              this->get_create_statement(runner,
+                                                         db.get_name(),
+                                                         table_name,
+                                                         "TABLE").value()
+                              );
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         m_current_database_end_dump_task->add_dependency(view);
         view->add_dependency(m_tables_definition_ready_dump_task);
         this->process_dump_task(view);

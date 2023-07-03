@@ -15,7 +15,11 @@ b int
 Expect next == 7
 insert into boring (b) values (1), (2), (3), (4), (5), (6);
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	boring	7
 create table boring_keyless (
 a int
@@ -28,7 +32,11 @@ b int
 ) engine=ndb;
 Expect next == 1
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	empty_default	1
 create table empty_specific (
 a mediumint primary key auto_increment,
@@ -36,7 +44,11 @@ b int
 ) engine=ndb auto_increment=73;
 Expect next == 73
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	empty_specific	73
 create table big_varchars (
 a bigint auto_increment primary key,
@@ -49,7 +61,11 @@ insert into big_varchars (b) values (repeat('ILBJC', 400));
 insert into big_varchars (b) values (repeat('ILBJC', 400));
 Expect next == 6
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	big_varchars	6
 create table tinysignedauto (
 a tinyint auto_increment primary key,
@@ -88,7 +104,11 @@ insert into bigsignedauto(b) values (repeat('ILBJC', 40));
 insert into bigsignedauto(b) values (repeat('ILBJC', 40));
 Expect next == 4
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	bigsignedauto	4
 test	intsignedauto	4
 test	medsignedauto	4
@@ -101,7 +121,11 @@ insert into intsignedauto values (-100, repeat('IWBJC', 40));
 insert into bigsignedauto values (-100, repeat('IWBJC', 40));
 Expect next == 4
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	bigsignedauto	4
 test	intsignedauto	4
 test	medsignedauto	4
@@ -151,7 +175,11 @@ b int
 ) engine=ndb;
 Expect next == 1
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	empty_default	1
 create table empty_specific (
 a mediumint primary key auto_increment,
@@ -159,7 +187,11 @@ b int
 ) engine=ndb auto_increment=73;
 Expect next == 73
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	empty_specific	73
 Following unchanged
 create table tinysignedauto (
@@ -190,6 +222,7 @@ b varchar(2000)
 ----------------------------------------
 Expect 7
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+<<<<<<< HEAD
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
 test	boring	7
 Expect 1
@@ -207,6 +240,25 @@ test	big_varchars	6
 Expect next == 4
 select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
 TABLE_SCHEMA	TABLE_NAME	AUTO_INCREMENT
+=======
+table_schema	table_name	auto_increment
+test	boring	7
+Expect 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+table_schema	table_name	auto_increment
+test	empty_default	1
+Expect 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+table_schema	table_name	auto_increment
+test	empty_specific	73
+Expect 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+table_schema	table_name	auto_increment
+test	big_varchars	6
+Expect next == 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+table_schema	table_name	auto_increment
+>>>>>>> pr/231
 test	bigsignedauto	4
 test	intsignedauto	4
 test	medsignedauto	4
@@ -282,6 +334,7 @@ drop table filler5, filler6, filler7, filler8;
 ----------------------------------------
 8.  Use ndb_restore metadata restore
 ----------------------------------------
+<<<<<<< HEAD
 Waiting for metadata sync
 Metadata synchronised
 ----------------------------------------
@@ -351,6 +404,31 @@ tinysignedauto	CREATE TABLE `tinysignedauto` (
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+----------------------------------------
+9.  Check autoincrement info
+----------------------------------------
+With just NdbApi metadata restored, auto_increment values are set to default values
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+table_schema	table_name	auto_increment
+test	boring	1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+table_schema	table_name	auto_increment
+test	empty_default	1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+table_schema	table_name	auto_increment
+test	empty_specific	1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+table_schema	table_name	auto_increment
+test	big_varchars	1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+table_schema	table_name	auto_increment
+test	bigsignedauto	1
+test	intsignedauto	1
+test	medsignedauto	1
+test	smallsignedauto	1
+test	tinysignedauto	1
+>>>>>>> pr/231
 ----------------------------------------
 10.  Restore data
 ----------------------------------------
@@ -358,6 +436,7 @@ tinysignedauto	CREATE TABLE `tinysignedauto` (
 11.  Check autoincrement info
 ----------------------------------------
 Expect 7
+<<<<<<< HEAD
 show create table boring;
 Table	Create Table
 boring	CREATE TABLE `boring` (
@@ -425,6 +504,31 @@ tinysignedauto	CREATE TABLE `tinysignedauto` (
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="boring";
+table_schema	table_name	auto_increment
+test	boring	7
+Expect 1
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_default";
+table_schema	table_name	auto_increment
+test	empty_default	1
+Expect 73
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="empty_specific";
+table_schema	table_name	auto_increment
+test	empty_specific	73
+Expect 6
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name="big_varchars";
+table_schema	table_name	auto_increment
+test	big_varchars	6
+Expect 4
+select table_schema, table_name, auto_increment from information_schema.tables where table_schema="test" and table_name like "%signedauto" order by table_name;
+table_schema	table_name	auto_increment
+test	bigsignedauto	4
+test	intsignedauto	4
+test	medsignedauto	4
+test	smallsignedauto	4
+test	tinysignedauto	4
+>>>>>>> pr/231
 ----------------------------------------
 12.  Test via inserts
 ----------------------------------------

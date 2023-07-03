@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:plugin/group_replication/include/gcs_operations.h
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/include/gcs_operations.h
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -473,6 +481,7 @@ class Gcs_operations {
   /** Was this view change injected */
   bool injected_view_modification;
   /** Is the member leaving*/
+<<<<<<< HEAD
   std::atomic<bool> leave_coordination_leaving;
   /** Did the member already left*/
   std::atomic<bool> leave_coordination_left;
@@ -483,6 +492,13 @@ class Gcs_operations {
   Checkable_rwlock *gcs_operations_lock;
   /** Lock for the list of waiters on a view change */
   Checkable_rwlock *view_observers_lock;
+=======
+  int32 leave_coordination_leaving;
+  /** Did the member already left*/
+  int32 leave_coordination_left;
+
+  Checkable_rwlock *gcs_operations_lock;
+>>>>>>> pr/231
 };
 
 #endif /* GCS_OPERATIONS_INCLUDE */

@@ -1,3 +1,11 @@
 SELECT sys_version FROM sys.version;
 sys_version
+<<<<<<< HEAD
 2.1.2
+=======
+<<<<<<< HEAD
+2.0.0
+=======
+1.5.2
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

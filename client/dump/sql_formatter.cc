@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +112,7 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
 
   CHARSET_INFO *charset_info = this->get_charset();
 
+<<<<<<< HEAD
   std::vector<bool> is_blob;
   for (std::vector<Mysql_field>::const_iterator it =
            row_group->m_fields.begin();
@@ -118,6 +127,42 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
                        it->get_type() == MYSQL_TYPE_MEDIUM_BLOB ||
                        it->get_type() == MYSQL_TYPE_TINY_BLOB ||
                        it->get_type() == MYSQL_TYPE_GEOMETRY));
+=======
+<<<<<<< HEAD
+  std::vector<bool> is_blob_to_hex;
+  for (std::vector<Mysql_field>::const_iterator it =
+           row_group->m_fields.begin();
+       it != row_group->m_fields.end(); ++it) {
+    is_blob_to_hex.push_back(m_options->m_hex_blob &&
+                             it->get_character_set_nr() ==
+                                 my_charset_bin.number &&
+                             (it->get_type() == MYSQL_TYPE_BIT ||
+                              it->get_type() == MYSQL_TYPE_STRING ||
+                              it->get_type() == MYSQL_TYPE_VAR_STRING ||
+                              it->get_type() == MYSQL_TYPE_VARCHAR ||
+                              it->get_type() == MYSQL_TYPE_BLOB ||
+                              it->get_type() == MYSQL_TYPE_LONG_BLOB ||
+                              it->get_type() == MYSQL_TYPE_MEDIUM_BLOB ||
+                              it->get_type() == MYSQL_TYPE_TINY_BLOB ||
+                              it->get_type() == MYSQL_TYPE_GEOMETRY));
+=======
+  std::vector<bool> is_blob;
+  for (std::vector<Mysql_field>::const_iterator it=
+    row_group->m_fields.begin(); it != row_group->m_fields.end(); ++it)
+  {
+    is_blob.push_back(
+      it->get_character_set_nr() == my_charset_bin.number
+      && (it->get_type() == MYSQL_TYPE_BIT
+      || it->get_type() == MYSQL_TYPE_STRING
+      || it->get_type() == MYSQL_TYPE_VAR_STRING
+      || it->get_type() == MYSQL_TYPE_VARCHAR
+      || it->get_type() == MYSQL_TYPE_BLOB
+      || it->get_type() == MYSQL_TYPE_LONG_BLOB
+      || it->get_type() == MYSQL_TYPE_MEDIUM_BLOB
+      || it->get_type() == MYSQL_TYPE_TINY_BLOB
+      || it->get_type() == MYSQL_TYPE_GEOMETRY));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   for (std::vector<Row *>::const_iterator row_iterator =
@@ -165,7 +210,25 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
                                                   column_length);
         else
           row_string.append(column_data, column_length);
+<<<<<<< HEAD
         row_string += '\"';
+=======
+      }
+      else if (m_options->m_hex_blob && is_blob[column])
+      {
+        row_string+= "0x";
+        m_escaping_runner->append_hex_string(
+          &row_string, column_data, column_length);
+      }
+      else
+      {
+        if (is_blob[column])
+          row_string += "_binary ";
+        row_string+= '\"';
+        m_escaping_runner->append_escape_string(
+          &row_string, column_data, column_length);
+        row_string+= '\"';
+>>>>>>> upstream/cluster-7.6
       }
     }
 
@@ -176,8 +239,13 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
 
   this->append_output(row_string);
   /*
+<<<<<<< HEAD
     user account is dumped in the form of INSERT statements, thus need
     to append FLUSH PRIVILEGES
+=======
+    user account is dumped in the form of INSERT statements, thus meed to 
+    append FLUSH PRIVILEGES
+>>>>>>> pr/231
   */
   if (!use_show_create_user) {
     std::string schema = row_group->m_source_table->get_schema();

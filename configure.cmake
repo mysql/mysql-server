@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +45,47 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+<<<<<<< HEAD
+=======
+# Probobuf 2.6.1 on Sparc. Both gcc and Solaris Studio need this.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+    SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
+ENDIF()
+
+# Check to see if we are using LLVM's libc++ rather than e.g. libstd++
+# Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
+CHECK_CXX_SOURCE_RUNS("
+#include <ciso646>
+int main()
+{
+#ifdef _LIBCPP_VERSION
+  return 0;
+#else
+  return 1;
+#endif
+}" HAVE_LLVM_LIBCPP)
+
+<<<<<<< HEAD
+=======
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
+     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
+     SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
+     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
+  ENDIF()
+ENDIF()
+
+IF(WITHOUT_DYNAMIC_PLUGINS)
+  MESSAGE("Dynamic plugins are disabled.")
+ENDIF(WITHOUT_DYNAMIC_PLUGINS)
+
+# Large files, common flag
+SET(_LARGEFILE_SOURCE  1)
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
   CHECK_TYPE_SIZE("struct ${type}" SIZEOF_${defbase})
@@ -79,9 +124,14 @@ ENDFUNCTION()
 FIND_PACKAGE (Threads)
 
 IF(UNIX)
+<<<<<<< HEAD
   IF(FREEBSD)
     MYSQL_CHECK_PKGCONFIG()
     PKG_CHECK_MODULES(LIBUNWIND libunwind)
+=======
+  IF(NOT LIBM)
+    MY_SEARCH_LIBS(floor m LIBM)
+>>>>>>> pr/231
   ENDIF()
   IF(NOT LIBM)
     MY_SEARCH_LIBS(floor m LIBM)
@@ -91,6 +141,19 @@ IF(UNIX)
   ENDIF()
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
+<<<<<<< HEAD
+=======
+  # Feature test broken with -fsanitize=address, look for lib first.
+  IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
+    CHECK_LIBRARY_EXISTS(crypt crypt "" HAVE_crypt_IN_crypt)
+    # If found, do not look in libc.
+    IF(HAVE_crypt_IN_crypt)
+      SET(LIBCRYPT crypt)
+      SET(${LIBCRYPT} 1)
+    ENDIF()
+  ENDIF()
+  MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
+>>>>>>> pr/231
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
   # HAVE_dlopen_IN_LIBC
@@ -214,9 +277,22 @@ CHECK_INCLUDE_FILES (sys/wait.h HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H) # Used by NDB/libevent
 CHECK_INCLUDE_FILES (fnmatch.h HAVE_FNMATCH_H)
 CHECK_INCLUDE_FILES (sys/un.h HAVE_SYS_UN_H)
+<<<<<<< HEAD
 # Cyrus SASL 2.1.26 on Solaris 11.4 has a bug that requires sys/types.h
 # to be included before checking if sasl/sasl.h exists
 CHECK_INCLUDE_FILES ("sys/types.h;sasl/sasl.h" HAVE_SASL_SASL_H)
+=======
+CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H) # Used by libedit
+
+# For libevent
+CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
+IF(HAVE_DEVPOLL)
+  # Duplicate symbols, but keep it to avoid changing libevent code.
+  SET(HAVE_SYS_DEVPOLL_H 1)
+ENDIF()
+CHECK_INCLUDE_FILES(sys/epoll.h HAVE_SYS_EPOLL_H)
+CHECK_SYMBOL_EXISTS (TAILQ_FOREACH "sys/queue.h" HAVE_TAILQFOREACH)
+>>>>>>> pr/231
 
 #
 # Tests for functions
@@ -360,8 +436,18 @@ ENDIF()
 #
 INCLUDE (CheckTypeSize)
 
+<<<<<<< HEAD
 LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
   -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+=======
+<<<<<<< HEAD
+set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
+        -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+        -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS)
+=======
+LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
+  -D_LARGEFILE_SOURCE -D_LARGE_FILES -D_FILE_OFFSET_BITS=64
+>>>>>>> pr/231
   -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS
   )
 
@@ -370,6 +456,10 @@ IF(SOLARIS)
     -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS
     )
 ENDIF()
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h time.h)
 

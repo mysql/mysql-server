@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -414,6 +422,7 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
       }
       break;
 
+<<<<<<< HEAD
     case TRACE_EVENT_ERROR:
     case TRACE_EVENT_AUTH_PLUGIN:
       /*
@@ -436,6 +445,14 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
              protocol_stage_name(data->next_stage)));
         if (opt_crash) assert(0);
       }
+=======
+    if (data && data->next_stage != stage)
+    {
+      LOG(("wrong stage, expected: %s", protocol_stage_name(data->next_stage)));
+      if (opt_crash)
+        assert(0);
+    }
+>>>>>>> upstream/cluster-7.6
   }
 
   // Show trace event details
@@ -561,9 +578,20 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
 
   switch (stage) {
     PROTOCOL_STAGE_LIST(check)
+<<<<<<< HEAD
     default:
       LOG(("invalid stage %d", stage));
+<<<<<<< HEAD
       if (opt_crash) assert(0);
+=======
+      if (opt_crash) DBUG_ASSERT(0);
+=======
+  default:
+    LOG(("invalid stage %d", stage));
+    if (opt_crash)
+      assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   // Disable invalid event check in certain cases.
@@ -590,7 +618,16 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
 
   if (check) {
     LOG(("invalid event detected"));
+<<<<<<< HEAD
     if (opt_crash) assert(0);
+=======
+<<<<<<< HEAD
+    if (opt_crash) DBUG_ASSERT(0);
+=======
+    if (opt_crash)
+      assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   return 0;
@@ -1312,4 +1349,14 @@ int check_event_DISCONNECTED(MYSQL *, struct st_trace_data *, enum trace_event,
 
 }  // namespace test_trace
 
+<<<<<<< HEAD
 #endif  // #if defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#endif  // #if defined(DBUG_OFF)
+=======
+} // namespace test_trace
+
+#endif // #if defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 /* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   
+>>>>>>> upstream/cluster-7.6
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -11,10 +20,25 @@
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
 
+<<<<<<< HEAD
+=======
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+
+>>>>>>> upstream/cluster-7.6
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License, version 2.0, for more details.
+<<<<<<< HEAD
+=======
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+>>>>>>> upstream/cluster-7.6
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software

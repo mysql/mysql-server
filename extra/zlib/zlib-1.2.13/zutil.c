@@ -121,7 +121,21 @@ uLong ZEXPORT zlibCompileFlags()
 #  endif
 int ZLIB_INTERNAL z_verbose = verbose;
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 void ZLIB_INTERNAL z_error(m)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+void ZLIB_INTERNAL z_error (m)
+========
+void ZLIB_INTERNAL z_error(m)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
     char *m;
 {
     fprintf(stderr, "%s\n", m);
@@ -216,7 +230,21 @@ local ptr_table table[MAX_PTR];
  * a protected system like OS/2. Use Microsoft C instead.
  */
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, unsigned items, unsigned size)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, unsigned items, unsigned size)
+========
+voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, unsigned items, unsigned size)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
 {
     voidpf buf;
     ulg bsize = (ulg)items*size;
@@ -242,7 +270,21 @@ voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, unsigned items, unsigned size)
     return buf;
 }
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
+========
+void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
 {
     int n;
 
@@ -279,13 +321,41 @@ void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr)
 #  define _hfree   hfree
 #endif
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, uInt items, uInt size)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, uInt items, uInt size)
+========
+voidpf ZLIB_INTERNAL zcalloc(voidpf opaque, uInt items, uInt size)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
 {
     (void)opaque;
     return _halloc((long)items, size);
 }
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
+========
+void ZLIB_INTERNAL zcfree(voidpf opaque, voidpf ptr)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
 {
     (void)opaque;
     _hfree(ptr);
@@ -304,7 +374,21 @@ extern voidp  calloc OF((uInt items, uInt size));
 extern void   free   OF((voidpf ptr));
 #endif
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 voidpf ZLIB_INTERNAL zcalloc(opaque, items, size)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+voidpf ZLIB_INTERNAL zcalloc (opaque, items, size)
+========
+voidpf ZLIB_INTERNAL zcalloc(opaque, items, size)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
     voidpf opaque;
     unsigned items;
     unsigned size;
@@ -314,7 +398,21 @@ voidpf ZLIB_INTERNAL zcalloc(opaque, items, size)
                               (voidpf)calloc(items, size);
 }
 
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/zutil.c
 void ZLIB_INTERNAL zcfree(opaque, ptr)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/zutil.c
+void ZLIB_INTERNAL zcfree (opaque, ptr)
+========
+void ZLIB_INTERNAL zcfree(opaque, ptr)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/zutil.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/zutil.c
+=======
+>>>>>>> pr/231
     voidpf opaque;
     voidpf ptr;
 {

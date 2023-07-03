@@ -415,12 +415,28 @@ ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2038-01-03 00:00:00'
   ON COMPLETION PRESERVE DISABLE;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+<<<<<<< HEAD
 events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+=======
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SET TIME_ZONE= '+04:00';
 ALTER EVENT e1 DO SELECT 2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+<<<<<<< HEAD
 events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+=======
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 DROP EVENT e1;
 SET TIME_ZONE='+05:00';
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO

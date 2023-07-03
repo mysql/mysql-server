@@ -1,0 +1,33 @@
+#
+# Bug#30042589: MYSQLDUMP LEAKS MEMORY WHEN SELECTED TABLES
+#               ARE DUMPED WITH --ORDER-BY-PRIMARY
+#
+
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS table1;
+drop database if exists database1;
+--enable_warnings
+
+CREATE DATABASE database1;
+USE database1;
+CREATE TABLE table1(a INT PRIMARY KEY, b INT UNIQUE) engine = InnoDB;
+CREATE TABLE table2(a INT PRIMARY KEY, b INT UNIQUE) engine = InnoDB;
+
+INSERT INTO table1 VALUES (1, 3);
+INSERT INTO table1 VALUES (2, 2);
+INSERT INTO table1 VALUES (3, 1);
+
+INSERT INTO table2 VALUES (1, 3);
+INSERT INTO table2 VALUES (2, 2);
+INSERT INTO table2 VALUES (3, 1);
+
+--echo ==== mysqldump with --order-by-primary ====
+--replace_regex /-- Server version.*/-- SERVER VERSION/ /-- MySQL dump .*//
+--exec $MYSQL_DUMP --skip-dump-date --order-by-primary --extended-insert=FALSE database1 table1 table2
+
+DROP TABLE table1;
+DROP TABLE table2;
+drop database database1;

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +78,7 @@ class Filesort {
   // TODO: Consider moving this into private members of Filesort.
   Sort_param m_sort_param;
 
+<<<<<<< HEAD
   // TODO(sgunders): Change tables to a table_map; however, currently
   // some semijoin tables are missing from query_block->leaf_tables,
   // so we can't do that yet.
@@ -78,6 +87,42 @@ class Filesort {
            bool force_sort_rowids, bool unwrap_rollup);
 
   Addon_fields *get_addon_fields(Addon_fields_status *addon_fields_status,
+=======
+<<<<<<< HEAD
+  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg)
+      : Filesort(tab_arg, order_arg, limit_arg, false) {}
+
+  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg,
+           bool force_stable_sort)
+      : tab(tab_arg),
+        order(order_arg),
+        limit(limit_arg),
+        sortorder(NULL),
+        using_pq(false),
+        m_force_stable_sort(
+            force_stable_sort),  // keep relative order of equiv. elts
+        addon_fields(NULL) {
+    DBUG_ASSERT(order);
+=======
+  Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg):
+    tab(tab_arg),
+    order(order_arg),
+    limit(limit_arg),
+    sortorder(NULL),
+    using_pq(false),
+    addon_fields(NULL)
+  {
+    assert(order);
+>>>>>>> upstream/cluster-7.6
+  };
+
+  /* Prepare ORDER BY list for sorting. */
+  uint make_sortorder();
+
+  Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
+                                 Field **ptabfield, uint sortlength,
+                                 Addon_fields_status *addon_fields_status,
+>>>>>>> pr/231
                                  uint *plength, uint *ppackable_length);
 
   // Number of elements in the sortorder array.

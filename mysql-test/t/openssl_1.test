@@ -19,6 +19,7 @@ let $cipher_val= "$cipher";
 connection default;
 disconnect con0;
 
+<<<<<<< HEAD
 create user ssl_user1@localhost, ssl_user2@localhost,
             ssl_user3@localhost, ssl_user4@localhost,
             ssl_user5@localhost;
@@ -33,6 +34,17 @@ grant select on test.* to ssl_user1@localhost, ssl_user2@localhost,
 -- eval alter user ssl_user4@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
 --replace_regex $ALLOWED_CIPHERS_REGEX
 -- eval alter user ssl_user5@localhost require cipher $cipher_val AND SUBJECT "xxx"
+=======
+grant select on test.* to ssl_user1@localhost require SSL;
+--replace_regex $ALLOWED_CIPHERS_REGEX
+-- eval grant select on test.* to ssl_user2@localhost require cipher $cipher_val
+--replace_regex $ALLOWED_CIPHERS_REGEX
+-- eval grant select on test.* to ssl_user3@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+--replace_regex $ALLOWED_CIPHERS_REGEX
+-- eval grant select on test.* to ssl_user4@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+--replace_regex $ALLOWED_CIPHERS_REGEX
+-- eval grant select on test.* to ssl_user5@localhost require cipher $cipher_val AND SUBJECT "xxx"
+>>>>>>> upstream/cluster-7.6
 flush privileges;
 
 connect (con1,localhost,ssl_user1,,,,,SSL);
@@ -45,7 +57,15 @@ connect (con5,localhost,ssl_user5,,,,,SSL);
 
 connection con1;
 # Check ssl turned on
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -53,7 +73,15 @@ delete from t1;
 
 connection con2;
 # Check ssl turned on
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -61,7 +89,15 @@ delete from t1;
 
 connection con3;
 # Check ssl turned on
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -69,7 +105,15 @@ delete from t1;
 
 connection con4;
 # Check ssl turned on
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -132,7 +176,10 @@ drop table t1;
 #
 # Bug#21611 Slave can't connect when master-ssl-cipher specified
 # - Apparently selecting a cipher doesn't work at all
+<<<<<<< HEAD
 # - Usa a cipher that OpenSSL supports
+=======
+>>>>>>> pr/231
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
@@ -147,7 +194,15 @@ drop table t1;
 # verification of servers certificate by setting both ca certificate
 # and ca path to NULL
 #
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 --exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 --echo End of 5.0 tests
 
@@ -240,11 +295,17 @@ DROP TABLE t1;
 #           YaSSL to crash the server.
 #
 
+<<<<<<< HEAD
 # Common ciphers to openssl and yassl
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA:
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=AES256-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA
+=======
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES128-SHA:
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --ssl-cipher=AES256-SHA
+>>>>>>> pr/231
 --disable_query_log
 --disable_result_log
 
@@ -281,7 +342,15 @@ CREATE USER bug42158@localhost REQUIRE X509;
 GRANT SELECT ON test.* TO bug42158@localhost;
 FLUSH PRIVILEGES;
 connect(con1,localhost,bug42158,,,,,SSL);
+<<<<<<< HEAD
 --replace_regex $ALLOWED_CIPHERS_REGEX
+=======
+<<<<<<< HEAD
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 SHOW STATUS LIKE 'Ssl_cipher';
 disconnect con1;
 connection default;

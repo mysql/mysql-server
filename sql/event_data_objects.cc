@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -376,7 +384,24 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
     If neither STARTS and ENDS is set, then both fields are empty.
     Hence, if execute_at is empty there is an error.
   */
+<<<<<<< HEAD
   assert(!(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      !(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
+=======
+  execute_at_null= table->field[ET_FIELD_EXECUTE_AT]->is_null();
+  assert(!(starts_null && ends_null && !expression && execute_at_null));
+  if (!expression && !execute_at_null)
+  {
+    if (table->field[ET_FIELD_EXECUTE_AT]->get_date(&time,
+                                                    TIME_NO_ZERO_DATE))
+      DBUG_RETURN(TRUE);
+    execute_at= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!m_expression && !m_execute_at_null)
     m_execute_at = event_obj.execute_at();
@@ -477,6 +502,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   longlong months = 0, seconds = 0;
 
   switch (i_type) {
+<<<<<<< HEAD
     case INTERVAL_YEAR:
       months = i_value * 12;
       break;
@@ -518,7 +544,55 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
       return true;
       break;
     case INTERVAL_LAST:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+  case INTERVAL_YEAR:
+    months= i_value*12;
+    break;
+  case INTERVAL_QUARTER:
+    /* Has already been converted to months */
+  case INTERVAL_YEAR_MONTH:
+  case INTERVAL_MONTH:
+    months= i_value;
+    break;
+  case INTERVAL_WEEK:
+    /* WEEK has already been converted to days */
+  case INTERVAL_DAY:
+    seconds= i_value*24*3600;
+    break;
+  case INTERVAL_DAY_HOUR:
+  case INTERVAL_HOUR:
+    seconds= i_value*3600;
+    break;
+  case INTERVAL_DAY_MINUTE:
+  case INTERVAL_HOUR_MINUTE:
+  case INTERVAL_MINUTE:
+    seconds= i_value*60;
+    break;
+  case INTERVAL_DAY_SECOND:
+  case INTERVAL_HOUR_SECOND:
+  case INTERVAL_MINUTE_SECOND:
+  case INTERVAL_SECOND:
+    seconds= i_value;
+    break;
+  case INTERVAL_DAY_MICROSECOND:
+  case INTERVAL_HOUR_MICROSECOND:
+  case INTERVAL_MINUTE_MICROSECOND:
+  case INTERVAL_SECOND_MICROSECOND:
+  case INTERVAL_MICROSECOND:
+    /*
+     We should return an error here so SHOW EVENTS/ SELECT FROM I_S.EVENTS
+     would give an error then.
+    */
+    DBUG_RETURN(1);
+    break;
+  case INTERVAL_LAST:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   DBUG_PRINT("info",
              ("seconds: %ld  months: %ld", (long)seconds, (long)months));

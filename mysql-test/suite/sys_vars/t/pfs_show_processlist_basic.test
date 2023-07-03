@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+>>>>>>> pr/231
 
 #
 # Only global

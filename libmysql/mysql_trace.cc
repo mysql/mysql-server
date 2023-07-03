@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:libmysql/mysql_trace.cc
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:libmysql/mysql_trace.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,9 +189,22 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
   }
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
 /*
   These functions are declared in plugin_trace.h.
+=======
+<<<<<<< HEAD:libmysql/mysql_trace.cc
+#ifndef DBUG_OFF
+  /*
+    These functions are declared in plugin_trace.h.
+=======
+
+#ifndef NDEBUG
+/*
+  These functions are declared in plugin_trace.h.
+>>>>>>> upstream/cluster-7.6:libmysql/mysql_trace.c
+>>>>>>> pr/231
 
   Consult documentation of *_LIST() macros (plugin_trace.h) to see how
   switch() bodies are constructed with the *_get_name() macros.

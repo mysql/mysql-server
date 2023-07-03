@@ -9,7 +9,11 @@ b int
 id    type                 state    logging database     schema   name
 XX    OrderedIndex         Online   No      sys          def      PRIMARY
 
+<<<<<<< HEAD
 # Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command
+=======
+"Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
+>>>>>>> pr/231
 Please specify database name using the -d option. Use option --help for more details.
 
 CREATE DATABASE TEST_DB;

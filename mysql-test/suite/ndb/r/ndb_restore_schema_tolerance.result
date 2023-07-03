@@ -178,7 +178,11 @@ a	b	c	d	e	f	g	h	i
 drop table t1;
 create table test.t1(id int primary key, val1 int unique, val2 char(20) unique) engine=ndb;
 drop table test.t1;
+<<<<<<< HEAD
 Test ndb_restore of backup containing unique index, should not warn since indexes are disabled
+=======
+Test ndb_restore of backup containing unique index, not warn since indexes are disabled
+>>>>>>> pr/231
 # print metadata+data+log : should not warn
 row
 # print metadata : should not warn
@@ -208,9 +212,12 @@ row
 # restore data : should warn since indexes aren't disabled in the previous step
 row
 WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+<<<<<<< HEAD
 WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
 WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
 WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+=======
+>>>>>>> pr/231
 drop table test.t1;
 Restore table with largest possible descriptor
 create table grp_hssesmusersstoredbytenant(t1 bigint primary key,

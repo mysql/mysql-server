@@ -1409,7 +1409,15 @@ Table	Create Table
 t	CREATE TABLE `t` (
   `i` int NOT NULL AUTO_INCREMENT,
   KEY `i` (`i`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB AUTO_INCREMENT=651 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+<<<<<<< HEAD
+) ENGINE=InnoDB AUTO_INCREMENT=401 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+) ENGINE=InnoDB AUTO_INCREMENT=651 DEFAULT CHARSET=latin1
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 DROP TABLE t;
 #
 # Bug#15851528 DUPLICATE KEY ERROR ON AUTO-INC PK WITH MIXED AUTO_INCREMENT_INCREMENT CLIENTS
@@ -1429,11 +1437,19 @@ SET SESSION auto_increment_increment=2;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S1');
 SELECT a,b FROM t;
 a	b
@@ -1443,11 +1459,19 @@ SET SESSION auto_increment_increment=2;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S2');
 SELECT a,b FROM t;
 a	b
@@ -1457,11 +1481,19 @@ SET SESSION auto_increment_increment=1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S2');
 SELECT a,b FROM t;
 a	b
@@ -1473,11 +1505,19 @@ SET SESSION auto_increment_increment=1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S1');
 SELECT a,b FROM t;
 a	b
@@ -1494,10 +1534,17 @@ SET SESSION auto_increment_increment=100;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S0'),('S1');
 SELECT a,b FROM t;
 a	b
@@ -1506,10 +1553,17 @@ a	b
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(a,b) VALUES(28,'S2');
 SELECT a,b FROM t;
 a	b
@@ -1520,10 +1574,17 @@ SET SESSION auto_increment_increment=1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t(b) VALUES('S3');
 SELECT a,b FROM t;
 a	b
@@ -1534,12 +1595,21 @@ a	b
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
+<<<<<<< HEAD
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t(b) VALUES('S4');
 ERROR 23000: Duplicate entry '127' for key 't.PRIMARY'
+=======
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `b` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1
+INSERT INTO t(b) VALUES('S4');
+ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
+>>>>>>> pr/231
 DROP TABLE t;
 #
 # Bug 26906787 - INCORRECT AUTO_INCREMENT IDS ISSUED WHEN CLOSE TO ULLONG_MAX
@@ -1551,19 +1621,33 @@ INSERT INTO t1 VALUES (18446744073709551613, 'a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(8) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 INSERT INTO t1 VALUES (NULL, 'b');
 ERROR 22003: Out of range value for column 't1' at row 167
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(8) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+>>>>>>> pr/231
 DROP TABLE t1;
 CREATE TABLE t1 (
 a BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -1577,6 +1661,7 @@ INSERT INTO t1 VALUES (18446744073709551613, 'a');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -1584,11 +1669,21 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (6) TABLESPACE = `innodb_system` ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(8) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551614 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+>>>>>>> pr/231
 INSERT INTO t1 VALUES (NULL, 'b');
 ERROR 22003: Out of range value for column 't1' at row 167
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+<<<<<<< HEAD
   `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -1596,4 +1691,13 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (6) TABLESPACE = `innodb_system` ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE TABLESPACE = `innodb_system` ENGINE = InnoDB) */
+=======
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` char(8) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+>>>>>>> pr/231
 DROP TABLE t1;

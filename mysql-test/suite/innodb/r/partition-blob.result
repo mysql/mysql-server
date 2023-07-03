@@ -34,6 +34,11 @@ DROP TABLE t1;
 # FAILURE: UT0UT.CC:670
 #
 set sql_mode='';
+<<<<<<< HEAD
+=======
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+>>>>>>> pr/231
 CREATE TABLE t1(a INT, b TEXT NOT NULL) PARTITION BY RANGE(a)
 (PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (9),
 PARTITION p2 VALUES LESS THAN MAXVALUE);

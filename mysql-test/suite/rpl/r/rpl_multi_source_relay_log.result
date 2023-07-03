@@ -5,9 +5,14 @@
 # ... FOR CHANNEL.
 #
 # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
+<<<<<<< HEAD
 # - deletes all relay log files of named channels and reinitializes
+=======
+# - deletes all relay log files of named channels and reintializes
+>>>>>>> pr/231
 # them.
 # - For default channel, it restart the relay log from .000001
+<<<<<<< HEAD
 # - retains replication filters of the channel.
 # - For named channel, it restart the relay log from ch.000001
 # - retains all replication filters from all replication channels.
@@ -35,6 +40,9 @@
 # (copies all global replication filters to its own per-channel
 # replication filters).
 #
+=======
+# - For named channel, it restart the relay log from ch.000001
+>>>>>>> upstream/cluster-7.6
 #########################################################################
 include/master-slave.inc
 Warnings:
@@ -103,8 +111,13 @@ ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 # RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
 #
 RESET SLAVE FOR CHANNEL "ch1";
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+=======
+slave-relay-bin-ch1.000001
+slave-relay-bin-ch1.index
+>>>>>>> pr/231
 #
 # Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
 # replication filters of the channel.
@@ -134,8 +147,13 @@ slave-relay-bin-ch1.index
 #
 include/stop_slave.inc
 RESET SLAVE;
+<<<<<<< HEAD
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+=======
+slave-relay-bin-ch2.000001
+slave-relay-bin-ch2.index
+>>>>>>> pr/231
 #
 # Verify that "RESET SLAVE" retains all replication filters from
 # all replication channels.
@@ -173,9 +191,18 @@ slave-relay-bin-ch2.index
 #
 # Relay log files for all channels are recreated automatically.
 #
+<<<<<<< HEAD
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+=======
+<<<<<<< HEAD
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
 # the replication channel specified by 'FOR CHANNEL' clause and all

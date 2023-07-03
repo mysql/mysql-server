@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +73,16 @@ SET(HAVE_SYS_WAIT_H CACHE  INTERNAL "")
 SET(HAVE_SYS_PARAM_H CACHE  INTERNAL "")
 SET(HAVE_FNMATCH_H CACHE  INTERNAL "")
 SET(HAVE_SYS_UN_H CACHE  INTERNAL "")
+<<<<<<< HEAD
+=======
+SET(HAVE_VIS_H CACHE INTERNAL "")
+
+# Libevent
+SET(HAVE_DEVPOLL CACHE  INTERNAL "")
+SET(HAVE_SYS_DEVPOLL_H CACHE  INTERNAL "")
+SET(HAVE_SYS_EPOLL_H CACHE  INTERNAL "")
+SET(HAVE_TAILQFOREACH CACHE INTERNAL "")
+>>>>>>> pr/231
 
 # Functions
 SET(HAVE_ALIGNED_MALLOC 1 CACHE  INTERNAL "")

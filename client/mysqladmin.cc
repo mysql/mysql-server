@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,10 +101,18 @@ static uint ex_val_max_len[MAX_MYSQL_VAR];
 static bool ex_status_printed = false; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
+<<<<<<< HEAD
 #include "sslopt-vars.h"
 
 #include "caching_sha2_passwordopt-vars.h"
+<<<<<<< HEAD
 #include "multi_factor_passwordopt-vars.h"
+=======
+=======
+#include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 static void usage(void);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -181,6 +197,7 @@ static const char *command_names[] = {"create",
 static TYPELIB command_typelib = {array_elements(command_names) - 1, "commands",
                                   command_names, nullptr};
 
+<<<<<<< HEAD
 static struct my_option my_long_options[] = {
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
      (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
@@ -196,8 +213,32 @@ static struct my_option my_long_options[] = {
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-info", OPT_DEBUG_INFO,
+<<<<<<< HEAD
      "This is a non-debug version. Catch this and exit.", nullptr, nullptr,
      nullptr, GET_DISABLED, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+     "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+=======
+static struct my_option my_long_options[] =
+{
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 'c',
+   "Number of iterations to make. This works with -i (--sleep) only.",
+   &nr_iterations, &nr_iterations, 0, GET_UINT,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef NDEBUG
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
      nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -257,14 +298,67 @@ static struct my_option my_long_options[] = {
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 #endif
+<<<<<<< HEAD
     {"silent", 's', "Silently exit if one can't connect to server.", nullptr,
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+=======
+<<<<<<< HEAD
+    {"silent", 's', "Silently exit if one can't connect to server.", 0, 0, 0,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> pr/231
     {"socket", 'S', "The socket file to use for connection.", &unix_port,
      &unix_port, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"sleep", 'i', "Execute commands repeatedly with a sleep between.",
      &interval, &interval, nullptr, GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
 #include "sslopt-longopts.h"
+=======
+  {"silent", 's', "Silently exit if one can't connect to server.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &unix_port, &unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"sleep", 'i', "Execute commands repeatedly with a sleep between.",
+   &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+#include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
+  {"user", 'u', "User for login if not current user.", &user,
+   &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write more information.", &opt_verbose,
+   &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"vertical", 'E',
+   "Print output vertically. Is similar to --relative, but prints output vertically.",
+   &opt_vertical, &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_UINT,
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", &opt_connect_timeout,
+   &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
+   3600*12, 0, 1, 0},
+  {"shutdown_timeout", OPT_SHUTDOWN_TIMEOUT, "", &opt_shutdown_timeout,
+   &opt_shutdown_timeout, 0, GET_ULONG, REQUIRED_ARG,
+   SHUTDOWN_DEF_TIMEOUT, 0, 3600*12, 0, 1, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+    &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
+    "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"show_warnings", OPT_SHOW_WARNINGS,
+   "Show warnings after execution",
+   &opt_show_warnings, &opt_show_warnings,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+>>>>>>> upstream/cluster-7.6
 
 #include "caching_sha2_passwordopt-longopts.h"
 
@@ -464,9 +558,18 @@ int main(int argc, char *argv[]) {
 
   set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
+<<<<<<< HEAD
 
   set_password_options(&mysql);
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (sql_connect(&mysql, option_wait)) {
+=======
+
+  if (sql_connect(&mysql, option_wait))
+  {
+>>>>>>> upstream/cluster-7.6
     /*
       We couldn't get an initial connection and will definitely exit.
       The following just determines the exit-code we'll give.
@@ -674,6 +777,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
 
   for (; argc > 0; argv++, argc--) {
     int option;
+<<<<<<< HEAD
     bool log_warnings = true;
     switch (option = find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
       case ADMIN_CREATE: {
@@ -681,6 +785,326 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         if (argc < 2) {
           my_printf_error(0, "Too few arguments to create", error_flags);
           return 1;
+=======
+    bool log_warnings= true;
+    switch (option= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
+    case ADMIN_CREATE:
+    {
+      char buff[FN_REFLEN+20];
+      if (argc < 2)
+      {
+	my_printf_error(0, "Too few arguments to create", error_flags);
+	return 1;
+      }
+      sprintf(buff,"create database `%.*s`",FN_REFLEN,argv[1]);
+      if (mysql_query(mysql,buff))
+      {
+	my_printf_error(0,"CREATE DATABASE failed; error: '%-.200s'",
+			error_flags, mysql_error(mysql));
+	return -1;
+      }
+      argc--; argv++;
+      break;
+    }
+    case ADMIN_DROP:
+    {
+      if (argc < 2)
+      {
+	my_printf_error(0, "Too few arguments to drop", error_flags);
+	return 1;
+      }
+      if (drop_db(mysql,argv[1]))
+	return -1;
+      argc--; argv++;
+      break;
+    }
+    case ADMIN_SHUTDOWN:
+    {
+      char pidfile[FN_REFLEN];
+      my_bool got_pidfile= 0;
+      time_t last_modified= 0;
+      struct stat pidfile_status;
+
+      /*
+	Only wait for pidfile on local connections
+	If pidfile doesn't exist, continue without pid file checking
+      */
+      if (mysql->unix_socket && (got_pidfile= !get_pidfile(mysql, pidfile)) &&
+	  !stat(pidfile, &pidfile_status))
+	last_modified= pidfile_status.st_mtime;
+
+      /* Issue COM_SHUTDOWN if server version is older then 5.7*/
+      int resShutdown= 1;
+      if(mysql_get_server_version(mysql) < 50709)
+        resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
+      else
+        resShutdown= mysql_query(mysql, "shutdown");
+
+      if(resShutdown)
+      {
+        my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
+        mysql_error(mysql));
+        return -1;
+      }
+
+      argc=1;                   /* force SHUTDOWN to be the last command    */
+      if (got_pidfile)
+      {
+	if (opt_verbose)
+	  printf("Shutdown signal sent to server;  Waiting for pid file to disappear\n");
+
+	/* Wait until pid file is gone */
+	if (wait_pidfile(pidfile, last_modified, &pidfile_status))
+	  return -1;
+      }
+      /* Do not try to print warning as server has gone away */
+      log_warnings= false;
+      break;
+    }
+    case ADMIN_FLUSH_PRIVILEGES:
+    case ADMIN_RELOAD:
+      if (mysql_query(mysql,"flush privileges"))
+      {
+	my_printf_error(0, "reload failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    case ADMIN_REFRESH:
+      if (mysql_refresh(mysql,
+			(uint) ~(REFRESH_GRANT | REFRESH_STATUS |
+				 REFRESH_READ_LOCK | REFRESH_SLAVE |
+				 REFRESH_MASTER)))
+      {
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    case ADMIN_FLUSH_THREADS:
+      if (mysql_refresh(mysql,(uint) REFRESH_THREADS))
+      {
+	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    case ADMIN_VER:
+      new_line=1;
+      print_version();
+      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
+      printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
+      printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
+      printf("Connection\t\t%s\n",mysql_get_host_info(mysql));
+      if (mysql->unix_socket)
+	printf("UNIX socket\t\t%s\n", mysql->unix_socket);
+      else
+	printf("TCP port\t\t%d\n", mysql->port);
+      status=mysql_stat(mysql);
+      {
+	char *pos,buff[40];
+	ulong sec;
+	pos= (char*) strchr(status,' ');
+	*pos++=0;
+	printf("%s\t\t\t",status);			/* print label */
+	if ((status=str2int(pos,10,0,LONG_MAX,(long*) &sec)))
+	{
+	  nice_time(sec,buff);
+	  puts(buff);				/* print nice time */
+	  while (*status == ' ') status++;	/* to next info */
+	}
+      }
+      putc('\n',stdout);
+      if (status)
+	puts(status);
+      break;
+    case ADMIN_PROCESSLIST:
+    {
+      MYSQL_RES *result;
+      MYSQL_ROW row;
+
+      if (mysql_query(mysql, (opt_verbose ? "show full processlist" :
+			      "show processlist")) ||
+	  !(result = mysql_store_result(mysql)))
+      {
+	my_printf_error(0, "process list failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      print_header(result);
+      while ((row=mysql_fetch_row(result)))
+	print_row(result,row,0);
+      print_top(result);
+      mysql_free_result(result);
+      new_line=1;
+      break;
+    }
+    case ADMIN_STATUS:
+      status=mysql_stat(mysql);
+      if (status)
+	puts(status);
+      break;
+    case ADMIN_KILL:
+      {
+	uint error=0;
+	char *pos;
+	if (argc < 2)
+	{
+	  my_printf_error(0, "Too few arguments to 'kill'", error_flags);
+	  return 1;
+	}
+	pos=argv[1];
+	for (;;)
+	{
+          /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
+          char buff[26], *out; /* "KILL " + max 20 digs + NUL */
+          out= strxmov(buff, "KILL ", NullS);
+          ullstr(my_strtoull(pos, NULL, 0), out);
+
+          if (mysql_query(mysql, buff))
+	  {
+            /* out still points to just the number */
+	    my_printf_error(0, "kill failed on %s; error: '%s'", error_flags,
+			    out, mysql_error(mysql));
+	    error=1;
+	  }
+	  if (!(pos=strchr(pos,',')))
+	    break;
+	  pos++;
+	}
+	argc--; argv++;
+	if (error)
+	  return -1;
+	break;
+      }
+    case ADMIN_DEBUG:
+      if (mysql_dump_debug_info(mysql))
+      {
+	my_printf_error(0, "debug failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    case ADMIN_VARIABLES:
+    {
+      MYSQL_RES *res;
+      MYSQL_ROW row;
+
+      new_line=1;
+      if (mysql_query(mysql,"show /*!40003 GLOBAL */ variables") ||
+	  !(res=mysql_store_result(mysql)))
+      {
+	my_printf_error(0, "unable to show variables; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      print_header(res);
+      while ((row=mysql_fetch_row(res)))
+	print_row(res,row,0);
+      print_top(res);
+      mysql_free_result(res);
+      break;
+    }
+    case ADMIN_EXTENDED_STATUS:
+    {
+      MYSQL_RES *res;
+      MYSQL_ROW row;
+      uint rownr = 0;
+      void (*func) (MYSQL_RES*, MYSQL_ROW, uint);
+
+      new_line = 1;
+      if (mysql_query(mysql, "show /*!50002 GLOBAL */ status") ||
+	  !(res = mysql_store_result(mysql)))
+      {
+	my_printf_error(0, "unable to show status; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+
+      assert(mysql_num_rows(res) < MAX_MYSQL_VAR);
+
+      if (!opt_vertical)
+	print_header(res);
+      else
+      {
+	if (!ex_status_printed)
+	{
+	  store_values(res);
+	  truncate_names();   /* Does some printing also */
+	}
+	else
+	{
+	  print_relative_line();
+	  print_relative_header();
+	  print_relative_line();
+	}
+      }
+
+      /*      void (*func) (MYSQL_RES*, MYSQL_ROW, uint); */
+      if (opt_relative && !opt_vertical)
+	func = print_relative_row;
+      else if (opt_vertical)
+	func = print_relative_row_vert;
+      else
+	func = print_row;
+
+      while ((row = mysql_fetch_row(res)))
+	(*func)(res, row, rownr++);
+      if (opt_vertical)
+      {
+	if (ex_status_printed)
+	{
+	  putchar('\n');
+	  print_relative_line();
+	}
+      }
+      else
+	print_top(res);
+
+      ex_status_printed = 1; /* From now on the output will be relative */
+      mysql_free_result(res);
+      break;
+    }
+    case ADMIN_FLUSH_LOGS:
+    {
+      std::string command;
+      if (argc > 1)
+      {
+        bool first_arg= true;
+        for (command= "FLUSH "; argc > 1; argc--, argv++)
+        {
+          if (!first_arg)
+            command+= ",";
+
+          if (!my_strcasecmp(&my_charset_latin1, argv[1], "binary"))
+            command+= " BINARY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "engine"))
+            command+= " ENGINE LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "error"))
+            command+= " ERROR LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "general"))
+            command+= " GENERAL LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "relay"))
+            command+= " RELAY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "slow"))
+            command+= " SLOW LOGS";
+          else
+          {
+            /*
+              Not a valid log type, assume it's the next command.
+              Remove the trailing comma if any of the log types is specified
+              or flush all if no specific log type is specified.
+            */
+            if (!first_arg)
+              command.resize(command.size() - 1);
+            else
+              command= "FLUSH LOGS";
+            break;
+          }
+
+          if (first_arg)
+            first_arg= false;
+>>>>>>> upstream/cluster-7.6
         }
         sprintf(buff, "create database `%.*s`", FN_REFLEN, argv[1]);
         if (mysql_query(mysql, buff)) {
@@ -1440,22 +1864,51 @@ static void truncate_names() {
 
 static bool get_pidfile(MYSQL *mysql, char *pidfile) {
   MYSQL_RES *result;
+<<<<<<< HEAD
   if (mysql_query(mysql, "SELECT @@datadir, @@pid_file")) {
+=======
+
+<<<<<<< HEAD
+  if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'")) {
+=======
+static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
+{
+  MYSQL_RES* result;
+
+  if (mysql_query(mysql, "SELECT @@datadir, @@pid_file"))
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     my_printf_error(mysql_errno(mysql),
                     "The query to get the server's pid file failed,"
                     " error: '%s'. Continuing.",
                     error_flags, mysql_error(mysql));
   }
   result = mysql_store_result(mysql);
+<<<<<<< HEAD
   if (result) {
     MYSQL_ROW row = mysql_fetch_row(result);
+<<<<<<< HEAD
+=======
+    if (row) my_stpcpy(pidfile, row[1]);
+=======
+  if (result)
+  {
+    MYSQL_ROW row=mysql_fetch_row(result);
+>>>>>>> pr/231
     if (row) {
       char datadir[FN_REFLEN];
       char pidfile_option[FN_REFLEN];
       my_stpcpy(datadir, row[0]);
       my_stpcpy(pidfile_option, row[1]);
+<<<<<<< HEAD
       (void)my_load_path(pidfile, pidfile_option, datadir);
     }
+=======
+      (void) my_load_path(pidfile, pidfile_option, datadir);
+    }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     mysql_free_result(result);
     return row == nullptr; /* Error if row = 0 */
   }

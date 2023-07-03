@@ -1967,6 +1967,7 @@ DROP TABLE t1;
 
 --echo #
 
+<<<<<<< HEAD
 --echo #
 --echo # Bug#25717617: Wrong syntax error line numbers when sql_mode has the
 --echo #               IGNORE_SPACE flag
@@ -2119,6 +2120,7 @@ CREATE FUNCTION f1() RETURNS CHAR(1) CHARSET DEFAULT RETURN '';
 
 --error ER_PARSE_ERROR
 CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';
+<<<<<<< HEAD
 
 
 --echo #
@@ -2239,6 +2241,9 @@ DROP DATABASE db3;
 
 USE test;
 
+=======
+=======
+>>>>>>> pr/231
 --echo
 --echo Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
 --echo
@@ -2252,6 +2257,7 @@ SET parser_max_mem_size = 10000000; # minimum allowed value
 SET parser_max_mem_size = default;
 
 --echo #
+<<<<<<< HEAD
 --echo # Bug #28968848: SIMPLIFY MYSQL_YYABORT
 --echo #
 
@@ -2548,6 +2554,8 @@ WITH cte AS (SELECT 0 /*! ) */ SELECT * FROM cte a, cte b;
 WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;
 
 --echo #
+=======
+>>>>>>> pr/231
 --echo # Bug#30528450: SPECIAL SYMBOL NAMED COLUMN NOT HONORED IN A SELECT
 --echo #
 
@@ -2559,6 +2567,7 @@ SELECT t1.`*`, t1.* FROM t1;
 SELECT test.t1.`*`, test.t1.* FROM t1;
 
 DROP TABLE t1;
+<<<<<<< HEAD
 
 --echo #
 --echo # Bug#30592703: UNDOCUMENTED SYNTAX
@@ -2668,3 +2677,6 @@ SET @@sql_mode=@save_sql_mode;
 
 DROP TABLE `full`;
 
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

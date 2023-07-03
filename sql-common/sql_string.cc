@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,12 +47,24 @@ PSI_memory_key key_memory_String_value;
 ** String functions
 *****************************************************************************/
 
+<<<<<<< HEAD
 bool String::real_alloc(size_t length) {
   size_t arg_length = ALIGN_SIZE(length + 1);
   assert(arg_length > length);
   if (arg_length <= length) return true; /* Overflow */
   m_length = 0;
   if (m_alloced_length < arg_length) {
+=======
+bool String::real_alloc(size_t length)
+{
+  size_t arg_length= ALIGN_SIZE(length + 1);
+  assert(arg_length > length);
+  if (arg_length <= length)
+    return true;                                 /* Overflow */
+  m_length= 0;
+  if (m_alloced_length < arg_length)
+  {
+>>>>>>> upstream/cluster-7.6
     mem_free();
     if (!(m_ptr = static_cast<char *>(
               my_malloc(STRING_PSI_MEMORY_KEY, arg_length, MYF(MY_WME)))))
@@ -91,13 +107,26 @@ bool String::real_alloc(size_t length) {
    new buffer is smaller than the currently allocated buffer (if one exists),
    no allocation occurred.
 
+<<<<<<< HEAD
    @retval true An error occurred when attempting to allocate memory or memory
+=======
+   @retval true An error occured when attempting to allocate memory or memory
+>>>>>>> pr/231
    allocation length exceeded allowed limit (4GB) for String Class.
 */
+<<<<<<< HEAD
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
   size_t len = ALIGN_SIZE(alloc_length + 1);
   assert(len > alloc_length);
   if (len <= alloc_length) return true; /* Overflow */
+=======
+bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
+{
+  size_t len= ALIGN_SIZE(alloc_length + 1);
+  assert(len > alloc_length);
+  if (len <= alloc_length)
+    return true;                                 /* Overflow */
+>>>>>>> upstream/cluster-7.6
 
   if (force_on_heap && !m_is_alloced) {
     /*
@@ -107,11 +136,26 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     m_alloced_length = 0;
   }
 
+<<<<<<< HEAD
   if (m_alloced_length < len) {  // Available bytes are not enough.
     // Signal an error if len exceeds uint32 max on 64-bit word platform.
 #if defined(__WORDSIZE) && (__WORDSIZE == 64)
     if (len > std::numeric_limits<uint32>::max()) return true;
 #endif
+=======
+<<<<<<< HEAD
+  if (m_alloced_length < len) {
+    // Available bytes are not enough.
+=======
+  if (m_alloced_length < len)     // Available bytes are not enough
+  {
+    // Signal an error if len exceeds uint32 max on 64-bit word platform.
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+    if (len > std::numeric_limits<uint32>::max())
+      return true;
+#endif
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     char *new_ptr;
     if (m_is_alloced) {
       if (!(new_ptr = static_cast<char *>(
@@ -335,8 +379,17 @@ bool String::needs_conversion_on_storage(size_t arg_length,
 bool String::copy_aligned(const char *str, size_t arg_length, size_t offset,
                           const CHARSET_INFO *cs) {
   /* How many bytes are in incomplete character */
+<<<<<<< HEAD
   offset = cs->mbminlen - offset; /* How many zeros we should prepend */
+<<<<<<< HEAD
   assert(offset && offset != cs->mbminlen);
+=======
+  DBUG_ASSERT(offset && offset != cs->mbminlen);
+=======
+  offset= cs->mbminlen - offset; /* How many zeros we should prepend */
+  assert(offset && offset != cs->mbminlen);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   size_t aligned_length = arg_length + offset;
   if (alloc(aligned_length)) return true;
@@ -442,10 +495,30 @@ bool String::fill(size_t max_length, char fill_char) {
   return false;
 }
 
+<<<<<<< HEAD
 bool String::append(const String &s) {
   if (s.length()) {
     assert(!this->uses_buffer_owned_by(&s));
     assert(!s.uses_buffer_owned_by(this));
+=======
+void String::strip_sp() {
+  while (m_length && my_isspace(m_charset, m_ptr[m_length - 1])) m_length--;
+}
+
+<<<<<<< HEAD
+bool String::append(const String &s) {
+  if (s.length()) {
+    DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
+    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+=======
+bool String::append(const String &s)
+{
+  if (s.length())
+  {
+    assert(!this->uses_buffer_owned_by(&s));
+    assert(!s.uses_buffer_owned_by(this));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (mem_realloc_exp((m_length + s.length()))) return true;
     memcpy(m_ptr + m_length, s.ptr(), s.length());
@@ -513,11 +586,21 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
 
   if (needs_conversion(arg_length, cs, m_charset, &offset)) {
     size_t add_length;
+<<<<<<< HEAD
     if ((cs == &my_charset_bin) && offset) {
       assert(m_charset->mbminlen > offset);
       offset = m_charset->mbminlen - offset;  // How many characters to pad
       add_length = arg_length + offset;
       if (mem_realloc_exp(m_length + add_length)) return true;
+=======
+    if ((cs == &my_charset_bin) && offset)
+    {
+      assert(m_charset->mbminlen > offset);
+      offset= m_charset->mbminlen - offset; // How many characters to pad
+      add_length= arg_length + offset;
+      if (mem_realloc_exp(m_length + add_length))
+        return true;
+>>>>>>> upstream/cluster-7.6
       memset(m_ptr + m_length, 0, offset);
       memcpy(m_ptr + m_length + offset, s, arg_length);
       m_length += add_length;

@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,12 +25,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
 ADD_WSHADOW_WARNING()
 
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 SET(MYSYS_SOURCES
   array.cc
   charset.cc
@@ -122,6 +131,7 @@ SET(MYSYS_SOURCES
   my_rnd.cc
   my_openssl_fips.cc
 )
+<<<<<<< HEAD
 LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
 
 IF(BUILD_IS_SINGLE_CONFIG)
@@ -144,6 +154,32 @@ IF(BUILD_IS_SINGLE_CONFIG)
       )
   ENDIF()
 ENDIF()
+=======
+=======
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
+
+SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
+				errors.c hash.c list.c mf_cache.c mf_dirname.c mf_fn_ext.c
+				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
+				mf_keycaches.c mf_loadpath.c mf_pack.c mf_path.c mf_qsort.c mf_qsort2.c
+				mf_radix.c mf_same.c mf_soundex.c mf_arr_appstr.c
+				mf_tempfile.c mf_unixpath.c mf_wcomp.c mulalloc.c my_access.c
+				my_alloc.c my_bit.c my_bitmap.c my_chsize.c
+				my_compress.c my_copy.c  my_create.c my_delete.c
+				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
+				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
+				my_lib.c my_lock.c my_malloc.c my_mess.c
+				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
+				my_read.c my_redel.c my_rename.c my_seek.c
+				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
+				my_write.c ptr_cmp.c queues.c sql_chars.c stacktrace.c
+				string.c thr_cond.c thr_lock.c thr_mutex.c
+				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
+				lf_alloc-pin.c lf_dynarray.c lf_hash.c
+				my_rdtsc.c psi_noop.c my_syslog.c
+				my_chmod.c my_thread.c)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES

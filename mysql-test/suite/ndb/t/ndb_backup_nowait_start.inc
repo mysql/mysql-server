@@ -8,10 +8,22 @@
 --source include/ndb_backup_id.inc
 let $_pre_backup_id = $the_backup_id;
 
+<<<<<<< HEAD
 # Save backup records in BACKUP before backup start
 let $start_backup_records_in_use =
   `SELECT SUM(used) from ndbinfo.ndb\\\$pools
      WHERE block_number=244 AND pool_name = "Backup Record"`;
+=======
+--echo Starting backup
+# Use WAIT STARTED rather than NOWAIT
+# NOWAIT does not wait for a BACKUP_CONF in MGMD, and so does not handle e.g.
+# the case where MGMD sends the BACKUP_REQ to the wrong Master.
+# This can result in no backup being started, silently, resulting in test case
+# failures
+#
+--let $START_BACKUP_OUTFILE=$MYSQLTEST_VARDIR/tmp/start_backup_outfile.txt
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup $start_backup_extra wait started" >> $START_BACKUP_OUTFILE
+>>>>>>> pr/231
 
 # Print start backup message, show any extra parameters
 let $_start_backup_msg = Starting backup;
@@ -44,11 +56,26 @@ if ($the_backup_id <= $_pre_backup_id)
   die The backup id was not increased during start of backup;
 }
 
+<<<<<<< HEAD
 --remove_file $START_BACKUP_OUTFILE
 
 # NOTE! When using this include file without stalling the backup with an
 # error insert it might even have completed at this point
+=======
+if (!$_start_timeout)
+{
+  --echo Timed out waiting for backup to start
+  --echo Pre backup id $_pre_backup_id
+  --echo The backup id $the_backup_id
+  --echo Start backup records in use $start_backup_records_in_use
+  --echo Backup records in use $_backup_records_in_use
+  --echo Start Backup Extra $start_backup_extra.
+  --cat_file $START_BACKUP_OUTFILE
+  die "Timed out waiting for backup to start.";
+}
+>>>>>>> pr/231
 
+--remove_file $START_BACKUP_OUTFILE
 --echo Backup started
 
 # Reset parameters

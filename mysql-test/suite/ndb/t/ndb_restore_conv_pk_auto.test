@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source include/have_ndb_debug.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
@@ -6,6 +7,10 @@
 set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
 set ndb_autoincrement_prefetch_sz = 1;
 --enable_query_log
+=======
+-- source include/not_embedded.inc
+-- source include/have_ndb_debug.inc
+>>>>>>> pr/231
 
 use test;
 
@@ -37,7 +42,11 @@ insert into test.autokey (ok,data) values
 select * from test.autokey order by data;
 
 --echo Stall backup completion
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -61,7 +70,11 @@ update test.autokey set ok=ok, data=concat(data,"-1");
 delete from test.autokey where ok=2;
 
 --echo Allow backup to complete...
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -71,7 +84,11 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+>>>>>>> pr/231
 
 drop table test.autokey;
 
@@ -88,8 +105,13 @@ create table test.autokey (
 engine=ndb partition by key(ok);
 
 --echo Run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 select * from test.autokey order by data;
 
@@ -97,7 +119,11 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+>>>>>>> pr/231
 
 drop table test.autokey;
 
@@ -116,8 +142,13 @@ create table test.autokey (
 engine=ndb partition by key(ok);
 
 --echo Run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 select * from test.autokey order by data;
 
@@ -125,7 +156,11 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+>>>>>>> pr/231
 
 drop table test.autokey;
 
@@ -156,7 +191,11 @@ insert into test.autokey (ok,data) values
 select * from test.autokey order by data;
 
 --echo Stall backup completion
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -172,7 +211,11 @@ update test.autokey set data = concat(data, "-mk2");
 delete from test.autokey where ok=2;
 
 --echo Allow backup to complete...
+<<<<<<< HEAD
 --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -182,7 +225,11 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+>>>>>>> pr/231
 
 drop table test.autokey;
 
@@ -198,8 +245,13 @@ create table test.autokey (
 engine=ndb;
 
 --echo Run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 select * from test.autokey order by data;
 
@@ -207,7 +259,11 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+>>>>>>> pr/231
 
 drop table test.autokey;
 
@@ -225,8 +281,13 @@ create table test.autokey (
 engine=ndb;
 
 --echo Run restore
+<<<<<<< HEAD
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+=======
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --allow-pk-changes --ignore-extended-pk-updates --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+>>>>>>> pr/231
 
 select * from test.autokey order by data;
 
@@ -234,6 +295,7 @@ select * from test.autokey order by data;
 insert into test.autokey (ok,data) values (6, "6-1");
 select ak from test.autokey where ok=6;
 
+<<<<<<< HEAD
 #--exec $NDB_DESC -dtest autokey
 
 drop table test.autokey;
@@ -244,3 +306,9 @@ set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+#--exec $NDB_DESC --no-defaults -dtest autokey
+
+drop table test.autokey;
+
+>>>>>>> pr/231

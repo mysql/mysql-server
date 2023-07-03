@@ -1,6 +1,11 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
 --source include/have_ndb_debug.inc
 --source suite/ndb/include/backup_restore_setup.inc
+=======
+--source include/not_embedded.inc
+--source include/have_ndb_debug.inc
+>>>>>>> pr/231
 
 --echo Check behaviour when restoring with remap
 --echo and log content.
@@ -23,7 +28,11 @@ while ($backup_type)
   select a, b, length(c), sha1(c) from t1 order by a;
 
   --echo Cause backup stall
+<<<<<<< HEAD
   --exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+=======
+  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
   if ($backup_type == 1)
   {
@@ -32,15 +41,22 @@ while ($backup_type)
 
   --source suite/ndb/t/ndb_backup_nowait_start.inc
 
+<<<<<<< HEAD
   # Use autoinc value
   insert into t1 (b,c) values
     (7, repeat('D', 999));
 
   # Specify auto-inc key
+=======
+  insert into t1 (b,c) values
+    (7, repeat('D', 999));
+
+>>>>>>> pr/231
   insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
 
   delete from t1 where b=4;
 
+<<<<<<< HEAD
   # Update primary key
   update t1 set a=1010 where a=2;
 
@@ -138,6 +154,14 @@ while ($backup_type)
   show create table t1;
 
   --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
+=======
+  update t1 set a=1010 where a=2;
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+  select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+
+  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
   --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
   drop table test.t1;
@@ -147,9 +171,15 @@ while ($backup_type)
   create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
 
   --echo Node 1
+<<<<<<< HEAD
   --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
   --echo Node 2
   --exec $NDB_RESTORE -b $the_backup_id -n 2 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+=======
+  --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+  --echo Node 2
+  --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+>>>>>>> pr/231
 
   select a, b, length(c), sha1(c) from t1 order by a;
 
@@ -158,7 +188,11 @@ while ($backup_type)
   --echo existed at end of backup time
   --echo (note that SNAPSHOTSTART does not snapshot autoinc metadata)
   --echo
+<<<<<<< HEAD
   show create table t1;
+=======
+  select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+>>>>>>> pr/231
 
   drop table test.t1;
 
@@ -166,5 +200,8 @@ while ($backup_type)
 }
 
 
+<<<<<<< HEAD
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+>>>>>>> pr/231

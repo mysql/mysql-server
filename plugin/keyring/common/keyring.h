@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,11 +50,23 @@ extern PSI_rwlock_key key_LOCK_keyring;
 
 extern mysql_rwlock_t LOCK_keyring;
 
+<<<<<<< HEAD
 extern std::unique_ptr<IKeys_container> keys;
 extern volatile bool is_keys_container_initialized;
 extern std::unique_ptr<ILogger> logger;
+<<<<<<< HEAD
 extern char *keyring_file_data;
 extern bool keyring_open_mode;
+=======
+extern std::unique_ptr<char[]> keyring_file_data;
+=======
+extern boost::movelib::unique_ptr<IKeys_container> keys;
+extern volatile my_bool is_keys_container_initialized;
+extern boost::movelib::unique_ptr<ILogger> logger;
+extern boost::movelib::unique_ptr<char[]> keyring_file_data;
+extern my_bool keyring_open_mode;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);

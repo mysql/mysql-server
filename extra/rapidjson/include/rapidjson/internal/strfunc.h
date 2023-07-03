@@ -16,7 +16,14 @@
 #define RAPIDJSON_INTERNAL_STRFUNC_H_
 
 #include "../stream.h"
+<<<<<<< HEAD
 #include <cwchar>
+=======
+<<<<<<< HEAD
+=======
+#include <cwchar>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 RAPIDJSON_NAMESPACE_BEGIN
 namespace internal {
@@ -35,6 +42,7 @@ inline SizeType StrLen(const Ch* s) {
     return SizeType(p - s);
 }
 
+<<<<<<< HEAD
 template <>
 inline SizeType StrLen(const char* s) {
     return SizeType(std::strlen(s));
@@ -50,6 +58,29 @@ template<typename Encoding>
 bool CountStringCodePoint(const typename Encoding::Ch* s, SizeType length, SizeType* outCount) {
     RAPIDJSON_ASSERT(s != 0);
     RAPIDJSON_ASSERT(outCount != 0);
+=======
+<<<<<<< HEAD
+//! Returns number of code points in a encoded string.
+template<typename Encoding>
+bool CountStringCodePoint(const typename Encoding::Ch* s, SizeType length, SizeType* outCount) {
+=======
+template <>
+inline SizeType StrLen(const char* s) {
+    return SizeType(std::strlen(s));
+}
+
+template <>
+inline SizeType StrLen(const wchar_t* s) {
+    return SizeType(std::wcslen(s));
+}
+
+//! Returns number of code points in a encoded string.
+template<typename Encoding>
+bool CountStringCodePoint(const typename Encoding::Ch* s, SizeType length, SizeType* outCount) {
+    RAPIDJSON_ASSERT(s != 0);
+    RAPIDJSON_ASSERT(outCount != 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     GenericStringStream<Encoding> is(s);
     const typename Encoding::Ch* end = s + length;
     SizeType count = 0;

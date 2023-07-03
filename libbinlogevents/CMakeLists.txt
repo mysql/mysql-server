@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +31,17 @@
 
 ADD_WSHADOW_WARNING()
 
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+=======
+<<<<<<< HEAD
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include
+=======
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+>>>>>>> upstream/cluster-7.6
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+>>>>>>> pr/231
 
 CONFIGURE_FILE(binlog_config.h.cmake
   ${CMAKE_BINARY_DIR}/include/binlog_config.h)

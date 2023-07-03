@@ -1,7 +1,7 @@
 ###################
 Cleanup and server setup
 ###################
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 server2
 RESET MASTER;
 server1
@@ -52,7 +52,11 @@ server1
 include/assert.inc [The value of member_id should be equal to server UUID after starting group replication]
 include/assert.inc [The value of Count_Transactions_checked should be 5 after starting group replication]
 include/assert.inc [The value of Count_conflicts_detected should be 0 after starting group replication]
+<<<<<<< HEAD:mysql-test/suite/group_replication/r/gr_perfschema_group_member_stats.result
 include/assert.inc [The value of Count_Transactions_rows_validating should be 2 after starting group replication]
+=======
+include/assert.inc [The value of Count_Transactions_rows_validating should be 6 after starting group replication]
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/r/gr_perfschema_group_member_stats.result
 include/assert.inc [The value of Transactions_committed_all_members should have server 1 GTIDs before server2 start]
 include/assert.inc [The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.]
 SET SESSION sql_log_bin= 0;

@@ -1,5 +1,19 @@
 /* inflate.c -- zlib decompression
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
  * Copyright (C) 1995-2022 Mark Adler
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+ * Copyright (C) 1995-2016 Mark Adler
+========
+ * Copyright (C) 1995-2022 Mark Adler
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -130,7 +144,20 @@ z_streamp strm;
     state->mode = HEAD;
     state->last = 0;
     state->havedict = 0;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
     state->flags = -1;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+========
+    state->flags = -1;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
     state->dmax = 32768U;
     state->head = Z_NULL;
     state->hold = 0;
@@ -168,8 +195,22 @@ int windowBits;
 
     /* extract wrap request from windowBits parameter */
     if (windowBits < 0) {
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
         if (windowBits < -15)
             return Z_STREAM_ERROR;
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+========
+        if (windowBits < -15)
+            return Z_STREAM_ERROR;
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
         wrap = 0;
         windowBits = -windowBits;
     }
@@ -861,7 +902,20 @@ int flush;
                 /* fallthrough */
         case TYPE:
             if (flush == Z_BLOCK || flush == Z_TREES) goto inf_leave;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
                 /* fallthrough */
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+========
+                /* fallthrough */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
         case TYPEDO:
             if (state->last) {
                 BYTEBITS();
@@ -912,7 +966,20 @@ int flush;
             INITBITS();
             state->mode = COPY_;
             if (flush == Z_TREES) goto inf_leave;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
                 /* fallthrough */
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+========
+                /* fallthrough */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
         case COPY_:
             state->mode = COPY;
                 /* fallthrough */
@@ -1057,7 +1124,20 @@ int flush;
             Tracev((stderr, "inflate:       codes ok\n"));
             state->mode = LEN_;
             if (flush == Z_TREES) goto inf_leave;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
                 /* fallthrough */
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+========
+                /* fallthrough */
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
         case LEN_:
             state->mode = LEN;
                 /* fallthrough */
@@ -1226,7 +1306,21 @@ int flush;
                 state->total += out;
                 if ((state->wrap & 4) && out)
                     strm->adler = state->check =
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
                         UPDATE_CHECK(state->check, put - out, out);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+                        UPDATE(state->check, put - out, out);
+========
+                        UPDATE_CHECK(state->check, put - out, out);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
                 out = left;
                 if ((state->wrap & 4) && (
 #ifdef GUNZIP
@@ -1292,7 +1386,21 @@ int flush;
     state->total += out;
     if ((state->wrap & 4) && out)
         strm->adler = state->check =
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
             UPDATE_CHECK(state->check, strm->next_out - out, out);
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+            UPDATE(state->check, strm->next_out - out, out);
+========
+            UPDATE_CHECK(state->check, strm->next_out - out, out);
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
     strm->data_type = (int)state->bits + (state->last ? 64 : 0) +
                       (state->mode == TYPE ? 128 : 0) +
                       (state->mode == LEN_ || state->mode == COPY_ ? 256 : 0);
@@ -1565,7 +1673,21 @@ int check;
 
     if (inflateStateCheck(strm)) return Z_STREAM_ERROR;
     state = (struct inflate_state FAR *)strm->state;
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/inflate.c
     if (check && state->wrap)
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/inflate.c
+    if (check)
+========
+    if (check && state->wrap)
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/inflate.c
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/inflate.c
+=======
+>>>>>>> pr/231
         state->wrap |= 4;
     else
         state->wrap &= ~4;

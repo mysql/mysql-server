@@ -806,11 +806,46 @@ ALTER TABLE t_not_temp TABLESPACE=`innodb_temporary`;
 SHOW WARNINGS;
 DROP TABLE t_not_temp;
 
+<<<<<<< HEAD
 SET SESSION innodb_strict_mode=OFF;
+=======
+--echo #
+--echo # Try to create or move a temporary table in innodb_file_per_table
+--echo # or innodb_temporary tablespaces with STRICT_MODE ON and OFF
+--echo #
+>>>>>>> pr/231
 CREATE TEMPORARY TABLE t_my_temp (a int, b text) TABLESPACE=`innodb_temporary`;
 SHOW CREATE TABLE t_my_temp;
 DROP TABLE t_my_temp;
 SET SESSION innodb_strict_mode=ON;
+
+SET innodb_strict_mode = OFF;
+
+CREATE TEMPORARY TABLE t_my_temp (a int, b text);
+SHOW CREATE TABLE t_my_temp;
+
+ALTER TABLE t_my_temp TABLESPACE innodb_temporary;
+SHOW WARNINGS;
+SHOW CREATE TABLE t_my_temp;
+
+ALTER TABLE t_my_temp TABLESPACE innodb_file_per_table;
+SHOW WARNINGS;
+SHOW CREATE TABLE t_my_temp;
+
+DROP TABLE t_my_temp;
+
+SET innodb_strict_mode = ON;
+CREATE TEMPORARY TABLE t_my_temp (a int, b text);
+SHOW CREATE TABLE t_my_temp;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t_my_temp TABLESPACE=innodb_file_per_table;
+
+ALTER TABLE t_my_temp TABLESPACE=innodb_temporary;
+SHOW WARNINGS;
+SHOW CREATE TABLE t_my_temp;
+
+DROP TABLE t_my_temp;
 
 --echo #
 --echo # Try to create or move a table into the redo tablespace

@@ -167,9 +167,20 @@ INSERT INTO t2 VALUES (3);
 --echo #    certification info garbage collection on server 1.
 --connection server1
 
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_set_gtid_next.test
 --let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
+<<<<<<< HEAD
 --let $assert_text= 'Count_transactions_rows_validating must be 1'
 --let $assert_cond= $count_transactions_validating = 1
+=======
+--let $assert_text= 'Count_transactions_rows_validating must be 0'
+--let $assert_cond= $count_transactions_validating = 0
+=======
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $assert_text= 'Count_transactions_rows_validating must be 2'
+--let $assert_cond= $count_transactions_validating = 2
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_set_gtid_next.test
+>>>>>>> pr/231
 --source include/assert.inc
 
 --let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
@@ -185,9 +196,20 @@ INSERT INTO t2 VALUES (3);
 --echo #    certification info garbage collection on server 2.
 --connection server2
 
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_set_gtid_next.test
 --let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
+<<<<<<< HEAD
 --let $assert_text= 'Count_transactions_rows_validating must be 1'
 --let $assert_cond= $count_transactions_validating = 1
+=======
+--let $assert_text= 'Count_transactions_rows_validating must be 0'
+--let $assert_cond= $count_transactions_validating = 0
+=======
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $assert_text= 'Count_transactions_rows_validating must be 2'
+--let $assert_cond= $count_transactions_validating = 2
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_set_gtid_next.test
+>>>>>>> pr/231
 --source include/assert.inc
 
 --let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)

@@ -1,4 +1,12 @@
+<<<<<<< HEAD:mysys/my_aes_openssl.cc
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_aes_openssl.cc
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -10,6 +18,14 @@ as designated in a particular file or component or in included license
 documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
 separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+Without limiting anything contained in the foregoing, this file,
+which is part of C Driver for MySQL (Connector/C), is also subject to the
+Universal FOSS Exception, version 1.0, a copy of which can be found at
+http://oss.oracle.com/licenses/universal-foss-exception.
+>>>>>>> upstream/cluster-7.6
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,9 +36,17 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 /**
   @file mysys/my_aes_openssl.cc
 */
+=======
+#include <my_global.h>
+#include <m_string.h>
+#include <my_aes.h>
+#include "my_aes_impl.h"
+#include "my_kdf.h"
+>>>>>>> upstream/cluster-7.6
 
 #include <assert.h>
 #include <openssl/aes.h>
@@ -114,6 +138,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
   }
 }
 
+<<<<<<< HEAD:mysys/my_aes_openssl.cc
 /**
   Creates required length of AES key,
   Input key size can be smaller or bigger in length, we need exact AES key
@@ -148,6 +173,51 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding,
                    vector<string> *kdf_options) {
+=======
+<<<<<<< HEAD
+int my_aes_encrypt(const unsigned char *source, uint32 source_length,
+                   unsigned char *dest, const unsigned char *key,
+                   uint32 key_length, enum my_aes_opmode mode,
+                   const unsigned char *iv, bool padding) {
+=======
+/**
+  Creates required length of AES key,
+  Input key size can be smaller or bigger in length, we need exact AES key
+  size. If KDF options are valid and given, use KDF functionality. otherwise
+  use previously used method.
+
+  @param [out] rkey Output key
+  @param key Input key
+  @param key_length input key length
+  @param mode AES mode
+  @param kdf_options  KDF function options
+
+  @return 0 on success and 1 on failure
+*/
+int my_create_key(unsigned char *rkey, const unsigned char *key,
+                  uint32 key_length, enum my_aes_opmode mode,
+                  vector<string> *kdf_options) {
+  if (kdf_options) {
+    if (kdf_options->size() < 1) {
+      return 1;
+    }
+    const uint key_size = my_aes_opmode_key_sizes[mode] / 8;
+    return create_kdf_key(key, key_length, rkey, key_size, kdf_options);
+  }
+
+  my_aes_create_key(key, key_length, rkey, mode);
+  return 0;
+}
+
+int my_aes_encrypt(const unsigned char *source, uint32 source_length,
+                   unsigned char *dest,
+                   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding,
+                   vector<string> *kdf_options)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_aes_openssl.cc
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -165,8 +235,19 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     return MY_AES_BAD_DATA;
 
+<<<<<<< HEAD
   if (!EVP_EncryptInit(ctx, cipher, rkey, iv)) goto aes_error;   /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding)) goto aes_error; /* Error */
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
+  if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
+    goto aes_error;                             /* Error */
+  if (!EVP_CIPHER_CTX_set_padding(ctx, padding))
+    goto aes_error;                             /* Error */
+>>>>>>> upstream/cluster-7.6
   if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
     goto aes_error; /* Error */
 
@@ -184,17 +265,34 @@ aes_error:
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
+<<<<<<< HEAD
 #else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+=======
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> upstream/cluster-7.6
   EVP_CIPHER_CTX_free(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   return MY_AES_BAD_DATA;
 }
 
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
+<<<<<<< HEAD
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
+<<<<<<< HEAD:mysys/my_aes_openssl.cc
                    const unsigned char *iv, bool padding,
                    vector<string> *kdf_options) {
+=======
+                   const unsigned char *iv, bool padding) {
+=======
+                   unsigned char *dest,
+                   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding,
+                   vector<string> *kdf_options)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_aes_openssl.cc
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx = &stack_ctx;
@@ -210,10 +308,16 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   if (my_create_key(rkey, key, key_length, mode, kdf_options)) {
     return MY_AES_BAD_DATA;
   }
+<<<<<<< HEAD:mysys/my_aes_openssl.cc
 
+=======
+>>>>>>> pr/231:mysys_ssl/my_aes_openssl.cc
   if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     return MY_AES_BAD_DATA;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                                              /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding)) goto aes_error; /* Error */
@@ -255,7 +359,17 @@ longlong my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
 bool my_aes_needs_iv(my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);
   int iv_length;
+<<<<<<< HEAD:mysys/my_aes_openssl.cc
+=======
+
+<<<<<<< HEAD
+>>>>>>> pr/231:mysys_ssl/my_aes_openssl.cc
   iv_length = EVP_CIPHER_iv_length(cipher);
   assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? true : false;
+=======
+  iv_length= EVP_CIPHER_iv_length(cipher);
+  assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
+  return iv_length != 0 ? TRUE : FALSE;
+>>>>>>> upstream/cluster-7.6
 }

@@ -836,8 +836,11 @@ CREATE TABLE `emails` (
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ROW_FORMAT=DYNAMIC;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+=======
+>>>>>>> pr/231
 CREATE TABLE `email_stats` (
 `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 `email_id` int(10) unsigned DEFAULT NULL,
@@ -853,9 +856,12 @@ CONSTRAINT `FK_ES1` FOREIGN KEY (`email_id`) REFERENCES
 `emails` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ROW_FORMAT=DYNAMIC;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+=======
+>>>>>>> pr/231
 CREATE TABLE `emails_metadata` (
 `email_id` int(10) unsigned NOT NULL,
 PRIMARY KEY (`email_id`),
@@ -863,8 +869,11 @@ CONSTRAINT `FK_EM1` FOREIGN KEY (`email_id`) REFERENCES
 `emails` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ROW_FORMAT=DYNAMIC;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+=======
+>>>>>>> pr/231
 INSERT INTO `emails` VALUES (1);
 INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
 (1,1,'2020-10-22 13:32:41');

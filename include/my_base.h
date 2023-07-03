@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -929,6 +937,7 @@ in some other table. */
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177
 /** There's no explicitly listed partition in table for the given value */
 #define HA_ERR_NOT_IN_LOCK_PARTITIONS 178
+<<<<<<< HEAD
 /** Index column length exceeds limit */
 #define HA_ERR_INDEX_COL_TOO_LONG 179
 /** InnoDB index corrupted */
@@ -994,6 +1003,75 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
 /** Copy of last error number */
 #define HA_ERR_LAST 209
+=======
+<<<<<<< HEAD
+#define HA_ERR_INDEX_COL_TOO_LONG 179 /* Index column length exceeds limit */
+#define HA_ERR_INDEX_CORRUPT 180      /* InnoDB index corrupted */
+#define HA_ERR_UNDO_REC_TOO_BIG 181   /* Undo log record too big */
+#define HA_FTS_INVALID_DOCID 182      /* Invalid InnoDB Doc ID */
+#define HA_ERR_TABLE_IN_FK_CHECK               \
+  183 /* Table being used in foreign key check \
+       */
+#define HA_ERR_TABLESPACE_EXISTS \
+  184 /* The tablespace existed in storage engine */
+#define HA_ERR_TOO_MANY_FIELDS 185        /* Table has too many columns */
+#define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
+#define HA_ERR_INNODB_READ_ONLY 187       /* InnoDB is in read only mode. */
+#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT \
+  188 /* FTS query exceeds result cache limit */
+#define HA_ERR_TEMP_FILE_WRITE_FAILURE 189 /* Temporary file write failure */
+#define HA_ERR_INNODB_FORCED_RECOVERY     \
+  190 /* Innodb is in force recovery mode \
+       */
+#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE                         \
+  191                                 /* Too many words in a phrase \
+                                       */
+#define HA_ERR_FK_DEPTH_EXCEEDED 192  /* FK cascade depth exceeded */
+#define HA_MISSING_CREATE_OPTION 193  /* Option Missing during Create */
+#define HA_ERR_SE_OUT_OF_MEMORY 194   /* Out of memory in storage engine */
+#define HA_ERR_TABLE_CORRUPT 195      /* Table/Clustered index is corrupted. */
+#define HA_ERR_QUERY_INTERRUPTED 196  /* The query was interrupted */
+#define HA_ERR_TABLESPACE_MISSING 197 /* Missing Tablespace */
+#define HA_ERR_TABLESPACE_IS_NOT_EMPTY 198 /* Tablespace is not empty */
+#define HA_ERR_WRONG_FILE_NAME 199         /* Invalid Filename */
+#define HA_ERR_NOT_ALLOWED_COMMAND 200     /* Operation is not allowed */
+#define HA_ERR_COMPUTE_FAILED 201 /* Compute generated column value failed */
+/*
+  Table's row format has changed in the storage engine.
+  Information in the data-dictionary needs to be updated.
+*/
+#define HA_ERR_ROW_FORMAT_CHANGED 202
+#define HA_ERR_NO_WAIT_LOCK 203     /* Don't wait for record lock */
+#define HA_ERR_DISK_FULL_NOWAIT 204 /* No more room in disk */
+#define HA_ERR_LAST 204             /* Copy of last error nr */
+=======
+#define HA_ERR_INDEX_COL_TOO_LONG 179    /* Index column length exceeds limit */
+#define HA_ERR_INDEX_CORRUPT      180    /* InnoDB index corrupted */
+#define HA_ERR_UNDO_REC_TOO_BIG   181    /* Undo log record too big */
+#define HA_FTS_INVALID_DOCID      182    /* Invalid InnoDB Doc ID */
+#define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
+#define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
+#define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
+#define HA_ERR_ROW_IN_WRONG_PARTITION  186  /* Row in wrong partition */
+#define HA_ERR_INNODB_READ_ONLY        187  /* InnoDB is in read only mode. */
+#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
+#define HA_ERR_TEMP_FILE_WRITE_FAILURE 189  /* Temporary file write failure */
+#define HA_ERR_INNODB_FORCED_RECOVERY  190  /* Innodb is in force recovery mode */
+#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE   191 /* Too many words in a phrase */
+#define HA_ERR_FK_DEPTH_EXCEEDED       192  /* FK cascade depth exceeded */
+#define HA_MISSING_CREATE_OPTION       193  /* Option Missing during Create */
+#define HA_ERR_SE_OUT_OF_MEMORY        194  /* Out of memory in storage engine */
+#define HA_ERR_TABLE_CORRUPT           195  /* Table/Clustered index is corrupted. */
+#define HA_ERR_QUERY_INTERRUPTED       196  /* The query was interrupted */
+#define HA_ERR_TABLESPACE_MISSING      197  /* Missing Tablespace */
+#define HA_ERR_TABLESPACE_IS_NOT_EMPTY 198  /* Tablespace is not empty */
+#define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
+#define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
+#define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 202  /* Too many sub-expression in search string */
+#define HA_ERR_LAST                    202  /* Copy of last error nr */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

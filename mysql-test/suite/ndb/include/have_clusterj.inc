@@ -56,6 +56,7 @@ my $clusterj_test_jar = my_find_file($bindir,
 
 # The expected installation locations are lib, lib/mysql, lib64/mysql, lib/x86_64-linux-gnu
 my $ndbclient_lib = my_find_file($bindir,
+<<<<<<< HEAD
                                 [ "library_output_directory",
                                   "lib*/*",
                                   "lib"
@@ -64,6 +65,13 @@ my $ndbclient_lib = my_find_file($bindir,
                                   "libndbclient.so",
                                   "libndbclient.dylib"
                                 ],
+=======
+                                ["storage/ndb/src/.libs", 
+                                 "library_output_directory",
+                                 "lib*/*",
+                                 "lib"],
+                                ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
+>>>>>>> pr/231
                                 NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_clusterj_result.inc", 'w') or die;
@@ -73,16 +81,24 @@ if ($clusterj_jar) {
   print $F "--let \$CLUSTERJ_JAR= $clusterj_jar\n"; 
   print $F "--echo Found clusterj.jar\n"
 } else {
+<<<<<<< HEAD
   print $F "--let \$skip_test=1\n";
   print $F "--let \$skip_reason=Could not find clusterj jar file\n";
+=======
+  print $F "--skip Could not find clusterj jar file\n";
+>>>>>>> pr/231
 }
 
 if ($clusterj_test_jar) {
   print $F "--let \$CLUSTERJ_TEST_JAR= $clusterj_test_jar\n";
   print $F "--echo Found clusterj_test jar\n"
 } else {
+<<<<<<< HEAD
   print $F "--let \$skip_test=1\n";
   print $F "--let \$skip_reason=Could not find clusterj test jar file\n";
+=======
+  print $F "--skip Could not find clusterj test jar file\n";
+>>>>>>> pr/231
 }
 
 if ($ndbclient_lib) {

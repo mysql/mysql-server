@@ -8,9 +8,18 @@
 #    group replication variable with values
 # 4. Cleanup
 ###############################################################################
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_variables_mysqladmin.test
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
+=======
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_variables_mysqladmin.test
+
+SET @@GLOBAL.group_replication_ip_whitelist= "AUTOMATIC";
+--source ../inc/start_and_bootstrap_group_replication.inc
 
 SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
 --source include/start_and_bootstrap_group_replication.inc

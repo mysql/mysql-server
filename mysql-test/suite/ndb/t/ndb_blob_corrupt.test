@@ -1,5 +1,10 @@
 -- source include/have_ndb.inc
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_setup.inc
+=======
+-- source include/not_embedded.inc # No PERFORMANCE_SCHEMA with embedded
+-- source suite/ndb/include/ndb_find_tools.inc
+>>>>>>> pr/231
 
 # Test is using error insert, check that binaries support it
 --source have_ndb_error_insert.inc
@@ -130,7 +135,10 @@ insert into ndb_blob_corrupt_temp_table values
 
 --echo update with blob column in WHERE clause
 ## Must serialise for correct execution of blob updates, so exec count high
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 --source suite/ndb/include/ndb_init_execute_count.inc
 let temp_pk = "UPDATE";
 let temp_col = exec_count_serialised;
@@ -172,5 +180,8 @@ drop table ndb_blob_corrupt_temp_table;
 drop table t1;
 drop table t2;
 
+<<<<<<< HEAD
 -- source suite/ndb/include/backup_restore_cleanup.inc
+=======
+>>>>>>> pr/231
 -- remove_file $NDB_TOOLS_OUTPUT

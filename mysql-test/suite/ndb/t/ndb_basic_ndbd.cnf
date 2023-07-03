@@ -1,5 +1,9 @@
 !include suite/ndb/my.cnf
+<<<<<<< HEAD
 [cluster_config]
 PartitionsPerNode=1
+=======
+
+>>>>>>> pr/231
 [ENV]
 MTR_NDBMTD=0

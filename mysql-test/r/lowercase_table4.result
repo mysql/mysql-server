@@ -131,10 +131,17 @@ CREATE TABLE UPPERCASE_INNODB (a INT) ENGINE=InnoDB;
 CREATE TABLE lowercase_innodb (a INT) ENGINE=InnoDB;
 SHOW TABLES;
 Tables_in_my_db
+<<<<<<< HEAD
 lowercase_innodb
 lowercase_myisam
 UPPERCASE_INNODB
 UPPERCASE_MYISAM
+=======
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+lowercase_innodb
+lowercase_myisam
+>>>>>>> pr/231
 CREATE USER 'test_user'@'localhost';
 GRANT SELECT ON my_db.UPPERCASE_MYISAM TO 'test_user'@'localhost';
 GRANT SELECT ON my_db.lowercase_myisam TO 'test_user'@'localhost';
@@ -144,10 +151,17 @@ USE my_db;
 # Without the patch, tables with uppercase table names were not displayed.
 SHOW TABLES;
 Tables_in_my_db
+<<<<<<< HEAD
 lowercase_innodb
 lowercase_myisam
 UPPERCASE_INNODB
 UPPERCASE_MYISAM
+=======
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+lowercase_innodb
+lowercase_myisam
+>>>>>>> pr/231
 DROP USER 'test_user'@'localhost';
 DROP DATABASE my_db;
 USE test;

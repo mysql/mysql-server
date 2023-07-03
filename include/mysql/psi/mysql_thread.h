@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -162,6 +170,7 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd [[maybe_unused]]) {
 }
 #endif /* __cplusplus */
 
+<<<<<<< HEAD
 /**
   @def mysql_thread_set_peer_port()
   Set the remote (peer) port for the thread instrumentation.
@@ -171,6 +180,15 @@ static inline void mysql_thread_set_peer_port(uint port [[maybe_unused]]) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_peer_port)(psi, port);
+=======
+static inline void mysql_thread_set_peer_port(uint port MY_ATTRIBUTE ((unused))) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
+  PSI_THREAD_CALL(set_thread_peer_port)(psi, port);
+#endif
+}
+
+>>>>>>> pr/231
 #endif
 }
 

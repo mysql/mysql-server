@@ -1,4 +1,12 @@
+<<<<<<< HEAD:mysys/my_aes.cc
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:mysys_ssl/my_aes.cc
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -46,10 +54,17 @@
   of the key until their depletion.
   Needed since crypto function routines expect a fixed length key.
 
+<<<<<<< HEAD
   @param [in] key               Key to use for real key creation
   @param [in] key_length        Length of the key
   @param [out] rkey             Real key (used by OpenSSL)
   @param [out] opmode           encryption mode
+=======
+  @param key        [in]       Key to use for real key creation
+  @param key_length [in]       Length of the key
+  @param rkey       [out]      Real key (used by OpenSSL)
+  @param opmode     [out]      encryption mode
+>>>>>>> upstream/cluster-7.6
 */
 
 void my_aes_create_key(const unsigned char *key, uint key_length, uint8 *rkey,

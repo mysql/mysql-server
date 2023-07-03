@@ -1,7 +1,15 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -521,7 +529,80 @@ class THD;
 class Table_ref;
 
 template <class T>
+<<<<<<< HEAD
 class mem_root_deque;
+=======
+class List;
+
+/**
+   Re-usable shortcut, when it does not make sense to do copy objects of a
+   class named "myclass"; add this to a private section of the class. The
+   implementations are intentionally not created, so if someone tries to use
+   them like in "myclass A= B" there will be a linker error.
+*/
+#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
+  myclass(myclass const &);                     \
+  void operator=(myclass const &)
+
+/**
+   Utility mixin class to be able to walk() only parts of item trees.
+
+   Used with WALK_PREFIX+POSTFIX walk: in the prefix call of the Item
+   processor, we process the item X, may decide that its children should not
+   be processed (just like if they didn't exist): processor calls stop_at(X)
+   for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
+   which returns true, so processor sees that it must not do any processing
+   and returns immediately. Finally, the postfix call to the processor on X
+   tests is_stopped(X) which returns "true" and understands that the
+   not-to-be-processed children have been skipped so calls restart(). Thus,
+   any sibling of X, any part of the Item tree not under X, can then be
+   processed.
+*/
+class Item_tree_walker {
+ protected:
+  Item_tree_walker() : stopped_at_item(NULL) {}
+  ~Item_tree_walker() { assert(!stopped_at_item); }
+
+  /// Stops walking children of this item
+<<<<<<< HEAD
+  void stop_at(const Item *i) {
+    DBUG_ASSERT(!stopped_at_item);
+    stopped_at_item = i;
+  }
+=======
+  void stop_at(const Item *i)
+  { assert(!stopped_at_item); stopped_at_item= i; }
+>>>>>>> upstream/cluster-7.6
+
+  /**
+     @returns if we are stopped. If item 'i' is where we stopped, restarts the
+     walk for next items.
+  */
+  bool is_stopped(const Item *i) {
+    if (stopped_at_item) {
+      /*
+        Walking was disabled for a tree part rooted a one ancestor of 'i' or
+        rooted at 'i'.
+      */
+      if (stopped_at_item == i) {
+        /*
+          Walking was disabled for the tree part rooted at 'i'; we have now just
+          returned back to this root (WALK_POSTFIX call), left the tree part:
+          enable the walk again, for other tree parts.
+        */
+        stopped_at_item = NULL;
+      }
+      // No further processing to do for this item:
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  const Item *stopped_at_item;
+  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
+};
+>>>>>>> pr/231
 
 /**
    Checks for queries which have DISTINCT.
@@ -648,7 +729,12 @@ class Group_check : public Item_tree_walker {
   bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
+<<<<<<< HEAD
   Group_check(Query_block *select_arg, MEM_ROOT *root, Table_ref *table_arg)
+=======
+<<<<<<< HEAD
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+>>>>>>> pr/231
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -661,6 +747,17 @@ class Group_check : public Item_tree_walker {
         mat_tables(root) {
     assert(table);
   }
+=======
+  Group_check(st_select_lex *select_arg, st_mem_root *root,
+              TABLE_LIST *table_arg)
+    : select(select_arg), search_in_underlying(false),
+    non_null_in_source(false), table(table_arg),
+    group_in_fd(0ULL), m_root(root), fd(root), whole_tables_fd(0),
+    mat_tables(root)
+    {
+      assert(table);
+    }
+>>>>>>> upstream/cluster-7.6
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()
   bool local_column(Item *item) const {

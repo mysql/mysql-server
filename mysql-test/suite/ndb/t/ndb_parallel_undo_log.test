@@ -1,5 +1,15 @@
 --source include/have_ndb.inc
+<<<<<<< HEAD
 --source have_ndb_error_insert.inc
+=======
+--source suite/ndb/include/ndb_find_tools.inc
+--source have_ndb_error_insert.inc
+
+# WL-8478 : Undo log speedup - parallel LGMAN applying
+
+--echo "WL-8478"
+disable_query_log;
+>>>>>>> pr/231
 
 --echo #
 --echo # WL-8478 : Undo log speedup - parallel LGMAN applying
@@ -73,6 +83,7 @@ CREATE TABLE dt_2 (
 TABLESPACE ts_1 STORAGE DISK
 ENGINE NDBCLUSTER;
 
+<<<<<<< HEAD
 
 --echo #
 --echo # Test UNDO_TUP_FREE by deleting rows with member_id 2 from dt_1
@@ -111,6 +122,42 @@ if (`SELECT COUNT(*) FROM dt_1 WHERE member_id = 2`)
 {
   die failed to delete all records with member_id = 2 from dt_1;
 }
+=======
+# UNDO_TUP_FREE
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
+while($mysql_errno)
+{
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
+  DELETE FROM dt_1 WHERE member_id = 2;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
+}
+
+# UNDO_TUP_UPDATE
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
+while($mysql_errno)
+{
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
+  UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Updating many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
+}
+# UNDO_TUP_DROP
+DROP TABLE dt_2;
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+>>>>>>> pr/231
 
 
 --echo #
@@ -190,15 +237,42 @@ sleep 10;
 --echo # Clear error inserts
 --exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
 
+<<<<<<< HEAD
 #
 # Wait until the connection to the
 # cluster has been restored or timeout occurs
 #
 --source include/ndb_not_readonly.inc
+=======
+# Ensure existent data is still there
+--exec $NDB_SELECT_COUNT -d test dt_1;
+
+# Ensure we can still use the table to insert data
+INSERT INTO dt_1 VALUES (1),(2),(3),(4);
+--exec $NDB_SELECT_COUNT -d test dt_1;
+
+# Ensure we can remove data from the table (can cause temporary timeout errors)
+let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
+let $max_retries = 10;
+# Retry query until it succeeds or tried max_retries.
+while($mysql_errno)
+{
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
+  DELETE FROM dt_1 WHERE member_id = 1;
+  dec $max_retries;
+  if (!$max_retries)
+  {
+    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
+  }
+  --sleep 1
+}
+--exec $NDB_SELECT_COUNT -d test dt_1;
+>>>>>>> pr/231
 
 --echo # Check that existent data is still there
 SELECT COUNT(*) AS "Number of rows after node restart" FROM dt_1;
 
+<<<<<<< HEAD
 --echo # Check that table can still be used to insert data
 INSERT INTO dt_1 VALUES (2),(3),(4),(5);
 SELECT COUNT(*) as "Number of rows after four more rows inserted" FROM dt_1;
@@ -262,3 +336,29 @@ DROP LOGFILE GROUP lg_1
 ENGINE NDBCLUSTER;
 
 --remove_file $NDB_TOOLS_OUTPUT
+=======
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+--echo "Wait reconnect"
+--source include/ndb_not_readonly.inc
+
+# Cleanup
+DROP TABLE dt_1;
+
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_2.dat'
+ENGINE NDBCLUSTER;
+
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_1.dat'
+ENGINE NDBCLUSTER;
+
+DROP TABLESPACE ts_1
+ENGINE NDBCLUSTER;
+DROP LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;
+
+enable_query_log;
+>>>>>>> pr/231

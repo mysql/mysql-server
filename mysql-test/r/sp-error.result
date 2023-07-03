@@ -2829,6 +2829,7 @@ ERROR 42000: Identifier name 'f1111111111222222222233333333334444444444555555555
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 ERROR 42000: Incorrect database name 'mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999a'
 #
+<<<<<<< HEAD
 # WL#7897 -- Use DD API for Stored Routines.
 # Test cases to verify error scenarios.
 #
@@ -2871,7 +2872,11 @@ ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 ch
 ERROR HY000: Comment for stored routine 'test.p2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
 ERROR HY000: Comment for stored routine 'test.f2' contains an invalid utf8mb3 character string: '\xF0\x9D\x8C'.
 # Cleanup
+<<<<<<< HEAD
 #
+=======
+=======
+>>>>>>> pr/231
 # Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT
 #                SELECTED
 #
@@ -2894,3 +2899,7 @@ f2()
 DROP FUNCTION IF EXISTS f2;
 DROP FUNCTION IF EXISTS f1;
 DROP DATABASE mysqltest;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

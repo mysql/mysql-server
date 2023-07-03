@@ -205,10 +205,14 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (n int(10), d int(10));
+<<<<<<< HEAD
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1,1);
+=======
+insert into t1 values(1,1), (3,30);
+>>>>>>> pr/231
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 

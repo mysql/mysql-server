@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +102,7 @@ void Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc) {
 
   if (on_completion == Event_parse_data::ON_COMPLETION_DROP) {
     switch (thd->lex->sql_command) {
+<<<<<<< HEAD
       case SQLCOM_CREATE_EVENT:
         push_warning(thd, Sql_condition::SL_NOTE,
                      ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
@@ -103,7 +112,23 @@ void Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc) {
         my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
         break;
       default:
+<<<<<<< HEAD
         assert(0);
+=======
+        DBUG_ASSERT(0);
+=======
+    case SQLCOM_CREATE_EVENT:
+      push_warning(thd, Sql_condition::SL_NOTE,
+                   ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
+                   ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
+      break;
+    case SQLCOM_ALTER_EVENT:
+      my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
+      break;
+    default:
+      assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     do_not_create = true;
@@ -236,6 +261,7 @@ int Event_parse_data::init_interval(THD *thd) {
   expression = 0;
 
   switch (interval) {
+<<<<<<< HEAD
     case INTERVAL_YEAR:
       expression = interval_tmp.year;
       break;
@@ -283,6 +309,55 @@ int Event_parse_data::init_interval(THD *thd) {
     case INTERVAL_LAST:
       assert(0);
     default:; /* these are the microsec stuff */
+=======
+  case INTERVAL_YEAR:
+    expression= interval_tmp.year;
+    break;
+  case INTERVAL_QUARTER:
+  case INTERVAL_MONTH:
+    expression= interval_tmp.month;
+    break;
+  case INTERVAL_WEEK:
+  case INTERVAL_DAY:
+    expression= interval_tmp.day;
+    break;
+  case INTERVAL_HOUR:
+    expression= interval_tmp.hour;
+    break;
+  case INTERVAL_MINUTE:
+    expression= interval_tmp.minute;
+    break;
+  case INTERVAL_SECOND:
+    expression= interval_tmp.second;
+    break;
+  case INTERVAL_YEAR_MONTH:                     // Allow YEAR-MONTH YYYYYMM
+    expression= interval_tmp.year* 12 + interval_tmp.month;
+    break;
+  case INTERVAL_DAY_HOUR:
+    expression= interval_tmp.day* 24 + interval_tmp.hour;
+    break;
+  case INTERVAL_DAY_MINUTE:
+    expression= (interval_tmp.day* 24 + interval_tmp.hour) * 60 +
+                interval_tmp.minute;
+    break;
+  case INTERVAL_HOUR_SECOND: /* day is anyway 0 */
+  case INTERVAL_DAY_SECOND:
+    /* DAY_SECOND having problems because of leap seconds? */
+    expression= ((interval_tmp.day* 24 + interval_tmp.hour) * 60 +
+                  interval_tmp.minute)*60
+                 + interval_tmp.second;
+    break;
+  case INTERVAL_HOUR_MINUTE:
+    expression= interval_tmp.hour * 60 + interval_tmp.minute;
+    break;
+  case INTERVAL_MINUTE_SECOND:
+    expression= interval_tmp.minute * 60 + interval_tmp.second;
+    break;
+  case INTERVAL_LAST:
+    assert(0);
+  default:
+    ;/* these are the microsec stuff */
+>>>>>>> upstream/cluster-7.6
   }
   if (interval_tmp.neg || expression == 0 ||
       expression > EVEX_MAX_INTERVAL_VALUE) {

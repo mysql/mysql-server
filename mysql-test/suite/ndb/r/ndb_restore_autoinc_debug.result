@@ -16,6 +16,7 @@ insert into signed (a,b) values (-30, -30);
 insert into test.t1 (b) values (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 insert into test.t2 (b) values (3), (4);
 select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
+<<<<<<< HEAD
 AUTO_INCREMENT
 8
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
@@ -23,6 +24,15 @@ AUTO_INCREMENT
 21
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 AUTO_INCREMENT
+=======
+auto_increment
+8
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+auto_increment
+>>>>>>> pr/231
 5
 Waiting for backup to complete
 Backup completed
@@ -38,6 +48,7 @@ Node 1
 Node 2
 Check restored auto-inc metadata :
 select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
+<<<<<<< HEAD
 AUTO_INCREMENT
 8
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
@@ -45,6 +56,15 @@ AUTO_INCREMENT
 21
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 AUTO_INCREMENT
+=======
+auto_increment
+8
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+auto_increment
+>>>>>>> pr/231
 5
 drop table signed;
 drop table test.t1;
@@ -58,6 +78,7 @@ Node 2
 Node 1
 Check restored auto-inc metadata :
 select auto_increment from information_schema.tables where table_schema='test' and table_name='signed';
+<<<<<<< HEAD
 AUTO_INCREMENT
 8
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
@@ -65,6 +86,15 @@ AUTO_INCREMENT
 21
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 AUTO_INCREMENT
+=======
+auto_increment
+8
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
+auto_increment
+21
+select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
+auto_increment
+>>>>>>> pr/231
 5
 drop table signed;
 drop table test.t1;

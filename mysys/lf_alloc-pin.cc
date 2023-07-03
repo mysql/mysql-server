@@ -1,5 +1,13 @@
 /* QQ: TODO multi-pinbox */
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:mysys/lf_alloc-pin.cc
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:mysys/lf_alloc-pin.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,9 +145,16 @@ static void lf_pinbox_real_free(LF_PINS *pins);
   See the latter for details.
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
+<<<<<<< HEAD:mysys/lf_alloc-pin.cc
                     lf_pinbox_free_func *free_func, void *free_func_arg) {
   assert(free_ptr_offset % sizeof(void *) == 0);
   static_assert(sizeof(LF_PINS) == 64, "");
+=======
+                    lf_pinbox_free_func *free_func, void *free_func_arg)
+{
+  assert(free_ptr_offset % sizeof(void *) == 0);
+  compile_time_assert(sizeof(LF_PINS) == 64);
+>>>>>>> upstream/cluster-7.6:mysys/lf_alloc-pin.c
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver = 0;
   pinbox->pins_in_array = 0;
@@ -224,9 +239,18 @@ void lf_pinbox_put_pins(LF_PINS *pins) {
   {
     /* This thread should not hold any pin. */
     int i;
+<<<<<<< HEAD
     for (i = 0; i < LF_PINBOX_PINS; i++) {
       assert(pins->pin[i] == nullptr);
     }
+=======
+<<<<<<< HEAD:mysys/lf_alloc-pin.cc
+    for (i = 0; i < LF_PINBOX_PINS; i++) DBUG_ASSERT(pins->pin[i] == 0);
+=======
+    for (i= 0; i < LF_PINBOX_PINS; i++)
+      assert(pins->pin[i] == 0);
+>>>>>>> upstream/cluster-7.6:mysys/lf_alloc-pin.c
+>>>>>>> pr/231
   }
 #endif /* NDEBUG */
 
@@ -395,13 +419,32 @@ static void alloc_free(void *v_first, void *v_last, void *v_allocator) {
 
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
                     lf_allocator_func *ctor, lf_allocator_func *dtor) {
+<<<<<<< HEAD
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset, alloc_free, allocator);
   allocator->top = nullptr;
+=======
+  lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
+                 (lf_pinbox_free_func *)alloc_free, allocator);
+<<<<<<< HEAD:mysys/lf_alloc-pin.cc
+  allocator->top = 0;
+>>>>>>> pr/231
   allocator->mallocs = 0;
   allocator->element_size = size;
   allocator->constructor = ctor;
   allocator->destructor = dtor;
+<<<<<<< HEAD
   assert(size >= sizeof(void *) + free_ptr_offset);
+=======
+  DBUG_ASSERT(size >= sizeof(void *) + free_ptr_offset);
+=======
+  allocator->top= 0;
+  allocator->mallocs= 0;
+  allocator->element_size= size;
+  allocator->constructor= ctor;
+  allocator->destructor= dtor;
+  assert(size >= sizeof(void*) + free_ptr_offset);
+>>>>>>> upstream/cluster-7.6:mysys/lf_alloc-pin.c
+>>>>>>> pr/231
 }
 
 /*

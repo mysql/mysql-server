@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/*  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +28,18 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include <assert.h>
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include <stddef.h>
+=======
+#include "m_ctype.h"  /* my_charset_utf8_bin */
+#include "my_dbug.h"   /* assert */
+#include <mysqld_error.h> /* To get ER_NOT_VALID_PASSWORD */
+#include <mysql/plugin_validate_password.h> /* validate_password plugin */
+>>>>>>> upstream/cluster-7.6
 
 #include "lex_string.h"
 #include "m_ctype.h" /* my_charset_utf8mb3_bin */
@@ -109,6 +127,7 @@ int my_validate_password_policy(const char *password,
 /**
   Invoke the component/plugin to evalue the strength of a password.
 
+<<<<<<< HEAD
   Implementation of a plugin service @ref mysql_password_policy_service_st
   method.
   Typically called when new user is created or existing password is changed.
@@ -131,7 +150,18 @@ int my_calculate_password_strength(const char *password,
                                    unsigned int password_len) {
   int res = 0;
   unsigned int strength;
+<<<<<<< HEAD
   assert(password != nullptr);
+=======
+  DBUG_ASSERT(password != NULL);
+=======
+/* called when new user is created or exsisting password is changed */
+int my_calculate_password_strength(const char *password, unsigned int password_len)
+{
+  int res= 0;
+  assert(password != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   my_h_service h_pv_svc = nullptr;
   SERVICE_TYPE(validate_password) * ret;

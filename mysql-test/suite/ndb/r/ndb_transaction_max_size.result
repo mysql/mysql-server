@@ -24,7 +24,13 @@ start transaction;
 insert into t values (1000, 1000);
 insert into t select 1000+x, 1000+y from t;
 Warnings:
+<<<<<<< HEAD
 Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction/MaxNoOfConcurrentOp' from NDB
 commit;
 ERROR HY000: Got error 125 - 'Transaction has been rolled back' during COMMIT
+=======
+Warning	1296	Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction' from NDB
+commit;
+ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
+>>>>>>> pr/231
 drop table t;

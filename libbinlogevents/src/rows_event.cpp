@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,11 +62,37 @@ Table_map_event::Table_map_event(const char *buf,
   READER_TRY_CALL(forward, TM_MAPID_OFFSET);
   if (fde->post_header_len[TABLE_MAP_EVENT - 1] == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
+<<<<<<< HEAD
     READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
     BAPI_ASSERT(fde->post_header_len[TABLE_MAP_EVENT - 1] ==
                 TABLE_MAP_HEADER_LEN);
     READER_TRY_SET(m_table_id, read<uint64_t>, 6);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+<<<<<<< HEAD
+    m_table_id = le64toh(table_id);
+    post_start += 4;
+  } else {
+    BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id = le64toh(table_id);
+    post_start += TM_FLAGS_OFFSET;
+=======
+    m_table_id= le64toh(table_id);
+    post_start+= 4;
+  }
+  else
+  {
+    BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
+    post_start+= TM_FLAGS_OFFSET;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   READER_TRY_SET(m_flags, read<uint16_t>);
 
@@ -398,9 +428,33 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
 
   if (post_header_len == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
+<<<<<<< HEAD
     READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
     READER_TRY_SET(m_table_id, read<uint64_t>, 6);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+<<<<<<< HEAD
+    m_table_id = le64toh(table_id);
+    post_start += 4;
+  } else {
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id = le64toh(table_id);
+    post_start += ROWS_FLAGS_OFFSET;
+=======
+    m_table_id= le64toh(table_id);
+    post_start+= 4;
+  }
+  else
+  {
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
+    post_start+= ROWS_FLAGS_OFFSET;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   READER_TRY_SET(m_flags, read<uint16_t>);
 

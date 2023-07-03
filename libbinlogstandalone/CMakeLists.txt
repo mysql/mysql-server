@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +30,31 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+=======
+# this will be moved to the top level CMakeLists(outside libbinlogevents)
+# in the independent repo mysql-binlog
+# Options for building
+#OPTION(WITH_SERVER_TESTS
+#       "Build the unit test suite with tests requiring a server" OFF)
+
+#IF(GTEST_FOUND)
+#  ENABLE_TESTING(TRUE)
+#  INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
+#ENDIF()
+
+<<<<<<< HEAD
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include
+                    ${CMAKE_CURRENT_BINARY_DIR}/../libbinlogevents/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+=======
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+                    ${CMAKE_CURRENT_BINARY_DIR}/../libbinlogevents/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export
+                    ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/export)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 ADD_SUBDIRECTORY(src)

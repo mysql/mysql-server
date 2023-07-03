@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 NOTE: Document is deprecated
 Use Component Services instead
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+=======
+Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
 How to create a new service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

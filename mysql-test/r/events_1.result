@@ -50,9 +50,19 @@ SECOND	10	SELECT 1
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 1	0	1	
+<<<<<<< HEAD
 ALTER EVENT event_starts_test ON SCHEDULE AT date_add(now(), interval 5 day);
+=======
+<<<<<<< HEAD
+ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
+>>>>>>> pr/231
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
+=======
+ALTER EVENT event_starts_test ON SCHEDULE AT date_add(now(), interval 5 day);
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+>>>>>>> upstream/cluster-7.6
 0	1	1	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
@@ -63,9 +73,19 @@ SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM info
 execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
 0	1	1	
 DROP EVENT event_starts_test;
+<<<<<<< HEAD
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS date_add(now(), interval 5 day) ENDS date_add(now(), interval 10 day) DO SELECT 2;
+=======
+<<<<<<< HEAD
+CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
+>>>>>>> pr/231
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';
 execute_at IS NULL	starts IS NULL	ends IS NULL	EVENT_COMMENT
+=======
+CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS date_add(now(), interval 5 day) ENDS date_add(now(), interval 10 day) DO SELECT 2;
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+>>>>>>> upstream/cluster-7.6
 1	0	0	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
 SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, event_comment FROM information_schema.events WHERE event_schema='events_test' AND event_name='event_starts_test';

@@ -1,6 +1,10 @@
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
+<<<<<<< HEAD
  *  Modifications Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+ *  Modifications Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
  *  All rights reserved.
  */
 #include "config.h"
@@ -90,9 +94,21 @@ hash_item *do_item_alloc(struct default_engine *engine, const void *key,
                          const size_t nkey, const int flags,
                          const rel_time_t exptime, const int nbytes,
                          const void *cookie) {
+<<<<<<< HEAD
   hash_item *it = NULL;
   // Avoid potential underflows.
   if (nbytes < 0) return 0;
+=======
+    hash_item *it = NULL;
+    // Avoid potential underflows.
+    if (nbytes < 0)
+        return 0;
+
+    size_t ntotal = sizeof(hash_item) + nkey + nbytes;
+    if (engine->config.use_cas) {
+        ntotal += sizeof(uint64_t);
+    }
+>>>>>>> pr/231
 
   size_t ntotal = sizeof(hash_item) + nkey + nbytes;
   if (engine->config.use_cas) {
@@ -130,6 +146,7 @@ hash_item *do_item_alloc(struct default_engine *engine, const void *key,
                          const size_t nkey, const int flags,
                          const rel_time_t exptime, const int nbytes,
                          const void *cookie) {
+<<<<<<< HEAD
   hash_item *it = NULL;
   // Avoid potential underflows.
   if (nbytes < 0) return 0;
@@ -183,6 +200,16 @@ hash_item *do_item_alloc(struct default_engine *engine, const void *key,
     if (engine->config.evict_to_free == 0) {
       engine->items.itemstats[id].outofmemory++;
       return NULL;
+=======
+    hash_item *it = NULL;
+    // Avoid potential underflows.
+    if (nbytes < 0)
+        return 0;
+
+    size_t ntotal = sizeof(hash_item) + nkey + nbytes;
+    if (engine->config.use_cas) {
+        ntotal += sizeof(uint64_t);
+>>>>>>> pr/231
     }
 
     /*

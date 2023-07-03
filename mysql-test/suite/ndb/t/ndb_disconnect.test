@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/not_embedded.inc
 
 --echo #
 --echo # Testing bug#21837074
@@ -32,9 +33,21 @@ show create table test.t1;
 
 --echo # Wait until mysqld has connected properly to cluster
 source include/ndb_not_readonly.inc;
+<<<<<<< HEAD
 connection mysqld2;
 source include/ndb_not_readonly.inc;
 connection default;
+=======
+<<<<<<< HEAD
+=======
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connection mysqld2;
+source include/ndb_not_readonly.inc;
+connection default;
+--enable_query_log
+--enable_result_log
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 --echo # mysqld connected to cluster. Now running show create table again.
 --disable_warnings

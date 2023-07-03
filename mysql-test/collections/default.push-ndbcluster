@@ -2,9 +2,28 @@
 # by compiling MySQL Cluster which includes two more storage engines,
 # a few new information_schema tables, the ndbinfo database and more tables
 # in the mysql database. This test run detects typical problems caused by these
+<<<<<<< HEAD
 # additions. This should be the _identical_ and same 'all-default-debug' as on
 # the other builds making it easy to compare and spot any differences.
 perl mysql-test-run.pl --timer --debug-server --force  --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip --skip-ndb
+=======
+<<<<<<< HEAD
+# additions. This should be the _identical_ and same
+# 'all-default-debug' as on the other builds
+# making it easy to compare and spot any differences.
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --experimental=collections/default.experimental --unit-tests-report --no-skip
+=======
+# additions.
+#
+# NOTE! The debug mysqld is not enabled in order to speed up the tests. This
+# causes some tests which require mysqld-debug to be skipped(those may later
+# fail in MySQL Cluster build and test cycle). In addition since this is the only
+# build which runs without debug mysqld enabled it will detect any test
+# which does not source the necessary include to skip itself when not in debug mode.
+#
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=all_default --vardir=var-all_default --skip-combinations --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests-report --skip-ndb
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 # ndbcluster suite only(separately for better report in the CI tool).
 perl mysql-test-run.pl --timer --debug-server --force  --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster --no-skip

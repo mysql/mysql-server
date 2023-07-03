@@ -1,5 +1,10 @@
 # Tests for PERFORMANCE_SCHEMA
 
+<<<<<<< HEAD
+=======
+--source include/not_embedded.inc
+
+>>>>>>> pr/231
 --source ../include/start_server_common.inc
 
 --echo

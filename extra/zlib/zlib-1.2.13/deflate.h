@@ -1,5 +1,19 @@
 /* deflate.h -- internal compression state
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.h
  * Copyright (C) 1995-2018 Jean-loup Gailly
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.h
+ * Copyright (C) 1995-2016 Jean-loup Gailly
+========
+ * Copyright (C) 1995-2018 Jean-loup Gailly
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.h
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.h
+=======
+>>>>>>> pr/231
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -329,9 +343,26 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
 # define _tr_tally_dist(s, distance, length, flush) \
   { uch len = (uch)(length); \
     ush dist = (ush)(distance); \
+<<<<<<< HEAD
+<<<<<<<< HEAD:extra/zlib/zlib-1.2.13/deflate.h
     s->sym_buf[s->sym_next++] = (uch)dist; \
     s->sym_buf[s->sym_next++] = (uch)(dist >> 8); \
     s->sym_buf[s->sym_next++] = len; \
+========
+=======
+>>>>>>> pr/231
+<<<<<<<< HEAD:extra/zlib/deflate.h
+    s->d_buf[s->last_lit] = dist; \
+    s->l_buf[s->last_lit++] = len; \
+========
+    s->sym_buf[s->sym_next++] = (uch)dist; \
+    s->sym_buf[s->sym_next++] = (uch)(dist >> 8); \
+    s->sym_buf[s->sym_next++] = len; \
+>>>>>>>> upstream/cluster-7.6:extra/zlib/zlib-1.2.13/deflate.h
+<<<<<<< HEAD
+>>>>>>>> pr/231:extra/zlib/deflate.h
+=======
+>>>>>>> pr/231
     dist--; \
     s->dyn_ltree[_length_code[len]+LITERALS+1].Freq++; \
     s->dyn_dtree[d_code(dist)].Freq++; \

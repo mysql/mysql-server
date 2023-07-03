@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,15 +33,29 @@
 
 INCLUDE(CheckCSourceRuns)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+# We require at least Clang 3.4.
+=======
+>>>>>>> pr/231
 SET(FREEBSD 1)
 
 # On FreeBSD some includes, e.g. sasl/sasl.h, is in /usr/local/include
 LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
 # Do not INCLUDE_DIRECTORIES here, we need to do that *after* configuring boost,
+<<<<<<< HEAD
 # in order to search include/boost_1_70_0/patches
 # INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
 
 # We require at least Clang 6.0 (FreeBSD 12).
+=======
+# in order to search include/boost_1_59_0/patches
+# INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+
+# We require at least Clang 3.3.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("

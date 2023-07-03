@@ -41,9 +41,21 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 
 --echo
 --echo # 1. Kill and restart server 2
+<<<<<<< HEAD
 --let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_communication_stack=$group_replication_comm_stack
 --replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
+=======
+<<<<<<< HEAD:mysql-test/suite/group_replication/t/gr_uninstall_while_network_blocked.test
+--let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+>>>>>>> pr/231
 --source include/kill_and_restart_mysqld.inc
+=======
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--source ../inc/kill_and_restart_mysqld.inc
+>>>>>>> upstream/cluster-7.6:rapid/plugin/group_replication/tests/mtr/t/gr_uninstall_while_network_blocked.test
 
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
@@ -100,8 +112,13 @@ UNINSTALL PLUGIN group_replication;
 --source include/rpl_connection.inc
 
 # terminate send calling reap
+<<<<<<< HEAD
 --echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR or Rollback
 --error 2006,2013,3100
+=======
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+>>>>>>> pr/231
 --reap
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

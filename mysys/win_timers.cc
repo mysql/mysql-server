@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:mysys/win_timers.cc
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:mysys/win_timers.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,12 +64,26 @@ HANDLE timer_queue = 0;
   @remark this function is executed in timer owner thread when timer
           expires.
 */
+<<<<<<< HEAD
 static void CALLBACK timer_callback_function(PVOID timer_data,
                                              BOOLEAN timer_or_wait_fired
                                              [[maybe_unused]]) {
+=======
+<<<<<<< HEAD:mysys/win_timers.cc
+static void CALLBACK timer_callback_function(
+    PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused))) {
+>>>>>>> pr/231
   my_timer_t *timer = (my_timer_t *)timer_data;
   assert(timer != NULL);
   timer->id.timer_state = TIMER_EXPIRED;
+=======
+static void CALLBACK
+timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused)))
+{
+  my_timer_t *timer= (my_timer_t *)timer_data;
+  assert(timer != NULL);
+  timer->id.timer_state= TIMER_EXPIRED;
+>>>>>>> upstream/cluster-7.6:mysys/win_timers.c
   PostQueuedCompletionStatus(io_compl_port, 0, (ULONG_PTR)timer, 0);
 }
 
@@ -263,9 +285,27 @@ void my_timer_deinitialize() {
   my_thread_join(&timer_notify_thread, NULL);
 }
 
+<<<<<<< HEAD
+=======
+/**
+  Create a timer object.
+
+  @param  timer   Timer object.
+
+  @return On success, 0.
+*/
+<<<<<<< HEAD:mysys/win_timers.cc
+>>>>>>> pr/231
 int my_timer_create(my_timer_t *timer) {
   assert(timer_queue != 0);
   timer->id.timer_handle = 0;
+=======
+int
+my_timer_create(my_timer_t *timer)
+{
+  assert(timer_queue != 0);
+  timer->id.timer_handle= 0;
+>>>>>>> upstream/cluster-7.6:mysys/win_timers.c
   return 0;
 }
 
@@ -278,9 +318,22 @@ int my_timer_create(my_timer_t *timer) {
   @return On success, 0.
           On error, -1.
 */
+<<<<<<< HEAD:mysys/win_timers.cc
 int my_timer_set(my_timer_t *timer, unsigned long time) {
+<<<<<<< HEAD
   assert(timer != NULL);
   assert(timer_queue != 0);
+=======
+  DBUG_ASSERT(timer != NULL);
+  DBUG_ASSERT(timer_queue != 0);
+=======
+int
+my_timer_set(my_timer_t *timer, unsigned long time)
+{
+  assert(timer != NULL);
+  assert(timer_queue != 0);
+>>>>>>> upstream/cluster-7.6:mysys/win_timers.c
+>>>>>>> pr/231
 
   /**
     If timer set previously is expired then it will not be
@@ -309,8 +362,19 @@ int my_timer_set(my_timer_t *timer, unsigned long time) {
   @return On success, 0.
           On error,  -1.
 */
+<<<<<<< HEAD:mysys/win_timers.cc
 int my_timer_cancel(my_timer_t *timer, int *state) {
+<<<<<<< HEAD
   assert(state != NULL);
+=======
+  DBUG_ASSERT(state != NULL);
+=======
+int
+my_timer_cancel(my_timer_t *timer, int *state)
+{
+  assert(state != NULL);
+>>>>>>> upstream/cluster-7.6:mysys/win_timers.c
+>>>>>>> pr/231
 
   return delete_timer(timer, state);
 }
