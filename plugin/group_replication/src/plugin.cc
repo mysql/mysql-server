@@ -380,6 +380,8 @@ int handle_group_replication_incoming_connection(THD *thd, int fd,
       mysql_provider) {
     mysql_provider->set_new_connection(thd, new_connection);
     error_return = 0;
+  } else {
+    delete new_connection;
   }
 
   return error_return;
