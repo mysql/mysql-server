@@ -2575,24 +2575,30 @@ end:
 bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
                             const std::string &object_type) {
   String wrong_user;
-  std::string operation;
-  switch (thd->lex->sql_command) {
-    case SQLCOM_CREATE_USER:
-      operation = "CREATE USER";
-      break;
-    case SQLCOM_DROP_USER:
-      operation = "DROP USER";
-      break;
-    case SQLCOM_RENAME_USER:
-      operation = "RENAME USER";
-      break;
-    default:
-      assert(0);
-  }
   log_user(thd, &wrong_user, const_cast<LEX_USER *>(user_name), false);
   if (!(thd->security_context()
             ->has_global_grant(STRING_WITH_LEN("SET_USER_ID"))
             .first)) {
+    std::string operation;
+    switch (thd->lex->sql_command) {
+      case SQLCOM_CREATE_USER:
+        operation = "CREATE USER";
+        break;
+      case SQLCOM_DROP_USER:
+        operation = "DROP USER";
+        break;
+      case SQLCOM_RENAME_USER:
+        operation = "RENAME USER";
+        break;
+      case SQLCOM_CREATE_ROLE:
+        operation = "CREATE ROLE";
+        break;
+      case SQLCOM_DROP_ROLE:
+        operation = "DROP ROLE";
+        break;
+      default:
+        assert(0);
+    }
     my_error(ER_CANNOT_USER_REFERENCED_AS_DEFINER, MYF(0), operation.c_str(),
              wrong_user.c_ptr_safe(), object_type.c_str());
     return true;
