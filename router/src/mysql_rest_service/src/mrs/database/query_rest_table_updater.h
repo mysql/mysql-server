@@ -54,8 +54,9 @@ class TableUpdater : public QueryLog {
   PrimaryKeyColumnValues handle_post(MySQLSession *session,
                                      const rapidjson::Document &doc);
 
-  void handle_put(MySQLSession *session, const rapidjson::Document &doc,
-                  const PrimaryKeyColumnValues &pk_values);
+  PrimaryKeyColumnValues handle_put(MySQLSession *session,
+                                    const rapidjson::Document &doc,
+                                    const PrimaryKeyColumnValues &pk_values);
 
   uint64_t handle_delete(MySQLSession *session,
                          const PrimaryKeyColumnValues &pk_values);

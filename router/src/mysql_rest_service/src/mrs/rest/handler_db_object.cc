@@ -422,7 +422,7 @@ HttpResult HandlerDbObject::handle_put(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
 
-  updater.handle_put(session.get(), json_doc, pk);
+  pk = updater.handle_put(session.get(), json_doc, pk);
 
   Counter<kEntityCounterRestAffectedItems>::increment(updater.affected());
 
@@ -432,7 +432,7 @@ HttpResult HandlerDbObject::handle_put(rest::RequestContext *ctxt) {
                           database::ObjectFieldFilter::from_object(*object), pk,
                           route_->get_rest_url(), true);
 
-  Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);
+  Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
   return std::move(fetch_one.response);
 }
 
