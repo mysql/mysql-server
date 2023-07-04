@@ -97,7 +97,7 @@ TARGET_INCLUDE_DIRECTORIES(routertest_http_matcher
 
 IF(LIBFUZZER_COMPILE_FLAGS)
   ## http_auth_backend
-  MYSQL_ADD_EXECUTABLE(routerfuzz_auth_backend
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_auth_backend
     fuzz_auth_backend.cc
     ../src/http_auth_backend.cc
     ../src/http_auth_error.cc
@@ -109,37 +109,37 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_auth_backend
+  TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_auth_backend
     PRIVATE $<TARGET_PROPERTY:http_auth_backend,INCLUDE_DIRECTORIES>)
 
-  LIBFUZZER_ADD_TEST(routerfuzz_auth_backend
+  LIBFUZZER_ADD_TEST(routertest_fuzz_http_auth_backend
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_auth_backend)
 
   ## http_auth_method_basic
-  MYSQL_ADD_EXECUTABLE(routerfuzz_auth_method_basic
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_auth_method_basic
     fuzz_auth_method_basic.cc
     ../src/http_auth_method_basic.cc
     COMPONENT Router
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_auth_method_basic
+  TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_auth_method_basic
     PRIVATE $<TARGET_PROPERTY:http_server,INCLUDE_DIRECTORIES>)
 
-  LIBFUZZER_ADD_TEST(routerfuzz_auth_method_basic
+  LIBFUZZER_ADD_TEST(routertest_fuzz_http_auth_method_basic
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_auth_method_basic)
 
   ## base64
-  MYSQL_ADD_EXECUTABLE(routerfuzz_base64
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_base64
     fuzz_base64.cc
     COMPONENT Router
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_base64
+  TARGET_INCLUDE_DIRECTORIES(routertest_fuzz_http_base64
     PRIVATE $<TARGET_PROPERTY:http_common,INCLUDE_DIRECTORIES>)
 
-  LIBFUZZER_ADD_TEST(routerfuzz_base64
+  LIBFUZZER_ADD_TEST(routertest_fuzz_http_base64
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_base64)
 
 ENDIF()
