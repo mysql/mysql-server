@@ -29,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -45,9 +46,15 @@ public class AllTests {
 
     private static boolean enableDebugTests = false;
 
-    private static void usage() {
-        System.out.println("Usage: java -cp <jar file>:... AllTests <jar file> [--enable-debug-tests]");
+    private static void usage(String message) {
+        System.out.println(message);
+        System.out.println();
+        System.out.println("Usage: java -cp <jar file>:... AllTests <jar file> [options]");
         System.out.println("Will run all tests in the given jar file.");
+        System.out.println("  Options: ");
+        System.out.println("     --print-cases / -l   : List test cases");
+        System.out.println("     --enable-debug-tests : Run extra debug-only tests");
+        System.out.println("     -n TestName [...]    : Run named tests");
         System.exit(2);
     }
 
@@ -71,7 +78,8 @@ public class AllTests {
     private static boolean isTestClass(Class<?> klass) {
         return klass.getName().endsWith("Test")
             && !klass.getName().contains("Abstract")
-            && Test.class.isAssignableFrom(klass);
+            && Test.class.isAssignableFrom(klass)
+            && ! Test.class.equals(klass);
     }
 
     private static boolean isDebugTestAnnotationPresent(Class<?> candidate)  {
@@ -111,7 +119,7 @@ public class AllTests {
     }
 
     @SuppressWarnings("unchecked") // addTestSuite requires non-template Class argument
-    public static Test suite() throws IllegalAccessException, IOException, ClassNotFoundException {
+    public static TestSuite suite(HashSet<String> namedTests) throws IllegalAccessException, IOException, ClassNotFoundException {
         TestSuite suite = new TestSuite("Cluster/J");
 
         if (jarFile.equals("")) {
@@ -120,15 +128,39 @@ public class AllTests {
 
         List<Class<?>> classes = getClasses(new File(jarFile));
         for (Class<?> klass : classes) {
-            if (isTestClass(klass) && !isTestDisabled(klass)) {
-                suite.addTestSuite((Class)klass);
+            if (isTestClass(klass)) {
+                if(! namedTests.isEmpty()) {
+                    String longName = klass.getName();
+                    String shortName = longName.substring(longName.lastIndexOf(".") + 1);
+                    if(namedTests.contains(shortName) || namedTests.contains(longName))
+                        suite.addTestSuite((Class)klass);
+                } else if(! isTestDisabled(klass)) {
+                    suite.addTestSuite((Class)klass);
+                }
             }
         }
         return suite;
     }
 
+    public static void printCases() throws IOException, ClassNotFoundException {
+        List<Class<?>> classes = getClasses(new File(jarFile));
+        for (Class<?> cls : classes) {
+            if (isTestClass(cls)) {
+                String note = "";
+                for(Annotation a : cls.getDeclaredAnnotations())
+                    note = note.concat(a.toString()).concat(" ");
+                String name = cls.getName();
+                String shortName = name.substring(name.lastIndexOf(".") + 1);
+                System.out.printf("  %-36s  %s\n", shortName, note);
+            }
+        }
+    }
+
+
     /**
-     * Usage: java -cp ... AllTests file.jar [--enable-debug-tests]
+     * Usage: java -cp ... AllTests file.jar [-l] [--print-cases]
+     *                                       [--enable-debug-tests]
+     *                                       [-n test ...]
      *
      * --enable-debug-tests parameter additionally runs tests annotated
      * with @DebugTest, else these tests will be skipped.
@@ -137,30 +169,48 @@ public class AllTests {
      */
     public static void main(String[] args) throws Exception {
 
-        if (args.length < 0 || args.length > 2) {
-            usage();
-            return;
-        }
+        if (args.length < 1)
+            usage("JAR file required");
 
         // First argument is the jarfile
         jarFile = args[0];
 
-        // Optional debug-build argument
-        if (args.length == 2) {
-            if (args[1].equalsIgnoreCase("--enable-debug-tests")) {
+        boolean runNamedTests = false;
+        boolean printTestList = false;
+        HashSet<String> namedTests = new HashSet<String>();
+
+        for(int i = 1 ; i < args.length ; i++) {
+            if (args[i].equals("-l") || args[i].equals("--print-cases"))
+              printTestList = true;
+
+            else if (args[i].equalsIgnoreCase("--enable-debug-tests"))
                 enableDebugTests = true;
-            } else {
-                usage();
-                return;
-            }
+
+            else if(runNamedTests)
+              namedTests.add(args[i]);
+
+            else if (args[i].equals("-n"))
+              runNamedTests = true;
+
+            else
+              usage("Unrecognized option");
         }
 
-        System.out.println("Running all tests in '" + jarFile + "'");
-        TestSuite suite = (TestSuite) suite();
-        System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
+        if(printTestList && runNamedTests)
+            usage("Incompatible options");
+
+        if(printTestList) {
+            printCases();
+            System.exit(0);
+        }
+
+        TestSuite suite = suite(namedTests);
+
+        System.out.println("Running " + (runNamedTests ? "named" : "all") +
+                           " tests in '" + jarFile + "'");
+        System.out.println("Found " + suite.testCount() + " test classes.");
         TestResult res = junit.textui.TestRunner.run(suite);
         System.out.println("Finished running tests in '" + jarFile + "'");
         System.exit(res.wasSuccessful() ? 0 : 1);
     }
 }
-

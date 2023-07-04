@@ -121,3 +121,14 @@ IF(WIN32)
 ELSE()
   NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ENDIF()
+
+IF(WITH_NDB_JAVA)
+  NDB_ADD_EXECUTABLE(testClusterJ testClusterJ.cpp NDBCLIENT)
+  TARGET_COMPILE_DEFINITIONS(testClusterJ PRIVATE
+                             CMAKE_BINARY_DIR=\"${CMAKE_BINARY_DIR}\"
+                             CMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"
+                             INSTALL_LIBDIR=\"${INSTALL_LIBDIR}\"
+                             INSTALL_MYSQLSHAREDIR=\"${INSTALL_MYSQLSHAREDIR}\"
+                             WITH_CLASSPATH=\"${WITH_CLASSPATH}\"
+                            )
+ENDIF(WITH_NDB_JAVA)
