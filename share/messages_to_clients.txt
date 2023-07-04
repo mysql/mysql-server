@@ -10129,6 +10129,198 @@ ER_CANT_SET_GTID_NEXT_TO_AUTOMATIC_TAGGED_WHEN_GTID_MODE_IS_OFF
 ER_GTID_NEXT_TAG_GTID_MODE_OFF
   eng "@@SESSION.GTID_NEXT cannot be set to UUID:TAG:NUMBER when @@GLOBAL.GTID_MODE = OFF."
 
+ER_LH_COL_NOT_NULLABLE
+  eng "Column %d of %s : Column contains null but it is not nullable."
+
+ER_LH_WARN_COL_MISSING_NOT_NULLABLE
+  eng "Column %d of %s : Column is missing, but it is not nullable and no explicit default value is provided."
+
+ER_LH_COL_IS_EMPTY
+  eng "Column %d of %s : Column is empty."
+
+ER_LH_COL_IS_EMPTY_WARN
+  eng "Column %d of %s : Column is empty, setting default value."
+
+ER_LH_BAD_VALUE
+  eng "Column %d of %s : Invalid %s value."
+
+ER_LH_DECIMAL_UNKNOWN_ERR
+  eng "Column %d of %s : Unknown error while parsing decimal."
+
+ER_LH_DECIMAL_OOM_ERR
+  eng "Column %d of %s : Out of memory loading decimal."
+
+ER_LH_WARN_DECIMAL_ROUNDING
+  eng "Column %d of %s : Fraction exceeds schema, rounding value."
+
+ER_LH_DECIMAL_PRECISION_EXCEEDS_SCHEMA
+  eng "Column %d of %s : decimal precision exceeds schema."
+
+ER_LH_EXCEEDS_MIN
+  eng "Column %d of %s : %s exceeds min."
+
+ER_LH_EXCEEDS_MAX
+  eng "Column %d of %s : %s exceeds max."
+
+ER_LH_WARN_EXCEEDS_MIN_TRUNCATING
+  eng "Column %d of %s : %s exceeds min, setting to min value possible."
+
+ER_LH_WARN_EXCEEDS_MAX_TRUNCATING
+  eng "Column %d of %s : %s exceeds max, setting to max value possible."
+
+ER_LH_REAL_IS_NAN
+  eng "Column %d of %s : Real value is NaN."
+
+ER_LH_OUT_OF_RANGE
+  eng "Column %d of %s : %s value is out of range."
+
+ER_LH_DATETIME_FORMAT
+  eng "Column %d of %s : Error while applying %s format."
+
+ER_LH_WARN_TRUNCATED
+  eng "Column %d of %s : %s value was truncated."
+
+ER_LH_CANNOT_CONVERT_STRING
+  eng "Column %d of %s : Cannot convert string %s."
+
+ER_LH_RESORCE_PRINCIPAL_ERR
+  eng "Resource principal error."
+
+ER_LH_AWS_AUTH_ERR
+  eng "AWS authentication error."
+
+ER_LH_CSV_PARSING_ERR
+  eng "%s:%lu: Parsing error found. %s."
+
+ER_LH_COLUMN_MISMATCH_ERR
+  eng "%s: Mismatch in the number of columns. Expected %u, found %u."
+
+ER_LH_COLUMN_MAX_ERR
+  eng "%s: More than %u column(s) found."
+
+ER_LH_CHARSET_UNSUPPORTED
+  eng "Column %d in %s: Charset is not supported."
+
+ER_LH_PARQUET_DECIMAL_CONVERSION_ERR
+  eng "Column %d in %s: Decimal conversion error."
+
+ER_LH_STRING_TOO_LONG
+  eng "Column %d in %s: String is too long."
+
+ER_LH_RESORCE_PRINCIPAL_BUCKET_ERR
+  eng "Resource Principal endpoint is not configured. Cannot access following buckets: %s."
+
+ER_LH_NO_FILES_FOUND
+  eng "No files found corresponding to the following data locations: %s."
+
+ER_LH_EMPTY_FILE
+  eng "File %s is empty."
+
+ER_LH_DUPLICATE_FILE
+  eng "File %s was not processed (duplicate)."
+
+ER_LH_AVRO_SCHEMA_DEPTH_EXCEEDS_MAX
+  eng "File %s: Avro schema depth exceeds max allowed depth."
+
+ER_LH_AVRO_HEADER_MISMATCH
+  eng "File %s: Header does not match other files."
+
+ER_LH_AVRO_ENUM_CANNOT_CONVERT_CHARSET
+  eng "File %s: Enum symbol can't convert to column charset."
+
+ER_LH_AVRO_ENUM_MISMATCH
+  eng "File %s: Enum symbols are not the same, or are not in the same order."
+
+ER_LH_AVRO_TYPE_CANNOT_CONVERT
+  eng "Column %d in %s: Avro value of physical type %.*s logical type %.*s cannot be converted to mysql type %s."
+
+ER_LH_AVRO_FILE_ENDS_UNEXPECTEDLY
+  eng "File %.*s: Ends unexpectedly."
+
+ER_LH_AVRO_FILE_DATA_CORRUPT
+  eng "File %.*s: File data might be corrupt."
+
+ER_LH_AVRO_INVALID_UNION
+  eng "Column %d in %s: Invalid union encountered. Unions are only supported to represent nullable columns. One of the two types of the union must be null."
+
+ER_LH_AVRO_INVALID_BLOCK_SIZE
+  eng "File %.*s: Invalid avro block size."
+
+ER_LH_AVRO_INVALID_BLOCK_RECORD_COUNT
+  eng "File %.*s: Invalid Avro block record count."
+
+ER_LH_FORMAT_HEADER_NO_MAGIC_BYTES
+  eng "File %.*s: Cannot locate %s specific metadata. Either the file is corrupted or this is not an %s file."
+
+ER_LH_AVRO_HEADER_METADATA_ERR
+  eng "File %.*s: Could not process Avro header metadata. The metadata is corrupted or invalid."
+
+ER_LH_AVRO_HEADER_NO_SCHEMA
+  eng "File %.*s: No schema in Avro header metadata."
+
+ER_LH_AVRO_NO_CODEC_IN_HEADER
+  eng "File %.*s: No codec in Avro header metadata."
+
+ER_LH_AVRO_INVALID_NAME_IN_SCHEMA
+  eng "File %.*s: Invalid name in Avro schema."
+
+ER_LH_AVRO_DECODING_ERR
+  eng "File %.*s: Error decoding Avro %.*s. %s"
+
+ER_LH_PARQUET_NON_UTF8_FILE_ENC
+  eng "Column %d in %s: String with non-utf8 file encoding."
+
+ER_LH_PARQUET_SCHEMA_MISMATCH
+  eng "Difference in schema among Parquet files."
+
+ER_LH_PARQUET_ROW_GROUP_SIZE_EXCEEDS_MAX
+  eng "File %s: Size of row group %ld is larger than maximum allowed size (%d)."
+
+ER_LH_PARQUET_CANNOT_LOCATE_OFFSET
+  eng "File %s: Cannot locate offset of row group %ld in metadata."
+
+ER_LH_PARQUET_TYPE_CANNOT_CONVERT
+  eng "Column %d in parquet table cannot be converted to mysql format."
+
+ER_LH_PARQUET_CANNOT_LOCATE_SCHEMA
+  eng "Cannot locate schema in %s."
+
+ER_LH_INFER_SCHEMA_MISMATCH
+  eng "Found files with mismatched schemas."
+
+ER_LH_OOM
+  eng "Insufficient memory."
+
+ER_LH_WARN_INFER_SKIPPED_LINES
+  eng "Skipped %lu line(s) due to mismatched num of cols."
+
+ER_LH_WARN_INFER_SKIPPED_FILES
+  eng "Skipped %lu file(s) due to mismatched num of cols."
+
+ER_LH_INFER_FILE_HAS_NO_DATA
+  eng "File %s is skipped because it has no valid data. File is either empty or all rows are skipped."
+
+ER_LH_INFER_NO_DATA
+  eng "No valid data found for processing."
+
+ER_LH_INFER_NO_FILES
+  eng "No valid files found for processing."
+
+ER_LH_WARN_INFER_USE_DEFAULT_COL_NAMES
+  eng "Used default column names for column index(s) %s as they are %s."
+
+ER_LH_PARQUET_CANNOT_READ_HEADER
+  eng "File %s: Unable to read Parquet header."
+
+ER_LH_INFER_WARN_GOT_EXCEPTION
+  eng "Got an exception while trying to process file task."
+
+ER_LH_AVRO_CANNOT_PARSE_HEADER
+  eng "File %.*s: Could not parse avro header. Probably corrupted avro file."
+
+ER_LH_PARQUET_CANT_OPEN_FILE
+  eng "Parquet reader cannot open %s. %s"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
