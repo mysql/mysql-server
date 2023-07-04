@@ -1682,9 +1682,9 @@ void process_put_object(std::shared_ptr<entry::Object> object,
 
 }  // namespace
 
-void TableUpdater::handle_put(MySQLSession *session,
-                              const rapidjson::Document &doc,
-                              const PrimaryKeyColumnValues &pk_values) {
+PrimaryKeyColumnValues TableUpdater::handle_put(
+    MySQLSession *session, const rapidjson::Document &doc,
+    const PrimaryKeyColumnValues &pk_values) {
   assert(doc.IsObject());
 
   check_primary_key(pk_values);
@@ -1708,6 +1708,8 @@ void TableUpdater::handle_put(MySQLSession *session,
   safe_run(session, root_update, true);
 
   m_affected += root_update->affected();
+
+  return root_update->primary_key();
 }
 
 namespace {
