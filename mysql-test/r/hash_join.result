@@ -3909,6 +3909,9 @@ EXPLAIN
     -> Table scan on table1  (rows=1)
     -> Hash
         -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in extra conditions; dependent)
+        -> Filter: (table1.a <> 6)  (rows=1)
+            -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
@@ -3923,6 +3926,9 @@ EXPLAIN
     -> Table scan on table1  (rows=1)
     -> Hash
         -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (table1.a <> 6)  (rows=1)
+            -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1

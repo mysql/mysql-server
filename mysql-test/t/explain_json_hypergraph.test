@@ -166,3 +166,30 @@ SELECT 1 + 1 AS x FROM t GROUP BY x WITH ROLLUP HAVING x = 1;
 --echo # Used to show the GROUP BY clause as "group by ``".
 SELECT JSON_UNQUOTE(JSON_EXTRACT(@var, '$.query')) AS query;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35537921 Contribution by Tencent:
+--echo # explain format=tree lost the subquery in the hash join
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+
+let $query =
+SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
+  (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+--eval EXPLAIN FORMAT=JSON $query
+
+let $query =
+SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
+  (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+--eval EXPLAIN FORMAT=JSON $query
+
+DROP TABLE t1;

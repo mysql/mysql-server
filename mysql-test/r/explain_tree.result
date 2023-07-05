@@ -1262,3 +1262,40 @@ EXPLAIN
         -> Index range scan on t1 (re-planned for each iteration)  (rows=160) (actual rows=72 loops=160)
 
 DROP TABLE t;
+#
+# Bug#35537921 Contribution by Tencent:
+# explain format=tree lost the subquery in the hash join
+#
+SET optimizer_switch=default;
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+-> Inner hash join (x2.a = (select #2))  (rows=1)
+    -> Table scan on x2  (rows=1)
+    -> Hash
+        -> Table scan on x1  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: min(x3.a)  (rows=1)
+            -> Filter: (x1.a = x3.a)  (rows=1)
+                -> Table scan on x3  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x2.a<
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (x2.a < (select #2))  (rows=1)
+    -> Table scan on x1  (rows=1)
+    -> Hash
+        -> Table scan on x2  (rows=1)
+    -> Select #2 (subquery in extra conditions; dependent)
+        -> Aggregate: min(x3.a)  (rows=1)
+            -> Filter: (x1.a = x3.a)  (rows=1)
+                -> Table scan on x3  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;

@@ -5875,8 +5875,16 @@ EXPLAIN
         -> Table scan on ot1  (cost=1.05 rows=8)
         -> Hash
             -> Table scan on ot2  (cost=0.0813 rows=4)
+        -> Select #2 (subquery in extra conditions; dependent)
+            -> Limit: 1 row(s)  (cost=0.35 rows=1)
+                -> Filter: (<cache>(ot1.a) = it3.a)  (cost=0.35 rows=1)
+                    -> Table scan on it3  (cost=0.35 rows=3)
     -> Hash
         -> Table scan on ot3  (cost=0.0172 rows=3)
+    -> Select #3 (subquery in extra conditions; dependent)
+        -> Limit: 1 row(s)  (cost=0.35 rows=1)
+            -> Filter: (<cache>(ot3.a) = it3.a)  (cost=0.35 rows=1)
+                -> Table scan on it3  (cost=0.35 rows=3)
 
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)

@@ -786,3 +786,180 @@ SELECT JSON_UNQUOTE(JSON_EXTRACT(@var, '$.query')) AS query;
 query
 /* select#1 */ select rollup_group_item(<cache>((1 + 1)),0) AS `x` from `test`.`t` group by `x` with rollup having (rollup_group_item(`x`,0) = 1)
 DROP TABLE t;
+#
+# Bug#35537921 Contribution by Tencent:
+# explain format=tree lost the subquery in the hash join
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+-> Inner hash join (x2.a = (select #2))  (rows=1)
+    -> Table scan on x1  (rows=1)
+    -> Hash
+        -> Table scan on x2  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Aggregate: min(x3.a)  (rows=1)
+            -> Filter: (x1.a = x3.a)  (rows=1)
+                -> Table scan on x3  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` = (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
+  "inputs": [
+    {
+      "operation": "Table scan on x1",
+      "table_name": "x1",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.25
+    },
+    {
+      "heading": "Hash",
+      "operation": "Table scan on x2",
+      "table_name": "x2",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.25
+    },
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "operation": "Table scan on x3",
+              "table_name": "x3",
+              "access_type": "table",
+              "estimated_rows": 1.0,
+              "estimated_total_cost": 0.25,
+              "estimated_first_row_cost": 0.25
+            }
+          ],
+          "condition": "(x1.a = x3.a)",
+          "operation": "Filter: (x1.a = x3.a)",
+          "access_type": "filter",
+          "estimated_rows": 1.0,
+          "estimated_total_cost": 0.35,
+          "estimated_first_row_cost": 0.35
+        }
+      ],
+      "heading": "Select #2 (subquery in condition; dependent)",
+      "subquery": true,
+      "dependent": true,
+      "functions": [
+        "min(x3.a)"
+      ],
+      "operation": "Aggregate: min(x3.a)",
+      "access_type": "aggregate",
+      "estimated_rows": 1.0,
+      "subquery_location": "condition",
+      "estimated_total_cost": 0.44999999999999996,
+      "estimated_first_row_cost": 0.44999999999999996
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Inner hash join (x2.a = (select #2))",
+  "access_type": "join",
+  "estimated_rows": 1.0,
+  "hash_condition": [
+    "(x2.a = (select #2))"
+  ],
+  "join_algorithm": "hash",
+  "estimated_total_cost": 0.77,
+  "estimated_first_row_cost": 0.77
+}
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+-> Inner hash join (no condition), extra conditions: (x2.a < (select #2))  (rows=1)
+    -> Table scan on x1  (rows=1)
+    -> Hash
+        -> Table scan on x2  (rows=1)
+    -> Select #2 (subquery in extra conditions; dependent)
+        -> Aggregate: min(x3.a)  (rows=1)
+            -> Filter: (x1.a = x3.a)  (rows=1)
+                -> Table scan on x3  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+EXPLAIN
+{
+  "query": "/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`a` < (/* select#2 */ select min(`test`.`x3`.`a`) from `test`.`t1` `x3` where (`test`.`x1`.`a` = `test`.`x3`.`a`)))",
+  "inputs": [
+    {
+      "operation": "Table scan on x1",
+      "table_name": "x1",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.25
+    },
+    {
+      "heading": "Hash",
+      "operation": "Table scan on x2",
+      "table_name": "x2",
+      "access_type": "table",
+      "estimated_rows": 1.0,
+      "estimated_total_cost": 0.25,
+      "estimated_first_row_cost": 0.25
+    },
+    {
+      "inputs": [
+        {
+          "inputs": [
+            {
+              "operation": "Table scan on x3",
+              "table_name": "x3",
+              "access_type": "table",
+              "estimated_rows": 1.0,
+              "estimated_total_cost": 0.25,
+              "estimated_first_row_cost": 0.25
+            }
+          ],
+          "condition": "(x1.a = x3.a)",
+          "operation": "Filter: (x1.a = x3.a)",
+          "access_type": "filter",
+          "estimated_rows": 1.0,
+          "estimated_total_cost": 0.35,
+          "estimated_first_row_cost": 0.35
+        }
+      ],
+      "heading": "Select #2 (subquery in extra conditions; dependent)",
+      "subquery": true,
+      "dependent": true,
+      "functions": [
+        "min(x3.a)"
+      ],
+      "operation": "Aggregate: min(x3.a)",
+      "access_type": "aggregate",
+      "estimated_rows": 1.0,
+      "subquery_location": "extra conditions",
+      "estimated_total_cost": 0.44999999999999996,
+      "estimated_first_row_cost": 0.44999999999999996
+    }
+  ],
+  "join_type": "inner join",
+  "operation": "Inner hash join (no condition), extra conditions: (x2.a < (select #2))",
+  "access_type": "join",
+  "estimated_rows": 1.0,
+  "hash_condition": [],
+  "join_algorithm": "hash",
+  "extra_condition": [
+    "(x2.a < (select #2))"
+  ],
+  "estimated_total_cost": 0.87,
+  "estimated_first_row_cost": 0.87
+}
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;

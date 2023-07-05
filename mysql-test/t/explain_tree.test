@@ -742,3 +742,24 @@ EXPLAIN FORMAT=TREE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 EXPLAIN ANALYZE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35537921 Contribution by Tencent:
+--echo # explain format=tree lost the subquery in the hash join
+--echo #
+
+SET optimizer_switch=default;
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x2.a<
+(SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
+
+DROP TABLE t1;

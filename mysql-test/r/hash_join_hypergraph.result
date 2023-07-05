@@ -1803,6 +1803,9 @@ EXPLAIN
                 -> Group (no aggregates)  (rows=1.41)
                     -> Sort: subquery2_t1.col_varchar  (rows=2)
                         -> Table scan on subquery2_t1  (rows=2)
+    -> Select #4 (subquery in extra conditions; dependent)
+        -> Filter: (<cache>(subquery1_t1.col_varchar) = lower(subquery3_t1.pk))  (rows=1)
+            -> Table scan on subquery3_t1  (rows=1)
 
 SELECT
 table1.col_varchar
@@ -3689,6 +3692,10 @@ EXPLAIN
                 -> Hash
                     -> Table scan on inner_t2  (rows=4)
             -> Table scan on inner_t3  (rows=4)
+    -> Select #3 (subquery in extra conditions; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: ((inner_t3.pk >= 1) or (table1.f1 = 'G'))  (rows=4)
+                -> Table scan on t1  (rows=4)
 
 Warnings:
 Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1
@@ -3872,6 +3879,9 @@ EXPLAIN
     -> Table scan on table1  (rows=1)
     -> Hash
         -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in extra conditions; dependent)
+        -> Filter: (table1.a <> 6)  (rows=1)
+            -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
@@ -3886,6 +3896,9 @@ EXPLAIN
     -> Table scan on table1  (rows=1)
     -> Hash
         -> Table scan on t1  (rows=1)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: (table1.a <> 6)  (rows=1)
+            -> Table scan on t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1

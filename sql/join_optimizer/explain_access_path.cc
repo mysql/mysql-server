@@ -1302,6 +1302,16 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |= AddMemberToObject<Json_string>(obj, "join_algorithm", "hash");
       children->push_back({path->hash_join().outer});
       children->push_back({path->hash_join().inner, "Hash"});
+
+      const RelationalExpression *join_predicate =
+          path->hash_join().join_predicate->expr;
+      for (Item_eq_base *cond : join_predicate->equijoin_conditions) {
+        AddSubqueryPaths(cond, "condition", children);
+      }
+      for (Item *cond : join_predicate->join_conditions) {
+        AddSubqueryPaths(cond, "extra conditions", children);
+      }
+
       break;
     }
     case AccessPath::FILTER: {
