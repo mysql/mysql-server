@@ -521,7 +521,7 @@ class SharedRouter {
     // wait for the connections appear in the pool.
     if (param.can_share()) {
       ASSERT_NO_ERROR(wait_for_idle_server_connections(
-          std::min(num_destinations, pool_size_), 1s));
+          std::min(num_destinations, pool_size_), 10s));
     }
   }
 
@@ -889,7 +889,7 @@ class ShareConnectionTestWithRestartedServer
       }
     }
 
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }
 
  private:
@@ -981,7 +981,8 @@ class ShareConnectionTest
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        s->close_all_connections();  // reset the router's connection-pool
+        ASSERT_NO_ERROR(
+            s->close_all_connections());  // reset the router's connection-pool
         s->reset_to_defaults();
       }
     }
@@ -1015,7 +1016,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
 
     // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
     if (ndx == 3 && can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
     }
 
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
@@ -1023,7 +1025,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
 
     // connection goes out of the pool and back to the pool again.
     if (ndx == 3 && can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
     }
   }
 
@@ -1151,7 +1154,8 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
 
     // wait until the connection is in the pool.
     if (can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(1, 10s));
     }
 
     // find it on one of the servers and kill it.
@@ -1178,7 +1182,7 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
     }
 
     // wait until it is gone from the pool.
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }
 
   // check that no connection is reused ...
@@ -1237,7 +1241,7 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
       size_t expected_pooled_connections = ndx < 3 ? ndx + 1 : 3;
 
       ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
-          expected_pooled_connections, 1s));
+          expected_pooled_connections, 10s));
     }
 
     // find the server which received the connection attempt.
@@ -1335,7 +1339,8 @@ TEST_P(ShareConnectionTest,
 
     // wait until connection 0, 1, 2 are in the pool as 3 shall share with 0.
     if (ndx == 3 && can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
     }
 
     auto connect_res =
@@ -1351,7 +1356,8 @@ TEST_P(ShareConnectionTest,
 
     // connection goes out of the pool and back to the pool again.
     if (ndx == 3 && can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
     }
   }
 
@@ -1481,13 +1487,15 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
 
     // wait until the connection is in the pool ... and kill it.
     if (can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(1, 10s));
 
       for (auto &s : shared_servers()) {
-        s->close_all_connections();
+        ASSERT_NO_ERROR(s->close_all_connections());
       }
 
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(0, 10s));
     }
   }
 }
@@ -1527,7 +1535,8 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_pooled) {
 
     // wait until the connection is in the pool ... and kill it.
     if (can_share) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(1, 10s));
     }
   }
 }
@@ -1550,10 +1559,10 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       if (ndx == 0) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(1, 1s));
+            shared_router()->wait_for_idle_server_connections(1, 10s));
       } else if (ndx == 3) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(3, 1s));
+            shared_router()->wait_for_idle_server_connections(3, 10s));
       }
     }
   }
@@ -1683,7 +1692,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
   // wait a bit until all connections are moved to the pool to ensure that cli4
   // can share with cli1
   if (can_share && can_fetch_password) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
   }
 
   // shares with cli1
@@ -1700,7 +1709,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
 
   // wait a bit until the connection cli4 is moved to the pool.
   if (can_share && can_fetch_password) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
   }
 
   // shared between cli1 and cli4
@@ -1903,7 +1912,8 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
     if (ndx == 3 && can_share) {
       // before the 4th connection, wait until all 3 connections are in the
       // pool.
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(3, 10s));
     }
 
     auto connect_res =
@@ -1913,7 +1923,7 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
 
   // wait a bit until the connection clis[3] is moved to the pool.
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 10s));
   }
 
   // shared between 0 and 3
@@ -2742,7 +2752,7 @@ TEST_P(ShareConnectionTest,
 
   // close all connections to force a new connection.
   for (auto &s : shared_servers()) {
-    s->close_all_connections();
+    ASSERT_NO_ERROR(s->close_all_connections());
   }
 
   // check if the new connection has the same schema.
@@ -2831,7 +2841,7 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
 
   // close the pooled server-connection.
   for (auto &s : shared_servers()) {
-    s->close_all_connections();
+    ASSERT_NO_ERROR(s->close_all_connections());
   }
 
   {
@@ -3381,7 +3391,7 @@ TEST_P(ShareConnectionTest,
   ASSERT_NO_ERROR(cli.query("DO 0/0"));
 
   for (auto &s : shared_servers()) {
-    s->close_all_connections();
+    ASSERT_NO_ERROR(s->close_all_connections());
   }
 
   {
@@ -3443,7 +3453,7 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
   ASSERT_NO_ERROR(cli.query("USE testing"));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   {
@@ -3799,7 +3809,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
                    std::to_string(close_connection_before_verify));
 
       for (auto &s : shared_servers()) {
-        s->close_all_connections();
+        ASSERT_NO_ERROR(s->close_all_connections());
       }
 
       MysqlClient cli;
@@ -3816,7 +3826,7 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
 
       if (can_share && can_fetch_password) {
         ASSERT_NO_ERROR(
-            shared_router()->wait_for_idle_server_connections(1, 1s));
+            shared_router()->wait_for_idle_server_connections(1, 10s));
       }
 
       if (close_connection_before_verify) {
@@ -5745,7 +5755,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
                  "check if enabling multi-statement at runtime is handled "
                  "and sharing is allowed.");
 
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   const bool can_share = GetParam().can_share();
 
@@ -5759,7 +5769,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   {
@@ -5768,7 +5778,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
@@ -5795,13 +5805,13 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   {
@@ -5816,7 +5826,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
                  "when sharing is allowed.");
 
   SCOPED_TRACE("// ensure the pool is empty");
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   const bool can_share = GetParam().can_share();
 
@@ -5831,7 +5841,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   {
@@ -5850,7 +5860,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
@@ -5877,13 +5887,13 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
   }
 
   if (can_share) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
 
   if (can_share) {
-    shared_router()->wait_for_idle_server_connections(1, 1s);
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   {
@@ -7302,7 +7312,7 @@ TEST_P(ChangeUserTest, classic_protocol) {
       srv->close_all_connections();  // reset the router's connection-pool
     }
 
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
     cli_ = std::make_unique<MysqlClient>();
 
@@ -7370,7 +7380,8 @@ TEST_P(ChangeUserTest, classic_protocol) {
     }
 
     if (can_share && expect_success) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(1, 10s));
     }
 
     if (can_share && can_fetch_password) {
@@ -7437,7 +7448,8 @@ TEST_P(ChangeUserTest, classic_protocol) {
     }
 
     if (can_share && expect_success) {
-      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+      ASSERT_NO_ERROR(
+          shared_router()->wait_for_idle_server_connections(1, 10s));
     }
   }
 

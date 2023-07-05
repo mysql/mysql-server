@@ -123,16 +123,20 @@ class SharedServer {
   }
 
   // close all connections.
-  void close_all_connections() { close_all_connections(default_usernames()); }
-
-  void close_all_connections(const std::vector<std::string> &usernames);
-
-  static void close_all_connections(MysqlClient &cli) {
-    close_all_connections(cli, default_usernames());
+  stdx::expected<void, MysqlError> close_all_connections() {
+    return close_all_connections(default_usernames());
   }
 
-  static void close_all_connections(MysqlClient &cli,
-                                    const std::vector<std::string> &usernames);
+  stdx::expected<void, MysqlError> close_all_connections(
+      const std::vector<std::string> &usernames);
+
+  static stdx::expected<void, MysqlError> close_all_connections(
+      MysqlClient &cli) {
+    return close_all_connections(cli, default_usernames());
+  }
+
+  static stdx::expected<void, MysqlError> close_all_connections(
+      MysqlClient &cli, const std::vector<std::string> &usernames);
 
   // set some session-vars back to defaults.
   void reset_to_defaults();

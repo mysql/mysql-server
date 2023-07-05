@@ -978,7 +978,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
     auto connect_res = cli.connect("127.0.0.1", router_port_);
     ASSERT_TRUE(connect_res) << connect_res.error();
 
-    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 2s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
 
     // run it once
     {
@@ -994,7 +994,7 @@ TEST_F(RoutingSharingConfig, connection_sharing_per_route) {
                               ElementsAre("statement/sql/set_option", "2")));
     }
 
-    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 2s));
+    EXPECT_NO_ERROR(wait_for_idle_server_connections(1, 10s));
 
     // run it again.
     //

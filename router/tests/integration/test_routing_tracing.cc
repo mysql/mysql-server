@@ -2073,7 +2073,7 @@ TEST_P(TracingCommandTest,
     srv->close_all_connections();
   }
 
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2128,7 +2128,7 @@ TEST_P(TracingCommandTest,
   }
 
   if (can_trace && !expected_sharing_is_blocked) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
   }
 
   SCOPED_TRACE("// cmds with tracing");
@@ -2154,7 +2154,7 @@ TEST_P(TracingCommandTest,
     srv->close_all_connections();
   }
 
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
@@ -2210,13 +2210,13 @@ TEST_P(TracingCommandTest,
 
   SCOPED_TRACE("// force a reconnect");
   if (can_trace && !expected_sharing_is_blocked) {
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 10s));
 
     for (auto *srv : shared_servers()) {
       srv->close_all_connections();
     }
 
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }
 
   SCOPED_TRACE("// cmds with tracing");

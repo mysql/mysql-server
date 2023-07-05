@@ -751,7 +751,8 @@ TEST_P(ConnectionTest, classic_protocol_wait_timeout) {
 
   ASSERT_NO_ERROR(cli.query("SET wait_timeout = 1"));
 
-  EXPECT_NO_ERROR(shared_router()->wait_for_num_connections(GetParam(), 0, 2s));
+  EXPECT_NO_ERROR(
+      shared_router()->wait_for_num_connections(GetParam(), 0, 10s));
 
   SCOPED_TRACE("// ping after kill");
   {

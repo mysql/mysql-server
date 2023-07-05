@@ -421,29 +421,30 @@ SharedServer::user_connection_ids(MysqlClient &cli,
 }
 
 // close all connections.
-void SharedServer::close_all_connections(
+stdx::expected<void, MysqlError> SharedServer::close_all_connections(
     const std::vector<std::string> &usernames) {
   SCOPED_TRACE("// closing all connections at the server.");
 
   auto cli_res = admin_cli();
-  ASSERT_NO_ERROR(cli_res);
+  if (!cli_res) return stdx::make_unexpected(cli_res.error());
 
-  close_all_connections(*cli_res, usernames);
+  return close_all_connections(*cli_res, usernames);
 }
 
-void SharedServer::close_all_connections(
+stdx::expected<void, MysqlError> SharedServer::close_all_connections(
     MysqlClient &cli, const std::vector<std::string> &usernames) {
   {
     auto ids_res = user_connection_ids(cli, usernames);
-    ASSERT_NO_ERROR(ids_res);
+    if (!ids_res) return stdx::make_unexpected(ids_res.error());
 
     for (auto id : *ids_res) {
       auto kill_res = cli.kill(id);
 
       // either it succeeds or "Unknown thread id" because it closed itself
       // between the SELECT and this kill
-      EXPECT_TRUE(kill_res || kill_res.error().value() == 1094)
-          << kill_res.error();
+      if (!kill_res && kill_res.error().value() != 1094) {
+        return stdx::make_unexpected(kill_res.error());
+      }
     }
   }
 
@@ -454,15 +455,19 @@ void SharedServer::close_all_connections(
     auto end = clock_type::now() + 1000ms;
     do {
       auto ids_res = user_connection_ids(cli, usernames);
-      ASSERT_NO_ERROR(ids_res);
+      if (!ids_res) return stdx::make_unexpected(ids_res.error());
 
       if ((*ids_res).empty()) break;
 
-      ASSERT_LT(clock_type::now(), end) << ": timeout";
+      if (clock_type::now() >= end) {
+        return stdx::make_unexpected(make_mysql_error_code(2006));
+      }
 
       std::this_thread::sleep_for(10ms);
     } while (true);
   }
+
+  return {};
 }
 
 // set global settings to default values.
