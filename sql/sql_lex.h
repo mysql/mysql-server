@@ -2221,17 +2221,17 @@ class Query_block : public Query_term {
                                      Item *lifted_where_cond);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
-  bool setup_count_over_partition(THD *thd, Table_ref *derived,
-                                  Lifted_fields_map *lifted_fields,
-                                  std::deque<Item_field *> &added_to_group_by,
-                                  uint hidden_fields);
+  bool setup_counts_over_partitions(THD *thd, Table_ref *derived,
+                                    Lifted_fields_map *lifted_fields,
+                                    std::deque<Item_field *> &added_to_group_by,
+                                    uint hidden_fields);
   bool decorrelate_derived_scalar_subquery_pre(
       THD *thd, Table_ref *derived, Item *lifted_where,
       Lifted_fields_map *lifted_where_fields, bool *added_card_check,
-      bool *added_window_card_check);
+      size_t *added_window_card_checks);
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_fields_map *lifted_where_fields,
-      bool added_card_check, bool added_window_card_check);
+      bool added_card_check, size_t added_window_card_checks);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);

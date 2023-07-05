@@ -173,7 +173,7 @@ eval $query;
 eval EXPLAIN $query;
 
 --echo #
---echo # The existing GROUP BY groups on another field that inner in where
+--echo # The existing GROUP BY groups on another field than inner in where
 --echo # predicate:
 --echo #
 let $query=
@@ -231,6 +231,40 @@ eval EXPLAIN $query;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#35508108 Query succeeds with subquery to derived=on when it
+--echo # should throw error
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (1, 3, 3), (2, 3, 3);
+ANALYZE TABLE t1, t2;
+
+let $query=
+SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.b = t1.a and t2.c = t1.a GROUP BY b) > 0;
+--error 1055
+eval EXPLAIN $query;
+SET sql_mode='';
+eval EXPLAIN $query;
+eval $query;
+DELETE FROM t2 WHERE a = 2;
+eval $query;
+SET sql_mode=default;
+
+let $query=
+SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.b = t1.a and t2.c = t1.a HAVING sum(c) > 0) > 0;
+--error 1055
+eval EXPLAIN $query;
+
+# bug found during review of Bug#35508108: used to get cardinality error
+let $query=
+SELECT * FROM t1 WHERE (SELECT b FROM t2 WHERE t2.b = t1.a and t2.c = t1.a GROUP BY b) > 0;
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t2;
+
+--echo #
 --echo # Bug#35473657 Scalar correlated subquery with group by clause
 --echo #              "mistakenly transformed" (transform was wrong)
 --echo #
@@ -248,7 +282,6 @@ eval EXPLAIN $query;
 
 let $query =
 SELECT * FROM t1 WHERE (SELECT a FROM t3 WHERE t3.a = t1.a GROUP BY a) > 0;
---error ER_SUBQUERY_NO_1_ROW
 eval $query;
 eval EXPLAIN $query;
 
