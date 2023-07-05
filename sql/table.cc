@@ -7296,10 +7296,11 @@ void TABLE::column_bitmaps_set(MY_BITMAP *read_set_arg,
 }
 
 handler *TABLE::get_primary_handler() const {
-  if (s->is_primary_engine()) {
+  if (s != nullptr && s->is_primary_engine()) {
     return file;
   }
-  return file->ha_get_primary_handler();
+
+  return (file != nullptr) ? file->ha_get_primary_handler() : nullptr;
 }
 
 bool Table_ref::set_recursive_reference() {
@@ -7326,6 +7327,7 @@ bool Table_ref::is_external() const {
     return primary_handler != nullptr &&
            Overlaps(primary_handler->ht->flags,
                     HTON_SUPPORTS_EXTERNAL_SOURCE) &&
+           primary_handler->get_table_share() != nullptr &&
            primary_handler->get_table_share()->has_secondary_engine();
   }
   return false;

@@ -327,6 +327,9 @@ static const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(
     // We're only interested in base tables.
     if (tl->is_placeholder()) continue;
 
+    // check if required pointers are valid before proceeding further
+    if (tl->table == nullptr || tl->table->s == nullptr) continue;
+
     assert(!tl->table->s->is_secondary_engine());
     // Give up, if the table is not in a secondary engine,
     if (!tl->table->s->has_secondary_engine()) return nullptr;
