@@ -440,6 +440,10 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Event used by log files governor thread to wait. */
   os_event_t m_files_governor_event;
 
+  /** Mutex which can be used to pause log governor thread. */
+  alignas(ut::INNODB_CACHE_LINE_SIZE) mutable ib_mutex_t
+      governor_iteration_mutex;
+
   /** Event used by other threads to wait until log files governor finished
   its next iteration. This is useful when some sys_var gets changed to wait
   until log files governor re-computed everything and then check if the

@@ -640,6 +640,7 @@ static void log_sys_create() {
   mutex_create(LATCH_ID_LOG_LIMITS, &log.limits_mutex);
   mutex_create(LATCH_ID_LOG_FILES, &log.m_files_mutex);
   mutex_create(LATCH_ID_LOG_SN_MUTEX, &log.sn_x_lock_mutex);
+  mutex_create(LATCH_ID_LOG_GOVERNOR_MUTEX, &log.governor_iteration_mutex);
 
 #ifdef UNIV_PFS_RWLOCK
   /* pfs_psi is separated from sn_lock_inst,
@@ -835,6 +836,7 @@ static void log_sys_free() {
   mutex_free(&log.writer_mutex);
   mutex_free(&log.closer_mutex);
   mutex_free(&log.checkpointer_mutex);
+  mutex_free(&log.governor_iteration_mutex);
 
   os_event_destroy(log.next_checkpoint_event);
   os_event_destroy(log.write_notifier_event);

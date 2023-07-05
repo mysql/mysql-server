@@ -731,6 +731,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(log_flusher_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_write_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_flush_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_governor_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_sn_mutex, 0, 0, PSI_DOCUMENT_ME),
