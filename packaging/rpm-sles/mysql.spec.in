@@ -1084,6 +1084,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/ndb_select_all
 %attr(755, root, root) %{_bindir}/ndb_select_count
 %attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndb_sign_keys
 %attr(755, root, root) %{_bindir}/ndb_size.pl
 %attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndb_waiter

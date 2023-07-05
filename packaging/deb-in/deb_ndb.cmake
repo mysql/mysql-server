@@ -139,6 +139,7 @@ Description: nodejs
 /usr/bin/ndb_select_all
 /usr/bin/ndb_select_count
 /usr/bin/ndb_show_tables
+/usr/bin/ndb_sign_keys
 /usr/bin/ndb_size.pl
 /usr/bin/ndb_top
 /usr/bin/ndb_waiter

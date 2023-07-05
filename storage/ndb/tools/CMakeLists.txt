@@ -224,6 +224,12 @@ NDB_ADD_EXECUTABLE(ndb_secretsfile_reader
         LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
         )
 
+NDB_ADD_EXECUTABLE(ndb_sign_keys
+  sign_keys.cpp
+  COMPONENT ClusterTools
+  LINK_LIBRARIES ndbmgmapi ndbgeneral ndbportlib
+  )
+
 IF(NOT WIN32)
   IF(HAVE_NCURSESW_CURSES_H OR
      HAVE_NCURSESW_H OR
