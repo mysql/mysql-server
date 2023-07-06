@@ -619,12 +619,7 @@ TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
     std::vector<std::string> router_options = {
         "--bootstrap=" + mock_servers.at(0).ip + ":" +
             std::to_string(mock_servers.at(0).port),
-        "-d",
-        bootstrap_dir.name(),
-        "--report-host",
-        my_hostname,
-        "--user",
-        current_username};
+        "-d", bootstrap_dir.name(), "--user", current_username};
 
     ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
         mock_servers, GetParam().cluster_type, router_options));
@@ -709,12 +704,7 @@ TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
   std::vector<std::string> router_options = {
       "--bootstrap=" + mock_servers.at(0).ip + ":" +
           std::to_string(mock_servers.at(0).port),
-      "-d",
-      bootstrap_dir.name(),
-      "--report-host",
-      my_hostname,
-      "--conf-skip-tcp",
-      "--conf-use-sockets"};
+      "-d", bootstrap_dir.name(), "--conf-skip-tcp", "--conf-use-sockets"};
 
 #ifndef _WIN32
   const std::vector<std::string> expected_output{
@@ -831,14 +821,10 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
   };
 
   std::vector<std::string> router_options = {
-      "--pid-file",
-      pidfile,
+      "--pid-file", pidfile,
       "--bootstrap=" + config.at(0).ip + ":" +
           std::to_string(config.at(0).port),
-      "-d",
-      bootstrap_dir.name(),
-      "--report-host",
-      my_hostname};
+      "-d", bootstrap_dir.name()};
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       config, ClusterType::GR_V2, router_options, EXIT_FAILURE,
@@ -872,14 +858,10 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileCfg) {
     };
 
     std::vector<std::string> router_options = {
-        "-c",
-        conf_file,
+        "-c", conf_file,
         "--bootstrap=" + config.at(0).ip + ":" +
             std::to_string(config.at(0).port),
-        "-d",
-        bootstrap_dir.name(),
-        "--report-host",
-        my_hostname};
+        "-d", bootstrap_dir.name()};
 
     ASSERT_NO_FATAL_FAILURE(
         bootstrap_failover(config, ClusterType::GR_V2, router_options));
@@ -924,7 +906,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileEnv) {
     std::vector<std::string> router_options = {
         "--bootstrap=" + config.at(0).ip + ":" +
             std::to_string(config.at(0).port),
-        "-d", bootstrap_dir.name(), "--report-host", my_hostname};
+        "-d", bootstrap_dir.name()};
 
     ASSERT_NO_FATAL_FAILURE(
         bootstrap_failover(config, ClusterType::GR_V2, router_options));
@@ -1366,7 +1348,7 @@ TEST_F(RouterBootstrapTest,
   // launch the router in bootstrap mode
   const std::vector<std::string> cmdline = {
       "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
-      bootstrap_directory.name(), "--report-host", "host.foo.bar"};
+      bootstrap_directory.name()};
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router, EXIT_FAILURE);
@@ -1399,12 +1381,7 @@ TEST_F(RouterBootstrapTest,
   std::vector<std::string> router_options = {
       "--bootstrap=" + mock_servers.at(0).ip + ":" +
           std::to_string(mock_servers.at(0).port),
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_dir.name(),
-      "--connect-timeout=3",
-      "--read-timeout=3"};
+      "-d", bootstrap_dir.name(), "--connect-timeout=3", "--read-timeout=3"};
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(mock_servers, ClusterType::GR_V2,
                                              router_options, EXIT_SUCCESS, {}));
@@ -1530,10 +1507,7 @@ TEST_F(RouterBootstrapTest,
   std::vector<std::string> router_options = {
       "--bootstrap=" + config.at(0).ip + ":" +
           std::to_string(config.at(0).port),
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_dir.name(),
+      "-d", bootstrap_dir.name(),
       "--master-key-reader=" + script_generator.get_reader_script(),
       "--master-key-writer=" + script_generator.get_writer_script()};
 
@@ -1591,11 +1565,7 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
   std::vector<std::string> router_options = {
       "--bootstrap=" + mock_servers.at(0).ip + ":" +
           std::to_string(mock_servers.at(0).port),
-      "--report-host",
-      my_hostname,
-      "-d",
-      bootstrap_dir.name(),
-      "--force"};
+      "-d", bootstrap_dir.name(), "--force"};
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(mock_servers, ClusterType::GR_V2,
                                              router_options, EXIT_SUCCESS, {}));
@@ -1807,8 +1777,6 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--connect-timeout=1",
-          "--report-host",
-          my_hostname,
           "-d",
           bootstrap_directory.name(),
       },
@@ -1835,7 +1803,6 @@ TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
           "--bootstrap", "127.0.0.1:" + std::to_string(server_port),  //
           "--connect-timeout", "1",                                   //
           "--conf-base-port", "0x0",                                  //
-          "--report-host", my_hostname,                               //
           "-d", bootstrap_directory.name(),                           //
       },
       EXIT_FAILURE);
@@ -1879,8 +1846,6 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--connect-timeout=1",
-          "--report-host",
-          my_hostname,
           "-d",
           bootstrap_directory.name(),
       },
@@ -1928,8 +1893,6 @@ TEST_F(ErrorReportTest,
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--connect-timeout=1",
-          "--report-host",
-          my_hostname,
           "-d",
           bootstrap_directory,
       },

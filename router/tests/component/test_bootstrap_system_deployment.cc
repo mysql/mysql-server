@@ -73,16 +73,6 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
     return server_mock;
   }
 
-  ProcessWrapper &launch_router_for_bootstrap(
-      const std::vector<std::string> &params,
-      int expected_exit_code = EXIT_SUCCESS,
-      ProcessWrapper::OutputResponder output_responder =
-          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
-    return ProcessManager::launch_router(
-        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/-1s, output_responder);
-  }
-
   uint16_t server_port_;
 };
 
@@ -98,8 +88,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
       "--connect-timeout=1",
-      "--report-host",
-      "dont.query.dns",
   });
 
   // check if the bootstrapping was successful
@@ -129,8 +117,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 
@@ -163,8 +149,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 
@@ -209,8 +193,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 
@@ -250,8 +232,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 

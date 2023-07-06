@@ -87,7 +87,6 @@ bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,
   return found;
 }
 
-std::string RouterComponentBootstrapTest::my_hostname;
 constexpr const char RouterComponentBootstrapTest::kRootPassword[];
 
 const RouterComponentBootstrapTest::OutputResponder
@@ -151,8 +150,6 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     router_cmdline.emplace_back("--bootstrap=" + gr_members[0].first + ":" +
                                 std::to_string(gr_members[0].second));
 
-    router_cmdline.emplace_back("--report-host");
-    router_cmdline.emplace_back(my_hostname);
     router_cmdline.emplace_back("--connect-timeout");
     router_cmdline.emplace_back("1");
     router_cmdline.emplace_back("-d");

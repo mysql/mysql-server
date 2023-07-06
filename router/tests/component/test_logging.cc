@@ -63,7 +63,7 @@ using testing::StartsWith;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
-class RouterLoggingTest : public RouterComponentTest {
+class RouterLoggingTest : public RouterComponentBootstrapTest {
  protected:
   std::string create_config_file(
       const std::string &directory, const std::string &sections,
@@ -1780,16 +1780,13 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   // ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "-d",
           bootstrap_dir.name(),
       },
-      EXIT_SUCCESS, true, false, -1s,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      EXIT_SUCCESS);
 
   // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1822,19 +1819,16 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
       bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
       false);
 
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "--force",
           "-d",
           bootstrap_dir.name(),
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, true, false, -1s,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      EXIT_SUCCESS);
 
   // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1869,19 +1863,16 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   const std::string conf_file =
       create_config_file(conf_dir.name(), "[logger]\nlevel = DEBUG\n", &params);
 
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "--force",
           "-d",
           bootstrap_dir.name(),
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, true, false, -1s,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      EXIT_SUCCESS);
 
   // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1924,19 +1915,16 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
       bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
       false);
 
-  auto &router = ProcessManager::launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "--force",
           "-d",
           bootstrap_dir.name(),
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, /*catch_stderr=*/false, false, -1s,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      EXIT_SUCCESS, true, true, /*catch_sterr=*/false);
 
   // check if the bootstrapping was successful
   check_exit_code(router, EXIT_SUCCESS);

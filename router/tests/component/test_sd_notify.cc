@@ -937,7 +937,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
 
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
-       "-d=" + temp_test_dir.name()},
+       "-d=" + temp_test_dir.name(), "--report-host=dont.query.dns"},
       env_vars, EXIT_SUCCESS,
       RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
