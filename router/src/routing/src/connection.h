@@ -138,6 +138,10 @@ class MySQLRoutingConnectionBase {
     return disconnect_(std::forward<F>(f));
   }
 
+  bool disconnect_requested() const {
+    return disconnect_([](auto requested) { return requested; });
+  }
+
  protected:
   /** @brief wrapper for common data used by all routing threads */
   MySQLRoutingContext &context_;
