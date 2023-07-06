@@ -5496,6 +5496,18 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
     return;
   } else {
     jam();
+    if (ERROR_INSERTED(10040))
+    {
+      jam();
+      conf->gci_hi = ptr.p->startGCP;
+      /* Pause */
+      sendSignalWithDelay(reference(),
+                          GSN_WAIT_GCP_CONF,
+                          signal,
+                          300,
+                          signal->getLength());
+      return;
+    }
     if(gcp >= ptr.p->startGCP + 3)
     {
       CRASH_INSERTION((10009));
