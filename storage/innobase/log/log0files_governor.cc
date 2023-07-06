@@ -974,6 +974,7 @@ static bool log_files_recycle_file(log_t &log, Log_file_id file_id,
 
   log.m_unused_files_count++;
   log.m_files.erase(file_id);
+  os_event_set(log.m_file_removed_event);
   return true;
 }
 
