@@ -113,9 +113,6 @@ set global ndb_log_update_as_write=1;
 set global ndb_log_update_minimal=1;
 --source ndb_rpl_cmp_varchar_charset.inc
 
---echo ############################################################
---echo The two test cases below currently *fails* to replicate the
---echo changes due to Bug#35450016. The incorrect result is recorded.
 set global ndb_log_updated_only=0;
 set global ndb_log_update_as_write=0;
 set global ndb_log_update_minimal=1;

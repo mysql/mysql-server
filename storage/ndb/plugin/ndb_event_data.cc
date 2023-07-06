@@ -45,6 +45,7 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns,
   // Initialize bitmaps, using dynamically allocated bitbuf
   bitmap_init(&stored_columns, nullptr, num_columns);
   bitmap_init(&pk_bitmap, nullptr, num_columns);
+  bitmap_init(&pk_nonchar_bitmap, nullptr, num_columns);
 
   // Initialize mem_root where the shadow_table will be allocated
   init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 1024);
@@ -57,6 +58,7 @@ Ndb_event_data::~Ndb_event_data() {
 
   bitmap_free(&stored_columns);
   bitmap_free(&pk_bitmap);
+  bitmap_free(&pk_nonchar_bitmap);
 }
 
 /*
@@ -85,6 +87,9 @@ void Ndb_event_data::init_pk_bitmap() {
   const uint key_parts = key->user_defined_key_parts;
   for (uint i = 0; i < key_parts; i++, key_part_info++) {
     bitmap_set_bit(&pk_bitmap, key_part_info->fieldnr - 1);
+    if (key_part_info->bin_cmp) {
+      bitmap_set_bit(&pk_nonchar_bitmap, key_part_info->fieldnr - 1);
+    }
   }
   assert(!bitmap_is_clear_all(&pk_bitmap));
 }
@@ -100,6 +105,12 @@ void Ndb_event_data::init_pk_bitmap() {
  * If no PK is defined, bitmaps revert to default behaviour:
  *  - before and after bitmaps are identical
  *  - bitmaps contain all/updated cols as per ndb_log_updated_only
+ *
+ * Note that character PK columns may be updated to 'equal'
+ * (by collation rule) values, eg 'xyz' -> 'XYZ'. Such updates
+ * need to be contained even in the MINIMAL binlog format.
+ * Thus we can only exclude non-character PK columns from the
+ * after image as non-updatable.
  */
 void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
                                              MY_BITMAP *after) const {
@@ -113,8 +124,8 @@ void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
   assert(!bitmap_is_clear_all(&pk_bitmap));
   // set Before Image to contain only primary keys
   bitmap_copy(before, &pk_bitmap);
-  // remove primary keys from After Image
-  bitmap_subtract(after, &pk_bitmap);
+  // remove non-character primary keys from After Image
+  bitmap_subtract(after, &pk_nonchar_bitmap);
 }
 
 void Ndb_event_data::init_stored_columns() {

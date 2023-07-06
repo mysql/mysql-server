@@ -219,12 +219,6 @@ delete from cpk;
 
 connection mysqld5;
 
---echo BEWARE: This connection use 'ndb_log_update_minimal=ON'.
---echo    Updates to character columns in the PK in table 'cpk' are
---echo    missing from the binlog, thus not replicated.
---echo The incorrect result is recorded below, pending fix for Bug#35450016:
---echo   'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
-
 show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
@@ -242,12 +236,6 @@ select * from cpk order by nonchar;
 delete from cpk;
 
 connection mysqld6;
-
---echo BEWARE: This connection use 'ndb_log_update_minimal=ON'.
---echo    Updates to character columns in the PK in table 'cpk' are
---echo    missing from the binlog, thus not replicated.
---echo The incorrect result is recorded below, pending fix for Bug#35450016:
---echo   'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
 
 show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
