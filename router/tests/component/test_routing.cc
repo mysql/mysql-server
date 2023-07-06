@@ -68,7 +68,7 @@ std::ostream &operator<<(std::ostream &os,
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::MySQLSession;
 
-class RouterRoutingTest : public RouterComponentTest {
+class RouterRoutingTest : public RouterComponentBootstrapTest {
  public:
   std::string get_static_routing_section(
       const std::string &name, uint16_t bind_port, uint16_t server_port,
@@ -151,16 +151,13 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
-  auto &router_bootstrapping = launch_router(
+  auto &router_bootstrapping = launch_router_for_bootstrap(
       {
           "--bootstrap=localhost:" + std::to_string(router_port),
-          "--report-host",
-          "dont.query.dns",
           "-d",
           bootstrap_dir.name(),
       },
-      EXIT_SUCCESS, true, false, -1s,
-      RouterComponentBootstrapTest::kBootstrapOutputResponder);
+      EXIT_SUCCESS);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 

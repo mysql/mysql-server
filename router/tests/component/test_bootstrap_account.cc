@@ -472,10 +472,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         "--bootstrap",
         "root"s + (root_password_on_cmdline ? ":root_password" : "") +
             "@127.0.0.1:" + std::to_string(server_port),
-        "--report-host",
-        my_hostname,
-        "-d",
-        bootstrap_directory};
+        "-d", bootstrap_directory};
     for (const std::string &a : extra_args) args.push_back(a);
 
     ProcessWrapper::OutputResponder output_responder{
@@ -489,7 +486,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
           return "";
         }};
 
-    return launch_router_for_bootstrap(args, exp_exit_code, true,
+    return launch_router_for_bootstrap(args, exp_exit_code, true, true, true,
                                        output_responder);
   }
 
@@ -4644,8 +4641,8 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // --bootstrap before --account-host
   {
     TempDirectory bootstrap_directory;
-    test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
-             "--report-host", my_hostname, "-d", bootstrap_directory.name(),
+    test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+             bootstrap_directory.name(),    //
              "--account-host", "host1",     // 2nd CREATE USER
              "--account-host", "%",         // 1st CREATE USER
              "--account-host", "host1",     // \_ redundant, ignored
@@ -4656,8 +4653,8 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // --bootstrap after --account-host
   {
     TempDirectory bootstrap_directory;
-    test_it({"-d", bootstrap_directory.name(), "--report-host", my_hostname,
-             "--account-host", "host1",   // 2nd CREATE USER
+    test_it({"-d", bootstrap_directory.name(), "--account-host",
+             "host1",                     // 2nd CREATE USER
              "--account-host", "%",       // 1st CREATE USER
              "--account-host", "host1",   // \_ redundant, ignored
              "--account-host", "host1",   // /
@@ -4722,8 +4719,8 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
-      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "--report-host",
-       my_hostname, "-d", bootstrap_directory.name(), "--account-host",
+      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+       bootstrap_directory.name(), "--account-host",
        "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"},
       EXIT_FAILURE, true);
 
@@ -4755,7 +4752,8 @@ TEST_F(RouterReportHostTest, typical_usage) {
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
     // launch the router in bootstrap mode
-    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
+    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true,
+                                               /*add_report_host=*/false);
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstrapping was successful
@@ -4789,10 +4787,10 @@ TEST_F(RouterReportHostTest, typical_usage) {
  */
 TEST_F(RouterReportHostTest, multiple_hostnames) {
   // launch the router in bootstrap mode
-  auto &router =
-      launch_router_for_bootstrap({"--bootstrap=1.2.3.4:5678", "--report-host",
-                                   "host1", "--report-host", "host2"},
-                                  EXIT_FAILURE);
+  auto &router = launch_router_for_bootstrap(
+      {"--bootstrap=1.2.3.4:5678", "--report-host", "host1", "--report-host",
+       "host2"},
+      EXIT_FAILURE, true, /*add_report_host=*/false);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstrapping was successful
@@ -4811,7 +4809,8 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
 TEST_F(RouterReportHostTest, argument_missing) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
-      {"--bootstrap=1.2.3.4:5678", "--report-host"}, EXIT_FAILURE);
+      {"--bootstrap=1.2.3.4:5678", "--report-host"}, EXIT_FAILURE, true,
+      /*add_report_host=*/false);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstrapping was successful
@@ -4829,7 +4828,8 @@ TEST_F(RouterReportHostTest, argument_missing) {
 TEST_F(RouterReportHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
   auto &router =
-      launch_router_for_bootstrap({"--report-host", "host1"}, EXIT_FAILURE);
+      launch_router_for_bootstrap({"--report-host", "host1"}, EXIT_FAILURE,
+                                  true, /*add_report_host=*/false);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstrapping was successful
@@ -4854,7 +4854,7 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
       {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"},
-      EXIT_FAILURE);
+      EXIT_FAILURE, true, /*add_report_host=*/false);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstrapping was successful

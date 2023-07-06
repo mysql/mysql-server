@@ -218,7 +218,7 @@ struct RestApiTestParams {
   const std::vector<SwaggerPath> swagger_paths;
 };
 
-class RestApiComponentTest : public RouterComponentTest {
+class RestApiComponentTest : public RouterComponentBootstrapTest {
  public:
   std::string create_password_file();
 

@@ -111,6 +111,7 @@ TEST_F(RouterStacktraceTest, bootstrap_with_core_file) {
               "--bootstrap", "127.0.0.1:" + std::to_string(mock_port),  //
               "--directory", tmp_dir.name(),                            //
               "--core-file",                                            //
+              "--report-host=dont.query.dns",                           //
           });
 
   SCOPED_TRACE("// wait for the exit");
@@ -143,6 +144,7 @@ TEST_F(RouterStacktraceTest, crash_me_bootstrap) {
               "--bootstrap", "127.0.0.1:" + std::to_string(mock_port),  //
               "--directory", tmp_dir.name(),                            //
               "--core-file",                                            //
+              "--report-host=dont.query.dns",                           //
           });
 
   SCOPED_TRACE("// wait until mock-server is blocked for 2 seconds");

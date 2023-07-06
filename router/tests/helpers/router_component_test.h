@@ -146,12 +146,10 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
  public:
   using OutputResponder = ProcessWrapper::OutputResponder;
 
-  static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
   static const OutputResponder kBootstrapOutputResponder;
 
  protected:
   TempDirectory bootstrap_dir;
-  static std::string my_hostname;
   std::string config_file;
 
   struct Config {
@@ -180,13 +178,15 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
 
   ProcessWrapper &launch_router_for_bootstrap(
       std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
-      const bool disable_rest = true,
+      const bool disable_rest = true, const bool add_report_host = true,
+      const bool catch_stderr = true,
       ProcessWrapper::OutputResponder output_responder =
           RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     if (disable_rest) params.push_back("--disable-rest");
+    if (add_report_host) params.push_back("--report-host=dont.query.dns");
 
     return ProcessManager::launch_router(
-        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
+        params, expected_exit_code, catch_stderr, /*with_sudo=*/false,
         /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
   }
 

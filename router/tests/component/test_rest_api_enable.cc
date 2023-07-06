@@ -61,10 +61,10 @@ using namespace std::chrono_literals;
 
 using mysql_harness::utility::string_format;
 
-class TestRestApiEnable : public RouterComponentTest {
+class TestRestApiEnable : public RouterComponentBootstrapTest {
  public:
   void SetUp() override {
-    RouterComponentTest::SetUp();
+    RouterComponentBootstrapTest::SetUp();
 
     cluster_node_port = port_pool_.get_next_available();
     cluster_http_port = port_pool_.get_next_available();
@@ -109,7 +109,8 @@ class TestRestApiEnable : public RouterComponentTest {
 
     std::move(std::begin(additional_config), std::end(additional_config),
               std::back_inserter(cmdline));
-    auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
+    auto &router_bootstrap = launch_router_for_bootstrap(
+        cmdline, EXIT_SUCCESS, /*disable_rest=*/false);
 
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
@@ -292,7 +293,8 @@ class TestRestApiEnable : public RouterComponentTest {
     std::vector<std::string> cmdline = {
         "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
         "-d", path.str()};
-    auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
+    auto &router_bootstrap = launch_router_for_bootstrap(
+        cmdline, EXIT_SUCCESS, /*disable_rest=*/false);
 
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
@@ -625,7 +627,7 @@ TEST_P(EnableWrongHttpsPort, ensure_bootstrap_fails_for_invalid_https_port) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--https-port", std::to_string(GetParam())};
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
@@ -682,7 +684,7 @@ TEST_F(TestRestApiEnable, bootstrap_conflicting_options) {
       "--https-port",
       std::to_string(custom_port),
       "--disable-rest"};
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
@@ -759,7 +761,7 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
   const auto &files = GetParam();
@@ -936,7 +938,7 @@ TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
   // 2. Account verification fails due to the '--strict' option and missing
   //    queries in the rest_api_enable.js file.
   // 3. Certificates are cleaned up.
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
@@ -1045,7 +1047,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--strict"};
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
@@ -1073,7 +1075,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   std::vector<std::string> cmdline = {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
-  auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
+  auto &router_bootstrap = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(

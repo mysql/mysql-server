@@ -70,7 +70,7 @@ MATCHER_P(FileContentNotEqual, master_key, "") {
   return file_content.str() != master_key;
 }
 
-class MasterKeyReaderWriterTest : public RouterComponentTest {
+class MasterKeyReaderWriterTest : public RouterComponentBootstrapTest {
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();
@@ -195,16 +195,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     return default_section;
   }
 
-  auto &launch_router(const std::vector<std::string> &params,
-                      int expected_exit_code = EXIT_SUCCESS) {
-    return ProcessManager::launch_router(
-        params, expected_exit_code,
-        /*catch_stderr=*/true,
-        /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/-1s,
-        RouterComponentBootstrapTest::kBootstrapOutputResponder);
-  }
-
   TempDirectory tmp_dir_;
   TempDirectory bootstrap_dir_;
   std::string master_key_;
@@ -226,10 +216,8 @@ TEST_F(MasterKeyReaderWriterTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--report-host",
-      "dont.query.dns",
       "--directory=" + bootstrap_dir_.name(),
       "--force",
       "--master-key-reader=" + script_generator.get_reader_script(),
@@ -275,13 +263,11 @@ TEST_F(MasterKeyReaderWriterTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--directory=" + bootstrap_dir_.name(),
       "--force",
       "--master-key-reader=" + script_generator.get_reader_script(),
       "--master-key-writer=" + script_generator.get_writer_script(),
-      "--report-host",
-      "dont.query.dns",
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
   });
 
@@ -334,11 +320,9 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "--directory=" + bootstrap_dir_.name(),
           "--force",
           "--master-key-reader=" + script_generator.get_fake_reader_script(),
@@ -370,11 +354,9 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-          "--report-host",
-          "dont.query.dns",
           "--directory=" + bootstrap_dir_.name(),
           "--force",
           "--master-key-reader=" + script_generator.get_reader_script(),
@@ -411,15 +393,13 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--directory=" + bootstrap_dir_.name(),
           "--force",
           "--master-key-reader=" + script_generator.get_fake_reader_script(),
           "--master-key-writer=" + script_generator.get_fake_writer_script(),
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 
@@ -443,7 +423,7 @@ TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--connect-timeout=1",
@@ -478,10 +458,8 @@ TEST_F(MasterKeyReaderWriterTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--report-host",
-      "dont.query.dns",
       "--directory=" + bootstrap_dir_.name(),
       "--force",
       "--master-key-reader=" + script_generator.get_reader_script(),
@@ -520,10 +498,8 @@ TEST_F(MasterKeyReaderWriterTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
-      "--report-host",
-      "dont.query.dns",
       "--directory=" + bootstrap_dir_.name(),
       "--force",
       "--master-key-reader=" + script_generator.get_reader_script(),
@@ -660,7 +636,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
                              metadata_cache_section + routing_section,
                              &default_section_map),
       },
-      EXIT_FAILURE);
+      EXIT_FAILURE, true, false, -1s);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 }
@@ -693,7 +669,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
       {"-c", create_config_file(conf_dir.name(),
                                 metadata_cache_section + routing_section,
                                 &incorrect_master_key_default_section_map)},
-      EXIT_FAILURE);
+      EXIT_FAILURE, true, false, -1s);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 }
@@ -799,10 +775,8 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router({
+  auto &router = launch_router_for_bootstrap({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-      "--report-host",
-      "dont.query.dns",
       "--master-key-reader=" + script_generator.get_reader_script(),
       "--master-key-writer=" + script_generator.get_writer_script(),
   });
@@ -836,11 +810,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-          "--report-host",
-          "dont.query.dns",
           "--master-key-reader=" + script_generator.get_fake_reader_script(),
           "--master-key-writer=" + script_generator.get_writer_script(),
       },
@@ -870,11 +842,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
-          "--report-host",
-          "dont.query.dns",
           "--master-key-reader=" + script_generator.get_reader_script(),
           "--master-key-writer=" + script_generator.get_fake_writer_script(),
       },
@@ -912,14 +882,12 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
           "--connect-timeout=1",
           "--master-key-reader=" + script_generator.get_fake_reader_script(),
           "--master-key-writer=" + script_generator.get_fake_writer_script(),
-          "--report-host",
-          "dont.query.dns",
       },
       EXIT_FAILURE);
 
@@ -945,7 +913,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                                    tmp_dir_.name());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router(
+  auto &router = launch_router_for_bootstrap(
       {
           "--bootstrap=127.0.0.1:" + std::to_string(server_port),
           "--connect-timeout=1",
