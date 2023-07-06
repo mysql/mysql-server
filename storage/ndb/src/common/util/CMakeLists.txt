@@ -45,6 +45,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   NdbPack.cpp
   NdbSocket.cpp
   NdbSqlUtil.cpp
+  NodeCertificate.cpp
   ndb_az31.cpp
   ndb_ndbxfrm1.cpp
   ndb_openssl3_compat.cpp
@@ -80,7 +81,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
-        ndb_zlib cstrbuf span)
+        NodeCertificate ndb_zlib cstrbuf span)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 

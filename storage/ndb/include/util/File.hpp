@@ -28,6 +28,16 @@
 #include <ndb_global.h>
 #include <time.h>
 
+#ifdef _WIN32
+#include <io.h>
+#define S_IRUSR _S_IREAD
+#define S_IRGRP _S_IREAD
+#define S_IROTH _S_IREAD
+#define S_IWUSR _S_IWRITE
+#define S_IWGRP _S_IWRITE
+#define S_IWOTH _S_IWRITE
+#endif
+
 /**
  * This class provides a file abstraction . It has operations
  * to create, read, write and delete a file.
