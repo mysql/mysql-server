@@ -30,6 +30,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysqlrouter/client_error_code.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -38,6 +39,8 @@ BinlogDumpForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
+    case Stage::ForbidCommand:
+      return forbid_command();
     case Stage::Connect:
       return connect();
     case Stage::Connected:
@@ -63,6 +66,12 @@ BinlogDumpForwarder::command() {
     tr.trace(Tracer::Event().stage("binlog_dump::command"));
   }
 
+  if (connection()->context().access_mode() == routing::AccessMode::kAuto) {
+    stage(Stage::ForbidCommand);
+
+    return Result::Again;
+  }
+
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
@@ -72,6 +81,35 @@ BinlogDumpForwarder::command() {
 
     return forward_client_to_server();
   }
+}
+
+stdx::expected<Processor::Result, std::error_code>
+BinlogDumpForwarder::forbid_command() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
+  // take the client::command from the connection.
+  auto recv_res =
+      ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+  if (!recv_res) return recv_client_failed(recv_res.error());
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::command::forbid"));
+  }
+
+  discard_current_msg(src_channel, src_protocol);
+
+  stage(Stage::Done);
+
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      src_channel, src_protocol,
+      {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING,
+       "binlog dump is not allowed with access_mode = 'auto'", "42000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return Result::SendToClient;
 }
 
 stdx::expected<Processor::Result, std::error_code>
