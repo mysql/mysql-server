@@ -6560,9 +6560,6 @@ bool Query_block::setup_count_over_partition(
 
   Item_sum *cnt = new (thd->mem_root) Item_sum_count(POS(), number_0, w);
   if (cnt == nullptr) return true;
-  // Already resolved, but necessary to add the COUNT function to the usage list
-  // (Window::m_functions).
-  if (w->resolve_reference(thd, cnt, &w)) return true;
   cnt->m_is_window_function = true;
   cnt->set_wf();
 
