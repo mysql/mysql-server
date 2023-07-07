@@ -4239,3 +4239,81 @@ HEX(t1.b)	HEX(t2.b)
 0F6B	0F6B
 1000	1000
 DROP TABLE t;
+#
+# Bug#34940000 Hash join execution may be ineficcient if probe input is empty
+#
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL
+);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.a=x2.a
+WHERE x1.b < 0;
+EXPLAIN
+-> Nested loop left join  (...) (actual rows=0 loops=1)
+    -> Filter: (x1.b < 0)  (...) (actual rows=0 loops=1)
+        -> Table scan on x1  (...) (actual rows=4 loops=1)
+    -> Filter: (x1.a = x2.a)  (...) (never executed)
+        -> Table scan on x2  (...) (never executed)
+
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 WHERE x1.a < 0 AND x1.a NOT IN
+(SELECT a FROM t1 x2 WHERE x2.b = x1.b);
+EXPLAIN
+-> Hash antijoin (x1.a = x2.a), (x1.b = x2.b)  (...) (actual rows=0 loops=1)
+    -> Filter: (x1.a < 0)  (...) (actual rows=0 loops=1)
+        -> Table scan on x1  (...) (actual rows=4 loops=1)
+    -> Hash
+        -> Table scan on x2  (...) (never executed)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.b' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;
+#
+# Bug#34940000 Hash join execution may be ineficcient if probe input is empty
+#
+CREATE TABLE t1(
+a INT NOT NULL PRIMARY KEY,
+b INT NOT NULL,
+c INT NOT NULL
+);
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<20)
+SELECT n, n%7, n%5 FROM qn;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t1 JOIN
+(SELECT SUM(x1.b) s FROM t1 x1, t1 x2 WHERE x1.b<x2.b GROUP BY x1.c) d1
+ON c=d1.s AND c*2<0;
+EXPLAIN
+-> Inner hash join (t1.c = d1.s)  (cost=73.1..78.4 rows=20) (actual rows=0 loops=1)
+    -> Filter: ((t1.c * 2) < 0)  (cost=0.113..2.25 rows=20) (actual rows=0 loops=1)
+        -> Table scan on t1  (cost=0.0125..0.25 rows=20) (actual rows=20 loops=1)
+    -> Hash
+        -> Table scan on d1  (cost=70.2..72.3 rows=5) (never executed)
+            -> Materialize  (cost=69.7..69.7 rows=5) (never executed)
+                -> Group aggregate: sum(x1.b)  (cost=22.6..69.2 rows=5) (never executed)
+                    -> Nested loop inner join  (cost=11.2..55.9 rows=133) (never executed)
+                        -> Sort: x1.c  (cost=10.9..10.9 rows=20) (never executed)
+                            -> Table scan on x1  (cost=0.0125..0.25 rows=20) (never executed)
+                        -> Filter: (x1.b < x2.b)  (cost=0.338..2.25 rows=6.67) (never executed)
+                            -> Table scan on x2  (cost=0.0125..0.25 rows=20) (never executed)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
+(SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
+EXPLAIN
+-> Hash semijoin (x1.b = x2.c)  (cost=4.33..9.7 rows=20) (actual rows=0 loops=1)
+    -> Filter: ((x1.c * 2) < 0)  (cost=0.113..2.25 rows=20) (actual rows=0 loops=1)
+        -> Table scan on x1  (cost=0.0125..0.25 rows=20) (actual rows=20 loops=1)
+    -> Hash
+        -> Filter: (x2.b > 0)  (cost=0.125..2.25 rows=18) (never executed)
+            -> Table scan on x2  (cost=0.0125..0.25 rows=20) (never executed)
+
+DROP TABLE t1;

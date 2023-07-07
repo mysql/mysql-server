@@ -2687,3 +2687,29 @@ let $query =
 --sorted_result
 --eval $query
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34940000 Hash join execution may be ineficcient if probe input is empty
+--echo #
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL
+);
+
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+
+ANALYZE TABLE t1;
+
+# We should check if the probe (outer) input is empty first if it is a left
+# join or antijoin. If the probe is empty, we can skip reading the build input.
+
+--replace_regex $elide_costs_and_time_and_row_estimate
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.a=x2.a
+  WHERE x1.b < 0;
+
+--replace_regex $elide_costs_and_time_and_row_estimate
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 WHERE x1.a < 0 AND x1.a NOT IN
+  (SELECT a FROM t1 x2 WHERE x2.b = x1.b);
+
+DROP TABLE t1;

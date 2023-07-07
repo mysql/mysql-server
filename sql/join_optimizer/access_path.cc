@@ -875,6 +875,25 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 ? &join->hash_table_generation
                 : nullptr;
 
+        const auto first_row_cost = [](const AccessPath &path) {
+          return path.init_cost +
+                 path.cost * 1.0 / std::max(path.num_output_rows(), 1.0);
+        };
+
+        // If the probe (outer) input is empty, the join result will be empty,
+        // and we do not need to read the build input. For inner join and
+        // semijoin, the converse is also true. To benefit from this, we want to
+        // start with the input where the cost of reading the first row is
+        // lowest. (We only do this for Hypergraph, as the cost data for the
+        // traditional optimizer are incomplete, and since we are reluctant to
+        // change existing behavior.) Note that we always try the probe input
+        // first for left join and antijoin.
+        const HashJoinInput first_input =
+            (thd->lex->using_hypergraph_optimizer &&
+             first_row_cost(*param.inner) > first_row_cost(*param.outer))
+                ? HashJoinInput::kProbe
+                : HashJoinInput::kBuild;
+
         iterator = NewIterator<HashJoinIterator>(
             thd, mem_root, std::move(job.children[1]),
             GetUsedTables(param.inner, /*include_pruned_tables=*/true),
@@ -883,7 +902,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             param.store_rowids, param.tables_to_get_rowid_for,
             thd->variables.join_buff_size, std::move(conditions),
             param.allow_spill_to_disk, join_type, *extra_conditions,
-            probe_input_batch_mode, hash_table_generation);
+            first_input, probe_input_batch_mode, hash_table_generation);
         break;
       }
       case AccessPath::FILTER: {

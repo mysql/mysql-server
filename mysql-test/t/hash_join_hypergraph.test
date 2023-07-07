@@ -1,2 +1,36 @@
 --source include/have_hypergraph.inc
 --source include/hash_join.inc
+
+--echo #
+--echo # Bug#34940000 Hash join execution may be ineficcient if probe input is empty
+--echo #
+
+CREATE TABLE t1(
+  a INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL,
+  c INT NOT NULL
+);
+
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<20)
+SELECT n, n%7, n%5 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b,c;
+ANALYZE TABLE t1;
+
+# We should check if the probe (outer) input is empty first if it is an innerjoin \ or semijoin
+# where reading the first row from the probe is cheaper than from the build (inner) input.
+# If the probe is empty, we can skip reading the build input.
+
+# Inner join.
+ --replace_regex $elide_time
+ EXPLAIN ANALYZE SELECT 1 FROM t1 JOIN
+  (SELECT SUM(x1.b) s FROM t1 x1, t1 x2 WHERE x1.b<x2.b GROUP BY x1.c) d1
+  ON c=d1.s AND c*2<0;
+
+# Semijoin.
+--replace_regex $elide_time
+ EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
+   (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
+
+DROP TABLE t1;

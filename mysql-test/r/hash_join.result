@@ -3988,7 +3988,7 @@ EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NUL
 EXPLAIN
 -> Filter: (t2.a is null)  (rows=1) (actual rows=0 loops=1)
     -> Hash antijoin (no condition)  (rows=1) (actual rows=0 loops=1)
-        -> Table scan on t1  (rows=5) (never executed)
+        -> Table scan on t1  (rows=5) (actual rows=1 loops=1)
         -> Hash
             -> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
                 -> Table scan on t2  (rows=5) (actual rows=1 loops=1)
@@ -4275,3 +4275,35 @@ HEX(t1.b)	HEX(t2.b)
 0F6B	0F6B
 1000	1000
 DROP TABLE t;
+#
+# Bug#34940000 Hash join execution may be ineficcient if probe input is empty
+#
+CREATE TABLE t1 (
+a INT NOT NULL,
+b INT NOT NULL
+);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.a=x2.a
+WHERE x1.b < 0;
+EXPLAIN
+-> Left hash join (x2.a = x1.a)  (...) (actual rows=0 loops=1)
+    -> Filter: (x1.b < 0)  (...) (actual rows=0 loops=1)
+        -> Table scan on x1  (...) (actual rows=4 loops=1)
+    -> Hash
+        -> Table scan on x2  (...) (never executed)
+
+EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 WHERE x1.a < 0 AND x1.a NOT IN
+(SELECT a FROM t1 x2 WHERE x2.b = x1.b);
+EXPLAIN
+-> Hash antijoin (x2.b = x1.b), (x2.a = x1.a)  (...) (actual rows=0 loops=1)
+    -> Filter: (x1.a < 0)  (...) (actual rows=0 loops=1)
+        -> Table scan on x1  (...) (actual rows=4 loops=1)
+    -> Hash
+        -> Table scan on x2  (...) (never executed)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.b' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;
