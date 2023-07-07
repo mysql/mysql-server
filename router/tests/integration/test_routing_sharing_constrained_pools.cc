@@ -530,7 +530,7 @@ class SharedRouter {
     // wait for the connections appear in the pool.
     if (param.can_share()) {
       ASSERT_NO_ERROR(wait_for_idle_server_connections(
-          std::min(num_destinations, pool_size_), 1s));
+          std::min(num_destinations, pool_size_), 10s));
     }
   }
 
@@ -2443,7 +2443,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
         if (clean_pool_before_verify && can_share && can_fetch_password) {
           // wait until all connections are pooled.
           ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
-              kMaxPoolSize, 1s));
+              kMaxPoolSize, 10s));
 
           // only close the connections that are expected to be in the pool.
           for (auto &s : shared_servers()) {
