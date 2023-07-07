@@ -66,7 +66,8 @@
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "nulls.h"
-#include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql-common/json_diff.h"  // Json_diff_vector
+#include "sql-common/json_dom.h"   // Json_wrapper
 #include "sql-common/json_path.h"
 #include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
@@ -90,8 +91,7 @@
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/json_diff.h"  // Json_diff_vector
-#include "sql/key.h"        // find_ref_key
+#include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
 #include "sql/mysqld.h"  // reg_ext key_file_frm ...
 #include "sql/nested_join.h"

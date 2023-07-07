@@ -47,6 +47,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "scope_guard.h"
+#include "sql-common/json_diff.h"
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
 #include "sql-common/json_syntax_check.h"
@@ -57,7 +58,6 @@
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_create.h"
 #include "sql/item_subselect.h"
-#include "sql/json_diff.h"
 #include "sql/json_schema.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
@@ -152,6 +152,192 @@ bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
   *dom = Json_dom::parse(safep, safe_length, error_handler, depth_handler);
 
   return *dom == nullptr;
+}
+
+/**
+  Find the value at the specified path in a JSON DOM. The path should
+  not contain any wildcard or ellipsis, only simple array cells or
+  member names. Auto-wrapping is not performed.
+
+  @param dom        the root of the DOM
+  @param first_leg  the first path leg
+  @param last_leg   the last path leg (exclusive)
+  @return the JSON DOM at the given path, or `nullptr` if the path is not found
+ */
+static Json_dom *seek_exact_path(Json_dom *dom,
+                                 const Json_path_iterator &first_leg,
+                                 const Json_path_iterator &last_leg) {
+  for (auto it = first_leg; it != last_leg; ++it) {
+    const Json_path_leg *leg = *it;
+    const auto leg_type = leg->get_type();
+    assert(leg_type == jpl_member || leg_type == jpl_array_cell);
+    switch (dom->json_type()) {
+      case enum_json_type::J_ARRAY: {
+        const auto array = down_cast<Json_array *>(dom);
+        if (leg_type != jpl_array_cell) return nullptr;
+        Json_array_index idx = leg->first_array_index(array->size());
+        if (!idx.within_bounds()) return nullptr;
+        dom = (*array)[idx.position()];
+        continue;
+      }
+      case enum_json_type::J_OBJECT: {
+        const auto object = down_cast<Json_object *>(dom);
+        if (leg_type != jpl_member) return nullptr;
+        dom = object->get(leg->get_member_name());
+        if (dom == nullptr) return nullptr;
+        continue;
+      }
+      default:
+        return nullptr;
+    }
+  }
+
+  return dom;
+}
+
+enum_json_diff_status apply_json_diffs(Field_json *field,
+                                       const Json_diff_vector *diffs) {
+  DBUG_TRACE;
+  // Cannot apply a diff to NULL.
+  if (field->is_null()) return enum_json_diff_status::REJECTED;
+
+  DBUG_EXECUTE_IF("simulate_oom_in_apply_json_diffs", {
+    DBUG_SET("+d,simulate_out_of_memory");
+    DBUG_SET("-d,simulate_oom_in_apply_json_diffs");
+  });
+
+  Json_wrapper doc;
+  if (field->val_json(&doc))
+    return enum_json_diff_status::ERROR; /* purecov: inspected */
+
+  doc.dbug_print("apply_json_diffs: before-doc", JsonDepthErrorHandler);
+
+  // Should we collect logical diffs while applying them?
+  const bool collect_logical_diffs =
+      field->table->is_logical_diff_enabled(field);
+
+  // Should we try to perform the update in place using binary diffs?
+  bool binary_inplace_update = field->table->is_binary_diff_enabled(field);
+
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+
+  for (const Json_diff &diff : *diffs) {
+    Json_wrapper val = diff.value();
+
+    auto &path = diff.path();
+
+    if (path.leg_count() == 0) {
+      /*
+        Cannot replace the root (then a full update will be used
+        instead of creating a diff), or insert the root, or remove the
+        root, so reject this diff.
+      */
+      return enum_json_diff_status::REJECTED;
+    }
+
+    if (collect_logical_diffs)
+      field->table->add_logical_diff(field, path, diff.operation(), &val);
+
+    if (binary_inplace_update) {
+      if (diff.operation() == enum_json_diff_operation::REPLACE) {
+        bool partially_updated = false;
+        bool replaced_path = false;
+        if (doc.attempt_binary_update(field, path, &val, false, &buffer,
+                                      &partially_updated, &replaced_path))
+          return enum_json_diff_status::ERROR; /* purecov: inspected */
+
+        if (partially_updated) {
+          if (!replaced_path) return enum_json_diff_status::REJECTED;
+          DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
+            const char act[] =
+                "now SIGNAL signal.rpl_row_jsondiff_binarydiff_created";
+            assert(opt_debug_sync_timeout > 0);
+            assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+          };);
+          continue;
+        }
+      } else if (diff.operation() == enum_json_diff_operation::REMOVE) {
+        Json_wrapper_vector hits(key_memory_JSON);
+        bool found_path = false;
+        if (doc.binary_remove(field, path, &buffer, &found_path))
+          return enum_json_diff_status::ERROR; /* purecov: inspected */
+        if (!found_path) return enum_json_diff_status::REJECTED;
+        continue;
+      }
+
+      // Couldn't update in place, so try full update.
+      binary_inplace_update = false;
+      field->table->disable_binary_diffs_for_current_row(field);
+    }
+
+    Json_dom *dom = doc.to_dom();
+    if (doc.to_dom() == nullptr)
+      return enum_json_diff_status::ERROR; /* purecov: inspected */
+
+    switch (diff.operation()) {
+      case enum_json_diff_operation::REPLACE: {
+        assert(path.leg_count() > 0);
+        Json_dom *old = seek_exact_path(dom, path.begin(), path.end());
+        if (old == nullptr) return enum_json_diff_status::REJECTED;
+        assert(old->parent() != nullptr);
+        old->parent()->replace_dom_in_container(old, val.clone_dom());
+        continue;
+      }
+      case enum_json_diff_operation::INSERT: {
+        assert(path.leg_count() > 0);
+        Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
+        if (parent == nullptr) return enum_json_diff_status::REJECTED;
+        const Json_path_leg *last_leg = path.last_leg();
+        if (parent->json_type() == enum_json_type::J_OBJECT &&
+            last_leg->get_type() == jpl_member) {
+          auto obj = down_cast<Json_object *>(parent);
+          if (obj->get(last_leg->get_member_name()) != nullptr)
+            return enum_json_diff_status::REJECTED;
+          if (obj->add_alias(last_leg->get_member_name(), val.clone_dom()))
+            return enum_json_diff_status::ERROR; /* purecov: inspected */
+          continue;
+        }
+        if (parent->json_type() == enum_json_type::J_ARRAY &&
+            last_leg->get_type() == jpl_array_cell) {
+          auto array = down_cast<Json_array *>(parent);
+          Json_array_index idx = last_leg->first_array_index(array->size());
+          if (array->insert_alias(idx.position(), val.clone_dom()))
+            return enum_json_diff_status::ERROR; /* purecov: inspected */
+          continue;
+        }
+        return enum_json_diff_status::REJECTED;
+      }
+      case enum_json_diff_operation::REMOVE: {
+        assert(path.leg_count() > 0);
+        Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
+        if (parent == nullptr) return enum_json_diff_status::REJECTED;
+        const Json_path_leg *last_leg = path.last_leg();
+        if (parent->json_type() == enum_json_type::J_OBJECT) {
+          auto object = down_cast<Json_object *>(parent);
+          if (last_leg->get_type() != jpl_member ||
+              !object->remove(last_leg->get_member_name()))
+            return enum_json_diff_status::REJECTED;
+        } else if (parent->json_type() == enum_json_type::J_ARRAY) {
+          if (last_leg->get_type() != jpl_array_cell)
+            return enum_json_diff_status::REJECTED;
+          auto array = down_cast<Json_array *>(parent);
+          Json_array_index idx = last_leg->first_array_index(array->size());
+          if (!idx.within_bounds() || !array->remove(idx.position()))
+            return enum_json_diff_status::REJECTED;
+        } else {
+          return enum_json_diff_status::REJECTED;
+        }
+        continue;
+      }
+    }
+
+    assert(false); /* purecov: deadcode */
+  }
+
+  if (field->store_json(&doc) != TYPE_OK)
+    return enum_json_diff_status::ERROR; /* purecov: inspected */
+
+  return enum_json_diff_status::SUCCESS;
 }
 
 /**

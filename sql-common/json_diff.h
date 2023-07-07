@@ -41,9 +41,7 @@
 
 #include "sql-common/json_path.h"
 #include "sql/mem_root_allocator.h"
-#include "sql/psi_memory_key.h"  // key_memory_JSON
 
-class Field_json;
 class Json_dom;
 class Json_wrapper;
 class String;
@@ -102,12 +100,13 @@ class Json_diff final {
                       takes over the ownership of the value)
   */
   Json_diff(const Json_seekable_path &path, enum_json_diff_operation operation,
-            std::unique_ptr<Json_dom> value)
-      : m_path(key_memory_JSON),
-        m_operation(operation),
-        m_value(std::move(value)) {
-    for (const Json_path_leg *leg : path) m_path.append(*leg);
-  }
+            std::unique_ptr<Json_dom> value);
+
+  ~Json_diff();
+  Json_diff(Json_diff &&) noexcept = default;
+  Json_diff &operator=(Json_diff &&) noexcept = default;
+  Json_diff(const Json_diff &) = delete;
+  Json_diff &operator=(const Json_diff &) = delete;
 
   /// Get the path that is changed by this diff.
   const Json_path &path() const { return m_path; }
@@ -251,46 +250,5 @@ class Json_diff_vector {
   /// The length of the field where the total length is encoded.
   static const size_t ENCODED_LENGTH_BYTES = 4;
 };
-
-/**
-  The result of applying JSON diffs on a JSON value using apply_json_diffs().
-*/
-enum class enum_json_diff_status {
-  /**
-     The JSON diffs were applied and the JSON value in the column was updated
-     successfully.
-  */
-  SUCCESS,
-
-  /**
-    An error was raised while applying one of the diffs. The value in the
-    column was not updated.
-  */
-  ERROR,
-
-  /**
-    One of the diffs was rejected. This could happen if the path specified in
-    the diff does not exist in the JSON value, or if the diff is supposed to
-    add a new value at a given path, but there already is a value at the path.
-
-    This return code would usually indicate that the replication slave where
-    the diff is applied, is out of sync with the replication master where the
-    diff was created.
-
-    The value in the column was not updated, but no error was raised.
-  */
-  REJECTED,
-};
-
-/**
-  Apply a sequence of JSON diffs to the value stored in a JSON column.
-
-  @param field  the column to update
-  @param diffs  the diffs to apply
-  @return an enum_json_diff_status value that tells if the diffs were
-          applied successfully
-*/
-enum_json_diff_status apply_json_diffs(Field_json *field,
-                                       const Json_diff_vector *diffs);
 
 #endif /* JSON_DIFF_INCLUDED */

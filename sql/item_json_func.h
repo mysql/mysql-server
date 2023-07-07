@@ -1248,6 +1248,47 @@ bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
                 const JsonParseErrorHandler &error_handler,
                 const JsonErrorHandler &depth_handler);
 
+/**
+  The result of applying JSON diffs on a JSON value using apply_json_diffs().
+*/
+enum class enum_json_diff_status {
+  /**
+     The JSON diffs were applied and the JSON value in the column was updated
+     successfully.
+  */
+  SUCCESS,
+
+  /**
+    An error was raised while applying one of the diffs. The value in the
+    column was not updated.
+  */
+  ERROR,
+
+  /**
+    One of the diffs was rejected. This could happen if the path specified in
+    the diff does not exist in the JSON value, or if the diff is supposed to
+    add a new value at a given path, but there already is a value at the path.
+
+    This return code would usually indicate that the replication slave where
+    the diff is applied, is out of sync with the replication master where the
+    diff was created.
+
+    The value in the column was not updated, but no error was raised.
+  */
+  REJECTED,
+};
+
+/**
+  Apply a sequence of JSON diffs to the value stored in a JSON column.
+
+    @param field  the column to update
+    @param diffs  the diffs to apply
+    @return an enum_json_diff_status value that tells if the diffs were
+    applied successfully
+ */
+enum_json_diff_status apply_json_diffs(Field_json *field,
+                                       const Json_diff_vector *diffs);
+
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
 

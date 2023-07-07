@@ -92,8 +92,8 @@
 #ifndef MYSQL_SERVER
 #include "client/mysqlbinlog.h"
 #include "sql-common/json_binary.h"
-#include "sql-common/json_dom.h"  // Json_wrapper
-#include "sql/json_diff.h"        // enum_json_diff_operation
+#include "sql-common/json_diff.h"  // enum_json_diff_operation
+#include "sql-common/json_dom.h"   // Json_wrapper
 #endif
 
 #ifdef MYSQL_SERVER

@@ -434,7 +434,6 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/print_utils.cc
   join_optimizer/relational_expression.cc
   join_optimizer/replace_item.cc
-  json_diff.cc
   json_schema.cc
   key.cc
   key_spec.cc
@@ -780,6 +779,7 @@ SET(SQL_SOURCE
   ../sql-common/bind_params.cc
   ../sql-common/json_binary.cc
   ../sql-common/my_decimal.cc
+  ../sql-common/json_diff.cc
   ../sql-common/json_dom.cc
   ../sql-common/json_error_handler.cc
   ../sql-common/json_path.cc
