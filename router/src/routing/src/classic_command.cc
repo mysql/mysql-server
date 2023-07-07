@@ -387,6 +387,11 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   auto src_protocol = connection()->client_protocol();
   auto &server_conn = socket_splicer->server_conn();
 
+  if (connection()->disconnect_requested()) {
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
   if (!read_res) {
