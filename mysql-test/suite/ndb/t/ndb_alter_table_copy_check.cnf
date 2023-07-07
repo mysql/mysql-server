@@ -1,0 +1,16 @@
+!include ../my.cnf
+
+[cluster_config.1]
+ndbd=,,,
+
+[cluster_config.ndbd.1.1]
+NodeId=1
+
+[cluster_config.ndbd.2.1]
+NodeId=2
+
+[cluster_config.ndbd.3.1]
+NodeId=3
+
+[cluster_config.ndbd.4.1]
+NodeId=4
