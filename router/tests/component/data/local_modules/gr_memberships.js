@@ -39,10 +39,10 @@ exports.single_host_cluster_nodes = function(host, classic_port, uuid) {
 exports.gr_members = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
-      current_value[0],  // use port as uuid
+      current_value[0],  // uuid
       host,
-      current_value[0],  // port
-      current_value[1]   // member_state
+      current_value[1],  // port
+      current_value[2]   // member_state
     ];
   });
 };
@@ -56,11 +56,11 @@ exports.members = function(id_host_and_port) {
 exports.cluster_nodes = function(host, cluster_instances) {
   return cluster_instances.map(function(current_value) {
     return [
-      current_value[0],  // classic port as uuid
+      current_value[0],  // uuid
       host,
-      current_value[0],  // classic port
-      current_value[1],  // x port
-      current_value[2],  // attributes
+      current_value[1],  // classic port
+      current_value[2],  // x port
+      current_value[3],  // attributes
     ];
   });
 };

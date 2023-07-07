@@ -205,6 +205,9 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
         continue;
       }
       JsonValue node(rapidjson::kArrayType);
+      node.PushBack(JsonValue(cluster_node.uuid.c_str(),
+                              cluster_node.uuid.length(), allocator),
+                    allocator);
       node.PushBack(static_cast<int>(cluster_node.classic_port), allocator);
       node.PushBack(JsonValue(cluster_node.gr_node_status.c_str(),
                               cluster_node.gr_node_status.length(), allocator),
@@ -217,6 +220,9 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     JsonValue cluster_nodes_json(rapidjson::kArrayType);
     for (auto &cluster_node : cluster_nodes) {
       JsonValue node(rapidjson::kArrayType);
+      node.PushBack(JsonValue(cluster_node.uuid.c_str(),
+                              cluster_node.uuid.length(), allocator),
+                    allocator);
       node.PushBack(static_cast<int>(cluster_node.classic_port), allocator);
       node.PushBack(static_cast<int>(cluster_node.x_port), allocator);
       const std::string attributes = cluster_node.get_attributes_as_json_str();
@@ -285,6 +291,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
 
     for (size_t i = 0; i < gr_nodes_number + rr_number; ++i) {
       NodeData node;
+      node.uuid = "uuid-" + std::to_string(i + 1);
       node.instance_type =
           i < gr_nodes_number ? "group-member" : "read-replica";
       node.classic_port = port_pool_.get_next_available();
@@ -319,6 +326,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
 
     for (size_t i = 0; i < ar_nodes_number + rr_number; ++i) {
       NodeData node;
+      node.uuid = "uuid-" + std::to_string(i + 1);
       node.classic_port = port_pool_.get_next_available();
       node.http_port = port_pool_.get_next_available();
       node.instance_type =
@@ -378,6 +386,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     node.instance_type = "read-replica";
     node.classic_port =
         classic_port ? *classic_port : port_pool_.get_next_available();
+    node.uuid = "uuid-" + std::to_string(node.classic_port);
     node.http_port = port_pool_.get_next_available();
     node.process =
         &launch_mysql_server_mock(no_gr_trace_file, node.classic_port,

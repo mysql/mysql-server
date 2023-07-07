@@ -55,8 +55,8 @@ var gr_nodes = function(host, port_and_state) {
       current_value[0],  // uuid
       host,
       current_value[0],  // classic port
-      current_value[1],  // status
-      current_value[2],  // x port
+      current_value[2],  // status
+      current_value[3],  // x port
     ];
   });
 };
@@ -66,9 +66,9 @@ var cluster_nodes = function(host, port_and_state) {
     return [
       current_value[0],  // uuid
       host,
-      current_value[0],  // classic port
-      current_value[1],  // x port
-      current_value[2],  // attributes
+      current_value[1],  // classic port
+      current_value[2],  // x port
+      current_value[3],  // attributes
     ];
   });
 };

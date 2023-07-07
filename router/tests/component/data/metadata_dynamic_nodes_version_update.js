@@ -70,8 +70,8 @@ if (mysqld.global.transaction_count === undefined) {
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
-      current_value[0], host, current_value[0], current_value[1],
-      current_value[2]
+      current_value[0], host, current_value[1], current_value[2],
+      current_value[3]
     ];
   });
 };

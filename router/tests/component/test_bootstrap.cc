@@ -1652,8 +1652,9 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   // launch mock server that is our metadata server
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
-  set_mock_metadata(http_port, "cluster-specific-id", {GRNode{server_port}}, 0,
-                    {ClusterNode{server_port, server_x_port}});
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    {GRNode{server_port, "uuid-1"}}, 0,
+                    {ClusterNode{server_port, "uuid-1", server_x_port}});
 
   // check that the Router accepts the config file
   auto &router2 = launch_router({"-c", conf_file});
