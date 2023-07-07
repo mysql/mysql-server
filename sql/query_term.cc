@@ -113,6 +113,11 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
           child_block->order_list = this_block->order_list;
           child_block->absorb_limit_of(this_block);
           child_block->m_windows.prepend(&this_block->m_windows);
+          child_block->select_n_where_fields +=
+              this_block->select_n_where_fields;
+          child_block->n_sum_items += this_block->n_sum_items;
+          child_block->n_child_sum_items += this_block->n_child_sum_items;
+          child_block->n_scalar_subqueries += this_block->n_scalar_subqueries;
 
           if (this_block->first_inner_query_expression() != nullptr) {
             // Change context of any items in ORDER BY to child block
