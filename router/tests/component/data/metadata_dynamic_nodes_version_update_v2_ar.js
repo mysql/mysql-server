@@ -89,8 +89,8 @@ var nodes = function(host, port_and_state) {
     return [
       current_value[0],
       host,
-      current_value[0],
       current_value[1],
+      current_value[2],
     ];
   });
 };

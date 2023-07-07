@@ -93,6 +93,7 @@ var defaults = {
 
   gr_member_state: "ONLINE",
   gr_members_all: 3,
+  gr_members_recovering: 0,
   gr_members_online: 3,
 };
 
@@ -400,13 +401,17 @@ function get_response(stmt_key, options) {
     case "router_select_members_count":
       return {
         "stmt":
-            "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members",
+            "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, SUM(IF(member_state = 'RECOVERING', 1, 0)) as num_recovering, COUNT(*) as num_total FROM performance_schema.replication_group_members",
         "result": {
           "columns": [
             {"type": "LONGLONG", "name": "num_onlines"},
+            {"type": "LONGLONG", "name": "num_recovering"},
             {"type": "LONGLONG", "name": "num_total"}
           ],
-          "rows": [[options.gr_members_online, options.gr_members_all]]
+          "rows": [[
+            options.gr_members_online, , options.gr_members_recovering,
+            options.gr_members_all
+          ]]
         }
       };
     case "router_select_replication_group_name":

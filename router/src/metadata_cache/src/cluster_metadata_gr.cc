@@ -418,7 +418,8 @@ void GRClusterMetadata::update_cluster_status(
                                                       // with recovering nodes
                                                       // (cornercase)
           log_warning(
-              "quorum for cluster '%s' consists only of recovering nodes!",
+              "quorum for cluster '%s' consists only of recovering nodes or "
+              "nodes that are not defined in the metadata!",
               cluster.name.c_str());
           found_quorum = true;  // no point in futher search
           break;
@@ -469,31 +470,29 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
     std::vector<metadata_cache::ManagedInstance> &instances,
     const std::map<std::string, GroupReplicationMember> &member_status,
     bool &metadata_gr_discrepancy) const noexcept {
-  // In ideal world, the best way to write this function would be to completely
-  // ignore nodes in `instances` and operate on information from `member_status`
-  // only. However, there is one problem: the host:port information contained
-  // there may not be accurate (localhost vs external addressing issues), and we
-  // are forced to use the host:port from `instances` instead. This leads to
-  // nasty corner-cases if inconsistencies exist between the two sets, however.
-
-  // Therefore, this code will work well only under one assumption:
-  // All nodes in `member_status` are present in `instances`. This assumption
-  // should hold unless a user "manually" adds new nodes to the cluster
-  // without adding them to metadata (and the user is not allowed to do that).
-
-  // Detect violation of above assumption (alarm if there's a node in
-  // `member_status` not present in `instances`). It's O(n*m), but the CPU time
-  // is negligible while keeping code simple.
-
   using metadata_cache::ServerMode;
   using metadata_cache::ServerRole;
   using GR_State = GroupReplicationMember::State;
   using GR_Role = GroupReplicationMember::Role;
 
   metadata_gr_discrepancy = false;
-  auto number_of_all_members = member_status.size();
+  const auto number_of_all_members = member_status.size();
+  size_t number_of_online_members = 0, number_of_recovering_members = 0;
+  // Check if the GR has a quorum. Warn about nodes that are present in the GR
+  // and missing in the cluster metadata.
   for (const auto &status_node : member_status) {
     using MI = metadata_cache::ManagedInstance;
+
+    switch (status_node.second.state) {
+      case GR_State::Online:
+        number_of_online_members++;
+        break;
+      case GR_State::Recovering:
+        number_of_recovering_members++;
+        break;
+      default:;
+    }
+
     auto found = std::find_if(instances.begin(), instances.end(),
                               [&status_node](const MI &metadata_node) {
                                 return status_node.first ==
@@ -505,40 +504,22 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
             node_in_metadata, EventStateTracker::EventId::GRNodeInMetadata,
             status_node.first);
     if (!node_in_metadata) {
-      if (status_node.second.state == GR_State::Recovering) {
-        const auto log_level =
-            node_in_metadata_changed ? LogLevel::kInfo : LogLevel::kDebug;
-        log_custom(log_level,
-                   "GR member %s:%d (%s) Recovering, missing in the metadata, "
-                   "ignoring",
-                   status_node.second.host.c_str(), status_node.second.port,
-                   status_node.first.c_str());
-        // if the node is Recovering and it is missing in the metadata it can't
-        // increase the pool used for quorum calculations. This is for example
-        // important when we have single node cluster and we add another node
-        // with cloning. While cloning the new node will be present in the GR
-        // tables but missing in the metadata.
-        --number_of_all_members;
-      } else {
-        const auto log_level =
-            node_in_metadata_changed ? LogLevel::kWarning : LogLevel::kDebug;
-        log_custom(
-            log_level, "GR member %s:%d (%s) %s, missing in the metadata",
-            status_node.second.host.c_str(), status_node.second.port,
-            status_node.first.c_str(), to_string(status_node.second.state));
-      }
+      const auto log_level =
+          node_in_metadata_changed ? LogLevel::kWarning : LogLevel::kDebug;
+      log_custom(log_level,
+                 "GR member %s:%d (%s), state: '%s' missing in the metadata, "
+                 "ignoring",
+                 status_node.second.host.c_str(), status_node.second.port,
+                 status_node.first.c_str(),
+                 to_string(status_node.second.state));
 
-      // we want to set this in both cases as it increases the metadata refresh
-      // rate
+      // increases the metadata refresh rate
       metadata_gr_discrepancy = true;
     }
   }
 
-  // we do two things here:
-  // 1. for all `instances`, set .mode according to corresponding .status found
+  // for all `instances`, set .mode according to corresponding .status found
   // in `member_status`
-  // 2. count nodes which are part of quorum (online/recovering nodes)
-  unsigned int quorum_count = 0;
   bool have_primary_instance = false;
   bool have_secondary_instance = false;
   for (auto &member : instances) {
@@ -556,13 +537,11 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
               have_primary_instance = true;
               member.role = ServerRole::Primary;
               member.mode = ServerMode::ReadWrite;
-              quorum_count++;
               break;
             case GR_Role::Secondary:
               have_secondary_instance = true;
               member.role = ServerRole::Secondary;
               member.mode = ServerMode::ReadOnly;
-              quorum_count++;
               break;
           }
           break;
@@ -571,10 +550,6 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
         case GR_State::Offline:  // online node with disabled GR maps to this
         case GR_State::Error:
         case GR_State::Other:
-          // This could be done with a fallthrough but latest gcc (7.1)
-          // generates a warning for that and there is no sane and portable way
-          // to suppress it.
-          if (GR_State::Recovering == status->second.state) quorum_count++;
           member.role = ServerRole::Unavailable;
           member.mode = ServerMode::Unavailable;
           break;
@@ -593,10 +568,13 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
     }
   }
 
-  // quorum_count is based on nodes from `instances` instead of `member_status`.
-  // This is okay, because all nodes in `member_status` are present in
-  // `instances` (our assumption described at the top)
-  bool have_quorum = (quorum_count > number_of_all_members / 2);
+  // 1 node:  [ 1 ONL ] -> OK
+  // 1 node:  [ 1 REC ] -> OK (not possible, checked in a later step )
+  // 2 nodes: [ 1 ONL, 1 REC ] -> OK
+  // 2 nodes: [ 1 ONL, 1 OFF ] -> NOT OK
+  // 3 nodes: [ 1 ONL, 1 REC, 1 OFF ] -> OK
+  bool have_quorum = (number_of_online_members + number_of_recovering_members) >
+                     number_of_all_members / 2;
 
   // if we don't have quorum, we don't allow any access. Some configurations
   // might allow RO access in this case, but we don't support it at the momemnt

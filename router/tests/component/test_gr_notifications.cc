@@ -151,8 +151,11 @@ class GrNotificationsTest : public RouterComponentTest {
     gr_id_.reset(new JsonValue(gr_id.c_str(), gr_id.length(), allocator));
 
     gr_nodes_.reset(new JsonValue(rapidjson::kArrayType));
-    for (auto &gr_node : gr_node_ports) {
+    for (auto [i, gr_node] : stdx::views::enumerate(gr_node_ports)) {
       JsonValue node(rapidjson::kArrayType);
+      const std::string uuid = "uuid-" + std::to_string(i + 1);
+      node.PushBack(JsonValue(uuid.c_str(), uuid.length(), allocator),
+                    allocator);
       node.PushBack(JsonValue(static_cast<int>(gr_node)), allocator);
       node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
                     allocator);
@@ -164,6 +167,9 @@ class GrNotificationsTest : public RouterComponentTest {
         cluster_node_ports.empty() ? gr_node_ports : cluster_node_ports;
     for (auto [i, cluster_node] : stdx::views::enumerate(cluster_nodes)) {
       JsonValue node(rapidjson::kArrayType);
+      const std::string uuid = "uuid-" + std::to_string(i + 1);
+      node.PushBack(JsonValue(uuid.c_str(), uuid.length(), allocator),
+                    allocator);
       node.PushBack(JsonValue(static_cast<int>(cluster_node)), allocator);
       node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i])), allocator);
       node.PushBack(JsonValue("{}", strlen("{}"), allocator), allocator);

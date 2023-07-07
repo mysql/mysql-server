@@ -531,24 +531,26 @@ bool check_group_replication_online(MySQLSession *mysql) {
 
 bool check_group_has_quorum(MySQLSession *mysql) {
   std::string q =
-      "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) "
-      "as num_total"
-      " FROM performance_schema.replication_group_members";
+      "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, "
+      "SUM(IF(member_state = 'RECOVERING', 1, 0)) as num_recovering, "
+      "COUNT(*) as num_total "
+      "FROM performance_schema.replication_group_members";
 
   std::unique_ptr<MySQLSession::ResultRow> result(
       mysql->query_one(q));  // throws MySQLSession::Error
   if (result) {
-    if (result->size() != 2) {
+    if (result->size() != 3) {
       throw std::out_of_range(
           "Invalid number of values returned from "
           "performance_schema.replication_group_members: "
-          "expected 2 got " +
+          "expected 3 got " +
           std::to_string(result->size()));
     }
     int online = strtoi_checked((*result)[0]);
-    int all = strtoi_checked((*result)[1]);
-    // log_info("%d members online out of %d", online, all);
-    if (online >= all / 2 + 1) return true;
+    int recovering = strtoi_checked((*result)[1]);
+    int all = strtoi_checked((*result)[2]);
+
+    if ((online + recovering) > all / 2) return true;
     return false;
   }
 

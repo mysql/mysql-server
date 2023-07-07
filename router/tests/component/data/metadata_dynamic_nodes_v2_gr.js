@@ -73,6 +73,12 @@ const online_gr_nodes = members
                             })
                             .length;
 
+const recovering_gr_nodes = members
+                                .filter(function(memb, indx) {
+                                  return (memb[3] === "RECOVERING");
+                                })
+                                .length;
+
 const member_state = members[mysqld.global.gr_pos] ?
     members[mysqld.global.gr_pos][3] :
     undefined;
@@ -82,6 +88,7 @@ var options = {
   gr_member_state: member_state,
   gr_members_all: members.length,
   gr_members_online: online_gr_nodes,
+  gr_members_recovering: recovering_gr_nodes,
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
