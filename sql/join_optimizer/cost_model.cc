@@ -951,3 +951,13 @@ void EstimateLimitOffsetCost(AccessPath *path) {
                             (child->cost() - child->init_cost()));
   }
 }
+
+void EstimateWindowCost(AccessPath *path) {
+  auto &win = path->window();
+  AccessPath *child = win.child;
+
+  path->set_num_output_rows(child->num_output_rows());
+  path->set_init_cost(child->init_cost());
+  path->set_init_once_cost(child->init_once_cost());
+  path->set_cost(child->cost() + kWindowOneRowCost * child->num_output_rows());
+}

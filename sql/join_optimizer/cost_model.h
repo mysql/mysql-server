@@ -146,6 +146,9 @@ void EstimateStreamCost(AccessPath *path);
 /// Estimate the costs and row count for a LIMIT_OFFSET AccessPath.
 void EstimateLimitOffsetCost(AccessPath *path);
 
+/// Estimate the costs and row count for a WINDOW AccessPath.
+void EstimateWindowCost(AccessPath *path);
+
 inline double FindOutputRowsForJoin(double left_rows, double right_rows,
                                     const JoinPredicate *edge) {
   const auto aggregated_right_rows = [&]() {
