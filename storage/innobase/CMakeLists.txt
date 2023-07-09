@@ -254,7 +254,10 @@ SET(INNOBASE_SOURCES
   ut/ut0test.cc
   ut/ut0ut.cc
   ut/ut0vec.cc
-  ut/ut0wqueue.cc)
+  ut/ut0wqueue.cc
+  log_uring/utils.cc
+  log_uring/xlog.cc  
+)
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
