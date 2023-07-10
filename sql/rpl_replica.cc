@@ -230,12 +230,7 @@ const ulong mts_worker_underrun_level = 10;
 /*
   When slave thread exits, we need to remember the temporary tables so we
   can re-use them on slave start.
-
-  TODO: move the vars below under Master_info
 */
-
-int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
-
 static thread_local Master_info *RPL_MASTER_INFO = nullptr;
 
 /**
@@ -4262,14 +4257,6 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
   DBUG_TRACE;
 
   *suppress_warnings = false;
-  /*
-    my_real_read() will time us out
-    We check if we were told to die, and if not, try reading again
-  */
-#ifndef NDEBUG
-  if (disconnect_slave_event_count && !(mi->events_until_exit--))
-    return packet_error;
-#endif
 
   if (mysql_binlog_fetch(mysql, rpl)) {
     uint err{mysql_errno(mysql)};
@@ -4904,12 +4891,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
    */
   mysql_mutex_lock(&rli->data_lock);
 
-  Log_event *ev = nullptr;
-#ifndef NDEBUG
-  if (!abort_slave_event_count || rli->events_until_exit--)
-#endif
-    ev = in;
-
+  Log_event *ev = in;
   Log_event **ptr_ev = nullptr;
   RLI_current_event_raii rli_c_ev(rli, ev);
 
@@ -5348,10 +5330,6 @@ extern "C" void *handle_slave_io(void *arg) {
 
     /* Inform waiting threads that slave has started */
     mi->slave_run_id++;
-
-#ifndef NDEBUG
-    mi->events_until_exit = disconnect_slave_event_count;
-#endif
 
     thd = new THD;  // note that constructor of THD uses DBUG_ !
     THD_CHECK_SENTRY(thd);
@@ -7000,9 +6978,6 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_mutex_lock(&rli->run_lock);
     assert(!rli->slave_running);
     errmsg = nullptr;
-#ifndef NDEBUG
-    rli->events_until_exit = abort_slave_event_count;
-#endif
 
     thd = new THD;  // note that constructor of THD uses DBUG_ !
     thd->thread_stack = (char *)&thd;  // remember where our stack is
@@ -7480,14 +7455,6 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev) {
   mysql_mutex_assert_owner(mi->rli->relay_log.get_log_lock());
 
   if (unlikely(!rev->is_valid())) return 1;
-
-#ifndef NDEBUG
-  /*
-    If we do not do this, we will be getting the first
-    rotate event forever, so we need to not disconnect after one.
-  */
-  if (disconnect_slave_event_count) mi->events_until_exit++;
-#endif
 
   /*
     Master will send a FD event immediately after the Roate event, so don't log
@@ -8366,9 +8333,6 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   size_t password_size = sizeof(password);
   DBUG_TRACE;
   set_replica_max_allowed_packet(thd, mysql);
-#ifndef NDEBUG
-  mi->events_until_exit = disconnect_slave_event_count;
-#endif
   ulong client_flag = CLIENT_REMEMBER_OPTIONS;
 
   /* Always reset public key to remove cached copy */

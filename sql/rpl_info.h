@@ -81,10 +81,6 @@ class Rpl_info : public Slave_reporting_capability {
   std::atomic<uint> slave_running;
   std::atomic<ulong> slave_run_id;
 
-#ifndef NDEBUG
-  int events_until_exit;
-#endif
-
   /**
     Sets the persistency component/handler.
 

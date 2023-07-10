@@ -98,8 +98,6 @@ The syntax '--relay-log-info-repository' is deprecated and will be removed in a 
 The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
 The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
 The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
-The syntax '--disconnect-slave-event-count' is deprecated and will be removed in a future release.
-The syntax '--abort-slave-event-count' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
 The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.

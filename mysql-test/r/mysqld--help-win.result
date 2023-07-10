@@ -8,10 +8,6 @@ The following options may be given as the first argument:
  Also read groups with concat(group, suffix)
 --login-path=# Read this path from the login file.
 
- --abort-slave-event-count=# 
- Option used by mysql-test for debugging and testing of
- replication.This option is deprecated and will be removed
- in a future version. 
  --activate-all-roles-on-login 
  Automatically set all granted roles as active after the
  user has authenticated successfully.
@@ -338,10 +334,6 @@ The following options may be given as the first argument:
  support execution time error(s) instead of connection
  error
  (Defaults to on; use --skip-disconnect-on-expired-password to disable.)
- --disconnect-slave-event-count=# 
- Option used by mysql-test for debugging and testing of
- replication.This option is deprecated and will be removed
- in a future version.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
@@ -1671,7 +1663,6 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-xa-detach-on-prepare to disable.)
 
 Variables (--variable-name=value)
-abort-slave-event-count 0
 activate-all-roles-on-login FALSE
 admin-address (No default value)
 admin-port 33062
@@ -1751,7 +1742,6 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
-disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE

@@ -10691,11 +10691,6 @@ struct my_option my_long_early_options[] = {
 */
 
 struct my_option my_long_options[] = {
-    {"abort-slave-event-count", OPT_ABORT_SLAVE_EVENT_COUNT,
-     "Option used by mysql-test for debugging and testing of replication."
-     "This option is deprecated and will be removed in a future version. ",
-     &abort_slave_event_count, &abort_slave_event_count, nullptr, GET_INT,
-     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"allow-suspicious-udfs", 0,
      "Allows use of UDFs consisting of only one symbol xxx() "
      "without corresponding xxx_init() or xxx_deinit(). That also means "
@@ -10762,14 +10757,8 @@ struct my_option my_long_options[] = {
     {"default-time-zone", 0, "Set the default time zone.", &default_tz_name,
      &default_tz_name, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
-     "Option used by mysql-test for debugging and testing of replication."
-     "This option is deprecated and will be removed in a future version.",
-     &disconnect_slave_event_count, &disconnect_slave_event_count, nullptr,
-     GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"exit-info", 'T', "Used for debugging. Use at your own risk.", nullptr,
      nullptr, nullptr, GET_LONG, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
-
     {"external-locking", 0,
      "Use system (external) locking (disabled by "
      "default).  With this option enabled you can run myisamchk to test "
@@ -12688,13 +12677,6 @@ bool mysqld_get_one_option(int optid,
       push_deprecated_warn_no_replacement(nullptr,
                                           "--transaction-write-set-extraction");
       break;
-    case OPT_DISCONNECT_SLAVE_EVENT_COUNT:
-      push_deprecated_warn_no_replacement(nullptr,
-                                          "--disconnect-slave-event-count");
-      break;
-    case OPT_ABORT_SLAVE_EVENT_COUNT:
-      push_deprecated_warn_no_replacement(nullptr, "--abort-slave-event-count");
-      break;
     case OPT_REPLICA_PARALLEL_TYPE:
       push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");
       break;
@@ -12914,7 +12896,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
       turn_bit_on;
 
   // Synchronize @@global.autocommit metadata on --autocommit
-  my_option *opt = &my_long_options[3];
+  my_option *opt = &my_long_options[2];
   assert(strcmp(opt->name, "autocommit") == 0);
   assert(opt->arg_source != nullptr);
   Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);

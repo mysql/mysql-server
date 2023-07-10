@@ -637,9 +637,6 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
 bool net_request_file(NET *net, const char *fname);
 
 extern bool replicate_same_server_id;
-
-extern int disconnect_slave_event_count, abort_slave_event_count;
-
 /* the master variables are defaults read from my.cnf or command line */
 extern uint report_port;
 extern const char *master_info_file;
