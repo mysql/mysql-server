@@ -22,9 +22,26 @@
 
 #include "log_client.h"
 
-Ldap_logger::Ldap_logger() {
-  m_log_level = LDAP_LOG_LEVEL_NONE;
-  m_log_writer = nullptr;
+#include <assert.h>
+
+#include <iostream>
+
+namespace auth_ldap_sasl_client {
+
+Ldap_logger *Ldap_logger::m_logger = nullptr;
+
+void Ldap_logger::create_logger(ldap_log_level log_level) {
+  if (!m_logger) m_logger = new Ldap_logger(log_level);
+}
+void Ldap_logger::destroy_logger() {
+  if (m_logger) {
+    delete m_logger;
+    m_logger = nullptr;
+  }
+}
+
+Ldap_logger::Ldap_logger(ldap_log_level log_level)
+    : m_log_writer(nullptr), m_log_level(log_level) {
   m_log_writer = new Ldap_log_writer_error();
 }
 
@@ -34,9 +51,32 @@ Ldap_logger::~Ldap_logger() {
   }
 }
 
-void Ldap_logger::set_log_level(ldap_log_level level) { m_log_level = level; }
+const char dbg_prefix[] = "[DBG]";
+const char info_prefix[] = "[Note]";
+const char warning_prefix[] = "[Warning]";
+const char error_prefix[] = "[Error]";
 
-void Ldap_log_writer_error::write(std::string data) {
+void Ldap_logger::log_dbg_msg(Message msg) {
+  assert(m_logger);
+  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ALL, dbg_prefix>(msg);
+}
+void Ldap_logger::log_info_msg(Message msg) {
+  assert(m_logger);
+  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ERROR_WARNING_INFO, info_prefix>(
+      msg);
+}
+void Ldap_logger::log_warning_msg(Message msg) {
+  assert(m_logger);
+  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ERROR_WARNING, warning_prefix>(
+      msg);
+}
+void Ldap_logger::log_error_msg(Message msg) {
+  assert(m_logger);
+  m_logger->log<ldap_log_level::LDAP_LOG_LEVEL_ERROR_WARNING, error_prefix>(
+      msg);
+}
+
+void Ldap_log_writer_error::write(const std::string &data) {
   std::cerr << data << "\n";
   std::cerr.flush();
 }
@@ -50,3 +90,5 @@ Ldap_log_writer_error::Ldap_log_writer_error() = default;
 /**
  */
 Ldap_log_writer_error::~Ldap_log_writer_error() = default;
+
+}  // namespace auth_ldap_sasl_client

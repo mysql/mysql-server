@@ -25,85 +25,171 @@
 
 #include "my_config.h"
 
+#ifdef HAVE_SASL_SASL_H
+#include <sys/types.h>
+#endif
+
+#include <assert.h>
+#include <mysql/client_plugin.h>
+#include <sasl/sasl.h>
+
 #include "auth_ldap_sasl_mechanism.h"
 
-#include <mysql.h>
-#include <mysql/client_plugin.h>
-#include <mysql/plugin.h>
-#include <mysql/plugin_auth_common.h>
-#include <sasl/sasl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "log_client.h"
-
 #define SASL_MAX_STR_SIZE 1024
-#define SASL_BUFFER_SIZE 9000
 #define SASL_SERVICE_NAME "ldap"
 
-static const sasl_callback_t callbacks[] = {
-#ifdef SASL_CB_GETREALM
-    {SASL_CB_GETREALM, nullptr, nullptr},
-#endif
-    {SASL_CB_USER, nullptr, nullptr},
-    {SASL_CB_AUTHNAME, nullptr, nullptr},
-    {SASL_CB_PASS, nullptr, nullptr},
-    {SASL_CB_ECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_NOECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_LIST_END, nullptr, nullptr}};
+namespace auth_ldap_sasl_client {
 
-/*
-  MAX SSF - The maximum Security Strength Factor supported by the mechanism
-  (roughly the number of bits of encryption provided, but may have other
-  meanings, for example an SSF of 1 indicates integrity protection only, no
-  encryption). SECURITY PROPERTIES are: NOPLAIN, NOACTIVE, NODICT, FORWARD,
-  NOANON, CRED, MUTUAL. More details are in:
-  https://www.sendmail.org/~ca/email/cyrus2/mechanisms.html
+/**
+  Class representing SASL client
 */
-sasl_security_properties_t security_properties = {
-    /** Minimum acceptable final level. (min_ssf) */
-    56,
-    /** Maximum acceptable final level. (max_ssf) */
-    0,
-    /** Maximum security layer receive buffer size. */
-    0,
-    /** security flags (security_flags) */
-    0,
-    /** Property names. (property_names) */
-    nullptr,
-    /** Property values. (property_values)*/
-    nullptr,
-};
-
 class Sasl_client {
  public:
-  Sasl_client();
-  ~Sasl_client();
-  int initilize();
-  void set_plugin_info(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-  void interact(sasl_interact_t *ilist);
-  int read_method_name_from_server();
-  int sasl_start(char **client_output, int *client_output_length);
-  int sasl_step(char *server_in, int server_in_length, char **client_out,
-                int *client_out_length);
-  int send_sasl_request_to_server(const unsigned char *request, int request_len,
-                                  unsigned char **reponse, int *response_len);
-  void set_user_info(std::string name, std::string pwd);
-  std::string get_method();
-#if defined(KERBEROS_LIB_CONFIGURED)
-  void read_kerberos_user_name();
-#endif
+  /**
+   Constructor
 
- protected:
+   @param vio [in]    pointer to server communication channel
+   @param mysql [in]  pointer to MYSQL structure
+  */
+  Sasl_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+
+  /**
+   Default constructor -not wanted.
+  */
+  Sasl_client() = delete;
+
+  /**
+   Destructor
+  */
+  ~Sasl_client();
+
+  /**
+   Perform preauthentication step if needed, specific to the SASL mechanism e.g.
+   obtaining Kerberos ticket for GSSAPI.
+
+   @retval true success
+   @retval false failure
+  */
+  bool preauthenticate();
+
+  /**
+   Initializes SASL client exchange.
+
+   @retval true success
+   @retval false failure
+  */
+  bool initilize_connection();
+
+  /**
+   Perform SASL interaction, callled as SASL callback.
+
+   @param ilist [in] list of interaction ids to be served
+  */
+  void interact(sasl_interact_t *ilist);
+
+  /**
+   Decides and sets SASL mechanism to be used for authentication.
+
+   @retval true success
+   @retval false failure
+  */
+  bool set_mechanism();
+
+  /**
+   Starts SASL client exchange.
+
+   @param client_output [out]  buffer with the initial client message to be
+                               sent to server
+   @param client_output_length [out] length of client_output
+
+   @return SASL result code
+  */
+  int sasl_start(const char **client_output, int *client_output_length);
+
+  /**
+   Perform a step of SASL client exchange.
+
+   @param server_input [in]  buffer with message from the server
+   @param server_input_length [in] length of server_input
+   @param client_output [out]  buffer with the client message to be
+                               sent to server
+   @param client_output_length [out] length of client_output
+
+   @return SASL result code
+  */
+  int sasl_step(char *server_input, int server_input_length,
+                const char **client_output, int *client_output_length);
+
+  /**
+   Sends SASL message to server and receive an response.
+   SASL message is wrapped in a MySQL packet before sending.
+
+   @param request [in]       pointer to the SASL request
+   @param request_len [in]   length of request
+   @param reponse [out]      pointer to received SASL response
+   @param response_len [out] length of reponse or 0 on reading failure
+
+   @retval 1 write failed
+   @retval 0 write succeeded
+  */
+  int send_sasl_request_to_server(const char *request, int request_len,
+                                  char **reponse, int *response_len);
+
+  /**
+   Check if the authentication method requires conclusion message from the
+   server.
+
+   @retval true conclusion required
+   @retval false conclusion not required
+  */
+  bool require_conclude_by_server() {
+    assert(m_sasl_mechanism);
+    return m_sasl_mechanism->require_conclude_by_server();
+  }
+
+ private:
+  /**
+   If an empty original user name was given as client parameter and passed to
+   the plugin via MYSQL structure, this function is used to determine the name
+   for authentication and set this user name to the MYSQL structure. For proper
+   memory management (string allocated by the plugin should not be freed by the
+   main client module and vice versa), the original user name from MYSQL is
+   stored to m_mysql_user and on destructing the object the original name is
+   set back to MYSQL and m_mysql_user is freed.
+
+   @retval true success
+   @retval false failure
+  */
+  bool set_user();
+
+  /**
+   Sets (copies) user name and password to the members.
+
+   @param name [in] user name
+   @param pwd [in]  user password
+  */
+  void set_user_info(const char *name, const char *pwd);
+
+  /** user name used for authentication */
   char m_user_name[SASL_MAX_STR_SIZE];
+
+  /** user password used for authentication */
   char m_user_pwd[SASL_MAX_STR_SIZE];
-  char m_mechanism[SASL_MAX_STR_SIZE];
-  char m_service_name[SASL_MAX_STR_SIZE];
-  std::string m_ldap_server_host;
+
+  /** SASL connection data */
   sasl_conn_t *m_connection;
+
+  /** pointer to server communication channel */
   MYSQL_PLUGIN_VIO *m_vio;
+
+  /** pointer to MYSQL structure */
   MYSQL *m_mysql;
+
+  /** the original user name, @see set_user() */
+  char *m_mysql_user;
+
+  /** the SASL mechanism used for authentication */
   Sasl_mechanism *m_sasl_mechanism;
 };
-
+}  // namespace auth_ldap_sasl_client
 #endif  // AUTH_LDAP_SASL_CLIENT_H_

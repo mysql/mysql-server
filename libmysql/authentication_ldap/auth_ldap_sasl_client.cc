@@ -22,21 +22,10 @@
 
 #include "my_config.h"
 
-/*
-  This is a CLIENT_ONLY plugin, so allocation functions are my_malloc,
-  my_free etc.
-*/
-#if defined(KERBEROS_LIB_CONFIGURED)
-#include <mysql/service_mysql_alloc.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "auth_ldap_sasl_client.h"
-#ifndef _WIN32
-#include <lber.h>
-#include <sasl/sasl.h>
+
+#ifdef HAVE_SASL_SASL_H
+#include <sys/types.h>
 #endif
 
 #if defined(SASL_CUSTOM_LIBRARY)
@@ -45,9 +34,38 @@
 #include <string>
 #endif
 
+#include <sasl/sasl.h>
+#ifndef WIN32
+#include <lber.h>
+#endif
+
+#include <errmsg.h>
+#include <m_string.h>
 #include <mysql.h>
-#include <mysql/client_plugin.h>
-#include <sql_common.h>
+#include <mysql/plugin.h>
+#include <mysql/plugin_auth_common.h>
+#include <mysql/service_mysql_alloc.h>
+
+#include <iomanip>
+#include <sstream>
+
+#include "log_client.h"
+
+namespace auth_ldap_sasl_client {
+
+/**
+ Write a buffer to stream. Helper to log SASL messages.
+
+ @param log_stream [in] the stream
+ @param buf [in] the buffer
+ @param buf_len [in] length of the buffer
+*/
+void buf_to_str(std::stringstream &log_stream, const char *buf,
+                size_t buf_len) {
+  log_stream << std::hex << std::setfill('0');
+  for (size_t i = 0; i < buf_len; ++i)
+    log_stream << std::setw(2) << (0xFF & buf[i]) << " ";
+}
 
 void Sasl_client::interact(sasl_interact_t *ilist) {
   while (ilist->id != SASL_CB_LIST_END) {
@@ -78,131 +96,77 @@ void Sasl_client::interact(sasl_interact_t *ilist) {
   }
 }
 
-void Sasl_client::set_plugin_info(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  m_vio = vio;
-  m_mysql = mysql;
-}
-
-/**
-  SASL method is send from the Mysql server, and this is set by the client.
-  SASL client and sasl server may support many sasl authentication methods
-  and can negotiate in anyone.
-  We want to enforce the SASL authentication set by the client.
-*/
-int Sasl_client::read_method_name_from_server() {
+bool Sasl_client::set_mechanism() {
   int rc_server_read = -1;
   unsigned char *packet = nullptr;
-  std::stringstream log_stream;
+
+  if (m_vio == nullptr) return false;
+
   /*
-    We are assuming that there will be only one method name passed by
-    server, and length of the method name will not exceed 256 chars.
-  */
-  const int max_method_name_len = 256;
-
-  if (m_vio == nullptr) {
-    return rc_server_read;
+    If MySQL user name is empty it may be set by
+    sasl_client.get_default_user_name(). We store the original, empty user name
+    and reset it to mysql at the end of this function to ensure the memory is
+    allocated and deallocated in the same binary.
+   */
+  if (m_mysql->user[0] == '\0' && !set_user()) {
+    log_error("No default user, use --user option.");
+    return false;
   }
+
+  set_user_info(m_mysql->user, m_mysql->passwd);
+
   /** Get authentication method from the server. */
-  rc_server_read = m_vio->read_packet(m_vio, (unsigned char **)&packet);
-  if (rc_server_read >= 0 && rc_server_read <= max_method_name_len) {
-    strncpy(m_mechanism, (const char *)packet, rc_server_read);
-    m_mechanism[rc_server_read] = '\0';
-    if (strcmp(m_mechanism, SASL_GSSAPI) == 0) {
-      /*
-        If user tries to use kerberos without kerberos libs are installed,
-        We should gracefully error out the authentication. Kerberos objects
-        will not be built in this case.
-      */
-#if defined(KERBEROS_LIB_CONFIGURED)
-      m_sasl_mechanism = new Sasl_mechanism_kerberos();
-#else
-      m_sasl_mechanism = NULL;
-      log_info("Kerberos lib not installed, not creting kerberos objects.");
-#endif
-    } else if ((strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) ||
-               (strcmp(m_mechanism, SASL_SCRAM_SHA256) == 0)) {
-      m_sasl_mechanism = new Sasl_mechanism();
-    } else {
-      rc_server_read = SASL_ERROR_INVALID_METHOD;
-      log_stream << "SASL METHOD:" << m_mechanism[0];
-      log_stream << " is not supported, please make sure correct "
-                    "method is set in "
-                 << "LDAP SASL server side plug-in";
-      m_mechanism[0] = '\0';
-      log_error(log_stream.str());
-    }
-    log_stream << "Sasl_client::read_method_name_from_server : " << m_mechanism;
-    log_dbg(log_stream.str());
-  } else if (rc_server_read > max_method_name_len) {
-    rc_server_read = -1;
-    m_mechanism[0] = '\0';
-    log_stream << "Sasl_client::read_method_name_from_server : Method name "
-               << "is greater then allowed limit of 256 characters.";
-    log_error(log_stream.str());
-  } else {
-    m_mechanism[0] = '\0';
-    log_stream << "Sasl_client::read_method_name_from_server : Plugin has "
-               << "failed to read the method name, make sure that default "
-               << "authentication plugin and method name specified at "
-               << "server are correct.";
-    log_error(log_stream.str());
+  rc_server_read = m_vio->read_packet(m_vio, &packet);
+  if (rc_server_read < 0) {
+    log_dbg("Authentication method not yet sent from the server.");
+    return false;
   }
-  return rc_server_read;
+
+  if (packet[rc_server_read] != 0) {
+    log_error(
+        "Mechanism name returned by server is not a null terminated string.");
+    return false;
+  }
+  if (!Sasl_mechanism::create_sasl_mechanism(reinterpret_cast<char *>(packet),
+                                             m_sasl_mechanism)) {
+    log_error(
+        "Mechanism name returned by server: ", reinterpret_cast<char *>(packet),
+        " is not supported by the client plugin.");
+    return false;
+  }
+
+  return true;
 }
 
-Sasl_client::Sasl_client() {
-  m_connection = nullptr;
-  m_ldap_server_host = "";
-  m_mysql = nullptr;
-  m_sasl_mechanism = nullptr;
+Sasl_client::Sasl_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
+    : m_connection(nullptr),
+      m_vio(vio),
+      m_mysql(mysql),
+      m_mysql_user(nullptr),
+      m_sasl_mechanism(nullptr) {
+  m_user_name[0] = '\0';
+  m_user_pwd[0] = '\0';
+}
+bool Sasl_client::preauthenticate() {
+  assert(m_sasl_mechanism);
+  return m_sasl_mechanism->preauthenticate(m_user_name, m_user_pwd);
 }
 
-int Sasl_client::initilize() {
-  std::stringstream log_stream;
+bool Sasl_client::initilize_connection() {
   int rc_sasl = SASL_FAIL;
-  strncpy(m_service_name, SASL_SERVICE_NAME, sizeof(m_service_name) - 1);
-  m_service_name[sizeof(m_service_name) - 1] = '\0';
+  assert(m_sasl_mechanism);
 
-  if (m_sasl_mechanism) {
-    m_sasl_mechanism->set_user_info(m_user_name, m_user_pwd);
-    /**
-       This method try to get kerberos TGT if user name and password are not
-       empty. If method fails, We should not start SASL authentication process.
-       Otherwise SASL authentication may consume existing TGT and authentication
-       process will start.
-    */
-    if (!m_sasl_mechanism->pre_authentication()) {
-      log_error(
-          "Plug-in has failed to obtained Kerberos TGT, authentication process "
-          "will be aborted. Please provide valid configuration, user name and "
-          "password.");
-      return rc_sasl;
-    }
-    m_sasl_mechanism->get_ldap_host(m_ldap_server_host);
-  }
-#if defined(KERBEROS_LIB_CONFIGURED)
-  if (strcmp(m_mechanism, SASL_GSSAPI) == 0) {
-    m_user_name[0] = '\0';
-  }
-#endif
   /** Creating sasl connection. */
-  if (m_ldap_server_host.empty()) {
-    rc_sasl = sasl_client_new(m_service_name, nullptr, nullptr, nullptr,
-                              callbacks, 0, &m_connection);
-  } else {
-    log_info(m_ldap_server_host.c_str());
-    rc_sasl = sasl_client_new(m_service_name, m_ldap_server_host.c_str(),
-                              nullptr, nullptr, callbacks, 0, &m_connection);
+  rc_sasl = sasl_client_new(
+      SASL_SERVICE_NAME, m_sasl_mechanism->get_ldap_host(), nullptr, nullptr,
+      m_sasl_mechanism->get_callbacks(), 0, &m_connection);
+  if (rc_sasl != SASL_OK || m_connection == nullptr) {
+    std::stringstream log_stream;
+    log_stream << "SASL client initialization failed with " << rc_sasl;
+    log_error(log_stream.str().c_str());
+    return false;
   }
-  if (rc_sasl != SASL_OK) {
-    log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
-    log_error(log_stream.str());
-    return rc_sasl;
-  }
-
-  /** Set security properties. */
-  sasl_setprop(m_connection, SASL_SEC_PROPS, &security_properties);
-  return SASL_OK;
+  return true;
 }
 
 Sasl_client::~Sasl_client() {
@@ -210,31 +174,17 @@ Sasl_client::~Sasl_client() {
     sasl_dispose(&m_connection);
     m_connection = nullptr;
   }
+  if (m_mysql_user) {
+    my_free(m_mysql->user);
+    m_mysql->user = m_mysql_user;
+    m_mysql_user = nullptr;
+  }
   delete m_sasl_mechanism;
   m_sasl_mechanism = nullptr;
 }
 
-/**
- * send SASL request to the server and read the servers reply.
- *
- * wraps the SASL message in a MySQL packet and sends it to the server.
- *
- * if sending to the server fails, the function fails. But if reading
- * the reply fails, the *response_len will be 0.
- *
- * @param[in] request pointer to the SASL request payload
- * @param[in] request_len length of the request
- * @param[out] response pointer to a location where the response buffers
- * location shall be stored.
- * @param[out] response_len pointer to a location where the length of the
- * response buffer shall be stored.
- *
- * @retval 1 write failed.
- * @retval 0 write succeeded, but read may have failed.
- */
-int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
-                                             int request_len,
-                                             unsigned char **response,
+int Sasl_client::send_sasl_request_to_server(const char *request,
+                                             int request_len, char **response,
                                              int *response_len) {
   int rc_server = 1;
   std::stringstream log_stream;
@@ -243,119 +193,122 @@ int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
     goto EXIT;
   }
   /** Send the request to the MySQL server. */
-  log_stream << "Sasl_client::SendSaslRequestToServer length:" << request_len
-             << " request: " << request;
-  log_dbg(log_stream.str());
-  rc_server = m_vio->write_packet(m_vio, request, request_len);
+  if (request) {
+    log_stream << "Sending SASL request: ";
+    buf_to_str(log_stream, request, request_len);
+  } else
+    log_stream << "Sending empty SASL request.";
+  log_dbg(log_stream.str().c_str());
+
+  rc_server = m_vio->write_packet(
+      m_vio, reinterpret_cast<const unsigned char *>(request), request_len);
   if (rc_server) {
-    log_error(
-        "Sasl_client::SendSaslRequestToServer: sasl request write failed");
+    log_error("Failed to send SASL request to MySQL server.");
     goto EXIT;
   }
 
   /** Get the sasl response from the MySQL server. */
-  *response_len = m_vio->read_packet(m_vio, response);
+  *response_len =
+      m_vio->read_packet(m_vio, reinterpret_cast<unsigned char **>(response));
   if ((*response_len) < 0 || (*response == nullptr)) {
-    log_error(
-        "Sasl_client::SendSaslRequestToServer: sasl response read failed");
+    log_error("Failed to read SASL response from MySQL server.");
     goto EXIT;
   }
   log_stream.str("");
-  log_stream << "Sasl_client::SendSaslRequestToServer response:" << *response
-             << " length: " << *response_len;
-  log_dbg(log_stream.str());
+  log_stream << "Received SASL response: ";
+  buf_to_str(log_stream, *response, *response_len);
+  log_dbg(log_stream.str().c_str());
 EXIT:
   return rc_server;
 }
 
-int Sasl_client::sasl_start(char **client_output, int *client_output_length) {
+int Sasl_client::sasl_start(const char **client_output,
+                            int *client_output_length) {
   int rc_sasl = SASL_FAIL;
-  const char *mechanism = nullptr;
-  char *sasl_client_output = nullptr;
   sasl_interact_t *interactions = nullptr;
   std::stringstream log_stream;
 
-  if (m_connection == nullptr) {
-    log_error("Sasl_client::SaslStart: sasl connection is null");
-    return rc_sasl;
-  }
-  void *sasl_client_output_p = &sasl_client_output;
+  assert(m_sasl_mechanism);
+  assert(m_connection);
+
   do {
-    rc_sasl =
-        sasl_client_start(m_connection, m_mechanism, &interactions,
-                          static_cast<const char **>(sasl_client_output_p),
-                          (unsigned int *)client_output_length, &mechanism);
+    rc_sasl = sasl_client_start(
+        m_connection, m_sasl_mechanism->get_mechanism_name(), &interactions,
+        client_output, reinterpret_cast<unsigned int *>(client_output_length),
+        nullptr);
     if (rc_sasl == SASL_INTERACT) interact(interactions);
   } while (rc_sasl == SASL_INTERACT);
   if (rc_sasl == SASL_NOMECH) {
-    log_stream << "SASL method '" << m_mechanism << "' sent by server, "
-               << "is not supported by the SASL client. Make sure that "
-               << "cyrus SASL library is installed.";
-    log_error(log_stream.str());
-    goto EXIT;
+    log_error("SASL method '", m_sasl_mechanism->get_mechanism_name(),
+              "' sent by server, ", "is not supported by the SASL client.");
+    return rc_sasl;
   }
-  if (client_output != nullptr) {
-    *client_output = sasl_client_output;
-    log_stream << "Sasl_client::SaslStart sasl output: " << sasl_client_output;
-    log_dbg(log_stream.str());
+  if (*client_output) {
+    log_stream << "SASL initial client request: ";
+    buf_to_str(log_stream, *client_output, *client_output_length);
+    log_dbg(log_stream.str().c_str());
   }
-EXIT:
+
   return rc_sasl;
 }
 
-int Sasl_client::sasl_step(char *server_in, int server_in_length,
-                           char **client_out, int *client_out_length) {
+int Sasl_client::sasl_step(char *server_input, int server_input_length,
+                           const char **client_output,
+                           int *client_output_length) {
   int rc_sasl = SASL_FAIL;
   sasl_interact_t *interactions = nullptr;
 
-  if (m_connection == nullptr) {
-    return rc_sasl;
-  }
-  void *client_out_p = client_out;
+  assert(m_connection);
+
   do {
-    if (server_in && server_in[0] == 0x0) {
-      server_in_length = 0;
-      server_in = nullptr;
+    if (server_input && server_input[0] == 0x0) {
+      server_input_length = 0;
+      server_input = nullptr;
     }
     rc_sasl = sasl_client_step(
-        m_connection, (server_in == nullptr) ? nullptr : server_in,
-        (server_in == nullptr) ? 0 : server_in_length, &interactions,
-        static_cast<const char **>(client_out_p),
-        (unsigned int *)client_out_length);
+        m_connection, (server_input == nullptr) ? nullptr : server_input,
+        (server_input == nullptr) ? 0 : server_input_length, &interactions,
+        client_output, reinterpret_cast<unsigned int *>(client_output_length));
     if (rc_sasl == SASL_INTERACT) Sasl_client::interact(interactions);
   } while (rc_sasl == SASL_INTERACT);
   return rc_sasl;
 }
 
-std::string Sasl_client::get_method() { return m_mechanism; }
+bool Sasl_client::set_user() {
+  /*
+   Empty user name is accepted only in case of GSSAPI authentication when valid
+   Kerberos TGT exist. The default name will be the principal name.
+   */
+  if (!Sasl_mechanism::create_sasl_mechanism(Sasl_mechanism::SASL_GSSAPI,
+                                             m_sasl_mechanism)) {
+    log_error(
+        "Empty user name may be accepted only in case of GSSAPI "
+        "authentication, but this mechanism is not supported by the client "
+        "plugin.");
+    return false;
+  }
 
-#if defined(KERBEROS_LIB_CONFIGURED)
-void Sasl_client::read_kerberos_user_name() {
-  std::string user_name = "";
-  bool ret_kerberos = false;
-  auth_ldap_client_kerberos_context::Kerberos kerberos("", "");
-  ret_kerberos = kerberos.get_user_name(&user_name);
-  if (m_mysql && ret_kerberos && (!user_name.empty())) {
-    /*
-      MySQL clients/lib uses my_free, my_strdup my_* string function for string
-      management. We also need to use same methods as these are used/free inside
-      libmysqlclient
-    */
-    if (m_mysql->user) {
-      my_free(m_mysql->user);
-      m_mysql->user = nullptr;
-    }
+  std::string user_name;
+  if (m_sasl_mechanism->get_default_user(user_name)) {
+    m_mysql_user = m_mysql->user;
     m_mysql->user =
         my_strdup(PSI_NOT_INSTRUMENTED, user_name.c_str(), MYF(MY_WME));
   }
-}
-#endif
 
-void Sasl_client::set_user_info(std::string name, std::string pwd) {
-  strncpy(m_user_name, name.c_str(), sizeof(m_user_name) - 1);
-  m_user_name[sizeof(m_user_name) - 1] = '\0';
-  strncpy(m_user_pwd, pwd.c_str(), sizeof(m_user_pwd) - 1);
-  m_user_pwd[sizeof(m_user_pwd) - 1] = '\0';
+  return m_mysql->user != nullptr && m_mysql->user[0] != 0;
+}
+
+void Sasl_client::set_user_info(const char *name, const char *pwd) {
+  if (name) {
+    strncpy(m_user_name, name, sizeof(m_user_name) - 1);
+    m_user_name[sizeof(m_user_name) - 1] = '\0';
+  } else
+    m_user_name[0] = 0;
+  if (pwd) {
+    strncpy(m_user_pwd, pwd, sizeof(m_user_pwd) - 1);
+    m_user_pwd[sizeof(m_user_pwd) - 1] = '\0';
+  } else
+    m_user_pwd[0] = 0;
 }
 
 #ifdef __clang__
@@ -378,55 +331,35 @@ static int deinitialize_plugin() SUPPRESS_UBSAN;
  * @retval CR_AUTH_HANDSHAKE on handshake failure
  */
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  int rc_sasl = SASL_FAIL;
+  int rc_sasl = SASL_OK;
   int rc_auth = CR_ERROR;
-  unsigned char *server_packet = nullptr;
+  char *server_packet = nullptr;
   int server_packet_len = 0;
-  char *sasl_client_output = nullptr;
+  const char *sasl_client_output = nullptr;
   int sasl_client_output_len = 0;
-  std::stringstream log_stream;
-  Sasl_client sasl_client;
+  Sasl_client sasl_client(vio, mysql);
 
-  sasl_client.set_plugin_info(vio, mysql);
-
-#if defined(KERBEROS_LIB_CONFIGURED)
-  /*
-    For some cases MySQL user name will be empty as user name is supposed to
-    come from kerberos TGT. Get kerberos user name from TGT and assign this as
-    MySQL user name.
-  */
-  if (!mysql->user || mysql->user[0] == '\0') {
-    sasl_client.read_kerberos_user_name();
-  }
-#endif
-
-  server_packet_len = sasl_client.read_method_name_from_server();
-  if (server_packet_len < 0) {
-    // Callee has already logged the messages.
-    goto EXIT;
+  if (!sasl_client.set_mechanism()) {
+    log_info("SASL mechanism not set.");
+    return CR_ERROR;
   }
 
-#if !defined(KERBEROS_LIB_CONFIGURED)
-  if (strcmp(sasl_client.get_method().c_str(), SASL_GSSAPI) == 0) {
-    log_error(
-        "Kerberos library not installed, kerberos authentication will not "
-        "work..");
-    rc_auth = CR_ERROR;
-    goto EXIT;
+  if (!sasl_client.preauthenticate()) {
+    log_error("SASL preauthentication failed.");
+    return CR_ERROR;
   }
-#endif
 
-  sasl_client.set_user_info(mysql->user, mysql->passwd);
-  rc_sasl = sasl_client.initilize();
-  if (rc_sasl != SASL_OK) {
-    log_error("sasl_authenticate: initialize failed");
-    goto EXIT;
+  if (!sasl_client.initilize_connection()) {
+    log_error("SASL client initialization failed.");
+    return CR_ERROR;
   }
+
+  log_info("SASL client initialized.");
 
   rc_sasl =
       sasl_client.sasl_start(&sasl_client_output, &sasl_client_output_len);
   if ((rc_sasl != SASL_OK) && (rc_sasl != SASL_CONTINUE)) {
-    log_error("sasl_authenticate: SaslStart failed");
+    log_error("SASL start failed.");
     goto EXIT;
   }
 
@@ -438,8 +371,8 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     server_packet = nullptr;
     server_packet_len = 0;
     const int send_res = sasl_client.send_sasl_request_to_server(
-        (const unsigned char *)sasl_client_output, sasl_client_output_len,
-        &server_packet, &server_packet_len);
+        sasl_client_output, sasl_client_output_len, &server_packet,
+        &server_packet_len);
     if (send_res != 0) {
       rc_auth = CR_AUTH_HANDSHAKE;
 
@@ -450,7 +383,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         sasl_client.sasl_step((char *)server_packet, server_packet_len,
                               &sasl_client_output, &sasl_client_output_len);
     if (sasl_client_output_len == 0) {
-      log_dbg("sasl_step: empty client output");
+      log_dbg("SASL step: empty client output.");
     }
 
   } while (rc_sasl == SASL_CONTINUE);
@@ -458,37 +391,37 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   if (rc_sasl == SASL_OK) {
     rc_auth = CR_OK;
 
-    log_dbg("sasl_authenticate authentication successful");
+    log_info("SASL authentication successful.");
     /**
-      Kerberos authentication is concluded by the LDAP/SASL server,
-      From client side, authentication has succeeded and we need to send data to
-      server side to conclude the authentication. Other SASL authentication are
-      conculded in the client side.
+      From client side, authentication has succeeded, but in case of some
+      mechanism (e.g. GSSAPI) we need to send data to server side.
     */
-    if (strcmp(sasl_client.get_method().c_str(), SASL_GSSAPI) == 0) {
+    if (sasl_client.require_conclude_by_server()) {
       server_packet = nullptr;
-      /* int send_res = */ sasl_client.send_sasl_request_to_server(
-          (const unsigned char *)sasl_client_output, sasl_client_output_len,
-          &server_packet, &server_packet_len);
+      if (sasl_client.send_sasl_request_to_server(
+              sasl_client_output, sasl_client_output_len, &server_packet,
+              &server_packet_len))
+        log_warning(
+            "sasl_authenticate client failed to send conclusion to the "
+            "server.");
       rc_auth = CR_OK;
     }
   } else {
-    log_error("sasl_authenticate client failed");
+    log_error("SASL authentication failed.");
   }
 
 EXIT:
   if (rc_sasl != SASL_OK) {
-    log_stream.str("");
-    log_stream << "sasl_authenticate client failed rc: " << rc_sasl;
-    log_error(log_stream.str());
+    std::stringstream log_stream;
+    log_stream << "SASL function failed with " << rc_sasl;
+    log_error(log_stream.str().c_str());
   }
   return rc_auth;
 }
 
-#if defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+#if defined(SASL_CUSTOM_LIBRARY) || defined(WIN32)
 static int set_sasl_plugin_path() {
-#if defined(_WIN32)
-  std::stringstream log_stream;
+#if defined(WIN32)
 
   char sasl_plugin_dir[MAX_PATH] = "";
   int ret_executable_path = 0;
@@ -503,10 +436,8 @@ static int set_sasl_plugin_path() {
   if ((ret_executable_path == 0) ||
       (ret_executable_path == sizeof(sasl_plugin_dir))) {
     log_error(
-        "sasl client initialize: failed to find executable path or buffer size "
-        "for path is too small.");
-    log_stream << "Sasl_client::initialize failed";
-    log_error(log_stream.str());
+        "SASL client initialization failed: executable path not found or "
+        "buffer size for path is too small.");
     return 1;
   }
   char *pos = strrchr(sasl_plugin_dir, '\\');
@@ -519,13 +450,9 @@ static int set_sasl_plugin_path() {
     same from the code.
   */
   sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
-  log_stream << "Sasl_client::initilize sasl scrum plug-in path : "
-             << sasl_plugin_dir;
-  log_dbg(log_stream.str());
+  log_info("SASL client initialization: plugin path is ", sasl_plugin_dir);
   return 0;
-#endif
-
-#if defined(SASL_CUSTOM_LIBRARY)
+#elif defined(SASL_CUSTOM_LIBRARY)
   /**
     Tell SASL where to look for plugins:
 
@@ -574,19 +501,27 @@ static int set_sasl_plugin_path() {
   return 0;
 #endif  // defined(SASL_CUSTOM_LIBRARY)
 }
-#endif  // defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+#endif  // defined(SASL_CUSTOM_LIBRARY) || defined(WIN32)
 
 static int initialize_plugin(char *, size_t, int, va_list) {
-  g_logger_client = new Ldap_logger();
+  const char *log_level_opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
+  if (log_level_opt == nullptr) {
+    Ldap_logger::create_logger(ldap_log_level::LDAP_LOG_LEVEL_NONE);
+  } else {
+    int log_level_val = atoi(log_level_opt);
 
-  const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
-  const int opt_val = opt ? atoi(opt) : 0;
-  if (opt && opt_val > 0 && opt_val < 6) {
-    g_logger_client->set_log_level(static_cast<ldap_log_level>(opt_val));
+    if (log_level_val < ldap_log_level::LDAP_LOG_LEVEL_NONE ||
+        log_level_val > ldap_log_level::LDAP_LOG_LEVEL_ALL) {
+      Ldap_logger::create_logger(ldap_log_level::LDAP_LOG_LEVEL_ERROR_WARNING);
+      log_warning(
+          "AUTHENTICATION_LDAP_CLIENT_LOG environment variable has incorrect "
+          "value, correct values are 1-5. Setting log level to WARNING.");
+    } else
+      Ldap_logger::create_logger(static_cast<ldap_log_level>(log_level_val));
   }
 
   int rc_sasl;
-#if defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+#if defined(SASL_CUSTOM_LIBRARY) || defined(WIN32)
   rc_sasl = set_sasl_plugin_path();
   if (rc_sasl != SASL_OK) {
     // Error already logged.
@@ -598,8 +533,8 @@ static int initialize_plugin(char *, size_t, int, va_list) {
   rc_sasl = sasl_client_init(nullptr);
   if (rc_sasl != SASL_OK) {
     std::stringstream log_stream;
-    log_stream << "sasl_client_init failed rc: " << rc_sasl;
-    log_error(log_stream.str());
+    log_stream << "sasl_client_init failed with " << rc_sasl;
+    log_error(log_stream.str().c_str());
     return 1;
   }
 
@@ -607,8 +542,7 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 }
 
 static int deinitialize_plugin() {
-  delete g_logger_client;
-  g_logger_client = nullptr;
+  Ldap_logger::destroy_logger();
 #if defined(SASL_CLIENT_DONE_SUPPORTED)
   sasl_client_done();
 #else
@@ -617,7 +551,11 @@ static int deinitialize_plugin() {
   return 0;
 }
 
+}  // namespace auth_ldap_sasl_client
+
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "LDAP SASL Client Authentication Plugin",
-    {0, 1, 0}, "PROPRIETARY", nullptr, initialize_plugin, deinitialize_plugin,
-    nullptr, nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;
+    {0, 1, 0}, "PROPRIETARY", nullptr, auth_ldap_sasl_client::initialize_plugin,
+    auth_ldap_sasl_client::deinitialize_plugin, nullptr,
+    nullptr, auth_ldap_sasl_client::sasl_authenticate,
+    nullptr mysql_end_client_plugin;
