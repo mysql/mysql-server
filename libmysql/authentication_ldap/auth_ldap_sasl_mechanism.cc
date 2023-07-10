@@ -20,147 +20,101 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "auth_ldap_sasl_mechanism.h"
-
 #include "my_config.h"
 
-#include <assert.h>
-#ifndef WIN32
+#include "auth_ldap_sasl_mechanism.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifndef _WIN32
 #include <lber.h>
+#include <sasl/sasl.h>
 #endif
 
-#include "log_client.h"
-
-namespace auth_ldap_sasl_client {
-
-const char Sasl_mechanism::SASL_GSSAPI[] = "GSSAPI";
-const char Sasl_mechanism::SASL_SCRAM_SHA1[] = "SCRAM-SHA-1";
-const char Sasl_mechanism::SASL_SCRAM_SHA256[] = "SCRAM-SHA-256";
-
-#if defined(SCRAM_LIB_CONFIGURED)
-const sasl_callback_t Sasl_mechanism_scram::callbacks[] = {
-#ifdef SASL_CB_GETREALM
-    {SASL_CB_GETREALM, nullptr, nullptr},
-#endif  // SASL_CB_GETREALM
-    {SASL_CB_USER, nullptr, nullptr},
-    {SASL_CB_AUTHNAME, nullptr, nullptr},
-    {SASL_CB_PASS, nullptr, nullptr},
-    {SASL_CB_ECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_NOECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_LIST_END, nullptr, nullptr}};
-#endif  // SCRAM_LIB_CONFIGURED
+#if defined(KERBEROS_LIB_CONFIGURED)
+extern Ldap_logger *g_logger_client;
+using namespace auth_ldap_client_kerberos_context;
+#else
+Ldap_logger *g_logger_client = NULL;
+#endif
 
 #if defined(KERBEROS_LIB_CONFIGURED)
-const sasl_callback_t Sasl_mechanism_kerberos::callbacks[] = {
-#ifdef SASL_CB_GETREALM
-    {SASL_CB_GETREALM, nullptr, nullptr},
-#endif  // SASL_CB_GETREALM
-    {SASL_CB_ECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_NOECHOPROMPT, nullptr, nullptr},
-    {SASL_CB_LIST_END, nullptr, nullptr}};
+Sasl_mechanism_kerberos::Sasl_mechanism_kerberos() = default;
 
-bool Sasl_mechanism_kerberos::get_default_user(std::string &name) {
-  return m_kerberos.get_default_principal_name(name);
-}
+Sasl_mechanism_kerberos::~Sasl_mechanism_kerberos() = default;
 
-bool Sasl_mechanism_kerberos::preauthenticate(const char *user,
-                                              const char *password) {
-  assert(user);
-  assert(password);
-
-  m_kerberos.set_user_and_password(user, password);
-  m_kerberos.get_ldap_host(m_ldap_server_host);
-
-  log_info("LDAP host is ", m_ldap_server_host.c_str());
-
-  /*
-     Password is empty.
+bool Sasl_mechanism_kerberos::pre_authentication() {
+  m_kerberos = std::unique_ptr<Kerberos>(
+      new Kerberos(m_user.c_str(), m_password.c_str()));
+  /**
+     Both user name and password are empty.
      Existing TGT will be used for authentication.
-     The user name must be either empty or it must be the same as principal name
-     of TGT. Main user case.
+     Main user case.
   */
-  if (password[0] == 0) {
-    if (m_kerberos.credentials_valid()) {
-      log_info(
-          "Existing Kerberos TGT is valid and will be used for "
-          "authentication.");
-      return true;
-    } else {
-      log_error(
-          "Existing Kerberos TGT is not valid. Authentication will be "
-          "aborted. ");
-      return false;
-    }
+  if (m_user.empty() && m_password.empty()) {
+    log_dbg(
+        "MySQL user name and password are empty. Existing TGT will be used for "
+        "authentication.");
+    return true;
   }
-  /*
-     Password is not empty, Obtaining TGT from Kerberos.
+  /**
+     User name and password are not empty, Obtaining TGT from kerberos.
      First time use case.
   */
-  else {
-    if (m_kerberos.obtain_store_credentials()) {
-      log_info("TGT from Kerberos obtained successfuly.");
+  if (!m_user.empty() && !m_password.empty()) {
+    log_dbg("Obtaining TGT from kerberos.");
+    return m_kerberos->obtain_store_credentials();
+  }
+  /**
+    User name is not empty.
+  */
+  if (!m_user.empty()) {
+    std::string user_name;
+    m_kerberos->get_user_name(&user_name);
+    /**
+       MySQL user name and kerberos default principle name is same.
+       Existing TGT will be used for authentication.
+    */
+    if (user_name == m_user) {
+      log_dbg(
+          "MySQL user name and kerberos default principle name is same. "
+          "Existing TGT will be used for authentication.");
       return true;
     } else {
-      log_error("Obtaining TGT from Kerberos failed.");
-      return false;
+      bool ret_val = false;
+      log_dbg(
+          "MySQL user name and kerberos default principle name is different. "
+          "Authentication will be aborted. ");
+      return ret_val;
     }
   }
+  /**
+    User has provided password but not user name, returning error.
+  */
+  log_dbg(
+      "MySQL user name is empty but password is not empty. Authentication will "
+      "be aborted. ");
+  return false;
 }
-const char *Sasl_mechanism_kerberos::get_ldap_host() {
-  return m_ldap_server_host.empty() ? nullptr : m_ldap_server_host.c_str();
-};
 
-#endif  // KERBEROS_LIB_CONFIGURED
+void Sasl_mechanism_kerberos::get_ldap_host(std::string &host) {
+  log_dbg("Sasl_mechanism_kerberos::get_ldap_host");
+  if (!m_kerberos) return;
+  m_kerberos->get_ldap_host(host);
+}
 
-bool Sasl_mechanism::create_sasl_mechanism(const char *mechanism_name,
-                                           Sasl_mechanism *&mechanism) {
-  if (mechanism_name == nullptr || mechanism_name[0] == 0) {
-    log_error("Empty SASL method name.");
-    return false;
-  }
-  if (mechanism != nullptr) {
-    if (strcmp(mechanism_name, mechanism->m_mechanism_name) == 0) {
-      log_dbg("Correct SASL mechanism already exists.");
-      return true;
-    } else {
-      log_error("SASL mechanism mismatch.");
-      return false;
-    }
-  }
-  log_dbg("Creating object for SASL mechanism ", mechanism_name, ".");
-
-  if (strcmp(mechanism_name, SASL_GSSAPI) == 0)
-#if defined(KERBEROS_LIB_CONFIGURED)
-    mechanism = new Sasl_mechanism_kerberos();
-#else
-  {
-    log_error(
-        "The client was not built with GSSAPI/Kerberos libraries, method not "
-        "supported.");
-    return false;
-  }
 #endif
 
-#if defined(SCRAM_LIB_CONFIGURED)
-  else if (strcmp(mechanism_name, SASL_SCRAM_SHA1) == 0)
-    mechanism = new Sasl_mechanism_scram(SASL_SCRAM_SHA1);
-  else if (strcmp(mechanism_name, SASL_SCRAM_SHA256) == 0)
-    mechanism = new Sasl_mechanism_scram(SASL_SCRAM_SHA256);
-#else
-  else if (strcmp(mechanism_name, SASL_SCRAM_SHA1) == 0 ||
-           strcmp(mechanism_name, SASL_SCRAM_SHA256) == 0) {
-    log_error(
-        "The client was not built with SCRAM libraries, method not "
-        "supported.");
-    return false;
-  }
-#endif
-  else {
-    log_error("SASL method", mechanism_name,
-              " is not supported by the client.");
-    return false;
-  }
-
-  return true;
+void Sasl_mechanism::set_user_info(std::string user, std::string password) {
+  m_user = user;
+  m_password = password;
 }
-}  // namespace auth_ldap_sasl_client
+
+Sasl_mechanism::Sasl_mechanism() = default;
+
+Sasl_mechanism::~Sasl_mechanism() = default;
+
+bool Sasl_mechanism::pre_authentication() { return true; }
+
+void Sasl_mechanism::get_ldap_host(std::string &host) { host = ""; }

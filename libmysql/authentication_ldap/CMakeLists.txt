@@ -58,17 +58,23 @@ IF(SASL_WITHOUT_KERBEROS)
   MESSAGE(WARNING "Bad custom SASL library")
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client WITHOUT Kerberos")
-ELSEIF(KERBEROS_FOUND)
+  UNSET(LDAP_KERBEROS_LIBS)
+ELSEIF(KERBEROS_FOUND AND (NOT WIN32))
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client with Kerberos")
   IF(KERBEROS_INCLUDE_DIR)
     INCLUDE_DIRECTORIES(SYSTEM ${KERBEROS_INCLUDE_DIR})
   ENDIF()
   SET(AUTH_LDAP_KERBEROS_CC auth_ldap_kerberos.cc)
-  SET(KRB5_INTERFACE_CC krb5_interface.cc)
+  # mysys is required to use my_free and my_strdup when getting
+  # Kerberos user name.
+  # Adding mysys only when build has Kerberos support
+  SET(MY_SYS "mysys")
+  SET(LDAP_KERBEROS_LIBS ${KERBEROS_LIBRARIES})
 ELSE()
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client WITHOUT Kerberos")
+  UNSET(LDAP_KERBEROS_LIBS)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
@@ -76,12 +82,12 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   auth_ldap_sasl_mechanism.cc
   ${AUTH_LDAP_KERBEROS_CC}
   log_client.cc
-  ${KRB5_INTERFACE_CC}
   LINK_LIBRARIES
   ${SASL_LIBRARY}
+  ${LDAP_KERBEROS_LIBS}
   ${SSL_LIBRARIES}
   ${LIBDL}
-  mysys
+  ${MY_SYS}
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
@@ -114,14 +120,12 @@ ENDIF()
 IF(WIN32)
   GET_FILENAME_COMPONENT(SASL_DLL_NAME ${SASL_LIBRARY_DLL} NAME)
   GET_FILENAME_COMPONENT(SASL_SCRAM_PLUGIN_NAME "${SASL_SCRAM_PLUGIN}" NAME)
-  GET_FILENAME_COMPONENT(SASL_GSSAPI_PLUGIN_NAME "${SASL_GSSAPI_PLUGIN}" NAME)
 
   MESSAGE(STATUS "SASL_INCLUDE_DIR  = ${SASL_INCLUDE_DIR}")
   MESSAGE(STATUS "SASL_LIBRARY_DLL  = ${SASL_LIBRARY_DLL}")
   MESSAGE(STATUS "SASL_SCRAM_PLUGIN = ${SASL_SCRAM_PLUGIN}")
-  MESSAGE(STATUS "SASL_GSSAPI_PLUGIN = ${SASL_GSSAPI_PLUGIN}")
 
-  # Note that "libsasl.dll", "saslSCRAM.dll" and "saslGSSAPI.dll" go into the "bin" directory
+  # Note that "libsasl.dll" and "saslSCRAM.dll" go into the "bin" directory
   # where "mysql.exe" and other client executables are located.
   INSTALL(FILES "${SASL_LIBRARY_DLL}"
           DESTINATION ${INSTALL_BINDIR}
@@ -129,12 +133,9 @@ IF(WIN32)
   INSTALL(FILES "${SASL_SCRAM_PLUGIN}"
           DESTINATION ${INSTALL_BINDIR}
           COMPONENT SharedLibraries)
-  INSTALL(FILES "${SASL_GSSAPI_PLUGIN}"
-          DESTINATION ${INSTALL_BINDIR}
-          COMPONENT SharedLibraries)
 
   # To run client executables that load the plug-in from the build tree we need
-  # to copy the SASL library DLL, SASL SCRAM and GSSAPI libraries DLLs to the same
+  # to copy the SASL library DLL and SASL SCRAM library DLL to the same
   # directory as the client executables.
   ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -143,9 +144,6 @@ IF(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_SCRAM_PLUGIN}"
       "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${SASL_GSSAPI_PLUGIN}"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_GSSAPI_PLUGIN_NAME}"
   )
   ADD_DEPENDENCIES(authentication_ldap_sasl_client mysqltest)
 

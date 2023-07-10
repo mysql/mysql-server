@@ -23,14 +23,11 @@
 #ifndef AUTH_LDAP_KERBEROS_H_
 #define AUTH_LDAP_KERBEROS_H_
 
-#include <assert.h>
 #include <krb5/krb5.h>
-
-#include <string>
-
-#include "krb5_interface.h"
-
-namespace auth_ldap_sasl_client {
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "log_client.h"
 
 /**
   Kerberos class is built around kerberos library.
@@ -49,33 +46,16 @@ namespace auth_ldap_sasl_client {
   with one name that is considered canonical
 
   Credential cache:
-  A credential cache (or ï¿½ccacheï¿½) holds Kerberos credentials while they
-  remain valid and, generally, while the userï¿½s session lasts, so that
+  A credential cache (or “ccache”) holds Kerberos credentials while they
+  remain valid and, generally, while the user’s session lasts, so that
   authenticating to a service multiple times (e.g., connecting to a web or mail
-  server more than once) doesnï¿½t require contacting the KDC every time.
+  server more than once) doesn’t require contacting the KDC every time.
 */
+namespace auth_ldap_client_kerberos_context {
 class Kerberos {
  public:
-  /**
-   Constructor.
-  */
-  Kerberos();
-  /**
-   Destructor.
-  */
+  Kerberos(const char *user, const char *password);
   ~Kerberos();
-  /**
-   Set user and password member variables.
-
-   @param user [in] user name
-   @param password [in]  password
-  */
-  void set_user_and_password(const char *user, const char *password) {
-    assert(user);
-    assert(password);
-    m_user = user;
-    m_password = password;
-  }
   /**
     1. This function authenticates with kerberos server.
     2. If TGT destroy is false, this function stores the TGT in Kerberos cache
@@ -95,17 +75,7 @@ class Kerberos {
     @retval true Successfully able to get user name.
     @retval false Failed to get user name.
   */
-  bool get_default_principal_name(std::string &name);
-  /**
-   Check if the cache contains valid credentials
-
-   @retval true valid credentials exist
-   @retval false valid credentials not exist or an error ocurred
-  */
-  bool credentials_valid();
-  /**
-   Destroys existing credentials (remove them from the cache).
-  */
+  bool get_user_name(std::string *name);
   void destroy_credentials();
   /**
     This function gets LDAP host from krb5.conf file.
@@ -120,94 +90,28 @@ class Kerberos {
     credentials cache and user principal are initialized correctly.
     @retval false Required kerberos objects failed to initialized.
   */
-  bool initialize();
+  bool setup();
   /**
     This function frees kerberos context, credentials, credentials cache and
     user principal.
   */
   void cleanup();
 
-  /** is the object initialized */
   bool m_initialized;
-  /** user name */
   std::string m_user;
-  /** user password */
   std::string m_password;
-  /** LDAP host */
   std::string m_ldap_server_host;
-  /** shall be the credentials destroyed on cleanup */
   bool m_destroy_tgt;
-  /** Kerberos context */
   krb5_context m_context;
-  /** Kerberos cache */
   krb5_ccache m_krb_credentials_cache;
-  /** Kerberos credentials */
   krb5_creds m_credentials;
-  /** were the credentials created by the object */
   bool m_credentials_created;
-  /** interface to kerberos functions */
-  Krb5_interface krb5;
 
-  /**
-   Log a Kerberos error, the message is taken from the Kerberos based on the
-   error code.
-
-   @param error_code [in] Kerberos error code
-  */
   void log(int error_code);
-  /**
-  This method gets kerberos profile settings from krb5.conf file.
-
-  @retval true success
-  @retval false failure
-
-  @details
-  Sample krb5.conf file format may be like this:
-
-  [realms]
-  MEM.LOCAL = {
-    kdc = VIKING67.MEM.LOCAL
-    admin_server = VIKING67.MEM.LOCAL
-    default_domain = MEM.LOCAL
-    }
-
-  # This portion is optional
-  [appdefaults]
-  mysql = {
-    ldap_server_host = ldap_host.oracle.com
-    ldap_destroy_tgt = true
-  }
-
-  kdc:
-  The name or address of a host running a KDC for that realm.
-  An optional port number, separated from the hostname by a colon, may
-  be included. If the name or address contains colons (for example, if it is
-  an IPv6 address), enclose it in square brackets to distinguish the colon
-  from a port separator.
-
-  For example:
-  kdchost.example.com:88
-  [2001:db8:3333:4444:5555:6666:7777:8888]:88
-
-  Details from:
-  https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html
-
-  Host information is used by LDAP SASL client API while initialization.
-  LDAP SASL API doesn't need port information and port is not used any where.
-  */
+  krb5_error_code store_credentials();
+  krb5_error_code obtain_credentials();
+  bool credential_valid();
   bool get_kerberos_config();
-  /**
-   Opens default Kerberos cache.
-
-   @retval true success
-   @retval false failure
-   */
-  bool open_default_cache();
-
-  /**
-   Closes default Kerberos cache.
-  */
-  void close_default_cache();
 };
-}  // namespace auth_ldap_sasl_client
+}  // namespace auth_ldap_client_kerberos_context
 #endif  // AUTH_LDAP_KERBEROS_H_

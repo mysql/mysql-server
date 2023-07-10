@@ -5158,7 +5158,7 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
     if (strcmp(mpvio->plugin->name, "authentication_ldap_sasl_client") == 0) {
       if (!mysql->user[0]) {
         set_mysql_error(mysql, CR_KERBEROS_USER_NOT_FOUND, unknown_sqlstate);
-        goto error;
+        return true;
       }
     } else
 #endif
