@@ -3597,8 +3597,9 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     unsigned short port= (unsigned short)t.m_s_service_port;
     if(t.m_s_service_port<0)
       port= -t.m_s_service_port; // is a dynamic port
-    TransporterService *transporter_service =
-      new TransporterService(new SocketAuthSimple());
+    // FIXME, use t.m_require_tls in patch#4:
+    SocketAuthTls * auth = new SocketAuthTls(& m_tls_keys, false);
+    TransporterService *transporter_service = new TransporterService(auth);
     ndb_sockaddr addr;
     if (t.m_interface && Ndb_getAddr(&addr, t.m_interface))
     {
