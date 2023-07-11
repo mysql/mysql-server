@@ -913,7 +913,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
         if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
             dropped_non_atomic) {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
-          thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+          thd->variables.gtid_next.gtid.to_string(global_tsid_map, gtid_buf,
                                                   true);
           my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0), path,
                    gtid_buf, db.str);

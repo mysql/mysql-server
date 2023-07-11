@@ -473,9 +473,9 @@ int Transaction_consistency_manager::handle_remote_prepare(
     /*
      This transaction has a UUID different from the group name,
      thence we need to fetch the corresponding sidno from the
-     global sid_map.
+     global tsid_map.
     */
-    sidno = get_sidno_from_global_sid_map(tsid);
+    sidno = get_sidno_from_global_tsid_map(tsid);
     if (sidno <= 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP);
@@ -485,7 +485,7 @@ int Transaction_consistency_manager::handle_remote_prepare(
   } else {
     /*
       This transaction has the group name as UUID, so we can skip
-      a lock on global sid_map and use the cached group sidno.
+      a lock on global tsid_map and use the cached group sidno.
     */
     sidno = get_group_sidno();
   }

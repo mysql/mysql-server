@@ -40,82 +40,82 @@
 #include "client/mysqlbinlog.h"  // IWYU pragma: keep
 #endif
 
-PSI_memory_key key_memory_Sid_map_Node;
+PSI_memory_key key_memory_tsid_map_Node;
 
-Sid_map::Sid_map(Checkable_rwlock *_sid_lock) : sid_lock(_sid_lock) {
+Tsid_map::Tsid_map(Checkable_rwlock *_tsid_lock) : tsid_lock(_tsid_lock) {
   DBUG_TRACE;
-  _sidno_to_sid.reserve(8);
+  _sidno_to_tsid.reserve(8);
 }
 
-Sid_map::~Sid_map() { DBUG_TRACE; }
+Tsid_map::~Tsid_map() { DBUG_TRACE; }
 
-enum_return_status Sid_map::clear() {
+enum_return_status Tsid_map::clear() {
   DBUG_TRACE;
-  _sid_to_sidno.clear();
-  _sidno_to_sid.clear();
+  _tsid_to_sidno.clear();
+  _sidno_to_tsid.clear();
   _sorted.clear();
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add_tsid(const Tsid &tsid) {
+rpl_sidno Tsid_map::add_tsid(const Tsid &tsid) {
   DBUG_TRACE;
 #ifndef NDEBUG
   std::string tsid_str = tsid.to_string();
-  DBUG_PRINT("info", ("SID=%s", tsid_str.c_str()));
+  DBUG_PRINT("info", ("TSID=%s", tsid_str.c_str()));
 #endif
-  if (sid_lock) sid_lock->assert_some_lock();
-  auto it = _sid_to_sidno.find(tsid);
-  if (it != _sid_to_sidno.end()) {
+  if (tsid_lock) tsid_lock->assert_some_lock();
+  auto it = _tsid_to_sidno.find(tsid);
+  if (it != _tsid_to_sidno.end()) {
     DBUG_PRINT("info", ("existed as sidno=%d", it->second));
     return it->second;
   }
 
   bool is_wrlock = false;
-  if (sid_lock) {
-    is_wrlock = sid_lock->is_wrlock();
+  if (tsid_lock) {
+    is_wrlock = tsid_lock->is_wrlock();
     if (!is_wrlock) {
-      sid_lock->unlock();
-      sid_lock->wrlock();
+      tsid_lock->unlock();
+      tsid_lock->wrlock();
     }
   }
-  DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
+  DBUG_PRINT("info", ("is_wrlock=%d tsid_lock=%p", is_wrlock, tsid_lock));
   rpl_sidno sidno;
-  it = _sid_to_sidno.find(tsid);
-  if (it != _sid_to_sidno.end())
+  it = _tsid_to_sidno.find(tsid);
+  if (it != _tsid_to_sidno.end())
     sidno = it->second;
   else {
     sidno = get_max_sidno() + 1;
     if (add_node(sidno, tsid) != RETURN_STATUS_OK) sidno = -1;
   }
 
-  if (sid_lock) {
+  if (tsid_lock) {
     if (!is_wrlock) {
-      sid_lock->unlock();
-      sid_lock->rdlock();
+      tsid_lock->unlock();
+      tsid_lock->rdlock();
     }
   }
   return sidno;
 }
 
-enum_return_status Sid_map::add_node(rpl_sidno sidno, const Tsid &tsid) {
+enum_return_status Tsid_map::add_node(rpl_sidno sidno, const Tsid &tsid) {
   DBUG_TRACE;
-  if (sid_lock) sid_lock->assert_some_wrlock();
-  bool sid_to_sidno_inserted = false;
-  bool sidno_to_sid_inserted = false;
+  if (tsid_lock) tsid_lock->assert_some_wrlock();
+  bool tsid_to_sidno_inserted = false;
+  bool sidno_to_tsid_inserted = false;
   [[maybe_unused]] bool sorted_inserted = false;
   try {
-    auto insert_result = _sid_to_sidno.insert(std::make_pair(tsid, sidno));
+    auto insert_result = _tsid_to_sidno.insert(std::make_pair(tsid, sidno));
     if (insert_result.second) {
       auto tsid_ref = std::cref(insert_result.first->first);
-      sid_to_sidno_inserted = true;
-      _sidno_to_sid.push_back(tsid_ref);
-      sidno_to_sid_inserted = true;
+      tsid_to_sidno_inserted = true;
+      _sidno_to_tsid.push_back(tsid_ref);
+      sidno_to_tsid_inserted = true;
       if (_sorted.insert(std::make_pair(tsid, sidno)).second) {
         sorted_inserted = true;
 #ifdef MYSQL_SERVER
-        // If this is the global_sid_map, we take the opportunity to
+        // If this is the global_tsid_map, we take the opportunity to
         // resize all arrays in gtid_state while holding the wrlock.
-        if (this != global_sid_map ||
+        if (this != global_tsid_map ||
             gtid_state->ensure_sidno() == RETURN_STATUS_OK)
 #endif
         {
@@ -123,15 +123,15 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const Tsid &tsid) {
         }
       }
     }
-  } catch (std::bad_alloc &ex) {
+  } catch (std::bad_alloc &) {
     // error is reported below
   }
 
-  if (sid_to_sidno_inserted) {
-    _sid_to_sidno.erase(tsid);
+  if (tsid_to_sidno_inserted) {
+    _tsid_to_sidno.erase(tsid);
   }
-  if (sidno_to_sid_inserted) {
-    _sidno_to_sid.pop_back();
+  if (sidno_to_tsid_inserted) {
+    _sidno_to_tsid.pop_back();
   }
   if (sorted_inserted) {
     _sorted.erase(tsid);
@@ -141,14 +141,14 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const Tsid &tsid) {
   RETURN_REPORTED_ERROR;
 }
 
-enum_return_status Sid_map::copy(Sid_map *dest) {
+enum_return_status Tsid_map::copy(Tsid_map *dest) {
   DBUG_TRACE;
   enum_return_status return_status = RETURN_STATUS_OK;
 
   rpl_sidno max_sidno = get_max_sidno();
   for (rpl_sidno sidno = 1;
        sidno <= max_sidno && return_status == RETURN_STATUS_OK; sidno++) {
-    Tsid tsid(sidno_to_sid(sidno));
+    Tsid tsid(sidno_to_tsid(sidno));
     return_status = dest->add_node(sidno, tsid);
   }
 

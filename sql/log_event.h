@@ -4091,33 +4091,33 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
   */
   const Tsid &get_tsid() const { return tsid; }
   /**
-    Return the SIDNO relative to the global sid_map for this GTID.
+    Return the SIDNO relative to the global tsid_map for this GTID.
 
-    This requires a lookup and possibly even update of global_sid_map,
-    hence global_sid_lock must be held.  If global_sid_lock is not
+    This requires a lookup and possibly even update of global_tsid_map,
+    hence global_tsid_lock must be held.  If global_tsid_lock is not
     held, the caller must pass need_lock=true.  If there is an error
-    (e.g. out of memory) while updating global_sid_map, this function
+    (e.g. out of memory) while updating global_tsid_map, this function
     returns a negative number.
 
-    @param need_lock If true, the read lock on global_sid_lock is
+    @param need_lock If true, the read lock on global_tsid_lock is
     acquired and released inside this function; if false, the read
     lock or write lock must be held prior to calling this function.
     @retval SIDNO if successful
-    @retval negative if adding SID to global_sid_map causes an error.
+    @retval negative if adding TSID to global_tsid_map causes an error.
   */
   rpl_sidno get_sidno(bool need_lock);
 
   /**
-    Return the SIDNO relative to the given Sid_map for this GTID.
+    Return the SIDNO relative to the given Tsid_map for this GTID.
 
-    This assumes that the Sid_map is local to the thread, and thus
+    This assumes that the Tsid_map is local to the thread, and thus
     does not use locks.
 
-    @param sid_map The sid_map to use.
+    @param tsid_map The tsid_map to use.
     @retval SIDNO if successful.
-    @retval negative if adding SID to sid_map causes an error.
+    @retval negative if adding TSID to tsid_map causes an error.
   */
-  rpl_sidno get_sidno(Sid_map *sid_map) { return sid_map->add_tsid(tsid); }
+  rpl_sidno get_sidno(Tsid_map *tsid_map) { return tsid_map->add_tsid(tsid); }
   /// Return the GNO for this GTID.
   rpl_gno get_gno() const override { return spec.gtid.gno; }
 
@@ -4322,8 +4322,8 @@ class Transaction_context_log_event
     : public mysql::binlog::event::Transaction_context_event,
       public Log_event {
  private:
-  /// The Sid_map to use for creating the Gtid_set.
-  Sid_map *sid_map;
+  /// The Tsid_map to use for creating the Gtid_set.
+  Tsid_map *tsid_map;
   /// A gtid_set which is used to store the transaction set used for
   /// conflict detection.
   Gtid_set *snapshot_version;

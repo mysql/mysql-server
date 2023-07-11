@@ -72,8 +72,8 @@
 */
 class Gtid_set_ref : public Gtid_set {
  public:
-  Gtid_set_ref(Sid_map *sid_map, int64 parallel_applier_sequence_number)
-      : Gtid_set(sid_map),
+  Gtid_set_ref(Tsid_map *tsid_map, int64 parallel_applier_sequence_number)
+      : Gtid_set(tsid_map),
         reference_counter(0),
         parallel_applier_sequence_number(parallel_applier_sequence_number) {}
 
@@ -486,7 +486,7 @@ class Certifier : public Certifier_interface {
     Variable to store the sidno used for transactions which will be logged
     with the group_uuid.
   */
-  rpl_sidno group_gtid_sid_map_group_sidno;
+  rpl_sidno group_gtid_tsid_map_group_sidno;
 
   /**
     The sidno used for view log events as seen by the group sid map
@@ -693,7 +693,7 @@ class Certifier : public Certifier_interface {
     Certification database.
   */
   Certification_info certification_info;
-  Sid_map *certification_info_sid_map;
+  Tsid_map *certification_info_tsid_map;
 
   ulonglong positive_cert;
   ulonglong negative_cert;
@@ -711,7 +711,7 @@ class Certifier : public Certifier_interface {
     Stable set and garbage collector variables.
   */
   Checkable_rwlock *stable_gtid_set_lock;
-  Sid_map *stable_sid_map;
+  Tsid_map *stable_tsid_map;
   Gtid_set *stable_gtid_set;
   Synchronized_queue<Data_packet *> *incoming;
 
@@ -764,7 +764,7 @@ class Certifier : public Certifier_interface {
   /*
     Sid map to store the GTIDs that are executed in the group.
   */
-  Sid_map *group_gtid_sid_map;
+  Tsid_map *group_gtid_tsid_map;
 
   /*
     A Gtid_set containing the already executed for the group.

@@ -757,7 +757,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr,
       fd_ev.common_footer->checksum_alg = m_event_checksum_alg;
       Gtid_log_event gtid_ev(reinterpret_cast<const char *>(event_ptr), &fd_ev);
       Gtid gtid;
-      gtid.sidno = gtid_ev.get_sidno(m_exclude_gtid->get_sid_map());
+      gtid.sidno = gtid_ev.get_sidno(m_exclude_gtid->get_tsid_map());
       gtid.gno = gtid_ev.get_gno();
       return m_exclude_gtid->contains_gtid(gtid);
     }
@@ -883,13 +883,13 @@ int Binlog_sender::check_start_file() {
       error. Otherwise, it can lead to data inconsistency between Master
       and Slave.
     */
-    Sid_map *slave_sid_map = m_exclude_gtid->get_sid_map();
-    assert(slave_sid_map);
-    global_sid_lock->wrlock();
-    const rpl_sid &server_sid = gtid_state->get_server_sid();
-    rpl_sidno subset_sidno = slave_sid_map->sid_to_sidno(server_sid);
+    Tsid_map *slave_tsid_map = m_exclude_gtid->get_tsid_map();
+    assert(slave_tsid_map);
+    global_tsid_lock->wrlock();
+    const auto &server_tsid = gtid_state->get_server_tsid();
+    rpl_sidno subset_sidno = slave_tsid_map->tsid_to_sidno(server_tsid);
     Gtid_set gtid_executed_and_owned(
-        gtid_state->get_executed_gtids()->get_sid_map());
+        gtid_state->get_executed_gtids()->get_tsid_map());
 
     // gtids = executed_gtids & owned_gtids
     if (gtid_executed_and_owned.add_gtid_set(
@@ -898,10 +898,10 @@ int Binlog_sender::check_start_file() {
     }
     gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
 
-    if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
-                                           gtid_state->get_server_sidno(),
-                                           subset_sidno)) {
-      global_sid_lock->unlock();
+    if (!m_exclude_gtid->is_subset_for_sidno(&gtid_executed_and_owned,
+                                             gtid_state->get_server_sidno(),
+                                             subset_sidno)) {
+      global_tsid_lock->unlock();
       set_fatal_error(ER_THD(m_thd, ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE));
       return 1;
     }
@@ -933,11 +933,11 @@ int Binlog_sender::check_start_file() {
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
       mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, errmsg);
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       set_fatal_error(errmsg.c_str());
       return 1;
     }
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     Gtid first_gtid = {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(
             index_entry_name, m_exclude_gtid, &first_gtid, errmsg)) {

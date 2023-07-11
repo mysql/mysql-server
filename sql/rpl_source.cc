@@ -996,9 +996,9 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   char *gtid_string = nullptr;
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
-  Sid_map sid_map(
-      nullptr /*no sid_lock because this is a completely local object*/);
-  Gtid_set slave_gtid_executed(&sid_map);
+  Tsid_map tsid_map(
+      nullptr /*no tsid_lock because this is a completely local object*/);
+  Gtid_set slave_gtid_executed(&tsid_map);
 
   assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
@@ -1234,9 +1234,9 @@ bool reset_binary_logs_and_gtids(THD *thd, bool unlock_global_read_lock) {
     */
     ret = mysql_bin_log.reset_logs(thd);
   } else {
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     ret = (gtid_state->clear(thd) != 0);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
   }
 
 end:
@@ -1275,15 +1275,15 @@ bool show_binary_log_status(THD *thd) {
 
   DBUG_TRACE;
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   const Gtid_set *gtid_set = gtid_state->get_executed_gtids();
   if ((gtid_set_size = gtid_set->to_string(&gtid_set_buffer)) < 0) {
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     my_eof(thd);
     my_free(gtid_set_buffer);
     return true;
   }
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));

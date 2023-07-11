@@ -38,17 +38,17 @@ class GtidGeneratorTest : public ::testing::Test {
   void TearDown() override {}
 
   struct Id {
-    Id(const std::string &uuid, Sid_map &sid_map, Gtid_set &set)
+    Id(const std::string &uuid, Tsid_map &tsid_map, Gtid_set &set)
         : m_uuid(uuid) {
       [[maybe_unused]] auto ret = m_tsid.from_cstring(uuid.c_str());
       assert(ret > 0);
-      m_sidno = sid_map.add_tsid(m_tsid);
+      m_sidno = tsid_map.add_tsid(m_tsid);
       assert(m_sidno >= 1);
       set.ensure_sidno(m_sidno);  // insert sidno to gtid set
     }
     std::string m_uuid;  // uuid string
-    Tsid m_tsid;         // uuid string converted to sid
-    rpl_sidno m_sidno;   // sid converted to sidno using sid_map
+    Tsid m_tsid;         // uuid string converted to tsid
+    rpl_sidno m_sidno;   // tsid converted to sidno using tsid_map
   };
 
   // This test verifies automatic GTID generation performed by the
@@ -65,36 +65,36 @@ class GtidGeneratorTest : public ::testing::Test {
     Gtid_generator gen;
     gen.initialize(block_size);
 
-    Checkable_rwlock sid_map_lock;
-    Sid_map sid_map(&sid_map_lock);
+    Checkable_rwlock tsid_map_lock;
+    Tsid_map tsid_map(&tsid_map_lock);
 
-    Gtid_set set(&sid_map, &sid_map_lock);
+    Gtid_set set(&tsid_map, &tsid_map_lock);
 
-    sid_map_lock.wrlock();
+    tsid_map_lock.wrlock();
 
     // define member's uuids
     std::vector<Id> members_tids = {
-        Id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-bbbb-aaaaaaaaaaaa", sid_map, set)};
+        Id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-bbbb-aaaaaaaaaaaa", tsid_map, set)};
 
     // define transactions' uuids (custom uuids set with UUID:AUTOMATIC)
     std::vector<Id> trx_tids = {
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:aa", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:bb", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:cc", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:dd", sid_map, set),
-        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:ee", sid_map, set)};
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:aa", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:bb", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:cc", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:dd", tsid_map, set),
+        Id("aaaaaaaa-aaaa-aaaa-cccc-aaaaaaaaaaaa:ee", tsid_map, set)};
 
     assert(set.get_max_sidno() >= trx_tids.at(trx_tids.size() - 1).m_sidno);
 
-    sid_map_lock.unlock();
+    tsid_map_lock.unlock();
 
     std::mutex mt;
 
     // define job for each thread
     auto thread_job =
-        [&members_tids, &trx_tids, &set, &gen, &sid_map_lock, &
+        [&members_tids, &trx_tids, &set, &gen, &tsid_map_lock, &
          mt ](size_t thread_id) -> auto {
       size_t member_id = 0;  // member id
       if (thread_id > 2) {
@@ -107,11 +107,11 @@ class GtidGeneratorTest : public ::testing::Test {
 
       for (size_t id = 0; id < trx_num; ++id) {
         std::scoped_lock lock(mt);  // certifier is sequential
-        sid_map_lock.rdlock();      // required by Gtid_set
+        tsid_map_lock.rdlock();     // required by Gtid_set
         auto [gno, res] = gen.get_next_available_gtid(member_tid.m_uuid.c_str(),
                                                       trx_tid.m_sidno, set);
         set._add_gtid(trx_tid.m_sidno, gno);
-        sid_map_lock.unlock();
+        tsid_map_lock.unlock();
       }
       return 0;
     };
@@ -130,16 +130,16 @@ class GtidGeneratorTest : public ::testing::Test {
     }
 
     // prepare validation gtid set
-    Gtid_set target_gtid_set(&sid_map, &sid_map_lock);
+    Gtid_set target_gtid_set(&tsid_map, &tsid_map_lock);
     for (const auto &member_tid : members_tids) {
-      sid_map_lock.rdlock();
+      tsid_map_lock.rdlock();
       target_gtid_set.ensure_sidno(member_tid.m_sidno);
-      sid_map_lock.unlock();
+      tsid_map_lock.unlock();
     }
     for (const auto &trx_tid : trx_tids) {
-      sid_map_lock.rdlock();
+      tsid_map_lock.rdlock();
       target_gtid_set.ensure_sidno(trx_tid.m_sidno);
-      sid_map_lock.unlock();
+      tsid_map_lock.unlock();
     }
 
     // Check that the current state of the generator is correct
@@ -152,20 +152,20 @@ class GtidGeneratorTest : public ::testing::Test {
       auto member_tid = members_tids.at(member_id);
       auto trx_tid = trx_tids.at(thread_id);
       size_t trx_num = (thread_id + 1) * 100 + thread_id;
-      sid_map_lock.rdlock();
+      tsid_map_lock.rdlock();
       for (size_t trx_id = 0; trx_id < trx_num; ++trx_id) {
         target_gtid_set._add_gtid(trx_tid.m_sidno, trx_id + 1);
       }
       auto [gno, res] = gen.get_next_available_gtid(member_tid.m_uuid.c_str(),
                                                     trx_tid.m_sidno, set);
-      sid_map_lock.unlock();
+      tsid_map_lock.unlock();
       ASSERT_EQ(gno, trx_num + 1);
     }
 
     // check gtid executed set
-    sid_map_lock.wrlock();
+    tsid_map_lock.wrlock();
     ASSERT_EQ(set.equals(&target_gtid_set), true);
-    sid_map_lock.unlock();
+    tsid_map_lock.unlock();
   }
 
   // This test verifies automatic GTID generation performed by the
@@ -175,12 +175,12 @@ class GtidGeneratorTest : public ::testing::Test {
     Gtid_generator gen;
     gen.initialize(1000);
 
-    Checkable_rwlock sid_map_lock;
-    Sid_map sid_map(&sid_map_lock);
-    Gtid_set set(&sid_map, &sid_map_lock);
+    Checkable_rwlock tsid_map_lock;
+    Tsid_map tsid_map(&tsid_map_lock);
+    Gtid_set set(&tsid_map, &tsid_map_lock);
 
-    sid_map_lock.wrlock();
-    Id member_id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sid_map, set);
+    tsid_map_lock.wrlock();
+    Id member_id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", tsid_map, set);
 
     set.add_gtid_text(
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775806");
@@ -189,7 +189,7 @@ class GtidGeneratorTest : public ::testing::Test {
                                                   member_id.m_sidno, set);
     ASSERT_EQ(res, mysql::utils::Return_status::error);
     ASSERT_EQ(gno, -1);
-    sid_map_lock.unlock();
+    tsid_map_lock.unlock();
   }
 
   // This test verifies automatic GTID generation performed by the
@@ -199,12 +199,12 @@ class GtidGeneratorTest : public ::testing::Test {
     Gtid_generator gen;
     gen.initialize(1);
 
-    Checkable_rwlock sid_map_lock;
-    Sid_map sid_map(&sid_map_lock);
-    Gtid_set set(&sid_map, &sid_map_lock);
+    Checkable_rwlock tsid_map_lock;
+    Tsid_map tsid_map(&tsid_map_lock);
+    Gtid_set set(&tsid_map, &tsid_map_lock);
 
-    sid_map_lock.wrlock();
-    Id member_id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", sid_map, set);
+    tsid_map_lock.wrlock();
+    Id member_id("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", tsid_map, set);
 
     set.add_gtid_text(
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-9223372036854775806");
@@ -213,7 +213,7 @@ class GtidGeneratorTest : public ::testing::Test {
                                                   member_id.m_sidno, set);
     ASSERT_EQ(res, mysql::utils::Return_status::error);
     ASSERT_EQ(gno, -1);
-    sid_map_lock.unlock();
+    tsid_map_lock.unlock();
   }
 };
 

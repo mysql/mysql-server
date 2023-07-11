@@ -67,7 +67,7 @@ TYPELIB gtid_consistency_mode_typelib = {
 
 #ifdef MYSQL_SERVER
 enum_gtid_consistency_mode get_gtid_consistency_mode() {
-  global_sid_lock->assert_some_lock();
+  global_tsid_lock->assert_some_lock();
   return (enum_gtid_consistency_mode)_gtid_consistency_mode;
 }
 #endif
@@ -182,14 +182,14 @@ std::pair<Return_status, mysql::gtid::Gtid> Gtid::parse_gtid_from_cstring(
                         mysql::gtid::Gtid(mysql::gtid::Tsid(uuid, tag), gno));
 }
 
-Return_status Gtid::parse(Sid_map *sid_map, const char *text) {
+Return_status Gtid::parse(Tsid_map *tsid_map, const char *text) {
   DBUG_TRACE;
   auto [status, parsed_gtid] = parse_gtid_from_cstring(text);
   if (status == Return_status::error) {
     report_parsing_error(text);
     return status;
   }
-  rpl_sidno sidno_var = sid_map->add_tsid(parsed_gtid.get_tsid());
+  rpl_sidno sidno_var = tsid_map->add_tsid(parsed_gtid.get_tsid());
   if (sidno_var <= 0) {
     status = Return_status::error;
   }
@@ -218,18 +218,18 @@ int Gtid::to_string(const Tsid &tsid, char *buf) const {
   return id;
 }
 
-int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
+int Gtid::to_string(const Tsid_map *tsid_map, char *buf, bool need_lock) const {
   DBUG_TRACE;
   int ret;
-  if (sid_map != nullptr) {
-    Checkable_rwlock *lock = sid_map->get_sid_lock();
+  if (tsid_map != nullptr) {
+    Checkable_rwlock *lock = tsid_map->get_tsid_lock();
     if (lock) {
       if (need_lock)
         lock->rdlock();
       else
         lock->assert_some_lock();
     }
-    const auto tsid = sid_map->sidno_to_sid(sidno);
+    const auto tsid = tsid_map->sidno_to_tsid(sidno);
     if (lock && need_lock) lock->unlock();
     ret = to_string(tsid, buf);
   } else {
@@ -283,12 +283,12 @@ void check_return_status(enum_return_status status, const char *action,
 
 #ifdef MYSQL_SERVER
 
-rpl_sidno get_sidno_from_global_sid_map(const Tsid &tsid) {
+rpl_sidno get_sidno_from_global_tsid_map(const Tsid &tsid) {
   DBUG_TRACE;
 
-  global_sid_lock->rdlock();
-  rpl_sidno sidno = global_sid_map->add_tsid(tsid);
-  global_sid_lock->unlock();
+  global_tsid_lock->rdlock();
+  rpl_sidno sidno = global_tsid_map->add_tsid(tsid);
+  global_tsid_lock->unlock();
 
   return sidno;
 }
@@ -296,9 +296,9 @@ rpl_sidno get_sidno_from_global_sid_map(const Tsid &tsid) {
 rpl_gno get_last_executed_gno(rpl_sidno sidno) {
   DBUG_TRACE;
 
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
   rpl_gno gno = gtid_state->get_last_executed_gno(sidno);
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   return gno;
 }
@@ -342,12 +342,12 @@ void Trx_monitoring_info::clear() {
   uncompressed_bytes = 0;
 }
 
-void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
+void Trx_monitoring_info::copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg) const {
-  assert(sid_map);
+  assert(tsid_map);
   assert(gtid_arg);
   assert(gtid_length_arg);
   assert(original_commit_ts_arg);
@@ -362,10 +362,10 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
       *gtid_length_arg = 9;
     } else {
       // The GTID is set
-      Checkable_rwlock *sid_lock = sid_map->get_sid_lock();
-      sid_lock->rdlock();
-      *gtid_length_arg = gtid.to_string(sid_map, gtid_arg);
-      sid_lock->unlock();
+      Checkable_rwlock *tsid_lock = tsid_map->get_tsid_lock();
+      tsid_lock->rdlock();
+      *gtid_length_arg = gtid.to_string(tsid_map, gtid_arg);
+      tsid_lock->unlock();
     }
     *original_commit_ts_arg = original_commit_timestamp;
     *immediate_commit_ts_arg = immediate_commit_timestamp;
@@ -380,7 +380,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
   }
 }
 
-void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
+void Trx_monitoring_info::copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
@@ -389,12 +389,12 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time : 0;
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
 }
 
 void Trx_monitoring_info::copy_to_ps_table(
-    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
@@ -418,12 +418,12 @@ void Trx_monitoring_info::copy_to_ps_table(
     *last_transient_timestamp_arg = 0;
     *retries_count_arg = 0;
   }
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
 }
 
 void Trx_monitoring_info::copy_to_ps_table(
-    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
@@ -432,7 +432,7 @@ void Trx_monitoring_info::copy_to_ps_table(
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time : 0;
-  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+  copy_to_ps_table(tsid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg,
                    last_transient_errno_arg, last_transient_errmsg_arg,
                    last_transient_errmsg_length_arg,

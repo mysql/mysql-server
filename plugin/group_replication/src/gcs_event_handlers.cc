@@ -1877,10 +1877,10 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
 int Plugin_gcs_events_handler::compare_member_transaction_sets() const {
   int result = 0;
 
-  Sid_map local_sid_map(nullptr);
-  Sid_map group_sid_map(nullptr);
-  Gtid_set local_member_set(&local_sid_map, nullptr);
-  Gtid_set group_set(&group_sid_map, nullptr);
+  Tsid_map local_tsid_map(nullptr);
+  Tsid_map group_tsid_map(nullptr);
+  Gtid_set local_member_set(&local_tsid_map, nullptr);
+  Gtid_set group_set(&group_tsid_map, nullptr);
 
   Group_member_info_list *all_members = group_member_mgr->get_all_members();
   Group_member_info_list_iterator all_members_it;

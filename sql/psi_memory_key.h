@@ -44,7 +44,7 @@ typedef unsigned int PSI_memory_key;
 extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 extern PSI_memory_key key_memory_Gtid_set_to_string;
-extern PSI_memory_key key_memory_Sid_map_Node;
+extern PSI_memory_key key_memory_tsid_map_Node;
 extern PSI_memory_key key_memory_String_value;
 extern PSI_memory_key key_memory_log_error_loaded_services;
 extern PSI_memory_key key_memory_log_error_stack;

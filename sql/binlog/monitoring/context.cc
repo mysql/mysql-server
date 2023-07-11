@@ -274,7 +274,7 @@ void Transaction_compression::reset() {
 void Transaction_compression::update(
     log_type log_type, mysql::binlog::event::compression::type comp_type,
     Gtid &gtid, uint64_t transaction_timestamp, uint64_t comp_bytes,
-    uint64_t uncomp_bytes, Sid_map *sid_map) {
+    uint64_t uncomp_bytes, Tsid_map *tsid_map) {
   DBUG_TRACE;
   Gtid_specification spec;
   char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
@@ -282,7 +282,7 @@ void Transaction_compression::update(
     spec.set_anonymous();
   else
     spec.set(gtid);
-  auto gtid_buf_len = spec.to_string(sid_map, gtid_buf, true);
+  auto gtid_buf_len = spec.to_string(tsid_map, gtid_buf, true);
   std::string gtid_string(gtid_buf, gtid_buf_len);
 
 #ifndef NDEBUG

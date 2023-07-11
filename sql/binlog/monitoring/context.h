@@ -238,13 +238,13 @@ class Transaction_compression {
                                  since the UNIX epoch.
     @param comp_bytes the bytes compressed by this transaction.
     @param uncomp_bytes the bytes uncompressed by this transaction.
-    @param sid_map the Sid_map to use to create a string representation from the
-                   transaction identifier provided.
+    @param tsid_map the Tsid_map to use to create a string representation from
+    the transaction identifier provided.
    */
   void update(log_type log_type,
               mysql::binlog::event::compression::type comp_type, Gtid &gtid,
               uint64_t transaction_timestamp, uint64_t comp_bytes,
-              uint64_t uncomp_bytes, Sid_map *sid_map = global_sid_map);
+              uint64_t uncomp_bytes, Tsid_map *tsid_map = global_tsid_map);
 
   /**
     Gets the contents of the probe. The contents are a copy of the internal

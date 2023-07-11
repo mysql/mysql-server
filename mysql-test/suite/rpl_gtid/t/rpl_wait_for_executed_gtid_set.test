@@ -67,7 +67,7 @@
 #          UUIDs, where all the GTIDs for one of the UUIDs are already
 #          committed before the function starts.
 #     7.6. The function waits for a UUID which does not already exist
-#          in global_sid_map.
+#          in global_tsid_map.
 #    This should all work in case the GTIDs are committed:
 #     7A. from a client on the same server using GTID_NEXT=AUTOMATIC
 #     7B. from a client on the same server using GTID_NEXT=UUID:NUMBER

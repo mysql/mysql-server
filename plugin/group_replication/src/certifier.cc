@@ -283,7 +283,7 @@ Certifier::Certifier()
                   same_member_message_discarded = true;);
 #endif
 
-  certification_info_sid_map = new Sid_map(nullptr);
+  certification_info_tsid_map = new Tsid_map(nullptr);
   incoming = new Synchronized_queue<Data_packet *>(key_certification_data_gc);
 
   stable_gtid_set_lock = new Checkable_rwlock(
@@ -291,13 +291,13 @@ Certifier::Certifier()
       key_GR_RWLOCK_cert_stable_gtid_set
 #endif
   );
-  stable_sid_map = new Sid_map(stable_gtid_set_lock);
-  stable_gtid_set = new Gtid_set(stable_sid_map, stable_gtid_set_lock);
+  stable_tsid_map = new Tsid_map(stable_gtid_set_lock);
+  stable_gtid_set = new Gtid_set(stable_tsid_map, stable_gtid_set_lock);
   broadcast_thread = new Certifier_broadcast_thread();
 
-  group_gtid_sid_map = new Sid_map(nullptr);
-  group_gtid_executed = new Gtid_set(group_gtid_sid_map, nullptr);
-  group_gtid_extracted = new Gtid_set(group_gtid_sid_map, nullptr);
+  group_gtid_tsid_map = new Tsid_map(nullptr);
+  group_gtid_executed = new Gtid_set(group_gtid_tsid_map, nullptr);
+  group_gtid_extracted = new Gtid_set(group_gtid_tsid_map, nullptr);
 
   mysql_mutex_init(key_GR_LOCK_certification_info, &LOCK_certification_info,
                    MY_MUTEX_INIT_FAST);
@@ -306,15 +306,15 @@ Certifier::Certifier()
 
 Certifier::~Certifier() {
   clear_certification_info();
-  delete certification_info_sid_map;
+  delete certification_info_tsid_map;
 
   delete stable_gtid_set;
-  delete stable_sid_map;
+  delete stable_tsid_map;
   delete stable_gtid_set_lock;
   delete broadcast_thread;
   delete group_gtid_executed;
   delete group_gtid_extracted;
-  delete group_gtid_sid_map;
+  delete group_gtid_tsid_map;
 
   mysql_mutex_lock(&LOCK_members);
   clear_members();
@@ -345,8 +345,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     goto end;                                        /* purecov: inspected */
   }
 
-  group_gtid_sid_map_group_sidno = group_gtid_sid_map->add_tsid(group_tsid);
-  if (group_gtid_sid_map_group_sidno < 0) {
+  group_gtid_tsid_map_group_sidno = group_gtid_tsid_map->add_tsid(group_tsid);
+  if (group_gtid_tsid_map_group_sidno < 0) {
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR); /* purecov: inspected */
@@ -354,7 +354,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     goto end;                                           /* purecov: inspected */
   }
 
-  if (group_gtid_executed->ensure_sidno(group_gtid_sid_map_group_sidno) !=
+  if (group_gtid_executed->ensure_sidno(group_gtid_tsid_map_group_sidno) !=
       RETURN_STATUS_OK) {
     LogPluginErr(
         ERROR_LEVEL,
@@ -363,7 +363,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     goto end;                                      /* purecov: inspected */
   }
 
-  if (group_gtid_extracted->ensure_sidno(group_gtid_sid_map_group_sidno) !=
+  if (group_gtid_extracted->ensure_sidno(group_gtid_tsid_map_group_sidno) !=
       RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_DONOR_TRANS_INFO_ERROR); /* purecov: inspected */
@@ -372,7 +372,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   }
 
   if (strcmp(view_uuid, "AUTOMATIC") == 0) {
-    views_sidno_group_representation = group_gtid_sid_map_group_sidno;
+    views_sidno_group_representation = group_gtid_tsid_map_group_sidno;
     views_sidno_server_representation = get_group_sidno();
   } else {
     if (view_tsid.from_cstring(view_uuid) == 0) {
@@ -383,7 +383,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
       /* purecov: end */
     }
 
-    views_sidno_group_representation = group_gtid_sid_map->add_tsid(view_tsid);
+    views_sidno_group_representation = group_gtid_tsid_map->add_tsid(view_tsid);
     if (views_sidno_group_representation < 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
@@ -477,7 +477,7 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
      3) the transactions use the view UUID
   */
   if (certifying_already_applied_transactions &&
-      (sidno == group_gtid_sid_map_group_sidno ||
+      (sidno == group_gtid_tsid_map_group_sidno ||
        sidno == views_sidno_group_representation))
     group_gtid_extracted->_add_gtid(sidno, gno);
 }
@@ -567,9 +567,9 @@ namespace {
 /// @param gtid_set Gtid set into which tsid will be added
 std::pair<rpl_sidno, mysql::utils::Return_status>
 add_tsid_to_gtid_set_and_sid_map(gr::Gtid_tsid &tsid, Gtid_set &gtid_set) {
-  // Add received transaction GTID tsid to SIDMAP in gtid_set
+  // Add received transaction GTID tsid to TSID map in gtid_set
   auto certification_state = mysql::utils::Return_status::ok;
-  auto sidno = gtid_set.get_sid_map()->add_tsid(tsid);
+  auto sidno = gtid_set.get_tsid_map()->add_tsid(tsid);
   if (sidno < 1) {
     LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
     certification_state = mysql::utils::Return_status::error;
@@ -606,7 +606,7 @@ Certifier::extract_sidno(Gtid_log_event &gle, bool is_gtid_specified,
     std::ignore = tsid.from_cstring(group_name);
     if (gle.is_tagged()) {
       tsid.set_tag(gle.get_tsid().get_tag());
-      server_sidno = get_sidno_from_global_sid_map(tsid);
+      server_sidno = get_sidno_from_global_tsid_map(tsid);
     }
   }
 
@@ -662,8 +662,8 @@ Certification_result Certifier::add_writeset_to_certification_info(
   // Only consider remote transactions for parallel applier indexes.
   int64 transaction_sequence_number =
       local_transaction ? -1 : parallel_applier_sequence_number;
-  Gtid_set_ref *snapshot_version_value =
-      new Gtid_set_ref(certification_info_sid_map, transaction_sequence_number);
+  Gtid_set_ref *snapshot_version_value = new Gtid_set_ref(
+      certification_info_tsid_map, transaction_sequence_number);
   if (snapshot_version_value->add_gtid_set(snapshot_version) !=
       RETURN_STATUS_OK) {
     delete snapshot_version_value;
@@ -721,7 +721,7 @@ namespace {
     rpl_sidno gtid_group_sidno, rpl_sidno gtid_global_sidno, rpl_gno gno,
     Gtid_set &group_gtid_executed, const std::string &sid_str) {
   if (group_gtid_executed.contains_gtid(gtid_group_sidno, gno)) {
-    // sidno is relative to global_sid_map.
+    // sidno is relative to global_tsid_map.
     Gtid gtid = {gtid_global_sidno, gno};
     if (is_gtid_committed(gtid)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, sid_str.c_str(),
@@ -1245,8 +1245,8 @@ int Certifier::stable_set_handle() {
   Data_packet *packet = nullptr;
   int error = 0;
 
-  Sid_map sid_map(nullptr);
-  Gtid_set executed_set(&sid_map, nullptr);
+  Tsid_map tsid_map(nullptr);
+  Gtid_set executed_set(&tsid_map, nullptr);
 
   /*
     Compute intersection between all received sets.
@@ -1262,8 +1262,8 @@ int Certifier::stable_set_handle() {
     }
 
     uchar *payload = packet->payload;
-    Gtid_set member_set(&sid_map, nullptr);
-    Gtid_set intersection_result(&sid_map, nullptr);
+    Gtid_set member_set(&tsid_map, nullptr);
+    Gtid_set intersection_result(&tsid_map, nullptr);
 
     if (member_set.add_gtid_encoding(payload, packet->len) !=
         RETURN_STATUS_OK) {
@@ -1570,7 +1570,7 @@ bool Certifier::set_certification_info_part(
          ++it) {
       std::string key = it->first;
 
-      Gtid_set_ref *value = new Gtid_set_ref(certification_info_sid_map, -1);
+      Gtid_set_ref *value = new Gtid_set_ref(certification_info_tsid_map, -1);
       if (value->add_gtid_encoding(
               reinterpret_cast<const uchar *>(it->second.c_str()),
               it->second.length()) != RETURN_STATUS_OK) {
@@ -1801,7 +1801,7 @@ int Certifier::set_certification_info(
       continue;
     }
 
-    Gtid_set_ref *value = new Gtid_set_ref(certification_info_sid_map, -1);
+    Gtid_set_ref *value = new Gtid_set_ref(certification_info_tsid_map, -1);
     if (value->add_gtid_encoding(
             reinterpret_cast<const uchar *>(it->second.c_str()),
             it->second.length()) != RETURN_STATUS_OK) {
@@ -1885,7 +1885,8 @@ void Certifier::get_last_conflict_free_transaction(std::string *value) {
   MUTEX_LOCK(guard, &LOCK_certification_info);
   if (last_conflict_free_transaction.is_empty()) return;
 
-  length = last_conflict_free_transaction.to_string(group_gtid_sid_map, buffer);
+  length =
+      last_conflict_free_transaction.to_string(group_gtid_tsid_map, buffer);
   if (length > 0) value->assign(buffer);
 }
 

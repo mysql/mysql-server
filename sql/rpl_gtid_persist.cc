@@ -363,9 +363,9 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid) {
   Gtid_table_access_context table_access_ctx;
 
   /* Get source id */
-  global_sid_lock->rdlock();
-  const auto &tsid = global_sid_map->sidno_to_sid(gtid->sidno);
-  global_sid_lock->unlock();
+  global_tsid_lock->rdlock();
+  const auto &tsid = global_tsid_map->sidno_to_tsid(gtid->sidno);
+  global_tsid_lock->unlock();
   std::string sid_str = tsid.get_uuid().to_string();
   std::string tag_str = tsid.get_tag().to_string();
 
@@ -441,8 +441,8 @@ int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set) {
   /* Get GTID intervals from gtid_set. */
   gtid_set->get_gtid_intervals(&gtid_intervals);
   for (iter = gtid_intervals.begin(); iter != gtid_intervals.end(); iter++) {
-    /* Get source id. */
-    const auto &tsid = gtid_set->get_sid_map()->sidno_to_sid(iter->sidno);
+    /* Get transaction source id. */
+    const auto &tsid = gtid_set->get_tsid_map()->sidno_to_tsid(iter->sidno);
     auto sid_str = tsid.get_uuid().to_string();
     auto tag_str = tsid.get_tag().to_string();
 
@@ -712,18 +712,18 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set) {
 
     /**
       @todo:
-      - take only global_sid_lock->rdlock(), and take
-        gtid_state->sid_lock for each iteration.
+      - take only global_tsid_lock->rdlock(), and take
+        gtid_state->tsid_lock for each iteration.
       - Add wrapper around Gtid_set::add_gno_interval and call that
         instead.
     */
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     if (gtid_set->add_gtid_text(encode_gtid_text(table).c_str()) !=
         RETURN_STATUS_OK) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       break;
     }
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
   }
 
   table->file->ha_rnd_end();

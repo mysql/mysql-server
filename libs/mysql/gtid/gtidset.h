@@ -248,7 +248,7 @@ class Gtid_set {
   using Tsid = mysql::gtid::Tsid;
 
  protected:
-  [[NODISCARD]] virtual bool do_add(const Tsid &uuid,
+  [[NODISCARD]] virtual bool do_add(const Tsid &tsid,
                                     const Gno_interval &interval);
   [[NODISCARD]] virtual bool do_add(const Uuid &uuid, const Tag &tag,
                                     const Gno_interval &interval);

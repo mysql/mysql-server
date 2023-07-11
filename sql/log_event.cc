@@ -13000,9 +13000,9 @@ Gtid_log_event::Gtid_log_event(
     if (spec_arg.gtid.gno <= 0 || spec_arg.gtid.gno >= GNO_END)
       common_header->set_is_valid(false);
     spec.set(spec_arg.gtid);
-    global_sid_lock->rdlock();
-    tsid = global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
-    global_sid_lock->unlock();
+    global_tsid_lock->rdlock();
+    tsid = global_tsid_map->sidno_to_tsid(spec_arg.gtid.sidno);
+    global_tsid_lock->unlock();
     if (tsid.is_tagged()) {
       event_type = mysql::binlog::event::GTID_TAGGED_LOG_EVENT;
     } else {
@@ -13359,12 +13359,12 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     }
   }
 
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
 
   // make sure that sid has been converted to sidno
   if (spec.type == ASSIGNED_GTID) {
     if (get_sidno(false) < 0) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       return 1;  // out of memory
     }
   } else if ((spec.type == ANONYMOUS_GTID) &&
@@ -13377,7 +13377,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
         rli->m_assign_gtids_to_anonymous_transactions_info.get_sidno();
   }
 
-  // set_gtid_next releases global_sid_lock
+  // set_gtid_next releases global_tsid_lock
   if (set_gtid_next(thd, spec))
     // This can happen e.g. if gtid_mode is incompatible with spec.
     return 1;
@@ -13511,12 +13511,12 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
 rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
   if (spec.gtid.sidno < 0) {
     if (need_lock)
-      global_sid_lock->rdlock();
+      global_tsid_lock->rdlock();
     else
-      global_sid_lock->assert_some_lock();
-    spec.gtid.sidno = global_sid_map->add_tsid(tsid);
+      global_tsid_lock->assert_some_lock();
+    spec.gtid.sidno = global_tsid_map->add_tsid(tsid);
     gtid_info_struct.rpl_gtid_sidno = spec.gtid.sidno;
-    if (need_lock) global_sid_lock->unlock();
+    if (need_lock) global_tsid_lock->unlock();
   }
   return spec.gtid.sidno;
 }
@@ -13541,7 +13541,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   DBUG_TRACE;
   common_header->type_code = mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT;
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
-  set->get_sid_map()->get_sid_lock()->assert_some_lock();
+  set->get_tsid_map()->get_tsid_lock()->assert_some_lock();
   buf_size = set->get_encoded_length();
   uchar *buffer =
       (uchar *)my_malloc(key_memory_log_event, buf_size, MYF(MY_WME));
@@ -13594,8 +13594,8 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const {
 char *Previous_gtids_log_event::get_str(
     size_t *length_p, const Gtid_set::String_format *string_format) const {
   DBUG_TRACE;
-  Sid_map sid_map(nullptr);
-  Gtid_set set(&sid_map, nullptr);
+  Tsid_map tsid_map(nullptr);
+  Gtid_set set(&tsid_map, nullptr);
   DBUG_PRINT("info", ("temp_buf=%p buf=%p", temp_buf, buf));
   if (set.add_gtid_encoding(buf, buf_size) != RETURN_STATUS_OK) return nullptr;
   set.dbug_print("set");
@@ -13638,18 +13638,18 @@ Transaction_context_log_event::Transaction_context_log_event(
   DBUG_TRACE;
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
   server_uuid = nullptr;
-  sid_map = new Sid_map(nullptr);
-  snapshot_version = new Gtid_set(sid_map);
+  tsid_map = new Tsid_map(nullptr);
+  snapshot_version = new Gtid_set(tsid_map);
 
   /*
-    Copy global_sid_map to a local copy to avoid the acquisition
-    of the global_sid_lock for operations on top of this snapshot
+    Copy global_tsid_map to a local copy to avoid the acquisition
+    of the global_tsid_lock for operations on top of this snapshot
     version.
-    The Sid_map and Gtid_executed must be read under the protection
+    The Tsid_map and Gtid_executed must be read under the protection
     of MYSQL_BIN_LOG.LOCK_commit to avoid race conditions between
     ordered commits in the storage engine and gtid_state update.
   */
-  if (mysql_bin_log.get_gtid_executed(sid_map, snapshot_version)) goto err;
+  if (mysql_bin_log.get_gtid_executed(tsid_map, snapshot_version)) goto err;
 
   server_uuid = my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
   if (server_uuid == nullptr) goto err;
@@ -13683,15 +13683,15 @@ Transaction_context_log_event::Transaction_context_log_event(
     const char *buffer, const Format_description_event *descr_event)
     : mysql::binlog::event::Transaction_context_event(buffer, descr_event),
       Log_event(header(), footer()),
-      sid_map(nullptr),
+      tsid_map(nullptr),
       snapshot_version(nullptr) {
   DBUG_TRACE;
   if (!is_valid()) return;
 
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
-  sid_map = new Sid_map(nullptr);
-  snapshot_version = new Gtid_set(sid_map);
+  tsid_map = new Tsid_map(nullptr);
+  snapshot_version = new Gtid_set(tsid_map);
 }
 
 Transaction_context_log_event::~Transaction_context_log_event() {
@@ -13702,7 +13702,7 @@ Transaction_context_log_event::~Transaction_context_log_event() {
     my_free(const_cast<uchar *>(encoded_snapshot_version));
   encoded_snapshot_version = nullptr;
   delete snapshot_version;
-  delete sid_map;
+  delete tsid_map;
 }
 
 size_t Transaction_context_log_event::to_string(char *buf, ulong len) const {
@@ -13714,7 +13714,7 @@ size_t Transaction_context_log_event::to_string(char *buf, ulong len) const {
 void Transaction_context_log_event::claim_memory_ownership(bool claim) {
   my_claim(temp_buf, claim);
   my_claim(this, claim);
-  if (sid_map) my_claim(sid_map, claim);
+  if (tsid_map) my_claim(tsid_map, claim);
   if (snapshot_version) my_claim(snapshot_version, claim);
 }
 
@@ -13836,9 +13836,9 @@ bool Transaction_context_log_event::read_snapshot_version() {
   DBUG_TRACE;
   assert(snapshot_version->is_empty());
 
-  global_sid_lock->wrlock();
-  const enum_return_status return_status = global_sid_map->copy(sid_map);
-  global_sid_lock->unlock();
+  global_tsid_lock->wrlock();
+  const enum_return_status return_status = global_tsid_map->copy(tsid_map);
+  global_tsid_lock->unlock();
   if (return_status != RETURN_STATUS_OK) return true;
 
   return snapshot_version->add_gtid_encoding(encoded_snapshot_version,

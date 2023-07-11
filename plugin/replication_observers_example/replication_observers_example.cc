@@ -257,7 +257,7 @@ static int before_commit_tests(Trans_param *param,
     case POSITIVE_CERTIFICATION_WITH_GTID:
       std::ignore =
           fake_tsid.from_cstring("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-      fake_sidno = get_sidno_from_global_sid_map(fake_tsid);
+      fake_sidno = get_sidno_from_global_tsid_map(fake_tsid);
       fake_gno = get_last_executed_gno(fake_sidno);
       fake_gno++;
 
@@ -503,7 +503,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   */
   mysql::gtid::Tsid fake_tsid;
   std::ignore = fake_tsid.from_cstring("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-  const rpl_sidno fake_sidno = get_sidno_from_global_sid_map(fake_tsid);
+  const rpl_sidno fake_sidno = get_sidno_from_global_tsid_map(fake_tsid);
   const rpl_gno fake_gno = get_last_executed_gno(fake_sidno) + 1;
 
   const Gtid gtid = {fake_sidno, fake_gno};
@@ -687,7 +687,7 @@ int test_channel_service_interface() {
   // Get the last delivered gno (should be 0)
   mysql::gtid::Tsid fake_tsid;
   std::ignore = fake_tsid.from_cstring("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-  const rpl_sidno fake_sidno = get_sidno_from_global_sid_map(fake_tsid);
+  const rpl_sidno fake_sidno = get_sidno_from_global_tsid_map(fake_tsid);
   rpl_gno gno = channel_get_last_delivered_gno(interface_channel, fake_sidno);
   assert(gno == 0);
 

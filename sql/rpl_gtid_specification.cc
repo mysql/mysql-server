@@ -58,7 +58,7 @@ bool Gtid_specification::is_automatic_tagged() const {
   return is_automatic() && automatic_tag.is_defined();
 }
 
-Return_status Gtid_specification::parse(Sid_map *sid_map, const char *text) {
+Return_status Gtid_specification::parse(Tsid_map *tsid_map, const char *text) {
   DBUG_TRACE;
   Return_status status = Return_status::ok;
   assert(text != nullptr);
@@ -81,7 +81,7 @@ Return_status Gtid_specification::parse(Sid_map *sid_map, const char *text) {
   } else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0) {
     type = ANONYMOUS_GTID;
   } else {
-    status = gtid.parse(sid_map, text);
+    status = gtid.parse(tsid_map, text);
     if (status == Return_status::ok) type = ASSIGNED_GTID;
   }
   return status;
@@ -174,10 +174,10 @@ int Gtid_specification::to_string(const Tsid &tsid, char *buf) const {
   return 0;
 }
 
-int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,
+int Gtid_specification::to_string(const Tsid_map *tsid_map, char *buf,
                                   bool need_lock) const {
   return to_string(is_assigned() || is_undefined()
-                       ? sid_map->sidno_to_sid(gtid.sidno, need_lock)
+                       ? tsid_map->sidno_to_tsid(gtid.sidno, need_lock)
                        : Tsid(),
                    buf);
 }

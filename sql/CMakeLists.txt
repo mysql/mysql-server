@@ -1045,7 +1045,7 @@ SET(BINLOG_SOURCE
   rpl_gtid_owned.cc
   rpl_gtid_persist.cc
   rpl_gtid_set.cc
-  rpl_gtid_sid_map.cc
+  rpl_gtid_tsid_map.cc
   rpl_gtid_specification.cc
   rpl_gtid_state.cc
   rpl_injector.cc

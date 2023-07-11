@@ -1544,7 +1544,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   const Gtid_specification *gtid_next = &info_thd->variables.gtid_next;
   THD *thd = info_thd;
 
-  gtid_next->to_string(global_sid_map, buff_gtid, true);
+  gtid_next->to_string(global_tsid_map, buff_gtid, true);
 
   if (level == ERROR_LEVEL && (!has_temporary_error(thd, err_code) ||
                                thd->get_transaction()->cannot_safely_rollback(

@@ -3751,10 +3751,10 @@ class THD : public MDL_context_owner,
   /** Flags for SE GTID persistence. */
   Se_GTID_flagset m_se_gtid_flags;
 
-  /** Defer freeing owned GTID and SID till unpinned. */
+  /** Defer freeing owned GTID and TSID till unpinned. */
   void pin_gtid() { m_se_gtid_flags.set(SE_GTID_PIN); }
 
-  /** Unpin and free GTID and SID. */
+  /** Unpin and free GTID and TSID. */
   void unpin_gtid() {
     m_se_gtid_flags.reset(SE_GTID_PIN);
     /* Do any deferred cleanup */

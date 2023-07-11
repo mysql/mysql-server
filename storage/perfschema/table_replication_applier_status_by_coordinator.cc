@@ -319,7 +319,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   mysql_mutex_unlock(&mi->rli->data_lock);
 
   last_processed_trx.copy_to_ps_table(
-      global_sid_map, m_row.last_processed_trx,
+      global_tsid_map, m_row.last_processed_trx,
       &m_row.last_processed_trx_length,
       &m_row.last_processed_trx_original_commit_timestamp,
       &m_row.last_processed_trx_immediate_commit_timestamp,
@@ -327,7 +327,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
       &m_row.last_processed_trx_end_buffer_timestamp);
 
   processing_trx.copy_to_ps_table(
-      global_sid_map, m_row.processing_trx, &m_row.processing_trx_length,
+      global_tsid_map, m_row.processing_trx, &m_row.processing_trx_length,
       &m_row.processing_trx_original_commit_timestamp,
       &m_row.processing_trx_immediate_commit_timestamp,
       &m_row.processing_trx_start_buffer_timestamp);

@@ -281,7 +281,7 @@ class Until_gtids : public Until_option {
   Gtid_set m_gtids;
 
   Until_gtids(Relay_log_info *rli)
-      : Until_option(rli), m_gtids(global_sid_map) {}
+      : Until_option(rli), m_gtids(global_tsid_map) {}
 };
 
 /**
@@ -337,7 +337,8 @@ class Until_after_gtids : public Until_gtids {
 
   /**
      Print message to the error log for the last message.
-     Caller of the function should hold a read or write lock on global_sid_lock.
+     Caller of the function should hold a read or write lock on
+     global_tsid_lock.
   */
   void last_transaction_executed_message();
 

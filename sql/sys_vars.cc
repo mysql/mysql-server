@@ -4149,15 +4149,15 @@ bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
     return true;
   }
-  global_sid_lock->rdlock();
+  global_tsid_lock->rdlock();
   Gtid_specification spec;
-  if (spec.parse(global_sid_map, res) != mysql::utils::Return_status::ok) {
-    global_sid_lock->unlock();
+  if (spec.parse(global_tsid_map, res) != mysql::utils::Return_status::ok) {
+    global_tsid_lock->unlock();
     return true;
   }
 
   bool ret = set_gtid_next(thd, spec);
-  // set_gtid_next releases global_sid_lock
+  // set_gtid_next releases global_tsid_lock
   return ret;
 }
 
@@ -4169,7 +4169,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
   if (value == nullptr)
     gsn->set_null();
   else {
-    Gtid_set *gs = gsn->set_non_null(global_sid_map);
+    Gtid_set *gs = gsn->set_non_null(global_tsid_map);
     if (gs == nullptr) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // allocation failed
       return true;
@@ -4184,9 +4184,9 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
     else
       gs->clear();
     // Add specified set of groups to Gtid_set.
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     enum_return_status ret = gs->add_gtid_text(value);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     if (ret != RETURN_STATUS_OK) {
       gsn->set_null();
       return true;
@@ -4262,7 +4262,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     AUTO_POSITION.  If gtid_mode was changed between these calls,
     auto_position could be set incompatible with gtid_mode.
 
-    Hold global_sid_lock.wrlock so that:
+    Hold global_tsid_lock.wrlock so that:
     - other transactions cannot acquire ownership of any gtid.
 
     Hold Gtid_mode::lock so that all places that don't want to hold
@@ -4282,7 +4282,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   int lock_count = 4;
 
   auto old_gtid_mode = global_gtid_mode.get();
@@ -4524,7 +4524,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   // Update the mode
   global_var(ulong) = new_gtid_mode;
   global_gtid_mode.set(new_gtid_mode);
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   lock_count = 3;
 
   // Generate note in log
@@ -4543,7 +4543,7 @@ end:
 err:
   assert(lock_count >= 0);
   assert(lock_count <= 4);
-  if (lock_count == 4) global_sid_lock->unlock();
+  if (lock_count == 4) global_tsid_lock->unlock();
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
   Gtid_mode::lock.unlock();
@@ -4555,10 +4555,10 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
   bool ret = true;
 
   /*
-    Hold global_sid_lock.wrlock so that other transactions cannot
+    Hold global_tsid_lock.wrlock so that other transactions cannot
     acquire ownership of any gtid.
   */
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   DBUG_PRINT("info", ("var->save_result.ulonglong_value=%llu",
                       var->save_result.ulonglong_value));
@@ -4621,7 +4621,7 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
 end:
   ret = false;
 err:
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   return ret;
 }
 
@@ -6497,7 +6497,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   bool error = false;
   bool gtid_threshold_breach = false;
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   /*
     ensures the commit of the transaction started when saving the
@@ -6515,7 +6515,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
        *current_gtid_executed = nullptr, *current_gtid_purged = nullptr;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
-  Gtid_set gtid_set(global_sid_map, global_sid_lock);
+  Gtid_set gtid_set(global_tsid_map, global_tsid_lock);
   bool starts_with_plus = false;
   enum_return_status ret = gtid_set.add_gtid_text(
       var->save_result.string_value.str, nullptr, &starts_with_plus);
@@ -6543,7 +6543,7 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
          current_gtid_executed);
 
 end:
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
   my_free(previous_gtid_executed);
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);

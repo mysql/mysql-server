@@ -262,8 +262,11 @@ int table_events_transactions_common::make_row(
                      m_row.m_source, sizeof(m_row.m_source),
                      m_row.m_source_length);
 
-  /* A GTID consists of the SID (source id) and GNO (transaction number).
-     The SID is stored in transaction->m_sid and the GNO is stored in
+  /* A GTID consists of the TSID (transaction source id) and GNO
+     (transaction number).
+     The TSID consists of transaction source UUID and a user-defined tag
+     (empty by default).
+     The TSID is stored in transaction->m_tsid and the GNO is stored in
      transaction->m_gtid_spec.gno.
 
      On a master, the GTID is assigned when the transaction commit.
@@ -282,7 +285,7 @@ int table_events_transactions_common::make_row(
 
      The Gtid_specification contains the GNO, as well as a type code
      that specifies which of the three modes is currently in effect.
-     Given a SID, it can generate the textual representation of the
+     Given a TSID, it can generate the textual representation of the
      GTID.
   */
   Gtid_specification *gtid_spec = &transaction->m_gtid_spec;

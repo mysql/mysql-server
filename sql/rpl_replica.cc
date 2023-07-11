@@ -1097,9 +1097,9 @@ static void recover_relay_log(Master_info *mi) {
   */
   if (global_gtid_mode.get() == Gtid_mode::ON &&
       !channel_map.is_group_replication_channel_name(rli->get_channel())) {
-    rli->get_sid_lock()->wrlock();
-    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear_set_and_sid_map();
-    rli->get_sid_lock()->unlock();
+    rli->get_tsid_lock()->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear_set_and_tsid_map();
+    rli->get_tsid_lock()->unlock();
   }
 }
 
@@ -3750,12 +3750,12 @@ bool show_slave_status(THD *thd) {
 
   if (io_gtid_set_buffer_array == nullptr) return true;
 
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
 
   const Gtid_set *sql_gtid_set = gtid_state->get_executed_gtids();
   sql_gtid_set_size = sql_gtid_set->to_string(&sql_gtid_set_buffer);
 
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   idx = 0;
   for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
@@ -3771,7 +3771,7 @@ bool show_slave_status(THD *thd) {
 
     if (Master_info::is_configured(mi)) {
       const Gtid_set *io_gtid_set = mi->rli->get_gtid_set();
-      mi->rli->get_sid_lock()->wrlock();
+      mi->rli->get_tsid_lock()->wrlock();
 
       /*
          @todo: a single memory allocation improves speed,
@@ -3788,14 +3788,14 @@ bool show_slave_status(THD *thd) {
         }
         my_free(io_gtid_set_buffer_array);
 
-        mi->rli->get_sid_lock()->unlock();
+        mi->rli->get_tsid_lock()->unlock();
         return true;
       } else
         max_io_gtid_set_size = max_io_gtid_set_size > io_gtid_set_size
                                    ? max_io_gtid_set_size
                                    : io_gtid_set_size;
 
-      mi->rli->get_sid_lock()->unlock();
+      mi->rli->get_tsid_lock()->unlock();
     }
     idx++;
   }
@@ -3864,15 +3864,15 @@ bool show_slave_status(THD *thd, Master_info *mi) {
   DBUG_TRACE;
 
   if (mi != nullptr) {
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     const Gtid_set *sql_gtid_set = gtid_state->get_executed_gtids();
     sql_gtid_set_size = sql_gtid_set->to_string(&sql_gtid_set_buffer);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
 
-    mi->rli->get_sid_lock()->wrlock();
+    mi->rli->get_tsid_lock()->wrlock();
     const Gtid_set *io_gtid_set = mi->rli->get_gtid_set();
     io_gtid_set_size = io_gtid_set->to_string(&io_gtid_set_buffer);
-    mi->rli->get_sid_lock()->unlock();
+    mi->rli->get_tsid_lock()->unlock();
 
     if (sql_gtid_set_size < 0 || io_gtid_set_size < 0) {
       my_eof(thd);
@@ -4168,34 +4168,34 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
   rpl->server_id = server_id;
   rpl->flags = binlog_flags;
 
-  Sid_map sid_map(nullptr); /* No lock needed */
+  Tsid_map tsid_map(nullptr); /* No lock needed */
   /*
     Note: should be declared at the same level as the mysql_binlog_open() call,
     as the latter might call fix_gtid_set() which in turns calls
     gtid_executed->encode().
   */
-  Gtid_set gtid_executed(&sid_map);
+  Gtid_set gtid_executed(&tsid_map);
 
   if (command == COM_BINLOG_DUMP_GTID) {
     // get set of GTIDs
-    mi->rli->get_sid_lock()->wrlock();
+    mi->rli->get_tsid_lock()->wrlock();
 
     if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) !=
         RETURN_STATUS_OK) {
-      mi->rli->get_sid_lock()->unlock();
+      mi->rli->get_tsid_lock()->unlock();
       return 1;
     }
-    mi->rli->get_sid_lock()->unlock();
+    mi->rli->get_tsid_lock()->unlock();
 
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     gtid_state->dbug_print();
 
     if (gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       return 1;
     }
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
 
     rpl->file_name = nullptr; /* No need to set rpl.file_name_length */
     rpl->start_position = 4;
@@ -7992,9 +7992,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       }
       Gtid_log_event gtid_ev(buf, mi->get_mi_description_event());
       if (!gtid_ev.is_valid()) goto err;
-      rli->get_sid_lock()->rdlock();
-      gtid.sidno = gtid_ev.get_sidno(rli->get_gtid_set()->get_sid_map());
-      rli->get_sid_lock()->unlock();
+      rli->get_tsid_lock()->rdlock();
+      gtid.sidno = gtid_ev.get_sidno(rli->get_gtid_set()->get_tsid_map());
+      rli->get_tsid_lock()->unlock();
       if (gtid.sidno < 0) goto err;
       gtid.gno = gtid_ev.get_gno();
       original_commit_timestamp = gtid_ev.original_commit_timestamp;

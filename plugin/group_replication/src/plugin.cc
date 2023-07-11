@@ -2380,7 +2380,7 @@ static bool init_group_sidno() {
     /* purecov: end */
   }
 
-  lv.group_sidno = get_sidno_from_global_sid_map(group_tsid);
+  lv.group_sidno = get_sidno_from_global_tsid_map(group_tsid);
   if (lv.group_sidno <= 0) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP);
@@ -2399,7 +2399,7 @@ static bool init_group_sidno() {
       /* purecov: end */
     }
 
-    lv.view_change_sidno = get_sidno_from_global_sid_map(view_change_tsid);
+    lv.view_change_sidno = get_sidno_from_global_tsid_map(view_change_tsid);
     if (lv.view_change_sidno <= 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,

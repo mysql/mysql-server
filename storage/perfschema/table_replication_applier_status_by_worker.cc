@@ -545,7 +545,7 @@ void table_replication_applier_status_by_worker::populate_trx_info(
     Trx_monitoring_info const &applying_trx,
     Trx_monitoring_info const &last_applied_trx) {
   // The processing info is always visible
-  applying_trx.copy_to_ps_table(global_sid_map, m_row.applying_trx,
+  applying_trx.copy_to_ps_table(global_tsid_map, m_row.applying_trx,
                                 &m_row.applying_trx_length,
                                 &m_row.applying_trx_original_commit_timestamp,
                                 &m_row.applying_trx_immediate_commit_timestamp,
@@ -557,7 +557,7 @@ void table_replication_applier_status_by_worker::populate_trx_info(
                                 &m_row.applying_trx_retries_count);
 
   last_applied_trx.copy_to_ps_table(
-      global_sid_map, m_row.last_applied_trx, &m_row.last_applied_trx_length,
+      global_tsid_map, m_row.last_applied_trx, &m_row.last_applied_trx_length,
       &m_row.last_applied_trx_original_commit_timestamp,
       &m_row.last_applied_trx_immediate_commit_timestamp,
       &m_row.last_applied_trx_start_apply_timestamp,

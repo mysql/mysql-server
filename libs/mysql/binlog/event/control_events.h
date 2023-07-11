@@ -926,7 +926,7 @@ class Transaction_payload_event : public Binary_log_event {
   @class Gtid_event
   GTID stands for Global Transaction IDentifier
   It is composed of two parts:
-    - SID for Source Identifier, and
+    - TSID for Transaction Source Identifier, and
     - GNO for Group Number.
   The basic idea is to
      -  Associate an identifier, the Global Transaction IDentifier or GTID,

@@ -701,7 +701,7 @@ THD::THD(bool enable_plugins)
       m_enable_plugins(enable_plugins),
       m_audited(true),
 #ifdef HAVE_GTID_NEXT_LIST
-      owned_gtid_set(global_sid_map),
+      owned_gtid_set(global_tsid_map),
 #endif
       rpl_thd_ctx(key_memory_rpl_thd_context),
       skip_gtid_rollback(false),

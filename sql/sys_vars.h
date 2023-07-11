@@ -2439,10 +2439,10 @@ class Sys_var_gtid_next : public sys_var {
                                  std::string_view) override {
     DBUG_TRACE;
     char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     ((Gtid_specification *)session_var_ptr(target_thd))
-        ->to_string(global_sid_map, buf);
-    global_sid_lock->unlock();
+        ->to_string(global_tsid_map, buf);
+    global_tsid_lock->unlock();
     char *ret = running_thd->mem_strdup(buf);
     return (uchar *)ret;
   }
@@ -2483,11 +2483,11 @@ class Sys_var_gtid_set : public sys_var {
   }
   void session_save_default(THD *thd, set_var *var) {
     DBUG_TRACE;
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     char *ptr = (char *)(intptr)option.def_value;
     var->save_result.string_value.str = ptr;
     var->save_result.string_value.length = ptr ? strlen(ptr) : 0;
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return;
   }
   void global_save_default(THD *thd, set_var *var) { assert(false); }
@@ -2518,13 +2518,13 @@ class Sys_var_gtid_set : public sys_var {
     Gtid_set *gs = gsn->get_gtid_set();
     if (gs == nullptr) return nullptr;
     char *buf;
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     buf = (char *)running_thd->alloc(gs->get_string_length() + 1);
     if (buf)
       gs->to_string(buf);
     else
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->alloc failed
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return (uchar *)buf;
   }
   uchar *global_value_ptr(THD *thd, const std::string &) override {
@@ -2595,14 +2595,14 @@ class Sys_var_gtid_executed : Sys_var_charptr_func {
 
   const uchar *global_value_ptr(THD *thd, std::string_view) override {
     DBUG_TRACE;
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     const Gtid_set *gs = gtid_state->get_executed_gtids();
     char *buf = (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == nullptr)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
     else
       gs->to_string(buf);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return (uchar *)buf;
   }
 };
@@ -2695,7 +2695,7 @@ class Sys_var_gtid_purged : public sys_var {
   const uchar *global_value_ptr(THD *thd, std::string_view) override {
     DBUG_TRACE;
     const Gtid_set *gs;
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     if (opt_bin_log)
       gs = gtid_state->get_lost_gtids();
     else
@@ -2712,7 +2712,7 @@ class Sys_var_gtid_purged : public sys_var {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
     else
       gs->to_string(buf);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return (uchar *)buf;
   }
 
@@ -2744,9 +2744,9 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
       buf = (char *)running_thd->alloc(
           target_thd->owned_gtid_set.get_string_length() + 1);
       if (buf) {
-        global_sid_lock->rdlock();
+        global_tsid_lock->rdlock();
         target_thd->owned_gtid_set.to_string(buf);
-        global_sid_lock->unlock();
+        global_tsid_lock->unlock();
       } else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
 #else
@@ -2756,9 +2756,9 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
       buf = (char *)running_thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
       if (buf) {
         /* Take the lock if accessing another session. */
-        if (remote) global_sid_lock->rdlock();
+        if (remote) global_tsid_lock->rdlock();
         running_thd->owned_gtid.to_string(target_thd->owned_tsid, buf);
-        if (remote) global_sid_lock->unlock();
+        if (remote) global_tsid_lock->unlock();
       } else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
     }
@@ -2768,13 +2768,13 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
   const uchar *global_value_ptr(THD *thd, std::string_view) override {
     DBUG_TRACE;
     const Owned_gtids *owned_gtids = gtid_state->get_owned_gtids();
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
     char *buf = (char *)thd->alloc(owned_gtids->get_max_string_length());
     if (buf)
       owned_gtids->to_string(buf);
     else
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->alloc failed
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     return (uchar *)buf;
   }
 };

@@ -41,7 +41,7 @@
 #include <vector>
 
 class Gtid_set;
-class Sid_map;
+class Tsid_map;
 class THD;
 struct Gtid;
 
@@ -82,9 +82,9 @@ class Session_consistency_gtids_ctx {
 
  private:
   /*
-   Local sid_map to enable a lock free m_gtid_set.
+   Local tsid_map to enable a lock free m_gtid_set.
    */
-  Sid_map *m_sid_map;
+  Tsid_map *m_tsid_map;
 
   /**
     Set holding the transaction identifiers of the gtids
@@ -143,7 +143,7 @@ class Session_consistency_gtids_ctx {
   Session_consistency_gtids_ctx();
 
   /**
-    The destructor. Deletes the m_gtid_set and the sid_map.
+    The destructor. Deletes the m_gtid_set and the tsid_map.
   */
   virtual ~Session_consistency_gtids_ctx();
 

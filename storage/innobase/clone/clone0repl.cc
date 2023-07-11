@@ -417,9 +417,9 @@ bool Clone_persist_gtid::debug_skip_write(bool compression) {
 
 int Clone_persist_gtid::write_to_table(uint64_t flush_list_number,
                                        Gtid_set &table_gtid_set,
-                                       Sid_map &sid_map) {
+                                       Tsid_map &tsid_map) {
   int err = 0;
-  Gtid_set write_gtid_set(&sid_map, nullptr);
+  Gtid_set write_gtid_set(&tsid_map, nullptr);
 
   /* Allocate some intervals from stack */
   static const int PREALLOCATED_INTERVAL_COUNT = 64;
@@ -499,8 +499,8 @@ void Clone_persist_gtid::update_gtid_trx_no(trx_id_t new_gtid_trx_no) {
 
 void Clone_persist_gtid::flush_gtids(THD *thd) {
   int err = 0;
-  Sid_map sid_map(nullptr);
-  Gtid_set table_gtid_set(&sid_map, nullptr);
+  Tsid_map tsid_map(nullptr);
+  Gtid_set table_gtid_set(&tsid_map, nullptr);
 
   DBUG_EXECUTE_IF("gtid_persist_flush_disable", return;);
 
@@ -524,7 +524,7 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
     auto flush_list_number = switch_active_list();
     /* Exit trx mutex during write to table. */
     trx_sys_serialisation_mutex_exit();
-    err = write_to_table(flush_list_number, table_gtid_set, sid_map);
+    err = write_to_table(flush_list_number, table_gtid_set, tsid_map);
     m_flush_in_progress.store(false);
     /* Compress always after recovery, if GTIDs are added. */
     if (!m_thread_active.load()) {

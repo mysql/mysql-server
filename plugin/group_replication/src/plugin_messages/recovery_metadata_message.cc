@@ -370,8 +370,8 @@ Recovery_metadata_message::get_decoded_group_gtid_executed() {
     const unsigned char *slider = std::get<1>(payload_data);
     unsigned long long payload_item_length = std::get<2>(payload_data);
 
-    Sid_map gtid_executed_sid_map(nullptr);
-    Gtid_set gtid_executed_set(&gtid_executed_sid_map, nullptr);
+    Tsid_map gtid_executed_tsid_map(nullptr);
+    Gtid_set gtid_executed_set(&gtid_executed_tsid_map, nullptr);
     std::string gtid_executed_aux{};
     gtid_executed_aux.assign(slider, slider + payload_item_length);
     if (gtid_executed_set.add_gtid_encoding(

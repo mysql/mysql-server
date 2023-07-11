@@ -307,10 +307,10 @@ class Clone_persist_gtid {
   /** Persist GTID to gtid_executed table.
   @param[in]            flush_list_number       list number to flush
   @param[in,out]        table_gtid_set          GTIDs in table during recovery
-  @param[in,out]        sid_map                 SID map for GTIDs
+  @param[in,out]        tsid_map                TSID map for GTIDs
   @return mysql error code. */
   int write_to_table(uint64_t flush_list_number, Gtid_set &table_gtid_set,
-                     Sid_map &sid_map);
+                     Tsid_map &tsid_map);
 
   /** Update transaction number up to which GTIDs are flushed to table.
   @param[in]    new_gtid_trx_no GTID transaction number */

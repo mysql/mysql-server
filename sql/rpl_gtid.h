@@ -260,7 +260,7 @@ extern ulong _gtid_consistency_mode;
 /**
   Return the current value of ENFORCE_GTID_CONSISTENCY.
 
-  Caller must hold global_sid_lock.rdlock.
+  Caller must hold global_tsid_lock.rdlock.
 */
 enum_gtid_consistency_mode get_gtid_consistency_mode();
 /// Return the given GTID_CONSISTENCY_MODE as a string.
@@ -271,7 +271,7 @@ inline const char *get_gtid_consistency_mode_string(
 /**
   Return the current value of ENFORCE_GTID_CONSISTENCY as a string.
 
-  Caller must hold global_sid_lock.rdlock.
+  Caller must hold global_tsid_lock.rdlock.
 */
 inline const char *get_gtid_consistency_mode_string() {
   return get_gtid_consistency_mode_string(get_gtid_consistency_mode());
@@ -606,7 +606,7 @@ class Checkable_rwlock {
 };
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
-extern Checkable_rwlock *global_sid_lock;
+extern Checkable_rwlock *global_tsid_lock;
 
 /**
   Class to access the value of @@global.gtid_mode in an efficient and
@@ -731,7 +731,7 @@ std::ostream &operator<<(std::ostream &oss, Gtid_mode const &mode);
 extern Gtid_mode global_gtid_mode;
 
 /**
-  Represents a bidirectional map between SID and SIDNO.
+  Represents a bidirectional map between TSID and SIDNO.
 
   SIDNOs are always numbers greater or equal to 1.
 
@@ -745,20 +745,20 @@ extern Gtid_mode global_gtid_mode;
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 */
-class Sid_map {
+class Tsid_map {
  public:
   /**
-    Create this Sid_map.
+    Create this Tsid_map.
 
-    @param sid_lock Read-write lock that protects updates to the
+    @param tsid_lock Read-write lock that protects updates to the
     number of SIDNOs.
   */
-  Sid_map(Checkable_rwlock *sid_lock);
+  Tsid_map(Checkable_rwlock *tsid_lock);
 
-  /// Destroy this Sid_map.
-  ~Sid_map();
+  /// Destroy this Tsid_map.
+  ~Tsid_map();
   /**
-    Clears this Sid_map (for RESET REPLICA)
+    Clears this Tsid_map (for RESET REPLICA)
 
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
@@ -766,17 +766,17 @@ class Sid_map {
 
   using Tsid = mysql::gtid::Tsid;
   using Tag = mysql::gtid::Tag;
-  using Sid_to_sidno_allocator = Map_allocator_type<Tsid, rpl_sidno>;
-  using Sid_to_sidno_umap = malloc_unordered_map<Tsid, rpl_sidno, Tsid::Hash>;
-  using Sid_to_sidno_map = Map_myalloc<Tsid, rpl_sidno>;
-  using Sid_to_sidno_it = Sid_to_sidno_map::const_iterator;
+  using Tsid_to_sidno_allocator = Map_allocator_type<Tsid, rpl_sidno>;
+  using Tsid_to_sidno_umap = malloc_unordered_map<Tsid, rpl_sidno, Tsid::Hash>;
+  using Tsid_to_sidno_map = Map_myalloc<Tsid, rpl_sidno>;
+  using Tsid_to_sidno_it = Tsid_to_sidno_map::const_iterator;
   using Tsid_ref = std::reference_wrapper<const Tsid>;
-  using Sidno_to_sid_cont = std::vector<Tsid_ref, Malloc_allocator<Tsid_ref>>;
+  using Sidno_to_tsid_cont = std::vector<Tsid_ref, Malloc_allocator<Tsid_ref>>;
 
   /**
     Add the given TSID to this map if it does not already exist.
 
-    The caller must hold the read lock or write lock on sid_lock
+    The caller must hold the read lock or write lock on tsid_lock
     before invoking this function.  If the TSID does not exist in this
     map, it will release the read lock, take a write lock, update the
     map, release the write lock, and take the read lock again.
@@ -788,24 +788,6 @@ class Sid_map {
   */
   [[NODISCARD]] rpl_sidno add_tsid(const Tsid &tsid);
   /**
-    Get the SIDNO for a given SID
-
-    The caller must hold the read lock on tsid_lock before invoking
-    this function.
-
-    @param sid The SID.
-    @retval SIDNO if the given SID exists in this map.
-    @retval 0 if the given SID does not exist in this map.
-  */
-  rpl_sidno sid_to_sidno(const rpl_sid &sid) const {
-    Tsid tsid(sid, Tag());
-    if (sid_lock != nullptr) sid_lock->assert_some_lock();
-    const auto it = _sid_to_sidno.find(tsid);
-    if (it == _sid_to_sidno.end()) return 0;
-    return it->second;
-  }
-
-  /**
     Get the SIDNO for a given TSID
 
     The caller must hold the read lock on tsid_lock before invoking
@@ -816,98 +798,98 @@ class Sid_map {
     @retval 0 if the given TSID does not exist in this map.
   */
   rpl_sidno tsid_to_sidno(const Tsid &tsid) const {
-    if (sid_lock != nullptr) sid_lock->assert_some_lock();
-    const auto it = _sid_to_sidno.find(tsid);
-    if (it == _sid_to_sidno.end()) return 0;
+    if (tsid_lock != nullptr) tsid_lock->assert_some_lock();
+    const auto it = _tsid_to_sidno.find(tsid);
+    if (it == _tsid_to_sidno.end()) return 0;
     return it->second;
   }
   /**
-    Get the SID for a given SIDNO.
+    Get the TSID for a given SIDNO.
 
     Raises an assertion if the SIDNO is not valid.
 
-    If need_lock is true, acquires sid_lock->rdlock; otherwise asserts
+    If need_lock is true, acquires tsid_lock->rdlock; otherwise asserts
     that it is held already.
 
     @param sidno The SIDNO.
-    @param need_lock If true, and sid_lock!=NULL, this function will
-    acquire sid_lock before looking up the sid, and then release
-    it. If false, and sid_lock!=NULL, this function will assert the
-    sid_lock is already held. If sid_lock==NULL, nothing is done
+    @param need_lock If true, and tsid_lock!=NULL, this function will
+    acquire tsid_lock before looking up the sid, and then release
+    it. If false, and tsid_lock!=NULL, this function will assert the
+    tsid_lock is already held. If tsid_lock==NULL, nothing is done
     w.r.t. locking.
     @retval NULL The SIDNO does not exist in this map.
-    @retval pointer Pointer to the SID.  The data is shared with this
-    Sid_map, so should not be modified.  It is safe to read the data
-    even after this Sid_map is modified, but not if this Sid_map is
+    @retval ref Reference to the TSID.  The data is shared with this
+    Tsid_map, so should not be modified.  It is safe to read the data
+    even after this Tsid_map is modified, but not if this Tsid_map is
     destroyed.
   */
-  const Tsid &sidno_to_sid(rpl_sidno sidno, bool need_lock = false) const {
-    if (sid_lock != nullptr) {
+  const Tsid &sidno_to_tsid(rpl_sidno sidno, bool need_lock = false) const {
+    if (tsid_lock != nullptr) {
       if (need_lock)
-        sid_lock->rdlock();
+        tsid_lock->rdlock();
       else
-        sid_lock->assert_some_lock();
+        tsid_lock->assert_some_lock();
     }
     assert(sidno >= 1 && sidno <= get_max_sidno());
-    const auto &ret = (_sidno_to_sid[sidno - 1]);
-    if (sid_lock != nullptr && need_lock) sid_lock->unlock();
+    const auto &ret = (_sidno_to_tsid[sidno - 1]);
+    if (tsid_lock != nullptr && need_lock) tsid_lock->unlock();
     return ret.get();
   }
 
   /**
     Returns TSID to SID map
 
-    The caller must hold the read or write lock on sid_lock before
+    The caller must hold the read or write lock on tsid_lock before
     invoking this function.
 
     @return constant reference to sid_to_sidno container
   */
-  const Sid_to_sidno_map &get_sorted_sidno() const { return _sorted; }
+  const Tsid_to_sidno_map &get_sorted_sidno() const { return _sorted; }
 
-  const rpl_sidno &get_sidno(const Sid_to_sidno_it &it) const {
-    if (sid_lock != nullptr) sid_lock->assert_some_lock();
+  const rpl_sidno &get_sidno(const Tsid_to_sidno_it &it) const {
+    if (tsid_lock != nullptr) tsid_lock->assert_some_lock();
     return it->second;
   }
 
-  const Tsid &get_tsid(const Sid_to_sidno_it &it) const {
-    if (sid_lock != nullptr) sid_lock->assert_some_lock();
+  const Tsid &get_tsid(const Tsid_to_sidno_it &it) const {
+    if (tsid_lock != nullptr) tsid_lock->assert_some_lock();
     return it->first;
   }
 
   /**
-    Return the biggest sidno in this Sid_map.
+    Return the biggest sidno in this Tsid_map.
 
-    The caller must hold the read or write lock on sid_lock before
+    The caller must hold the read or write lock on tsid_lock before
     invoking this function.
   */
   rpl_sidno get_max_sidno() const {
-    if (sid_lock != nullptr) sid_lock->assert_some_lock();
-    return static_cast<rpl_sidno>(_sidno_to_sid.size());
+    if (tsid_lock != nullptr) tsid_lock->assert_some_lock();
+    return static_cast<rpl_sidno>(_sidno_to_tsid.size());
   }
 
-  /// Return the sid_lock.
-  Checkable_rwlock *get_sid_lock() const { return sid_lock; }
+  /// Return the tsid_lock.
+  Checkable_rwlock *get_tsid_lock() const { return tsid_lock; }
 
   /**
-    Deep copy this Sid_map to dest.
+    Deep copy this Tsid_map to dest.
 
     The caller must hold:
-     * the read lock on this sid_lock
-     * the write lock on the dest sid_lock
+     * the read lock on this tsid_lock
+     * the write lock on the dest tsid_lock
     before invoking this function.
 
-    @param[out] dest The Sid_map to which the sids and sidnos will
+    @param[out] dest The Tsid_map to which the tsids and sidnos will
                      be copied.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status copy(Sid_map *dest);
+  enum_return_status copy(Tsid_map *dest);
 
  private:
   /**
-    Create a Node from the given SIDNO and SID and add it to
-    _sidno_to_sid, _sid_to_sidno, and _sorted.
+    Create a Node from the given SIDNO and a TSID and add it to
+    _sidno_to_tsid, _tsid_to_sidno, and _sorted.
 
-    The caller must hold the write lock on sid_lock before invoking
+    The caller must hold the write lock on tsid_lock before invoking
     this function.
 
     @param sidno The SIDNO to add.
@@ -917,29 +899,29 @@ class Sid_map {
   [[NODISCARD]] enum_return_status add_node(rpl_sidno sidno, const Tsid &tsid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
-  mutable Checkable_rwlock *sid_lock;
+  mutable Checkable_rwlock *tsid_lock;
 
   /**
-    Array that maps SIDNO to SID; the element at index N points to a
+    Array that maps SIDNO to TSID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  Sidno_to_sid_cont _sidno_to_sid{
-      Malloc_allocator<rpl_sid>{key_memory_Sid_map_Node}};
+  Sidno_to_tsid_cont _sidno_to_tsid{
+      Malloc_allocator<Tsid_ref>{key_memory_tsid_map_Node}};
 
   /**
-    Hash that maps SID to SIDNO.
+    Hash that maps TSID to SIDNO.
   */
-  Sid_to_sidno_umap _sid_to_sidno{key_memory_Sid_map_Node};
+  Tsid_to_sidno_umap _tsid_to_sidno{key_memory_tsid_map_Node};
   /**
     Data structure that maps numbers in the interval [0, get_max_sidno()-1] to
     SIDNOs, in order of increasing TSID.
 
-    @see Sid_map::get_sorted_sidno.
+    @see Tsid_map::get_sorted_sidno.
   */
-  Sid_to_sidno_map _sorted{Sid_to_sidno_allocator{key_memory_Sid_map_Node}};
+  Tsid_to_sidno_map _sorted{Tsid_to_sidno_allocator{key_memory_tsid_map_Node}};
 };
 
-extern Sid_map *global_sid_map;
+extern Tsid_map *global_tsid_map;
 
 /**
   Represents a growable array where each element contains a mutex and
@@ -1008,9 +990,9 @@ class Mutex_cond_array {
   /**
     Wait for signal on the n'th condition variable.
 
-    The caller must hold the read lock or write lock on sid_lock, as
+    The caller must hold the read lock or write lock on tsid_lock, as
     well as the nth mutex lock, before invoking this function.  The
-    sid_lock will be released, whereas the mutex will be released
+    tsid_lock will be released, whereas the mutex will be released
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
@@ -1148,7 +1130,7 @@ struct Gtid {
     return sidno == 0;
   }
   /**
-    The maximal length of the textual representation of a SID, not
+    The maximal length of the textual representation of a TSID, not
     including the terminating '\0'.
   */
   static const int MAX_TEXT_LENGTH =
@@ -1169,14 +1151,14 @@ struct Gtid {
 
   /**
     Convert this Gtid to a string.
-    @param sid_map sid_map to use when converting sidno to a SID.
+    @param tsid_map tsid_map to use when converting sidno to a TSID.
     @param[out] buf Buffer to store the Gtid in (normally
     MAX_TEXT_LENGTH+1 bytes long).
-    @param need_lock If true, the function will acquire sid_map->sid_lock;
+    @param need_lock If true, the function will acquire tsid_map->tsid_lock;
     otherwise it will assert that the lock is held.
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const Sid_map *sid_map, char *buf,
+  int to_string(const Tsid_map *tsid_map, char *buf,
                 bool need_lock = false) const;
   /// Returns true if this Gtid has the same sid and gno as 'other'.
   bool equals(const Gtid &other) const {
@@ -1185,11 +1167,11 @@ struct Gtid {
   /**
     Parses the given string and stores in this Gtid.
 
-    @param sid_map sid_map to use when converting SID to a sidno.
+    @param tsid_map tsid_map to use when converting TSID to a sidno.
     @param text The text to parse
     @return status of operation
   */
-  [[NODISCARD]] mysql::utils::Return_status parse(Sid_map *sid_map,
+  [[NODISCARD]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
                                                   const char *text);
 
   /// @brief Parses TAG from a textual representation of the GTID (text)
@@ -1216,19 +1198,19 @@ struct Gtid {
 
 #ifndef NDEBUG
   /// Debug only: print this Gtid to stdout.
-  void print(const Sid_map *sid_map) const {
+  void print(const Tsid_map *tsid_map) const {
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(sid_map, buf);
+    to_string(tsid_map, buf);
     printf("%s\n", buf);
   }
 #endif
   /// Print this Gtid to the trace file if debug is enabled; no-op otherwise.
-  void dbug_print(const Sid_map *sid_map [[maybe_unused]],
+  void dbug_print(const Tsid_map *tsid_map [[maybe_unused]],
                   const char *text [[maybe_unused]] = "",
                   bool need_lock [[maybe_unused]] = false) const {
 #ifndef NDEBUG
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(sid_map, buf, need_lock);
+    to_string(tsid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -1323,14 +1305,15 @@ struct Trx_monitoring_info {
     passed as input, which are the corresponding fields in a replication
     performance schema table.
 
-    @param[in]  sid_map                  The SID map for the GTID.
+    @param[in]  tsid_map                 The TSID map for the GTID.
     @param[out] gtid_arg                 GTID field in the PS table.
     @param[out] gtid_length_arg          Length of the GTID as string.
     @param[out] original_commit_ts_arg   The original commit timestamp.
     @param[out] immediate_commit_ts_arg  The immediate commit timestamp.
     @param[out] start_time_arg           The start time field.
   */
-  void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+  void copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
+                        uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
                         ulonglong *start_time_arg) const;
@@ -1340,7 +1323,7 @@ struct Trx_monitoring_info {
     passed as input, which are the corresponding fields in a replication
     performance schema table.
 
-    @param[in]  sid_map                  The SID map for the GTID.
+    @param[in]  tsid_map                 The TSID map for the GTID.
     @param[out] gtid_arg                 GTID field in the PS table.
     @param[out] gtid_length_arg          Length of the GTID as string.
     @param[out] original_commit_ts_arg   The original commit timestamp.
@@ -1350,7 +1333,8 @@ struct Trx_monitoring_info {
                                          when the PS table fields are for the
                                          "still processing" information.
   */
-  void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+  void copy_to_ps_table(Tsid_map *tsid_map, char *gtid_arg,
+                        uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
                         ulonglong *start_time_arg,
@@ -1361,7 +1345,7 @@ struct Trx_monitoring_info {
     passed as input, which are the corresponding fields in a replication
     performance schema table.
 
-    @param[in]  sid_map                          The SID map for the GTID.
+    @param[in]  tsid_map                         The TSID map for the GTID.
     @param[out] gtid_arg                         GTID field in the PS table.
     @param[out] gtid_length_arg                  Length of the GTID as string.
     @param[out] original_commit_ts_arg           The original commit timestamp.
@@ -1379,7 +1363,7 @@ struct Trx_monitoring_info {
                                                  this transaction.
   */
   void copy_to_ps_table(
-      Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+      Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
       ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
       ulonglong *start_time_arg, uint *last_transient_errno_arg,
       char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
@@ -1390,7 +1374,7 @@ struct Trx_monitoring_info {
     passed as input, which are the corresponding fields in a replication
     performance schema table.
 
-    @param[in]  sid_map                          The SID map for the GTID.
+    @param[in]  tsid_map                         The TSID map for the GTID.
     @param[out] gtid_arg                         GTID field in the PS table.
     @param[out] gtid_length_arg                  Length of the GTID as string.
     @param[out] original_commit_ts_arg           The original commit timestamp.
@@ -1411,15 +1395,13 @@ struct Trx_monitoring_info {
     @param[out] retries_count_arg                The total number of retries for
                                                  this transaction.
   */
-  void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
-                        ulonglong *original_commit_ts_arg,
-                        ulonglong *immediate_commit_ts_arg,
-                        ulonglong *start_time_arg, ulonglong *end_time_arg,
-                        uint *last_transient_errno_arg,
-                        char *last_transient_errmsg_arg,
-                        uint *last_transient_errmsg_length_arg,
-                        ulonglong *last_transient_timestamp_arg,
-                        ulong *retries_count_arg) const;
+  void copy_to_ps_table(
+      Tsid_map *tsid_map, char *gtid_arg, uint *gtid_length_arg,
+      ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
+      ulonglong *start_time_arg, ulonglong *end_time_arg,
+      uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
+      uint *last_transient_errmsg_length_arg,
+      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const;
 };
 
 /**
@@ -1555,9 +1537,9 @@ class Gtid_monitoring_info {
   This is structured as an array, indexed by SIDNO, where each element
   contains a linked list of intervals.
 
-  This data structure OPTIONALLY knows of a Sid_map that gives a
-  correspondence between SIDNO and SID.  If the Sid_map is NULL, then
-  operations that require a Sid_map - printing and parsing - raise an
+  This data structure OPTIONALLY knows of a Tsid_map that gives a
+  correspondence between SIDNO and TSID.  If the Tsid_map is NULL, then
+  operations that require a Tsid_map - printing and parsing - raise an
   assertion.
 
   This data structure OPTIONALLY knows of a read-write lock that
@@ -1576,31 +1558,31 @@ class Gtid_set {
   /**
     Constructs a new, empty Gtid_set.
 
-    @param sid_map The Sid_map to use, or NULL if this Gtid_set
-    should not have a Sid_map.
-    @param sid_lock Read-write lock that protects updates to the
-    number of SIDs. This may be NULL if such changes do not need to be
+    @param tsid_map The Tsid_map to use, or NULL if this Gtid_set
+    should not have a Tsid_map.
+    @param tsid_lock Read-write lock that protects updates to the
+    number of TSIDs. This may be NULL if such changes do not need to be
     protected.
   */
-  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock = nullptr);
+  Gtid_set(Tsid_map *tsid_map, Checkable_rwlock *tsid_lock = nullptr);
   /**
     Constructs a new Gtid_set that contains the gtids in the given
     string, in the same format as add_gtid_text(char *).
 
-    @param sid_map The Sid_map to use for SIDs.
+    @param tsid_map The Tsid_map to use for TSIDs.
     @param text The text to parse.
     @param status Will be set to RETURN_STATUS_OK on success or
     RETURN_STATUS_REPORTED_ERROR on error.
-    @param sid_lock Read/write lock to protect changes in the number
+    @param tsid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
-    If sid_lock != NULL, then the read lock on sid_lock must be held
-    before calling this function. If the array is grown, sid_lock is
+    If tsid_lock != NULL, then the read lock on tsid_lock must be held
+    before calling this function. If the array is grown, tsid_lock is
     temporarily upgraded to a write lock and then degraded again;
     there will be a short period when the lock is not held at all.
   */
-  Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-           Checkable_rwlock *sid_lock = nullptr);
+  Gtid_set(Tsid_map *tsid_map, const char *text, enum_return_status *status,
+           Checkable_rwlock *tsid_lock = nullptr);
 
  private:
   /// Worker for the constructor.
@@ -1618,12 +1600,12 @@ class Gtid_set {
   void clear();
   /**
     Removes all gtids from this Gtid_set and clear all the sidnos
-    used by the Gtid_set and it's SID map.
+    used by the Gtid_set and it's TSID map.
 
     This does not deallocate anything: if gtids are added later,
     existing allocated memory will be re-used.
   */
-  void clear_set_and_sid_map();
+  void clear_set_and_tsid_map();
   /**
     Adds the given GTID to this Gtid_set.
 
@@ -1674,9 +1656,9 @@ class Gtid_set {
   /**
     Adds all gtids from the given Gtid_set to this Gtid_set.
 
-    If sid_lock != NULL, then the read lock must be held before
+    If tsid_lock != NULL, then the read lock must be held before
     calling this function. If a new sidno is added so that the array
-    of lists of intervals is grown, sid_lock is temporarily upgraded
+    of lists of intervals is grown, tsid_lock is temporarily upgraded
     to a write lock and then degraded again; there will be a short
     period when the lock is not held at all.
 
@@ -1724,9 +1706,9 @@ class Gtid_set {
     which triggers @c executed_gtids and @c lost_gtids set examination
     on the matter of disjointness with the one being added.
 
-    If sid_lock != NULL, then the read lock on sid_lock must be held
+    If tsid_lock != NULL, then the read lock on tsid_lock must be held
     before calling this function. If a new sidno is added so that the
-    array of lists of intervals is grown, sid_lock is temporarily
+    array of lists of intervals is grown, tsid_lock is temporarily
     upgraded to a write lock and then degraded again; there will be a
     short period when the lock is not held at all.
 
@@ -1772,16 +1754,16 @@ class Gtid_set {
   rpl_gno get_last_gno(rpl_sidno sidno) const;
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const {
-    if (sid_lock) sid_lock->assert_some_lock();
+    if (tsid_lock) tsid_lock->assert_some_lock();
     return static_cast<rpl_sidno>(m_intervals.size());
   }
   /**
     Allocates space for all sidnos up to the given sidno in the array of
-    intervals. The sidno must exist in the Sid_map associated with this
+    intervals. The sidno must exist in the Tsid_map associated with this
     Gtid_set.
 
-    If sid_lock != NULL, then the read lock on sid_lock must be held
-    before calling this function. If the array is grown, sid_lock is
+    If tsid_lock != NULL, then the read lock on tsid_lock must be held
+    before calling this function. If the array is grown, tsid_lock is
     temporarily upgraded to a write lock and then degraded again;
     there will be a short period when the lock is not held at all.
 
@@ -1803,16 +1785,16 @@ class Gtid_set {
     @param super          Gtid_set with which this->gtid_set needs to be
                            compared
     @param superset_sidno The sidno that will be compared, relative to
-                           super->sid_map.
+                           super->tsid_map.
     @param subset_sidno   The sidno that will be compared, relative to
-                           this->sid_map.
+                           this->tsid_map.
     @return true          If 'this' Gtid_set is subset of given
                            'super' Gtid_set.
             false         If 'this' Gtid_set is *not* subset of given
                            'super' Gtid_set.
   */
-  bool is_subset_for_sid(const Gtid_set *super, rpl_sidno superset_sidno,
-                         rpl_sidno subset_sidno) const;
+  bool is_subset_for_sidno(const Gtid_set *super, rpl_sidno superset_sidno,
+                           rpl_sidno subset_sidno) const;
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
   bool is_intersection_nonempty(const Gtid_set *other) const;
@@ -1927,7 +1909,7 @@ class Gtid_set {
 
     @param[out] buf Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
-    @param need_lock If this Gtid_set has a sid_lock, then the write
+    @param need_lock If this Gtid_set has a tsid_lock, then the write
     lock must be held while generating the string. If this parameter
     is true, then this function acquires and releases the lock;
     otherwise it asserts that the caller holds the lock.
@@ -1942,7 +1924,7 @@ class Gtid_set {
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
     @param[out] buf Pointer to pointer to string. The function will
     set it to point to the newly allocated buffer, or NULL on out of memory.
-    @param need_lock If this Gtid_set has a sid_lock, then the write
+    @param need_lock If this Gtid_set has a tsid_lock, then the write
     lock must be held while generating the string. If this parameter
     is true, then this function acquires and releases the lock;
     otherwise it asserts that the caller holds the lock.
@@ -2006,12 +1988,12 @@ class Gtid_set {
   static const String_format sql_string_format;
   /**
     String_format for printing the Gtid_set commented: the string is
-    not quote-wrapped, and every SID is on a new line with a leading '# '.
+    not quote-wrapped, and every TSID is on a new line with a leading '# '.
   */
   static const String_format commented_string_format;
 
-  /// Return the Sid_map associated with this Gtid_set.
-  Sid_map *get_sid_map() const { return sid_map; }
+  /// Return the Tsid_map associated with this Gtid_set.
+  Tsid_map *get_tsid_map() const { return tsid_map; }
 
   /**
     Represents one element in the linked list of intervals associated
@@ -2041,9 +2023,9 @@ class Gtid_set {
     @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param) {
-    if (sid_lock != nullptr) mysql_mutex_lock(&free_intervals_mutex);
+    if (tsid_lock != nullptr) mysql_mutex_lock(&free_intervals_mutex);
     add_interval_memory_lock_taken(n_intervals, intervals_param);
-    if (sid_lock != nullptr) mysql_mutex_unlock(&free_intervals_mutex);
+    if (tsid_lock != nullptr) mysql_mutex_unlock(&free_intervals_mutex);
   }
 
   /**
@@ -2159,7 +2141,7 @@ class Gtid_set {
   class Gtid_iterator {
    public:
     Gtid_iterator(const Gtid_set *gs) : gtid_set(gs), sidno(0), ivit(gs) {
-      if (gs->sid_lock != nullptr) gs->sid_lock->assert_some_wrlock();
+      if (gs->tsid_lock != nullptr) gs->tsid_lock->assert_some_wrlock();
       next_sidno();
     }
     /// Advance to next gtid.
@@ -2282,7 +2264,7 @@ class Gtid_set {
   }
   /// Return the number of intervals in this Gtid_set.
   int get_n_intervals() const {
-    if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+    if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
     rpl_sidno max_sidno = get_max_sidno();
     int ret = 0;
     for (rpl_sidno sidno = 1; sidno < max_sidno; sidno++)
@@ -2328,11 +2310,11 @@ class Gtid_set {
   */
   void add_interval_memory_lock_taken(int n_ivs, Interval *ivs);
 
-  /// Read-write lock that protects updates to the number of SIDs.
-  mutable Checkable_rwlock *sid_lock;
+  /// Read-write lock that protects updates to the number of TSIDs.
+  mutable Checkable_rwlock *tsid_lock;
   /**
     Lock protecting the list of free intervals.  This lock is only
-    used if sid_lock is not NULL.
+    used if tsid_lock is not NULL.
   */
   mysql_mutex_t free_intervals_mutex;
   /**
@@ -2345,7 +2327,7 @@ class Gtid_set {
     lock.  The lock is then automatically released by the destructor
     when the top-level function returns.
 
-    The lock is not taken if Gtid_set->sid_lock == NULL; such
+    The lock is not taken if Gtid_set->tsid_lock == NULL; such
     Gtid_sets are assumed to be thread-local.
   */
   class Free_intervals_lock {
@@ -2355,14 +2337,14 @@ class Gtid_set {
         : gtid_set(_gtid_set), locked(false) {}
     /// Lock the lock if it is not already locked.
     void lock_if_not_locked() {
-      if (gtid_set->sid_lock && !locked) {
+      if (gtid_set->tsid_lock && !locked) {
         mysql_mutex_lock(&gtid_set->free_intervals_mutex);
         locked = true;
       }
     }
     /// Lock the lock if it is locked.
     void unlock_if_locked() {
-      if (gtid_set->sid_lock && locked) {
+      if (gtid_set->tsid_lock && locked) {
         mysql_mutex_unlock(&gtid_set->free_intervals_mutex);
         locked = false;
       }
@@ -2375,7 +2357,7 @@ class Gtid_set {
     bool locked;
   };
   void assert_free_intervals_locked() {
-    if (sid_lock != nullptr) mysql_mutex_assert_owner(&free_intervals_mutex);
+    if (tsid_lock != nullptr) mysql_mutex_assert_owner(&free_intervals_mutex);
   }
 
   /**
@@ -2464,8 +2446,8 @@ class Gtid_set {
   static bool is_interval_intersection_nonempty(Const_interval_iterator *ivit1,
                                                 Const_interval_iterator *ivit2);
 
-  /// Sid_map associated with this Gtid_set.
-  Sid_map *sid_map;
+  /// Tsid_map associated with this Gtid_set.
+  Tsid_map *tsid_map;
   /**
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
@@ -2531,7 +2513,7 @@ struct Gtid_set_or_null {
 
     @return NULL if out of memory; Gtid_set otherwise.
   */
-  Gtid_set *set_non_null(Sid_map *sm) {
+  Gtid_set *set_non_null(Tsid_map *sm) {
     if (!is_non_null) {
       if (gtid_set == nullptr)
         gtid_set = new Gtid_set(sm);
@@ -2568,10 +2550,10 @@ class Owned_gtids {
   /**
     Constructs a new, empty Owned_gtids object.
 
-    @param sid_lock Read-write lock that protects updates to the
-    number of SIDs.
+    @param tsid_lock Read-write lock that protects updates to the
+    number of TSIDs.
   */
-  Owned_gtids(Checkable_rwlock *sid_lock);
+  Owned_gtids(Checkable_rwlock *tsid_lock);
   /// Destroys this Owned_gtids.
   ~Owned_gtids();
   /**
@@ -2621,8 +2603,8 @@ class Owned_gtids {
   }
   /// Returns the maximal sidno that this Owned_gtids currently has space for.
   rpl_sidno get_max_sidno() const {
-    if (sid_lock != nullptr) {
-      sid_lock->assert_some_lock();
+    if (tsid_lock != nullptr) {
+      tsid_lock->assert_some_lock();
     }
     return static_cast<rpl_sidno>(sidno_to_hash.size());
   }
@@ -2636,7 +2618,7 @@ class Owned_gtids {
   int to_string(char *out) const {
     char *p = out;
     rpl_sidno max_sidno = get_max_sidno();
-    for (const auto &sid_it : global_sid_map->get_sorted_sidno()) {
+    for (const auto &sid_it : global_tsid_map->get_sorted_sidno()) {
       rpl_sidno sidno = sid_it.second;
       if (sidno > max_sidno) continue;
       bool printed_sid = false;
@@ -2644,7 +2626,7 @@ class Owned_gtids {
         Node *node = key_and_value.second.get();
         assert(node != nullptr);
         if (!printed_sid) {
-          p += global_sid_map->sidno_to_sid(sidno).to_string(p);
+          p += global_tsid_map->sidno_to_tsid(sidno).to_string(p);
           printed_sid = true;
         }
         p += sprintf(p, ":%" PRId64 "#%u", node->gno, node->owner);
@@ -2731,13 +2713,15 @@ class Owned_gtids {
     /// Owner of the GTID.
     my_thread_id owner;
   };
-  /// Read-write lock that protects updates to the number of SIDs.
-  mutable Checkable_rwlock *sid_lock;
+  /// Read-write lock that protects updates to the number of TSIDs.
+  mutable Checkable_rwlock *tsid_lock;
   /// Returns the hash for the given SIDNO.
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *get_hash(
       rpl_sidno sidno) const {
     assert(sidno >= 1 && sidno <= get_max_sidno());
-    sid_lock->assert_some_lock();
+    if (tsid_lock != nullptr) {
+      tsid_lock->assert_some_lock();
+    }
     return sidno_to_hash[sidno - 1];
   }
   /// Return true iff this Owned_gtids object contains the given gtid.
@@ -2767,7 +2751,7 @@ class Owned_gtids {
     /// Advance to next GTID.
     inline void next() {
 #ifndef NDEBUG
-      if (owned_gtids->sid_lock) owned_gtids->sid_lock->assert_some_wrlock();
+      if (owned_gtids->tsid_lock) owned_gtids->tsid_lock->assert_some_wrlock();
 #endif
 
       while (sidno <= max_sidno) {
@@ -2829,7 +2813,7 @@ class Owned_gtids {
 
   This data structure has a read-write lock that protects the number
   of SIDNOs, and a Mutex_cond_array that contains one mutex per SIDNO.
-  The rwlock is always the global_sid_lock.
+  The rwlock is always the global_tsid_lock.
 
   Access methods generally assert that the caller already holds the
   appropriate lock:
@@ -2847,34 +2831,34 @@ class Owned_gtids {
 
   The access type (read/write) does not matter; the write lock only
   implies that the entire data structure is locked whereas the read
-  lock implies that everything except SID-specific data is locked.
+  lock implies that everything except TSID-specific data is locked.
 */
 class Gtid_state {
  public:
   /**
     Constructs a new Gtid_state object.
 
-    @param _sid_lock Read-write lock that protects updates to the
-    number of SIDs.
-    @param _sid_map Sid_map used by this Gtid_state.
+    @param _tsid_lock Read-write lock that protects updates to the
+    number of TSIDs.
+    @param _tsid_map Tsid_map used by this Gtid_state.
   */
-  Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
-      : sid_lock(_sid_lock),
-        sid_map(_sid_map),
-        sid_locks(sid_lock),
-        lost_gtids(sid_map, sid_lock),
-        executed_gtids(sid_map, sid_lock),
-        gtids_only_in_table(sid_map, sid_lock),
-        previous_gtids_logged(sid_map, sid_lock),
-        owned_gtids(sid_lock),
+  Gtid_state(Checkable_rwlock *_tsid_lock, Tsid_map *_tsid_map)
+      : tsid_lock(_tsid_lock),
+        tsid_map(_tsid_map),
+        tsid_locks(tsid_lock),
+        lost_gtids(tsid_map, tsid_lock),
+        executed_gtids(tsid_map, tsid_lock),
+        gtids_only_in_table(tsid_map, tsid_lock),
+        previous_gtids_logged(tsid_map, tsid_lock),
+        owned_gtids(tsid_lock),
         commit_group_sidnos(key_memory_Gtid_state_group_commit_sidno) {}
   /**
-    Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
+    Add @@GLOBAL.SERVER_UUID to this binlog's Tsid_map.
 
     This can't be done in the constructor because the constructor is
     invoked at server startup before SERVER_UUID is initialized.
 
-    The caller must hold the read lock or write lock on sid_locks
+    The caller must hold the read lock or write lock on tsid_locks
     before invoking this function.
 
     @retval 0 Success
@@ -2885,7 +2869,7 @@ class Gtid_state {
     Reset the state and persistor after RESET BINARY LOGS AND GTIDS:
     remove all logged and lost gtids, but keep owned gtids as they are.
 
-    The caller must hold the write lock on sid_lock before calling
+    The caller must hold the write lock on tsid_lock before calling
     this function.
 
     @param  thd Thread requesting to reset the persistor
@@ -2904,7 +2888,7 @@ class Gtid_state {
   */
   bool is_executed(const Gtid &gtid) const {
     DBUG_TRACE;
-    sid_locks.assert_owner(gtid.sidno);
+    tsid_locks.assert_owner(gtid.sidno);
     bool ret = executed_gtids.contains_gtid(gtid);
     return ret;
   }
@@ -2977,14 +2961,14 @@ class Gtid_state {
   /**
     Acquire anonymous ownership.
 
-    The caller must hold either sid_lock.rdlock or
-    sid_lock.wrlock. (The caller must have taken the lock and checked
+    The caller must hold either tsid_lock.rdlock or
+    tsid_lock.wrlock. (The caller must have taken the lock and checked
     that gtid_mode!=ON before calling this function, or else the
     gtid_mode could have changed to ON by a concurrent SET GTID_MODE.)
   */
   void acquire_anonymous_ownership() {
     DBUG_TRACE;
-    sid_lock->assert_some_lock();
+    tsid_lock->assert_some_lock();
     assert(global_gtid_mode.get() != Gtid_mode::ON);
 #ifndef NDEBUG
     int32 new_value =
@@ -2999,7 +2983,7 @@ class Gtid_state {
   /// Release anonymous ownership.
   void release_anonymous_ownership() {
     DBUG_TRACE;
-    sid_lock->assert_some_lock();
+    tsid_lock->assert_some_lock();
     assert(global_gtid_mode.get() != Gtid_mode::ON);
 #ifndef NDEBUG
     int32 new_value =
@@ -3041,10 +3025,10 @@ class Gtid_state {
   void end_automatic_gtid_violating_transaction() {
     DBUG_TRACE;
 #ifndef NDEBUG
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     assert(global_gtid_mode.get() <= Gtid_mode::OFF_PERMISSIVE);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     int32 new_value =
 #endif
         --atomic_automatic_gtid_violation_count;
@@ -3089,10 +3073,10 @@ class Gtid_state {
   void end_anonymous_gtid_violating_transaction() {
     DBUG_TRACE;
 #ifndef NDEBUG
-    global_sid_lock->rdlock();
+    global_tsid_lock->rdlock();
     assert(global_gtid_mode.get() != Gtid_mode::ON);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
     int32 new_value =
 #endif
         --atomic_anonymous_gtid_violation_count;
@@ -3177,21 +3161,22 @@ class Gtid_state {
     Locking scheme
 
     This variable can be read and modified in four places:
-    - During server startup, holding global_sid_lock.wrlock;
-    - By a client thread holding global_sid_lock.wrlock
+    - During server startup, holding global_tsid_lock.wrlock;
+    - By a client thread holding global_tsid_lock.wrlock
       when executing RESET BINARY LOGS AND GTIDS
     - By a client thread calling MYSQL_BIN_LOG::write_transaction function
     (often the group commit FLUSH stage leader). It will call
       Gtid_state::generate_automatic_gtid, that will acquire
-      global_sid_lock.rdlock and lock_sidno(get_server_sidno()) when getting a
+      global_tsid_lock.rdlock and lock_sidno(get_server_sidno()) when getting a
       new automatically generated GTID;
-    - By a client thread rolling back, holding global_sid_lock.rdlock
+    - By a client thread rolling back, holding global_tsid_lock.rdlock
       and lock_sidno(get_server_sidno()).
   */
   rpl_gno next_free_gno;
 
  public:
   using Locked_sidno_set = cs::index::Locked_sidno_set;
+  using Tsid = mysql::gtid::Tsid;
   /**
     Return the last executed GNO for a given SIDNO, e.g.
     for the following set: UUID:1-10, UUID:12, UUID:15-20
@@ -3234,14 +3219,14 @@ class Gtid_state {
                                       Gtid_state::Locked_sidno_set &sidno_set);
 
   /// Locks a mutex for the given SIDNO.
-  void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
+  void lock_sidno(rpl_sidno sidno) { tsid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
-  void unlock_sidno(rpl_sidno sidno) { sid_locks.unlock(sidno); }
+  void unlock_sidno(rpl_sidno sidno) { tsid_locks.unlock(sidno); }
   /// Broadcasts updates for the given SIDNO.
-  void broadcast_sidno(rpl_sidno sidno) { sid_locks.broadcast(sidno); }
+  void broadcast_sidno(rpl_sidno sidno) { tsid_locks.broadcast(sidno); }
   /// Assert that we own the given SIDNO.
   void assert_sidno_lock_owner(rpl_sidno sidno) const {
-    sid_locks.assert_owner(sidno);
+    tsid_locks.assert_owner(sidno);
   }
 #ifdef MYSQL_SERVER
   /**
@@ -3249,8 +3234,8 @@ class Gtid_state {
 
     NOTE: This releases a lock!
 
-    This requires that the caller holds a read lock on sid_lock.  It
-    will release the lock before waiting; neither global_sid_lock nor
+    This requires that the caller holds a read lock on tsid_lock.  It
+    will release the lock before waiting; neither global_tsid_lock nor
     the mutex lock on SIDNO will not be held when this function
     returns.
 
@@ -3308,13 +3293,13 @@ class Gtid_state {
   void broadcast_sidnos(const Gtid_set *set);
   /**
     Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table,
-    previous_gtids_logged and sid_locks have room for at least as many SIDNOs
-    as sid_map.
+    previous_gtids_logged and tsid_locks have room for at least as many SIDNOs
+    as tsid_map.
 
     This function must only be called in one place:
-    Sid_map::add_sid().
+    Tsid_map::add_tsid().
 
-    Requires that the write lock on sid_locks is held.  If any object
+    Requires that the write lock on tsid_locks is held.  If any object
     needs to be resized, then the lock will be temporarily upgraded to
     a write lock and then degraded to a read lock again; there will be
     a short period when the lock is not held at all.
@@ -3329,7 +3314,7 @@ class Gtid_state {
     purged_gtid and executed_gtid sets are appended with the argument set
     provided the latter is disjoint with gtid_executed owned_gtids.
 
-    Requires that the caller holds global_sid_lock.wrlock.
+    Requires that the caller holds global_tsid_lock.wrlock.
 
     @param[in,out] gtid_set The gtid_set to add. If the gtid_set
     does not start with a plus sign (starts_with_plus is false),
@@ -3367,11 +3352,11 @@ class Gtid_state {
   }
   /// Return a pointer to the Owned_gtids that contains the owned gtids.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
-  /// Return the server's SID's SIDNO
+  /// Return the server's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
-  /// Return the server's SID
-  const rpl_sid &get_server_sid() const {
-    return global_sid_map->sidno_to_sid(server_sidno).get_uuid();
+  /// Return the server's TSID
+  const Tsid &get_server_tsid() const {
+    return global_tsid_map->sidno_to_tsid(server_sidno);
   }
 
   /// @brief Increments atomic_automatic_tagged_gtid_session_count
@@ -3437,7 +3422,7 @@ class Gtid_state {
   */
   void dbug_print(const char *text [[maybe_unused]] = "") const {
 #ifndef NDEBUG
-    sid_lock->assert_some_wrlock();
+    tsid_lock->assert_some_wrlock();
     char *str = to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
     my_free(str);
@@ -3547,12 +3532,12 @@ class Gtid_state {
   void unlock_owned_sidnos(const THD *thd);
   /// Broadcast the condition for all SIDNOs owned by the given THD.
   void broadcast_owned_sidnos(const THD *thd);
-  /// Read-write lock that protects updates to the number of SIDs.
-  mutable Checkable_rwlock *sid_lock;
-  /// The Sid_map used by this Gtid_state.
-  mutable Sid_map *sid_map;
+  /// Read-write lock that protects updates to the number of TSIDs.
+  mutable Checkable_rwlock *tsid_lock;
+  /// The Tsid_map used by this Gtid_state.
+  mutable Tsid_map *tsid_map;
   /// Contains one mutex/cond pair for every SIDNO.
-  Mutex_cond_array sid_locks;
+  Mutex_cond_array tsid_locks;
   /**
     The set of GTIDs that existed in some previously purged binary log.
     This is always a subset of executed_gtids.
@@ -3812,7 +3797,7 @@ class Gtid_state {
   /**
     This array is used by Gtid_state_update_gtids_impl* functions.
 
-    The array items (one per sidno of the sid_map) will be set as true for
+    The array items (one per sidno of the tsid_map) will be set as true for
     each sidno that requires to be locked when updating a set of GTIDs
     (at Gtid_set::update_gtids_impl_lock_sidnos).
 
@@ -3823,7 +3808,7 @@ class Gtid_state {
     called once per sidno per commit group, instead of once per transaction.
 
     Its access is protected by:
-    - global_sid_lock->wrlock when growing and cleaning up;
+    - global_tsid_lock->wrlock when growing and cleaning up;
     - MYSQL_BIN_LOG::LOCK_commit when setting true/false on array items.
   */
   Prealloced_array<bool, 8> commit_group_sidnos;
@@ -3967,7 +3952,7 @@ extern Gtid_state *gtid_state;
 
 /**
   This struct represents a specification of a GTID for a statement to
-  be executed: either "AUTOMATIC", "ANONYMOUS", "UUID:AUTOMATIC" or "SID:GNO".
+  be executed: either "AUTOMATIC", "AUTOMATIC:<tag>", "ANONYMOUS" or "TSID:GNO".
 
   This is a POD. It has to be a POD because it is used in THD::variables.
 */
@@ -4002,7 +3987,7 @@ struct Gtid_specification {
   /// @return The number of bytes written to the buffer
   std::size_t automatic_to_string(char *buf) const;
 
-  /// Set the type to ASSIGNED_GTID and SID, GNO to the given values.
+  /// Set the type to ASSIGNED_GTID and SIDNO, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno) {
     gtid.set(sidno, gno);
     type = ASSIGNED_GTID;
@@ -4039,7 +4024,7 @@ struct Gtid_specification {
   /// @retval false Other type of the GTID
   bool is_automatic_tagged() const;
 
-  /// Set the type to ASSIGNED_GTID and SID, GNO to the given Gtid.
+  /// Set the type to ASSIGNED_GTID and TSID, GNO to the given Gtid.
   /// @brief gtid_param GTID to copy from
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
   /// @brief Set the type to AUTOMATIC_GTID.
@@ -4074,7 +4059,7 @@ struct Gtid_specification {
   }
   /**
     Return true if this Gtid_specification is a ASSIGNED_GTID with the
-    same SID, GNO as 'other_gtid'.
+    same TSID, GNO as 'other_gtid'.
   */
   bool equals(const Gtid &other_gtid) const {
     return type == ASSIGNED_GTID && gtid.equals(other_gtid);
@@ -4083,11 +4068,11 @@ struct Gtid_specification {
   /**
     Parses the given string and stores in this Gtid_specification.
 
-    @param sid_map sid_map to use when converting SID to a sidno.
+    @param tsid_map tsid_map to use when converting TSID to a sidno.
     @param text The text to parse
     @return operation status
   */
-  [[NODISCARD]] mysql::utils::Return_status parse(Sid_map *sid_map,
+  [[NODISCARD]] mysql::utils::Return_status parse(Tsid_map *tsid_map,
                                                   const char *text);
 
   /// @brief Returns true if the given string is a valid Gtid_specification.
@@ -4102,15 +4087,15 @@ struct Gtid_specification {
   /**
     Writes this Gtid_specification to the given string buffer.
 
-    @param sid_map Sid_map to use if the type of this
+    @param tsid_map Tsid_map to use if the type of this
     Gtid_specification is ASSIGNED_GTID.
     @param [out] buf The buffer
-    @param need_lock If true, this function acquires global_sid_lock
-    before looking up the sidno in sid_map, and then releases it. If
+    @param need_lock If true, this function acquires global_tsid_lock
+    before looking up the sidno in tsid_map, and then releases it. If
     false, this function asserts that the lock is held by the caller.
     @retval The number of characters written.
   */
-  int to_string(const Sid_map *sid_map, char *buf,
+  int to_string(const Tsid_map *tsid_map, char *buf,
                 bool need_lock = false) const;
   /**
     Writes this Gtid_specification to the given string buffer.
@@ -4127,7 +4112,7 @@ struct Gtid_specification {
   /// Debug only: print this Gtid_specification to stdout.
   void print() const {
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(global_sid_map, buf);
+    to_string(global_tsid_map, buf);
     printf("%s\n", buf);
   }
 #endif
@@ -4139,7 +4124,7 @@ struct Gtid_specification {
                   bool need_lock [[maybe_unused]] = false) const {
 #ifndef NDEBUG
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(global_sid_map, buf, need_lock);
+    to_string(global_tsid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
@@ -4232,7 +4217,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 
   The Gtid_specification must be of type ASSIGNED_GTID or ANONYMOUS_GTID.
 
-  The caller must hold global_sid_lock (normally the rdlock).  The
+  The caller must hold global_tsid_lock (normally the rdlock).  The
   lock may be temporarily released and acquired again. In the end,
   the lock will be released, so the caller should *not* release the
   lock.
@@ -4258,9 +4243,9 @@ int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 
 /**
-  Return sidno for a given sid, see Sid_map::add_sid() for details.
+  Return sidno for a given tsid, see Tsid_map::add_sid() for details.
 */
-rpl_sidno get_sidno_from_global_sid_map(const mysql::gtid::Tsid &tsid);
+rpl_sidno get_sidno_from_global_tsid_map(const mysql::gtid::Tsid &tsid);
 
 /**
   Return last gno for a given sidno, see

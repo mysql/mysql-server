@@ -40,7 +40,7 @@ namespace cs::index {
 /// Locks will be released in destructor.
 /// @details Used to optimize TSID locking/unlocking scheme (e.g. in
 /// assign_automatic_gtids_to_flush_group) to avoid constant locking/unlocking
-/// of SID locks during the commit flush stage
+/// of TSID locks during the commit flush stage
 class Locked_sidno_set {
  public:
   Locked_sidno_set(Gtid_state &gtid_state);

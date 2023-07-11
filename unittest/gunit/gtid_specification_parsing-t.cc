@@ -54,7 +54,7 @@ class GtidSpecificationParsingTest : public ::testing::Test {
 
     srv.thd()->system_thread = SYSTEM_THREAD_COMPRESS_GTID_TABLE;
 
-    Sid_map sid_map(nullptr);
+    Tsid_map tsid_map(nullptr);
 
     auto valid_gtids = {
         "11111111-1111-1111-1111-111111111111:4",
@@ -114,7 +114,7 @@ class GtidSpecificationParsingTest : public ::testing::Test {
 
     for (const auto &valid_gtid_str : valid_gtids) {
       Gtid_specification spec;
-      auto status = spec.parse(&sid_map, valid_gtid_str);
+      auto status = spec.parse(&tsid_map, valid_gtid_str);
       ASSERT_EQ(status, mysql::utils::Return_status::ok);
       auto is_valid = spec.is_valid(valid_gtid_str);
       ASSERT_TRUE(is_valid);

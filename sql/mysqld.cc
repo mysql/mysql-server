@@ -1108,7 +1108,7 @@ static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 static PSI_mutex_key key_BINLOG_LOCK_xids;
 static PSI_mutex_key key_BINLOG_LOCK_log_info;
 static PSI_mutex_key key_BINLOG_LOCK_wait_for_group_turn;
-static PSI_rwlock_key key_rwlock_global_sid_lock;
+static PSI_rwlock_key key_rwlock_global_tsid_lock;
 PSI_rwlock_key key_rwlock_gtid_mode_lock;
 static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
@@ -1835,8 +1835,8 @@ mysql_rwlock_t LOCK_named_pipe_full_access_group;
 char *named_pipe_full_access_group;
 #endif
 
-Checkable_rwlock *global_sid_lock = nullptr;
-Sid_map *global_sid_map = nullptr;
+Checkable_rwlock *global_tsid_lock = nullptr;
+Tsid_map *global_tsid_map = nullptr;
 Gtid_state *gtid_state = nullptr;
 Gtid_table_persistor *gtid_table_persistor = nullptr;
 
@@ -2654,13 +2654,13 @@ void gtid_server_cleanup() {
     delete gtid_state;
     gtid_state = nullptr;
   }
-  if (global_sid_map != nullptr) {
-    delete global_sid_map;
-    global_sid_map = nullptr;
+  if (global_tsid_map != nullptr) {
+    delete global_tsid_map;
+    global_tsid_map = nullptr;
   }
-  if (global_sid_lock != nullptr) {
-    delete global_sid_lock;
-    global_sid_lock = nullptr;
+  if (global_tsid_lock != nullptr) {
+    delete global_tsid_lock;
+    global_tsid_lock = nullptr;
   }
   if (gtid_table_persistor != nullptr) {
     delete gtid_table_persistor;
@@ -2678,13 +2678,13 @@ bool gtid_server_init() {
   global_gtid_mode.set(
       static_cast<Gtid_mode::value_type>(Gtid_mode::sysvar_mode));
   const bool res =
-      (!(global_sid_lock = new Checkable_rwlock(
+      (!(global_tsid_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
-             key_rwlock_global_sid_lock
+             key_rwlock_global_tsid_lock
 #endif
              )) ||
-       !(global_sid_map = new Sid_map(global_sid_lock)) ||
-       !(gtid_state = new Gtid_state(global_sid_lock, global_sid_map)) ||
+       !(global_tsid_map = new Tsid_map(global_tsid_lock)) ||
+       !(gtid_state = new Gtid_state(global_tsid_lock, global_tsid_map)) ||
        !(gtid_table_persistor = new Gtid_table_persistor()));
 
   if (res) {
@@ -8737,7 +8737,7 @@ static int init_server_components() {
 
     if (mysql_bin_log.open_binlog(opt_bin_logname, nullptr, max_binlog_size,
                                   false, true /*need_lock_index=true*/,
-                                  true /*need_sid_lock=true*/, nullptr)) {
+                                  true /*need_tsid_lock=true*/, nullptr)) {
       mysql_mutex_unlock(log_lock);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -9683,12 +9683,12 @@ int mysqld_main(int argc, char **argv)
     LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
   /*
-    Add server_uuid to the sid_map.  This must be done after
+    Add server_uuid to the tsid_map.  This must be done after
     server_uuid has been initialized in init_server_auto_options and
-    after the binary log (and sid_map file) has been initialized in
+    after the binary log (and tsid_map file) has been initialized in
     init_server_components().
 
-    No error message is needed: init_sid_map() prints a message.
+    No error message is needed: init_tsid_map() prints a message.
 
     Strictly speaking, this is not currently needed when
     opt_bin_log==0, since the variables that gtid_state->init
@@ -9696,9 +9696,9 @@ int mysqld_main(int argc, char **argv)
     regardless to avoid possible future bugs if gtid_state ever
     needs to do anything else.
   */
-  global_sid_lock->wrlock();
+  global_tsid_lock->wrlock();
   const int gtid_ret = gtid_state->init();
-  global_sid_lock->unlock();
+  global_tsid_lock->unlock();
 
   if (gtid_ret) unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -9720,9 +9720,9 @@ int mysqld_main(int argc, char **argv)
     Gtid_set *previous_gtids_logged =
         const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
 
-    Gtid_set purged_gtids_from_binlog(global_sid_map, global_sid_lock);
-    Gtid_set gtids_in_binlog(global_sid_map, global_sid_lock);
-    Gtid_set gtids_in_binlog_not_in_table(global_sid_map, global_sid_lock);
+    Gtid_set purged_gtids_from_binlog(global_tsid_map, global_tsid_lock);
+    Gtid_set gtids_in_binlog(global_tsid_map, global_tsid_lock);
+    Gtid_set gtids_in_binlog_not_in_table(global_tsid_map, global_tsid_lock);
 
     if (mysql_bin_log.init_gtid_sets(
             &gtids_in_binlog, &purged_gtids_from_binlog,
@@ -9731,7 +9731,7 @@ int mysqld_main(int argc, char **argv)
             true /*is_server_starting*/))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
-    global_sid_lock->wrlock();
+    global_tsid_lock->wrlock();
 
     purged_gtids_from_binlog.dbug_print("purged_gtids_from_binlog");
     gtids_in_binlog.dbug_print("gtids_in_binlog");
@@ -9756,7 +9756,7 @@ int mysqld_main(int argc, char **argv)
              from the crash.
       */
       if (gtid_state->save(&gtids_in_binlog_not_in_table) == -1) {
-        global_sid_lock->unlock();
+        global_tsid_lock->unlock();
         unireg_abort(MYSQLD_ABORT_EXIT);
       }
       executed_gtids->add_gtid_set(&gtids_in_binlog_not_in_table);
@@ -9764,7 +9764,7 @@ int mysqld_main(int argc, char **argv)
 
     /* gtids_only_in_table= executed_gtids - gtids_in_binlog */
     if (gtids_only_in_table->add_gtid_set(executed_gtids) != RETURN_STATUS_OK) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
     gtids_only_in_table->remove_gtid_set(&gtids_in_binlog);
@@ -9777,14 +9777,14 @@ int mysqld_main(int argc, char **argv)
     if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
         lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
             RETURN_STATUS_OK) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     /* Prepare previous_gtids_logged for next binlog */
     if (previous_gtids_logged->add_gtid_set(&gtids_in_binlog) !=
         RETURN_STATUS_OK) {
-      global_sid_lock->unlock();
+      global_tsid_lock->unlock();
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
@@ -9798,7 +9798,7 @@ int mysqld_main(int argc, char **argv)
     */
     Previous_gtids_log_event prev_gtids_ev(&gtids_in_binlog);
 
-    global_sid_lock->unlock();
+    global_tsid_lock->unlock();
 
     (prev_gtids_ev.common_footer)->checksum_alg =
         static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
@@ -13671,7 +13671,7 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
-PSI_rwlock_key key_rwlock_receiver_sid_lock;
+PSI_rwlock_key key_rwlock_receiver_tsid_lock;
 PSI_rwlock_key key_rwlock_rpl_filter_lock;
 PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 
@@ -13691,14 +13691,14 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_sys_init_replica, "LOCK_sys_init_replica", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_global_tsid_lock, "gtid_commit_rollback", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_map_lock, "channel_map_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_lock, "channel_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_receiver_tsid_lock, "gtid_retrieved", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_resource_group_mgr_map_lock, "Resource_group_mgr::m_map_rwlock", 0, 0, PSI_DOCUMENT_ME},

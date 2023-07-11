@@ -581,8 +581,8 @@ bool Recovery_state_transfer::verify_member_has_after_gtids_present(
     return false;
   }
 
-  Sid_map local_sid_map(nullptr);
-  Gtid_set local_gtid_executed(&local_sid_map, nullptr);
+  Tsid_map local_tsid_map(nullptr);
+  Gtid_set local_gtid_executed(&local_tsid_map, nullptr);
   if (local_gtid_executed.add_gtid_text(local_gtid_executed_string.c_str()) !=
       RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,
@@ -590,8 +590,8 @@ bool Recovery_state_transfer::verify_member_has_after_gtids_present(
     return false;
   }
 
-  Sid_map donor_sid_map(nullptr);
-  Gtid_set donor_gtid_executed(&donor_sid_map, nullptr);
+  Tsid_map donor_tsid_map(nullptr);
+  Gtid_set donor_gtid_executed(&donor_tsid_map, nullptr);
   if (donor_gtid_executed.add_gtid_text(m_after_gtids.c_str()) !=
       RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,

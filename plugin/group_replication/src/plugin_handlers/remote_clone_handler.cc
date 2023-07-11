@@ -160,12 +160,12 @@ int Remote_clone_handler::extract_donor_info(
   Group_member_info_list *all_members_info =
       group_member_mgr->get_all_members();
 
-  Sid_map local_sid_map(nullptr);
-  Sid_map group_sid_map(nullptr);
-  Gtid_set local_member_set(&local_sid_map, nullptr);
-  Gtid_set group_set(&group_sid_map, nullptr);
-  Sid_map purged_sid_map(nullptr);
-  Gtid_set purged_set(&purged_sid_map, nullptr);
+  Tsid_map local_tsid_map(nullptr);
+  Tsid_map group_tsid_map(nullptr);
+  Gtid_set local_member_set(&local_tsid_map, nullptr);
+  Gtid_set group_set(&group_tsid_map, nullptr);
+  Tsid_map purged_tsid_map(nullptr);
+  Gtid_set purged_set(&purged_tsid_map, nullptr);
 
   if (local_member_set.add_gtid_text(
           local_member_info->get_gtid_executed().c_str()) != RETURN_STATUS_OK ||
@@ -234,7 +234,7 @@ int Remote_clone_handler::extract_donor_info(
 
     if (not_self) {
       if (is_online || is_recovering) {
-        purged_set.clear_set_and_sid_map();
+        purged_set.clear_set_and_tsid_map();
         if (purged_set.add_gtid_text(member_purged_set_str.c_str()) !=
             RETURN_STATUS_OK) {
           /* purecov: begin inspected */
