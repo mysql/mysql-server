@@ -292,6 +292,9 @@ EXPLAIN
             -> Table scan on t2  (rows=1)
     -> Hash
         -> Table scan on t3  (rows=1)
+    -> Select #2 (subquery in extra conditions; dependent)
+        -> Filter: (<cache>(t2.f2) = t4.f1)  (rows=1)
+            -> Table scan on t4  (rows=1)
 
 SELECT 1
 FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
