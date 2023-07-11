@@ -5948,7 +5948,8 @@ bool JOIN::estimate_rowcount() {
         always_false_cond = true;
       if (records != HA_POS_ERROR) {
         tab->found_records = records;
-        tab->read_time = tab->range_scan() ? tab->range_scan()->cost : 0.0;
+        tab->read_time =
+            tab->range_scan() != nullptr ? tab->range_scan()->cost() : 0.0;
       }
       range_analysis_done = true;
     } else if (tab->join_cond() != nullptr && tab->join_cond()->const_item() &&

@@ -830,7 +830,7 @@ double Optimize_table_order::calculate_scan_cost(
       account here for range/index_merge access. Find out why this is so.
     */
     scan_and_filter_cost =
-        prefix_rowcount * (tab->range_scan()->cost +
+        prefix_rowcount * (tab->range_scan()->cost() +
                            cost_model->row_evaluate_cost(
                                tab->found_records - *rows_after_filtering));
   } else {
@@ -1115,8 +1115,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
              !table->covering_keys.is_clear_all() && best_ref &&          //(3)
              (!tab->range_scan() ||                                       //(3)
               (tab->range_scan()->type ==
-                   AccessPath::ROWID_INTERSECTION &&             //(3)
-               best_ref->read_cost < tab->range_scan()->cost)))  //(3)
+                   AccessPath::ROWID_INTERSECTION &&               //(3)
+               best_ref->read_cost < tab->range_scan()->cost())))  //(3)
   {
     if (tab->range_scan()) {
       trace_access_scan.add_alnum("access_type", "range");
@@ -1825,11 +1825,11 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
 
   if (quick_uses_applicable_index && idx == join->const_tables) {
     Opt_trace_object trace_range(trace, "range_scan");
-    trace_range.add("cost", tab->range_scan()->cost);
+    trace_range.add("cost", tab->range_scan()->cost());
     // @TODO: this the right part restriction:
-    if (tab->range_scan()->cost < pos->read_cost) {
+    if (tab->range_scan()->cost() < pos->read_cost) {
       pos->loosescan_key = used_index(tab->range_scan());
-      pos->read_cost = tab->range_scan()->cost;
+      pos->read_cost = tab->range_scan()->cost();
       // this is ok because idx == join->const_tables
       pos->rows_fetched = tab->range_scan()->num_output_rows();
       pos->loosescan_parts = quick_max_keypart + 1;

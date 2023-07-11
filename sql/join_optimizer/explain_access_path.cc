@@ -850,15 +850,15 @@ static bool AddPathCosts(const AccessPath *path,
   */
   if (materialized_path == nullptr) {
     if (table_path == nullptr) {
-      cost = std::max(0.0, path->cost);
+      cost = std::max(0.0, path->cost());
     } else {
       assert(path->materialize().subquery_cost >= 0.0);
       cost = path->materialize().subquery_cost +
              kMaterializeOneRowCost * path->num_output_rows();
     }
   } else {
-    assert(materialized_path->cost >= 0.0);
-    cost = materialized_path->cost;
+    assert(materialized_path->cost() >= 0.0);
+    cost = materialized_path->cost();
   }
 
   bool error = false;
@@ -868,12 +868,12 @@ static bool AddPathCosts(const AccessPath *path,
     double init_cost;
     if (materialized_path == nullptr) {
       if (table_path == nullptr) {
-        init_cost = path->init_cost;
+        init_cost = path->init_cost();
       } else {
         init_cost = cost;
       }
     } else {
-      init_cost = materialized_path->init_cost;
+      init_cost = materialized_path->init_cost();
     }
 
     if (init_cost >= 0.0) {

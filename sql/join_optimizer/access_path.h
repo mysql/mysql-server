@@ -168,6 +168,9 @@ struct AppendPathParameters {
 /// To indicate that a row estimate is not yet made.
 constexpr double kUnknownRowCount = -1.0;
 
+/// To indicate that a cost estimate is not yet made.
+constexpr double kUnknownCost = -1.0;
+
 /**
   Access paths are a query planning structure that correspond 1:1 to iterators,
   in that an access path contains pretty much exactly the information
@@ -358,29 +361,21 @@ struct AccessPath {
   /// information in EXPLAIN ANALYZE queries.
   RowIterator *iterator = nullptr;
 
-  /// Expected cost to read all of this access path once; -1.0 for unknown.
-  double cost{-1.0};
+  double cost() const { return m_cost; }
 
-  /// Expected cost to initialize this access path; ie., cost to read
-  /// k out of N rows would be init_cost + (k/N) * (cost - init_cost).
-  /// Note that EXPLAIN prints out cost of reading the _first_ row
-  /// because it is easier for the user and also easier to measure in
-  /// EXPLAIN ANALYZE, but it is easier to do calculations with a pure
-  /// initialization cost, so that is what we use in this member.
-  /// -1.0 for unknown.
-  double init_cost{-1.0};
+  double init_cost() const { return m_init_cost; }
 
-  /// Of init_cost, how much of the initialization needs only to be done
-  /// once per query block. (This is a cost, not a proportion.)
-  /// Ie., if the access path can reuse some its initialization work
-  /// if Init() is called multiple times, this member will be nonzero.
-  /// A typical example is a materialized table with rematerialize=false;
-  /// the second time Init() is called, it's a no-op. Most paths will have
-  /// init_once_cost = 0.0, ie., repeated scans will cost the same.
-  /// We do not intend to use this field to model cache effects.
-  ///
-  /// This is currently not printed in EXPLAIN, only optimizer trace.
-  double init_once_cost{0.0};
+  double init_once_cost() const { return m_init_once_cost; }
+
+  double cost_before_filter() const { return m_cost_before_filter; }
+
+  void set_cost(double val) { m_cost = val; }
+
+  void set_init_cost(double val) { m_init_cost = val; }
+
+  void set_init_once_cost(double val) { m_init_once_cost = val; }
+
+  void set_cost_before_filter(double val) { m_cost_before_filter = val; }
 
   /// Return the cost of scanning the given path for the second time
   /// (or later) in the given query block. This is really the interesting
@@ -388,12 +383,10 @@ struct AccessPath {
   /// have zero init_once_cost, storing that instead allows us to skip
   /// a lot of repeated path->init_once_cost = path->init_cost calls
   /// in the code.
-  double rescan_cost() const { return cost - init_once_cost; }
+  double rescan_cost() const { return cost() - init_once_cost(); }
 
-  /// If no filter, identical to num_output_rows, cost, respectively.
-  /// init_cost is always the same (filters have zero initialization cost).
-  double num_output_rows_before_filter{kUnknownRowCount},
-      cost_before_filter{-1.0};
+  /// If no filter, identical to num_output_rows.
+  double num_output_rows_before_filter{kUnknownRowCount};
 
   /// Bitmap of WHERE predicates that we are including on this access path,
   /// referring to the “predicates” array internal to the join optimizer.
@@ -849,8 +842,36 @@ struct AccessPath {
   void set_num_output_rows(double val) { m_num_output_rows = val; }
 
  private:
-  /// Expected number of output rows, -1.0 for unknown.
+  /// Expected number of output rows.
   double m_num_output_rows{kUnknownRowCount};
+
+  /// Expected cost to read all of this access path once.
+  double m_cost{kUnknownCost};
+
+  /// Expected cost to initialize this access path; ie., cost to read
+  /// k out of N rows would be init_cost + (k/N) * (cost - init_cost).
+  /// Note that EXPLAIN prints out cost of reading the _first_ row
+  /// because it is easier for the user and also easier to measure in
+  /// EXPLAIN ANALYZE, but it is easier to do calculations with a pure
+  /// initialization cost, so that is what we use in this member.
+  /// kUnknownCost for unknown.
+  double m_init_cost{kUnknownCost};
+
+  /// Of init_cost, how much of the initialization needs only to be done
+  /// once per query block. (This is a cost, not a proportion.)
+  /// Ie., if the access path can reuse some its initialization work
+  /// if Init() is called multiple times, this member will be nonzero.
+  /// A typical example is a materialized table with rematerialize=false;
+  /// the second time Init() is called, it's a no-op. Most paths will have
+  /// init_once_cost = 0.0, ie., repeated scans will cost the same.
+  /// We do not intend to use this field to model cache effects.
+  ///
+  /// This is currently not printed in EXPLAIN, only optimizer trace.
+  double m_init_once_cost{0.0};
+
+  /// If no filter, identical to cost.  init_cost is always the same
+  /// (filters have zero initialization cost).
+  double m_cost_before_filter{kUnknownCost};
 
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
   // It is private to force all access to be through the type-checking
@@ -1226,9 +1247,9 @@ static_assert(sizeof(AccessPath) <= 144,
 
 inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->set_num_output_rows(from.num_output_rows());
-  to->cost = from.cost;
-  to->init_cost = from.init_cost;
-  to->init_once_cost = from.init_once_cost;
+  to->set_cost(from.cost());
+  to->set_init_cost(from.init_cost());
+  to->set_init_once_cost(from.init_once_cost());
   to->parameter_tables = from.parameter_tables;
   to->safe_for_rowid = from.safe_for_rowid;
   to->ordering_state = from.ordering_state;
@@ -1330,9 +1351,9 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   path->type = AccessPath::CONST_TABLE;
   path->count_examined_rows = count_examined_rows;
   path->set_num_output_rows(1.0);
-  path->cost = 0.0;
-  path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
+  path->set_cost(0.0);
+  path->set_init_cost(0.0);
+  path->set_init_once_cost(0.0);
   path->const_table().table = table;
   path->const_table().ref = ref;
   return path;
@@ -1473,9 +1494,9 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   path->type = AccessPath::FAKE_SINGLE_ROW;
   path->count_examined_rows = count_examined_rows;
   path->set_num_output_rows(1.0);
-  path->cost = 0.0;
-  path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
+  path->set_cost(0.0);
+  path->set_init_cost(0.0);
+  path->set_init_once_cost(0.0);
   return path;
 }
 
@@ -1486,11 +1507,11 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->zero_rows().child = child;
   path->zero_rows().cause = cause;
   path->set_num_output_rows(0.0);
-  path->cost = 0.0;
-  path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
+  path->set_cost(0.0);
+  path->set_init_cost(0.0);
+  path->set_init_once_cost(0.0);
   path->num_output_rows_before_filter = 0.0;
-  path->cost_before_filter = 0.0;
+  path->set_cost_before_filter(0.0);
   return path;
 }
 
@@ -1504,8 +1525,8 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
   path->type = AccessPath::ZERO_ROWS_AGGREGATED;
   path->zero_rows_aggregated().cause = cause;
   path->set_num_output_rows(1.0);
-  path->cost = 0.0;
-  path->init_cost = 0.0;
+  path->set_cost(0.0);
+  path->set_init_cost(0.0);
   return path;
 }
 
@@ -1580,7 +1601,7 @@ inline AccessPath *NewMaterializeAccessPath(
   path->type = AccessPath::MATERIALIZE;
   path->materialize().table_path = table_path;
   path->materialize().param = param;
-  path->materialize().subquery_cost = -1.0;
+  path->materialize().subquery_cost = kUnknownCost;
   if (rematerialize) {
     path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
   } else {
@@ -1607,14 +1628,15 @@ inline AccessPath *NewAppendAccessPath(
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::APPEND;
   path->append().children = children;
-  path->cost = 0.0;
-  path->init_cost = 0.0;
-  path->init_once_cost = 0.0;
+  path->set_cost(0.0);
+  path->set_init_cost(0.0);
+  path->set_init_once_cost(0.0);
   double num_output_rows = 0.0;
   for (const AppendPathParameters &child : *children) {
-    path->cost += child.path->cost;
-    path->init_cost += child.path->init_cost;
-    path->init_once_cost += child.path->init_once_cost;
+    path->set_cost(path->cost() + child.path->cost());
+    path->set_init_cost(path->init_cost() + child.path->init_cost());
+    path->set_init_once_cost(path->init_once_cost() +
+                             child.path->init_once_cost());
     num_output_rows += child.path->num_output_rows();
   }
   path->set_num_output_rows(num_output_rows);

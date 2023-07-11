@@ -2219,9 +2219,9 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         if (path->type == AccessPath::REF &&
             strcmp(path->ref().table->alias, "t1") == 0) {
-          path->cost *= 0.01;
-          path->init_cost *= 0.01;
-          path->cost_before_filter *= 0.01;
+          path->set_cost(path->cost() * 0.01);
+          path->set_init_cost(path->init_cost() * 0.01);
+          path->set_cost_before_filter(path->cost_before_filter() * 0.01);
         }
         return false;
       };

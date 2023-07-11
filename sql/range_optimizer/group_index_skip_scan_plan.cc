@@ -91,7 +91,7 @@ void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
       .add("max_aggregate", !param->max_functions.empty())
       .add("distinct_aggregate", param->have_agg_distinct)
       .add("rows", path->num_output_rows())
-      .add("cost", path->cost);
+      .add("cost", path->cost());
 
   const KEY_PART_INFO *key_part = param->index_info->key_part;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -993,7 +993,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   /* The query passes all tests, so construct a new AccessPath. */
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::GROUP_INDEX_SKIP_SCAN;
-  path->cost = best_read_cost.total_cost();
+  path->set_cost(best_read_cost.total_cost());
   path->set_num_output_rows(best_records);
 
   // Extract the list of MIN and MAX functions; join->sum_funcs will change
@@ -1028,7 +1028,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   p->min_max_ranges = std::move(min_max_ranges);
   if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
     trace_group.add("index_scan", true);
-    path->cost = 0.0;
+    path->set_cost(0.0);
     p->is_index_scan = true;
   } else {
     p->is_index_scan = false;

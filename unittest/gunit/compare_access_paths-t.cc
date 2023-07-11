@@ -71,9 +71,9 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
   a.safe_for_rowid = AccessPath::Safety::UNSAFE;
   // Numerical cost dimensions (fuzzy comparison).
   a.set_num_output_rows(100.0);
-  a.cost = 100.0;
-  a.init_cost = 100.0;
-  a.init_once_cost = 0.0;
+  a.set_cost(100.0);
+  a.set_init_cost(100.0);
+  a.set_init_once_cost(0.0);
   static_assert(std::is_trivially_copy_constructible<AccessPath>::value);
   AccessPath b = a;
 
@@ -99,28 +99,28 @@ TEST(CompareAccessPathsTest, CompareAccessPaths) {
 
   // Fuzzily identical, neither path dominates.
   a = b;
-  a.cost = 100.5;
-  b.init_cost = 100.5;
+  a.set_cost(100.5);
+  b.set_init_cost(100.5);
   EXPECT_EQ(CompareAccessPaths(orderings, a, b, obsolete_orderings),
             PathComparisonResult::IDENTICAL);
   EXPECT_EQ(CompareAccessPaths(orderings, b, a, obsolete_orderings),
             PathComparisonResult::IDENTICAL);
 
   // Fuzzily identical, but one path dominates (slightly).
-  b.cost = 100.0;
-  b.init_cost = 100.0;
-  a.cost = 99.5;
-  a.init_cost = 99.5;
+  b.set_cost(100.0);
+  b.set_init_cost(100.0);
+  a.set_cost(99.5);
+  a.set_init_cost(99.5);
   EXPECT_EQ(CompareAccessPaths(orderings, a, b, obsolete_orderings),
             PathComparisonResult::FIRST_DOMINATES);
   EXPECT_EQ(CompareAccessPaths(orderings, b, a, obsolete_orderings),
             PathComparisonResult::SECOND_DOMINATES);
 
   // Different strenghts in numerical dimensions.
-  a.cost = 100.0;
-  b.cost = 95.0;
-  a.init_cost = 95.0;
-  b.init_cost = 100.0;
+  a.set_cost(100.0);
+  b.set_cost(95.0);
+  a.set_init_cost(95.0);
+  b.set_init_cost(100.0);
   EXPECT_EQ(CompareAccessPaths(orderings, a, b, obsolete_orderings),
             PathComparisonResult::DIFFERENT_STRENGTHS);
   EXPECT_EQ(CompareAccessPaths(orderings, b, a, obsolete_orderings),

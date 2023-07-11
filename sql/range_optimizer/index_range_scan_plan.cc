@@ -969,7 +969,7 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
 
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
-  path->cost = read_cost;
+  path->set_cost(read_cost);
   path->set_num_output_rows(best_records);
   path->index_range_scan().index = param->real_keynr[best_idx];
   path->index_range_scan().num_used_key_parts = used_key_parts;
@@ -988,7 +988,7 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
   path->index_range_scan().reverse =
       false;  // May be changed by make_reverse() later.
   DBUG_PRINT("info", ("Returning range plan for key %s, cost %g, records %g",
-                      used_key->name, path->cost, path->num_output_rows()));
+                      used_key->name, path->cost(), path->num_output_rows()));
   return path;
 }
 

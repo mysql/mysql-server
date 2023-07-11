@@ -812,7 +812,7 @@ static AccessPath *NewInvalidatorAccessPathForTable(
 
   // Copy costs.
   invalidator->set_num_output_rows(path->num_output_rows());
-  invalidator->cost = path->cost;
+  invalidator->set_cost(path->cost());
 
   QEP_TAB *tab2 = &qep_tab->join()->qep_tab[table_index_to_invalidate];
   if (tab2->invalidators == nullptr) {
@@ -1486,15 +1486,16 @@ static void RecalculateTablePathCost(AccessPath *path,
     case AccessPath::FILTER: {
       const AccessPath &child = *path->filter().child;
       path->set_num_output_rows(child.num_output_rows());
-      path->init_cost = child.init_cost;
+      path->set_init_cost(child.init_cost());
 
       const FilterCost filterCost =
           EstimateFilterCost(current_thd, path->num_output_rows(),
                              path->filter().condition, &outer_query_block);
 
-      path->cost = child.cost + (path->filter().materialize_subqueries
-                                     ? filterCost.cost_if_materialized
-                                     : filterCost.cost_if_not_materialized);
+      path->set_cost(child.cost() +
+                     (path->filter().materialize_subqueries
+                          ? filterCost.cost_if_materialized
+                          : filterCost.cost_if_not_materialized));
     } break;
 
     case AccessPath::SORT:
@@ -1528,7 +1529,7 @@ static void RecalculateTablePathCost(AccessPath *path,
 
 AccessPath *MoveCompositeIteratorsFromTablePath(
     AccessPath *path, const Query_block &outer_query_block) {
-  assert(path->cost >= 0.0);
+  assert(path->cost() >= 0.0);
   AccessPath *table_path = path->materialize().table_path;
   AccessPath *bottom_of_table_path = nullptr;
   // For EXPLAIN, we recalculate the cost to reflect the new order of
@@ -1728,7 +1729,7 @@ AccessPath *GetAccessPathForDerivedTable(
         path, *query_expression->outer_query_block());
   }
 
-  path->cost_before_filter = path->cost;
+  path->set_cost_before_filter(path->cost());
   path->num_output_rows_before_filter = path->num_output_rows();
 
   table_ref->access_path_for_derived = path;
@@ -1864,11 +1865,11 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
   const double cost =
       pos->read_cost + cost_model.row_evaluate_cost(num_rows_after_filtering);
   if (pos->prefix_rowcount <= 0.0) {
-    path->cost = cost;
+    path->set_cost(cost);
   } else {
     // Scale the estimated cost to being for one loop only, to match the
     // measured costs.
-    path->cost = cost * num_rows_after_filtering / pos->prefix_rowcount;
+    path->set_cost(cost * num_rows_after_filtering / pos->prefix_rowcount);
   }
 }
 
@@ -1904,8 +1905,8 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
   const double joined_rows =
       outer->num_output_rows() * inner_expected_rows_before_filter;
   path->set_num_output_rows(joined_rows * pos_inner->filter_effect);
-  path->cost = outer->cost + pos_inner->read_cost +
-               cost_model.row_evaluate_cost(joined_rows);
+  path->set_cost(outer->cost() + pos_inner->read_cost +
+                 cost_model.row_evaluate_cost(joined_rows));
 }
 
 void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
@@ -1928,8 +1929,8 @@ void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
   const double joined_rows =
       outer->num_output_rows() * inner->num_output_rows();
   path->set_num_output_rows(joined_rows * pos_outer->filter_effect);
-  path->cost = inner->cost + pos_outer->read_cost +
-               cost_model.row_evaluate_cost(joined_rows);
+  path->set_cost(inner->cost() + pos_outer->read_cost +
+                 cost_model.row_evaluate_cost(joined_rows));
 }
 
 static bool ConditionIsAlwaysTrue(Item *item) {
@@ -2969,8 +2970,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     best_rowcount = query_block->row_value_list->size();
     path = NewTableValueConstructorAccessPath(thd);
     path->set_num_output_rows(query_block->row_value_list->size());
-    path->cost = 0.0;
-    path->init_cost = 0.0;
+    path->set_cost(0.0);
+    path->set_init_cost(0.0);
   } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
@@ -3316,8 +3317,9 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(
       const FilterCost filter_cost = EstimateFilterCost(
           thd, path->num_output_rows(), having_cond, query_block);
 
-      path->cost += filter_cost.cost_if_not_materialized;
-      path->init_cost += filter_cost.init_cost_if_not_materialized;
+      path->set_cost(path->cost() + filter_cost.cost_if_not_materialized);
+      path->set_init_cost(path->init_cost() +
+                          filter_cost.init_cost_if_not_materialized);
     }
   }
 
@@ -3800,7 +3802,8 @@ AccessPath *QEP_TAB::access_path() {
         AccessPath *table_scan_path = NewTableScanAccessPath(
             join()->thd, table(), /*count_examined_rows=*/true);
         table_scan_path->set_num_output_rows(table()->file->stats.records);
-        table_scan_path->cost = table()->file->table_scan_cost().total_cost();
+        table_scan_path->set_cost(
+            table()->file->table_scan_cost().total_cost());
         path = NewAlternativeAccessPath(join()->thd, path, table_scan_path,
                                         used_ref);
         break;

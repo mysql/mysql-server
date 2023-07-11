@@ -876,7 +876,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 : nullptr;
 
         const auto first_row_cost = [](const AccessPath &p) {
-          return p.init_cost + p.cost / std::max(p.num_output_rows(), 1.0);
+          return p.init_cost() + p.cost() / std::max(p.num_output_rows(), 1.0);
         };
 
         // If the probe (outer) input is empty, the join result will be empty,
@@ -1441,7 +1441,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     // rows (purely for display purposes). Note that this mirrors the
     // calculation we are doing in CostingReceiver::ProposeNestedLoopJoin();
     // we don't have space in the AccessPath to store it there.
-    double filter_cost = right_path->cost;
+    double filter_cost = right_path->cost();
     double filter_rows = right_path->num_output_rows();
 
     List<Item> items;
@@ -1475,7 +1475,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
 
     CopyBasicProperties(*right_path, filter_path);
     filter_path->filter().condition = CreateConjunction(&items);
-    filter_path->cost = filter_cost;
+    filter_path->set_cost(filter_cost);
     filter_path->set_num_output_rows(filter_rows);
 
     path->nested_loop_join().inner = filter_path;
@@ -1509,19 +1509,20 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
   AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
   new_path->filter_predicates.Clear();
   new_path->set_num_output_rows(path->num_output_rows_before_filter);
-  new_path->cost = path->cost_before_filter;
+  new_path->set_cost(path->cost_before_filter());
 
   // We don't really know how much of init_cost comes from the filter,
   // but we need to heed the invariant that cost >= init_cost
   // also for the new (non-filter) path we're creating, even if it's
   // just for display. Heuristically allocate as much as possible to
   // the filter.
-  double filter_only_cost = path->cost - path->cost_before_filter;
-  new_path->init_cost = std::max(new_path->init_cost - filter_only_cost, 0.0);
-  new_path->init_once_cost =
-      std::max(new_path->init_once_cost - filter_only_cost, 0.0);
-  assert(new_path->cost >= new_path->init_cost);
-  assert(new_path->init_cost >= new_path->init_once_cost);
+  double filter_only_cost = path->cost() - path->cost_before_filter();
+  new_path->set_init_cost(
+      std::max(new_path->init_cost() - filter_only_cost, 0.0));
+  new_path->set_init_once_cost(
+      std::max(new_path->init_once_cost() - filter_only_cost, 0.0));
+  assert(new_path->cost() >= new_path->init_cost());
+  assert(new_path->init_cost() >= new_path->init_once_cost());
 
   path->type = AccessPath::FILTER;
   path->filter().condition = condition;

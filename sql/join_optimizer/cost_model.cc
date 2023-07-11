@@ -127,10 +127,11 @@ void EstimateSortCost(AccessPath *path) {
     path->set_num_output_rows(num_output_rows);
   }
 
-  path->cost = path->init_cost = child->cost + sort_cost;
-  path->init_once_cost = 0.0;
+  path->set_cost(child->cost() + sort_cost);
+  path->set_init_cost(path->cost());
+  path->set_init_once_cost(0.0);
   path->num_output_rows_before_filter = path->num_output_rows();
-  path->cost_before_filter = path->cost;
+  path->set_cost_before_filter(path->cost());
 }
 
 void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
@@ -152,21 +153,21 @@ void AddCost(THD *thd, const ContainedSubquery &subquery, double num_rows,
           tmp_table_type, /*write_rows=*/0,
           /*read_rows=*/num_rows);
       cost->cost_to_materialize +=
-          subquery.path->cost +
+          subquery.path->cost() +
           kMaterializeOneRowCost * subquery.path->num_output_rows();
 
-      cost->cost_if_not_materialized += num_rows * subquery.path->cost;
+      cost->cost_if_not_materialized += num_rows * subquery.path->cost();
     } break;
 
     case ContainedSubquery::Strategy::kNonMaterializable:
-      cost->cost_if_not_materialized += num_rows * subquery.path->cost;
-      cost->cost_if_materialized += num_rows * subquery.path->cost;
+      cost->cost_if_not_materialized += num_rows * subquery.path->cost();
+      cost->cost_if_materialized += num_rows * subquery.path->cost();
       break;
 
     case ContainedSubquery::Strategy::kIndependentSingleRow:
-      cost->cost_if_materialized += subquery.path->cost;
-      cost->cost_if_not_materialized += subquery.path->cost;
-      cost->init_cost_if_not_materialized += subquery.path->cost;
+      cost->cost_if_materialized += subquery.path->cost();
+      cost->cost_if_not_materialized += subquery.path->cost();
+      cost->init_cost_if_not_materialized += subquery.path->cost();
       break;
 
     default:
@@ -216,11 +217,11 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
       // For implicit grouping operand.subquery_path->num_output_rows() may be
       // set (to 1.0) even if operand.subquery_path->cost is undefined (cf.
       // Bug#35240913).
-      if (operand.subquery_path->cost > 0.0) {
-        subquery_cost += operand.subquery_path->cost;
+      if (operand.subquery_path->cost() > 0.0) {
+        subquery_cost += operand.subquery_path->cost();
         if (operand.join != nullptr &&
             operand.join->query_block->is_cacheable()) {
-          cost_for_cacheable += operand.subquery_path->cost;
+          cost_for_cacheable += operand.subquery_path->cost();
         }
       }
     }
@@ -228,17 +229,17 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
   }
 
   if (table_path->type == AccessPath::TABLE_SCAN) {
-    path->cost = 0.0;
-    path->init_cost = 0.0;
-    path->init_once_cost = 0.0;
+    path->set_cost(0.0);
+    path->set_init_cost(0.0);
+    path->set_init_once_cost(0.0);
     table_path->set_num_output_rows(path->num_output_rows());
-    table_path->init_cost = subquery_cost;
-    table_path->init_once_cost = cost_for_cacheable;
+    table_path->set_init_cost(subquery_cost);
+    table_path->set_init_once_cost(cost_for_cacheable);
 
     if (Overlaps(test_flags, TEST_NO_TEMP_TABLES)) {
       // Unit tests don't load any temporary table engines,
       // so just make up a number.
-      table_path->cost = subquery_cost + path->num_output_rows() * 0.1;
+      table_path->set_cost(subquery_cost + path->num_output_rows() * 0.1);
     } else {
       TABLE dummy_table;
       TABLE *temp_table = table_path->table_scan().table;
@@ -257,23 +258,25 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
       // TempTable.
       temp_table->file->stats.records =
           min(path->num_output_rows(), LLONG_MAX_DOUBLE);
-      table_path->cost =
-          subquery_cost + temp_table->file->table_scan_cost().total_cost();
+      table_path->set_cost(subquery_cost +
+                           temp_table->file->table_scan_cost().total_cost());
     }
   } else {
     // Use the costs of the subquery.
-    path->init_cost = subquery_cost;
-    path->init_once_cost = cost_for_cacheable;
-    path->cost = subquery_cost;
+    path->set_init_cost(subquery_cost);
+    path->set_init_once_cost(cost_for_cacheable);
+    path->set_cost(subquery_cost);
   }
 
-  path->init_cost += std::max(table_path->init_cost, 0.0) +
-                     kMaterializeOneRowCost * path->num_output_rows();
+  path->set_init_cost(path->init_cost() +
+                      std::max(table_path->init_cost(), 0.0) +
+                      kMaterializeOneRowCost * path->num_output_rows());
 
-  path->init_once_cost += std::max(table_path->init_once_cost, 0.0);
+  path->set_init_once_cost(path->init_once_cost() +
+                           std::max(table_path->init_once_cost(), 0.0));
 
-  path->cost += std::max(table_path->cost, 0.0) +
-                kMaterializeOneRowCost * path->num_output_rows();
+  path->set_cost(path->cost() + std::max(table_path->cost(), 0.0) +
+                 kMaterializeOneRowCost * path->num_output_rows());
 }
 
 namespace {
@@ -852,14 +855,14 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
         child, query_block, path->aggregate().rollup, trace));
   }
 
-  path->init_cost = child->init_cost;
-  path->init_once_cost = child->init_once_cost;
+  path->set_init_cost(child->init_cost());
+  path->set_init_once_cost(child->init_once_cost());
 
-  path->cost = child->cost +
-               kAggregateOneRowCost * std::max(0.0, child->num_output_rows());
+  path->set_cost(child->cost() + kAggregateOneRowCost *
+                                     std::max(0.0, child->num_output_rows()));
 
   path->num_output_rows_before_filter = path->num_output_rows();
-  path->cost_before_filter = path->cost;
+  path->set_cost_before_filter(path->cost());
   path->ordering_state = child->ordering_state;
 }
 
@@ -868,16 +871,16 @@ void EstimateDeleteRowsCost(AccessPath *path) {
   const AccessPath *child = param.child;
 
   path->set_num_output_rows(child->num_output_rows());
-  path->init_once_cost = child->init_once_cost;
-  path->init_cost = child->init_cost;
+  path->set_init_once_cost(child->init_once_cost());
+  path->set_init_cost(child->init_cost());
 
   // Include the cost of building the temporary tables for the non-immediate
   // (buffered) deletes in the cost estimate.
   const table_map buffered_tables =
       param.tables_to_delete_from & ~param.immediate_tables;
-  path->cost = child->cost + kMaterializeOneRowCost *
-                                 PopulationCount(buffered_tables) *
-                                 child->num_output_rows();
+  path->set_cost(child->cost() + kMaterializeOneRowCost *
+                                     PopulationCount(buffered_tables) *
+                                     child->num_output_rows());
 }
 
 void EstimateUpdateRowsCost(AccessPath *path) {
@@ -885,26 +888,26 @@ void EstimateUpdateRowsCost(AccessPath *path) {
   const AccessPath *child = param.child;
 
   path->set_num_output_rows(child->num_output_rows());
-  path->init_once_cost = child->init_once_cost;
-  path->init_cost = child->init_cost;
+  path->set_init_once_cost(child->init_once_cost());
+  path->set_init_cost(child->init_cost());
 
   // Include the cost of building the temporary tables for the non-immediate
   // (buffered) updates in the cost estimate.
   const table_map buffered_tables =
       param.tables_to_update & ~param.immediate_tables;
-  path->cost = child->cost + kMaterializeOneRowCost *
-                                 PopulationCount(buffered_tables) *
-                                 child->num_output_rows();
+  path->set_cost(child->cost() + kMaterializeOneRowCost *
+                                     PopulationCount(buffered_tables) *
+                                     child->num_output_rows());
 }
 
 void EstimateStreamCost(AccessPath *path) {
   AccessPath &child = *path->stream().child;
   path->set_num_output_rows(child.num_output_rows());
-  path->cost = child.cost;
-  path->init_cost = child.init_cost;
-  path->init_once_cost = 0.0;  // Never recoverable across query blocks.
+  path->set_cost(child.cost());
+  path->set_init_cost(child.init_cost());
+  path->set_init_once_cost(0.0);  // Never recoverable across query blocks.
   path->num_output_rows_before_filter = path->num_output_rows();
-  path->cost_before_filter = path->cost;
+  path->set_cost_before_filter(path->cost());
   path->ordering_state = child.ordering_state;
   path->safe_for_rowid = child.safe_for_rowid;
   // Streaming paths are usually added after all filters have been applied, so
@@ -927,20 +930,22 @@ void EstimateLimitOffsetCost(AccessPath *path) {
     path->set_num_output_rows(-1.0);
   }
 
-  if (child->init_cost < 0.0) {
+  if (child->init_cost() < 0.0) {
     // We have nothing better, since we don't know how much is startup cost.
-    path->cost = child->cost;
-    path->init_cost = -1.0;
+    path->set_cost(child->cost());
+    path->set_init_cost(kUnknownCost);
   } else if (child->num_output_rows() < 1e-6) {
-    path->cost = path->init_cost = child->init_cost;
+    path->set_cost(child->init_cost());
+    path->set_init_cost(child->init_cost());
   } else {
     const double fraction_start_read =
         std::min(1.0, double(lim.offset) / child->num_output_rows());
     const double fraction_full_read =
         std::min(1.0, double(lim.limit) / child->num_output_rows());
-    path->cost = child->init_cost +
-                 fraction_full_read * (child->cost - child->init_cost);
-    path->init_cost = child->init_cost +
-                      fraction_start_read * (child->cost - child->init_cost);
+    path->set_cost(child->init_cost() +
+                   fraction_full_read * (child->cost() - child->init_cost()));
+    path->set_init_cost(child->init_cost() +
+                        fraction_start_read *
+                            (child->cost() - child->init_cost()));
   }
 }
