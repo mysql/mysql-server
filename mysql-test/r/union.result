@@ -2066,7 +2066,7 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 EXPLAIN
--> Append  (cost=0.45 rows=2)
+-> Append  (cost=0.225..0.45 rows=2)
     -> Stream results  (cost=0.45 rows=1)
         -> Aggregate: sum(t2.a)  (cost=0.45 rows=1)
             -> Covering index scan on t2 using PRIMARY  (cost=0.35 rows=1)
@@ -5682,3 +5682,28 @@ EXPLAIN
                         -> Rows fetched before execution  (rows=1)
 
 DROP TABLE r, s, t;
+#
+# Bug#35590128 Wrong first-row cost for 'Append'.
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY(a)
+);
+INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE (SELECT b FROM t1 UNION SELECT b FROM t1)
+UNION ALL SELECT b FROM t1;
+EXPLAIN
+-> Append  (cost=2.05..4.83 rows=9)
+    -> Stream results  (cost=2.13..4.28 rows=6)
+        -> Table scan on <union temporary>  (cost=2.13..4.28 rows=6)
+            -> Union materialize with deduplication  (cost=1.7..1.7 rows=6)
+                -> Table scan on t1  (cost=0.55 rows=3)
+                -> Table scan on t1  (cost=0.55 rows=3)
+    -> Stream results  (cost=0.55 rows=3)
+        -> Table scan on t1  (cost=0.55 rows=3)
+
+DROP TABLE t1;

@@ -2816,3 +2816,21 @@ eval $query;
 eval EXPLAIN format = tree $query;
 
 DROP TABLE r, s, t;
+
+--echo #
+--echo # Bug#35590128 Wrong first-row cost for 'Append'.
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a)
+);
+
+INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=TREE (SELECT b FROM t1 UNION SELECT b FROM t1)
+UNION ALL SELECT b FROM t1;
+
+DROP TABLE t1;

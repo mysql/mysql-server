@@ -889,7 +889,7 @@ EXPLAIN FORMAT=tree
 UNION ALL
 SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
 EXPLAIN
--> Append  (cost=0.35 rows=1)
+-> Append  (cost=0.35..0.35 rows=1)
     -> Stream results  (cost=0.35 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
     -> Stream results  (cost=0..0 rows=0)

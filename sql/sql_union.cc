@@ -1302,7 +1302,7 @@ AccessPath *make_set_op_access_path(
                                               &join->tmp_table_param, dest,
                                               /*ref_slice=*/-1);
           param.join = join;
-          CopyBasicProperties(*join->root_access_path(), param.path);
+          CopyBasicProperties(*child_path, param.path);
           union_all_subpaths->push_back(param);
         }
       } else if (parent != nullptr) {

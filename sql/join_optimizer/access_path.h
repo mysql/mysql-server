@@ -168,8 +168,10 @@ struct AppendPathParameters {
 /// To indicate that a row estimate is not yet made.
 constexpr double kUnknownRowCount = -1.0;
 
-/// To indicate that a cost estimate is not yet made.
-constexpr double kUnknownCost = -1.0;
+/// To indicate that a cost estimate is not yet made. We use a large negative
+/// value to avoid getting a positive result if we by mistake add this to
+/// a real (positive) cost.
+constexpr double kUnknownCost = -1e12;
 
 /**
   Access paths are a query planning structure that correspond 1:1 to iterators,
@@ -369,13 +371,25 @@ struct AccessPath {
 
   double cost_before_filter() const { return m_cost_before_filter; }
 
-  void set_cost(double val) { m_cost = val; }
+  void set_cost(double val) {
+    assert(val >= 0.0 || val == kUnknownCost);
+    m_cost = val;
+  }
 
-  void set_init_cost(double val) { m_init_cost = val; }
+  void set_init_cost(double val) {
+    assert(val >= 0.0 || val == kUnknownCost);
+    m_init_cost = val;
+  }
 
-  void set_init_once_cost(double val) { m_init_once_cost = val; }
+  void set_init_once_cost(double val) {
+    assert(val >= 0.0);
+    m_init_once_cost = val;
+  }
 
-  void set_cost_before_filter(double val) { m_cost_before_filter = val; }
+  void set_cost_before_filter(double val) {
+    assert(val >= 0.0 || val == kUnknownCost);
+    m_cost_before_filter = val;
+  }
 
   /// Return the cost of scanning the given path for the second time
   /// (or later) in the given query block. This is really the interesting
@@ -1621,6 +1635,18 @@ inline AccessPath *NewMaterializeInformationSchemaTableAccessPath(
   return path;
 }
 
+/// Add path costs c1 and c2, but handle kUnknownCost correctly.
+inline double AddCost(double c1, double c2) {
+  // If one is undefined, use the other, as we have nothing else.
+  if (c1 == kUnknownCost) {
+    return c2;
+  } else if (c2 == kUnknownCost) {
+    return c1;
+  } else {
+    return c1 + c2;
+  }
+}
+
 // The Mem_root_array must be allocated on a MEM_ROOT that lives at least for as
 // long as the access path.
 inline AccessPath *NewAppendAccessPath(
@@ -1628,13 +1654,10 @@ inline AccessPath *NewAppendAccessPath(
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::APPEND;
   path->append().children = children;
-  path->set_cost(0.0);
-  path->set_init_cost(0.0);
-  path->set_init_once_cost(0.0);
   double num_output_rows = 0.0;
   for (const AppendPathParameters &child : *children) {
-    path->set_cost(path->cost() + child.path->cost());
-    path->set_init_cost(path->init_cost() + child.path->init_cost());
+    path->set_cost(AddCost(path->cost(), child.path->cost()));
+    path->set_init_cost(AddCost(path->init_cost(), child.path->init_cost()));
     path->set_init_once_cost(path->init_once_cost() +
                              child.path->init_once_cost());
     num_output_rows += child.path->num_output_rows();
