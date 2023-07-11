@@ -889,6 +889,13 @@ IF(WIN32 AND NOT WIN32_CLANG)
     COMPILE_FLAGS "/d2OptimizeHugeFunctions")
 ENDIF()
 
+# 'yyexhtaustedlab': unreferenced label
+IF(WIN32 AND NOT WIN32_CLANG)
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+                    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+                    COMPILE_FLAGS "/wd4102")
+ENDIF()
+
 # Common for all versions of GCC/Clang
 # Bison output uses undefined symbols in #if checks
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
