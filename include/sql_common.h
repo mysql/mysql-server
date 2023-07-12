@@ -238,21 +238,21 @@ struct MYSQL_METHODS {
                                                                ulong *res);
 };
 
-#define simple_command(mysql, command, arg, length, skip_check)              \
-  ((mysql)->methods                                                          \
-       ? (*(mysql)->methods->advanced_command)(mysql, command, 0, 0, arg,    \
-                                               length, skip_check, NULL)     \
-       : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), \
+#define simple_command(mysql, command, arg, length, skip_check)               \
+  ((mysql)->methods                                                           \
+       ? (*(mysql)->methods->advanced_command)(mysql, command, nullptr, 0,    \
+                                               arg, length, skip_check, NULL) \
+       : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate),  \
           1))
 #define simple_command_nonblocking(mysql, command, arg, length, skip_check, \
                                    error)                                   \
   (*(mysql)->methods->advanced_command_nonblocking)(                        \
-      mysql, command, 0, 0, arg, length, skip_check, NULL, error)
+      mysql, command, nullptr, 0, arg, length, skip_check, nullptr, error)
 
 #define stmt_command(mysql, command, arg, length, stmt)                      \
   ((mysql)->methods                                                          \
-       ? (*(mysql)->methods->advanced_command)(mysql, command, 0, 0, arg,    \
-                                               length, 1, stmt)              \
+       ? (*(mysql)->methods->advanced_command)(mysql, command, nullptr, 0,   \
+                                               arg, length, 1, stmt)         \
        : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), \
           1))
 

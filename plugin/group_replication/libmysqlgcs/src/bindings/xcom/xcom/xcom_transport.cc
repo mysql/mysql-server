@@ -518,7 +518,7 @@ static inline int old_proto_knows(xcom_proto x_proto [[maybe_unused]],
 }
 
 static xdrproc_t pax_msg_func[] = {
-    reinterpret_cast<xdrproc_t>(0),
+    nullptr,
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_0),
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_1),
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_2),

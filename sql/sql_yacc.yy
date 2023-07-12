@@ -3639,7 +3639,7 @@ srs_attributes:
 default_role_clause:
           %empty
           {
-            $$= 0;
+            $$= nullptr;
           }
         |
           DEFAULT_SYM ROLE_SYM role_list
@@ -4054,7 +4054,7 @@ sp_fdparam:
             if (spvar->field_def.init(thd, "", field_type,
                                       $2->get_length(), $2->get_dec(),
                                       $2->get_type_flags(),
-                                      NULL, NULL, &NULL_CSTR, 0,
+                                      NULL, NULL, &NULL_CSTR, nullptr,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $3 != nullptr, $2->get_uint_geom_type(),
@@ -4115,7 +4115,7 @@ sp_pdparam:
             if (spvar->field_def.init(thd, "", field_type,
                                       $3->get_length(), $3->get_dec(),
                                       $3->get_type_flags(),
-                                      NULL, NULL, &NULL_CSTR, 0,
+                                      NULL, NULL, &NULL_CSTR, nullptr,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $4 != nullptr, $3->get_uint_geom_type(),
@@ -4245,7 +4245,7 @@ sp_decl:
               if (spvar->field_def.init(thd, "", var_type,
                                         $3->get_length(), $3->get_dec(),
                                         $3->get_type_flags(),
-                                        NULL, NULL, &NULL_CSTR, 0,
+                                        NULL, NULL, &NULL_CSTR, nullptr,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
                                         $4 != nullptr, $3->get_uint_geom_type(),
@@ -8757,7 +8757,7 @@ opt_ev_sql_stmt:
         ;
 
 ident_or_empty:
-          %empty { $$.str= 0; $$.length= 0; }
+          %empty { $$.str= nullptr; $$.length= 0; }
         | ident { $$= $1; }
         ;
 
@@ -14020,7 +14020,7 @@ opt_storage:
         ;
 
 opt_db:
-          %empty { $$= 0; }
+          %empty { $$= nullptr; }
         | from_or_in ident { $$= $2.str; }
         ;
 
@@ -17514,7 +17514,7 @@ no_definer:
               from older master servers (i.e. to create non-suid trigger in this
               case).
             */
-            YYTHD->lex->definer= 0;
+            YYTHD->lex->definer= nullptr;
           }
         ;
 
@@ -17901,7 +17901,7 @@ sf_tail:
 
             if (sp->m_return_field_def.init(YYTHD, "", field_type,
                                             $10->get_length(), $10->get_dec(),
-                                            $10->get_type_flags(), NULL, NULL, &NULL_CSTR, 0,
+                                            $10->get_type_flags(), NULL, NULL, &NULL_CSTR, nullptr,
                                             $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
                                             $11 != nullptr, $10->get_uint_geom_type(),
@@ -18112,7 +18112,7 @@ xid:
             XID *xid;
             if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
-            xid->set(1L, $1->ptr(), $1->length(), 0, 0);
+            xid->set(1L, $1->ptr(), $1->length(), nullptr, 0);
             $$= xid;
           }
           | text_string ',' text_string

@@ -159,8 +159,11 @@ struct MYSQL_XID {
                          builtin_##NAME##_sizeof_struct_st_plugin,        \
                          builtin_##NAME##_plugin)
 
-#define mysql_declare_plugin_end                 \
-  , { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } \
+#define mysql_declare_plugin_end                                            \
+  , {                                                                       \
+    0, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, 0, \
+        nullptr, nullptr, nullptr, 0                                        \
+  }                                                                         \
   }
 
 /*

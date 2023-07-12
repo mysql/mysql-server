@@ -33,7 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 DEFINE_BOOL_METHOD(mysql_debug_keyword_service_imp::lookup_debug_keyword,
                    (const char *name)) {
-  return _db_keyword_(0, (name), 1);
+  return _db_keyword_(nullptr, (name), 1);
 }
 
 #endif

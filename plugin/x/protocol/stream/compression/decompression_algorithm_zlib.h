@@ -35,11 +35,11 @@ namespace protocol {
 class Decompression_algorithm_zlib : public Decompression_algorithm_interface {
  public:
   Decompression_algorithm_zlib() {
-    m_zstream.zalloc = Z_NULL;
-    m_zstream.zfree = Z_NULL;
-    m_zstream.opaque = Z_NULL;
+    m_zstream.zalloc = nullptr;
+    m_zstream.zfree = nullptr;
+    m_zstream.opaque = nullptr;
     m_zstream.avail_in = 0;
-    m_zstream.next_in = Z_NULL;
+    m_zstream.next_in = nullptr;
     m_zstream.avail_out = 0;
     inflateInit(&m_zstream);
   }

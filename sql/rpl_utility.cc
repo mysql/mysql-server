@@ -686,7 +686,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
                                   unsigned_flag,  // unsigned_flag
                                   0);
     field_def->charset = default_charset_info;
-    field_def->interval = 0;
+    field_def->interval = nullptr;
   }
 
   for (auto it = fields->begin(); it.filtered_pos() < cols_to_create; ++it) {

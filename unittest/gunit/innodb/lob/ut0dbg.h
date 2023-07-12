@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
   } while (0)
 
 /** Abort execution. */
-#define ut_error ut_dbg_assertion_failed(0, __FILE__, __LINE__)
+#define ut_error ut_dbg_assertion_failed(nullptr, __FILE__, __LINE__)
 
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR) ut_a(EXPR)

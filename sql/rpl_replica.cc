@@ -2187,7 +2187,7 @@ void delete_slave_info_objects() {
       end_info(mi);
       if (mi->rli) delete mi->rli;
       delete mi;
-      it->second = 0;
+      it->second = nullptr;
     }
   }
 
@@ -2201,7 +2201,7 @@ void delete_slave_info_objects() {
       end_info(mi);
       if (mi->rli) delete mi->rli;
       delete mi;
-      it->second = 0;
+      it->second = nullptr;
     }
   }
 

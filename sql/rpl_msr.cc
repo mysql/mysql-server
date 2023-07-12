@@ -160,7 +160,7 @@ bool Multisource_info::delete_mi(const char *channel_name) {
   current_mi_count--;
 
   mi = it->second;
-  it->second = 0;
+  it->second = nullptr;
   /* erase from the map */
   map_it->second.erase(it);
 

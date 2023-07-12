@@ -50,7 +50,7 @@ namespace mysql {
 class mutex {
  public:
   mutex(PSI_mutex_key key) noexcept : m_key(key) {
-    mysql_mutex_init(m_key, &m_mtx, 0);
+    mysql_mutex_init(m_key, &m_mtx, nullptr);
   }
   mutex(const mutex &) = delete;
   ~mutex() { mysql_mutex_destroy(&m_mtx); }

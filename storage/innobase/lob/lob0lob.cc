@@ -160,7 +160,7 @@ int zReader::setup_zstream() {
 
   m_stream.next_out = m_rctx.m_buf + local_prefix;
   m_stream.avail_out = static_cast<uInt>(m_rctx.m_len - local_prefix);
-  m_stream.next_in = Z_NULL;
+  m_stream.next_in = nullptr;
   m_stream.avail_in = 0;
 
   /* Zlib inflate needs 32 kilobytes for the default

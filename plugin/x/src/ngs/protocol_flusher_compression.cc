@@ -48,9 +48,9 @@ class Compression_deflate : public ::protocol::Compression_buffer_interface {
  public:
   explicit Compression_deflate(const int32_t level) {
     DBUG_TRACE;
-    m_stream.zalloc = Z_NULL;
-    m_stream.zfree = Z_NULL;
-    m_stream.opaque = Z_NULL;
+    m_stream.zalloc = nullptr;
+    m_stream.zfree = nullptr;
+    m_stream.opaque = nullptr;
 
     m_error = Z_OK != deflateInit(&m_stream, level);
   }

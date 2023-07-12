@@ -358,7 +358,7 @@ bool Event_producer::generate_events() {
   {
     mysql_event_tracking_parse_data parse_data;
     parse_data.connection_id = 1;
-    parse_data.flags = 0;
+    parse_data.flags = nullptr;
     parse_data.query = CSTRING_WITH_LENGTH("SELECT * FROM demodb.demo_table");
 
     my_service<SERVICE_TYPE(event_tracking_parse)> parse_service(

@@ -1660,7 +1660,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
 
   d_stream.next_out = dest_buf;
   d_stream.avail_out = static_cast<uInt>(total_off_page_length);
-  d_stream.next_in = Z_NULL;
+  d_stream.next_in = nullptr;
   d_stream.avail_in = 0;
 
   /* Zlib inflate needs 32KB for the default window size, plus

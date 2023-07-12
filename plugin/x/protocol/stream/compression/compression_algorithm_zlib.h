@@ -37,13 +37,13 @@ namespace protocol {
 class Compression_algorithm_zlib : public Compression_algorithm_interface {
  public:
   explicit Compression_algorithm_zlib(const int32_t level) {
-    m_stream.zalloc = Z_NULL;
-    m_stream.zfree = Z_NULL;
-    m_stream.opaque = Z_NULL;
+    m_stream.zalloc = nullptr;
+    m_stream.zfree = nullptr;
+    m_stream.opaque = nullptr;
     m_stream.avail_in = 0;
     m_stream.avail_out = 0;
-    m_stream.next_in = Z_NULL;
-    m_stream.next_out = Z_NULL;
+    m_stream.next_in = nullptr;
+    m_stream.next_out = nullptr;
     deflateInit(&m_stream, level);
   }
 

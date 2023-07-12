@@ -126,7 +126,7 @@ inline char *strndup(const char *s, size_t n) {
   if (n < len) len = n;
 
   result = (char *)malloc(len + 1);
-  if (!result) return 0;
+  if (!result) return nullptr;
 
   result[len] = '\0';
   return (char *)memcpy(result, s, len);

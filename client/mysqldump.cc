@@ -524,8 +524,8 @@ static struct my_option my_long_options[] = {
      0, 0, nullptr, 0, nullptr},
 #include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
-    {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"port", 'P', "Port number to use for connection.", &opt_mysql_port,
      &opt_mysql_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
@@ -568,8 +568,8 @@ static struct my_option my_long_options[] = {
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
-     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &shared_memory_base_name, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
+     0, 0},
 #endif
     /*
       Note that the combination --single-transaction --master-data
@@ -681,7 +681,8 @@ static struct my_option my_long_options[] = {
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"ignore-views", 0, "Skip dumping table views.", &opt_ignore_views,
-     &opt_ignore_views, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_ignore_views, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #include "authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};

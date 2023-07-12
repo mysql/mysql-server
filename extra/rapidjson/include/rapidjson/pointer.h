@@ -1206,22 +1206,22 @@ typename DocumentType::ValueType& CreateValueByPointer(DocumentType& document, c
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-typename T::ValueType* GetValueByPointer(T& root, const GenericPointer<typename T::ValueType>& pointer, size_t* unresolvedTokenIndex = 0) {
+typename T::ValueType* GetValueByPointer(T& root, const GenericPointer<typename T::ValueType>& pointer, size_t* unresolvedTokenIndex = nullptr) {
     return pointer.Get(root, unresolvedTokenIndex);
 }
 
 template <typename T>
-const typename T::ValueType* GetValueByPointer(const T& root, const GenericPointer<typename T::ValueType>& pointer, size_t* unresolvedTokenIndex = 0) {
+const typename T::ValueType* GetValueByPointer(const T& root, const GenericPointer<typename T::ValueType>& pointer, size_t* unresolvedTokenIndex = nullptr) {
     return pointer.Get(root, unresolvedTokenIndex);
 }
 
 template <typename T, typename CharType, size_t N>
-typename T::ValueType* GetValueByPointer(T& root, const CharType (&source)[N], size_t* unresolvedTokenIndex = 0) {
+typename T::ValueType* GetValueByPointer(T& root, const CharType (&source)[N], size_t* unresolvedTokenIndex = nullptr) {
     return GenericPointer<typename T::ValueType>(source, N - 1).Get(root, unresolvedTokenIndex);
 }
 
 template <typename T, typename CharType, size_t N>
-const typename T::ValueType* GetValueByPointer(const T& root, const CharType(&source)[N], size_t* unresolvedTokenIndex = 0) {
+const typename T::ValueType* GetValueByPointer(const T& root, const CharType(&source)[N], size_t* unresolvedTokenIndex = nullptr) {
     return GenericPointer<typename T::ValueType>(source, N - 1).Get(root, unresolvedTokenIndex);
 }
 

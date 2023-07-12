@@ -85,7 +85,7 @@ void delete_tree(TREE *);
 void reset_tree(TREE *);
 /* similar to delete tree, except we do not my_free() blocks in mem_root
  */
-#define is_tree_inited(tree) ((tree)->root != 0)
+inline bool is_tree_inited(TREE *tree) { return tree->root != nullptr; }
 
 /* Functions on leafs */
 TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,

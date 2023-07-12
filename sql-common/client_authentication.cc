@@ -576,7 +576,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
 
 err:
   if (got_public_key_from_server) free_rsa_key(ctx);
-  result = CR_ERROR;
+  *result = CR_ERROR;
   return NET_ASYNC_COMPLETE;
 }
 /* caching_sha2_password */
@@ -1030,7 +1030,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
 
 err:
   if (got_public_key_from_server) free_rsa_key(ctx);
-  result = CR_ERROR;
+  *result = CR_ERROR;
   return NET_ASYNC_COMPLETE;
 }
 

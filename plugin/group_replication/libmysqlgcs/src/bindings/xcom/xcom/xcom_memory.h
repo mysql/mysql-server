@@ -30,12 +30,12 @@
 #define X_FREE(x) \
   {               \
     free(x);      \
-    x = 0;        \
+    x = nullptr;  \
   }
 #define XCOM_XDR_FREE(proc, ptr)                   \
   {                                                \
     xcom_xdr_free((xdrproc_t)proc, (char *)(ptr)); \
-    (ptr) = 0;                                     \
+    (ptr) = nullptr;                               \
   }
 
 void xcom_xdr_free(xdrproc_t f, char *p);

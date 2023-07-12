@@ -171,16 +171,16 @@ static void die(const char *file, int line, const char *expr) {
     DIE_UNLESS(r != 0);           \
   }
 
-#define check_stmt(stmt)          \
-  {                               \
-    if (stmt == 0) myerror(NULL); \
-    DIE_UNLESS(stmt != 0);        \
+#define check_stmt(stmt)                   \
+  {                                        \
+    if (stmt == nullptr) myerror(nullptr); \
+    DIE_UNLESS(stmt != nullptr);           \
   }
 
-#define check_stmt_r(stmt)        \
-  {                               \
-    if (stmt == 0) myerror(NULL); \
-    DIE_UNLESS(stmt == 0);        \
+#define check_stmt_r(stmt)                 \
+  {                                        \
+    if (stmt == nullptr) myerror(nullptr); \
+    DIE_UNLESS(stmt == nullptr);           \
   }
 
 #define mytest(x)      \
