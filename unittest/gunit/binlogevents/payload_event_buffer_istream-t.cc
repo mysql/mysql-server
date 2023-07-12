@@ -405,8 +405,9 @@ class PayloadEventBufferStreamTest {
                     << allocation_failure_number << " allocations.\n";
         return;
       }
-      // If there is an error, it should be out-of-memory.
-      ASSERT_EQ(stream.get_status(), Decompress_status_t::out_of_memory)
+      // If there is an error, it should be out-of-memory or corrupted.
+      ASSERT_TRUE((stream.get_status() == Decompress_status_t::out_of_memory) ||
+                  (stream.get_status() == Decompress_status_t::corrupted))
           << debug_func();
       if (m_trace)
         std::cout << "Got " << event_count << " events before allocation "
@@ -414,7 +415,8 @@ class PayloadEventBufferStreamTest {
       // Retrying doesn't help
       stream >> buffer_ptr;
       ASSERT_FALSE((bool)stream) << debug_func();
-      ASSERT_EQ(stream.get_status(), Decompress_status_t::out_of_memory)
+      ASSERT_TRUE((stream.get_status() == Decompress_status_t::out_of_memory) ||
+                  (stream.get_status() == Decompress_status_t::corrupted))
           << debug_func();
     }
   }

@@ -26,13 +26,18 @@
 #include <memory>
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/compression/decompressor.h"
+#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
 namespace mysql::binlog::event::compression {
 
 class Factory {
+  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
+
  public:
-  static std::unique_ptr<Compressor> build_compressor(type t);
-  static std::unique_ptr<Decompressor> build_decompressor(type t);
+  static std::unique_ptr<Compressor> build_compressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
+  static std::unique_ptr<Decompressor> build_decompressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
 };
 
 }  // namespace mysql::binlog::event::compression

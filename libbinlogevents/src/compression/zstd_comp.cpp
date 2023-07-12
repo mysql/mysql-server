@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/binlog/event/compression/zstd_comp.h"
+#include <compression/zstd_comp.h>
 //#include <my_byteorder.h>  // TODO: fix this include
-#include <algorithm>                               // std::min
-#include "mysql/binlog/event/wrapper_functions.h"  // BAPI_TRACE
-#include "scope_guard.h"                           // Scope_guard
+#include <algorithm>            // std::min
+#include "scope_guard.h"        // Scope_guard
+#include "wrapper_functions.h"  // BAPI_TRACE
 
-namespace mysql::binlog::event::compression {
+namespace binary_log::transaction::compression {
 
 Zstd_comp::Zstd_comp(const Memory_resource_t &memory_resource)
     : m_memory_resource(memory_resource),
@@ -95,17 +95,7 @@ Compress_status Zstd_comp::do_compress(Managed_buffer_sequence_t &out) {
 
   // Create ZSTD compression context if not already created.
   if (m_ctx == nullptr) {
-#ifdef WITH_ZSTD_bundled
-    m_ctx = ZSTD_createCStream_advanced(m_zstd_custom_mem);
-#else
-    if (ZSTD_versionNumber() >=
-        binary_log::transaction::compression::ZSTD_INSTRUMENTED_BELOW_VERSION) {
-      m_ctx = ZSTD_createCStream();
-    } else {
-      m_ctx = ZSTD_createCStream_advanced(m_zstd_custom_mem);
-    }
-#endif
-
+    m_ctx = ZSTD_createCStream();
     if (m_ctx == nullptr) return Compress_status::out_of_memory;
   }
 
@@ -181,7 +171,7 @@ Compress_status Zstd_comp::do_finish(Managed_buffer_sequence_t &out) {
     move_position(out, obuf.pos);
   } while (zstd_status > 0);
   BAPI_LOG("info", BAPI_VAR(m_ibuf.pos) << " " << BAPI_VAR(m_ibuf.size));
-  m_started = false;
+
   return Compress_status::success;
 }
 
@@ -231,4 +221,4 @@ void Zstd_comp::zstd_mem_res_free(void *opaque, void *address) {
   mem_res->deallocate(address);
 }
 
-}  // namespace mysql::binlog::event::compression
+}  // namespace binary_log::transaction::compression

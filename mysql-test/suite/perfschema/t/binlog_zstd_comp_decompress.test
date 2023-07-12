@@ -1,0 +1,43 @@
+# === Purpose ===
+#
+# Verify ZSTD binary log compression memory performance schema counters.
+#
+# === Requirements ===
+#
+# R1. Performance schema counters must monitor binlog compression and decompression memory usage.
+#
+# === Implementation ===
+#
+# 1. All pfs are initalized when Performance_schema_memory_classes_lost is zero
+# 2. memory/sql/Rpl_thd_context pfs is defined
+# 3. memory/sql/Mts_submode_database::set_multi_threaded_applier_context pfs is defined
+# 4. memory/sql/Binlog_recovery::recover pfs is defined
+# 5. memory/sql/show_binlog_events pfs is defined
+#
+# === References ===
+# 
+# Bug#35290223 Memory used by binlog compression is not instrumented
+#
+--source include/have_debug.inc
+
+--let $memory_classes_lost = query_get_value(SHOW STATUS LIKE 'Performance_schema_memory_classes_lost', Value, 1)
+--let $assert_text = Check no performance schema memory is lost Performance_schema_memory_classes_lost
+--let $assert_cond = "$memory_classes_lost" = "0"
+--source include/assert.inc
+
+--let $assert_text = Check performance_schema.setup_instruments 'memory/sql/Rpl_thd_context'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE name = \'memory/sql/Rpl_thd_context\']" = "1"
+--source include/assert.inc
+
+--let $assert_text = Check performance_schema.setup_instruments 'memory/sql/Mts_submode_database::set_multi_threaded_applier_context'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE name = \'memory/sql/Mts_submode_database::set_multi_threaded_applier_context\']" = "1"
+--source include/assert.inc
+
+--let $assert_text = Check performance_schema.setup_instruments 'memory/sql/Binlog_recovery::recover'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE name = \'memory/sql/Binlog_recovery::recover\']" = "1"
+--source include/assert.inc
+
+--let $assert_text = Check performance_schema.setup_instruments 'memory/sql/show_binlog_events'
+--let $assert_cond = "[SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE name = \'memory/sql/show_binlog_events\']" = "1"
+--source include/assert.inc
+

@@ -23,11 +23,13 @@
 #ifndef MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_COMP_H
 #define MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_COMP_H
 
+#define ZSTD_STATIC_LINKING_ONLY 1
 #include <zstd.h>
 
 #include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"
 #include "mysql/binlog/event/compression/compressor.h"
 #include "mysql/binlog/event/nodiscard.h"
+#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
 struct ZSTD_outBuffer_s;
 
@@ -39,13 +41,14 @@ class Zstd_comp : public Compressor {
   using typename Compressor::Char_t;
   using typename Compressor::Managed_buffer_sequence_t;
   using typename Compressor::Size_t;
+  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
   using Compression_level_t = int;
   static constexpr type type_code = ZSTD;
 
   /// The default compression level for this compressor.
   static constexpr Compression_level_t default_compression_level = 3;
 
-  Zstd_comp() = default;
+  Zstd_comp(const Memory_resource_t &memory_resource = Memory_resource_t());
 
   ~Zstd_comp() override;
 
@@ -144,6 +147,14 @@ class Zstd_comp : public Compressor {
 
   /// Compression level that was given in @c set_compression_level
   Compression_level_t m_next_compression_level{default_compression_level};
+
+  /// Instrumented memory allocator object
+  Memory_resource_t m_memory_resource;
+
+  /// ZSTD memory allocator objects and functions
+  ZSTD_customMem m_zstd_custom_mem;
+  static void *zstd_mem_res_alloc(void *opaque, size_t size);
+  static void zstd_mem_res_free(void *opaque, void *address);
 };
 
 }  // namespace mysql::binlog::event::compression

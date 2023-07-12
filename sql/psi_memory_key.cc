@@ -72,6 +72,10 @@ PSI_memory_key key_memory_xa_recovered_transactions;
 PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
+PSI_memory_key key_memory_rpl_thd_context;
+PSI_memory_key key_memory_applier;
+PSI_memory_key key_memory_recovery;
+PSI_memory_key key_memory_show_binlog_events;
 PSI_memory_key key_memory_REPLICA_INFO;
 PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 PSI_memory_key key_memory_Slave_applier_json_diff_vector;
@@ -386,7 +390,14 @@ static PSI_memory_info all_server_memory[] = {
      "Memory allocated for in-memory maps for persisted variables"},
     {&key_memory_persisted_variables_unordered_set,
      "Persisted_variables::unordered_set", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     "Memory allocated for in-memory sets for persisted variables"}};
+     "Memory allocated for in-memory sets for persisted variables"},
+    {&key_memory_rpl_thd_context, "Rpl_thd_context", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_applier,
+     "Mts_submode_database::set_multi_threaded_applier_context", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_recovery, "Binlog_recovery::recover", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_show_binlog_events, "show_binlog_events", 0, 0,
+     PSI_DOCUMENT_ME}};
 
 void register_server_memory_keys() {
   const char *category = "sql";

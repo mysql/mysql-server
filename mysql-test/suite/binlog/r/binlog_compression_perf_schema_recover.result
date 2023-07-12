@@ -1,0 +1,22 @@
+#
+# Initialization
+#
+SELECT @@global.binlog_transaction_compression;
+@@global.binlog_transaction_compression
+1
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (1), (2), (3);
+XA START '1';
+INSERT INTO t1 VALUES (10), (11), (12);
+XA END '1';
+XA PREPARE '1';
+# Adding debug point 'crash_commit_before_log' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (13);
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+include/assert.inc [Check performance_schema.memory_summary_global_by_event_name 'memory/sql/Binlog_recovery::recover']
+XA COMMIT '1';
+#
+# Clean up
+#
+DROP TABLE t1;

@@ -20,12 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/binlog/event/compression/zstd_dec.h"
+#include <compression/zstd_dec.h>
 #include <my_byteorder.h>  // TODO: fix this include
 #include <algorithm>
-//#include "mysql/binlog/event/wrapper_functions.h"
+#include "wrapper_functions.h"
 
-namespace mysql::binlog::event::compression {
+namespace binary_log::transaction::compression {
 
 Zstd_dec::Zstd_dec(const Memory_resource_t &memory_resource)
     : m_ctx{nullptr},
@@ -85,16 +85,7 @@ std::pair<Decompress_status, Decompressor::Size_t> Zstd_dec::do_decompress(
   // NOLINTEND(cppcoreguidelines-macro-usage)
 
   if (m_ctx == nullptr) {
-#ifdef WITH_ZSTD_bundled
-    m_ctx = ZSTD_createDStream_advanced(m_zstd_custom_mem);
-#else
-    if (ZSTD_versionNumber() >=
-        binary_log::transaction::compression::ZSTD_INSTRUMENTED_BELOW_VERSION) {
-      m_ctx = ZSTD_createDStream();
-    } else {
-      m_ctx = ZSTD_createDStream_advanced(m_zstd_custom_mem);
-    }
-#endif
+    m_ctx = ZSTD_createDStream();
     if (m_ctx == nullptr) TRACE_RETURN(out_of_memory, 0);
   }
 
@@ -160,4 +151,4 @@ void Zstd_dec::zstd_mem_res_free(void *opaque, void *address) {
   mem_res->deallocate(address);
 }
 
-}  // namespace mysql::binlog::event::compression
+}  // namespace binary_log::transaction::compression

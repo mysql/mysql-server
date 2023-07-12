@@ -23,8 +23,10 @@
 #include "sql/binlog/recovery.h"
 
 #include "sql/binlog/decompressing_event_object_istream.h"  // binlog::Decompressing_event_object_istream
-#include "sql/raii/sentry.h"                                // raii::Sentry<>
-#include "sql/xa/xid_extract.h"                             // xa::XID_extractor
+#include "sql/psi_memory_key.h"
+#include "sql/psi_memory_resource.h"
+#include "sql/raii/sentry.h"     // raii::Sentry<>
+#include "sql/xa/xid_extract.h"  // xa::XID_extractor
 
 binlog::Binlog_recovery::Binlog_recovery(Binlog_file_reader &binlog_file_reader)
     : m_reader{binlog_file_reader},
@@ -56,7 +58,8 @@ std::string const &binlog::Binlog_recovery::get_failure_message() const {
 }
 
 binlog::Binlog_recovery &binlog::Binlog_recovery::recover() {
-  binlog::Decompressing_event_object_istream istream{this->m_reader};
+  binlog::Decompressing_event_object_istream istream{
+      this->m_reader, psi_memory_resource(key_memory_recovery)};
   std::shared_ptr<Log_event> ev;
   this->m_valid_pos = this->m_reader.position();
 

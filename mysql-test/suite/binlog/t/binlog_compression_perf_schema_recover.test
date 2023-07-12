@@ -1,0 +1,55 @@
+# === Purpose ===
+#
+# Verify ZSTD binary log compression memory performance schema counters.
+#
+# === Requirements ===
+#
+# R1. Performance schema counters must monitor binlog compression and decompression memory usage.
+#
+# === Implementation ===
+#
+# 1. Initialization
+# 2. Start XA transactions
+# 3. Crash server on commit before logging events so recovery is executed
+# 4. Check Binlog_recovery::recover performance schema counter
+# 5. Cleanup
+#
+# === References ===
+# 
+# Bug#35290223 Memory used by binlog compression is not instrumented
+#
+--source include/have_debug.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Found 1 prepared XA transactions");
+--enable_query_log
+
+SELECT @@global.binlog_transaction_compression;
+
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+XA START '1';
+INSERT INTO t1 VALUES (10), (11), (12);
+XA END '1';
+XA PREPARE '1';
+
+--let $debug_point = crash_commit_before_log
+--let $statement = INSERT INTO t1 VALUES (13)
+--source suite/binlog/include/binlog_server_crash_recovery.inc
+
+--let $assert_text = Check performance_schema.memory_summary_global_by_event_name 'memory/sql/Binlog_recovery::recover'
+--let $assert_cond = "[SELECT COUNT_ALLOC FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = \'memory/sql/Binlog_recovery::recover\']" <> "0"
+--source include/assert.inc
+
+XA COMMIT '1';
+
+--echo #
+--echo # Clean up
+--echo #
+
+DROP TABLE t1;

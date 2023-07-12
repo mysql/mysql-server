@@ -48,6 +48,8 @@
 #include "sql/log_event.h"  // Query_log_event
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // stage_worker_....
+#include "sql/psi_memory_key.h"
+#include "sql/psi_memory_resource.h"
 #include "sql/query_options.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_replica.h"
@@ -194,7 +196,8 @@ bool Mts_submode_database::set_multi_threaded_applier_context(
     std::set<std::string> dbs;
     auto &tple = *dynamic_cast<Transaction_payload_log_event *>(&ev);
     binlog::Decompressing_event_object_istream istream(
-        tple, *rli.get_rli_description_event());
+        tple, *rli.get_rli_description_event(),
+        psi_memory_resource(key_memory_applier));
 
     std::shared_ptr<Log_event> inner;
     while (istream >> inner) {

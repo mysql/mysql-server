@@ -702,6 +702,7 @@ THD::THD(bool enable_plugins)
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set(global_sid_map),
 #endif
+      rpl_thd_ctx(key_memory_rpl_thd_context),
       skip_gtid_rollback(false),
       is_commit_in_middle_of_statement(false),
       has_gtid_consistency_violation(false),
