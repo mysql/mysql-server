@@ -260,17 +260,26 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     COMPONENT ${ARG_COMPONENT}
     OPTIONAL)
 
-  # mysqld-debug and debug/group_replication.so both need cleanup of RPATH.
-  # We could/should *generate* these files, but since it only affects two
-  # binaries, we hard-code them for simplicity.
+  # mysqld-debug and some debug plugins need to change RPATH during install.
+  # The RPATH fixup script for mysqld-debug is hard-coded.
+  # We have a template .cmake.in file for any plugin that needs cleanup.
 
   # NOTE: scripts should work for 'make install' and 'make package'.
   IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
     IF(${target} STREQUAL "mysqld")
       INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
     ENDIF()
-    IF(${target} STREQUAL "group_replication")
-      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove_gr.cmake)
+    # These plugins depend, directly or indirectly, on protobuf.
+    IF(${target} STREQUAL "group_replication" OR
+        ${target} STREQUAL "telemetry_client" OR
+        ${target} STREQUAL "component_telemetry"
+        )
+      GET_TARGET_PROPERTY(output_name ${target} OUTPUT_NAME)
+      SET(plugin_so_file "${output_name}.so")
+      CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/rpath_remove_plugin.cmake.in
+        ${CMAKE_BINARY_DIR}/rpath_${output_name}.cmake @ONLY)
+      INSTALL(SCRIPT ${CMAKE_BINARY_DIR}/rpath_${output_name}.cmake)
+      MESSAGE(STATUS "Changing RPATH when installing ${debug_target_location}")
     ENDIF()
   ENDIF()
 
@@ -291,7 +300,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       COMPONENT ${ARG_COMPONENT}
       OPTIONAL)
   ENDIF()
-ENDFUNCTION()
+ENDFUNCTION(INSTALL_DEBUG_TARGET)
 
 
 FUNCTION(INSTALL_PRIVATE_LIBRARY TARGET)

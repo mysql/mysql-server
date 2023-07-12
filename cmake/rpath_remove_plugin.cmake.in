@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Clean up RPATH for the debug verson of group_replication.so after INSTALL.
+# Clean up RPATH for the debug verson of @plugin_so_file@ after INSTALL.
 
 # See the generated cmake_install.cmake files:
 IF("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xServerx" OR
@@ -30,11 +30,11 @@ ELSE()
   RETURN()
 ENDIF()
 
-# The debug plugin is in INSTALL_PLUGINDIR/debug/group_replication.so
+# The debug plugin is in INSTALL_PLUGINDIR/debug/@plugin_so_file@
 FOREACH(PATH
-    "lib64/mysql/plugin/debug/group_replication.so"
-    "lib/mysql/plugin/debug/group_replication.so"
-    "lib/plugin/debug/group_replication.so"
+    "lib64/mysql/plugin/debug/@plugin_so_file@"
+    "lib/mysql/plugin/debug/@plugin_so_file@"
+    "lib/plugin/debug/@plugin_so_file@"
     )
   SET(FULL_PATH "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${PATH}")
   MESSAGE(STATUS "Looking for ${FULL_PATH}")
@@ -45,7 +45,7 @@ FOREACH(PATH
 ENDFOREACH()
 
 IF(NOT DEBUG_PLUGIN)
-  MESSAGE(WARNING "Could not find debug version of group_replication.so")
+  MESSAGE(WARNING "Could not find debug version of @plugin_so_file@")
   RETURN()
 ENDIF()
 

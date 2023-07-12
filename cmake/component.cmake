@@ -89,6 +89,7 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
   ADD_DEPENDENCIES(${target} GenError)
 
   IF (ARG_MODULE_ONLY)
+    SET_TARGET_PROPERTIES(${target} PROPERTIES OUTPUT_NAME "${target}")
     # Store all components in the same directory, for easier testing.
     SET_TARGET_PROPERTIES(${target} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
