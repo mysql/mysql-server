@@ -40,6 +40,39 @@ SET DEBUG_SYNC= 'RESET';
 DROP DATABASE my_db;
 DROP USER foo, bar;
 DROP ROLE foo_role;
+#
+# Bug #35471453: MySQL debug server stops when executing query
+#
+CREATE USER b35471453@localhost;
+GRANT CREATE ROLE, DROP ROLE ON *.* TO b35471453@localhost;
+CREATE TABLE t35471453(c1 INT);
+# test1: should fail
+CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
+AS TABLE t35471453;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
+# Now grant SET_USER_ID and retry
+GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+# test2: should complete with a warning
+CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
+AS TABLE t35471453;
+Warnings:
+Note	1449	The user specified as a definer ('role_35471453'@'%') does not exist
+# Now revoke SET_USER_ID and try dropping the role
+REVOKE SET_USER_ID ON *.* FROM b35471453@localhost;
+# test3: should fail
+DROP ROLE IF EXISTS role_35471453;
+ERROR HY000: Operation DROP ROLE failed for 'role_35471453'@'%' as it is referenced as a definer account in a view.
+# Now grant SET_USER_ID and retry
+GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+# test4: should pass with a warning
+DROP ROLE IF EXISTS role_35471453;
+Warnings:
+Warning	4005	User 'role_35471453'@'%' is referenced as a definer account in a view.
+Note	3162	Authorization ID 'role_35471453'@'%' does not exist.
+DROP VIEW v35471453;
+DROP TABLE t35471453;
+REVOKE CREATE ROLE, DROP ROLE, SET_USER_ID ON *.* FROM b35471453@localhost;
+DROP USER b35471453@localhost;
 
 # End of 8.0 tests
 

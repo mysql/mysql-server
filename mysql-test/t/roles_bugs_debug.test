@@ -69,6 +69,50 @@ DROP DATABASE my_db;
 DROP USER foo, bar;
 DROP ROLE foo_role;
 
+
+--echo #
+--echo # Bug #35471453: MySQL debug server stops when executing query
+--echo #
+
+CREATE USER b35471453@localhost;
+GRANT CREATE ROLE, DROP ROLE ON *.* TO b35471453@localhost;
+--connect(b35471453_con, localhost, b35471453,,,)
+CREATE TABLE t35471453(c1 INT);
+--echo # test1: should fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
+  AS TABLE t35471453;
+--echo # Now grant SET_USER_ID and retry
+connection default;
+GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+connection b35471453_con;
+--echo # test2: should complete with a warning
+CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
+  AS TABLE t35471453;
+--echo # Now revoke SET_USER_ID and try dropping the role
+connection default;
+REVOKE SET_USER_ID ON *.* FROM b35471453@localhost;
+connection b35471453_con;
+
+--echo # test3: should fail
+--error ER_CANNOT_USER_REFERENCED_AS_DEFINER
+DROP ROLE IF EXISTS role_35471453;
+--echo # Now grant SET_USER_ID and retry
+connection default;
+GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+connection b35471453_con;
+--echo # test4: should pass with a warning
+DROP ROLE IF EXISTS role_35471453;
+
+DROP VIEW v35471453;
+DROP TABLE t35471453;
+connection default;
+disconnect b35471453_con;
+
+REVOKE CREATE ROLE, DROP ROLE, SET_USER_ID ON *.* FROM b35471453@localhost;
+DROP USER b35471453@localhost;
+
+
 --echo
 --echo # End of 8.0 tests
 --echo
