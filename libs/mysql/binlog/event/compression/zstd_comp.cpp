@@ -95,11 +95,11 @@ Compress_status Zstd_comp::do_compress(Managed_buffer_sequence_t &out) {
 
   // Create ZSTD compression context if not already created.
   if (m_ctx == nullptr) {
-#ifdef WITH_ZSTD_bundled
+#ifdef BINLOG_EVENT_COMPRESSION_USE_ZSTD_bundled
     m_ctx = ZSTD_createCStream_advanced(m_zstd_custom_mem);
 #else
     if (ZSTD_versionNumber() >=
-        binary_log::transaction::compression::ZSTD_INSTRUMENTED_BELOW_VERSION) {
+        mysql::binlog::event::compression::ZSTD_INSTRUMENTED_BELOW_VERSION) {
       m_ctx = ZSTD_createCStream();
     } else {
       m_ctx = ZSTD_createCStream_advanced(m_zstd_custom_mem);
