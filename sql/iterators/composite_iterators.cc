@@ -2315,9 +2315,7 @@ bool materialize_iterator::SpillState::initialize_first_HF_chunk_files() {
 /// later retrieve all rows belonging to each file set by scanning only a
 /// section of each chunk file.
 bool materialize_iterator::SpillState::spread_hash_map_to_HF_chunk_files() {
-  size_t total = 0;
   for (size_t set = 0; set < m_no_of_chunk_file_sets; set++) {
-    size_t rows_visited = 0;
     for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
       LinkedImmutableString row_with_same_hash = f->second;
       while (row_with_same_hash != nullptr) {
@@ -2326,7 +2324,6 @@ bool materialize_iterator::SpillState::spread_hash_map_to_HF_chunk_files() {
         if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
           return true;
         }
-        rows_visited++;
         // Hash row's content with tertiary hash to determine its chunk index,
         // and write it if its set index equals the current set. This way,
         // all rows belonging to a set are stored consecutively, and sets in
@@ -2346,8 +2343,6 @@ bool materialize_iterator::SpillState::spread_hash_map_to_HF_chunk_files() {
             my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
             return true;
           }
-
-          total++;
         }
         row_with_same_hash = row_with_same_hash.Decode().next;
       }
@@ -2520,10 +2515,8 @@ bool materialize_iterator::SpillState::save_operand_to_IF_chunk_files(
   }
 
   /// Rewind all IF chunk files and possibly REMAININGINPUT.
-  size_t offset = 0;
   for (auto &chunk : m_chunk_files) {
     if (chunk.probe_chunk.Rewind()) return true;
-    offset++;
   }
 
   return m_no_of_chunk_file_sets > 1 && m_remaining_input.Rewind();

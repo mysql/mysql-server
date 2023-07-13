@@ -240,6 +240,13 @@ SET(MYSQLBINLOG_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
   )
 
+# duplicate explicit instantiation of 'net_field_length_checked'
+# ignored as a Microsoft extension
+IF(WIN32_CLANG)
+  ADD_COMPILE_FLAGS(${CMAKE_SOURCE_DIR}/sql/log_event.cc
+    COMPILE_FLAGS " -Wno-microsoft-template")
+ENDIF()
+
 SET(MYSQLBINLOG_LIBRARIES
   mysql_binlog_event
   client_base

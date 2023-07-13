@@ -514,7 +514,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   HANDLE handle_file_map = NULL;
   HANDLE connect_named_mutex = NULL;
   ulong connect_number;
-  char connect_number_char[22], *p;
+  char connect_number_char[22];
   char *tmp = NULL;
   char *suffix_pos = NULL;
   DWORD error_allow = 0;
@@ -612,7 +612,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   CloseHandle(connect_named_mutex);
   connect_named_mutex = NULL;
 
-  p = longlong10_to_str(connect_number, connect_number_char, 10);
+  longlong10_to_str(connect_number, connect_number_char, 10);
 
   /*
     The name of event and file-mapping events create agree next rule:

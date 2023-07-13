@@ -95,6 +95,8 @@ class ROUTING_EXPORT AcceptingEndpoint {
                     const std::string &parent_routing_name)
       : io_ctx_(io_ctx), parent_routing_name_(parent_routing_name) {}
 
+  AcceptingEndpoint(const AcceptingEndpoint &) = delete;
+
   virtual stdx::expected<void, std::error_code> setup() = 0;
   virtual stdx::expected<void, std::error_code> cancel() = 0;
   virtual bool is_open() const = 0;

@@ -1107,6 +1107,7 @@ IF(WIN32)
   ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS "/wd4251")
   IF(WIN32_CLANG)
     ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS " -Wno-microsoft-cast")
+    ADD_COMPILE_FLAGS(log_event.cc COMPILE_FLAGS " -Wno-microsoft-template")
   ENDIF()
 ENDIF()
 

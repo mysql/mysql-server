@@ -122,7 +122,6 @@ int Recovery_endpoints::local_interfaces_ips(std::set<std::string> &local_ips) {
   DBUG_TRACE;
 
   ULONG flags = GAA_FLAG_INCLUDE_PREFIX, family = AF_UNSPEC, out_buflen = 0;
-  DWORD retval = 0;
   PIP_ADAPTER_ADDRESSES addresses;
   PIP_ADAPTER_ADDRESSES curr_addresses;
 
@@ -133,7 +132,7 @@ int Recovery_endpoints::local_interfaces_ips(std::set<std::string> &local_ips) {
     return 1;
   }
 
-  retval = GetAdaptersAddresses(family, flags, nullptr, addresses, &out_buflen);
+  GetAdaptersAddresses(family, flags, nullptr, addresses, &out_buflen);
 
   curr_addresses = addresses;
 

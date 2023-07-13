@@ -37,11 +37,20 @@
 
 #include "my_compiler.h"
 
+// Clang 16 on windows gives warning:
+// pragma diagnostic pop could not pop, no matching push [-Wunknown-pragmas]
+// So there must be some mismatching push/pop in boost
+#if !defined(__clang__) || !defined(_WIN32)
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
+#endif
+
 #include <boost/geometry.hpp>
 #include <boost/geometry/srs/transformation.hpp>
+
+#if !defined(__clang__) || !defined(_WIN32)
 MY_COMPILER_DIAGNOSTIC_POP()
+#endif
 
 #include "sql/gis/functor.h"
 #include "sql/gis/geometries.h"

@@ -182,7 +182,9 @@ extern "C" {
 
 #define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
-#if defined(_WIN32) && (_MSC_VER > 1500)
+// clang fails with -Wdeprecated-builtins
+// __has_trivial_constructor is deprecated, use __is_trivially_constructible
+#if defined(_WIN32) && (_MSC_VER > 1500) && !defined(__clang__)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
 #endif

@@ -173,6 +173,13 @@ IF(MSVC)
       COMPILE_FLAGS
       "-Wno-unused-function"
       )
+    # clang has this, but clang++ does not.
+    MY_CHECK_C_COMPILER_FLAG("-Wdeprecated-non-prototype"
+      HAS_DEPRECATED_NON_PROTOTYPE)
+    IF(HAS_DEPRECATED_NON_PROTOTYPE)
+      ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
+        COMPILE_FLAGS "-Wno-deprecated-non-prototype")
+    ENDIF()
   ELSE()
     ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
