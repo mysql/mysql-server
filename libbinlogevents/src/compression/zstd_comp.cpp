@@ -28,11 +28,6 @@
 
 namespace binary_log::transaction::compression {
 
-Zstd_comp::Zstd_comp(const Memory_resource_t &memory_resource)
-    : m_memory_resource(memory_resource),
-      m_zstd_custom_mem{zstd_mem_res_alloc, zstd_mem_res_free,
-                        static_cast<void *>(&m_memory_resource)} {}
-
 Zstd_comp::~Zstd_comp() { destroy(); }
 
 void Zstd_comp::destroy() {
@@ -209,16 +204,6 @@ Compressor::Grow_constraint_t Zstd_comp::do_get_grow_constraint_hint() const {
   if (get_pledged_input_size() != pledged_input_size_unset)
     ret.set_max_size(ZSTD_compressBound(get_pledged_input_size()));
   return ret;
-}
-
-void *Zstd_comp::zstd_mem_res_alloc(void *opaque, size_t size) {
-  Memory_resource_t *mem_res = static_cast<Memory_resource_t *>(opaque);
-  return mem_res->allocate(size);
-}
-
-void Zstd_comp::zstd_mem_res_free(void *opaque, void *address) {
-  Memory_resource_t *mem_res = static_cast<Memory_resource_t *>(opaque);
-  mem_res->deallocate(address);
 }
 
 }  // namespace binary_log::transaction::compression

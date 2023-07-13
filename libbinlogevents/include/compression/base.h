@@ -27,13 +27,6 @@
 
 namespace binary_log::transaction::compression {
 
-// ZSTD version boundary below which instrumented
-// ZSTD_create[CD]Stream_advanced functions are allowed.
-// When new ZSTD versions are released and they do not
-// break prototype for ZSTD_create[CD]Stream_advanced
-// increase the number '10505' accordingly
-constexpr unsigned int ZSTD_INSTRUMENTED_BELOW_VERSION = 10505;
-
 // Todo: use enum class and a more specific name.
 // Use contiguous values.
 enum type {

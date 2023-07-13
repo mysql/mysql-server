@@ -23,12 +23,10 @@
 #ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_DEC_H_
 #define LIBBINLOGEVENTS_COMPRESSION_ZSTD_DEC_H_
 
-#define ZSTD_STATIC_LINKING_ONLY 1
 #include <zstd.h>
 
 #include "decompressor.h"
 #include "libbinlogevents/include/nodiscard.h"
-#include "libbinlogevents/include/resource/memory_resource.h"  // Memory_resource
 
 namespace binary_log {
 namespace transaction {
@@ -40,10 +38,9 @@ class Zstd_dec : public Decompressor {
   using typename Decompressor::Char_t;
   using typename Decompressor::Grow_constraint_t;
   using typename Decompressor::Size_t;
-  using Memory_resource_t = mysqlns::resource::Memory_resource;
   static constexpr type type_code = ZSTD;
 
-  Zstd_dec(const Memory_resource_t &memory_resource = Memory_resource_t());
+  Zstd_dec();
   ~Zstd_dec() override;
 
   Zstd_dec(const Zstd_dec &) = delete;
@@ -78,14 +75,6 @@ class Zstd_dec : public Decompressor {
   ZSTD_inBuffer m_ibuf{nullptr, 0, 0};
 
   bool m_frame_boundary = false;
-
-  /// Instrumented memory allocator object
-  Memory_resource_t m_memory_resource;
-
-  /// ZSTD memory allocator objects and functions
-  ZSTD_customMem m_zstd_custom_mem;
-  static void *zstd_mem_res_alloc(void *opaque, size_t size);
-  static void zstd_mem_res_free(void *opaque, void *address);
 };
 
 }  // namespace compression

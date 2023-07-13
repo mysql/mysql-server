@@ -113,8 +113,7 @@ void Payload_event_buffer_istream::set_error_str(const std::string &s) {
 
 void Payload_event_buffer_istream::initialize() {
   try {
-    m_decompressor = Factory_t::build_decompressor(m_compression_algorithm,
-                                                   m_memory_resource);
+    m_decompressor = Factory_t::build_decompressor(m_compression_algorithm);
     if (m_decompressor == nullptr) {
       set_error_str(
           concat("Unknown compression algorithm in Payload_log_event: ",

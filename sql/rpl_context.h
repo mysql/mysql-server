@@ -33,7 +33,6 @@
 #include "libbinlogevents/include/compression/factory.h"
 #include "sql/binlog/group_commit/bgc_ticket.h"
 #include "sql/memory/aligned_atomic.h"
-#include "sql/psi_memory_key.h"
 #include "sql/resource_blocker.h"  // resource_blocker::User
 #include "sql/system_variables.h"
 
@@ -277,7 +276,6 @@ class Transaction_compression_ctx {
  public:
   using Compressor_ptr_t = std::shared_ptr<Compressor_t>;
   using Managed_buffer_sequence_t = Compressor_t::Managed_buffer_sequence_t;
-  using Memory_resource_t = mysqlns::resource::Memory_resource;
 
   explicit Transaction_compression_ctx(PSI_memory_key key);
 
@@ -292,7 +290,6 @@ class Transaction_compression_ctx {
   Managed_buffer_sequence_t &managed_buffer_sequence();
 
  private:
-  Memory_resource_t m_managed_buffer_memory_resource;
   Managed_buffer_sequence_t m_managed_buffer_sequence;
   Compressor_ptr_t m_compressor;
 };
@@ -430,8 +427,9 @@ class Rpl_thd_context {
   Rpl_thd_context &operator=(const Rpl_thd_context &rsc);
 
  public:
-  Rpl_thd_context(PSI_memory_key transaction_compression_ctx)
-      : m_transaction_compression_ctx(transaction_compression_ctx),
+  Rpl_thd_context()
+      : m_transaction_compression_ctx(
+            0),  // todo: specify proper key instead of 0
         rpl_channel_type(NO_CHANNEL_INFO) {}
 
   /**

@@ -205,9 +205,8 @@ void Last_used_gtid_tracker_ctx::get_last_used_gtid(Gtid &gtid) {
 }
 
 Transaction_compression_ctx::Transaction_compression_ctx(PSI_memory_key key)
-    : m_managed_buffer_memory_resource(psi_memory_resource(key)),
-      m_managed_buffer_sequence(Grow_calculator_t(),
-                                m_managed_buffer_memory_resource) {}
+    : m_managed_buffer_sequence(Grow_calculator_t(), psi_memory_resource(key)) {
+}
 
 Transaction_compression_ctx::Compressor_ptr_t
 Transaction_compression_ctx::get_compressor(THD *thd) {
@@ -215,8 +214,7 @@ Transaction_compression_ctx::get_compressor(THD *thd) {
                    thd->variables.binlog_trx_compression_type;
 
   if (m_compressor == nullptr || (m_compressor->get_type_code() != ctype)) {
-    m_compressor = Compressor_ptr_t(
-        Factory_t::build_compressor(ctype, m_managed_buffer_memory_resource));
+    m_compressor = Compressor_ptr_t(Factory_t::build_compressor(ctype));
   }
   return m_compressor;
 }

@@ -106,7 +106,6 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/psi_memory_resource.h"
 #include "sql/query_options.h"
 #include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_filter.h"
@@ -3427,8 +3426,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
 
-    binlog::Decompressing_event_object_istream istream(
-        binlog_file_reader, psi_memory_resource(key_memory_show_binlog_events));
+    binlog::Decompressing_event_object_istream istream(binlog_file_reader);
 
     my_off_t last_log_pos = 0;
     event_count = 0;

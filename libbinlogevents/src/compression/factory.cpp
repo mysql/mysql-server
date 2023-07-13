@@ -30,11 +30,10 @@
 
 namespace binary_log::transaction::compression {
 
-std::unique_ptr<Compressor> Factory::build_compressor(
-    type t, const Memory_resource_t &memory_resource) {
+std::unique_ptr<Compressor> Factory::build_compressor(type t) {
   switch (t) {
     case ZSTD:
-      return std::make_unique<Zstd_comp>(memory_resource);
+      return std::make_unique<Zstd_comp>();
     case NONE:
       return std::make_unique<None_comp>();
     default:
@@ -43,11 +42,10 @@ std::unique_ptr<Compressor> Factory::build_compressor(
   return std::unique_ptr<Compressor>();
 }
 
-std::unique_ptr<Decompressor> Factory::build_decompressor(
-    type t, const Memory_resource_t &memory_resource) {
+std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
   switch (t) {
     case ZSTD:
-      return std::make_unique<Zstd_dec>(memory_resource);
+      return std::make_unique<Zstd_dec>();
     case NONE:
       return std::make_unique<None_dec>();
     default:

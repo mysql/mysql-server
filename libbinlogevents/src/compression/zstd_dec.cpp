@@ -27,11 +27,7 @@
 
 namespace binary_log::transaction::compression {
 
-Zstd_dec::Zstd_dec(const Memory_resource_t &memory_resource)
-    : m_ctx{nullptr},
-      m_memory_resource{memory_resource},
-      m_zstd_custom_mem{zstd_mem_res_alloc, zstd_mem_res_free,
-                        static_cast<void *>(&m_memory_resource)} {}
+Zstd_dec::Zstd_dec() : m_ctx(nullptr) {}
 
 Zstd_dec::~Zstd_dec() { destroy(); }
 
@@ -139,16 +135,6 @@ Decompressor::Grow_constraint_t Zstd_dec::do_get_grow_constraint_hint() const {
   // each frame to get an upper bound, and pass that to
   // ret.set_max_size.
   return ret;
-}
-
-void *Zstd_dec::zstd_mem_res_alloc(void *opaque, size_t size) {
-  Memory_resource_t *mem_res = static_cast<Memory_resource_t *>(opaque);
-  return mem_res->allocate(size);
-}
-
-void Zstd_dec::zstd_mem_res_free(void *opaque, void *address) {
-  Memory_resource_t *mem_res = static_cast<Memory_resource_t *>(opaque);
-  mem_res->deallocate(address);
 }
 
 }  // namespace binary_log::transaction::compression
