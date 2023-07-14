@@ -48,16 +48,6 @@ static constexpr const char * cipher_list =
  "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_128_CCM_8_SHA256:"
  "ECDHE-ECDSA-AES128-GCM-SHA256";
 
-static int error_callback(const char *str, size_t, void * vp) {
-  intptr_t r = reinterpret_cast<intptr_t>(vp);
-  g_eventLogger->error("NDB TLS [%" PRIuPTR "]: %s", r, str);
-  return 0;
-}
-
-static void log_openssl_errors(intptr_t r) {
-  ERR_print_errors_cb(error_callback, reinterpret_cast<void *>(r));
-}
-
 TlsKeyManager::TlsKeyManager() {
   NdbMutex_Init(& m_cert_table_mutex);
 }
@@ -88,16 +78,27 @@ void TlsKeyManager::log_error() const {
                          TlsKeyError::message(m_error), m_path_string);
 }
 
-
 #if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
-void TlsKeyManager::init(const char *, int node_id, Node::Type, UserType)
-{
-  if(node_id > 0)
-    g_eventLogger->error("NDB TLS: OpenSSL version '%s' is not supported",
-                         OPENSSL_VERSION_TEXT);
-}
+
+void TlsKeyManager::init(int, const NodeCertificate *) { }
+
+void TlsKeyManager::init(const char *, int, int, bool) { }
+
+void TlsKeyManager::init(const char *, int, Node::Type, UserType) { }
+
+void TlsKeyManager::init(int, struct stack_st_X509 *, struct evp_pkey_st *) { }
 
 #else
+
+static int error_callback(const char *str, size_t, void * vp) {
+  intptr_t r = reinterpret_cast<intptr_t>(vp);
+  g_eventLogger->error("NDB TLS [%" PRIuPTR "]: %s", r, str);
+  return 0;
+}
+
+static void log_openssl_errors(intptr_t r) {
+  ERR_print_errors_cb(error_callback, reinterpret_cast<void *>(r));
+}
 
 void TlsKeyManager::init(const char * tls_search_path, int node_id, 
                          int ndb_node_type, bool is_primary) {
@@ -137,7 +138,6 @@ void TlsKeyManager::init(const char * tls_search_path, int node_id,
                           "(node id %d)", node_id);
   }
 }
-#endif
 
 /* Versions of init() used by test harness */
 void TlsKeyManager::init(int node_id, STACK_OF(X509) * certs, EVP_PKEY * key) {
@@ -249,6 +249,8 @@ void TlsKeyManager::initialize_context() {
   /* Store our own NodeCertificate in the cert table */
   cert_table_set(m_node_id, m_node_cert.cert());
 }
+
+#endif
 
 int TlsKeyManager::on_verify(int result, X509_STORE_CTX * store) {
   /* If result is 0, verification has failed, and this callback is

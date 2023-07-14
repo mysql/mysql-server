@@ -107,16 +107,18 @@ const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x) {
   return X509_get_serialNumber(const_cast<X509 *>(x));
 }
 
-EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *csr) {
-  EVP_PKEY * key = X509_REQ_get_pubkey(csr);
+EVP_PKEY *X509_get0_pubkey(X509 *x) {
+  EVP_PKEY * key = X509_get_pubkey(x);
   if(key)
     EVP_PKEY_free(key);
   return key;
 }
 
-void X509_get0_signature(const ASN1_BIT_STRING ** sig, const X509_ALGOR ** alg,
-                         const X509 * x) {
-  X509_get0_signature(sig, const_cast<X509_ALGOR **>(alg), x);
+EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *csr) {
+  EVP_PKEY * key = X509_REQ_get_pubkey(csr);
+  if(key)
+    EVP_PKEY_free(key);
+  return key;
 }
 
 int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *) {
@@ -141,5 +143,14 @@ int X509_up_ref(X509 *) {
   return 0;
 }
 
+#ifdef __NEED_STUB_ASN1_TIME_GET0_FUNCTIONS
+const ASN1_TIME *X509_get0_notBefore(const X509 *x) {
+  return X509_get_notBefore(x);
+}
+
+const ASN1_TIME *X509_get0_notAfter(const X509 *x) {
+  return X509_get_notAfter(x);
+}
+#endif // __NEED_STUB_ASN1_TIME_GET0_FUNCTIONS
 
 #endif

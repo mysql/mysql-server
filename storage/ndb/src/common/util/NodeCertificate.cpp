@@ -84,10 +84,14 @@ static void expand(BaseString & result, const BaseString & path, int envStart) {
     c = item[envEnd];
   }
 
-  BaseString envVar = path.substr(envStart + 1, envEnd);
   if(envStart > 0)
     result.assign(path.substr(0, envStart));
-  result.append(getenv(envVar.c_str()));
+  if(envEnd - envStart > 1) {
+    BaseString envVar = path.substr(envStart + 1, envEnd);
+    result.append(getenv(envVar.c_str()));
+  } else {
+    result.append('$');
+  }
   result.append(path.substr(envEnd));
 }
 
@@ -112,6 +116,10 @@ TlsSearchPath::TlsSearchPath(const char * path_str) {
       expand(expansion, m_path[i], envStart);
       if(expansion.length())
         m_path[i] = expansion;
+      else {
+        m_path.erase(i);
+        i--;
+      }
     }
   }
 }
@@ -600,7 +608,7 @@ size_t Certificate::get_common_name(X509 * cert, char * buf, size_t len) {
 
 int Certificate::get_signature_prefix(X509 * cert) {
   int prefix = 0;
-  const ASN1_BIT_STRING * sig;
+  const ASN1_BIT_STRING * sig = nullptr;
   const X509_ALGOR * algorithm;
   X509_get0_signature(& sig, & algorithm, cert);
   if(sig && sig->data)
@@ -1624,7 +1632,7 @@ inline bool test_expansion(const char * path, const char * expansion) {
 }
 
 static int search_path_test() {
-  BaseString pathStr(isWin32 ? "$HOMEPATH" : "$HOME");
+  BaseString pathStr("$TMPDIR");
   pathStr.append(TlsSearchPath::Separator);
   pathStr.append(MYSQL_DATADIR);
   pathStr.append(TlsSearchPath::Separator);
@@ -1670,19 +1678,32 @@ static int search_path_test() {
   if(searchPath2.size() != 1) return 13;
   if(! searchPath2.first_writable()) return 14;
 
+  /* If the character following $ is not alnum or _, do not expand
+     $VAR expands correctly if VAR is set
+     $VAR expands to nothing if VAR is not set
+     a:my$SUFFIX expands to a:my if SUFFIX is not set
+     a:$VAR:b expands to a:b if $VAR is not set
+  */
   if(! test_expansion("$", "$")) return 15;
   if(! test_expansion("$$", "$$")) return 16;
   if(! test_expansion("$#", "$#")) return 17;
   if(isWin32) {
-    if(! test_expansion("f;abc$", "f;abc")) return 18;
+    if(! test_expansion("f;abc$", "f;abc$")) return 18;
     if(! test_expansion("a;$;b", "a;$;b")) return 19;
     if(! test_expansion("a;$", "a;$")) return 20;
-    _putenv("DRIVE=A");
-    if(! test_expansion("$DRIVE:/tls", "A:/tls")) return 21;
+    _putenv("ARMAGOGLYPOD=A");
+    if(! test_expansion("$ARMAGOGLYPOD:/tls", "A:/tls")) return 21;
+    _putenv("ARMAGOGLYPOD=");
+    if(! test_expansion("$ARMAGOGLYPOD", "")) return 22;
+    if(! test_expansion("a;$ARMAGOGLYPOD;b", "a;b")) return 23;
+    if(! test_expansion("a;my$ARMAGOGLYPOD", "a;my")) return 24;
   } else {
-    if(! test_expansion("f:abc$", "f:abc")) return 18;
+    if(! test_expansion("f:abc$", "f:abc$")) return 18;
     if(! test_expansion("a:$:b", "a:$:b")) return 19;
     if(! test_expansion("a:$", "a:$")) return 20;
+    if(! test_expansion("$ARMAGOGLYPOD", "")) return 22;
+    if(! test_expansion("a:$ARMAGOGLYPOD:b", "a:b")) return 23;
+    if(! test_expansion("a:my$ARMAGOGLYPOD", "a:my")) return 24;
   }
 
   return 0;
