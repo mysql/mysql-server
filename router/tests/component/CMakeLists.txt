@@ -59,6 +59,9 @@ FOREACH(test_file
     test_logging_eventlog.cc
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
+    test_cluster_metadata.cc
+    test_node_attributes.cc
+    test_gr_state.cc
     test_pidfile.cc
     test_read_replica.cc
     test_rest_api.cc
