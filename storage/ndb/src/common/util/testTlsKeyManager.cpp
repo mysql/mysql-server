@@ -44,7 +44,7 @@
 #include "util/TlsKeyManager.hpp"
 
 int opt_port = 4400;
-short opt_last_test = INT16_MAX;
+int opt_last_test = INT16_MAX;
 
 static struct my_option options[] =
 {

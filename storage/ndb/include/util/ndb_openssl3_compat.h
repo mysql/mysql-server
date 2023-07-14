@@ -30,7 +30,7 @@
 #ifndef NDB_PORTLIB_OPENSSL_COMPAT_H
 #define NDB_PORTLIB_OPENSSL_COMPAT_H
 #include <openssl/ssl.h>
-
+#include "portlib/ndb_openssl_version.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
 
@@ -43,5 +43,28 @@ EVP_PKEY * EVP_EC_generate(const char * curve);
 #define EVP_EC_generate(curve) EVP_PKEY_Q_keygen(nullptr,nullptr,"EC",curve)
 
 #endif  /* OPENSSL_VERSION_NUMBER */
+
+/* These stub functions allow NodeCertificate.cpp to compile with old OpenSSL */
+#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+const ASN1_INTEGER *X509_get0_serialNumber(const X509 *);
+
+#ifndef X509_getm_notBefore
+#define X509_getm_notBefore X509_get_notBefore
+#define X509_getm_notAfter X509_get_notAfter
+#endif
+
+EVP_PKEY  *X509_REQ_get0_pubkey(X509_REQ *);
+void X509_get0_signature(const ASN1_BIT_STRING **, const X509_ALGOR **,
+                         const X509 *);
+int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *);
+X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *,
+                                    X509V3_CTX *, int, const char *);
+int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *);
+int EVP_PKEY_up_ref(EVP_PKEY *);
+int X509_up_ref(X509 *);
+
+#endif
 
 #endif  /* NDB_PORTLIB_OPENSSL_COMPAT_H */

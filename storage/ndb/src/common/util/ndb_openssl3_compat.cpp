@@ -100,3 +100,46 @@ int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b) {
 
 #endif
 
+/* Stub functions to allow NodeCertificate.cpp to compile with old OpenSSL */
+#if OPENSSL_VERSION_NUMBER < NDB_TLS_MINIMUM_OPENSSL
+
+const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x) {
+  return X509_get_serialNumber(const_cast<X509 *>(x));
+}
+
+EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *csr) {
+  EVP_PKEY * key = X509_REQ_get_pubkey(csr);
+  if(key)
+    EVP_PKEY_free(key);
+  return key;
+}
+
+void X509_get0_signature(const ASN1_BIT_STRING ** sig, const X509_ALGOR ** alg,
+                         const X509 * x) {
+  X509_get0_signature(sig, const_cast<X509_ALGOR **>(alg), x);
+}
+
+int X509_get_signature_info(X509 *, int *, int *, int *, uint32_t *) {
+  return 0;
+}
+
+X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf,
+                                    X509V3_CTX *ctx, int ext_nid,
+                                    const char *value) {
+  return X509V3_EXT_conf_nid(conf, ctx, ext_nid, const_cast<char *>(value));
+}
+
+int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *) {
+  return 0;
+}
+
+int EVP_PKEY_up_ref(EVP_PKEY *) {
+  return 0;
+}
+
+int X509_up_ref(X509 *) {
+  return 0;
+}
+
+
+#endif

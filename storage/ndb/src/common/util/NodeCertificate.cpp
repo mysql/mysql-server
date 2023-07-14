@@ -78,11 +78,11 @@ int PkiFile::assign(PathName & path, const char * dir, const char * file) {
 static void expand(BaseString & result, const BaseString & path, int envStart) {
   const char * item = path.c_str();
   size_t envEnd = envStart + 1;
-  char c;
-  do {
+  char c = item[envEnd];
+  while(isalnum(c) || c == '_') {
     envEnd++;
     c = item[envEnd];
-  } while(isalnum(c) || c == '_');
+  }
 
   BaseString envVar = path.substr(envStart + 1, envEnd);
   if(envStart > 0)
@@ -1393,7 +1393,7 @@ static int cert_lifetime_test() {
   CertLifetime c2;
   c2.set_lifetime(20, 0);
   t2 = c2.replace_time(5) - time(&t1);
-  printf("t2: %ld, days: %ld \n", t2, t2/CertLifetime::SecondsPerDay);
+  printf("t2: %ld days\n", (long) t2/CertLifetime::SecondsPerDay);
   if(t2 != five_days) return 9;
 
   /* Write lifetime to certificate */
