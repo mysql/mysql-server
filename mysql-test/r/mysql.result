@@ -586,5 +586,27 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-exec $MYSQL test -e "SELECT \$mle+\$mle;" 2>&1' at line 1
 -exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1' at line 1
+#
+# Bug#35290350: mysql client has issues determining end of comment
+#  when --comments=on
+#
+# Test: must pass without an error
+what
+1comment prev line prior to delimiter no end
+what
+2check if delimiter is restored
+what
+3ml comment same line as delimier no end
+what
+4check if delimiter is restored
+what
+5single line comment prior to delimiter no end
+what
+6check if delimiter is restored
+what
+7two comments back to back
+what
+8check if delimiter is restored
+# Cleanup
 
 End of tests

@@ -383,6 +383,10 @@ static void fix_line(String *buffer);
 static void get_current_os_user();
 static void get_current_os_sudouser();
 
+static char *skip_over_comments_and_space(char *name, size_t length);
+static void trim_leading_comments_and_space(String *buffer,
+                                            const char *skip_comments_start);
+
 /* A structure which contains information on the commands this program
    can understand. */
 
@@ -2437,22 +2441,45 @@ static int read_and_execute(bool interactive) {
       break;
     }
 
+    char *skip_comments_start = nullptr;
     /*
       Check if line is a mysql command line
-      (We want to allow help, print and clear anywhere at line start
+      We want to allow help, print and clear anywhere at line start,
+      or when the preceeding data in the buffer are comments only.
+      A line is a mysql command line if we're not in a ML comment or a string
+      and:
+       * the nested_commands is on
+       * or it's the first line in a multi-line statement
+       * or the previous lines in multi-line statements are comments and
+          whitespace and preserve_comments is on
     */
-    if ((named_cmds || glob_buffer.is_empty()) && !ml_comment && !in_string &&
-        (com = find_command(line))) {
-      if ((*com->func)(&glob_buffer, line) > 0) {
-        // lets log the exit/quit command.
-        if (interactive && status.add_to_history && com->cmd_char == 'q')
-          add_filtered_history(line);
-        break;
+    if ((named_cmds || glob_buffer.is_empty() ||
+         (!glob_buffer.is_empty() &&
+          ((skip_comments_start = skip_over_comments_and_space(
+                glob_buffer.ptr(), glob_buffer.length())) -
+           glob_buffer.ptr()) >= (off_t)glob_buffer.length())) &&
+        !ml_comment && !in_string) {
+      /* The line itself might start with a comment. Skip that too */
+      char *line_past_comments =
+          skip_over_comments_and_space(line, strlen(line));
+      if ((com = find_command(line_past_comments))) {
+        /*
+          The command buffer contained just comments and whitespace and we've
+          found a mysql command on the current line. It's OK to empty the
+          buffer.
+        */
+        if (skip_comments_start) glob_buffer.length(0);
+        if ((*com->func)(&glob_buffer, line_past_comments) > 0) {
+          // lets log the exit/quit command.
+          if (interactive && status.add_to_history && com->cmd_char == 'q')
+            add_filtered_history(line);
+          break;
+        }
+        if (glob_buffer.is_empty())  // If buffer was emptied
+          in_string = 0;
+        if (interactive && status.add_to_history) add_filtered_history(line);
+        continue;
       }
-      if (glob_buffer.is_empty())  // If buffer was emptied
-        in_string = 0;
-      if (interactive && status.add_to_history) add_filtered_history(line);
-      continue;
     }
     if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
                  status.line_buff ? status.line_buff->truncated : false))
@@ -2464,7 +2491,14 @@ static int read_and_execute(bool interactive) {
     remove_cntrl(&glob_buffer);
     if (!glob_buffer.is_empty()) {
       status.exit_status = 1;
-      if (com_go(&glob_buffer, line) <= 0) status.exit_status = 0;
+      char *skip_comments_start =
+          skip_over_comments_and_space(glob_buffer.ptr(), glob_buffer.length());
+      if ((com = find_command(skip_comments_start))) {
+        trim_leading_comments_and_space(&glob_buffer, skip_comments_start);
+        if ((*com->func)(&glob_buffer, glob_buffer.c_ptr()) > 0)
+          status.exit_status = 0;
+      } else if (com_go(&glob_buffer, nullptr) <= 0)
+        status.exit_status = 0;
     }
   }
 
@@ -2524,6 +2558,72 @@ static COMMANDS *find_command(char cmd_char) {
     return &commands[index];
   } else
     return (COMMANDS *)nullptr;
+}
+
+/**
+ Skips over possible multi-line comments (/ * and * /) and whitespace
+ and finds the first non-comment command.
+
+ We only have to worry about multi-line comments since the single line
+ comments (//foo) are sent immediately to the server anyway
+
+ @param ptr Pointer to the start of the command
+ @param length The length of the command text in ptr
+ @return the first non-comment and non-whitespace command.
+
+ @sa @ref trim_leading_comments_and_space
+*/
+static char *skip_over_comments_and_space(char *ptr, size_t length) {
+  if (!preserve_comments) return ptr;
+  char *end = ptr + length;
+  do {
+    while (ptr < end && my_isspace(charset_info, *ptr)) ptr++;
+    if (ptr + 2 < end && *ptr == '/' && ptr[1] == '*') {
+      /* skip a multiline comment */
+      /* skip past the opening / and * */
+      ptr += 2;
+      while (ptr + 2 < end && *ptr != '*' && ptr[1] != '/') ptr++;
+      /* if we found a closing * and / skip past it */
+      if (ptr + 2 < end && *ptr == '*' && ptr[1] == '/') ptr += 2;
+    }
+  } while (ptr < end && (my_isspace(charset_info, *ptr) ||
+                         (ptr + 2 < end && *ptr == '/' && ptr[1] == '*')));
+  return ptr;
+}
+
+/**
+  Trims the leading comments and whitespace from a command
+
+  Useful when @ref skip_over_comments_and_space is used to find if there is
+  something to skip and now it needs to be skipped.
+  Note that the the function expects that skip_comments_start is within
+  buffer.
+
+  @note The idea is that we first look skip non-destructively over the comments
+  and space and then check if it's a MySQL command or not. If it is we then trip
+  the leading comments and space and proceed. If not we send the comments and
+  the command to the server.
+
+  @param [in,out] buffer The string buffer containing the command + the
+  comments/whitespace
+  @param skip_comments_start The place where leading comments end and the actual
+  command starts
+*/
+static void trim_leading_comments_and_space(String *buffer,
+                                            const char *skip_comments_start) {
+  if (!preserve_comments) return;
+  String str;
+
+  assert(buffer->c_ptr() <= skip_comments_start);
+  assert(buffer->c_ptr() + buffer->length() > skip_comments_start);
+
+  if (skip_comments_start != buffer->c_ptr()) {
+    str = buffer->substr(
+        skip_comments_start - buffer->c_ptr(),
+        buffer->length() - (skip_comments_start - buffer->c_ptr()));
+    if (str.uses_buffer_owned_by(buffer)) str.copy();
+    buffer->takeover(str);
+  }
 }
 
 /**
@@ -2741,7 +2841,10 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
       pos--;
 
-      if ((com = find_command(buffer.c_ptr()))) {
+      char *skip_comments_start =
+          skip_over_comments_and_space(buffer.ptr(), buffer.length());
+      if (nullptr != (com = find_command(skip_comments_start))) {
+        trim_leading_comments_and_space(&buffer, skip_comments_start);
         if ((*com->func)(&buffer, buffer.c_ptr()) > 0) return true;  // Quit
       } else {
         if (com_go(&buffer, nullptr) > 0)  // < 0 is not fatal

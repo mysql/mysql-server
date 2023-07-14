@@ -728,5 +728,40 @@ DROP USER bug21464621;
 --error 1064
 -exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1
 
+--echo #
+--echo # Bug#35290350: mysql client has issues determining end of comment
+--echo #  when --comments=on
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug35290350.sql
+/* comment */
+delimiter //
+SELECT "1comment prev line prior to delimiter no end" AS "what"//
+delimiter ;
+SELECT "2check if delimiter is restored" AS "what";
+/* comment */ delimiter //
+SELECT "3ml comment same line as delimier no end" AS "what"//
+delimiter ;
+SELECT "4check if delimiter is restored" AS "what";
+-- comment2
+delimiter //
+SELECT "5single line comment prior to delimiter no end" AS "what"//
+delimiter ;
+SELECT "6check if delimiter is restored" AS "what";
+/* comment *//*comment*/
+delimiter o
+SELECT "7two comments back to back" AS "what"o
+delimiter ;
+select "8check if delimiter is restored" AS "what";
+EOF
+
+--echo # Test: must pass without an error
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug35290350.sql;
+
+--echo # Cleanup
+remove_file $MYSQLTEST_VARDIR/tmp/bug35290350.sql;
+
+
+
 --echo
 --echo End of tests
