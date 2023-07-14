@@ -739,37 +739,37 @@ public:
   const NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
                                 const NdbRecord *result_rec, char *result_row,
                                 NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-                                const unsigned char *result_mask= 0,
-                                const NdbOperation::OperationOptions *opts = 0,
+                                const unsigned char *result_mask= nullptr,
+                                const NdbOperation::OperationOptions *opts = nullptr,
                                 Uint32 sizeOfOptions = 0);
   const NdbOperation *insertTuple(const NdbRecord *key_rec, const char *key_row,
                                   const NdbRecord *attr_rec, const char *attr_row,
-                                  const unsigned char *mask= 0,
-                                  const NdbOperation::OperationOptions *opts = 0,
+                                  const unsigned char *mask= nullptr,
+                                  const NdbOperation::OperationOptions *opts = nullptr,
                                   Uint32 sizeOfOptions = 0);
   const NdbOperation *insertTuple(const NdbRecord *combined_rec, const char *combined_row,
-                                  const unsigned char *mask = 0,
-                                  const NdbOperation::OperationOptions *opts = 0,
+                                  const unsigned char *mask = nullptr,
+                                  const NdbOperation::OperationOptions *opts = nullptr,
                                   Uint32 sizeOfOptions = 0);
   const NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
                                   const NdbRecord *attr_rec, const char *attr_row,
-                                  const unsigned char *mask= 0,
-                                  const NdbOperation::OperationOptions *opts = 0,
+                                  const unsigned char *mask= nullptr,
+                                  const NdbOperation::OperationOptions *opts = nullptr,
                                   Uint32 sizeOfOptions = 0);
   const NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
                                  const NdbRecord *attr_rec, const char *attr_row,
-                                 const unsigned char *mask= 0,
-                                 const NdbOperation::OperationOptions *opts = 0,
+                                 const unsigned char *mask= nullptr,
+                                 const NdbOperation::OperationOptions *opts = nullptr,
                                  Uint32 sizeOfOptions = 0);
   const NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row,
-                                  const NdbRecord *result_rec, char *result_row = 0,
-                                  const unsigned char *result_mask = 0,
-                                  const NdbOperation::OperationOptions *opts = 0,
+                                  const NdbRecord *result_rec, char *result_row = nullptr,
+                                  const unsigned char *result_mask = nullptr,
+                                  const NdbOperation::OperationOptions *opts = nullptr,
                                   Uint32 sizeOfOptions = 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation *refreshTuple(const NdbRecord *key_rec, const char *key_row,
-                                   const NdbOperation::OperationOptions *opts = 0,
+                                   const NdbOperation::OperationOptions *opts = nullptr,
                                    Uint32 sizeOfOptions = 0);
 #endif
 
@@ -798,8 +798,8 @@ public:
   NdbScanOperation *
   scanTable(const NdbRecord *result_record,
             NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-            const unsigned char *result_mask= 0,
-            const NdbScanOperation::ScanOptions *options = 0,
+            const unsigned char *result_mask= nullptr,
+            const NdbScanOperation::ScanOptions *options = nullptr,
             Uint32 sizeOfOptions = 0);
 
   /**
@@ -843,9 +843,9 @@ public:
   scanIndex(const NdbRecord *key_record,
             const NdbRecord *result_record,
             NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
-            const unsigned char *result_mask = 0,
-            const NdbIndexScanOperation::IndexBound *bound = 0,
-            const NdbScanOperation::ScanOptions *options = 0,
+            const unsigned char *result_mask = nullptr,
+            const NdbIndexScanOperation::IndexBound *bound = nullptr,
+            const NdbScanOperation::ScanOptions *options = nullptr,
             Uint32 sizeOfOptions = 0);
 
   /**
@@ -861,7 +861,7 @@ public:
    */
   NdbQuery*
   createQuery(const NdbQueryDef* query,
-              const NdbQueryParamValue paramValue[]= 0,
+              const NdbQueryParamValue paramValue[]= nullptr,
               NdbOperation::LockMode= NdbOperation::LM_CommittedRead);
 
   /* LockHandle methods */
@@ -1067,12 +1067,12 @@ private:
   static Uint32 getMagicNumber() { return (Uint32)0x37412619; }
 
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
-                                NdbOperation* aNextOp = 0);
+                                NdbOperation* aNextOp = nullptr);
 
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,
-                                          NdbOperation* aNextOp = 0);
+                                          NdbOperation* aNextOp = nullptr);
   NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
 						  const NdbTableImpl* table);
   
@@ -1086,7 +1086,7 @@ private:
                               const unsigned char *mask,
                               const NdbOperation::OperationOptions *opts,
                               Uint32 sizeOfOptions,
-                              const NdbLockHandle* lh = 0);
+                              const NdbLockHandle* lh = nullptr);
 
   void		handleExecuteCompletion();
   
@@ -1224,7 +1224,7 @@ private:
   bool checkState_TransId(const Uint32 * transId) const;
 
   // Check table and index objects wrt current connection - for debugging
-  bool checkSchemaObjects(const NdbTableImpl *tab, const NdbIndexImpl *idx=0);
+  bool checkSchemaObjects(const NdbTableImpl *tab, const NdbIndexImpl *idx=nullptr);
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);

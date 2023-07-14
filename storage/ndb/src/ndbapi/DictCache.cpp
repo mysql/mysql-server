@@ -220,7 +220,7 @@ GlobalDictCache::get(const BaseString& name, int *error)
     if (versions == nullptr)
     {
       *error = -1;
-      DBUG_RETURN(0);
+      DBUG_RETURN(nullptr);
     }
     m_tableHash.insertKey(name.c_str(), len, 0, versions);
   }
@@ -271,10 +271,10 @@ GlobalDictCache::get(const BaseString& name, int *error)
   if (versions->push_back(tmp))
   {
     *error = -1;
-     DBUG_RETURN(0);
+     DBUG_RETURN(nullptr);
   }
   DBUG_PRINT("info", ("No table found"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(nullptr);
 }
 
 NdbTableImpl *

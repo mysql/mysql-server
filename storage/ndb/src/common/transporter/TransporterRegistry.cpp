@@ -164,10 +164,10 @@ SocketServer::Session * TransporterService::newSession(NdbSocket&& secureSocket)
     {
       g_eventLogger->warning("TR : %s", msg.c_str());
     }
-    DBUG_RETURN(0);
+    DBUG_RETURN(nullptr);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(nullptr);
 }
 
 TransporterReceiveData::TransporterReceiveData()

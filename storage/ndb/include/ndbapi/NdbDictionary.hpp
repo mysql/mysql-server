@@ -655,7 +655,7 @@ public:
      * Optional int len* will be updated with the significant length
      * of the default value, or set to 0 for NULL or no default.
      */
-    const void* getDefaultValue(unsigned int* len = 0) const;
+    const void* getDefaultValue(unsigned int* len = nullptr) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getBlobTable() const;
@@ -1000,9 +1000,9 @@ public:
     int setTablespaceName(const char * name);
     const char * getTablespaceName() const;
     int setTablespace(const class Tablespace &);
-    bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
+    bool getTablespace(Uint32 *id= nullptr, Uint32 *version= nullptr) const;
 
-    bool getHashMap(Uint32* id = 0, Uint32* version = 0) const;
+    bool getHashMap(Uint32* id = nullptr, Uint32* version = nullptr) const;
     int setHashMap(const class HashMap &);
 
     /**
@@ -2267,10 +2267,10 @@ public:
      *   column order must match given column order
      *
      */
-    void setParent(const Table&, const Index * index = 0,
-                   const Column * cols[] = 0);
-    void setChild(const Table&, const Index * index = 0,
-                  const Column * cols[] = 0);
+    void setParent(const Table&, const Index * index = nullptr,
+                   const Column * cols[] = nullptr);
+    void setChild(const Table&, const Index * index = nullptr,
+                  const Column * cols[] = nullptr);
 
     void setOnUpdateAction(FkAction);
     void setOnDeleteAction(FkAction);
@@ -2327,27 +2327,27 @@ public:
           state(Object::StateUndefined),
           store(Object::StoreUndefined),
           temp(NDB_TEMP_TAB_PERMANENT),
-          database(0),
-          schema(0),
-          name(0) { }
+          database(nullptr),
+          schema(nullptr),
+          name(nullptr) { }
         /* qsort compare functions */
         static int compareByName(const void * p, const void * q);
         static int compareById(const void * p, const void * q);
       };
       unsigned count;           ///< Number of elements in list
       Element * elements;       ///< Pointer to array of elements
-      List() : count(0), elements(0) {}
+      List() : count(0), elements(nullptr) {}
       void clear() {
-        if (elements != 0) {
+        if (elements != nullptr) {
           for (unsigned i = 0; i < count; i++) {
             delete[] elements[i].database;
             delete[] elements[i].schema;
             delete[] elements[i].name;
-            elements[i].name = 0;
+            elements[i].name = nullptr;
           }
           delete[] elements;
           count = 0;
-          elements = 0;
+          elements = nullptr;
         }
       }
       ~List() { clear(); }
@@ -2708,20 +2708,20 @@ public:
       WarnDatafileRoundUp = 0x10    // rounded up to extent size
     };
 
-    int createLogfileGroup(const LogfileGroup &, ObjectId* = 0);
+    int createLogfileGroup(const LogfileGroup &, ObjectId* = nullptr);
     int dropLogfileGroup(const LogfileGroup&);
     LogfileGroup getLogfileGroup(const char * name);
 
-    int createTablespace(const Tablespace &, ObjectId* = 0);
+    int createTablespace(const Tablespace &, ObjectId* = nullptr);
     int dropTablespace(const Tablespace&);
     Tablespace getTablespace(const char * name);
     Tablespace getTablespace(Uint32 tablespaceId);
 
-    int createDatafile(const Datafile &, bool overwrite_existing = false, ObjectId* = 0);
+    int createDatafile(const Datafile &, bool overwrite_existing = false, ObjectId* = nullptr);
     int dropDatafile(const Datafile&);
     Datafile getDatafile(Uint32 node, const char * path);
 
-    int createUndofile(const Undofile &, bool overwrite_existing = false, ObjectId * = 0);
+    int createUndofile(const Undofile &, bool overwrite_existing = false, ObjectId * = nullptr);
     int dropUndofile(const Undofile&);
     Undofile getUndofile(Uint32 node, const char * path);
 
@@ -2735,7 +2735,7 @@ public:
     /**
      * Create a HashMap in database
      */
-    int createHashMap(const HashMap&, ObjectId* = 0);
+    int createHashMap(const HashMap&, ObjectId* = nullptr);
 
     /**
      * Get a HashMap by name
@@ -2788,7 +2788,7 @@ public:
     /**
      * Create a ForeignKey in database
      */
-    int createForeignKey(const ForeignKey&, ObjectId* = 0, int flags = 0);
+    int createForeignKey(const ForeignKey&, ObjectId* = nullptr, int flags = 0);
 
     /**
      * Get a ForeignKey by name

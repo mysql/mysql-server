@@ -272,7 +272,7 @@ ndb_thread_wrapper(void* _ss){
       NdbThread_Exit(ret);
     }
   /* will never be reached */
-    DBUG_RETURN(0);
+    DBUG_RETURN(nullptr);
   }
 }
 
@@ -296,7 +296,7 @@ NdbThread_CreateObject(const char * name)
 
   tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == nullptr)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   std::memset(tmpThread, 0, sizeof(* tmpThread));
   if (name)
@@ -334,7 +334,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   DBUG_ENTER("NdbThread_Create");
 
   if (p_thread_func == nullptr)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   NDB_THREAD_STACKSIZE thread_stack_size;
   /* Use default stack size if 0 specified */
@@ -355,7 +355,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
     Return an error if the value is negative
   */
   if (PTHREAD_STACK_MIN < 0)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   if (thread_stack_size < static_cast<NDB_THREAD_STACKSIZE>(PTHREAD_STACK_MIN))
     thread_stack_size = PTHREAD_STACK_MIN;
 #endif
@@ -363,7 +363,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   NdbThread *const tmpThread = (NdbThread *)malloc(sizeof(NdbThread));
   if (tmpThread == nullptr)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   DBUG_PRINT("info",("thread_name: %s", p_thread_name));
 
@@ -405,7 +405,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   {
     free(tmpThread);
     NdbMutex_Unlock(ndb_thread_mutex);
-    DBUG_RETURN(0);
+    DBUG_RETURN(nullptr);
   }
 
   if (thread_prio == NDB_THREAD_PRIO_HIGH && f_high_prio_set)
@@ -438,7 +438,7 @@ NdbThread_CreateLockObject(int tid)
 
   tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == nullptr)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   std::memset(tmpThread, 0, sizeof(* tmpThread));
 
@@ -507,7 +507,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
     DWORD ret;
     HANDLE thread_handle = p_wait_thread->thread_handle;
 
-    if (thread_handle == NULL)
+    if (thread_handle == nullptr)
     {
       return -1;
     }
@@ -882,7 +882,7 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
  */
 
 static unsigned int num_processor_groups = 0;
-static unsigned int *num_processors_per_group = NULL;
+static unsigned int *num_processors_per_group = nullptr;
 static bool inited = false;
 static bool support_cpu_locking_on_windows = false;
 
@@ -929,7 +929,7 @@ is_cpu_locking_supported_on_windows()
 
   num_processors_per_group =
       (unsigned int*)malloc(num_processor_groups * sizeof(unsigned int));
-  if (num_processors_per_group == NULL)
+  if (num_processors_per_group == nullptr)
   {
     return false;
   }
@@ -1065,7 +1065,7 @@ void
 NdbThread_UnassignFromCPUSet(struct NdbThread *pThread,
                                    struct NdbCpuSet *cpu_set)
 {
-  if (cpu_set == NULL)
+  if (cpu_set == nullptr)
   {
     assert(false);
     return;
@@ -1089,11 +1089,11 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
 
-  pThread->cpu_set_key = NULL;
+  pThread->cpu_set_key = nullptr;
 
   const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
                                           &new_affinity,
-                                          NULL);
+                                          nullptr);
   if (ret == 0)
   {
     // Failed to set thread group affinity
@@ -1187,7 +1187,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   if (!cpu_set_ptr)
   {
     int error_no = GetLastError();
-    *cpu_set = NULL;
+    *cpu_set = nullptr;
     return error_no;
   }
   cpu_set_ptr[0] = num_cpu_ids;
@@ -1291,7 +1291,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
   /* Exclusive cpusets currently only supported on Solaris */
   (void)num_cpu_ids;
   (void)cpu_ids;
-  *cpu_set = NULL;
+  *cpu_set = nullptr;
   return EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR;
 }
 
@@ -1381,7 +1381,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     ret= pset_bind(PS_NONE,
                    P_LWPID,
                    pThread->tid,
-                   NULL);
+                   nullptr);
     if (ret)
     {
       error_no = errno;
@@ -1405,15 +1405,15 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
                pThread->tid);
 
     ret = processor_affinity(&ps,
-                             NULL,
-                             NULL,
+                             nullptr,
+                             nullptr,
                              &flags);
 #else
     /* Solaris older than 11.2 */
     ret= processor_bind(P_LWPID,
                         pThread->tid,
                         PBIND_NONE,
-                        NULL);
+                        nullptr);
 #endif
     if (ret)
     {
@@ -1500,7 +1500,7 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   {
     return ret;
   }
-  ret= processor_bind(P_LWPID, pThread->tid, cpu_id, NULL);
+  ret= processor_bind(P_LWPID, pThread->tid, cpu_id, nullptr);
 #endif
   if (ret)
   {
@@ -1659,7 +1659,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   if (!cpu_set_ptr)
   {
     error_no = errno;
-    *cpu_set = NULL;
+    *cpu_set = nullptr;
     return error_no;
   }
   cpu_set_ptr[0] = (id_t)num_cpu_ids;
@@ -1673,7 +1673,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   /* Non-supported OSs */
   (void)num_cpu_ids;
   (void)cpu_ids;
-  *cpu_set = NULL;
+  *cpu_set = nullptr;
   return NON_EXCLUSIVE_CPU_SET_NOT_SUPPORTED_ERROR;
 #endif
 }
@@ -1704,7 +1704,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
 
   for (i = 0; i < num_cpu_ids; i++)
   {
-    if ((ret = pset_assign(*cpu_set_ptr, cpu_ids[i], NULL)))
+    if ((ret = pset_assign(*cpu_set_ptr, cpu_ids[i], nullptr)))
     {
       error_no = errno;
       goto late_error;
@@ -1718,7 +1718,7 @@ late_error:
 error:
   free(cpu_set_ptr);
 end_error:
-  *cpu_set = NULL;
+  *cpu_set = nullptr;
   return error_no;
 
 #else
@@ -1761,7 +1761,7 @@ NdbThread_LockCPUSetExclusive(struct NdbThread* pThread,
   ret= pset_bind(*cpu_set_ptr,
                  P_LWPID,
                  pThread->tid,
-                 NULL);
+                 nullptr);
   if (ret)
   {
     error_no = errno;
@@ -1890,7 +1890,7 @@ NdbThread_Init()
   setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, thr_self());
   if (processor_affinity(&ps,
                          &g_num_ids,
-                         NULL,
+                         nullptr,
                          &flags) == 0)
   {
     if (g_num_ids != 0)

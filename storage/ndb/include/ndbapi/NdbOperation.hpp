@@ -388,9 +388,9 @@ public:
    *                    the attribute, or a NULL pointer
    *                    (indicating error).
    */
-  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
-  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
-  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* aValue = nullptr);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = nullptr);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = nullptr);
 
   /**
    * Define an attribute to set or update in query.
@@ -1333,7 +1333,7 @@ protected:
 ******************************************************************************/
 
   virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = nullptr);
   NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);

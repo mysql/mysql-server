@@ -77,7 +77,7 @@ void getNameFromEnvironment()
   if (!handle)
     return;
 
-  GetModuleFileNameEx(handle, 0, singletonInfo.process_name,
+  GetModuleFileNameEx(handle, nullptr, singletonInfo.process_name,
                       singletonInfo.ProcessNameLength);
   CloseHandle(handle);
 }

@@ -731,7 +731,7 @@ static bool initClusterCertAuthority(X509 * cert, const char * ordinal) {
   /* Add extension */
   X509V3_CTX ctx;
   X509_EXTENSION *x;
-  x = X509V3_EXT_conf_nid(0, &ctx, NID_basic_constraints, "critical,CA:TRUE");
+  x = X509V3_EXT_conf_nid(nullptr, &ctx, NID_basic_constraints, "critical,CA:TRUE");
   r1 = X509_add_ext(cert, x, -1);
   X509_EXTENSION_free(x);
 

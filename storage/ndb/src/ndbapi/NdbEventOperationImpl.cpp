@@ -225,7 +225,7 @@ NdbEventOperationImpl::getValue(const char *colName, char *aValue, int n)
     g_eventLogger->info(
         "NdbEventOperationImpl::getValue "
         "may only be called between instantiation and execute()");
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   NdbColumnImpl *tAttrInfo = m_eventImpl->m_tableImpl->getColumn(colName);
@@ -233,7 +233,7 @@ NdbEventOperationImpl::getValue(const char *colName, char *aValue, int n)
   if (tAttrInfo == nullptr) {
     g_eventLogger->info(
         "NdbEventOperationImpl::getValue attribute %s not found", colName);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   DBUG_RETURN(NdbEventOperationImpl::getValue(tAttrInfo, aValue, n));
@@ -266,7 +266,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
   if (tAttr == nullptr) { 
     exit(-1);
     //setErrorCodeAbort(4000);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   /**********************************************************************
@@ -278,7 +278,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
     //setErrorCodeAbort(4000);
     m_ndb->releaseRecAttr(tAttr);
     exit(-1);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
   //theErrorLine++;
 
@@ -311,7 +311,7 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
 	tAttr->release(); // do I need to do this?
 	m_ndb->releaseRecAttr(tAttr);
 	exit(-1);
-	DBUG_RETURN(NULL);
+	DBUG_RETURN(nullptr);
       }
       // this is it, between p and p_next
       p->next(tAttr);
@@ -332,7 +332,7 @@ NdbEventOperationImpl::getBlobHandle(const char *colName, int n)
     g_eventLogger->info(
         "NdbEventOperationImpl::getBlobHandle "
         "may only be called between instantiation and execute()");
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   NdbColumnImpl *tAttrInfo = m_eventImpl->m_tableImpl->getColumn(colName);
@@ -340,7 +340,7 @@ NdbEventOperationImpl::getBlobHandle(const char *colName, int n)
   if (tAttrInfo == nullptr) {
     g_eventLogger->info(
         "NdbEventOperationImpl::getBlobHandle attribute %s not found", colName);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   NdbBlob* bh = getBlobHandle(tAttrInfo, n);
@@ -396,14 +396,14 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
         dict.getBlobEvent(*this->m_eventImpl, tAttrInfo->m_column_no);
       if (blobEvnt == nullptr) {
         m_error.code = dict.m_error.code;
-        DBUG_RETURN(NULL);
+        DBUG_RETURN(nullptr);
       }
 
       // create blob event operation
       tBlobOp =
         m_ndb->theEventBuffer->createEventOperationImpl(blobEvnt, m_error);
       if (tBlobOp == nullptr)
-        DBUG_RETURN(NULL);
+        DBUG_RETURN(nullptr);
 
       // pointer to main table op
       tBlobOp->theMainOp = this;
@@ -422,14 +422,14 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
   tBlob = m_ndb->getNdbBlob();
   if (tBlob == nullptr) {
     m_error.code = m_ndb->getNdbError().code;
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   // calls getValue on inline and blob part
   if (tBlob->atPrepare(this, tBlobOp, tAttrInfo, n) == -1) {
     m_error.code = tBlob->getNdbError().code;
     m_ndb->releaseNdbBlob(tBlob);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   // add to list end
@@ -1875,7 +1875,7 @@ NdbEventBuffer::nextEvent2()
     deleteUsedEventOperations(m_latest_poll_GCI);
     NdbMutex_Unlock(m_mutex);
   }
-  DBUG_RETURN_EVENT(0);
+  DBUG_RETURN_EVENT(nullptr);
 }
 
 bool
@@ -1934,7 +1934,7 @@ NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint3
       DBUG_RETURN(g.op);
     }
   }
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(nullptr);
 }
 
 void
@@ -3496,7 +3496,7 @@ NdbEventBuffer::alloc(Uint32 sz)
     {
       // Expect to always be able to alloc from empty mem block
       crashMemAllocError("::alloc(): alloc from empty MemoryBlock failed");
-      DBUG_RETURN(NULL);
+      DBUG_RETURN(nullptr);
     }
   }
 
@@ -3582,7 +3582,7 @@ NdbEventBuffer::expand_memory_blocks()
     if (unlikely(memptr == MAP_FAILED))
 #else
     void *memptr = malloc(sz);
-    if (unlikely(memptr == NULL))
+    if (unlikely(memptr == nullptr))
 #endif
     {
 #ifdef VM_TRACE

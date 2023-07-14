@@ -62,7 +62,7 @@ public:
    * @param connectstring The connectstring for where to find the
    *                      management server
    */
-  Ndb_cluster_connection(const char * connectstring = 0);
+  Ndb_cluster_connection(const char * connectstring = nullptr);
 
   /**
    * Create a connection to a cluster of storage nodes
@@ -204,7 +204,7 @@ public:
   int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  int start_connect_thread(int (*connect_callback)(void)= 0);
+  int start_connect_thread(int (*connect_callback)(void)= nullptr);
 #endif
 
   /**

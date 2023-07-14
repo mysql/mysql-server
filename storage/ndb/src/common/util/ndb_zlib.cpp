@@ -48,9 +48,9 @@ ndb_zlib::ndb_zlib()
   padding(0),
   padding_left(0)
 {
-  file.zalloc = Z_NULL;
-  file.zfree = Z_NULL;
-  file.opaque = Z_NULL;
+  file.zalloc = nullptr;
+  file.zfree = nullptr;
+  file.opaque = nullptr;
 }
 
 ndb_zlib::~ndb_zlib()

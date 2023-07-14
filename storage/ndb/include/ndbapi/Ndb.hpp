@@ -1352,7 +1352,7 @@ public:
    * pollEvents2 will also return >0 when there is an event data
    * representing empty or error epoch available on the head of the event queue.
    */
-  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
+  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= nullptr);
 
   /**
    * Check if higher queued epochs have been seen by the last
@@ -1402,7 +1402,7 @@ public:
    * - removes empty epochs from the event queue head until a regular
    *   event data is found or the whole queue is processed.
    */
-  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= nullptr);
 
   /**
    * Returns the event operation associated with the dequeued
@@ -1520,7 +1520,7 @@ public:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int flushIncompleteEvents(Uint64 gci);
-  NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
+  NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= nullptr);
   Uint64 getLatestGCI();
   void forceGCP();
   void setReportThreshEventGCISlip(unsigned thresh);
@@ -1555,8 +1555,8 @@ public:
    *
    * @return NdbTransaction object, or NULL on failure.
    */
-  NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
-				   const char  *keyData = 0,
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table= nullptr,
+				   const char  *keyData = nullptr,
 				   Uint32       keyLen = 0);
 
 
@@ -1691,7 +1691,7 @@ public:
    */
   NdbTransaction* startTransaction(const NdbDictionary::Table *table,
 				   const struct Key_part_ptr * keyData,
-				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+				   void* xfrmbuf = nullptr, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Unlike startTransaction function above, this function will not try to
@@ -1744,7 +1744,7 @@ public:
   static int computeHash(Uint32* hashvalueptr,
                          const NdbDictionary::Table* table,
                          const struct Key_part_ptr * keyData,
-                         void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+                         void* xfrmbuf = nullptr, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Unlike computeHash function above, this function will not try to allocate
@@ -2136,7 +2136,7 @@ private:
 				      Uint32 aWaitState,
 				      NdbApiSignal* aSignal,
                                       Uint32 nodeSequence,
-                                      Uint32 *ret_conn_seq= 0);
+                                      Uint32 *ret_conn_seq= nullptr);
 
   // Get block number of this NDBAPI object
   int			getBlockNumber();

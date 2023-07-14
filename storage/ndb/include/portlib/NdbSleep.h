@@ -48,20 +48,20 @@ void NdbSleep_MicroSleep(int microseconds)
   LARGE_INTEGER liDueTime;
   liDueTime.QuadPart = -10LL * microseconds;
 
-  HANDLE hTimer = CreateWaitableTimer(NULL, true, NULL);
-  if (NULL == hTimer ||
-      !SetWaitableTimer(hTimer, &liDueTime, 0, NULL, NULL, 0) ||
+  HANDLE hTimer = CreateWaitableTimer(nullptr, true, nullptr);
+  if (nullptr == hTimer ||
+      !SetWaitableTimer(hTimer, &liDueTime, 0, nullptr, nullptr, 0) ||
       WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0)
   {
 #ifndef NDEBUG
     // Error code for crash analysis
-    DWORD winerr = GetLastError();
+    DWORD winerr [[maybe_unused]] = GetLastError();
 #endif
     assert(false);
     // Fallback to millisleep in release
     NdbSleep_MilliSleep(1 + (microseconds - 1) / 1000);
   }
-  if (NULL != hTimer)
+  if (nullptr != hTimer)
   {
     CloseHandle(hTimer);
   }

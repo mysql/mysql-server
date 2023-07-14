@@ -3019,14 +3019,14 @@ NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
 
   res= insertATTRINFOHdr_NdbRecord(attrInfo->m_attrId, 0);
   if (res==-1)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   theInitialReadSize= theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
   ra= theReceiver.getValue(attrInfo, aValue);
   if (!ra)
   {
     setErrorCodeAbort(4000);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
   theErrorLine++;
   DBUG_RETURN(ra);

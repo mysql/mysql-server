@@ -95,14 +95,14 @@ public:
    * allocated internally and extended to cope as instructions are
    * added.
    */
-  NdbInterpretedCode(const NdbDictionary::Table *table= 0,
-                     Uint32 *buffer= 0, 
+  NdbInterpretedCode(const NdbDictionary::Table *table= nullptr,
+                     Uint32 *buffer= nullptr,
                      Uint32 buffer_word_size= 0);
 
   /* Constructor variant that obtains table from NdbRecord
   */
   NdbInterpretedCode(const NdbRecord &,
-                     Uint32 *buffer= 0,
+                     Uint32 *buffer= nullptr,
                      Uint32 buffer_word_size= 0);
 
 

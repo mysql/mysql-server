@@ -95,7 +95,7 @@ public:
     if (!proc)
     {
       fprintf(stderr, "Failed to allocate memory for new process\n");
-      return NULL;
+      return nullptr;
     }
 
     // Check cwd
@@ -206,8 +206,8 @@ inline void NdbProcess::printerror()
 
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                 FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR)&message, 0, NULL);
+                nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&message, 0, nullptr);
 
   fprintf(stderr, "Function failed, error: %lu, message: '%s'", err, message);
   LocalFree(message);

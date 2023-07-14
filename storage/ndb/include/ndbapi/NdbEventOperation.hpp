@@ -157,11 +157,11 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr *getValue(const char *anAttrName, char *aValue = 0);
+  NdbRecAttr *getValue(const char *anAttrName, char *aValue = nullptr);
   /**
    * See getValue().
    */
-  NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
+  NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = nullptr);
 
   /**
    * These methods replace getValue/getPreValue for blobs.  Each
@@ -301,7 +301,7 @@ public:
    * Check whether the consumed event data marks an error epoch
    * and get the error.
    */
-  bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = 0);
+  bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = nullptr);
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

@@ -48,11 +48,11 @@ const NdbInfoRecAttr* NdbInfoScanVirtual::getValue(const char * anAttrName)
   DBUG_ENTER("NdbInfoScanVirtual::getValue(const char*)");
   DBUG_PRINT("enter", ("anAttrName: %s", anAttrName));
   if (m_state != Prepared)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   const NdbInfo::Column* column = m_table->getColumn(anAttrName);
   if (!column)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   DBUG_RETURN(getValue(column->m_column_id));
 }
 
@@ -62,10 +62,10 @@ const NdbInfoRecAttr* NdbInfoScanVirtual::getValue(Uint32 anAttrId)
   DBUG_ENTER("NdbInfoScanVirtual::getValue(Uint32)");
   DBUG_PRINT("enter", ("anAttrId: %u", anAttrId));
   if (m_state != Prepared)
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   if (anAttrId >= m_table->columns())
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 
   DBUG_RETURN(m_recAttrs.get_value(anAttrId));
 }

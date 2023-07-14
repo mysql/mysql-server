@@ -44,15 +44,15 @@
 OPT_EXTERN(int,opt_ndb_nodeid,NONE);
 OPT_EXTERN(bool,opt_ndb_endinfo,=0);
 OPT_EXTERN(bool,opt_ndb_optimized_node_selection,NONE);
-OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
+OPT_EXTERN(const char *,opt_ndb_connectstring,=nullptr);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
-OPT_EXTERN(const char *,opt_charsets_dir,=0);
+OPT_EXTERN(const char *,opt_charsets_dir,=nullptr);
 OPT_EXTERN(const char *,opt_tls_search_path,=NDB_TLS_SEARCH_PATH);
 OPT_EXTERN(unsigned long long,opt_mgm_tls,=0);
 
 #ifndef NDEBUG
-OPT_EXTERN(const char *,opt_debug,= 0);
+OPT_EXTERN(const char *,opt_debug,= nullptr);
 #endif
 
 enum ndb_std_options {

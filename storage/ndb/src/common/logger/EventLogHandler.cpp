@@ -33,7 +33,7 @@
 EventLogHandler::EventLogHandler(const char* source_name)
  : LogHandler(),
    m_source_name(source_name),
-   m_event_source(NULL),
+   m_event_source(nullptr),
    m_level(Logger::LL_ERROR)
 {
 }
@@ -61,8 +61,8 @@ check_message_resource(void)
   if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_FROM_HMODULE |
                     FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, MSG_EVENTLOG, NULL,
-                    (LPTSTR)&message_text, 0, NULL) != 0)
+                    nullptr, MSG_EVENTLOG, 0,
+                    (LPTSTR)&message_text, 0, nullptr) != 0)
   {
     LocalFree(message_text);
     return true;
@@ -77,8 +77,8 @@ check_message_resource(void)
   if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
                     FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, last_err, 0,
-                    (LPSTR)&message_text, 0, NULL))
+                    nullptr, last_err, 0,
+                    (LPSTR)&message_text, 0, nullptr))
   {
     fprintf(stderr, "message: '%s'\n", message_text);
     LocalFree(message_text);
@@ -132,7 +132,7 @@ setup_eventlogging(const char* source_name)
 
   /* Get path of current module and use it as message resource  */
   char module_path[MAX_PATH];
-  DWORD len = GetModuleFileName(NULL, module_path, sizeof(module_path));
+  DWORD len = GetModuleFileName(nullptr, module_path, sizeof(module_path));
   if (len == 0 || len == sizeof(module_path))
   {
     fprintf(stderr,
@@ -166,7 +166,7 @@ EventLogHandler::open()
     return false;
   }
 
-  m_event_source = RegisterEventSource(NULL, m_source_name);
+  m_event_source = RegisterEventSource(nullptr, m_source_name);
   if (!m_event_source)
   {
     fprintf(stderr, "Failed to register event source, error: %lu\n",
@@ -192,7 +192,7 @@ EventLogHandler::close()
 bool
 EventLogHandler::is_open()
 {
-  return (m_event_source != NULL);
+  return (m_event_source != nullptr);
 }
 
 void 
@@ -229,7 +229,7 @@ write_event_log(HANDLE eventlog_handle, Logger::LoggerLevel level,
   }
 
   if (!ReportEvent(eventlog_handle, type, 0, MSG_EVENTLOG,
-                   NULL, 1, 0, &msg, NULL))
+                   nullptr, 1, 0, &msg, nullptr))
   {
     return false;
   }
@@ -280,7 +280,7 @@ EventLogHandler::printf(Logger::LoggerLevel level, const char* source_name,
   int ret = vsnprintf_s(buf, sizeof(buf), _TRUNCATE, msg, ap);
   va_end(ap);
 
-  HANDLE eventlog_handle = RegisterEventSource(NULL, source_name);
+  HANDLE eventlog_handle = RegisterEventSource(nullptr, source_name);
   if (!eventlog_handle)
   {
     // Failed to open event log 

@@ -65,12 +65,12 @@ static inline int ndb_socket_errno()
 static inline
 std::string ndb_socket_err_message(int error_code)
 {
-  LPTSTR tmp_str = NULL;
+  LPTSTR tmp_str = nullptr;
   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
                     FORMAT_MESSAGE_IGNORE_INSERTS |
                     FORMAT_MESSAGE_MAX_WIDTH_MASK,
-                NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR)&tmp_str, 0, NULL);
+                nullptr, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&tmp_str, 0, nullptr);
   std::string err_str(tmp_str);
   LocalFree(tmp_str);
   return err_str;
@@ -140,7 +140,7 @@ ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov, int iovcnt)
   DWORD rv=0;
   if (WSASend(s.s,
               reinterpret_cast<LPWSABUF>(const_cast<struct iovec *>(iov)),
-              iovcnt, &rv, 0, 0, 0) == SOCKET_ERROR)
+              iovcnt, &rv, 0, nullptr, nullptr) == SOCKET_ERROR)
     return -1;
   return rv;
 }

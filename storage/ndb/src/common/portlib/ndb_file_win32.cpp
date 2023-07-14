@@ -128,7 +128,7 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
   BOOL ret;
   LARGE_INTEGER off;
   off.QuadPart = -LONG(count);
-  ret = SetFilePointerEx(m_handle, off, NULL, FILE_CURRENT);
+  ret = SetFilePointerEx(m_handle, off, nullptr, FILE_CURRENT);
   if (!ret)
   {
     return -1;
@@ -156,7 +156,7 @@ int ndb_file::read_backward(void* buf, ndb_file::size_t count) const
     return -1;
   }
 
-  ret = SetFilePointerEx(m_handle, off, NULL, FILE_CURRENT);
+  ret = SetFilePointerEx(m_handle, off, nullptr, FILE_CURRENT);
   if (!ret)
   {
     return -1;
@@ -214,7 +214,7 @@ int ndb_file::set_pos(ndb_off_t pos) const
   require(check_block_size_and_alignment(nullptr, 0, pos));
   LARGE_INTEGER off;
   off.QuadPart = pos;
-  BOOL ret = SetFilePointerEx(m_handle, off, NULL, FILE_BEGIN);
+  BOOL ret = SetFilePointerEx(m_handle, off, nullptr, FILE_BEGIN);
   if (!ret)
   {
     return -1;
@@ -336,7 +336,7 @@ int ndb_file::create(const char name[])
   DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 
   HANDLE hFile = CreateFile(name, dwDesiredAccess, dwShareMode,
-                            0, dwCreationDisposition, dwFlagsAndAttributes, 0);
+                            nullptr, dwCreationDisposition, dwFlagsAndAttributes, nullptr);
   if (hFile == INVALID_HANDLE_VALUE)
   {
     return -1;
@@ -402,7 +402,7 @@ int ndb_file::open(const char name[], unsigned flags)
   }
 
   m_handle = CreateFile(name, dwDesiredAccess, dwShareMode,
-                     0, dwCreationDisposition, dwFlagsAndAttributes, 0);
+                        nullptr, dwCreationDisposition, dwFlagsAndAttributes, nullptr);
   if (m_handle == INVALID_HANDLE_VALUE)
   {
     return -1;

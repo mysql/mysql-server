@@ -377,14 +377,14 @@ private:
 
     BlobTask():
       m_state(BTS_INIT),
-      m_readBuffer(0), // NULL
+      m_readBuffer(nullptr),
       m_readBufferLen(0),
       m_lastPartLen(0),
-      m_writeBuffer(0),   // NULL
+      m_writeBuffer(nullptr),
       m_writeBufferLen(0),
       m_oldLen(0),
       m_position(0),
-      m_lastDeleteOp(0)  // NULL
+      m_lastDeleteOp(nullptr)
 #ifndef BUG_31546136_FIXED
       ,m_delayedWriteHead(false)
 #endif

@@ -590,7 +590,7 @@ BaseString::argify(const char *argv0, const char *src) {
  end:
     
     delete[] tmp;
-    if (vargv.push_back(NULL))
+    if (vargv.push_back(nullptr))
     {
       for(unsigned i = 0; i < vargv.size(); i++)
         free(vargv[i]);

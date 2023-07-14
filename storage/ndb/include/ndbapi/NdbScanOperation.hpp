@@ -478,9 +478,9 @@ public:
    */
   const NdbOperation *lockCurrentTuple(NdbTransaction *takeOverTrans,
                                        const NdbRecord *result_rec,
-                                       char *result_row= 0,
-                                       const unsigned char *result_mask= 0,
-                                       const NdbOperation::OperationOptions *opts = 0,
+                                       char *result_row= nullptr,
+                                       const unsigned char *result_mask= nullptr,
+                                       const NdbOperation::OperationOptions *opts = nullptr,
                                        Uint32 sizeOfOptions = 0);
 
   /*
@@ -492,8 +492,8 @@ public:
   const NdbOperation *updateCurrentTuple(NdbTransaction *takeOverTrans,
                                          const NdbRecord *attr_rec,
                                          const char *attr_row,
-                                         const unsigned char *mask= 0,
-                                         const NdbOperation::OperationOptions *opts = 0,
+                                         const unsigned char *mask= nullptr,
+                                         const NdbOperation::OperationOptions *opts = nullptr,
                                          Uint32 sizeOfOptions = 0);
 
   /* Delete the current tuple. NdbRecord version.
@@ -503,9 +503,9 @@ public:
    */
   const NdbOperation *deleteCurrentTuple(NdbTransaction *takeOverTrans,
                                          const NdbRecord *result_rec,
-                                         char *result_row = 0,
-                                         const unsigned char *result_mask = 0,
-                                         const NdbOperation::OperationOptions *opts = 0,
+                                         char *result_row = nullptr,
+                                         const unsigned char *result_mask = nullptr,
+                                         const NdbOperation::OperationOptions *opts = nullptr,
                                          Uint32 sizeOfOptions = 0);
 
   /**
@@ -526,7 +526,7 @@ protected:
                    NdbOperation::Type aType = NdbOperation::TableScan);
   ~NdbScanOperation() override;
 
-  NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0) override;
+  NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = nullptr) override;
   NdbRecAttr* getValue_NdbRecord_scan(const NdbColumnImpl*, char* aValue);
   NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
 
@@ -783,7 +783,7 @@ int
 NdbScanOperation::deleteCurrentTuple(NdbTransaction * takeOverTrans){
   void * res = takeOverScanOp(NdbOperation::DeleteRequest, 
 			      takeOverTrans);
-  if(res == 0)
+  if(res == nullptr)
     return -1;
   return 0;
 }

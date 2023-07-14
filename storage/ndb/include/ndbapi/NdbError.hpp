@@ -231,8 +231,8 @@ struct NdbError {
     classification = NoError;
     code = 0;
     mysql_code = 0;
-    message = 0;
-    details = 0;
+    message = nullptr;
+    details = nullptr;
   }
   NdbError(const ndberror_struct & ndberror){
     status = (NdbError::Status) ndberror.status;

@@ -173,7 +173,7 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
     if (shared)
       result = 1;
     else 
-      result = native_mutex_init(p, 0);
+      result = native_mutex_init(p, nullptr);
 #endif
 #endif
 

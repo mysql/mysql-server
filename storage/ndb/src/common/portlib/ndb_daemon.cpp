@@ -124,7 +124,7 @@ install_or_remove_service(int argc, char** argv,
     return 0; // Nothing to do
 
   /* --remove as first argument on command line */
-  const char* remove_name = NULL;
+  const char* remove_name = nullptr;
   if (is_option(argv[1], "--remove", &remove_name))
   {
     if (remove_name)
@@ -138,7 +138,7 @@ install_or_remove_service(int argc, char** argv,
     return 1;
   }
 
-  const char* install_name = NULL;
+  const char* install_name = nullptr;
   if (is_option(argv[1], "--install", &install_name))
   {
     if (install_name)
@@ -151,7 +151,7 @@ install_or_remove_service(int argc, char** argv,
 
     /* Full path to this binary */
     char exe[MAX_PATH];
-    GetModuleFileName(NULL, exe, sizeof(exe));
+    GetModuleFileName(nullptr, exe, sizeof(exe));
     cmd.assfmt("\"%s\"", exe);
 
     /* The option that tells which service is starting  */
@@ -184,14 +184,14 @@ int ndb_daemon_init(int argc,
     return 1;
 
   // Check if first arg is --service -> run as service
-  const char* service_name = NULL;
+  const char* service_name = nullptr;
   if (argc > 1 &&
       is_option(argv[1], "--service", &service_name) &&
      service_name)
   {
     // Create the shutdown event that will be signaled
     // by g_ntsvc if the service is to be stopped
-    g_shutdown_event = CreateEvent(0, 0, 0, 0);
+    g_shutdown_event = CreateEvent(nullptr, 0, 0, nullptr);
 
     // Install the shutdown event in g_ntsvc
     g_ntsvc.SetShutdownEvent(g_shutdown_event);
@@ -203,7 +203,7 @@ int ndb_daemon_init(int argc,
     // Create a thread whose only purpose is to wait for
     // the shutdown event to be signaled and then call the 'stop'
     // function
-    uintptr_t stop_thread = _beginthread(stopper_thread,0,0);
+    uintptr_t stop_thread = _beginthread(stopper_thread, 0, nullptr);
     if(!stop_thread)
       return ERR1("couldn't start stopper thread");
 
@@ -337,7 +337,7 @@ static int do_files(const char* pidfile_name,
   // Redirect stdout and stderr to the daemon log file
   freopen(logfile_name, "a+", stdout);
   freopen(logfile_name, "a+", stderr);
-  setbuf(stderr, NULL);
+  setbuf(stderr, nullptr);
 #else
   /* Do input/output redirections (assume fd 0,1,2 not in use) */
   close(0);

@@ -1009,7 +1009,7 @@ NdbTransaction::execute(ExecType aTypeOfExec,
       firstTransError= theError;
 
 #ifdef ndb_api_crash_on_complex_blob_abort
-    assert(theFirstOpInList == NULL && theLastOpInList == NULL);
+    assert(theFirstOpInList == nullptr && theLastOpInList == nullptr);
 #else
     theFirstOpInList = theLastOpInList = nullptr;
 #endif
@@ -3506,7 +3506,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   {
     /* Memory allocation error */
     setOperationErrorCodeAbort(4000);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   op_idx->m_scanUsingOldApi= false;
@@ -3523,7 +3523,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
 
   releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation,
                        op_idx);
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(nullptr);
 }
 
 

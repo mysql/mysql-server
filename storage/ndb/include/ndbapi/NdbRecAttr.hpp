@@ -385,9 +385,9 @@ inline
 void
 NdbRecAttr::release()
 {
-  if (theStorageX != 0) {
+  if (theStorageX != nullptr) {
     delete [] theStorageX;
-    theStorageX = 0;
+    theStorageX = nullptr;
   }
 }
 
@@ -395,12 +395,12 @@ inline
 void
 NdbRecAttr::init()
 {
-  theStorageX = 0;
-  theValue = 0;
-  theRef = 0;
-  theNext = 0;
+  theStorageX = nullptr;
+  theValue = nullptr;
+  theRef = nullptr;
+  theNext = nullptr;
   theAttrId = 0xFFFF;
-  m_getVarValue = 0;
+  m_getVarValue = nullptr;
 }
 
 inline
