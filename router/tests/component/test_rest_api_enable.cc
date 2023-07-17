@@ -390,26 +390,9 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
 
  protected:
   void set_globals(std::string cluster_id = "") {
-    auto json_doc = mock_GR_metadata_as_json(
-        cluster_id, {cluster_node_port}, 0, {cluster_node_port},
-        0 /*primary_id*/, 0 /*view_id*/, false /*error_on_md_query*/);
-    JsonAllocator allocator;
-    JsonValue gr_members_json(rapidjson::kArrayType);
-    JsonValue member(rapidjson::kArrayType);
-    member.PushBack(JsonValue("uuid-1", strlen("uuid-1"), allocator),
-                    allocator);
-    member.PushBack(
-        JsonValue(gr_member_ip.c_str(), gr_member_ip.length(), allocator),
-        allocator);
-    member.PushBack(cluster_node_port, allocator);
-    gr_members_json.PushBack(member, allocator);
-
-    json_doc.AddMember("innodb_cluster_instances", gr_members_json, allocator);
-
-    const auto json_str = json_to_string(json_doc);
-
-    EXPECT_NO_THROW(
-        MockServerRestClient(cluster_http_port).set_globals(json_str));
+    set_mock_metadata(cluster_http_port, cluster_id, {cluster_node_port}, 0,
+                      {cluster_node_port}, 0 /*primary_id*/, 0 /*view_id*/,
+                      false /*error_on_md_query*/);
   }
 
   void setup_paths() {
@@ -959,12 +942,14 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
 
   void setup_mocks(const bool failover_successful) {
     for (auto i = 0; i < k_node_count; ++i) {
-      gr_members.emplace_back(gr_member_ip, port_pool_.get_next_available());
+      const auto port = port_pool_.get_next_available();
+      gr_nodes.emplace_back(port);
+      cluster_nodes.emplace_back(port);
     }
 
     for (auto i = 0; i < k_node_count; ++i) {
       cluster_http_port = port_pool_.get_next_available();
-      auto port = gr_members[i].second;
+      auto port = gr_nodes[i].classic_port;
 
       std::string trace_file;
       if (i == 0 || !failover_successful) {
@@ -984,11 +969,12 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
       ASSERT_TRUE(MockServerRestClient(cluster_http_port)
                       .wait_for_rest_endpoint_ready());
 
-      set_mock_bootstrap_data(cluster_http_port, cluster_name, gr_members,
-                              metadata_version, cluster_id);
+      set_mock_metadata(cluster_http_port, cluster_id, gr_nodes, 0,
+                        cluster_nodes, 0, 0, false, gr_member_ip, "",
+                        metadata_version, cluster_name);
     }
 
-    cluster_node_port = gr_members[0].second;
+    cluster_node_port = gr_nodes[0].classic_port;
     router_port_rw = port_pool_.get_next_available();
     router_port_ro = port_pool_.get_next_available();
     router_port_x_rw = port_pool_.get_next_available();
@@ -996,10 +982,11 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
   }
 
  private:
-  const mysqlrouter::MetadataSchemaVersion metadata_version{2, 0, 3};
+  const mysqlrouter::MetadataSchemaVersion metadata_version{2, 2, 0};
   const std::string cluster_name{"mycluster"};
   std::vector<std::pair<uint16_t, ProcessWrapper &>> mock_servers;
-  std::vector<std::pair<std::string, unsigned>> gr_members;
+  std::vector<GRNode> gr_nodes;
+  std::vector<ClusterNode> cluster_nodes;
   static const uint8_t k_node_count{3};
 };
 

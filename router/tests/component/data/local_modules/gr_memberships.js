@@ -47,12 +47,6 @@ exports.gr_members = function(host, port_and_state) {
   });
 };
 
-exports.members = function(id_host_and_port) {
-  return id_host_and_port.map(function(current_value) {
-    return [current_value[0], current_value[1], current_value[2]];
-  });
-};
-
 exports.cluster_nodes = function(host, cluster_instances) {
   return cluster_instances.map(function(current_value) {
     return [

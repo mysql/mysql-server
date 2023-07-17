@@ -13,50 +13,23 @@ if (mysqld.global.gr_node_host === undefined) {
   mysqld.global.gr_node_host = "127.0.0.1";
 }
 
-// this file is used for bootstrap and for metadata_cache.
-//
-// Currently, bootstrap and metacache tests use different fields to send the GR
-// node info, but we need to work with both:
-//
-// .gr_nodes is used by metadata_cache tests which is:
-//
-// - classic_port
-// - ONLINE
-// - xproto_port
-// - attributes
-//
-// .gr_members is used by bootstrap which is:
-//
-// - host
-// - port
-if (mysqld.global.gr_nodes === undefined &&
-    mysqld.global.gr_members !== undefined) {
-  mysqld.global.gr_nodes =
-      mysqld.global.gr_members.map(function(current_value) {
-        return [current_value[1], "ONLINE", null, {}];
-      });
+if (mysqld.global.gr_nodes === undefined) {
+  mysqld.global.gr_nodes = [];
 }
 
-var nodes = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
-    return [
-      current_value[0], host, current_value[1], current_value[2],
-      current_value[3]
-    ];
-  });
-};
-
-var group_replication_members_online =
-    nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
-
+if (mysqld.global.cluster_nodes === undefined) {
+  mysqld.global.cluster_nodes = [];
+}
 var options = {
   cluster_type: "gr",
   gr_id: mysqld.global.gr_id,
   innodb_cluster_name: "mycluster",
-  innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
   gr_id: mysqld.global.gr_id,
   metadata_schema_version: mysqld.global.schema_version,
-  group_replication_members: group_replication_members_online,
+  replication_group_members: gr_memberships.gr_members(
+      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
 };
 
 var common_responses = common_stmts.prepare_statement_responses(

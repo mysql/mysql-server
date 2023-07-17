@@ -2,10 +2,8 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-var gr_node_host = "127.0.0.1";
-
-var group_replication_members_online =
-    gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes);
+var group_replication_members_online = gr_memberships.gr_members(
+    mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
   group_replication_members: group_replication_members_online,

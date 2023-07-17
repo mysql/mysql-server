@@ -102,6 +102,7 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
  * @param gr_node_host address of the host with the nodes
  * @param router_options JSON with router options in metadata
  * @param metadata_version metadata schema version
+ * @param cluster_name name of the InnoDB Cluster in the metadata
  *
  * @return JSON object with the GR mock data.
  */
@@ -113,7 +114,8 @@ JsonValue mock_GR_metadata_as_json(
     const std::string &gr_node_host = "127.0.0.1",
     const std::string &router_options = "",
     const mysqlrouter::MetadataSchemaVersion &metadata_version =
-        mysqlrouter::MetadataSchemaVersion{2, 2, 0});
+        mysqlrouter::MetadataSchemaVersion{2, 2, 0},
+    const std::string &cluster_name = "test");
 
 /**
  * Sets the metadata returned by the mock server.
@@ -129,6 +131,7 @@ JsonValue mock_GR_metadata_as_json(
  * @param gr_node_host address of the host with the nodes handling the metadata
  * @param router_options JSON with router options in metadata
  * @param metadata_version metadata schema version
+ * @param cluster_name name of the InnoDB Cluster in the metadata
  * query
  */
 void set_mock_metadata(
@@ -139,13 +142,8 @@ void set_mock_metadata(
     const std::string &gr_node_host = "127.0.0.1",
     const std::string &router_options = "",
     const mysqlrouter::MetadataSchemaVersion &metadata_version =
-        mysqlrouter::MetadataSchemaVersion{2, 2, 0});
-
-void set_mock_bootstrap_data(
-    uint16_t http_port, const std::string &cluster_name,
-    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports,
-    const mysqlrouter::MetadataSchemaVersion &metadata_version,
-    const std::string &cluster_specific_id);
+        mysqlrouter::MetadataSchemaVersion{2, 2, 0},
+    const std::string &cluster_name = "test");
 
 /**
  * Converts JSON object to string representation.

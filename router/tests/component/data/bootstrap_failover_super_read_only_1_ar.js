@@ -1,9 +1,6 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-
-var gr_members = gr_memberships.members(mysqld.global.gr_members);
-
 if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "CLUSTER-ID";
 }
@@ -12,7 +9,8 @@ var options = {
   cluster_id: mysqld.global.gr_id,
   cluster_type: "ar",
   innodb_cluster_name: mysqld.global.cluster_name,
-  innodb_cluster_instances: gr_members,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
 };
 
 var common_responses = common_stmts.prepare_statement_responses(

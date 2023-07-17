@@ -1,11 +1,10 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-var gr_members = gr_memberships.members(mysqld.global.gr_members);
-
 var options = {
   innodb_cluster_name: mysqld.global.cluster_name,
-  replication_group_members: gr_members,
+  replication_group_members: gr_memberships.gr_members(
+      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
   innodb_cluster_hosts: [[8, "dont.query.dns", null]],
 };
 

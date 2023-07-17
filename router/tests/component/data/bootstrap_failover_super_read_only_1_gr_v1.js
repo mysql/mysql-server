@@ -1,11 +1,16 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-
-var gr_members = gr_memberships.members(mysqld.global.gr_members);
-
 if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "CLUSTER-ID";
+}
+
+if (mysqld.global.gr_nodes === undefined) {
+  mysqld.global.gr_nodes = [];
+}
+
+if (mysqld.global.cluster_nodes === undefined) {
+  mysqld.global.cluster_nodes = [];
 }
 
 var options = {
@@ -13,9 +18,10 @@ var options = {
   gr_id: mysqld.global.gr_id,
   cluster_type: "gr",
   innodb_cluster_name: mysqld.global.cluster_name,
-  replication_group_members: gr_members,
-  innodb_cluster_instances:
-      [["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003]]
+  replication_group_members: gr_memberships.gr_members(
+      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
