@@ -180,15 +180,11 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
                                         const HA_CREATE_INFO *create_info,
                                         trx_t *trx) {
   dberr_t err = DB_SUCCESS;
-  mtr_t mtr;
-  space_id_t space = 0;
-  bool needs_file_per_table;
-  char *filepath;
   ut_d(static uint32_t crash_injection_after_create_counter = 1;);
 
   ut_ad(!dict_sys_mutex_own());
 
-  needs_file_per_table =
+  const auto needs_file_per_table =
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
 
   if (needs_file_per_table) {
@@ -201,15 +197,16 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
           dict_table_has_atomic_blobs(table));
 
     /* Get a new tablespace ID */
-    dict_hdr_get_new_id(nullptr, nullptr, &space, table, false);
+    space_id_t space_id = 0;
+    dict_hdr_get_new_id(nullptr, nullptr, &space_id, table, false);
 
     DBUG_EXECUTE_IF("ib_create_table_fail_out_of_space_ids",
-                    space = SPACE_UNKNOWN;);
+                    space_id = SPACE_UNKNOWN;);
 
-    if (space == SPACE_UNKNOWN) {
+    if (space_id == SPACE_UNKNOWN) {
       return (DB_ERROR);
     }
-    table->space = space;
+    table->space = space_id;
 
     /* Determine the tablespace flags. */
     uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
@@ -219,6 +216,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
       fsp_flags_set_encryption(fsp_flags);
     }
 
+    char *filepath;
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string path;
 
@@ -226,6 +224,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
 
       filepath = Fil_path::make(path, table->name.m_name, IBD, true);
     } else {
+      /* Table resides in datadir */
       filepath = Fil_path::make_ibd_from_table_name(table->name.m_name);
     }
 
@@ -242,7 +241,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
       return DB_IO_ERROR;
     }
 
-    err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
+    err = log_ddl->write_delete_space_log(trx, table, space_id, filepath, false,
                                           false);
     if (err != DB_SUCCESS) {
       ut::free(filepath);
@@ -265,7 +264,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
                ? (create_info->m_implicit_tablespace_autoextend_size /
                   srv_page_size)
                : FIL_IBD_FILE_INITIAL_SIZE;
-    err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
+    err = fil_ibd_create(space_id, tablespace_name.c_str(), filepath, fsp_flags,
                          size);
 
     ut::free(filepath);
@@ -277,6 +276,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table,
       return (err);
     }
 
+    mtr_t mtr;
     mtr_start(&mtr);
 
     bool ret = fsp_header_init(table->space, size, &mtr);
