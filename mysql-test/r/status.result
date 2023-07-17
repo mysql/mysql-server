@@ -256,6 +256,9 @@ Variable_name	Value
 Table_open_cache_hits	0
 Table_open_cache_misses	0
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # The first statement accessing t1 after flush should result
 # in table cache miss.
 select * from t1;
@@ -265,6 +268,9 @@ Variable_name	Value
 Table_open_cache_hits	1
 Table_open_cache_misses	16
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # The second statement accessing the same table should
 # result in table cache hit.
 select * from t1;
@@ -274,6 +280,9 @@ Variable_name	Value
 Table_open_cache_hits	2
 Table_open_cache_misses	16
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # Again table cache miss if accessing different table.
 select * from t2;
 j
@@ -282,6 +291,9 @@ Variable_name	Value
 Table_open_cache_hits	18
 Table_open_cache_misses	17
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # And cache hit then accessing it second time.
 select * from t2;
 j
@@ -290,6 +302,9 @@ Variable_name	Value
 Table_open_cache_hits	19
 Table_open_cache_misses	17
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # The below statement should result in 2 cache hits and 
 # 4 cache misses since it needs 6 table instances in total.
 select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
@@ -299,6 +314,9 @@ Variable_name	Value
 Table_open_cache_hits	21
 Table_open_cache_misses	21
 Table_open_cache_overflows	0
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # Reduce size of table cache to check that status
 # variable tracking cache overflows works.
 set @@global.table_open_cache= 4;
@@ -313,6 +331,9 @@ Variable_name	Value
 Table_open_cache_hits	22
 Table_open_cache_misses	21
 Table_open_cache_overflows	19
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # This statement should result in 4 cache hits, 2 cache misses/
 # overflows.
 select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
@@ -322,6 +343,9 @@ Variable_name	Value
 Table_open_cache_hits	25
 Table_open_cache_misses	24
 Table_open_cache_overflows	22
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # Finally, the below statement should result in 1 cache miss
 # and 1 overflow since it accesses table which is not yet in
 # cache and table cache is full.
@@ -332,6 +356,9 @@ Variable_name	Value
 Table_open_cache_hits	25
 Table_open_cache_misses	41
 Table_open_cache_overflows	39
+Table_open_cache_triggers_hits	0
+Table_open_cache_triggers_misses	0
+Table_open_cache_triggers_overflows	0
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;

@@ -1,0 +1,153 @@
+################################################################################
+#                                                                              #
+# Variable Name: table_open_cache_triggers                                     #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 524288                                                        #
+# Range: 1 - 524288                                                            #
+#                                                                              #
+#                                                                              #
+# Description: Tests for dynamic system variable "table_open_cache_triggers"   #
+#              that cover the following aspects:                               #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Persistence support                                           #
+#              * Privileges                                                    #
+#                                                                              #
+################################################################################
+
+SET @original_value = @@global.table_open_cache_triggers;
+
+--echo #
+--echo # Test DEFAULT value. Use SET ... = DEFAULT to handle case,
+--echo # when the test suite overrides compiled-in default.
+--echo #
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = DEFAULT;
+SELECT @@global.table_open_cache_triggers;
+
+--echo #
+--echo # Test a few valid values.
+--echo #
+SET @@global.table_open_cache_triggers = 1;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = 2;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = 524287;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = 524288;
+SELECT @@global.table_open_cache_triggers;
+
+
+--echo #
+--echo # Test some invalid values.
+--echo #
+SET @@global.table_open_cache_triggers = 0;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = -1024;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = 524289;
+SELECT @@global.table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = 42949672950;
+SELECT @@global.table_open_cache_triggers;
+
+--echo # Including values of wrong type.
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache_triggers = 21221204.10;
+SELECT @@global.table_open_cache_triggers;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache_triggers = ON;
+SELECT @@global.table_open_cache_triggers;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.table_open_cache_triggers = 'test';
+SELECT @@global.table_open_cache_triggers;
+
+--echo #
+--echo # Test variable scope.
+--echo #
+--error ER_GLOBAL_VARIABLE
+SET @@session.table_open_cache_triggers = 1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.table_open_cache_triggers;
+
+--echo # Check that value in p_s.global_variables matches variables value.
+SET @@global.table_open_cache_triggers = 5;
+SELECT @@global.table_open_cache_triggers = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+
+--echo # Check if accessing variable without SCOPE points to the same global
+--echo # variable.
+SET @@global.table_open_cache_triggers = 7;
+SELECT @@table_open_cache_triggers = @@global.table_open_cache_triggers;
+
+--echo # Check various alternative syntax forms which are prohibited.
+--error ER_GLOBAL_VARIABLE
+SET @@table_open_cache_triggers = 1;
+--error ER_GLOBAL_VARIABLE
+SET table_open_cache_triggers = 1;
+--error ER_PARSE_ERROR
+SET global.table_open_cache_triggers = 1;
+--error ER_UNKNOWN_TABLE
+SELECT global.table_open_cache_triggers;
+--error ER_BAD_FIELD_ERROR
+SELECT table_open_cache_triggers;
+
+--echo # But SET GLOBAL should work.
+SET GLOBAL table_open_cache_triggers = 11;
+SELECT @@global.table_open_cache_triggers;
+
+--echo #
+--echo # Check that SET PERSIST/SET PERSIST_ONLY work.
+--echo #
+SET PERSIST table_open_cache_triggers = 13;
+SELECT @@global.table_open_cache_triggers;
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+
+SET PERSIST_ONLY table_open_cache_triggers = 17;
+SELECT @@global.table_open_cache_triggers;
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+
+--echo #
+--echo # Test that either SYSTEM_VARIABLES_ADMIN or SUPER are required for
+--echo # setting this variable.
+--echo #
+--enable_connect_log
+CREATE USER u1@localhost;
+
+--connect (con1, localhost, u1)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.table_open_cache_triggers = 19;
+SELECT @@global.table_open_cache_triggers;
+
+--connection default
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+
+--connection con1
+SET @@global.table_open_cache_triggers = 19;
+SELECT @@global.table_open_cache_triggers;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+
+--connect (con1, localhost, u1)
+--connection con1
+SET @@global.table_open_cache_triggers = 23;
+SELECT @@global.table_open_cache_triggers;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--disable_connect_log
+
+--echo #
+--echo # Clean-up.
+--echo #
+DROP USER u1@localhost;
+RESET PERSIST table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = @original_value;

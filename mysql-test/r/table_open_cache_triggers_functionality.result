@@ -1,0 +1,175 @@
+#
+# Test coverage for limit on number of table objects in Table Cache
+# with fully-loaded triggers.
+#
+
+# Create some test tables with and without triggers.
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TRIGGER bi_t1 BEFORE INSERT ON t1 FOR EACH ROW SET @a = @a + 1;
+CREATE TABLE t2 (j INT);
+INSERT INTO t2 VALUES (1);
+CREATE TRIGGER ai_t2 AFTER INSERT ON t2 FOR EACH ROW SET @b = @b + 1;
+CREATE TABLE t3 (k INT);
+INSERT INTO t3 VALUES (1);
+CREATE TRIGGER bi_t3 BEFORE INSERT ON t3 FOR EACH ROW SET @c = @c + 1;
+CREATE TABLE t4 (l INT);
+INSERT INTO t4 VALUES (1);
+
+# Set small soft limit on number of table objects in Table Cache with
+# fully-loaded triggers, so we can observe it kicking in.
+SET @save_table_open_cache_triggers = @@global.table_open_cache_triggers;
+SET GLOBAL table_open_cache_triggers = 2;
+# To make further test repeatable reset Table Cache.
+FLUSH TABLES;
+# But Ensure that it contains necessary DD tables.
+# Reset status variables to get 0 as their base value.
+FLUSH STATUS;
+
+# Read-only statements should not need table objects with fully-loaded
+# triggers and thus change status variables tracking their usage.
+# Otherwise absence of object in table cache causes TC miss.
+# presence - TC hit. Read-only statement requiring 2 table objects
+# when only 1 is present in TC causes 1 hit and 1 miss.
+SELECT count(*) FROM t1;
+count(*)
+3
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+SELECT count(*) FROM t1 AS a, t1 AS b;
+count(*)
+9
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+SELECT count(*) FROM t4;
+count(*)
+1
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Updating statement needs fully-loaded triggers, so there will be
+# a table cache hit, but also trigger miss and trigger will be
+# loaded.
+INSERT INTO t1 VALUES (4);
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Repeating the statement will cause table cache and trigger hits.
+INSERT INTO t1 VALUES (5);
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 1]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# When same statement needs 2 instances of the table, one for
+# updating and another for read-only purposes, then for updating
+# we should try to return object with loaded triggers, and object
+# without triggers we also have for read-only part.
+INSERT INTO t1 SELECT * FROM t1;
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 1]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Statement needing 2 table objects with triggers will cause one
+# trigger hit and one trigger miss (causing trigger loading for
+# one of cached table objects).
+LOCK TABLES t1 AS a WRITE, t1 AS b WRITE;
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 1]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+UNLOCK TABLES;
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Running read-only statement on unrelated table should not disturb
+# trigger counters. Since only one table object for this table was
+# used before it will cause single TC miss as expected.
+SELECT count(*) FROM t4 AS a, t4 AS b;
+count(*)
+1
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Statement which needs 3 table objects for updating will cause 2
+# trigger hits and 1 trigger (and TC) miss . As result we temporarily
+# exceed the soft limit on open tables with triggers.
+LOCK TABLES t1 AS a WRITE, t1 AS b WRITE, t1 AS c WRITE;
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 2]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Once we are done with using all 3 table objects, one table
+# object with trigger gets evicted. 2 table objects with triggers
+# is left.
+UNLOCK TABLES;
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 1]
+
+# Read-only statement will use table objects with triggers and
+# should not disturb trigger counters. Since we have not used
+# table t2 so far, there will be 1 TC miss.
+SELECT count(*) FROM t1, t2;
+count(*)
+10
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Statement that uses t1 for updating and table t2 in read-only
+# mode will reuse 1 table object with triggers (and also reuse object
+# without triggers for t2), and won't disturb cache otherwise.
+INSERT INTO t1 SELECT * FROM t2;
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 1]
+include/assert.inc [Expected table cache triggers misses increment : 0]
+include/assert.inc [Expected table cache triggers overflows increment : 0]
+
+# Statement that updates t2 will require loading of triggers (existing
+# table object will be used for this), this will cause table object
+# with triggers for table t1 eviction.
+INSERT INTO t2 VALUES (2);
+include/assert.inc [Expected table cache misses increment : 0]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 1]
+
+# Statement that updates t3 will require new table object and triggers
+# loaded for it. Since Table Cache already has 2 table objects with
+# triggers it will cause eviction of one of these objects. According
+# to LRU it should be object for t1.
+INSERT INTO t3 VALUES (2);
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 1]
+
+# Let us confirm that it is table object for t1 which is gone
+# missing, by showing that it and its triggers need to be loaded again.
+INSERT INTO t1 VALUES (6);
+include/assert.inc [Expected table cache misses increment : 1]
+include/assert.inc [Expected table cache triggers hits increment : 0]
+include/assert.inc [Expected table cache triggers misses increment : 1]
+include/assert.inc [Expected table cache triggers overflows increment : 1]
+#
+# Clean up.
+#
+DROP TABLES t1, t2, t3, t4;
+SET GLOBAL table_open_cache_triggers = @save_table_open_cache_triggers;

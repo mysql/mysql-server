@@ -54,6 +54,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // create_default_definer
 #include "sql/table.h"
+#include "sql/table_cache.h"  // table_cache_manager
 #include "sql/thr_malloc.h"
 #include "sql/trigger.h"
 #include "sql/trigger_chain.h"
@@ -91,9 +92,9 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
       m_record1_field(nullptr),
       m_new_field(nullptr),
       m_old_field(nullptr),
-      m_has_unparseable_trigger(false) {
+      m_parse_error_message(nullptr),
+      m_load_finalized(false) {
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
-  m_parse_error_message[0] = 0;
 }
 
 Table_trigger_dispatcher::~Table_trigger_dispatcher() {
@@ -298,27 +299,34 @@ bool Table_trigger_dispatcher::prepare_record1_accessors() {
 }
 
 /**
-  Load triggers for the table.
+  Finalize load of triggers for the table by creating Trigger objects to
+  be associated with TABLE/Table_trigger_dispatcher (rather than with
+  TABLE_SHARE), parsing trigger bodies, creating trigger chains, preparing
+  sp_head objects and row accessors.
 
   @param thd          current thread context
-  @param table        table object.
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool Table_trigger_dispatcher::check_n_load(THD *thd, const dd::Table &table) {
+bool Table_trigger_dispatcher::finalize_load(THD *thd) {
   assert(m_subject_table);
-
-  // Load triggers from Data Dictionary.
 
   List<Trigger> triggers;
 
-  if (dd::load_triggers(thd, &m_subject_table->mem_root,
-                        m_subject_table->s->db.str,
-                        m_subject_table->s->table_name.str, table, &triggers))
-    return true;
+  /*
+    Create Trigger objects to be bound to TABLE from those stored
+    in TABLE_SHARE.
+  */
+  List_iterator_fast<Trigger> it_share(*m_subject_table->s->triggers);
+  const Trigger *t_share;
+  while ((t_share = it_share++)) {
+    Trigger *t_clone = t_share->clone_shallow(&m_subject_table->mem_root);
+    if (!t_clone || triggers.push_back(t_clone, &m_subject_table->mem_root))
+      return true;
+  }
 
   // 'false' flag for 'is_upgrade' as we read Trigger from DD.
   parse_triggers(thd, &triggers, false);
@@ -358,6 +366,10 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, const dd::Table &table) {
 
     sp->setup_trigger_fields(thd, this, t->get_subject_table_grant(), false);
   }
+
+  m_load_finalized = true;
+
+  table_cache_manager.get_cache(thd)->notify_triggers_load();
 
   return false;
 }
@@ -474,8 +486,8 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd, List<Trigger> *triggers,
 
       /*
         In case we are upgrading, call set_parse_error_message() to set
-        m_has_unparseable_trigger in case of fatal errors too. As return type
-        of this function is void, we use m_has_unparseable_trigger to check
+        m_parse_error_message in case of fatal errors too. As return type
+        of this function is void, we use m_parse_error_message to check
         for any errors in Trigger upgrade upgrade.
       */
       if (is_upgrade && fatal_parse_error) {
@@ -674,4 +686,14 @@ bool Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event) {
 
   m_subject_table->file->column_bitmaps_signal();
   return false;
+}
+
+void Table_trigger_dispatcher::set_parse_error_message(
+    const char *error_message) {
+  if (!m_parse_error_message) {
+    m_parse_error_message =
+        strdup_root(&m_subject_table->mem_root, error_message);
+    // Play safe even in case of OOM.
+    if (!m_parse_error_message) m_parse_error_message = ER_DEFAULT(ER_DA_OOM);
+  }
 }

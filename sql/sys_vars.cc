@@ -4890,6 +4890,29 @@ static Sys_var_ulong Sys_table_cache_instances(
     */
     sys_var::PARSE_EARLY);
 
+static bool fix_table_cache_triggers(sys_var *, THD *, enum_var_type) {
+  /*
+    Similarly to the table_open_cache parameter, table_open_cache_triggers
+    needs to be divided by the number of table cache instances in order to
+    get the per-instance soft limit on the number of TABLE objects with
+    fully loaded triggers within a table cache.
+  */
+  table_cache_triggers_per_instance =
+      table_cache_triggers / table_cache_instances;
+  return false;
+}
+
+static Sys_var_ulong Sys_table_cache_triggers(
+    "table_open_cache_triggers",
+    "The number of cached open tables with fully loaded triggers",
+    GLOBAL_VAR(table_cache_triggers), CMD_LINE(REQUIRED_ARG),
+    /* Use 1 as lower bound to be consistent with table_open_cache variable. */
+    VALID_RANGE(1, 512 * 1024), DEFAULT(512 * 1024), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(fix_table_cache_triggers), nullptr,
+    /* See explanation for Sys_table_cache_instances. */
+    sys_var::PARSE_EARLY);
+
 /**
   Modify the thread size cache size.
 */

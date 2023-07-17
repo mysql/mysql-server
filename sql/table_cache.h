@@ -27,6 +27,8 @@
 #include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -46,10 +48,12 @@
 #include "sql/sql_plist.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h"
 
 class Table_cache_element;
 
-extern ulong table_cache_size_per_instance, table_cache_instances;
+extern ulong table_cache_size_per_instance, table_cache_instances,
+    table_cache_triggers, table_cache_triggers_per_instance;
 extern struct aggregated_stats global_aggregated_stats;
 
 /**
@@ -119,6 +123,25 @@ class Table_cache {
   */
   uint m_table_count;
 
+  /**
+    LRU-organized list containing all TABLE instances with fully-loaded
+    triggers in this table cache which are not in use by any thread.
+    Tail is LRU TABLE.
+  */
+  I_P_List<TABLE,
+           I_P_List_adapter<TABLE, &TABLE::triggers_lru_next,
+                            &TABLE::triggers_lru_prev>,
+           I_P_List_null_counter, I_P_List_fast_push_back<TABLE>>
+      m_unused_triggers_lru;
+
+  /**
+    Total number of TABLE instances in this table cache with fully-loaded
+    triggers (both in use and unused).
+
+    @sa notify_triggers_load() for rationale behind use of atomic here.
+  */
+  std::atomic<uint> m_table_triggers_count;
+
 #ifdef HAVE_PSI_INTERFACE
   static PSI_mutex_key m_lock_key;
   static PSI_mutex_info m_mutex_keys[];
@@ -148,7 +171,7 @@ class Table_cache {
   void assert_owner() { mysql_mutex_assert_owner(&m_lock); }
 
   inline TABLE *get_table(THD *thd, const char *key, size_t key_length,
-                          TABLE_SHARE **share);
+                          bool is_update, TABLE_SHARE **share);
 
   inline void release_table(THD *thd, TABLE *table);
 
@@ -159,6 +182,17 @@ class Table_cache {
   uint cached_tables() const { return m_table_count; }
 
   void free_all_unused_tables();
+
+  /**
+    Notify the table cache that we have finalized loading and parsing
+    triggers for one of its TABLE objects.
+
+    @note We use atomic to make it MT-safe without introducing overhead
+          from lock()/unlock() pair.
+  */
+  void notify_triggers_load() { m_table_triggers_count++; }
+
+  uint loaded_triggers_tables() const { return m_table_triggers_count; }
 
 #ifndef NDEBUG
   void print_tables();
@@ -239,7 +273,15 @@ class Table_cache_element {
       TABLE_list;
 
   TABLE_list used_tables;
-  TABLE_list free_tables;
+  /**
+    List of unused TABLE objects that do not have fully-loaded triggers;
+    either because there were no triggers, or because the triggers were
+    not previously loaded as they were not needed for read-only statements.
+    (This distinction is why our nomenclature is not just full <-> lazy.)
+  */
+  TABLE_list free_tables_slim;
+  /** List of unused TABLE objects with fully-loaded triggers. */
+  TABLE_list free_tables_full_triggers;
   TABLE_SHARE *share;
 
  public:
@@ -278,6 +320,8 @@ class Table_cache_iterator {
 /**
   Add table to the tail of unused tables list for table cache
   (i.e. as the most recently used table in this list).
+  If necessary, do the same thing for list of unused tables with
+  fully-loaded triggers.
 */
 
 void Table_cache::link_unused_table(TABLE *table) {
@@ -289,9 +333,16 @@ void Table_cache::link_unused_table(TABLE *table) {
   } else
     m_unused_tables = table->next = table->prev = table;
   check_unused();
+
+  if (table->triggers && table->triggers->has_load_been_finalized())
+    m_unused_triggers_lru.push_back(table);
 }
 
-/** Remove table from the unused tables list for table cache. */
+/**
+  Remove table from the unused tables list for the table cache.
+  If necessary, do the same thing for list of unused tables with
+  fully-loaded triggers for the table cache.
+*/
 
 void Table_cache::unlink_unused_table(TABLE *table) {
   table->next->prev = table->prev;
@@ -301,6 +352,9 @@ void Table_cache::unlink_unused_table(TABLE *table) {
     if (table == m_unused_tables) m_unused_tables = nullptr;
   }
   check_unused();
+
+  if (table->triggers && table->triggers->has_load_been_finalized())
+    m_unused_triggers_lru.remove(table);
 }
 
 /**
@@ -319,8 +373,14 @@ void Table_cache::free_unused_tables_if_necessary(THD *thd) {
     Note that we might need to free more than one TABLE object, and thus
     need the below loop, in case when table_cache_size is changed dynamically,
     at server run time.
+
+    We also might need to get rid of TABLE instances with fully-loaded triggers
+    if there are too many of them. Unfortunately, there is no good way to
+    "unload" triggers, so we have to get rid of the whole TABLE object.
   */
-  if (m_table_count > table_cache_size_per_instance && m_unused_tables) {
+  if ((m_table_count > table_cache_size_per_instance && m_unused_tables) ||
+      (m_table_triggers_count > table_cache_triggers_per_instance &&
+       !m_unused_triggers_lru.is_empty())) {
     mysql_mutex_lock(&LOCK_open);
     while (m_table_count > table_cache_size_per_instance && m_unused_tables) {
       TABLE *table_to_free = m_unused_tables;
@@ -329,6 +389,15 @@ void Table_cache::free_unused_tables_if_necessary(THD *thd) {
       thd->status_var.table_open_cache_overflows++;
       global_aggregated_stats.get_shard(thd->thread_id())
           .table_open_cache_overflows++;
+    }
+    while (m_table_triggers_count > table_cache_triggers_per_instance &&
+           !m_unused_triggers_lru.is_empty()) {
+      TABLE *table_to_free = m_unused_triggers_lru.front();
+      remove_table(table_to_free);
+      intern_close_table(table_to_free);
+      thd->status_var.table_open_cache_triggers_overflows++;
+      DBUG_PRINT("info", ("table_open_cache_triggers_overflows: %llu",
+                          thd->status_var.table_open_cache_triggers_overflows));
     }
     mysql_mutex_unlock(&LOCK_open);
   }
@@ -405,15 +474,21 @@ void Table_cache::remove_table(TABLE *table) {
     el->used_tables.remove(table);
   } else {
     /* Remove from per-table chain of unused TABLE objects. */
-    el->free_tables.remove(table);
+    if (table->triggers && table->triggers->has_load_been_finalized())
+      el->free_tables_full_triggers.remove(table);
+    else
+      el->free_tables_slim.remove(table);
 
     /* And per-cache unused chain. */
     unlink_unused_table(table);
   }
 
   m_table_count--;
+  if (table->triggers && table->triggers->has_load_been_finalized())
+    m_table_triggers_count--;
 
-  if (el->used_tables.is_empty() && el->free_tables.is_empty()) {
+  if (el->used_tables.is_empty() && el->free_tables_full_triggers.is_empty() &&
+      el->free_tables_slim.is_empty()) {
     const std::string key(table->s->table_cache_key.str,
                           table->s->table_cache_key.length);
     m_cache.erase(key);
@@ -431,6 +506,10 @@ void Table_cache::remove_table(TABLE *table) {
   @param      thd         Thread context.
   @param      key         Key identifying table.
   @param      key_length  Length of key for the table.
+  @param      is_update   Indicates whether statement is going to use
+                          TABLE object for updating the table; if so,
+                          it is better to obtain a TABLE instance with
+                          fully-loaded triggers.
   @param[out] share       NULL - if table cache doesn't contain any
                           information about the table (i.e. doesn't have
                           neither used nor unused TABLE objects for it).
@@ -447,7 +526,7 @@ void Table_cache::remove_table(TABLE *table) {
 */
 
 TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
-                              TABLE_SHARE **share) {
+                              bool is_update, TABLE_SHARE **share) {
   TABLE *table;
 
   assert_owner();
@@ -461,14 +540,35 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
 
   *share = el->share;
 
-  if ((table = el->free_tables.front())) {
-    assert(!table->in_use);
-
+  /*
+    Obtain (get first and unlink) table from list of unused TABLE objects for
+    this table in this cache.
+  */
+  if (!is_update) {
     /*
-      Unlink table from list of unused TABLE objects for this
-      table in this cache.
+      For read-only statements we prefer TABLE objects which don't have
+      triggers fully-loaded. If successful, this should leave unused TABLEs
+      with fully-loaded triggers for read-write statements.
+      If there are no TABLE instances without fully-loaded triggers available,
+      we will resort to using one that has them. That's still better than
+      doing full-blown TABLE construction process.
     */
-    el->free_tables.remove(table);
+    table = el->free_tables_slim.pop_front();
+    if (!table) table = el->free_tables_full_triggers.pop_front();
+  } else {
+    /*
+      For read-write statements try to get a TABLE object with fully-loaded
+      triggers.
+      If there is no such object, try to obtain a TABLE object without
+      fully-loaded triggers. (If necessary trigger loading will be finalized
+      later.)
+    */
+    table = el->free_tables_full_triggers.pop_front();
+    if (!table) table = el->free_tables_slim.pop_front();
+  }
+
+  if (table) {
+    assert(!table->in_use);
 
     /* Unlink table from unused tables list for this cache. */
     unlink_unused_table(table);
@@ -514,7 +614,10 @@ void Table_cache::release_table(THD *thd, TABLE *table) {
   /* Remove TABLE from the list of used objects for the table in this cache. */
   el->used_tables.remove(table);
   /* Add TABLE to the list of unused objects for the table in this cache. */
-  el->free_tables.push_front(table);
+  if (table->triggers && table->triggers->has_load_been_finalized())
+    el->free_tables_full_triggers.push_front(table);
+  else
+    el->free_tables_slim.push_front(table);
   /* Also link it last in the list of unused TABLE objects for the cache. */
   link_unused_table(table);
 

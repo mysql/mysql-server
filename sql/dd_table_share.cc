@@ -56,6 +56,7 @@
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
+#include "sql/dd/dd_trigger.h"     // dd::load_triggers
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "sql/dd/impl/utils.h"  // dd::eat_str
 #include "sql/dd/properties.h"  // dd::Properties
@@ -2299,6 +2300,25 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
   return false;
 }
 
+/**
+  Add sharable information about triggers to the TABLE_SHARE
+  from a dd::Table object.
+*/
+static bool fill_triggers_from_dd(THD *thd, TABLE_SHARE *share,
+                                  const dd::Table *tab_obj) {
+  assert(share->triggers == nullptr);
+
+  if (tab_obj->has_trigger()) {
+    share->triggers = new (&share->mem_root) List<Trigger>;
+    if (share->triggers == nullptr) return true;  // OOM
+    if (dd::load_triggers(thd, &share->mem_root, share->db.str,
+                          share->table_name.str, *tab_obj, share->triggers))
+      return true;  // OOM.
+  }
+
+  return false;
+}
+
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   DBUG_TRACE;
 
@@ -2312,7 +2332,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
                 fill_indexes_from_dd(thd, share, &table_def) ||
                 fill_partitioning_from_dd(thd, share, &table_def) ||
                 fill_foreign_keys_from_dd(share, &table_def) ||
-                fill_check_constraints_from_dd(share, &table_def));
+                fill_check_constraints_from_dd(share, &table_def) ||
+                fill_triggers_from_dd(thd, share, &table_def));
 
   thd->mem_root = old_root;
 

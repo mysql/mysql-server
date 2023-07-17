@@ -1501,6 +1501,9 @@ The following options may be given as the first argument:
  cache instances)
  --table-open-cache-instances=# 
  The number of table cache instances
+ --table-open-cache-triggers=# 
+ The number of cached open tables with fully loaded
+ triggers
  --tablespace-definition-cache=# 
  The number of cached tablespace definitions
  --tc-heuristic-recover=name 
@@ -2000,6 +2003,7 @@ sync-source-info 10000
 sysdate-is-now FALSE
 table-encryption-privilege-check FALSE
 table-open-cache-instances 16
+table-open-cache-triggers 524288
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
 temptable-max-mmap 0

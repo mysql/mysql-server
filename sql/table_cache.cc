@@ -56,6 +56,7 @@ bool Table_cache::init() {
   mysql_mutex_init(m_lock_key, &m_lock, MY_MUTEX_INIT_FAST);
   m_unused_tables = nullptr;
   m_table_count = 0;
+  m_table_triggers_count = 0;
   return false;
 }
 
@@ -94,18 +95,29 @@ void Table_cache::check_unused() {
   for (const auto &hp : m_cache) {
     Table_cache_element *el = hp.second.get();
 
-    Table_cache_element::TABLE_list::Iterator it(el->free_tables);
-    TABLE *entry;
-    while ((entry = it++)) {
-      /* We must not have TABLEs in the free list that have their file closed.
-       */
-      assert(entry->db_stat && entry->file);
+    auto check_free_tables =
+        [&count](const Table_cache_element::TABLE_list &free_tables) {
+          Table_cache_element::TABLE_list::Iterator it(free_tables);
+          TABLE *entry;
+          while ((entry = it++)) {
+            /*
+              We must not have TABLEs in the free list that have their file
+              closed.
+            */
+            assert(entry->db_stat && entry->file);
 
-      if (entry->in_use)
-        DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
-      count--;
-    }
-    it.init(el->used_tables);
+            if (entry->in_use)
+              DBUG_PRINT("error",
+                         ("Used table is in share's list of unused tables"));
+            count--;
+          }
+        };
+
+    check_free_tables(el->free_tables_slim);
+    check_free_tables(el->free_tables_full_triggers);
+
+    Table_cache_element::TABLE_list::Iterator it(el->used_tables);
+    TABLE *entry;
     while ((entry = it++)) {
       if (!entry->in_use)
         DBUG_PRINT("error", ("Unused table is in share's list of used tables"));
@@ -144,6 +156,18 @@ void Table_cache::print_tables() {
   for (const auto &key_and_value : m_cache) {
     Table_cache_element *el = key_and_value.second.get();
 
+    auto print_free_tables =
+        [&unused](const Table_cache_element::TABLE_list &free_tables) {
+          Table_cache_element::TABLE_list::Iterator it(free_tables);
+          TABLE *entry;
+          while ((entry = it++)) {
+            unused++;
+            printf("%-14.14s %-32s%6ld%8ld%6d  %s\n", entry->s->db.str,
+                   entry->s->table_name.str, entry->s->version(), 0L,
+                   entry->db_stat ? 1 : 0, "Not in use");
+          }
+        };
+
     Table_cache_element::TABLE_list::Iterator it(el->used_tables);
     TABLE *entry;
     while ((entry = it++)) {
@@ -152,13 +176,9 @@ void Table_cache::print_tables() {
              entry->in_use->thread_id(), entry->db_stat ? 1 : 0,
              lock_descriptions[(int)entry->reginfo.lock_type]);
     }
-    it.init(el->free_tables);
-    while ((entry = it++)) {
-      unused++;
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n", entry->s->db.str,
-             entry->s->table_name.str, entry->s->version(), 0L,
-             entry->db_stat ? 1 : 0, "Not in use");
-    }
+
+    print_free_tables(el->free_tables_slim);
+    print_free_tables(el->free_tables_full_triggers);
   }
 
   if (m_unused_tables != nullptr) {
@@ -301,10 +321,28 @@ void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
   memcpy(&cache_el, share->cache_element,
          table_cache_instances * sizeof(Table_cache_element *));
 
+  auto remove_and_close_free_tables =
+      [](Table_cache &cache, Table_cache_element::TABLE_list &free_list) {
+        Table_cache_element::TABLE_list::Iterator it(free_list);
+        TABLE *table;
+        while ((table = it++)) {
+          cache.remove_table(table);
+          intern_close_table(table);
+        }
+      };
+
   for (uint i = 0; i < table_cache_instances; i++) {
     if (cache_el[i]) {
-      Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
-      TABLE *table;
+      /*
+        Since freeing the last TABLE object for the share will destroy all
+        related Table_cache_element objects and hence their list members,
+        we need to remember whether the unused TABLE objects lists are
+        empty (and avoid iterating through them) before proceeding to
+        freeing TABLE objects.
+      */
+      bool has_free_tables_slim = !cache_el[i]->free_tables_slim.is_empty();
+      bool has_free_tables_full_triggers =
+          !cache_el[i]->free_tables_full_triggers.is_empty();
 
 #ifndef NDEBUG
       if (remove_type == TDC_RT_REMOVE_ALL)
@@ -312,6 +350,7 @@ void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+        TABLE *table;
         while ((table = it2++)) {
           if (table->in_use != thd) assert(0);
         }
@@ -319,15 +358,18 @@ void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
 #endif
       if (remove_type == TDC_RT_MARK_FOR_REOPEN) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+        TABLE *table;
         while ((table = it2++)) {
           table->invalidate_stats();
         }
       }
 
-      while ((table = it++)) {
-        m_table_cache[i].remove_table(table);
-        intern_close_table(table);
-      }
+      if (has_free_tables_slim)
+        remove_and_close_free_tables(m_table_cache[i],
+                                     cache_el[i]->free_tables_slim);
+      if (has_free_tables_full_triggers)
+        remove_and_close_free_tables(m_table_cache[i],
+                                     cache_el[i]->free_tables_full_triggers);
     }
   }
 }

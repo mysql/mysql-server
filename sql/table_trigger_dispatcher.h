@@ -35,6 +35,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                     // ER_PARSE_ERROR
+#include "sql/sql_list.h"                     // List
 #include "sql/table_trigger_field_support.h"  // Table_trigger_field_support
 #include "sql/trigger_def.h"                  // enum_trigger_action_time_type
 
@@ -54,6 +55,10 @@ class Table_ref;
 template <class T>
 class List;
 
+namespace table_cache_unittest {
+class Mock_share;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -64,10 +69,12 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
  public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);
 
-  bool check_n_load(THD *thd, const dd::Table &table);
+  bool finalize_load(THD *thd);
 
  private:
   Table_trigger_dispatcher(TABLE *subject_table);
+
+  friend class table_cache_unittest::Mock_share;
 
  public:
   ~Table_trigger_dispatcher() override;
@@ -80,7 +87,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
     SQL-definition can not be parsed) for this table.
   */
   bool check_for_broken_triggers() {
-    if (m_has_unparseable_trigger) {
+    if (m_parse_error_message) {
       my_message(ER_PARSE_ERROR, m_parse_error_message, MYF(0));
       return true;
     }
@@ -160,6 +167,13 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
 
+  /**
+    Check whether we have finalized loading of triggers for the table
+    by parsing their bodies, creating sp_head objects and preparing
+    row-accessors.
+  */
+  bool has_load_been_finalized() { return m_load_finalized; }
+
  private:
   Trigger_chain *create_trigger_chain(
       MEM_ROOT *mem_root, enum_trigger_event_type event,
@@ -170,19 +184,13 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   /**
     Remember a parse error that occurred while parsing trigger definitions
     loaded from the Data Dictionary. This makes the Table_trigger_dispatcher
-    enter the error state flagged by m_has_unparseable_trigger == true. The
+    enter the error state flagged by m_parse_error_message != nullptr . The
     error message will be used whenever a statement invoking or manipulating
     triggers is issued against the Table_trigger_dispatcher's table.
 
     @param error_message The error message thrown by the parser.
   */
-  void set_parse_error_message(const char *error_message) {
-    if (!m_has_unparseable_trigger) {
-      m_has_unparseable_trigger = true;
-      snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
-               error_message);
-    }
-  }
+  void set_parse_error_message(const char *error_message);
 
  private:
   /************************************************************************
@@ -223,28 +231,22 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   Field **m_old_field;
 
   /**
-    This flag indicates that one of the triggers was not parsed successfully,
-    and as a precaution the object has entered the state where all trigger
-    operations result in errors until all the table triggers are dropped. It is
+    Error which occurred while parsing one of the triggers for the table;
+    nullptr if there was no error for any of its triggers.
+
+    Non-nullptr value indicates that as a precaution the object has entered
+    the state where all trigger operations result in errors (referencing
+    this error message saved) until all the table triggers are dropped. It is
     not safe to add triggers since it is unknown if the broken trigger has the
     same name or event type. Nor is it safe to invoke any trigger. The only
     safe operations are drop_trigger() and drop_all_triggers().
 
-    We can't use the value of m_parse_error_message as a flag to inform that
-    a trigger has a parse error since for multi-byte locale the first byte of
-    message can be 0 but the message still be meaningful. It means that just a
-    comparison against m_parse_error_message[0] can not be done safely.
-
     @see Table_trigger_dispatcher::set_parse_error()
   */
-  bool m_has_unparseable_trigger;
+  const char *m_parse_error_message;
 
-  /**
-    This error will be displayed when the user tries to manipulate or invoke
-    triggers on a table that has broken triggers. It is set once per statement
-    and thus will contain the first parse error encountered in the trigger file.
-   */
-  char m_parse_error_message[MYSQL_ERRMSG_SIZE];
+  /** Indicates whether we have finalized loading of triggers for the table. */
+  bool m_load_finalized;
 };
 
 ///////////////////////////////////////////////////////////////////////////

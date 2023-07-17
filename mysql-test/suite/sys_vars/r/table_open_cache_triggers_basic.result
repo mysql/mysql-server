@@ -1,0 +1,163 @@
+SET @original_value = @@global.table_open_cache_triggers;
+#
+# Test DEFAULT value. Use SET ... = DEFAULT to handle case,
+# when the test suite overrides compiled-in default.
+#
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+SET @@global.table_open_cache_triggers = DEFAULT;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+#
+# Test a few valid values.
+#
+SET @@global.table_open_cache_triggers = 1;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+1
+SET @@global.table_open_cache_triggers = 2;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+2
+SET @@global.table_open_cache_triggers = 524287;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524287
+SET @@global.table_open_cache_triggers = 524288;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+#
+# Test some invalid values.
+#
+SET @@global.table_open_cache_triggers = 0;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache_triggers value: '0'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+1
+SET @@global.table_open_cache_triggers = -1024;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache_triggers value: '-1024'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+1
+SET @@global.table_open_cache_triggers = 524289;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache_triggers value: '524289'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+SET @@global.table_open_cache_triggers = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect table_open_cache_triggers value: '42949672950'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+# Including values of wrong type.
+SET @@global.table_open_cache_triggers = 21221204.10;
+ERROR 42000: Incorrect argument type to variable 'table_open_cache_triggers'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+SET @@global.table_open_cache_triggers = ON;
+ERROR 42000: Incorrect argument type to variable 'table_open_cache_triggers'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+SET @@global.table_open_cache_triggers = 'test';
+ERROR 42000: Incorrect argument type to variable 'table_open_cache_triggers'
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+524288
+#
+# Test variable scope.
+#
+SET @@session.table_open_cache_triggers = 1;
+ERROR HY000: Variable 'table_open_cache_triggers' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.table_open_cache_triggers;
+ERROR HY000: Variable 'table_open_cache_triggers' is a GLOBAL variable
+# Check that value in p_s.global_variables matches variables value.
+SET @@global.table_open_cache_triggers = 5;
+SELECT @@global.table_open_cache_triggers = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+@@global.table_open_cache_triggers = VARIABLE_VALUE
+1
+# Check if accessing variable without SCOPE points to the same global
+# variable.
+SET @@global.table_open_cache_triggers = 7;
+SELECT @@table_open_cache_triggers = @@global.table_open_cache_triggers;
+@@table_open_cache_triggers = @@global.table_open_cache_triggers
+1
+# Check various alternative syntax forms which are prohibited.
+SET @@table_open_cache_triggers = 1;
+ERROR HY000: Variable 'table_open_cache_triggers' is a GLOBAL variable and should be set with SET GLOBAL
+SET table_open_cache_triggers = 1;
+ERROR HY000: Variable 'table_open_cache_triggers' is a GLOBAL variable and should be set with SET GLOBAL
+SET global.table_open_cache_triggers = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.table_open_cache_triggers = 1' at line 1
+SELECT global.table_open_cache_triggers;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT table_open_cache_triggers;
+ERROR 42S22: Unknown column 'table_open_cache_triggers' in 'field list'
+# But SET GLOBAL should work.
+SET GLOBAL table_open_cache_triggers = 11;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+11
+#
+# Check that SET PERSIST/SET PERSIST_ONLY work.
+#
+SET PERSIST table_open_cache_triggers = 13;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+13
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+VARIABLE_VALUE
+13
+SET PERSIST_ONLY table_open_cache_triggers = 17;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+13
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables WHERE VARIABLE_NAME='table_open_cache_triggers';
+VARIABLE_VALUE
+17
+#
+# Test that either SYSTEM_VARIABLES_ADMIN or SUPER are required for
+# setting this variable.
+#
+CREATE USER u1@localhost;
+connect  con1, localhost, u1;
+SET @@global.table_open_cache_triggers = 19;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+13
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SET @@global.table_open_cache_triggers = 19;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+19
+disconnect con1;
+connection default;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+connect  con1, localhost, u1;
+connection con1;
+SET @@global.table_open_cache_triggers = 23;
+SELECT @@global.table_open_cache_triggers;
+@@global.table_open_cache_triggers
+23
+disconnect con1;
+connection default;
+#
+# Clean-up.
+#
+DROP USER u1@localhost;
+RESET PERSIST table_open_cache_triggers;
+SET @@global.table_open_cache_triggers = @original_value;

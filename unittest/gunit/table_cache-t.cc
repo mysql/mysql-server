@@ -97,6 +97,7 @@ class TableCacheSingleCacheTest : public TableCacheBasicTest {
     */
     table_cache_instances = CachesNumber();
     table_cache_size_per_instance = 100;
+    table_cache_triggers_per_instance = 100;
     ASSERT_FALSE(table_def_init());
   }
   void TearDown() override {
@@ -160,6 +161,17 @@ class Mock_share : public TABLE_SHARE {
     */
     result->file = new (&m_mem_root) ha_example(example_hton, this);
     result->db_stat = HA_READ_ONLY;
+
+    return result;
+  }
+
+  TABLE *create_table_with_triggers(THD *thd) {
+    // Make calling Table_trigger_dispatcher::finalize_load() safe.
+    if (triggers == nullptr) triggers = new (&m_mem_root) List<Trigger>;
+
+    TABLE *result = create_table(thd);
+
+    result->triggers = new (&m_mem_root) Table_trigger_dispatcher(result);
 
     return result;
   }
@@ -286,8 +298,9 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
   // cache. OTOH it should contain info about table share of table_1.
   TABLE *table_2;
   TABLE_SHARE *share_2;
-  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -300,8 +313,9 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
   // We must be able to release TABLE into table cache and reuse it after
   // this.
   table_cache->release_table(thd, table_1);
-  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == table_1);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -310,8 +324,9 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
   // Once TABLE is removed from the cache the latter should become empty.
   EXPECT_EQ(0U, table_cache->cached_tables());
 
-  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == nullptr);
 
@@ -328,8 +343,9 @@ TEST_F(TableCacheSingleCacheTest, CacheAddAndRemove) {
   // Once TABLE is removed from cache the latter should become empty.
   EXPECT_EQ(0U, table_cache->cached_tables());
 
-  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == nullptr);
 
@@ -420,8 +436,9 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   TABLE_SHARE *share_2;
 
   // There should be no TABLE in cache, nor information about share.
-  table_1 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_1 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_1 == nullptr);
   EXPECT_TRUE(share_2 == nullptr);
 
@@ -430,15 +447,17 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
 
   // There should be no unused TABLE in cache, but there should be
   // information about the share.
-  table_2 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
   // There should be even no information about the share for which
   // TABLE was not added to cache.
-  table_2 = table_cache->get_table(thd, share_0.table_cache_key.str,
-                                   share_0.table_cache_key.length, &share_2);
+  table_2 =
+      table_cache->get_table(thd, share_0.table_cache_key.str,
+                             share_0.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_2 == nullptr);
   EXPECT_TRUE(share_2 == nullptr);
 
@@ -447,8 +466,9 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
 
   // Still there should be no unused TABLE in cache, but there should
   // be information about the share.
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -456,14 +476,16 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
 
   // After releasing one of TABLE objects it should be possible to get
   // unused TABLE from cache.
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 == table_1);
   EXPECT_TRUE(share_2 == &share_1);
 
   // But only once!
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -473,21 +495,25 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   table_cache->release_table(thd, table_1);
   table_cache->release_table(thd, table_2);
 
-  table_3 = table_cache->get_table(thd, share_0.table_cache_key.str,
-                                   share_0.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_0.table_cache_key.str,
+                             share_0.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == nullptr);
 
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 != nullptr);
   EXPECT_TRUE(share_2 == &share_1);
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 != nullptr);
   EXPECT_TRUE(share_2 == &share_1);
-  table_3 = table_cache->get_table(thd, share_1.table_cache_key.str,
-                                   share_1.table_cache_key.length, &share_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
   EXPECT_TRUE(table_3 == nullptr);
   EXPECT_TRUE(share_2 == &share_1);
 
@@ -499,6 +525,528 @@ TEST_F(TableCacheSingleCacheTest, CacheGetAndRelease) {
   share_1.destroy_table(table_2);
 
   table_cache->unlock();
+}
+
+TEST_F(TableCacheSingleCacheTest, CacheGetAndReleaseWithTriggers) {
+  THD *thd = get_thd(0);
+
+  Table_cache *table_cache = table_cache_manager.get_cache(thd);
+
+  table_cache->lock();
+
+  TABLE *table_1, *table_2, *table_3, *table_4;
+  Mock_share share_1("share_1"), share_0("share_0");
+  TABLE_SHARE *share_2;
+
+  // There should be no TABLE in cache, nor information about share.
+  table_1 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_1 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
+
+  // There should be no TABLE in cache for update either.
+  table_1 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_1 == nullptr);
+  EXPECT_TRUE(share_2 == nullptr);
+
+  // Counter of TABLE objects with fully-loaded triggers should be zero.
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  table_1 = share_1.create_table_with_triggers(thd);
+  add_used_table(table_cache, thd, table_1);
+
+  // Counter of TABLE objects with fully-loaded triggers should still be zero.
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  // There should be no unused TABLE in cache, but there should be
+  // information about the share.
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_2 == nullptr);
+  EXPECT_TRUE(share_2 == &share_1);
+
+  // There should be no unused TABLE for update either (but again we
+  // should be able to get information about the share).
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_2 == nullptr);
+  EXPECT_TRUE(share_2 == &share_1);
+
+  table_cache->release_table(thd, table_1);
+
+  // Release doesn't increase counter of TABLE objects with fully-loaded
+  // triggers.
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  // After releasing the TABLE object it should be possible to get
+  // unused TABLE from cache for update, even though table triggers
+  // are not fully loaded.
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_2 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_1->triggers->has_load_been_finalized());
+
+  // Pretend that we have fully loaded triggers for this object.
+
+  // Number of TABLE objects with fully-loaded triggers is 0 before the load.
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  table_cache->unlock();
+  table_1->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_1->triggers->has_load_been_finalized());
+  table_cache->lock();
+
+  // Number of TABLE objects with fully-loaded triggers is 1 after the load.
+  EXPECT_EQ(1U, table_cache->loaded_triggers_tables());
+
+  table_cache->release_table(thd, table_1);
+
+  // After the TABLE object with fully loaded triggers is released
+  // to the cache it should be possible to get unused TABLE from
+  // cache ready for update.
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_2 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_1->triggers->has_load_been_finalized());
+
+  table_cache->release_table(thd, table_1);
+
+  // After releasing the TABLE object again, it should be possible to get
+  // the same unused TABLE from cache even for read-only load.
+  table_2 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_2 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  // Even though we have requested TABLE for read-only operation it
+  // still has its triggers fully loaded.
+  EXPECT_TRUE(table_1->triggers->has_load_been_finalized());
+
+  // Get another TABLE object for the share, but do not finalize loading
+  // of its triggers yet.
+  table_2 = share_1.create_table_with_triggers(thd);
+  add_used_table(table_cache, thd, table_2);
+
+  // Getting fresh TABLE doesn't increase counter of TABLEs with fully-loaded
+  // triggers.
+  EXPECT_EQ(1U, table_cache->loaded_triggers_tables());
+
+  // There should be no unused TABLE for either read-only or update.
+  // But we should be able to get information about the share.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == nullptr);
+  EXPECT_TRUE(share_2 == &share_1);
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == nullptr);
+  EXPECT_TRUE(share_2 == &share_1);
+
+  // Once this TABLE object without fully loaded triggers is released
+  // it becomes usable for both read-only and update operations.
+  table_cache->release_table(thd, table_2);
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  table_cache->release_table(thd, table_2);
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  // Pretend that we have aborted update early and didn't load triggers.
+  table_cache->release_table(thd, table_2);
+
+  // Release TABLE object with fully loaded triggers as well.
+  table_cache->release_table(thd, table_1);
+
+  // At this point we have two unused TABLE objects one with fully-loaded
+  // triggers and one without.
+
+  // This is confirmed by value of counter of TABLEs with fully-loaded triggers.
+  EXPECT_EQ(1U, table_cache->loaded_triggers_tables());
+
+  // First, let us check that requests for TABLEs for read-only statements
+  // prefer objects without fully-loaded triggers.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  // However, if such object not available TABLE with fully-loaded triggers
+  // will do as well.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  // Rinse and repeat to demonstrate that this behavior is not dependent
+  // on the order in which TABLE objects returned to cache.
+  table_cache->release_table(thd, table_1);
+  table_cache->release_table(thd, table_2);
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, false, &share_2);
+  EXPECT_TRUE(table_3 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  // Requests for TABLE objects for updating statements should prefer
+  // TABLE objects with fully-loaded triggers.
+  table_cache->release_table(thd, table_1);
+  table_cache->release_table(thd, table_2);
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  // However, if there are no such unused TABLE objects, TABLE without
+  // fully-loaded triggers will do.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  // Repeat requests to show that this behavior doesn't depend on
+  // the order in which tables were released.
+  table_cache->release_table(thd, table_2);
+  table_cache->release_table(thd, table_1);
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_1);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_FALSE(table_3->triggers->has_load_been_finalized());
+
+  // Simulate trigger loading for the second TABLE object.
+  EXPECT_EQ(1U, table_cache->loaded_triggers_tables());
+  table_cache->unlock();
+  table_2->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_2->triggers->has_load_been_finalized());
+  table_cache->lock();
+  // Counter of TABLEs with fully-loaded triggers should have been
+  // increased.
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  table_cache->release_table(thd, table_1);
+  table_cache->release_table(thd, table_2);
+
+  // Releasing objects to the cache doesn't change counter of TABLEs
+  // with fully-loaded triggers.
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Both unused TABLEs can be used for updating statements.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_1 || table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  table_4 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_4 == table_1 || table_4 == table_2);
+  EXPECT_TRUE(table_4 != table_3);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_4->triggers->has_load_been_finalized());
+
+  // Number of TABLE objects with fully loaded triggers stays the same.
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  table_cache->release_table(thd, table_1);
+  table_cache->release_table(thd, table_2);
+
+  // Also both unused TABLEs can be used for read-only statements.
+  table_3 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_3 == table_1 || table_3 == table_2);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+
+  table_4 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_2);
+  EXPECT_TRUE(table_4 == table_1 || table_4 == table_2);
+  EXPECT_TRUE(table_4 != table_3);
+  EXPECT_TRUE(share_2 == &share_1);
+  EXPECT_TRUE(table_4->triggers->has_load_been_finalized());
+
+  // Clean-up
+  table_cache->remove_table(table_1);
+  table_cache->remove_table(table_2);
+
+  share_1.destroy_table(table_1);
+  share_1.destroy_table(table_2);
+
+  table_cache->unlock();
+}
+
+TEST_F(TableCacheSingleCacheTest, CacheOverflowWithTriggers) {
+  THD *thd = get_thd(0);
+
+  // Set cache size low so it will overflow quickly.
+  table_cache_size_per_instance = 4;
+  table_cache_triggers_per_instance = 2;
+
+  Mock_share share_1("share_1");
+  Mock_share share_2("share_2");
+  TABLE *table_1 = share_1.create_table_with_triggers(thd);
+  TABLE *table_2 = share_1.create_table_with_triggers(thd);
+  TABLE *table_3 = share_1.create_table_with_triggers(thd);
+  TABLE *table_4 = share_2.create_table_with_triggers(thd);
+  TABLE *table_5 = share_2.create_table_with_triggers(thd);
+  TABLE *table_6, *table_7;
+  TABLE_SHARE *share_3;
+
+  Table_cache *table_cache = table_cache_manager.get_cache(thd);
+
+  table_cache->lock();
+  add_used_table(table_cache, thd, table_1);
+  add_used_table(table_cache, thd, table_2);
+  add_used_table(table_cache, thd, table_3);
+
+  // There should be two TABLE instances in the cache.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  // But no tables with fully-loaded triggers.
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  // Simulate loading of triggers for 2 instances.
+  table_cache->unlock();
+  table_1->triggers->finalize_load(thd);
+  table_2->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_1->triggers->has_load_been_finalized());
+  EXPECT_TRUE(table_2->triggers->has_load_been_finalized());
+  table_cache->lock();
+
+  // There should be two TABLE instances with loaded triggers now.
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  table_cache->release_table(thd, table_1);
+  table_cache->release_table(thd, table_2);
+  table_cache->release_table(thd, table_3);
+
+  // Still there should be 3 TABLE instances in the cache
+  // and 2 TABLE instances with triggers loaded.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Add one more TABLE to the cache (sans triggers).
+  add_used_table(table_cache, thd, table_4);
+
+  // Number of TABLE instances increases, number of TABLE with
+  // triggers stays the same.
+  EXPECT_EQ(4U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Simulate loading triggers for table for share_2.
+  table_cache->unlock();
+  table_4->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_4->triggers->has_load_been_finalized());
+  table_cache->lock();
+
+  // Number of TABLE instances stays the same.
+  EXPECT_EQ(4U, table_cache->cached_tables());
+  // Number of TABLE instances with triggers increases and crosses
+  // threshold, since loading of triggers doesn't cause freeing
+  // TABLE objects per se.
+  EXPECT_EQ(3U, table_cache->loaded_triggers_tables());
+
+  // Release TABLE to the cache, this causes LRU TABLE with
+  // triggers (table_1) expelled.
+  table_cache->release_table(thd, table_4);
+
+  // Total number of TABLE instances decreases.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  // Number of TABLE instances with fully-loaded triggers goes below
+  // threshold.
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Let us check that it is exactly LRU TABLE with triggers (table_1) that
+  // got expelled. Acquire two TABLE objects with triggers which should have
+  // remained.
+  table_6 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_3);
+  EXPECT_TRUE(table_6 == table_2);
+  EXPECT_TRUE(share_3 == &share_1);
+  EXPECT_TRUE(table_6->triggers->has_load_been_finalized());
+
+  table_6 =
+      table_cache->get_table(thd, share_2.table_cache_key.str,
+                             share_2.table_cache_key.length, true, &share_3);
+  EXPECT_TRUE(table_6 == table_4);
+  EXPECT_TRUE(share_3 == &share_2);
+  EXPECT_TRUE(table_6->triggers->has_load_been_finalized());
+
+  // Total number of TABLE objects and objects with triggers should stay
+  // the same.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Acquire remaining TABLE object for share_1 and load triggers for it.
+  table_6 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_3);
+  EXPECT_TRUE(table_6 == table_3);
+  EXPECT_TRUE(share_3 == &share_1);
+  EXPECT_FALSE(table_6->triggers->has_load_been_finalized());
+
+  table_cache->unlock();
+  table_3->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_3->triggers->has_load_been_finalized());
+  table_cache->lock();
+
+  // Total number of TABLE objects stays the same.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  // Number of TABLE objects with fully loaded triggers exceeds threshold,
+  // since all 3 of them are used.
+  EXPECT_EQ(3U, table_cache->loaded_triggers_tables());
+
+  // Release all three TABLEs with triggers.
+  table_cache->release_table(thd, table_4);
+  table_cache->release_table(thd, table_2);
+  table_cache->release_table(thd, table_3);
+
+  // The first table that gets released is expelled.
+  EXPECT_EQ(2U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Two remaining TABLE objects (table_2 and table_3) should be still
+  // reachable.
+  table_6 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_3);
+  EXPECT_TRUE(table_6 == table_2 || table_6 == table_3);
+  EXPECT_TRUE(share_3 == &share_1);
+  EXPECT_TRUE(table_6->triggers->has_load_been_finalized());
+
+  table_7 =
+      table_cache->get_table(thd, share_1.table_cache_key.str,
+                             share_1.table_cache_key.length, true, &share_3);
+  EXPECT_TRUE(table_7 == table_2 || table_7 == table_3);
+  EXPECT_TRUE(table_7 != table_6);
+  EXPECT_TRUE(share_3 == &share_1);
+  EXPECT_TRUE(table_7->triggers->has_load_been_finalized());
+
+  // Total and number of TABLEs with triggers stay the same.
+  EXPECT_EQ(2U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Add one more TABLE object to cache.
+  add_used_table(table_cache, thd, table_5);
+
+  // Total number of TABLEs gets increase.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Simulate loading of triggers for this last table.
+  table_cache->unlock();
+  table_5->triggers->finalize_load(thd);
+  EXPECT_TRUE(table_5->triggers->has_load_been_finalized());
+  table_cache->lock();
+
+  // Number of TABLEs with triggers increases and exceeds threshold,
+  // but it is OK they are all used.
+  EXPECT_EQ(3U, table_cache->cached_tables());
+  EXPECT_EQ(3U, table_cache->loaded_triggers_tables());
+
+  // Now let us add two more used TABLE instances. Note that table_1
+  // and table_4 point to trash at this point.
+  table_1 = share_1.create_table_with_triggers(thd);
+  table_4 = share_2.create_table_with_triggers(thd);
+  add_used_table(table_cache, thd, table_1);
+  add_used_table(table_cache, thd, table_4);
+
+  // Total number of TABLEs and TABLEs with triggers exceed threshold now.
+  // This is OK since they are all used.
+  EXPECT_EQ(5U, table_cache->cached_tables());
+  EXPECT_EQ(3U, table_cache->loaded_triggers_tables());
+
+  // Release TABLE with triggers, it will be expelled immediately (there
+  // should not be double free).
+  table_cache->release_table(thd, table_2);
+
+  // Both total and with triggers counters are decremented.
+  EXPECT_EQ(4U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Now create and add the TABLE as used without triggers back.
+  table_2 = share_1.create_table_with_triggers(thd);
+  add_used_table(table_cache, thd, table_2);
+
+  // Total number of TABLEs is incremented.
+  EXPECT_EQ(5U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Release TABLE sans triggers now.
+  table_cache->release_table(thd, table_1);
+
+  // Only total number of TABLEs gets decremented.
+  EXPECT_EQ(4U, table_cache->cached_tables());
+  EXPECT_EQ(2U, table_cache->loaded_triggers_tables());
+
+  // Clean-up.
+  table_cache->remove_table(table_2);
+  table_cache->remove_table(table_3);
+  table_cache->remove_table(table_4);
+  table_cache->remove_table(table_5);
+
+  // Cache should be empty after that
+  EXPECT_EQ(0U, table_cache->cached_tables());
+  EXPECT_EQ(0U, table_cache->loaded_triggers_tables());
+
+  table_cache->unlock();
+
+  share_1.destroy_table(table_2);
+  share_1.destroy_table(table_3);
+  share_2.destroy_table(table_4);
+  share_2.destroy_table(table_5);
 }
 
 /*
