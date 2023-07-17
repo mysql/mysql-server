@@ -2653,11 +2653,14 @@ bool grant_reload(THD *thd, bool mdl_locked) {
                                MYSQL_OPEN_IGNORE_FLUSH
                          : MYSQL_LOCK_IGNORE_TIMEOUT;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
 
   DBUG_TRACE;
 
   /* Don't do anything if running with --skip-grant-tables */
   if (!initialized) return false;
+
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   Table_ref tables[3] = {
 
@@ -2718,6 +2721,7 @@ bool grant_reload(THD *thd, bool mdl_locked) {
   }
 
 end:
+  thd->variables.sql_mode = old_sql_mode;
   if (!mdl_locked)
     commit_and_close_mysql_tables(thd);
   else
