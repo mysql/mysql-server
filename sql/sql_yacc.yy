@@ -1415,7 +1415,7 @@ void warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
 %token<lexer.keyword> S3_SYM             1209      /* MYSQL */
-
+%token<lexer.keyword> QUALIFY_SYM        1210      /* MYSQL */
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1596,6 +1596,7 @@ void warn_on_deprecated_user_defined_collation(
         opt_where_clause
         where_clause
         opt_having_clause
+        opt_qualify_clause
         opt_simple_limit
         null_as_literal
         literal_or_null
@@ -10039,6 +10040,7 @@ query_specification:
           opt_group_clause
           opt_having_clause
           opt_window_clause
+          opt_qualify_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       @$,
@@ -10051,6 +10053,7 @@ query_specification:
                                       $7,  // group
                                       $8,  // having
                                       $9,  // windows
+                                      $10, // qualify
                                       @5.raw.is_empty()); // implicit FROM
           }
         | SELECT_SYM
@@ -10061,6 +10064,7 @@ query_specification:
           opt_group_clause
           opt_having_clause
           opt_window_clause
+          opt_qualify_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       @$,
@@ -10073,6 +10077,7 @@ query_specification:
                                       $6,  // group
                                       $7,  // having
                                       $8,  // windows
+                                      $9,  // qualify
                                       @4.raw.is_empty()); // implicit FROM
           }
         ;
@@ -12479,6 +12484,14 @@ opt_having_clause:
         | HAVING expr
           {
             $$= new PTI_having(@$, $2);
+          }
+        ;
+
+opt_qualify_clause:
+           %empty { $$= nullptr; }
+        | QUALIFY_SYM expr
+          {
+            $$= new PTI_qualify(@$, $2);
           }
         ;
 

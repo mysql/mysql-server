@@ -603,4 +603,10 @@ class PTI_having final : public PTI_context {
       : PTI_context(pos, expr_arg, CTX_HAVING) {}
 };
 
+class PTI_qualify final : public PTI_context {
+ public:
+  PTI_qualify(const POS &pos, Item *expr_arg)
+      : PTI_context(pos, expr_arg, CTX_QUALIFY) {}
+};
+
 #endif /* PARSE_TREE_ITEMS_INCLUDED */

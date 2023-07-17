@@ -1478,6 +1478,7 @@ class PT_query_specification : public PT_query_primary {
   PT_group *opt_group_clause;
   Item *opt_having_clause;
   PT_window_list *opt_window_clause;
+  Item *opt_qualify_clause;
 
  public:
   PT_query_specification(
@@ -1487,7 +1488,7 @@ class PT_query_specification : public PT_query_primary {
       const Mem_root_array_YY<PT_table_reference *> &from_clause_arg,
       Item *opt_where_clause_arg, PT_group *opt_group_clause_arg,
       Item *opt_having_clause_arg, PT_window_list *opt_window_clause_arg,
-      bool implicit_from_clause)
+      Item *opt_qualify_clause_arg, bool implicit_from_clause)
       : super(pos),
         opt_hints(opt_hints_arg),
         options(options_arg),
@@ -1498,7 +1499,8 @@ class PT_query_specification : public PT_query_primary {
         opt_where_clause(opt_where_clause_arg),
         opt_group_clause(opt_group_clause_arg),
         opt_having_clause(opt_having_clause_arg),
-        opt_window_clause(opt_window_clause_arg) {
+        opt_window_clause(opt_window_clause_arg),
+        opt_qualify_clause(opt_qualify_clause_arg) {
     assert(implicit_from_clause ? from_clause.empty() : true);
   }
 
@@ -1517,7 +1519,8 @@ class PT_query_specification : public PT_query_primary {
         opt_where_clause(opt_where_clause_arg),
         opt_group_clause(nullptr),
         opt_having_clause(nullptr),
-        opt_window_clause(nullptr) {}
+        opt_window_clause(nullptr),
+        opt_qualify_clause(nullptr) {}
 
   PT_query_specification(const POS &pos, const Query_options &options_arg,
                          PT_item_list *item_list_arg)
@@ -1531,7 +1534,8 @@ class PT_query_specification : public PT_query_primary {
         opt_where_clause(nullptr),
         opt_group_clause(nullptr),
         opt_having_clause(nullptr),
-        opt_window_clause(nullptr) {}
+        opt_window_clause(nullptr),
+        opt_qualify_clause(nullptr) {}
 
   bool do_contextualize(Parse_context *pc) override;
 
@@ -1539,7 +1543,8 @@ class PT_query_specification : public PT_query_primary {
   bool has_trailing_into_clause() const override {
     return (has_into_clause() && is_implicit_from_clause() &&
             opt_where_clause == nullptr && opt_group_clause == nullptr &&
-            opt_having_clause == nullptr && opt_window_clause == nullptr);
+            opt_having_clause == nullptr && opt_window_clause == nullptr &&
+            opt_qualify_clause == nullptr);
   }
 
   bool is_set_operation() const override { return false; }

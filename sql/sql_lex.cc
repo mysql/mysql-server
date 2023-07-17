@@ -490,6 +490,10 @@ void LEX::reset() {
 
   set_execute_only_in_secondary_engine(
       /*execute_only_in_secondary_engine_param=*/false, SUPPORTED_IN_PRIMARY);
+
+  set_execute_only_in_hypergraph_optimizer(
+      /*execute_in_hypergraph_optimizer_param=*/false,
+      SUPPORTED_IN_BOTH_OPTIMIZERS);
 }
 
 /**
@@ -2234,6 +2238,7 @@ Query_expression::Query_expression(enum_parsing_context parsing_context)
     case CTX_INSERT_UPDATE:
     case CTX_WHERE:
     case CTX_DERIVED:
+    case CTX_QUALIFY:
     case CTX_NONE:  // A subquery in a non-select
       explain_marker = parsing_context;
       break;
@@ -3062,6 +3067,7 @@ void Query_block::print_query_block(const THD *thd, String *str,
   print_group_by(thd, str, query_type);
   print_having(thd, str, query_type);
   print_windows(thd, str, query_type);
+  print_qualify(thd, str, query_type);
   print_order_by(thd, str, query_type);
   print_limit(thd, str, query_type);
   // PROCEDURE unsupported here
@@ -3460,6 +3466,14 @@ void Query_block::print_having(const THD *thd, String *str,
       cur_having->print(thd, str, query_type);
     else
       str->append(having_value != Item::COND_FALSE ? "true" : "false");
+  }
+}
+
+void Query_block::print_qualify(const THD *thd, String *str,
+                                enum_query_type query_type) const {
+  if (qualify_cond() != nullptr) {
+    str->append(STRING_WITH_LEN(" qualify "));
+    qualify_cond()->print(thd, str, query_type);
   }
 }
 
@@ -5193,6 +5207,19 @@ void LEX::set_secondary_engine_execution_context(
   if (m_secondary_engine_context != nullptr)
     ::destroy_at(m_secondary_engine_context);
   m_secondary_engine_context = context;
+}
+
+bool LEX::validate_use_in_old_optimizer() {
+  if (sql_command == SQLCOM_CREATE_VIEW || sql_command == SQLCOM_SHOW_CREATE)
+    return false;
+  if (can_execute_only_in_hypergraph_optimizer() &&
+      !using_hypergraph_optimizer) {
+    // Certain queries cannot be executed in the old optimizer.
+    my_error(ER_SUPPORTED_ONLY_WITH_HYPERGRAPH, MYF(0),
+             get_only_supported_in_hypergraph_reason_str());
+    return true;
+  }
+  return false;
 }
 
 void LEX_GRANT_AS::cleanup() {

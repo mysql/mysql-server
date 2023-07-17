@@ -1189,6 +1189,9 @@ class Query_block : public Query_term {
   Item *having_cond() const { return m_having_cond; }
   Item **having_cond_ref() { return &m_having_cond; }
   void set_having_cond(Item *cond) { m_having_cond = cond; }
+  Item *qualify_cond() const { return m_qualify_cond; }
+  Item **qualify_cond_ref() { return &m_qualify_cond; }
+  void set_qualify_cond(Item *cond) { m_qualify_cond = cond; }
   void set_query_result(Query_result *result) { m_query_result = result; }
   Query_result *query_result() const { return m_query_result; }
   bool change_query_result(THD *thd, Query_result_interceptor *new_result,
@@ -1697,6 +1700,16 @@ class Query_block : public Query_term {
   void print_having(const THD *thd, String *str, enum_query_type query_type);
 
   /**
+      Print list of items in QUALIFY clause.
+
+      @param      thd          Thread handle
+      @param[out] str          String of output
+      @param      query_type   Options to print out string output
+    */
+  void print_qualify(const THD *thd, String *str,
+                     enum_query_type query_type) const;
+
+  /**
     Print details of Windowing functions.
 
     @param      thd          Thread handler
@@ -2033,6 +2046,8 @@ class Query_block : public Query_term {
   enum_parsing_context parsing_place{CTX_NONE};
   /// Parse context: is inside a set function if this is positive
   uint in_sum_expr{0};
+  ///  Parse context: is inside a window function if this is positive
+  uint in_window_expr{0};
 
   /**
     Three fields used by semi-join transformations to know when semi-join is
@@ -2043,6 +2058,7 @@ class Query_block : public Query_term {
     RESOLVE_JOIN_NEST,
     RESOLVE_CONDITION,
     RESOLVE_HAVING,
+    RESOLVE_QUALIFY,
     RESOLVE_SELECT_LIST
   };
   Resolve_place resolve_place{
@@ -2054,10 +2070,10 @@ class Query_block : public Query_term {
   */
   uint select_n_where_fields{0};
   /**
-    Number of items in the select list, HAVING clause and ORDER BY clause. It is
-    used to reserve space in the base_ref_items array so that it is big enough
-    to hold hidden items for any of the expressions or sub-expressions in those
-    clauses.
+    Number of items in the select list, HAVING clause, QUALIFY clause and ORDER
+    BY clause. It is used to reserve space in the base_ref_items array so that
+    it is big enough to hold hidden items for any of the expressions or
+    sub-expressions in those clauses.
   */
   uint select_n_having_items{0};
   /// Number of arguments of and/or/xor in where/having/on
@@ -2400,6 +2416,9 @@ class Query_block : public Query_term {
 
   /// Condition to be evaluated on grouped rows after grouping.
   Item *m_having_cond;
+
+  /// Condition to be evaluated after window functions.
+  Item *m_qualify_cond{nullptr};
 
   /// Number of GROUP BY expressions added to all_fields
   int hidden_group_field_count;
@@ -3708,6 +3727,15 @@ class LEX_GRANT_AS {
 */
 enum execute_only_in_secondary_reasons { SUPPORTED_IN_PRIMARY, CUBE };
 
+/*
+  Some queries can be executed only in using the hypergraph optimizer. The enum
+  "execute_only_in_hypergraph_reasons" retains the explanations for the same.
+*/
+enum execute_only_in_hypergraph_reasons {
+  SUPPORTED_IN_BOTH_OPTIMIZERS,
+  QUALIFY_CLAUSE
+};
+
 /**
   The LEX object currently serves three different purposes:
 
@@ -3779,6 +3807,14 @@ struct LEX : public Query_tables_list {
 
   execute_only_in_secondary_reasons m_execute_only_in_secondary_engine_reason{
       SUPPORTED_IN_PRIMARY};
+
+  /*
+    Some queries can only be executed in hypergraph optimizer, for example,
+    queries with QUALIFY clause.
+  */
+  bool m_can_execute_only_in_hypergraph_optimizer = false;
+  execute_only_in_hypergraph_reasons m_execute_only_in_hypergraph_reason =
+      SUPPORTED_IN_BOTH_OPTIMIZERS;
 
  public:
   inline Query_block *current_query_block() const {
@@ -3923,6 +3959,28 @@ struct LEX : public Query_tables_list {
       default:
         return "UNDEFINED";
     }
+  }
+  bool can_execute_only_in_hypergraph_optimizer() const {
+    return m_can_execute_only_in_hypergraph_optimizer;
+  }
+  void set_execute_only_in_hypergraph_optimizer(
+      bool execute_in_hypergraph_optimizer_param,
+      execute_only_in_hypergraph_reasons reason) {
+    m_can_execute_only_in_hypergraph_optimizer =
+        execute_in_hypergraph_optimizer_param;
+    m_execute_only_in_hypergraph_reason = reason;
+  }
+
+  const char *get_only_supported_in_hypergraph_reason_str() const {
+    assert(can_execute_only_in_hypergraph_optimizer());
+    return (m_execute_only_in_hypergraph_reason == QUALIFY_CLAUSE)
+               ? "QUALIFY clause"
+               : "UNDEFINED";
+  }
+
+  execute_only_in_hypergraph_reasons get_only_supported_in_hypergraph_reason()
+      const {
+    return m_execute_only_in_hypergraph_reason;
   }
 
  private:
@@ -4472,6 +4530,12 @@ struct LEX : public Query_tables_list {
   */
   void set_secondary_engine_execution_context(
       Secondary_engine_execution_context *context);
+
+  /**
+    Validates if a query can run with the old optimizer.
+    @return True if the query cannot be run with old optimizer, false otherwise.
+  */
+  bool validate_use_in_old_optimizer();
 
  private:
   bool m_is_replication_deprecated_syntax_used{false};

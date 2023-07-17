@@ -102,6 +102,7 @@ bool Item_sum::do_itemize(Parse_context *pc, Item **res) {
   if (Item_result_field::do_itemize(pc, res)) return true;
 
   if (m_window) {
+    pc->select->in_window_expr++;
     if (m_window->contextualize(pc)) return true; /* purecov: inspected */
     if (!m_window->is_reference()) {
       pc->select->m_windows.push_back(m_window);
@@ -119,8 +120,8 @@ bool Item_sum::do_itemize(Parse_context *pc, Item **res) {
     if (args[i]->itemize(pc, &args[i])) return true;
   }
 
-  if (!m_window) pc->select->in_sum_expr--;
-
+  (m_window == nullptr) ? pc->select->in_sum_expr--
+                        : pc->select->in_window_expr--;
   return false;
 }
 

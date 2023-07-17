@@ -545,6 +545,7 @@ static const SYMBOL symbols[] = {
     {SYM("PROFILES", PROFILES_SYM)},
     {SYM("PROXY", PROXY_SYM)},
     {SYM("PURGE", PURGE)},
+    {SYM("QUALIFY", QUALIFY_SYM)},
     {SYM("QUARTER", QUARTER_SYM)},
     {SYM("QUERY", QUERY_SYM)},
     {SYM("QUICK", QUICK)},

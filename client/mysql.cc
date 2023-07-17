@@ -773,6 +773,7 @@ static COMMANDS commands[] = {
     {"PROCESS", 0, nullptr, false, ""},
     {"PROCESSLIST", 0, nullptr, false, ""},
     {"PURGE", 0, nullptr, false, ""},
+    {"QUALIFY", 0, nullptr, false, ""},
     {"QUARTER", 0, nullptr, false, ""},
     {"QUERY", 0, nullptr, false, ""},
     {"QUICK", 0, nullptr, false, ""},

@@ -209,6 +209,13 @@ bool Group_check::check_query(THD *thd) {
     if (check_expression(thd, select->having_cond(), false)) goto err;
   }
 
+  // Validate QUALIFY condition
+  if (select->qualify_cond()) {
+    number_in_list = 1;
+    place = "QUALIFY clause";
+    if (check_expression(thd, select->qualify_cond(), false)) goto err;
+  }
+
   // Validate windows' ORDER BY and PARTITION BY clauses.
   char buff[STRING_BUFFER_USUAL_SIZE];
   {

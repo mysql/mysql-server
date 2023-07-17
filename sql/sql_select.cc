@@ -563,6 +563,10 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   lex->using_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
+  if (thd->lex->validate_use_in_old_optimizer()) {
+    return true;
+  }
+
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err; /* purecov: inspected */
 

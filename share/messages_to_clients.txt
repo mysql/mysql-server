@@ -10114,6 +10114,12 @@ ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES
 ER_WARN_DEPRECATED_ENGINE_SYNTAX_NO_REPLACEMENT
   eng "'%s' for '%s' storage engine is deprecated and will be removed in a future release."
 
+ER_QUALIFY_WITHOUT_WINDOW_FUNCTION
+  eng "QUALIFY clause cannot be used without a window function."
+
+ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
+  eng "'%s' can be used only if the hypergraph optimizer is enabled."
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

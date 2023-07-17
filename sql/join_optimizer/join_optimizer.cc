@@ -6135,10 +6135,11 @@ void SplitHavingCondition(THD *thd, Item *cond, Item **having_cond,
   *having_cond_wf = CreateConjunction(&cond_parts_wf);
 }
 
-void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
-                          const char *description_for_trace, string *trace,
-                          Prealloced_array<AccessPath *, 4> *root_candidates,
-                          CostingReceiver *receiver) {
+void ApplyHavingOrQualifyCondition(
+    THD *thd, Item *having_cond, Query_block *query_block,
+    const char *description_for_trace, string *trace,
+    Prealloced_array<AccessPath *, 4> *root_candidates,
+    CostingReceiver *receiver) {
   if (having_cond == nullptr) {
     return;
   }
@@ -7583,6 +7584,8 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // execution. Even if that change was rolled back at the end of the previous
   // execution, used_tables() may still say it uses the temporary table.
   if (join->having_cond != nullptr) {
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_HAVING_ACCESSPATH;
     join->having_cond->update_used_tables();
   }
 
@@ -7591,9 +7594,9 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   Item *having_cond;
   Item *having_cond_wf;
   SplitHavingCondition(thd, join->having_cond, &having_cond, &having_cond_wf);
-  ApplyHavingCondition(thd, having_cond, query_block,
-                       "Applying filter for HAVING\n", trace, &root_candidates,
-                       &receiver);
+  ApplyHavingOrQualifyCondition(thd, having_cond, query_block,
+                                "Applying filter for HAVING\n", trace,
+                                &root_candidates, &receiver);
 
   // If we have GROUP BY followed by a window function (which might include
   // ORDER BY), we might need to materialize before the first ordering -- see
@@ -7621,10 +7624,40 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
         need_rowid, std::move(root_candidates), trace);
   }
 
-  ApplyHavingCondition(
-      thd, having_cond_wf, query_block,
-      "Applying filter for window function in2exists conditions\n", trace,
-      &root_candidates, &receiver);
+  // A filter node has to be added for window functions.
+  std::string description_for_trace = "Applying filter for window function ";
+  Item *post_window_filter = nullptr;
+  if (having_cond_wf != nullptr) {
+    post_window_filter = having_cond_wf;
+    description_for_trace += "in2exists conditions";
+  }
+
+  if (query_block->qualify_cond() != nullptr) {
+    graph.secondary_engine_costing_flags |=
+        SecondaryEngineCostingFlag::CONTAINS_QUALIFY_ACCESSPATH;
+
+    // If there were query transformations done earlier E.g.subquery to derived,
+    // we need to update used tables for expressions having window functions to
+    // include the newly added tables in the query block
+    // (See Item_sum::add_used_tables_for_aggr_func()).
+    query_block->qualify_cond()->update_used_tables();
+    if (post_window_filter == nullptr) {
+      post_window_filter = query_block->qualify_cond();
+      description_for_trace += "QUALIFY";
+    } else {
+      post_window_filter =
+          new Item_cond_and(post_window_filter, query_block->qualify_cond());
+      post_window_filter->quick_fix_field();
+      post_window_filter->update_used_tables();
+      post_window_filter->apply_is_true();
+      description_for_trace += " and QUALIFY";
+    }
+  }
+  description_for_trace += "\n";
+
+  ApplyHavingOrQualifyCondition(thd, post_window_filter, query_block,
+                                description_for_trace.c_str(), trace,
+                                &root_candidates, &receiver);
 
   graph.secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::HANDLING_DISTINCT_ORDERBY_LIMITOFFSET;

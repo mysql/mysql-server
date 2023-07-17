@@ -697,8 +697,8 @@ bool Explain::explain_subqueries() {
     */
     if (fmt->is_hierarchical() &&
         (context == CTX_WHERE || context == CTX_HAVING ||
-         context == CTX_SELECT_LIST || context == CTX_GROUP_BY_SQ ||
-         context == CTX_ORDER_BY_SQ) &&
+         context == CTX_QUALIFY || context == CTX_SELECT_LIST ||
+         context == CTX_GROUP_BY_SQ || context == CTX_ORDER_BY_SQ) &&
         (!explain_other ||
          (sl->join && sl->join->get_plan_state() != JOIN::NO_PLAN)) &&
         // Check below requires complete plan

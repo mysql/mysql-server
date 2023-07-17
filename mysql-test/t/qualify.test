@@ -1,0 +1,32 @@
+# Run with old optimizer
+--source include/not_hypergraph.inc
+
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b int NOT NULL,
+  c double NOT NULL
+);
+INSERT INTO t1 VALUES (1,1,5),(1,1,2),(1,2,5),(2,1,4),(2,1,1),(2,2,2),(2,2,3),
+(2,3,1),(2,3,1),(3,3,3),(3,3,5),(3,4,5),(4,4,5),(4,4,3),(5,3,1);
+ANALYZE TABLE t1;
+
+--error ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
+SELECT a, b,
+       MIN(b) OVER (PARTITION BY b ORDER BY a DESC,b ASC,c DESC) AS mn,
+       RANK() OVER (PARTITION BY b ORDER BY a DESC,b ASC,c DESC) AS rnk
+FROM t1
+QUALIFY ROW_NUMBER() OVER (PARTITION BY a ORDER BY b)>1;
+
+--error ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
+SELECT  b
+FROM t1 QUALIFY ROW_NUMBER() OVER (PARTITION BY a ORDER BY a)>1 and c>2;
+
+## Aggregate over window functions is not supported
+--error ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
+SELECT a, b, c
+FROM t1 QUALIFY AVG(ROW_NUMBER() OVER (PARTITION BY a ORDER BY a,b,c))>1;
+
+--error ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
+SELECT a FROM t1 QUALIFY b> 10;
+
+DROP TABLE t1;

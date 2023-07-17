@@ -104,7 +104,8 @@ const String my_null_string("NULL", 4, default_charset_info);
 
 /**
   Alias from select list can be referenced only from ORDER BY (SQL Standard) or
-  from HAVING, GROUP BY and a subquery in the select list (MySQL extension).
+  from HAVING, GROUP BY, QUALIFY and a subquery in the select list (MySQL
+  extension).
 
   We don't allow it be referenced from the SELECT list, with one exception:
   it's accepted if nested in a subquery, which is inconsistent but necessary
@@ -112,7 +113,7 @@ const String my_null_string("NULL", 4, default_charset_info);
 */
 static inline bool select_alias_referencable(enum_parsing_context place) {
   return (place == CTX_SELECT_LIST || place == CTX_GROUP_BY ||
-          place == CTX_HAVING || place == CTX_ORDER_BY);
+          place == CTX_HAVING || place == CTX_QUALIFY || place == CTX_ORDER_BY);
 }
 
 Type_properties::Type_properties(Item &item)
@@ -760,7 +761,7 @@ bool Item::do_itemize(Parse_context *pc, Item **res) {
   if (pc->select) {
     const enum_parsing_context place = pc->select->parsing_place;
     if (place == CTX_SELECT_LIST || place == CTX_HAVING ||
-        place == CTX_ORDER_BY) {
+        place == CTX_QUALIFY || place == CTX_ORDER_BY) {
       pc->select->select_n_having_items++;
     }
   }
@@ -2901,7 +2902,8 @@ Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
       any_privileges(false) {
   Query_block *select = current_thd->lex->current_query_block();
   collation.set(DERIVATION_IMPLICIT);
-  if (select && select->parsing_place != CTX_HAVING)
+  if (select != nullptr && (select->parsing_place != CTX_HAVING &&
+                            select->parsing_place != CTX_QUALIFY))
     select->select_n_where_fields++;
 }
 
@@ -2929,7 +2931,9 @@ bool Item_field::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::do_itemize(pc, res)) return true;
   Query_block *const select = pc->select;
-  if (select->parsing_place != CTX_HAVING) select->select_n_where_fields++;
+  if (select->parsing_place != CTX_HAVING &&
+      select->parsing_place != CTX_QUALIFY)
+    select->select_n_where_fields++;
   return false;
 }
 
@@ -5345,7 +5349,8 @@ static bool resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
 
   if (select_ref == nullptr) return false;
 
-  if ((*select_ref)->has_wf()) {
+  if (select->resolve_place != Query_block::RESOLVE_QUALIFY &&
+      (*select_ref)->has_wf()) {
     /*
       We can't reference an alias to a window function expr from within
       a subquery or a HAVING clause
@@ -5582,7 +5587,8 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
                      pointer_cast<uchar *>(&ut));
           cur_query_expression->accumulate_used_tables(ut.used_tables);
 
-          if (select->group_list.elements && place == CTX_HAVING) {
+          if (select->group_list.elements &&
+              (place == CTX_HAVING || place == CTX_QUALIFY)) {
             /*
               If an outer field is resolved in a grouping query block then it
               is replaced with an Item_outer_ref object. Otherwise an
@@ -8248,7 +8254,25 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
     {
       Name_resolution_context *last_checked_context = context;
       Name_resolution_context *outer_context = context->outer_context;
-      m_ref_item = nullptr;
+
+      if (context->query_block->resolve_place == Query_block::RESOLVE_QUALIFY) {
+        Field *from_field = find_field_in_tables(
+            thd, this, context->first_name_resolution_table,
+            context->last_name_resolution_table, reference,
+            thd->lex->use_only_table_context ? REPORT_ALL_ERRORS
+                                             : IGNORE_EXCEPT_NON_UNIQUE,
+            thd->want_privilege, true);
+        if (thd->is_error()) return true;
+        if (from_field != nullptr && from_field != not_found_field) {
+          if (from_field != view_ref_found) {
+            Item_field *fld = new Item_field(
+                thd, context, from_field->table->pos_in_table_list, from_field);
+            if (fld == nullptr) return true;
+            *reference = fld;
+          }
+          return false;
+        }
+      }
 
       if (outer_context == nullptr) {
         /* The current reference cannot be resolved in this query. */
@@ -8444,7 +8468,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   /*
     Reject invalid references to aggregates.
 
-    1) We only accept references to aggregates in a HAVING clause.
+    1) We only accept references to aggregates in a HAVING or QUALIFY clause.
     (This restriction is not strictly necessary, but we don't want to
     lift it without making sure that such queries are handled
     correctly. Lifting the restriction will make bugs such as
@@ -8455,9 +8479,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
     the query block where the aggregation happens, since grouping
     happens before aggregation.
   */
-  if ((ref_item()->has_aggregation() &&
-       !thd->lex->current_query_block()->having_fix_field) ||  // 1
-      walk(&Item::has_aggregate_ref_in_group_by,               // 2
+  bool is_having_or_qualify =
+      (thd->lex->current_query_block()->having_fix_field ||
+       thd->lex->current_query_block()->resolve_place ==
+           Query_block::RESOLVE_QUALIFY);
+  if ((ref_item()->has_aggregation() && !is_having_or_qualify) ||  // 1
+      walk(&Item::has_aggregate_ref_in_group_by,                   // 2
            enum_walk::SUBQUERY_POSTFIX, nullptr)) {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
              "reference to group function");

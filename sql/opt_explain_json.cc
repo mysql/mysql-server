@@ -399,8 +399,8 @@ class context : public Explain_context {
 /**
   Node class to wrap a subquery node tree
 
-  Implements CTX_WHERE, CTX_HAVING, CTX_ORDER_BY_SQ, CTX_GROUP_BY_SQ and
-  CTX_OPTIMIZED_AWAY_SUBQUERY context nodes.
+  Implements CTX_WHERE, CTX_HAVING,  CTX_QUALIFY, CTX_ORDER_BY_SQ,
+  CTX_GROUP_BY_SQ and CTX_OPTIMIZED_AWAY_SUBQUERY context nodes.
   This class hosts underlying join_ctx or uion_ctx.
 
   Is used for a subquery, a derived table.
@@ -1669,6 +1669,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
              current_context->type == CTX_OPTIMIZED_AWAY_SUBQUERY ||
              current_context->type == CTX_WHERE ||
              current_context->type == CTX_HAVING ||
+             current_context->type == CTX_QUALIFY ||
              current_context->type == CTX_ORDER_BY_SQ ||
              current_context->type == CTX_GROUP_BY_SQ ||
              current_context->type == CTX_QUERY_SPEC);
@@ -1916,6 +1917,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
              current_context->type == CTX_OPTIMIZED_AWAY_SUBQUERY ||
              current_context->type == CTX_WHERE ||
              current_context->type == CTX_HAVING ||
+             current_context->type == CTX_QUALIFY ||
              current_context->type == CTX_ORDER_BY_SQ ||
              current_context->type == CTX_GROUP_BY_SQ ||
              current_context->type == CTX_QUERY_SPEC);

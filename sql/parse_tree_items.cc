@@ -394,11 +394,13 @@ bool PTI_simple_ident_ident::do_itemize(Parse_context *pc, Item **res) {
         raw.start, raw.end);
     lex->safe_to_cache_query = false;
   } else {
-    if ((pc->select->parsing_place != CTX_HAVING) ||
-        (pc->select->get_in_sum_expr() > 0)) {
-      *res = new (pc->mem_root) Item_field(POS(), NullS, NullS, ident.str);
-    } else {
+    if ((pc->select->parsing_place == CTX_HAVING &&
+         pc->select->get_in_sum_expr() == 0u) ||
+        (pc->select->parsing_place == CTX_QUALIFY &&
+         pc->select->in_window_expr == 0u)) {
       *res = new (pc->mem_root) Item_ref(POS(), NullS, NullS, ident.str);
+    } else {
+      *res = new (pc->mem_root) Item_field(POS(), NullS, NullS, ident.str);
     }
     if (*res == nullptr || (*res)->itemize(pc, res)) return true;
   }

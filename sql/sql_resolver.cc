@@ -361,6 +361,45 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
         simplify_const_condition(thd, &m_having_cond, false))
       return true;
   }
+
+  if (m_qualify_cond != nullptr) {
+    assert(m_qualify_cond->is_bool_func());
+    thd->where = "qualify clause";
+    resolve_place = RESOLVE_QUALIFY;
+    if (!m_qualify_cond->fixed &&
+        (m_qualify_cond->fix_fields(thd, &m_qualify_cond) ||
+         m_qualify_cond->check_cols(1)))
+      return true;
+
+    assert(m_qualify_cond->data_type() != MYSQL_TYPE_INVALID);
+    resolve_place = RESOLVE_NONE;
+
+    /*
+      Simplify the QUALIFY condition if it is a const item.
+      Leave a TRUE condition if QUALIFY is always true, so that query block
+      is still marked as having a QUALIFY condition.
+    */
+    if (m_qualify_cond->const_item() && !thd->lex->is_view_context_analysis() &&
+        !m_qualify_cond->walk(&Item::is_non_const_over_literals,
+                              enum_walk::POSTFIX, nullptr) &&
+        simplify_const_condition(thd, &m_qualify_cond, false))
+      return true;
+
+    /*
+      The QUALIFY clause requires the inclusion of at least one window function
+      in the query block. The window function can be part of any one of the
+      following: a) SELECT column list. b) Filter predicate of the QUALIFY
+      clause.
+
+      Rejects the query if the QUALIFY clause is present but neither of the
+      above conditions are satisfied.
+    */
+    if (!has_windows() && !m_qualify_cond->has_wf()) {
+      my_error(ER_QUALIFY_WITHOUT_WINDOW_FUNCTION, MYF(0));
+      return true;
+    }
+  }
+
   // Set up the ORDER BY clause
   all_fields_count = fields.size();
   if (order_list.elements) {
@@ -467,6 +506,16 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                         m_having_cond->has_grouping_func())) {
     if (m_having_cond->split_sum_func2(thd, base_ref_items, &fields,
                                        &m_having_cond, true)) {
+      return true;
+    }
+    added_new_sum_funcs = true;
+  }
+  // Move aggregation functions and window functions present in
+  // QUALIFY clause to the field list and replace them with references.
+  if (m_qualify_cond != nullptr &&
+      (m_qualify_cond->has_aggregation() || m_qualify_cond->has_wf())) {
+    if (m_qualify_cond->split_sum_func2(thd, base_ref_items, &fields,
+                                        &m_qualify_cond, true)) {
       return true;
     }
     added_new_sum_funcs = true;
@@ -709,6 +758,8 @@ bool Query_block::prepare_values(THD *thd) {
     having_fix_field = false;
     resolve_place = RESOLVE_NONE;
   }
+
+  assert(qualify_cond() == nullptr);
 
   /*
     A table value constructor may have a defined ordering, thus calling

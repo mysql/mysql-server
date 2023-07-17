@@ -1277,6 +1277,16 @@ bool PT_query_specification::do_contextualize(Parse_context *pc) {
 
   pc->select->parsing_place = CTX_SELECT_LIST;
   if (contextualize_safe(pc, opt_window_clause)) return true;
+
+  pc->select->parsing_place = CTX_QUALIFY;
+  if (itemize_safe(pc, &opt_qualify_clause)) return true;
+  pc->select->set_qualify_cond(opt_qualify_clause);
+
+  if (opt_qualify_clause != nullptr) {
+    pc->thd->lex->set_execute_only_in_hypergraph_optimizer(
+        /*execute_in_hypergraph_optimizer_param=*/true, QUALIFY_CLAUSE);
+  }
+
   pc->select->parsing_place = CTX_NONE;
 
   QueryLevel ql = pc->m_stack.back();
