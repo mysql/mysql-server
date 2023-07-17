@@ -1249,6 +1249,13 @@ operation.
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
 
+/** Update the data directory flag in dd::Table key strings
+@param[in]      object_id       dd tablespace object id
+@param[in]      path            path where the ibd file is located currently
+@retval DB_SUCCESS on success. */
+dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
+                                                        std::string path);
+
 /** Create metadata for specified tablespace, acquiring exclusive MDL first
 @param[in,out]  dd_client       data dictionary client
 @param[in,out]  dd_space_name   dd tablespace name

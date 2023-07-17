@@ -52,6 +52,14 @@ struct ind_node_t;
 struct tab_node_t;
 struct dict_add_v_col_t;
 
+struct table_name_components {
+  std::string schema_name;
+  std::string table_name;
+  std::string partition;
+  std::string subpartition;
+  std::string directory;
+};
+
 namespace dd {
 class Partition;
 }
@@ -152,6 +160,12 @@ void get_table(const std::string &dict_name, bool convert, std::string &schema,
 @param[out]     table           table name */
 void get_table(const std::string &dict_name, std::string &schema,
                std::string &table);
+
+/** Get schema, table name, partition, subpartition and absolute directory
+from dictionary from filepath.
+@param[in]      path            path where the ibd file is located
+@return table_name_components struct with parsed out parts of the table name */
+std::optional<table_name_components> parse_tablespace_path(std::string path);
 
 /** Get partition and sub-partition name from partition string
 @param[in]      partition       partition string from dictionary table name

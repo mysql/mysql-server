@@ -1,0 +1,266 @@
+#
+#Bug #33398681 Innodb ibd tablespace file is moved back from innodb_directories to datadir after ALTER TABLE
+#
+# Set different paths for --datadir
+# Create innodb_directories folder
+# Create external datadir folder
+# Create external datadir2 folder
+# Restart the engine to make the external directory known.
+# restart: --innodb-directories=MYSQL_TMP_DIR/external_dir;MYSQL_TMP_DIR/external_dir2
+# Create table
+CREATE DATABASE dbtest;
+USE dbtest;
+# Normal tables
+CREATE TABLE `t1a` (`c1` INT);
+CREATE TABLE `t1b` (`c1` INT);
+CREATE TABLE `t1c` (`c1` INT);
+# Normal tables with data directory clause
+CREATE TABLE `t2a` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir';
+CREATE TABLE `t2b` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir';
+CREATE TABLE `t2c` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir';
+# Partition tables
+CREATE TABLE `t3a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+CREATE TABLE `t3b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+CREATE TABLE `t3c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+# Partition tables with data directory clause
+CREATE TABLE `t4a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir');
+CREATE TABLE `t4b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir');
+CREATE TABLE `t4c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir');
+# Normal tables with data directory clause 2
+CREATE TABLE `t5a` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2';
+CREATE TABLE `t5b` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2';
+CREATE TABLE `t5c` (`c1` INT) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2';
+# Partition tables with data directory clause
+CREATE TABLE `t6a` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2');
+CREATE TABLE `t6b` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2');
+CREATE TABLE `t6c` (a INT, b INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (10) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2', PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY='MYSQL_TMP_DIR/external_dir2');
+# Shutdown server
+# 1. ibd files for t1a, t1b, t1c, t3a, t3b, t3c
+# Check that the ibd files for each table exist in the working (dbtest) folder
+t1a.ibd
+t1b.ibd
+t1c.ibd
+t3a#p#p0.ibd
+t3a#p#p1.ibd
+t3b#p#p0.ibd
+t3b#p#p1.ibd
+t3c#p#p0.ibd
+t3c#p#p1.ibd
+# Move ibd files from default directory to new innodb directory
+# Check that the files exist in the innodb_directories folder before alter after moving
+t1a.ibd
+t1b.ibd
+t1c.ibd
+t3a#p#p0.ibd
+t3a#p#p1.ibd
+t3b#p#p0.ibd
+t3b#p#p1.ibd
+t3c#p#p0.ibd
+t3c#p#p1.ibd
+# 2. ibd files for t2a, t2b, t2c, t4a, t4b, t4c
+# Check that the ibd files for each table exist in the external directory where the tables are created
+t2a.ibd
+t2b.ibd
+t2c.ibd
+t4a#p#p0.ibd
+t4a#p#p1.ibd
+t4b#p#p0.ibd
+t4b#p#p1.ibd
+t4c#p#p0.ibd
+t4c#p#p1.ibd
+# 3. ibd files for t5a, t5b, t5c, t6a, t6b, t6c
+# Check that the ibd files for each table exist in the external directory2 where the tables are created
+t5a.ibd
+t5b.ibd
+t5c.ibd
+t6a#p#p0.ibd
+t6a#p#p1.ibd
+t6b#p#p0.ibd
+t6b#p#p1.ibd
+t6c#p#p0.ibd
+t6c#p#p1.ibd
+# Move ibd files for t5a, t5b, t5c, t6a, t6b, t6c from external directory2 to default directory
+# Check that the ibd files for t5a, t5b, t5c, t6a, t6b, t6c now exist in working (dbtest) folder
+t5a.ibd
+t5b.ibd
+t5c.ibd
+t6a#p#p0.ibd
+t6a#p#p1.ibd
+t6b#p#p0.ibd
+t6b#p#p1.ibd
+t6c#p#p0.ibd
+t6c#p#p1.ibd
+# Restart the server
+# restart: --innodb-directories=MYSQLTEST_VARDIR/innodb_directories;MYSQL_TMP_DIR/external_dir;MYSQL_TMP_DIR/external_dir2
+# Alter table
+ALTER TABLE dbtest.t1a FORCE;
+ALTER TABLE dbtest.t1b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t1c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t2a FORCE;
+ALTER TABLE dbtest.t2b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t2c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t3a FORCE;
+ALTER TABLE dbtest.t3b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t3c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t4a FORCE;
+ALTER TABLE dbtest.t4b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t4c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t5a FORCE;
+ALTER TABLE dbtest.t5b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t5c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t6a FORCE;
+ALTER TABLE dbtest.t6b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t6c FORCE, ALGORITHM=COPY;
+# Check that the ibd files for t1a, t1b, t1c, t3a, t3b, t3c still exist in the innodb_directories folder
+t1a.ibd
+t1b.ibd
+t1c.ibd
+t3a#p#p0.ibd
+t3a#p#p1.ibd
+t3b#p#p0.ibd
+t3b#p#p1.ibd
+t3c#p#p0.ibd
+t3c#p#p1.ibd
+# Check that the ibd files for t1a, t1b, t1c, t3a, t3b, t3c do not exist and ibd files for t5a, t5b, t5c, t6a, t6b, t6c exist in the data directory folder
+t5a.ibd
+t5b.ibd
+t5c.ibd
+t6a#p#p0.ibd
+t6a#p#p1.ibd
+t6b#p#p0.ibd
+t6b#p#p1.ibd
+t6c#p#p0.ibd
+t6c#p#p1.ibd
+# Check that the ibd files for t5a, t5b, t5c, t6a, t6b, t6c do not exist in external directory2 where the tables are created
+# Check that the ibd files for t2a, t2b, t2c, t4a, t4b, t4c still exist in the external directory where the tables are created
+t2a.ibd
+t2b.ibd
+t2c.ibd
+t4a#p#p0.ibd
+t4a#p#p1.ibd
+t4b#p#p0.ibd
+t4b#p#p1.ibd
+t4c#p#p0.ibd
+t4c#p#p1.ibd
+# Shutdown server
+# Now move ibd files for t1a, t1b, t1c, t3a, t3b, t3c from innodb_directories folder to default directory
+# Restart the server
+# restart: --innodb-directories=MYSQLTEST_VARDIR/innodb_directories;MYSQL_TMP_DIR/external_dir;MYSQL_TMP_DIR/external_dir2
+# Alter table
+ALTER TABLE dbtest.t1a FORCE;
+ALTER TABLE dbtest.t1b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t1c FORCE, ALGORITHM=COPY;
+ALTER TABLE dbtest.t3a FORCE;
+ALTER TABLE dbtest.t3b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE dbtest.t3c FORCE, ALGORITHM=COPY;
+# Check ibd files for t1a, t1b, t1c, t3a, t3b, t3c exist in default directory
+t1a.ibd
+t1b.ibd
+t1c.ibd
+t3a#p#p0.ibd
+t3a#p#p1.ibd
+t3b#p#p0.ibd
+t3b#p#p1.ibd
+t3c#p#p0.ibd
+t3c#p#p1.ibd
+t5a.ibd
+t5b.ibd
+t5c.ibd
+t6a#p#p0.ibd
+t6a#p#p1.ibd
+t6b#p#p0.ibd
+t6b#p#p1.ibd
+t6c#p#p0.ibd
+t6c#p#p1.ibd
+# Check ibd files for t1a, t1b, t1c, t3a, t3b, t3c do not exist in innodb_directories
+# Clean Up
+# Drop tables and database
+DROP TABLE dbtest.t1a;
+DROP TABLE dbtest.t1b;
+DROP TABLE dbtest.t1c;
+DROP TABLE dbtest.t2a;
+DROP TABLE dbtest.t2b;
+DROP TABLE dbtest.t2c;
+DROP TABLE dbtest.t3a;
+DROP TABLE dbtest.t3b;
+DROP TABLE dbtest.t3c;
+DROP TABLE dbtest.t4a;
+DROP TABLE dbtest.t4b;
+DROP TABLE dbtest.t4c;
+DROP TABLE dbtest.t5a;
+DROP TABLE dbtest.t5b;
+DROP TABLE dbtest.t5c;
+DROP TABLE dbtest.t6a;
+DROP TABLE dbtest.t6b;
+DROP TABLE dbtest.t6c;
+DROP DATABASE dbtest;
+# restart: 
+# Shutdown server
+# Upgrade scenario
+# Part 1: Steps already executed in older version of mysqld i.e., 8.0.36 which does not contain the fix for Bug #33398681
+# 1a. Build 8.0.36 and create data_dir folder in it. Initialize mysqld in this data_dir folder. This will be the default datadir for 8.0.36
+# 1b. Start mysql client and create database test_upgsc and create tables t7a, t7b t7c in it
+# 1c. Shutdown the server and move t7a.ibd, t7b.ibd, t7c.ibd to new external directory d1 and delete database folder test_upgsc in default directory data_dir
+# 1d. Start and shutdown the server again to make ibd files get recognized as moved in 8.0.36
+# 1e. Zip this data_dir and new external dir d1 as new_innodbdir into MYSQL_TEST_DIR/std_data/data80036_with_externally_stored_tablespaces.zip
+# Part 2: Steps to be executed in the current version i.e., in this test
+# 2a. Copy the data80036_with_externally_stored_tablespaces.zip from MYSQL_TEST_DIR/std_data/ to MYSQL_TMP_DIR/test_Bug33398681/ as data8036.zip
+# 2b. Check that the zip file data8036.zip exists in working MYSQL_TMP_DIR/test_Bug33398681/ folder and unzip it in the same directory
+# 2c. Check that data_dir and new_innodbdir are existing in MYSQL_TMP_DIR/test_Bug33398681/ and list all the files
+# 2d. Set MYSQLD_NEW_DATADIR as MYSQL_TMP_DIR/test_Bug33398681/data_dir and EXTERNAL_DIR3 AS MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir
+# 2e. Start the server with datadir=MYSQLD_NEW_DATADIR and innodb-directories=EXTERNAL_DIR3 options
+# 2f. Trigger Alter table force for t7a, t7b, t7c
+# 2g. Verify that the ibd files for t7a, t7b, t7c exist in EXTERNAL_DIR3
+# Copy the zip directory of 8.0.36 from MYSQL_TEST_DIR/std_data/ to MYSQL_TMP_DIR/test_Bug33398681 working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Check that the file exists in the working folder.
+#ib_16384_0.dblwr
+#ib_16384_1.dblwr
+#innodb_redo
+#innodb_temp
+auto.cnf
+binlog.000001
+binlog.000002
+binlog.index
+ca-key.pem
+ca.pem
+client-cert.pem
+client-key.pem
+debug.log
+error.log
+ib_buffer_pool
+ibdata1
+mysql
+mysql.ibd
+performance_schema
+private_key.pem
+public_key.pem
+server-cert.pem
+server-key.pem
+sys
+undo_001
+undo_002
+test_upgsc
+t7a.ibd
+t7b.ibd
+t7c.ibd
+# Set different path for --datadir which points to old version 8.0.36
+# Set EXTERNAL_DIR3
+# Check that the ibd files for t7a, t7b, t7c exist in EXTERNAL_DIR3
+t7a.ibd
+t7b.ibd
+t7c.ibd
+# Restart the server
+# restart: --datadir=MYSQL_TMP_DIR/test_Bug33398681/data_dir --innodb-directories=MYSQL_TMP_DIR/test_Bug33398681/new_innodbdir/ --lower_case_table_names=1
+# Alter table
+ALTER TABLE test_upgsc.t7a FORCE;
+ALTER TABLE test_upgsc.t7b FORCE, ALGORITHM=INPLACE;
+ALTER TABLE test_upgsc.t7c FORCE, ALGORITHM=COPY;
+# Check that the ibd files for t7a, t7b, t7c still exist in EXTERNAL_DIR3
+t7a.ibd
+t7b.ibd
+t7c.ibd
+# Clean Up
+# restart: --datadir=MYSQLD_DATADIR --innodb-directories=
+# End Test

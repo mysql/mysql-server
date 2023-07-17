@@ -75,7 +75,8 @@ Data dictionary interface */
 #include "sql/mysqld.h"  // lower_case_file_system
 #include "sql_base.h"
 #include "sql_table.h"
-#endif /* !UNIV_HOTBACKUP */
+#include "univ.i"  // Using OS_PATH_SEPARATOR
+#endif             /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
                                              size_t *out_len) {
@@ -1138,6 +1139,99 @@ static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
 
   /* Update the file name path */
   dd_file->set_filename(old_file_name);
+}
+
+/** Convert string to lower case.
+@param[in,out]  name    name to convert */
+static void to_lower(std::string &name) { innobase_casedn_str(name.data()); }
+
+dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
+                                                        std::string path) {
+  THD *thd = current_thd;
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  dd::Tablespace *dd_space;
+  dd::Table *dd_table;
+
+  /* Get the dd tablespace */
+  if (client->acquire_uncached_uncommitted<dd::Tablespace>(object_id,
+                                                           &dd_space) ||
+      dd_space == nullptr) {
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
+  }
+
+  const dd::Properties &space_properties = dd_space->se_private_data();
+  uint32_t flags = 0;
+  space_properties.get(dd_space_key_strings[DD_SPACE_FLAGS], &flags);
+
+  if (fsp_is_shared_tablespace(flags)) {
+    /* This is a shared tablespace, dd_table is empty */
+    return DB_SUCCESS;
+  }
+
+  const auto components = dict_name::parse_tablespace_path(path);
+  if (!components.has_value()) return DB_ERROR;
+  const auto table_info = components.value();
+
+  MDL_ticket *tab_ticket = nullptr;
+  if (dd::acquire_exclusive_table_mdl(thd, table_info.schema_name.c_str(),
+                                      table_info.table_name.c_str(), false,
+                                      &tab_ticket)) {
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
+  }
+
+  /* Acquire the new dd table for modification */
+  if (client->acquire_for_modification<dd::Table>(
+          table_info.schema_name.c_str(), table_info.table_name.c_str(),
+          &dd_table)) {
+    ut_d(ut_error);
+    ut_o(return DB_ERROR);
+  }
+
+  std::string dd_table_name{dd_table->table().name()};
+  Fil_path fpath{path};
+  bool set_true = !MySQL_datadir_path.is_dir_same_as(fpath);
+  /* Set the DATA DIRECTORY FLAG to true for dd table if ibd file is moved to
+  directory other than default data dir. Remove the flag if moved from external
+  to default data dir. We explicitly set this to false because dd_table->flags
+  are supposed to be false if the ibd file is located in default dir */
+  if (set_true) {
+    dd_table->se_private_data().set(
+        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], set_true);
+  } else {
+    dd_table->se_private_data().remove(
+        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+  }
+
+  std::string part_name = (!table_info.subpartition.empty())
+                              ? table_info.subpartition
+                              : table_info.partition;
+  to_lower(part_name);
+  for (dd::Partition *part_obj : *dd_table->leaf_partitions()) {
+    std::string part_obj_name{part_obj->name()};
+    to_lower(part_obj_name);
+    if (part_obj_name == part_name) {
+      dd::Properties &part_options = part_obj->options();
+      if (set_true) {
+        part_obj->se_private_data().set(
+            dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+        /* Update data_file_name for dd::partition as we do not set data
+        directory for whole partitioned table. We acquire dd::partition later
+        and read from it*/
+        part_options.set(data_file_name_key, table_info.directory.c_str());
+      } else {
+        part_obj->se_private_data().remove(
+            dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]);
+        part_options.remove(data_file_name_key);
+      }
+    }
+  }
+
+  bool fail = client->update(dd_table);
+  return fail ? DB_ERROR : DB_SUCCESS;
 }
 
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
@@ -7394,6 +7488,68 @@ void get_table(const std::string &dict_name, bool convert, std::string &schema,
   }
 }
 
+std::optional<table_name_components> parse_tablespace_path(std::string path) {
+  // Initialize variables
+  table_name_components table_info;
+
+  // Find the last '/'
+  const size_t last_slash = path.find_last_of(OS_PATH_SEPARATOR);
+  if (!last_slash || last_slash == std::string::npos ||
+      last_slash == path.size() - 1) {
+    return {};
+  }
+  const size_t second_last_slash =
+      path.find_last_of(OS_PATH_SEPARATOR, last_slash - 1);
+  if (!second_last_slash || second_last_slash == std::string::npos) return {};
+
+  // Extract directory
+  table_info.directory = path.substr(0, second_last_slash);
+
+  // Extract schema name
+  table_info.schema_name =
+      path.substr(second_last_slash + 1, last_slash - second_last_slash - 1);
+  file_to_table(table_info.schema_name, false);
+
+  // Extract table name
+  std::string temp_table = path.substr(last_slash + 1);
+  size_t hashPos = temp_table.find_first_of("#.");
+  table_info.table_name = temp_table.substr(0, hashPos);
+  file_to_table(table_info.table_name, false);
+
+  // Check for partitions and subpartitions
+  bool has_partitions = temp_table.find(PART_SEPARATOR) != std::string::npos;
+  bool has_subpartitions =
+      temp_table.find(SUB_PART_SEPARATOR) != std::string::npos;
+
+  if (has_partitions) {
+    // Extract partition name
+    size_t partStart =
+        temp_table.find(PART_SEPARATOR) + std::string(PART_SEPARATOR).length();
+    size_t partEnd = has_subpartitions ? temp_table.find(SUB_PART_SEPARATOR)
+                                       : temp_table.find('.');
+
+    ut_ad(partEnd != std::string::npos);
+    std::string temp_partition =
+        temp_table.substr(partStart, partEnd - partStart);
+    file_to_table(temp_partition, false);
+    table_info.partition = temp_partition;
+  }
+
+  if (has_subpartitions) {
+    // Extract subpartition name
+    size_t subpartStart = temp_table.find(SUB_PART_SEPARATOR) +
+                          std::string(SUB_PART_SEPARATOR).length();
+    size_t subpartEnd = temp_table.find('.');
+    ut_ad(subpartEnd != std::string::npos);
+    std::string temp_subpartition =
+        temp_table.substr(subpartStart, subpartEnd - subpartStart);
+    file_to_table(temp_subpartition, false);
+    table_info.subpartition = temp_subpartition;
+  }
+
+  return table_info;
+}
+
 void get_partition(const std::string &partition, bool convert,
                    std::string &part, std::string &sub_part) {
   ut_ad(is_partition(partition));
@@ -7512,22 +7668,6 @@ static void build_partition_low(const std::string part,
     conv(conv_str);
   }
   partition.append(conv_str);
-}
-
-/** Convert string to lower case.
-@param[in,out]  name    name to convert */
-static void to_lower(std::string &name) {
-  /* Skip empty string. */
-  if (name.empty()) {
-    return;
-  }
-  ut_ad(name.length() < FN_REFLEN);
-  char conv_name[FN_REFLEN];
-  auto len = name.copy(&conv_name[0], FN_REFLEN - 1);
-  conv_name[len] = '\0';
-
-  innobase_casedn_str(&conv_name[0]);
-  name.assign(&conv_name[0]);
 }
 
 /** Get partition and sub-partition name from DD. We convert the names to
