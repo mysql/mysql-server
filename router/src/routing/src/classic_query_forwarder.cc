@@ -1914,6 +1914,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     const CHARSET_INFO *cs_collation_connection =
         get_charset_by_name(collation_connection.c_str(), 0);
 
+    std::optional<ClassicProtocolState::AccessMode> access_mode;
     for (const auto &param : msg_res->values()) {
       if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
                              "router.trace")) {
@@ -1963,10 +1964,138 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           stage(Stage::Done);
           return Result::SendToClient;
         }
+      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+                                    "router.access_mode")) {
+        if (param.value) {
+          auto param_res = param_as_string(param);
+          if (param_res) {
+            auto val = *param_res;
+
+            if (val == "read_only") {
+              access_mode = ClassicProtocolState::AccessMode::ReadOnly;
+            } else if (val == "read_write") {
+              access_mode = ClassicProtocolState::AccessMode::ReadWrite;
+            } else if (val == "auto") {
+              access_mode = std::nullopt;
+            } else {
+              // unknown router.access_mode value.
+              discard_current_msg(src_channel, src_protocol);
+
+              auto send_res = ClassicFrame::send_msg<
+                  classic_protocol::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064,
+                   "Value of Query attribute " + param.name + " is unknown",
+                   "42000"});
+              if (!send_res) return send_client_failed(send_res.error());
+
+              stage(Stage::Done);
+              return Result::SendToClient;
+            }
+          } else {
+            // router.access_mode has invalid value.
+            discard_current_msg(src_channel, src_protocol);
+
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, "Value of Query attribute " + param.name + " is unknown",
+                 "42000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+        } else {
+          // NULL, ignore
+        }
+      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+                                    "router.wait_for_my_writes")) {
+        if (param.value) {
+          auto val_res = param_to_number(param);
+          if (val_res) {
+            if (*val_res == 0 || *val_res == 1) {
+              connection()->wait_for_my_writes(*val_res == 1);
+            } else {
+              // router.wait_for_my_writes has invalid value.
+              discard_current_msg(src_channel, src_protocol);
+
+              auto send_res = ClassicFrame::send_msg<
+                  classic_protocol::borrowed::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064,
+                   "Value of Query attribute " + param.name + " is unknown",
+                   "42000"});
+              if (!send_res) return send_client_failed(send_res.error());
+
+              stage(Stage::Done);
+              return Result::SendToClient;
+            }
+          } else {
+            // router.wait_for_my_writes has invalid type.
+            discard_current_msg(src_channel, src_protocol);
+
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::borrowed::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, "Value of Query attribute " + param.name + " is unknown",
+                 "42000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+        } else {
+          // NULL, ignore
+        }
+      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+                                    "router.wait_for_my_writes_timeout")) {
+        if (param.value) {
+          auto val_res = param_to_number(param);
+          if (val_res) {
+            if (*val_res <= 3600) {
+              connection()->wait_for_my_writes_timeout(
+                  std::chrono::seconds(*val_res));
+            } else {
+              // router.wait_for_my_writes_timeout has invalid type.
+              discard_current_msg(src_channel, src_protocol);
+
+              auto send_res = ClassicFrame::send_msg<
+                  classic_protocol::borrowed::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064,
+                   "Value of Query attribute " + param.name + " is unknown",
+                   "42000"});
+              if (!send_res) return send_client_failed(send_res.error());
+
+              stage(Stage::Done);
+              return Result::SendToClient;
+            }
+          } else {
+            // router.wait_for_my_writes_timeout has invalid type.
+            discard_current_msg(src_channel, src_protocol);
+
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::borrowed::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, "Value of Query attribute " + param.name + " is unknown",
+                 "42000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+        } else {
+          // NULL, ignore
+        }
       } else {
-        std::string param_prefix = param.name.substr(0, 7);
+        const char router_prefix[] = "router.";
+
+        std::string param_prefix =
+            param.name.substr(0, sizeof(router_prefix) - 1);
+
         if (0 == my_strcasecmp(cs_collation_connection, param_prefix.c_str(),
-                               "router.")) {
+                               router_prefix)) {
           // unknown router. query-attribute.
           discard_current_msg(src_channel, src_protocol);
 
@@ -1990,6 +2119,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     enum class ReadOnlyDecider {
       Session,
       TrxState,
+      QueryAttribute,
       Statement,
     } read_only_decider{ReadOnlyDecider::TrxState};
 
@@ -1999,6 +2129,8 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           return "session";
         case ReadOnlyDecider::TrxState:
           return "trx-state";
+        case ReadOnlyDecider::QueryAttribute:
+          return "query-attribute";
         case ReadOnlyDecider::Statement:
           return "statement";
       }
@@ -2122,9 +2254,40 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
         }
       }
 
+      // if autocommit is disabled, treat it as read-write transaction.
+      auto autocommit_res = connection()
+                                ->execution_context()
+                                .system_variables()
+                                .get("autocommit")
+                                .value();
+      if (autocommit_res && autocommit_res == "OFF") {
+        some_trx_state = true;
+      }
+
       if (some_trx_state) {
         want_read_only_connection = in_read_only_trx;
         read_only_decider = ReadOnlyDecider::TrxState;
+
+        if (access_mode) {
+          discard_current_msg(src_channel, src_protocol);
+
+          auto send_res =
+              ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                  src_channel, src_protocol,
+                  {ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION,
+                   "Query attribute router.access_mode not allowed inside a "
+                   "transaction.",
+                   "42000"});
+          if (!send_res) return send_client_failed(send_res.error());
+
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
+      } else if (access_mode) {
+        // access-mode set via query-attributes.
+        want_read_only_connection =
+            (*access_mode == ClassicProtocolState::AccessMode::ReadOnly);
+        read_only_decider = ReadOnlyDecider::QueryAttribute;
       } else {
         // automatically detected.
         want_read_only_connection = stmt_classified_ & StmtClassifier::ReadOnly;
@@ -2330,6 +2493,16 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
   return Result::Again;
 }
 
+bool has_non_router_attributes(
+    const std::vector<classic_protocol::message::client::Query::Param>
+        &params) {
+  return std::any_of(params.begin(), params.end(), [](const auto &param) {
+    std::string_view prefix("router.");
+
+    return std::string_view{param.name}.substr(0, prefix.size()) != prefix;
+  });
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::forward() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_protocol = connection()->client_protocol();
@@ -2385,8 +2558,8 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::forward() {
     return Result::SendToClient;
   }
 
-  // if the message contains attributes, error.
-  if (!msg_res->values().empty()) {
+  // if the message contains non-"router." attributes, error.
+  if (has_non_router_attributes(msg_res->values())) {
     discard_current_msg(src_channel, src_protocol);
 
     auto send_msg = ClassicFrame::send_msg<
