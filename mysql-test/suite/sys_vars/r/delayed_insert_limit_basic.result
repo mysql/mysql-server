@@ -1,0 +1,171 @@
+SET @start_value = @@global.delayed_insert_limit;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @start_value;
+@start_value
+100
+'#--------------------FN_DYNVARS_024_01------------------------#'
+SET @@global.delayed_insert_limit = 100;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = DEFAULT;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+100
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#---------------------FN_DYNVARS_024_02-------------------------#'
+SET @@global.delayed_insert_limit = @start_value;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit = 100;
+@@global.delayed_insert_limit = 100
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#--------------------FN_DYNVARS_024_03------------------------#'
+SET @@global.delayed_insert_limit = 1;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = 10000;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+10000
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = 4294967295;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+4294967295
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = 1;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#--------------------FN_DYNVARS_024_04-------------------------#'
+SET @@global.delayed_insert_limit = 0;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect delayed_insert_limit value: '0'
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = -1024;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect delayed_insert_limit value: '-1024'
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = 429496729.5;
+ERROR 42000: Incorrect argument type to variable 'delayed_insert_limit'
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = ON;
+ERROR 42000: Incorrect argument type to variable 'delayed_insert_limit'
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#-------------------FN_DYNVARS_024_05----------------------------#'
+SET @@session.delayed_insert_limit = 0;
+ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@Session.delayed_insert_limit;
+ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable
+'#----------------------FN_DYNVARS_024_06------------------------#'
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+SELECT @@global.delayed_insert_limit = @tmp;
+@@global.delayed_insert_limit = @tmp
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='delayed_insert_limit'
+  into @tmp;
+SELECT @@delayed_insert_limit = @tmp;
+@@delayed_insert_limit = @tmp
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#---------------------FN_DYNVARS_024_07----------------------#'
+SET @@global.delayed_insert_limit = TRUE;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_limit = FALSE;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect delayed_insert_limit value: '0'
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#---------------------FN_DYNVARS_024_08----------------------#'
+SET @@global.delayed_insert_limit = 1;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@delayed_insert_limit = @@global.delayed_insert_limit;
+@@delayed_insert_limit = @@global.delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+'#---------------------FN_DYNVARS_024_09----------------------#'
+SET delayed_insert_limit = 1;
+ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@delayed_insert_limit;
+@@delayed_insert_limit
+1
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET local.delayed_insert_limit = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.delayed_insert_limit = 1' at line 1
+SELECT local.delayed_insert_limit;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.delayed_insert_limit = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.delayed_insert_limit = 1' at line 1
+SELECT global.delayed_insert_limit;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT delayed_insert_limit;
+ERROR 42S22: Unknown column 'delayed_insert_limit' in 'field list'
+SELECT @@session.delayed_insert_limit;
+ERROR HY000: Variable 'delayed_insert_limit' is a GLOBAL variable
+SET @@global.delayed_insert_limit = @start_value;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_insert_limit;
+@@global.delayed_insert_limit
+100
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.

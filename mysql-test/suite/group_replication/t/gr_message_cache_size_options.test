@@ -18,7 +18,6 @@
 #10. Clean up.
 ################################################################################
 
---source include/have_64bit.inc
 # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
 --source include/linux.inc
 --let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa

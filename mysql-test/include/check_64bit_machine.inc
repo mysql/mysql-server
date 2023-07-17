@@ -15,7 +15,6 @@
 #
 # ==== See also ====
 #
-# - have_32bit.inc/have_64bit.inc/check_32bit_machine.inc
 # - have_64bit_ulong.inc/have_64bit_ulong.inc/check_32bit_ulong.inc
 
 --disable_query_log

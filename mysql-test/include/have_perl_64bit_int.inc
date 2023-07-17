@@ -1,5 +1,3 @@
---source include/have_64bit.inc
-
 # If supplied, use a custom path for a 64bit Perl.
 --let PATH = $MTR_PERL64_PATH:$PATH
 

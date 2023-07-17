@@ -13,7 +13,6 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/have_64bit.inc
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 

@@ -7,7 +7,6 @@
 
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
---source include/have_64bit.inc
 --source include/not_windows.inc
 
 #########################

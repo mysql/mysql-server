@@ -10,9 +10,6 @@
 # disabling checkpoints:
 --source include/have_debug.inc
 
-# perl: support for Q> in pack(), and 64-bit int:
---source include/have_64bit.inc
-
 --source ../include/redo_log_error_patterns.inc
 
 let $tmp_dir = $MYSQLTEST_VARDIR/tmp;

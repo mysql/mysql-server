@@ -18,8 +18,6 @@ have_mac_os.inc
 not_mac_os.inc
 freebsd.inc
 not_freebsd.inc
-have_32bit.inc
-have_64bit.inc
 have_32bit_ulong.inc
 have_64bit_ulong.inc
 have_little_endian.inc
@@ -48,9 +46,6 @@ have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
 have_moscow_leap_timezone.inc
 
-# 32/64 bits time_t
-have_32bits_time.inc
-have_64bits_time.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different

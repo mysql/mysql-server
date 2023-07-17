@@ -7,7 +7,7 @@
 #
 # ==== See also ====
 #
-# - have_32bit.inc/have_64bit.inc/check_32bit_machine.inc
+# - check_32bit_machine.inc
 # - have_64bit_ulong.inc/have_64bit_ulong.inc/check_32bit_ulong.inc
 
 --source include/check_64bit_ulong.inc

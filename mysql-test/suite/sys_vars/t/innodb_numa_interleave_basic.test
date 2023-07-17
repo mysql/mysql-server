@@ -1,5 +1,4 @@
 --source include/linux.inc
---source include/have_64bit.inc
 --source include/have_numa.inc
 
 SELECT @@GLOBAL.innodb_numa_interleave;

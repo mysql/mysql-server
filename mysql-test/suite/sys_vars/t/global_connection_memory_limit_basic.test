@@ -1,4 +1,3 @@
---source include/have_64bit.inc
 --source include/load_sysvars.inc
 --source include/have_nodebug.inc
 

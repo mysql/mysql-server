@@ -1,5 +1,3 @@
---source include/have_64bit.inc
-
 --echo # Testcase for the following bugs
 --echo # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST
 --echo # Bug#16418661 - CHANGING NAME IN FOR INNODB_DATA_FILE_PATH SHOULD NOT SUCCEED WITH LOG FILES
