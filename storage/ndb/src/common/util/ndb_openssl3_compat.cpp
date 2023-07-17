@@ -131,10 +131,6 @@ X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf,
   return X509V3_EXT_conf_nid(conf, ctx, ext_nid, const_cast<char *>(value));
 }
 
-int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *) {
-  return 0;
-}
-
 int EVP_PKEY_up_ref(EVP_PKEY *) {
   return 0;
 }
@@ -143,7 +139,7 @@ int X509_up_ref(X509 *) {
   return 0;
 }
 
-#ifdef __NEED_STUB_ASN1_TIME_GET0_FUNCTIONS
+#ifdef __NEED_STUB_ASN1_FUNCTIONS
 const ASN1_TIME *X509_get0_notBefore(const X509 *x) {
   return X509_get_notBefore(x);
 }
@@ -151,6 +147,16 @@ const ASN1_TIME *X509_get0_notBefore(const X509 *x) {
 const ASN1_TIME *X509_get0_notAfter(const X509 *x) {
   return X509_get_notAfter(x);
 }
-#endif // __NEED_STUB_ASN1_TIME_GET0_FUNCTIONS
+
+int ASN1_TIME_to_tm(const ASN1_TIME *, struct tm *) {
+  return 0;
+}
+
+int ASN1_INTEGER_get_uint64(uint64_t *v, const ASN1_INTEGER *) {
+  *v = 0;
+  return 0;
+}
+
+#endif // __NEED_STUB_ASN1_FUNCTIONS
 
 #endif
