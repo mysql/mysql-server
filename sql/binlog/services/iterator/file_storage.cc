@@ -335,7 +335,6 @@ class Binlog_iterator_ctx {
     auto saved_pos{reader.position()};
 
     unsigned char buffer[LOG_EVENT_HEADER_LEN];
-    memset(buffer, 0, LOG_EVENT_HEADER_LEN);
 
     while (true) {
       // save the position so that we can seek to it later on
@@ -368,8 +367,6 @@ class Binlog_iterator_ctx {
             unsigned int bytes_read{0};
             unsigned char gtid_buffer_stack
                 [mysql::binlog::event::Gtid_event::MAX_EVENT_LENGTH];
-            memset(gtid_buffer_stack, 0,
-                   mysql::binlog::event::Gtid_event::MAX_EVENT_LENGTH);
             unsigned char *gtid_buffer = gtid_buffer_stack;
 
             // swap buffer in the context
@@ -639,7 +636,6 @@ DEFINE_METHOD(Binlog_iterator_service_get_status, FileStorage::get,
   auto &ctx = *it->m_ctx;
   auto &reader = ctx.get_reader();
   *bytes_read = 0;
-  memset(buffer, 0, buffer_capacity);
 
   // update the file cursor (and get the event size, which we can disregard
   // here)
