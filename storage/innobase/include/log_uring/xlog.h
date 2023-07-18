@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include "log_uring/ptr.hpp"
 #include "log_uring/event.h"
 #include "log_uring/iouring.h"
@@ -55,3 +57,6 @@ private:
   std::vector<int> fd_;
   uint32_t sequence_;
 };
+
+
+void log_iouring_thread();

@@ -1,3 +1,5 @@
+
+
 #include "log_uring/xlog.h"
 #include "log_uring/iouring.h"
 #include <unistd.h>
@@ -9,6 +11,8 @@
 #define MAX_FILE_FD 32
 #define SQ_THD_IDLE 2000
 #define NUM_ENTRIES 32000
+
+
 
 xlog::xlog():
 max_sync_lsn_(0),
@@ -23,6 +27,7 @@ xlog::~xlog() {
 }
 
 void xlog::start() {
+#ifdef __URING__
   num_fd_ = MAX_FILE_FD;
   for (int i = 0; i < MAX_FILE_FD; i++) {
     file_ctrl ctrl;
@@ -50,6 +55,7 @@ void xlog::start() {
   }
 
   main_loop();
+#endif
 }
   
 int xlog::append(void *buf, size_t size, size_t lsn) {
@@ -82,6 +88,7 @@ int xlog::sync(size_t lsn) {
 
 
 int xlog::handle_event_list() {
+#ifdef __URING__
   std::scoped_lock l(mutex_queue_);
   std::vector<event*> list;
   max_to_sync_lsn_ = 0;
@@ -95,9 +102,13 @@ int xlog::handle_event_list() {
   }
   enqueue_sqe_fsync_combine();
   return io_uring_submit(&iouring_context_.ring);
+#else
+  return 0;
+#endif
 }
 
 int xlog::handle_completion(int submit) {
+#ifdef __URING__
   for (int i = 0; i < submit; i++) {
     iouring_cqe_t *cqe = NULL;
     int ret = io_uring_wait_cqe(&iouring_context_.ring, &cqe);
@@ -123,7 +134,7 @@ int xlog::handle_completion(int submit) {
   if (notify) {
     condition_.notify_all();
   }
-
+#endif
   return 0;
 }
 
@@ -166,6 +177,7 @@ void xlog::add_event(event *e) {
 }
 
 void xlog::enqueue_sqe_write(event *e) {
+#ifdef __URING__
   iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
   io_write_event_t *event = &e->event_.write_event_;
   size_t index = event->lsn_ % file_.size();
@@ -173,18 +185,22 @@ void xlog::enqueue_sqe_write(event *e) {
   event->index_ = index;
   io_uring_prep_write(sqe, fd, event->buffer_, event->size_, -1);
   io_uring_sqe_set_data(sqe, e);
+#endif
 }
 
 void xlog::enqueue_sqe_fsync(event *e) {
+#ifdef __URING__
   io_fsync_event_t *event = &e->event_.fsync_event_;
   uint64_t lsn = event->lsn_;
   if (max_to_sync_lsn_ < lsn) {
     max_to_sync_lsn_ = lsn;
   }
   free(e);
+#endif
 }
 
 void xlog::enqueue_sqe_fsync_combine() {
+#ifdef __URING__
   uint64_t max_lsn = 0;
   size_t size = file_.size();
   for (size_t i = 0; i < size; i++) {
@@ -203,6 +219,7 @@ void xlog::enqueue_sqe_fsync_combine() {
   if (max_lsn > max_to_sync_lsn_) {
     max_to_sync_lsn_ = max_lsn;
   }
+#endif
 }
 
 void xlog::enqueue_sqe(event *e) {

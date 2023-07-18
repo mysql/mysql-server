@@ -74,6 +74,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* log_checkpointer_mutex */
 #include "log0chkp.h"
 
+#include "log_uring/log_uring.h"
+
 /* log_calc_max_ages, ... */
 #include "log0files_capacity.h"
 

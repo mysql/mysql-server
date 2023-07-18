@@ -256,7 +256,8 @@ SET(INNOBASE_SOURCES
   ut/ut0vec.cc
   ut/ut0wqueue.cc
   log_uring/utils.cc
-  log_uring/xlog.cc  
+  log_uring/xlog.cc
+  log_uring/log_uring.cc
 )
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
@@ -384,3 +385,22 @@ IF(MSVC AND NOT WIN32_CLANG)
   ENDFOREACH()
   TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE "/wd4100")
 ENDIF()
+
+
+ADD_EXECUTABLE(
+  TestLogUring
+  log_uring/test_log_uring.cc
+  log_uring/xlog.cc
+  log_uring/utils.cc
+  log_uring/log_uring.cc
+)
+
+TARGET_LINK_LIBRARIES(
+  TestLogUring
+  uring
+)
+
+TARGET_COMPILE_DEFINITIONS(
+  TestLogUring
+  PUBLIC __URING__
+)
