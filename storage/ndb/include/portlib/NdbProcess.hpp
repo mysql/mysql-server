@@ -209,7 +209,7 @@ inline void NdbProcess::printerror()
                 NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                 (LPTSTR)&message, 0, NULL);
 
-  fprintf(stderr, "Function failed, error: %d, message: '%s'", err, message);
+  fprintf(stderr, "Function failed, error: %lu, message: '%s'", err, message);
   LocalFree(message);
 }
 
@@ -270,7 +270,6 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
   std::string final_arg(path);
   final_arg.append(" ");
   final_arg.append(args_str.c_str());
-  LPSTR r = (LPSTR)final_arg.c_str();
 
   if(pipes) {
     static constexpr int Inherit = HANDLE_FLAG_INHERIT;
@@ -285,7 +284,7 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
   // Start the child process.
   if (!CreateProcess(
     path,     // Application Name
-    (LPSTR)final_arg.c_str(), // command line
+    (LPSTR)const_cast<char *>(final_arg.c_str()), // command line
     nullptr,  // process security attributes
     nullptr,  // primary thread security attributes
     (bool) pipes, // Flag allowing pipe handles to be inherited
