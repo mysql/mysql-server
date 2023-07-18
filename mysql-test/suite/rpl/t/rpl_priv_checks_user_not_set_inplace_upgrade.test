@@ -8,15 +8,9 @@
 # R1. Upgrading from a version that doesn't have the proper system table columns
 #     will create those columns.
 #
-# R2. Upgrading from a FILE repository setup to a TABLE repository setup will
-#     instantiate the system table columns.
-#
-# R3. Upgrading from a TABLE repository setup to a FILE repository setup will
-#     instantiate the info files.
-#
 # ==== Implementation ====
 #
-# TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not configured
+# TC1. Upgrade from TABLE with PRIVILEGE_CHECKS_USER not configured
 # -------------------------------------------------------------------------
 # 1) Create a table and insert a record on the master.
 # 2) Synchronize master and slave and stop the slave.
@@ -24,8 +18,7 @@
 #    `PRIVILEGE_CHECKS_USER`.
 # 4) Ensure the slave has no information on system tables regarding
 #    `PRIVILEGE_CHECKS_USER`.
-# 5) Restart the server with `--relay-log-info-repository=TABLE
-#    --upgrade=FORCE`.
+# 5) Restart the server with `--upgrade=FORCE`.
 # 6) Ensure the slave now has structure information on system tables regarding
 #    `PRIVILEGE_CHECKS_USER` but related columns aren't instantiated.
 # 7) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
@@ -36,12 +29,12 @@
 #
 
 --source include/no_valgrind_without_big.inc
+# This test is independent from binary log format
 --source include/have_binlog_format_row.inc
---source include/not_mts_replica_parallel_workers.inc
 
 --echo #
---echo # TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not
---echo #      configured
+--echo # TC1. Upgrade from TABLE with PRIVILEGE_CHECKS_USER not configured
+--echo #
 --echo # --------------------------------------------------------------
 --echo #
 
@@ -55,6 +48,7 @@ INSERT INTO t VALUES (1), (2);
 
 # 2) Synchronize master and slave and stop the slave.
 --source include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression("Error writing relay log configuration");
 --source include/stop_slave.inc
 
 # 3) Remove the columns from `mysql.slave_relay_log_info` that regard
@@ -72,20 +66,16 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 --let $assert_cond = $configured_priv_checks_user = 1
 --source include/assert.inc
 
---let $assert_text = Table mysql.slave_relay_log_info has no information since --relay-log-info-repository=FILE
---let $assert_cond = $channels_in_table = 0
---source include/assert.inc
-
 --let $assert_text = Table mysql.slave_relay_log_info has no columns regarding PRIVILEGE_CHECKS_USER
 --let $assert_cond = $priv_checks_columns = 0
 --source include/assert.inc
 
-# 5) Restart the server with `--relay-log-info-repository=TABLE --upgrade=FORCE`.
+# 5) Restart the server with `--upgrade=FORCE`.
 --let $rpl_server_number = 2
 --source include/rpl_stop_server.inc
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_parameters = --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
 --source include/rpl_start_server.inc
 --source include/start_slave.inc
@@ -100,7 +90,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 --let $assert_cond = $priv_checks_columns = 2
 --source include/assert.inc
 
---let $assert_text = Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER since --relay-log-info-repository=TABLE
+--let $assert_text = Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER
 --let $assert_cond = $channels_in_table = 1
 --source include/assert.inc
 
@@ -125,7 +115,6 @@ DROP TABLE t;
 
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
-SET GLOBAL relay_log_info_repository="FILE";
 --source include/start_slave.inc
 
 --source include/rpl_end.inc
