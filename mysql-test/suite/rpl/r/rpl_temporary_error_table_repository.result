@@ -10,19 +10,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 call mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
 SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.innodb_lock_wait_timeout = 1;
-SET @@GLOBAL.master_info_repository = TYPE;
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-SET @@GLOBAL.relay_log_info_repository = TYPE;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 [connection slave1]
 BEGIN;
 INSERT INTO t1 VALUES (7,0);
@@ -46,8 +34,6 @@ ROLLBACK;
 [connection slave]
 include/stop_slave.inc
 SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
-SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
-SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
 include/start_slave.inc
 [connection master]

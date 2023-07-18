@@ -15,12 +15,6 @@
 
 call mtr.add_suppression("Invalid .* username when attempting to connect to the source server");
 
-# Multi source replication needs those repositories on TABLE
---let $save_mi_repo_type=`SELECT @@GLOBAL.master_info_repository`
-SET GLOBAL master_info_repository='TABLE';
---let $save_rli_repo_type=`SELECT @@GLOBAL.relay_log_info_repository`
-SET GLOBAL relay_log_info_repository='TABLE';
-
 --echo #
 --echo # 1. Without having a default channel configured
 --echo #
@@ -56,9 +50,3 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-de
 
 # Clean up
 RESET SLAVE ALL;
---disable_warnings
---replace_result $save_mi_repo_type SAVE_CM_REPO_TYPE
---eval SET @@global.master_info_repository='$save_mi_repo_type'
---replace_result $save_rli_repo_type SAVE_AM_REPO_TYPE
---eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
---enable_warnings

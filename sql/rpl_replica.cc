@@ -1807,7 +1807,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     DBUG_PRINT("info", ("Flushing relay log and source info repository."));
     if (current_thd)
       THD_STAGE_INFO(current_thd,
-                     stage_flushing_relay_log_and_source_info_repository);
+                     stage_flushing_applier_and_connection_metadata);
 
     /*
       Flushes the master info regardless of the sync_source_info option and

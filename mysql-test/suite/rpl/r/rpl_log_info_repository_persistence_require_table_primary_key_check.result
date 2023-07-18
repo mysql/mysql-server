@@ -12,77 +12,45 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #      Check the performance_schema table and file repository are correct
 STOP REPLICA;
 START REPLICA;
-include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+SELECT REQUIRE_TABLE_PRIMARY_KEY_CHECK FROM mysql.slave_relay_log_info;
+REQUIRE_TABLE_PRIMARY_KEY_CHECK
+ON
+include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
-CREATE TABLE relay_log_info_content (line_content TEXT);
-LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
-include/assert.inc [In the file the field is set to 2]
-DROP TABLE relay_log_info_content;
 
 # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
 #      Check the performance_schema table and file repository are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START REPLICA;
-include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+SELECT REQUIRE_TABLE_PRIMARY_KEY_CHECK FROM mysql.slave_relay_log_info;
+REQUIRE_TABLE_PRIMARY_KEY_CHECK
+OFF
+include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
-CREATE TABLE relay_log_info_content (line_content TEXT);
-LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
-include/assert.inc [In the file the field is set to 3]
-DROP TABLE relay_log_info_content;
 
 # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
 #      Check the performance_schema table and file repository are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 START REPLICA;
-include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+SELECT REQUIRE_TABLE_PRIMARY_KEY_CHECK FROM mysql.slave_relay_log_info;
+REQUIRE_TABLE_PRIMARY_KEY_CHECK
+STREAM
+include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
-CREATE TABLE relay_log_info_content (line_content TEXT);
-LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
-include/assert.inc [In the file the field is set to 1]
-DROP TABLE relay_log_info_content;
 
 # 1.4. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to GENERATE
 #      Check the performance_schema table and file repository are correct
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = GENERATE;
 START REPLICA;
-include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
+SELECT REQUIRE_TABLE_PRIMARY_KEY_CHECK FROM mysql.slave_relay_log_info;
+REQUIRE_TABLE_PRIMARY_KEY_CHECK
+GENERATE
+include/assert.inc [Check mysql.slave_relay_log_info]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is GENERATE]
-CREATE TABLE relay_log_info_content (line_content TEXT);
-LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
-include/assert.inc [In the file the field is set to 4]
-DROP TABLE relay_log_info_content;
-
-# 2.1 Upgrade the server while using File repositories
-#     Start the server using a file repository that has no REQUIRE_TABLE_PRIMARY_KEY_CHECK
-#     The starting value should be 1 in the file / STREAM
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
-include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
-include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
-CREATE TABLE relay_log_info_content (line_content TEXT);
-LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
-include/assert.inc [In the file the field is set to 1]
-DROP TABLE relay_log_info_content;
-
-# 2.2 Check FILE repository corruptions
-#     Start the server using a file repository that has an invalid Require_table_primary_key_check value
-#     Check we cannot start the slave process
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
-START REPLICA;
-ERROR HY000: Replica failed to initialize applier metadata structure from the repository
-
-# 3.1 Upgrade the server to Table repositories from File repositories
-#     Start the server using a file repository that has no Require_table_primary_key_check
-ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
-UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
-include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
-include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
-include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
+STOP REPLICA;
 
 # 4.1 Upgrade the server while using Table repositories
 #     Have 3 channels:
@@ -96,7 +64,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_r
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --upgrade=FORCE]
 include/assert.inc [Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 RESET REPLICA ALL FOR CHANNEL "ch1";
@@ -104,7 +72,7 @@ include/rpl_set_gtid_mode.inc
 
 # 5. Error scenario: Test when the stored configuration for a GR channel is invalid
 UPDATE mysql.slave_relay_log_info SET Require_table_primary_key_check='GENERATE' WHERE Channel_name="group_replication_recovery";
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip_replica_start]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start]
 RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
 
 # 6.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
@@ -115,7 +83,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 RESET REPLICA;
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start --relay-log-info-repository=TABLE]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start ]
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 
 # 6.2. Execute a RESET REPLICA ALL command.
@@ -144,5 +112,6 @@ CALL mtr.add_suppression("Failed to create or recover replication info repositor
 CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Replication configuration appears to be corrupted. On Group Replication channel 'group_replication_recovery'*");
 CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel 'group_replication_recovery'*");
+CALL mtr.add_suppression("Error writing relay log configuration.");
 START REPLICA;
 include/rpl_end.inc

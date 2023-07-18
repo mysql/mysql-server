@@ -26,7 +26,6 @@
 # WL#7491: GTID-based replication applier recovery and positioning
 #
 
---source include/have_slave_repository_type_table.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc

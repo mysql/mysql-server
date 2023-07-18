@@ -82,22 +82,8 @@ SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
 UNLOCK TABLES;
 # Check to ensure that in memory rli positions are equal to the positions in
 # slave's repository table.
-if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
-{
-  --let $slave_master_log_pos_in_repo= `SELECT Master_log_pos FROM mysql.slave_relay_log_info LIMIT 1`
-}
-if (`SELECT @@GLOBAL.relay_log_info_repository = 'FILE'`)
-{
-  --disable_query_log
-  CREATE TABLE rli_table(rli_info VARCHAR(100));
-  --let $MYSQLD_DATADIR= `select @@datadir`
-  --let $rli_file=$MYSQLD_DATADIR/relay-log.info
-  --replace_result $rli_file rli_file
-  --eval LOAD DATA LOCAL INFILE '$rli_file' INTO TABLE rli_table
-  --let $slave_master_log_pos_in_repo= `SELECT * FROM rli_table LIMIT 4,1`
-  DROP TABLE rli_table;
-  --enable_query_log
-}
+
+--let $slave_master_log_pos_in_repo= `SELECT Master_log_pos FROM mysql.slave_relay_log_info LIMIT 1`
 
 --let $slave_master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
 --let $assert_text= Exec_Master_Log_Pos in SHOW SLAVE STATUS must be equal to mater_log_pos in slave's repository

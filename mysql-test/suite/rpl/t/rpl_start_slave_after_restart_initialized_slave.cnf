@@ -3,8 +3,6 @@
 [mysqld.1]
 
 [mysqld.2]
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 
 [mysqld.3]
 

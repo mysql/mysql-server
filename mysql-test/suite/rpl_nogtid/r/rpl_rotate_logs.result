@@ -1,24 +1,10 @@
 include/master-slave.inc
-[connection master]
-CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
-CALL mtr.add_suppression("Failed to open the existing info file");
-CALL mtr.add_suppression("Error while reading from connection metadata repository");
-CALL mtr.add_suppression("Failed to create a new info file");
-CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-start slave;
-Got one of the listed errors
-start slave;
-ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
-CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
-ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
-RESET REPLICA;
-CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
-reset binary logs and gtids;
-START REPLICA;
-include/wait_for_slave_to_start.inc
+[connection master]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);

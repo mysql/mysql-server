@@ -88,6 +88,7 @@ START SLAVE IO_THREAD;
 ###
 ### Counting events and generating master.info.backup files
 ###
+CREATE TABLE saved_positions (id INTEGER, pos INTEGER);
 while ($event_counter <= $expected_amount_of_events)
 {
   # We need to wait for an event to be queued until the expected amount
@@ -117,8 +118,9 @@ while ($event_counter <= $expected_amount_of_events)
   {
     --source include/remove_debug_point.inc
   }
-  # Generate a master.info.backup file pointing to the event to be queued
-  --copy_file $MYSQLD_SLAVE_DATADIR/master.info $MYSQLD_SLAVE_DATADIR/master.backup.$event_counter
+  # Generate a backup of repository pointing to the event to be queued
+  --let $read_pos= query_get_value(SHOW REPLICA STATUS, Read_Source_Log_Pos, 1)
+  --eval INSERT INTO saved_positions VALUE($event_counter, $read_pos);
   # Let the event be queued and the IO thread to retrieve the next one
   if ($event_counter < $expected_amount_of_events)
   {
@@ -324,13 +326,8 @@ if ($use_gtids)
 ###
 ### Cleanup
 ###
-# Remove the master.info.backup files
---let $event_counter= 2
-while ($event_counter <= $expected_amount_of_events)
-{
-  --remove_file $MYSQLD_SLAVE_DATADIR/master.backup.$event_counter
-  --inc $event_counter
-}
+# Remove backup positions
+DROP TABLE saved_positions;
 # Drop the created tables
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;

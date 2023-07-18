@@ -3,17 +3,12 @@
 # This test calls CHANGE MASTER in order to check if replication can
 # restart from where SQL thread left, not from where I/O thread left.
 #
-# This file tests the case when master_info is stored in a table (see
-# the -master.opt file).
-#
 # ==== See also ====
 #
 # rpl_change_master.test
 
 --source include/not_group_replication_plugin.inc
 --source include/no_valgrind_without_big.inc
-# Test requires master-info-repository = TABLE
---source include/not_master_info_file.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --let $rpl_privilege_checks_user_grant_option = 1
 --source include/master-slave.inc

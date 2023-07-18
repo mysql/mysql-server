@@ -25,7 +25,6 @@
 --let $rpl_skip_start_slave= 1
 --let $rpl_multi_source= 1
 --source include/have_binlog_format_row_or_statement.inc
---source include/have_slave_repository_type_table.inc
 --source include/force_restart.inc
 --source include/rpl_init.inc
 

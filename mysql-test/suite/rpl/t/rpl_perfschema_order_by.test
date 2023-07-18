@@ -14,8 +14,6 @@
 # Bug #22958077: ORDER BY LAST_SEEN_TRANSACTION RESULTS IN EMPTY SET (OR DEBUG
 #                ASSERTION)
 
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --let $rpl_topology= 3->2,1->2
 --let $rpl_multi_source= 1
 --let $rpl_skip_start_slave= 1

@@ -99,37 +99,5 @@ CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 The list should have NO elements.
 Replicate_Ignore_Server_Ids = ''
 
-# === Bug #18593479: ON MASTER_INFO_REPOSITORY CHANGE, ===
-# === IGNORE_SERVER_IDS DOUBLES WITH DUP VALUES        ===
-SET GLOBAL master_info_repository= 'FILE';
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (5,10,15);
-include/start_slave.inc
-Expect 3 elements.
-Replicate_Ignore_Server_Ids = '5, 10, 15'
-
-include/stop_slave.inc
-SET GLOBAL master_info_repository= 'TABLE';
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-include/start_slave.inc
-
-ISSUE WAS HERE: Due to buggy behaviour, we woule see 6 elements here.
-Expect 3 elements ONLY to verify the fix when changing from FILE->TABLE.
-Replicate_Ignore_Server_Ids = '5, 10, 15'
-
-include/stop_slave.inc
-SET GLOBAL master_info_repository= 'FILE';
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-include/start_slave.inc
-
-ISSUE WAS HERE TOO: Due to buggy behaviour, we woule see 12 elements here.
-Expect 3 elements ONLY to verify the fix when changinf from TABLE->FILE.
-Replicate_Ignore_Server_Ids = '5, 10, 15'
-
-include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 include/start_slave.inc
 include/rpl_end.inc

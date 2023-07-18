@@ -1,10 +1,4 @@
 TRUNCATE TABLE mysql.slow_log;
-SET @old_master_info_repository = @@GLOBAL.master_info_repository;
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -18,12 +12,6 @@ SET SESSION long_query_time = 0;
 ALTER USER test_user2 IDENTIFIED BY 'azundris2' REPLACE 'azundris2';
 SET PASSWORD='azundris2' REPLACE 'azundris2';
 SET PASSWORD FOR test_user2='azundris2' REPLACE 'azundris2';
-SET GLOBAL master_info_repository = 'TABLE';
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-SET GLOBAL relay_log_info_repository = 'TABLE';
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3',
 SOURCE_BIND = 'eth4n',
 SOURCE_TLS_CIPHERSUITES = ''
@@ -43,12 +31,6 @@ SOURCE_DELAY = 4711, SOURCE_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL master_info_repository = DEFAULT;
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-SET GLOBAL relay_log_info_repository = DEFAULT;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 SET SESSION long_query_time=  @old_long_query_time;
@@ -106,5 +88,3 @@ SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
 TRUNCATE TABLE mysql.slow_log;
 TRUNCATE TABLE mysql.general_log;
-SET GLOBAL  master_info_repository= @old_master_info_repository;
-SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;

@@ -9,9 +9,7 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use 
 # Bug#17733 Flushing logs causes daily server crash
 #
 
-select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
 select @@GLOBAL.binlog_expire_logs_seconds into @save_binlog_expire_logs_seconds;
-set @@GLOBAL.relay_log_info_repository = 'FILE';
 # The hostname needs to be stripped off its extensions as even
 # in code we use the stripped hostname as default basename
 --let $HOST_NAME= `SELECT SUBSTRING_INDEX(@@hostname, '.', 1)`
@@ -24,5 +22,4 @@ flush logs;
 show variables like 'log_bin%';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 show variables like 'relay_log%';
-set @@GLOBAL.relay_log_info_repository = @save_relay_log_info_repository;
 set @@GLOBAL.binlog_expire_logs_seconds = @save_binlog_expire_logs_seconds;

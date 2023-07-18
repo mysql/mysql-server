@@ -20,8 +20,6 @@
 --source include/not_have_privilege_checks_user.inc
 --source include/have_binlog_format_row.inc
 
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # 1. Set up source server_1 with server_2 being a replica.

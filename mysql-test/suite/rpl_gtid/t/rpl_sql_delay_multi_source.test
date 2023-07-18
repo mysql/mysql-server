@@ -18,8 +18,6 @@
 
 --source include/big_test.inc
 --source include/have_debug.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 --let $rpl_topology=1->2,3->2
 --let $rpl_multi_source= 1

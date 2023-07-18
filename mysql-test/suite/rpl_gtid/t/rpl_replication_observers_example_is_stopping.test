@@ -51,8 +51,6 @@
 --source include/have_replication_observers_example_plugin.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 # This test cannot run with MTS
 --source include/not_mts_replica_parallel_workers.inc
 --let $rpl_skip_start_slave= 1

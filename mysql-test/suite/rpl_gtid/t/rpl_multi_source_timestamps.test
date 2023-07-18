@@ -24,8 +24,6 @@
 #   ICT: immediate_commit_timestamp
 
 --source include/have_binlog_format_row.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 # Establish the msr topology.
 --let $rpl_topology=1->2,3->2

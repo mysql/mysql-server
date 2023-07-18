@@ -3,7 +3,7 @@
 # Test that server can work fine after moving binlog or relay log
 # files to another directory and setting binlog or relay log paths to
 # the new path.
-# 
+#
 # ==== Method ====
 #
 # Start replication, and then shutdown the master, move the binary
@@ -24,7 +24,7 @@ source include/have_binlog_format_row.inc;
 
 # Since this test relies heavily on filesystem operations (like
 # moving files around, backslashes and so forth) we avoid messing
-# around with windows access violations for not cluttering the 
+# around with windows access violations for not cluttering the
 # test case any further. It is prepared to support windows, but
 # it is not 100% compliant.
 --source include/not_windows.inc
@@ -191,19 +191,10 @@ DROP TABLE t1;
 # relay logs
 
 # since the complete fix for the relocation of logs is
-# done in BUG#13428851 it does not help here to try 
+# done in BUG#13428851 it does not help here to try
 # to start the slave as it would fail (relay-log.info is
 # tainted with the full path in the RELAY_LOG_FILE position).
 # Instead, we reset the slave and let the test clean up.
-
-if (!`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
-{
-  --let $relocate_fix_relay_log_info= $slave_datadir/relay-log.info
-}
-if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
-{
-  --let $relocate_fix_relay_log_info=
-}
 
 --let $relocate_index_file=$tmpdir/slave-relay-bin.index
 --source include/relocate_binlogs.inc
@@ -221,48 +212,45 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
 
 --connection slave
 
-# Fix the relay log info name if the server was using tables instead of files
+# Fix the relay log info name if the server was using tables
 # as this was not fixed in the relocate_binlogs.inc file
-if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
+
+--disable_query_log
+SET SQL_LOG_BIN=0;
+
+# On server startup, applier metadata tables are initialized
+# and also a verification of the relay log files is done.
+# Since the tables still have the old value for the relay_log_name
+# field, the server will complain. We need to suppress these
+# warnings so that the test does not fail.
+call mtr.add_suppression("Failed to open the relay log");
+call mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
+call mtr.add_suppression("Failed to initialize the connection metadata structure");
+call mtr.add_suppression("Failed to create or recover replication info repositories.");
+
+--let $path_separator=/
+if ($is_windows)
 {
-  --disable_query_log
-  SET SQL_LOG_BIN=0;
-
-  # On server startup, the slave info tables are initialized,
-  # and also a verification of the relay log files is done.
-  # Since the tables still have the old value for the relay_log_name
-  # field, the server will complain. We need to suppress these 
-  # warnings so that the test does not fail.
-  call mtr.add_suppression("Failed to open the relay log");
-  call mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
-  call mtr.add_suppression("Failed to initialize the connection metadata structure");
-  call mtr.add_suppression("Failed to create or recover replication info repositories.");
-
-  --let $path_separator=/
-  if ($is_windows)
-  {
-    --let $path_separator=\
-  }
-  --let $relay_log_name= `SELECT Relay_log_name FROM mysql.slave_relay_log_info LIMIT 1`
-  --let $new_relay_log_name= `SELECT RIGHT(RTRIM("$relay_log_name"), LOCATE("$path_separator",REVERSE(RTRIM("$relay_log_name"))) -1)`
-  --eval UPDATE mysql.slave_relay_log_info SET Relay_log_name='$slave_datadir$path_separator$new_relay_log_name'
-  SET SQL_LOG_BIN=1;
-
-  --let $path_separator=
-  --let $relay_log_name=
-  --let $new_relay_log_name=
-  --let $relocate_fix_relay_log_info=
-
-  --enable_query_log
-
-  # Due to changes on slave start procedure (relay log initialization
-  # error requires RESET SLAVE or server restart) we need to restart
-  # server to relay log file change be considered.
-  --let $include_silent= 1
-  --let $rpl_server_number= 2
-  --source include/rpl_restart_server.inc
-  --let $include_silent= 0
+  --let $path_separator=\
 }
+--let $relay_log_name= `SELECT Relay_log_name FROM mysql.slave_relay_log_info LIMIT 1`
+--let $new_relay_log_name= `SELECT RIGHT(RTRIM("$relay_log_name"), LOCATE("$path_separator",REVERSE(RTRIM("$relay_log_name"))) -1)`
+--eval UPDATE mysql.slave_relay_log_info SET Relay_log_name='$slave_datadir$path_separator$new_relay_log_name'
+SET SQL_LOG_BIN=1;
+
+--let $path_separator=
+--let $relay_log_name=
+--let $new_relay_log_name=
+
+--enable_query_log
+
+# Due to changes on slave start procedure (relay log initialization
+# error requires RESET SLAVE or server restart) we need to restart
+# server to relay log file change be considered.
+--let $include_silent= 1
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+--let $include_silent= 0
 
 # The slave will restart if we have fixed the relay-log.info
 # correctly

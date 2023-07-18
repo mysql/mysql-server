@@ -8,7 +8,7 @@ Value	MYSQLTEST_VARDIR/tmp/something-relay.index
 Variable_name	relay_log_info_file
 Value	relay-log.info
 Variable_name	relay_log_info_repository
-Value	FILE
+Value	TABLE
 Variable_name	relay_log_purge
 Value	ON
 Variable_name	relay_log_recovery

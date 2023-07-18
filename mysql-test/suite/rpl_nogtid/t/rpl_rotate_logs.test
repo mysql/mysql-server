@@ -4,66 +4,20 @@
 
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
---let $rpl_skip_change_master= 1
---let $rpl_skip_start_slave= 1
 -- source include/master-slave.inc
+--disable_result_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--enable_result_log
+
 #
 # Test is run with max_binlog_size=4096 to force automatic rotation of the
 # binary log
 # Tests done:
-# - Check that replicas reports correct failures if master.info has strange
-#   modes/information
 # - Automatic binary log rotation
 # - Ensure that temporary tables works over flush logs and binary log
 #   changes
 # - Test creating a duplicate key error and recover from it
-
-# Create empty file
-connection slave;
-let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
-write_file $MYSQLD_SLAVE_DATADIR/master.info;
-EOF
-chmod 0000 $MYSQLD_SLAVE_DATADIR/master.info;
-
---disable_result_log
-CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
-CALL mtr.add_suppression("Failed to open the existing info file");
-CALL mtr.add_suppression("Error while reading from connection metadata repository");
-CALL mtr.add_suppression("Failed to create a new info file");
-CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
---enable_result_log
---disable_query_log ONCE
-CALL mtr.add_suppression("Error reading source configuration");
-
-
-# START SLAVE will fail because it can't read the file (mode 000)
-# (system error 13)
---replace_result $MYSQL_TEST_DIR TESTDIR
---error ER_CONNECTION_METADATA, 29
-start slave;
-chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
-# It will fail again because the file is empty so the replica cannot get valuable
-# info about how to connect to the source from it (failure in
-# init_strvar_from_file() in init_master_info()).
---error ER_CONNECTION_METADATA
-start slave;
---replace_result $MASTER_MYPORT MASTER_PORT
-
-# CHANGE REPLICATION SOURCE will fail because it first parses master.info before changing
-# it (so when source.info is bad, people have to use RESET REPLICA first).
---replace_column 2 ####
---error ER_CONNECTION_METADATA
-eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
-RESET REPLICA;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 2 ####
-eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
-connection master;
-reset binary logs and gtids;
-connection slave;
-START REPLICA;
---source include/wait_for_slave_to_start.inc
-connection master;
 
 #
 # Test FLUSH LOGS

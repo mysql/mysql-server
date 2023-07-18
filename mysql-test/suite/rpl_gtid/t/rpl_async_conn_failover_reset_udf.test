@@ -20,7 +20,6 @@
 #      It will be allowed.
 #   6. Clean up.
 ###############################################################################
---source include/have_slave_repository_type_table.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

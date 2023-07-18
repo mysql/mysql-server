@@ -164,10 +164,6 @@ perl mysql-test-run.pl --timer --force --no-skip --testcase-timeout=60 --debug-s
 # Rpl suite with MTA replica-parallel-type=logical_clock and replica-preserve-commit-order=0
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
 
-# relay-log-info-repository
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --do-suite=rpl --mysqld=--relay-log-info-repository=FILE  --no-skip
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --do-suite=rpl --mysqld=--master-info-repository=FILE  --no-skip
-
 # RPL suite + MTS + WRITESET + LOGICAL_CLOCK with binlog compression turned ON.
 perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60 --comment=replication_compression_mts_lc_ws --vardir=var-rpl-comp-mts-lc-ws --mysqld=--replica_parallel_type=LOGICAL_CLOCK --mysqld=--replica_parallel_workers=4 --mysqld=--binlog-format=ROW --mysqld=--binlog-transaction-dependency-tracking=WRITESET --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --no-skip
 

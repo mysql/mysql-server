@@ -8,8 +8,8 @@
 # Problem:
 # =======
 # 2 level replication M1 -> S1 ->S2 ( S1 is slave of M1; S2 is slave of S1)
-# replicating a non-transactional storage engine table (e.g. MyISAM) when set
-# relay_log_info_repository=TABLE; and binlog rotation occurs in the middle
+# replicating a non-transactional storage engine table (e.g. MyISAM);
+# and binlog rotation occurs in the middle
 # of statement that was translated to multiple rows, then you loose part of
 # that events.
 #
@@ -19,7 +19,7 @@
 #
 # Test:
 # =====
-# Have mixed based replication, relay_log_info_repository=TABLE and
+# Have mixed based replication and
 # max_binlog_size=4096 on all servers in 3 NODE TOPOLOGY. On master
 # generate a single WRITE_ROWS_EVENT which has multiple row updates. When
 # this event is replicated to slave, it will be split across relay logs.

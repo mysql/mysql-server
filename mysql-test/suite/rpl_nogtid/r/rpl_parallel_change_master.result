@@ -53,7 +53,6 @@ must be ON
 call mtr.add_suppression("MTA recovery: automatic recovery failed.*");
 call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
-call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
 SELECT @@global.relay_log_recovery as 'must be OFF';
 must be OFF
@@ -67,12 +66,6 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
 SET @@global.replica_parallel_workers=2;
-SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
-SET @@global.relay_log_info_repository='TABLE';
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 CREATE DATABASE d1;
@@ -110,7 +103,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
-SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
 include/start_slave.inc
 [connection master]
 DROP DATABASE d1;

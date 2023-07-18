@@ -29,8 +29,6 @@
 
 --source include/master-slave.inc
 --source include/rpl_connection_slave.inc
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 
 --echo ##### TEST FOR NEW CHANNEL #####
 

@@ -1,5 +1,5 @@
 ########################################################################################
-# This test verifies the options --sync-relay-log-info and --relay-log-recovery by 
+# This test verifies the options --sync-relay-log-info and --relay-log-recovery by
 # crashing the slave in two different situations:
 #  (case-1) - Corrupt the relay log with changes which were not processed by
 #  the SQL Thread and crashes it.
@@ -13,13 +13,6 @@
 #    5 - Verifies if the slave is sync with the master which means that the information
 #    loss was circumvented by the recovery process.
 #
-#  Case 2:
-#    1 - Stops the SQL/IO Threads
-#    2 - Inserts new records into the master.
-#    3 - Corrupts the master.info with wrong coordinates.
-#    4 - Crashes the slave
-#    5 - Verifies if the slave is sync with the master which means that the information
-#    loss was circumvented by the recovery process.
 ########################################################################################
 ########################################################################################
 #                                Configuring the environment
@@ -52,8 +45,6 @@ insert into t1(a) values(3);
 
 connection slave;
 let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
---replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
---copy_file $MYSQLD_SLAVE_DATADIR/master.info $MYSQLD_SLAVE_DATADIR/master.backup
 --source include/stop_slave_sql.inc
 
 connection master;
@@ -94,60 +85,11 @@ let $diff_tables=master:t1,slave:t1;
 source include/diff_tables.inc;
 
 ########################################################################################
-#                             Case 2: Corrupt a master.info
-########################################################################################
---echo =====Corrupting the master.info=======;
-connection slave;
---source include/stop_slave.inc
-
-connection master;
-FLUSH LOGS;
-
-insert into t1(a) values(7);
-insert into t1(a) values(8);
-insert into t1(a) values(9);
-
-connection slave;
-let MYSQLD_SLAVE_DATADIR=`select @@datadir`;
-
---perl
-use strict;
-use warnings;
-my $src= "$ENV{'MYSQLD_SLAVE_DATADIR'}/master.backup";
-my $dst= "$ENV{'MYSQLD_SLAVE_DATADIR'}/master.info";
-open(FILE, "<", $src) or die;
-my @content= <FILE>;
-close FILE;
-open(FILE, ">", $dst) or die;
-binmode FILE;
-print FILE @content;
-close FILE;
-EOF
-
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-SET SESSION debug="+d,crash_before_rotate_relaylog";
---error 2013
-FLUSH LOGS;
-
---let $rpl_server_number= 2
---source include/rpl_reconnect.inc
-
---echo =====Dumping and comparing tables=======;
---source include/start_slave.inc
-
-connection master;
---source include/sync_slave_sql_with_master.inc
-
-let $diff_tables=master:t1,slave:t1;
-source include/diff_tables.inc;
-
-########################################################################################
 #                                      Clean up
 ########################################################################################
 --echo =====Clean up=======;
 connection master;
 drop table t1;
 
---remove_file $MYSQLD_SLAVE_DATADIR/master.backup
 --source include/rpl_end.inc
 

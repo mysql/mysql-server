@@ -29,8 +29,6 @@ CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db1.t%');
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
-SET @@GLOBAL.master_info_repository= "TABLE";
-SET @@GLOBAL.relay_log_info_repository= "TABLE";
 SET @@GLOBAL.max_relay_log_size= 536870912;
 SET @@GLOBAL.max_relay_log_size= 0;
 SET @@GLOBAL.replica_net_timeout= 10;

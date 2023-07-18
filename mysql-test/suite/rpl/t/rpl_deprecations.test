@@ -9,7 +9,7 @@
 # default, so skip the test if they are set on the command line while
 # invoking mtr.
 --source include/have_binlog_format_row.inc
-let $variable_names = 'master_info_repository', 'relay_log_info_repository', 'replica_parallel_workers', 'replica_preserve_commit_order',
+let $variable_names = 'replica_parallel_workers', 'replica_preserve_commit_order',
 'replica_parallel_type', 'replica_transaction_retries', 'slave_rows_search_algorithms','transaction_write_set_extraction',
 'binlog_transaction_dependency_tracking';
 --source include/skip_by_command_line_option.inc
@@ -17,7 +17,6 @@ let $variable_names = 'master_info_repository', 'relay_log_info_repository', 're
 #####################################################################
 # WL#11031: Deprecate --relay-log-info-file and --master-info-file  #
 # WL#12892: Deprecate --slave_rows_search_algorithms                #
-# WL#13958 : Deprecate relay_log_info_repository                    #
 # WL#13968 : Deprecate sync_relay_log_info                          #
 # WL#13964: Deprecate binlog_transaction_dependency_tracking        #
 #####################################################################
@@ -31,16 +30,6 @@ let $variable_names = 'master_info_repository', 'relay_log_info_repository', 're
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --let $rli_file=$MYSQLD_DATADIR/relay-log.info
 --let $mi_file=$MYSQLD_DATADIR/master.info
-
-# assert deprecation warning (TABLE), deprecation warning (FILE) and revert
-SET @@global.master_info_repository="TABLE";
-SET @@global.master_info_repository="FILE";
-SET @@global.master_info_repository="TABLE";
-
-# assert deprecation warning (TABLE), deprecation warning (FILE) and revert
-SET @@global.relay_log_info_repository="TABLE";
-SET @@global.relay_log_info_repository="FILE";
-SET @@global.relay_log_info_repository="TABLE";
 
 # check reading deprecated system variables
 SELECT @@global.relay_log_info_file;
@@ -95,15 +84,12 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-repository=TABLE --master-info-file=$mi_file --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-file=$mi_file --skip-replica-start --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
   }
 
   if ($i == 1)
   {
     # check that warnings are emited when setting persist_only as well
-    SET PERSIST_ONLY relay_log_info_repository='FILE';
-    SET PERSIST_ONLY master_info_repository='TABLE';
-    SET PERSIST_ONLY binlog_transaction_dependency_tracking=COMMIT_ORDER;
     SET PERSIST_ONLY transaction_write_set_extraction='MURMUR32';
     SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
     SET PERSIST_ONLY replica_parallel_type='DATABASE';
@@ -117,8 +103,6 @@ while($i > 0) {
     SET PERSIST_ONLY replica_parallel_workers=0;
 
     # check that warnings are emited when setting persist as well
-    SET PERSIST relay_log_info_repository='FILE';
-    SET PERSIST master_info_repository='TABLE';
     SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
     SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
     SET PERSIST transaction_write_set_extraction='MURMUR32';
@@ -149,9 +133,7 @@ while($i > 0) {
     # Check that the warnings are logged in the Error log if the deprecated variables were passed on the command line.
     let $error_pattern = 'binlog_format' is deprecated and will be removed in a future release.
     '--sync-relay-log-info' is deprecated and will be removed in a future release.
-    The syntax '--master-info-repository' is deprecated and will be removed in a future release.
     The syntax '--master-info-file' is deprecated and will be removed in a future release.
-    The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
     The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
     The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
     The syntax '--transaction-write-set-extraction' is deprecated and will be removed in a future release.
@@ -171,8 +153,6 @@ while($i > 0) {
     The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
     The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
-    '@@relay_log_info_repository' is deprecated and will be removed in a future release.
-    '@@master_info_repository' is deprecated and will be removed in a future release.
     '@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
     '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
     '@@binlog_format' is deprecated and will be removed in a future release.

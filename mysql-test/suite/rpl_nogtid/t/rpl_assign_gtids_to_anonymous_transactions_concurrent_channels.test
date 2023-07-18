@@ -38,8 +38,6 @@
 #
 # WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
 
-# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 --let $rpl_topology = 1->3, 2->3
 --let $rpl_multi_source = 1
 --let $rpl_skip_start_slave = 1

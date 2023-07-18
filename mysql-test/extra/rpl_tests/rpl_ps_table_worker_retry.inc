@@ -30,9 +30,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_group_replication_plugin.inc
-# test uses MSR and so it requires master-info-repository=TABLE and
-# relay-log-info-repository=TABLE
---source include/have_slave_repository_type_table.inc
 # test is binlog format agnostic
 --source include/have_binlog_format_row.inc
 

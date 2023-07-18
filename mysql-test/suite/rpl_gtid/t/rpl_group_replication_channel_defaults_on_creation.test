@@ -37,7 +37,6 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # 1. Create a user so we can set a privileged user to create GR channels
