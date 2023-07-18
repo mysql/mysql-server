@@ -300,10 +300,7 @@ BEGIN
         v_has_ndb            = IFNULL((SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'NDBCluster'), 'NO'),
         v_has_ps             = IFNULL((SELECT SUPPORT FROM information_schema.ENGINES WHERE ENGINE = 'PERFORMANCE_SCHEMA'), 'NO'),
         v_has_ps_replication = v_has_ps,
-        v_has_replication    = IF(v_has_ps_replication = 'YES', IF((SELECT COUNT(*) FROM performance_schema.replication_connection_status) > 0, 'YES', 'NO'),
-                                  IF(@@master_info_repository = 'TABLE', IF((SELECT COUNT(*) FROM mysql.slave_master_info) > 0, 'YES', 'NO'),
-                                     IF(@@relay_log_info_repository = 'TABLE', IF((SELECT COUNT(*) FROM mysql.slave_relay_log_info) > 0, 'YES', 'NO'),
-                                        'MAYBE')));
+        v_has_replication    = IF(v_has_ps_replication = 'YES', IF((SELECT COUNT(*) FROM performance_schema.replication_connection_status) > 0, 'YES', 'NO'), 'MAYBE');
 
     IF (@sys.debug = 'ON') THEN
        SELECT v_has_innodb AS 'Has_InnoDB', v_has_ndb AS 'Has_NDBCluster',
@@ -554,22 +551,18 @@ BEGIN
             SELECT * FROM performance_schema.replication_applier_configuration ORDER BY CHANNEL_NAME;
         END IF;
 
-        IF (@@master_info_repository = 'TABLE') THEN
-            SELECT 'Replication - Master Info Repository Configuration' AS 'The following output is:';
-            -- Can't just do SELECT *  as the password may be present in plain text
-            -- Don't include binary log file and position as that will be determined in each iteration as well
-            SELECT Channel_name, Host, User_name, Port, Connect_retry,
-                   Enabled_ssl, Ssl_ca, Ssl_capath, Ssl_cert, Ssl_cipher, Ssl_key, Ssl_verify_server_cert,
-                   Heartbeat, Bind, Ignored_server_ids, Uuid, Retry_count, Ssl_crl, Ssl_crlpath,
-                   Tls_version, Enabled_auto_position
-              FROM mysql.slave_master_info ORDER BY Channel_name;
-        END IF;
+        SELECT 'Replication - Connection metadata' AS 'The following output is:';
+        -- Can't just do SELECT *  as the password may be present in plain text
+        -- Don't include binary log file and position as that will be determined in each iteration as well
+        SELECT Channel_name, Host, User_name, Port, Connect_retry,
+                Enabled_ssl, Ssl_ca, Ssl_capath, Ssl_cert, Ssl_cipher, Ssl_key, Ssl_verify_server_cert,
+                Heartbeat, Bind, Ignored_server_ids, Uuid, Retry_count, Ssl_crl, Ssl_crlpath,
+                Tls_version, Enabled_auto_position
+            FROM mysql.slave_master_info ORDER BY Channel_name;
 
-        IF (@@relay_log_info_repository = 'TABLE') THEN
-            SELECT 'Replication - Relay Log Repository Configuration' AS 'The following output is:';
-            SELECT Channel_name, Sql_delay, Number_of_workers, Id
-              FROM mysql.slave_relay_log_info ORDER BY Channel_name;
-        END IF;
+        SELECT 'Replication - Applier metadata' AS 'The following output is:';
+        SELECT Channel_name, Sql_delay, Number_of_workers, Id
+            FROM mysql.slave_relay_log_info ORDER BY Channel_name;
     END IF;
 
 
@@ -688,23 +681,18 @@ BEGIN
                 SELECT * FROM performance_schema.replication_applier_status_by_worker ORDER BY CHANNEL_NAME, WORKER_ID;
             END IF;
 
-            IF (@@master_info_repository = 'TABLE') THEN
-                SELECT 'Replication - Master Log Status' AS 'The following output is:';
-                SELECT Master_log_name, Master_log_pos FROM mysql.slave_master_info;
-            END IF;
+            SELECT 'Replication - Master Log Status' AS 'The following output is:';
+            SELECT Master_log_name, Master_log_pos FROM mysql.slave_master_info;
 
-            IF (@@relay_log_info_repository = 'TABLE') THEN
-                SELECT 'Replication - Relay Log Status' AS 'The following output is:';
-                SELECT sys.format_path(Relay_log_name) AS Relay_log_name, Relay_log_pos, Master_log_name, Master_log_pos FROM mysql.slave_relay_log_info;
+            SELECT 'Replication - Relay Log Status' AS 'The following output is:';
+            SELECT sys.format_path(Relay_log_name) AS Relay_log_name, Relay_log_pos, Master_log_name, Master_log_pos FROM mysql.slave_relay_log_info;
 
-                SELECT 'Replication - Worker Status' AS 'The following output is:';
-                SELECT Id, sys.format_path(Relay_log_name) AS Relay_log_name, Relay_log_pos, Master_log_name, Master_log_pos,
-                       sys.format_path(Checkpoint_relay_log_name) AS Checkpoint_relay_log_name, Checkpoint_relay_log_pos,
-                       Checkpoint_master_log_name, Checkpoint_master_log_pos, Checkpoint_seqno, Checkpoint_group_size,
-                       HEX(Checkpoint_group_bitmap) AS Checkpoint_group_bitmap, Channel_name
-                  FROM mysql.slave_worker_info
-              ORDER BY Channel_name, Id;
-            END IF;
+            SELECT 'Replication - Worker Status' AS 'The following output is:';
+            SELECT Id, sys.format_path(Relay_log_name) AS Relay_log_name, Relay_log_pos, Master_log_name, Master_log_pos,
+                    sys.format_path(Checkpoint_relay_log_name) AS Checkpoint_relay_log_name, Checkpoint_relay_log_pos,
+                    Checkpoint_master_log_name, Checkpoint_master_log_pos, Checkpoint_seqno, Checkpoint_group_size,
+                    HEX(Checkpoint_group_bitmap) AS Checkpoint_group_bitmap, Channel_name
+                FROM mysql.slave_worker_info ORDER BY Channel_name, Id;
         END IF;
 
         -- We need one table per output as a temporary table cannot be opened twice in the same query, and we need to
