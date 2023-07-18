@@ -2,11 +2,14 @@
 
 #include "log_uring/xlog.h"
 #include "log_uring/iouring.h"
+#include "log_uring/utils.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sstream>
+#include <iostream>
+
 #define EVENT_CAPACITY 40960
 #define MAX_FILE_FD 32
 #define SQ_THD_IDLE 2000
@@ -46,11 +49,13 @@ void xlog::start() {
   
   int ret = io_uring_queue_init_params(NUM_ENTRIES, &iouring_context_.ring, &iouring_context_.params);
   if (ret < 0) {
+    panic("io_uring initialize parameter fail");
     return;
   }
-
+  
   ret = io_uring_register_files(&iouring_context_.ring, fd_.data(), num_fd_);
   if (ret < 0) {
+    panic("io_uring register files fail");
     return;
   }
 
@@ -160,16 +165,17 @@ void xlog::handle_completion_event(event *e) {
 }
 
 void xlog::main_loop() {
-    while (true) {
-      int submit = handle_event_list();
-      if (submit < 0) {
-        break;
-      }
-      int ret = handle_completion(submit);
-      if (ret < 0) {
-        break;
-      }
+  std::cout << "begin xlog main loop ..." << std::endl;
+  while (true) {
+    int submit = handle_event_list();
+    if (submit < 0) {
+      break;
     }
+    int ret = handle_completion(submit);
+    if (ret < 0) {
+      break;
+    }
+  }
 }
 
 void xlog::add_event(event *e) {
@@ -235,8 +241,12 @@ void xlog::enqueue_sqe(event *e) {
   }
 }
 
+xlog __global_xlog;
 
 void log_iouring_thread() {
-  xlog xlog;
-  xlog.start();
+  __global_xlog.start();
+}
+
+xlog *get_xlog() {
+  return &__global_xlog;
 }

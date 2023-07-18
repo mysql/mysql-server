@@ -60,3 +60,4 @@ private:
 
 
 void log_iouring_thread();
+xlog *get_xlog();
