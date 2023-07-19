@@ -7,6 +7,7 @@
 #include "log_uring/iouring.h"
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <vector>
 #include <condition_variable>
 
@@ -27,35 +28,44 @@ public:
   
   void start();
   
-  int append(void *buf, size_t size, size_t lsn);
+  int append(void *buf, size_t size);
 
   int sync(size_t lsn);
 
 
 private:
   void main_loop();
-  void add_event(event *e);
+  void add_event(io_event *e);
   int handle_event_list();
   int handle_completion(int submit);
-  void handle_completion_event(event *e);
-  void enqueue_sqe(event *e);
-  void enqueue_sqe_write(event *e);
-  void enqueue_sqe_fsync(event *e);
+  void handle_completion_event(io_event *e);
+  void enqueue_sqe(io_event *e);
+  void enqueue_sqe_write(io_event *e);
+  void enqueue_sqe_fsync(io_event *e);
   void enqueue_sqe_fsync_combine();
+  
+  void notify_start();
+  void wait_start();
 
+  std::atomic<uint64_t> next_lsn_;
   int num_fd_;
-  std::mutex mutex_cond_;
-  std::condition_variable condition_;
   size_t max_sync_lsn_;
   uint64_t max_to_sync_lsn_;
-
+  std::mutex mutex_cond_;
+  std::condition_variable condition_;
 
   iouring_ctx_t iouring_context_;
   std::mutex mutex_queue_;
-  std::vector<event *> list_[2];
+  std::vector<io_event *> list_[2];
   std::vector<file_ctrl> file_;
   std::vector<int> fd_;
   uint32_t sequence_;
+
+  std::mutex mutex_state_;
+  std::condition_variable condition_state_;
+  bool state_;
+
+
 };
 
 

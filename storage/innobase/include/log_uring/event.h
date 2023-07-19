@@ -26,12 +26,12 @@ union event_union {
   io_fsync_event_t fsync_event_; 
 };
 
-class event {
+class io_event {
 public:
   uint32_t type_;
   event_union event_;
-  event();
-  ~event();
+  io_event();
+  ~io_event();
 
 private:
 

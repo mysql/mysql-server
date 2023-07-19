@@ -7,7 +7,8 @@
 #include "log_uring/xlog.h"
 
 const int NUM_WORKER_THREADS = 100;
-
+const size_t BUFFER_SIZE = 512;
+const size_t NUM_APPEND_LOGS = 1000000;
 class log_thread_handler {
 public:
     void operator()() {
@@ -22,10 +23,16 @@ public:
   }
   
   void operator()() {
-    log_iouring(NULL);
+    for (size_t i = 0; i < 1000000; i++) {
+      uint64_t lsn = log_->append(buffer_, sizeof(buffer_));
+      if (i % 10 == 9) {
+        log_->sync(lsn);
+      }
+    }
   }
 private:
   xlog* log_;
+  uint8_t buffer_[BUFFER_SIZE];
 };
 
 ptr<std::thread> create_log_thread() {
