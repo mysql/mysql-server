@@ -1573,6 +1573,60 @@ extern "C" {
   ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
                       int no_of_nodes, const int * node_list);
 
+  /** @} *********************************************************************/
+  /**
+   * @name Functions: Transport Layer Security (TLS)
+   * @{
+   */
+
+  /**
+   * Set an SSL CTX for a handle.
+   *
+   * @param handle          Management handle
+   * @param ctx             SSL_ctx to be used for TLS and HTTPS connections
+   *
+   * @return                True on success, false if ctx has already been set
+   *
+   */
+  bool ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx);
+
+   /**
+   * Start TLS. Upgrade an open, unencrypted connection to a secure one.
+   *
+   * @param handle          Management handle
+   *
+   * @return                0 on success.
+   */
+  int ndb_mgm_start_tls(NdbMgmHandle handle);
+
+  /**
+   * Connects to a management server. This function wraps a call to
+   * ndb_mgm_connect(), followed by a call to ndb_mgm_start_tls().
+   *
+   * In order to attempt TLS, the user must first have called
+   * ndb_mgm_set_ssl_ctx().
+   *
+   * If tls_req_level is CLIENT_TLS_RELAXED, TLS authentication failures still
+   * result in errors, but a missing certificate or server refusal will result
+   * in a succesful cleartext connection.
+   *
+   * If tls_req_level is CLIENT_TLS_STRICT, then any failure to establish TLS
+   * will be treated as an error, and the connection will be closed.
+   *
+   * @param   handle        Management handle.
+   * @param   no_retries    Number of retries to connect
+   *                        (0 means connect once).
+   * @param   retry_delay_in_seconds
+   *                        How long to wait until retry is performed.
+   * @param   verbose       Make printout regarding connect retries.
+   * @param   tls_req_level TLS requirement level
+   *
+   * @return                0 on success, -1 on failure.
+   */
+  int ndb_mgm_connect_tls(NdbMgmHandle handle, int no_retries,
+                          int retry_delay_in_seconds, int verbose,
+                          int tls_req_level);
+
 #ifdef __cplusplus
 }
 #endif

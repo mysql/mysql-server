@@ -245,6 +245,8 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("start all", &MgmApiSession::startAll, ""),
 
+  MGM_CMD("start tls", &MgmApiSession::startTls, ""),
+
   MGM_CMD("bye", &MgmApiSession::bye, ""),
 
   MGM_CMD("end session", &MgmApiSession::endSession, ""),
@@ -1448,6 +1450,39 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   m_output->println("%s", "");
 }
 
+void
+MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
+                       Properties const &) {
+  struct ssl_ctx_st * ctx = nullptr;
+  struct ssl_st * ssl = nullptr;
+  const char * result = "Failed";
+
+  if(m_secure_socket.has_tls()) {
+    result = "Already Connected";
+  } else {
+    ctx = m_mgmsrv.theFacade->get_registry()->getTlsKeyManager()->ctx();
+  }
+
+  if(ctx)
+    ssl = NdbSocket::get_server_ssl(ctx);
+
+  if(ssl)
+    result = "Ok";
+
+  /* Send the reply to the client */
+  m_output->println("start tls reply");
+  m_output->println("result: %s", result);
+  m_output->println("%s", "");
+  m_output->flush();
+
+  /* Run the TLS handshake */
+  if(ssl) {
+    if(m_secure_socket.associate(ssl))
+      m_secure_socket.do_tls_handshake();
+    else
+      NdbSocket::free_ssl(ssl);
+  }
+}
 
 static bool
 setEventLogFilter(int severity, int enable)

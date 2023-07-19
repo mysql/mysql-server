@@ -2027,6 +2027,64 @@ runTestNdbdWithCert(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_tls"); // temporary working directory
+  TlsKeyManager tls_km;
+  int major, minor, build, r;
+  char ver[128];
+  static constexpr int len = sizeof(ver);
+
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+  Properties config = ConfigFactory::create();
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  sign_tls_keys(wd);
+
+  Mgmd mgmd(1);
+
+  NdbProcess::Args mgmdArgs;
+  mgmd.common_args(mgmdArgs, wd.path());
+  mgmdArgs.add("--ndb-tls-search-path=", wd.path());
+
+  CHECK(mgmd.start(wd.path(), mgmdArgs));          // Start management node
+  CHECK(mgmd.connect(config));                     // Connect to management node
+  CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
+
+  tls_km.init(wd.path(), 0, NODE_TYPE_API, true);
+  CHECK(tls_km.ctx());
+
+  r = ndb_mgm_get_version(mgmd.handle(), &major, &minor, &build, len, ver);
+  CHECK(r == 1);
+  printf("Version: %d.%d.%d %s\n", major, minor, build, ver);
+
+  r = ndb_mgm_start_tls(mgmd.handle());
+  CHECK(r == -1);  // -1 is "SSL CTX required"
+  CHECK(ndb_mgm_get_latest_error(mgmd.handle()) == NDB_MGM_TLS_ERROR);
+
+  r = ndb_mgm_set_ssl_ctx(mgmd.handle(), tls_km.ctx());
+  CHECK(r);       // first time setting ctx succeeds
+  r = ndb_mgm_set_ssl_ctx(mgmd.handle(), nullptr);
+  CHECK(r == 0);  // second time setting ctx fails
+
+  r = ndb_mgm_start_tls(mgmd.handle());
+  printf("ndb_mgm_start_tls(): %d\n", r);
+  CHECK(r == 0);
+
+  r = ndb_mgm_start_tls(mgmd.handle());
+  CHECK(r == -2); // -2 is "Socket already has TLS"
+
+  /* We have switched to TLS. Now run a command. */
+  r = ndb_mgm_get_version(mgmd.handle(), &major, &minor, &build, len, ver);
+  CHECK(r == 1);
+
+  /* And run another command. */
+  struct ndb_mgm_cluster_state *state = ndb_mgm_get_status(mgmd.handle());
+  CHECK(state != nullptr);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -2144,6 +2202,11 @@ TESTCASE("NdbdWithExpiredCertificate",
 TESTCASE("NdbdWithCertificate", "Test data node startup with certificate")
 {
   INITIALIZER(runTestNdbdWithCert)
+}
+
+TESTCASE("StartTls", "Test START TLS in MGM protocol")
+{
+  INITIALIZER(runTestStartTls);
 }
 
 #endif

@@ -47,6 +47,7 @@
 #include <EventLogger.hpp>
 #include <memory>
 #include "portlib/ndb_sockaddr.h"
+#include "mgmcommon/NdbMgm.hpp"
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -113,6 +114,7 @@ struct ndb_mgm_handle {
   int mgmd_version_major;
   int mgmd_version_minor;
   int mgmd_version_build;
+  struct ssl_ctx_st * ssl_ctx;
 
   int mgmd_version(void) const {
     // Must be connected
@@ -252,6 +254,7 @@ ndb_mgm_create_handle()
   h->m_bindaddress   = nullptr;
   h->m_bindaddress_port = 0;
   h->ignore_sigpipe  = true;
+  h->ssl_ctx         = nullptr;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 
@@ -2521,21 +2524,25 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   }
 
   {
-    ndb_mgm_handle * tmp_handle = ndb_mgm_create_handle();
+    ndb_mgm::handle_ptr tmp_handle(ndb_mgm_create_handle());
     tmp_handle->socket.init_from_new(sockfd);
 
+    if(handle->ssl_ctx)
+    {
+      ndb_mgm_set_ssl_ctx(tmp_handle.get(), handle->ssl_ctx);
+      ndb_mgm_start_tls(tmp_handle.get());
+    }
+
     const Properties *reply;
-    reply = ndb_mgm_call(tmp_handle, stat_reply, "listen event", &args);
+    reply = ndb_mgm_call(tmp_handle.get(), stat_reply, "listen event", &args);
 
     if(reply == nullptr) {
       ndb_socket_close(sockfd);
-      CHECK_REPLY(tmp_handle, reply, -1)
+      CHECK_REPLY(tmp_handle.get(), reply, -1)
     } else {
       delete reply;
-      tmp_handle->connected = 0;  // so that destroy_handle() doesn't close it.
+      tmp_handle.get()->connected = 0;  // so that destructor doesn't close it.
     }
-
-    ndb_mgm_destroy_handle(&tmp_handle);
   }
 
   *sock= sockfd;
@@ -2605,6 +2612,95 @@ ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
 {
   return ndb_mgm_get_configuration2(handle, 0,
                                     NDB_MGM_NODE_TYPE_UNKNOWN, nodeid);
+}
+
+extern "C"
+bool
+ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx)
+{
+  if(handle && (handle->ssl_ctx == nullptr)) {
+    handle->ssl_ctx = ctx;
+    return true;
+  }
+  return false;
+}
+
+extern "C"
+int
+ndb_mgm_start_tls(NdbMgmHandle handle)
+{
+  bool server_ok = false;
+
+  if(handle->ssl_ctx == nullptr) {
+    SET_ERROR(handle, NDB_MGM_TLS_ERROR, "SSL CTX required");
+    return -1;
+  }
+
+  if(handle->socket.has_tls()) {
+    SET_ERROR(handle, NDB_MGM_TLS_ERROR, "Socket already has TLS");
+    return -2;
+  }
+
+  const ParserRow<ParserDummy> start_tls_reply[] = {
+    MGM_CMD("start tls reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+
+  Properties args;
+  const Properties * reply =
+    ndb_mgm_call(handle, start_tls_reply, "start tls", &args);
+
+  if(reply) {
+    BaseString result;
+    reply->get("result", result);
+    if(strcmp(result.c_str(), "Ok") == 0) server_ok = true;
+    delete reply;
+  }
+
+  if(! server_ok) {
+    SET_ERROR(handle, NDB_MGM_TLS_REFUSED, "Server refused upgrade");
+    return -3;
+  }
+
+  struct ssl_st * ssl = NdbSocket::get_client_ssl(handle->ssl_ctx);
+  if(! (ssl && handle->socket.associate(ssl))) {
+    SET_ERROR(handle, NDB_MGM_TLS_ERROR, "Failed in client");
+    NdbSocket::free_ssl(ssl);
+    return -4;
+  }
+
+  /* Now run handshake */
+  bool r = handle->socket.do_tls_handshake();
+  if(r) return 0; // success
+
+  SET_ERROR(handle, NDB_MGM_TLS_HANDSHAKE_FAILED, "Handshake failed");
+  return -5;
+}
+
+extern "C"
+int
+ndb_mgm_connect_tls(NdbMgmHandle handle, int retries,
+	            int retry_delay, int verbose, int tls_level)
+{
+  if(tls_level < CLIENT_TLS_RELAXED || tls_level > CLIENT_TLS_STRICT) {
+    SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "Invalid TLS level");
+    return -1;
+  }
+
+  int r = ndb_mgm_connect(handle, retries, retry_delay, verbose);
+  if(r != 0)
+    return r;
+
+  r = ndb_mgm_start_tls(handle);
+
+  if(r == 0)
+    return 0;  // TLS started successfully
+
+  if((tls_level == CLIENT_TLS_RELAXED) && (r != -5))
+    return 0;  // -5 is fatal (handshake failed); otherwise okay.
+
+  return -1;
 }
 
 extern "C"
@@ -3663,13 +3759,6 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
   if ((*handle)->connected != 1)
   {
     SET_ERROR(*handle, NDB_MGM_SERVER_NOT_CONNECTED , "");
-    ndb_socket_invalidate(&s);
-    DBUG_RETURN(s);
-  }
-
-  if ((*handle)->socket.has_tls())
-  {
-    SET_ERROR(*handle, NDB_MGM_CANNOT_CONVERT_TO_TRANSPORTER, "");
     ndb_socket_invalidate(&s);
     DBUG_RETURN(s);
   }
