@@ -39,6 +39,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include <mysql/service_mysql_alloc.h>

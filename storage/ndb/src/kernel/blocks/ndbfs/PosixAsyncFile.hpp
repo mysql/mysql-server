@@ -31,9 +31,12 @@
  * Also does direct IO, preallocation.
  */
 
-#include "portlib/ndb_file.h"
+#include "AsyncFile.hpp"
 
 #define JAM_FILE_ID 397
+
+class Ndbfs;
+class Request;
 
 class PosixAsyncFile : public AsyncFile
 {

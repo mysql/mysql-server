@@ -45,6 +45,14 @@ SET(ZSTD_SRCS
   ${ZSTD_VERSION_DIR}/lib/dictBuilder/zdict.c
 )
 
+IF((LINUX AND NOT LINUX_ARM) OR
+    (APPLE AND NOT APPLE_ARM))
+  ENABLE_LANGUAGE(ASM)
+  LIST(APPEND ZSTD_SRCS
+    ${ZSTD_VERSION_DIR}/lib/decompress/huf_decompress_amd64.S
+    )
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(zstd
   ${ZSTD_SRCS}
   INCLUDE_DIRECTORIES ${ZSTD_VERSION_DIR}/lib/common
@@ -68,8 +76,6 @@ ENDIF()
 IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-function")
 ENDIF()
-
-MSVC_CPPCHECK_DISABLE()
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags

@@ -147,11 +147,6 @@ savepoint. */
 #define mtr_block_x_latch_at_savepoint(m, s, b) \
   (m)->x_latch_at_savepoint((s), (b))
 
-/** Check if a mini-transaction is dirtying a clean page.
-@param b        block being x-fixed
-@return true if the mtr is dirtying a clean page. */
-#define mtr_block_dirtied(b) mtr_t::is_block_dirtied((b))
-
 /** Forward declaration of a tablespace object */
 struct fil_space_t;
 
@@ -187,13 +182,10 @@ struct mtr_t {
     /** mini-transaction log */
     mtr_buf_t m_log;
 
-    /** true if mtr has made at least one buffer pool page dirty */
-    bool m_made_dirty;
-
     /** true if inside ibuf changes */
     bool m_inside_ibuf;
 
-    /** true if the mini-transaction modified buffer pool pages */
+    /** true if the mini-transaction might have modified buffer pool pages */
     bool m_modifications;
 
     /** true if mtr is forced to NO_LOG mode because redo logging is
@@ -478,13 +470,20 @@ struct mtr_t {
   @param[in]    type    object type: MTR_MEMO_PAGE_X_FIX, ... */
   void release_page(const void *ptr, mtr_memo_type_t type);
 
-  /** Note that the mini-transaction has modified data. */
+  /** Note that the mini-transaction might have modified a buffer pool page.
+  As it's called from mlog_open(), which is called from fil_op_write_log() and
+  perhaps other places which do not modify any page, this can be a false
+  positive. */
   void set_modified() { m_impl.m_modifications = true; }
 
-  /** Set the state to not-modified. This will not log the
-  changes.  This is only used during redo log apply, to avoid
-  logging the changes. */
-  void discard_modifications() { m_impl.m_modifications = false; }
+  /** Checks if this mtr has modified any buffer pool page.
+  It errs on the safe side: may return true even if it didn't modify any page.
+  This is used in MTR_LOG_NO_REDO mode to detect that pages should be added to
+  flush lists during commit() even though no redo log will be produced.
+  @return true if the mini-transaction might have modified buffer pool pages. */
+  [[nodiscard]] bool has_modifications() const {
+    return m_impl.m_modifications;
+  }
 
   /** Get the LSN of commit().
   @return the commit LSN
@@ -573,11 +572,6 @@ struct mtr_t {
     return (m_impl.m_state == MTR_STATE_COMMITTING);
   }
 
-  /** @return true if mini-transaction contains modifications. */
-  [[nodiscard]] bool has_modifications() const {
-    return (m_impl.m_modifications);
-  }
-
   /** Check if the changes done in this mtr conflicts with changes done
   in the given mtr.  Two mtrs are said to conflict with each other, if
   they modify the same buffer block.
@@ -602,11 +596,20 @@ struct mtr_t {
   void wait_for_flush();
 #endif /* UNIV_DEBUG */
 
-  /** @return true if a record was added to the mini-transaction */
-  [[nodiscard]] bool is_dirty() const { return (m_impl.m_made_dirty); }
-
   /** Note that a record has been added to the log */
   void added_rec() { ++m_impl.m_n_log_recs; }
+
+  /** Checks if this mtr has generated any redo log records which should be
+  written to the redo log during commit().
+  Note: If redo logging is disabled by set_log_mode(MTR_LOG_NONE) or
+  set_log_mode(MTR_LOG_NO_REDO) or globally by s_logging.disable(..), then it
+  will return false, even if set_modified() was called.
+  Note: Redo log records can be generated for things other than page
+  modifications, for example for tablespace rename, or other metadata updates.
+  Note: Redo log records can be generated for modifications of pages which were
+  already marked as dirty in BP.
+  @return true iff there is at least one redo log record generated */
+  bool has_any_log_record() { return 0 < m_impl.m_n_log_recs; }
 
   /** Get the buffered redo log of this mini-transaction.
   @return       redo log */
@@ -639,11 +642,6 @@ struct mtr_t {
     }
   }
 #endif
-
-  /** Check if this mini-transaction is dirtying a clean page.
-  @param block  block being x-fixed
-  @return true if the mtr is dirtying a clean page. */
-  [[nodiscard]] static bool is_block_dirtied(const buf_block_t *block);
 
   /** Matrix to check if a mode update request should be ignored. */
   static bool s_mode_update[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];

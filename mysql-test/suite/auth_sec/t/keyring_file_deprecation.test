@@ -1,0 +1,17 @@
+--disable_ps_protocol
+
+--echo # Loading keyring_file plugin at startup
+let $restart_parameters = restart: --early-plugin-load=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/kf_keys --log-error=$MYSQLTEST_VARDIR/log/deprecation.log;
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+--echo # Searching for deprecation warning in server log
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/deprecation.log;
+let SEARCH_PATTERN= 'keyring_file plugin' is deprecated and will be removed in a future release. Please use component_keyring_file instead;
+--source include/search_pattern.inc
+--echo # Search completed.
+
+#cleanup
+--remove_file $MYSQLTEST_VARDIR/log/deprecation.log
+--remove_file $MYSQL_TMP_DIR/kf_keys
+UNINSTALL PLUGIN keyring_file;

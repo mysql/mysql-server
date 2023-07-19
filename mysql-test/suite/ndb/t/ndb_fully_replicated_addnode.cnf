@@ -17,9 +17,6 @@ ndb-wait-connected=20
 ndb-wait-setup=60
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
-# Set error log verbosity to max, otherwise info messages
-# are filtered away
-log-error-verbosity=3
 
 [cluster_config.mysqld.1.1]
 NodeId=49

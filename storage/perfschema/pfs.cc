@@ -9902,6 +9902,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
     PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(performance_schema) END_COMPONENT_REQUIRES();

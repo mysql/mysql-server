@@ -116,6 +116,8 @@ max_connections	DYNAMIC
 CREATE TABLE t1 (col1 INT);
 DROP TABLE t1;
 SET PERSIST log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 # SET PERSIST statement should not be bin logged.
 # Show binlog events
 include/show_binlog_events.inc
@@ -253,6 +255,8 @@ PERSIST sql_mode=DEFAULT,PERSIST innodb_flush_log_at_trx_commit=DEFAULT,
 PERSIST max_connections=default, PERSIST join_buffer_size=default,
 PERSIST innodb_flush_sync=DEFAULT,PERSIST innodb_io_capacity=DEFAULT,
 PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 WL#9720 - SET PERSIST to capture user, host and timestamp
 show create table performance_schema.variables_info;
 Table	Create Table

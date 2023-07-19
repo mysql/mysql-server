@@ -274,40 +274,220 @@ static bool reads_not_secondary_columns(const LEX *lex) {
   return false;
 }
 
+static bool has_secondary_engine_defined(const LEX *lex) {
+  for (const Table_ref *tl = lex->query_tables; tl != nullptr;
+       tl = tl->next_global) {
+    if (tl == nullptr || tl->table == nullptr || tl->table->s == nullptr ||
+        !tl->table->s->has_secondary_engine()) {
+      return false;
+    }
+  }
+  return (lex->table_count > 0);
+}
+
+// Compare two engine names using the system collation.
+static bool equal_engines(const LEX_CSTRING &engine1,
+                          const LEX_CSTRING &engine2) {
+  return system_charset_info->coll->strnncollsp(
+             system_charset_info,
+             pointer_cast<const unsigned char *>(engine1.str), engine1.length,
+             pointer_cast<const unsigned char *>(engine2.str),
+             engine2.length) == 0;
+}
+
+// Helper function that checks if the command is eligible for secondary engine
+// and if that's true returns the name of that eligible secondary storage
+// engine.
+static const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(
+    const LEX *lex) {
+  // Don't use secondary storage engines for statements that call stored
+  // routines.
+  if (lex->uses_stored_routines()) return nullptr;
+  // Now check if the opened tables are available in a secondary
+  // storage engine. Only use the secondary tables if all the tables
+  // have a secondary tables, and they are all in the same secondary
+  // storage engine.
+  const LEX_CSTRING *secondary_engine = nullptr;
+  const Table_ref *tl = lex->query_tables;
+
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr) {
+    // If table from Table_ref is either view or derived table then
+    // do not perform INSERT AS SELECT.
+    if (tl->is_view_or_derived()) return nullptr;
+    // For INSERT INTO SELECT statements, the table to insert into does not have
+    // to have a secondary engine. This table is always first in the list.
+    tl = tl->next_global;
+  }
+  for (; tl != nullptr; tl = tl->next_global) {
+    // Schema tables are not available in secondary engines.
+    if (tl->schema_table != nullptr) return nullptr;
+
+    // We're only interested in base tables.
+    if (tl->is_placeholder()) continue;
+
+    assert(!tl->table->s->is_secondary_engine());
+    // Give up, if the table is not in a secondary engine,
+    if (!tl->table->s->has_secondary_engine()) return nullptr;
+
+    if (secondary_engine == nullptr) {
+      // First base table. Save its secondary engine name for later.
+      secondary_engine = &tl->table->s->secondary_engine;
+    } else if (!equal_engines(*secondary_engine,
+                              tl->table->s->secondary_engine)) {
+      // In a different secondary engine than the previous base tables.
+      return nullptr;
+    }
+  }
+  return secondary_engine;
+}
+
+const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
+  if (const handlerton *hton = SecondaryEngineHandlerton(lex->thd);
+      hton != nullptr) {
+    return hton;
+  }
+  const LEX_CSTRING *storage_engine = get_eligible_secondary_engine_from(lex);
+  if (storage_engine != nullptr) {
+    plugin_ref ref = ha_resolve_by_name(lex->thd, storage_engine, false);
+    if (ref != nullptr) {
+      return plugin_data<handlerton *>(ref);
+    }
+  }
+  return nullptr;
+}
+
+static const char *get_secondary_engine_fail_reason(const LEX *lex) {
+  auto *hton = get_secondary_engine_handlerton(lex);
+  if (hton != nullptr &&
+      hton->get_secondary_engine_offload_or_exec_fail_reason != nullptr &&
+      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+    return hton->get_secondary_engine_offload_or_exec_fail_reason(lex->thd);
+  }
+  return nullptr;
+}
+
+void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
+  if (lex->thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED &&
+      reason != nullptr) {
+    for (Table_ref *ref = lex->query_tables; ref != nullptr;
+         ref = ref->next_global) {
+      if (ref->is_external()) {
+        ref->table->get_primary_handler()->set_external_table_offload_error(
+            reason);
+        break;
+      }
+    }
+  }
+}
+
+static void external_engine_fail_reason(const LEX *lex) {
+  for (Table_ref *ref = lex->query_tables; ref != nullptr;
+       ref = ref->next_global) {
+    if (ref->is_external()) {
+      ref->table->get_primary_handler()->external_table_offload_error();
+      return;
+    }
+  }
+}
+
+static bool set_secondary_engine_fail_reason(const LEX *lex,
+                                             const char *reason) {
+  auto *hton = get_secondary_engine_handlerton(lex);
+  if (hton != nullptr &&
+      hton->set_secondary_engine_offload_fail_reason != nullptr &&
+      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+    hton->set_secondary_engine_offload_fail_reason(lex->thd, reason);
+    return true;
+  }
+  return false;
+}
+
+static void set_fail_reason_and_raise_error(const LEX *lex,
+                                            const char *reason) {
+  assert(reason != nullptr && strlen(reason) > 0);
+  if (set_secondary_engine_fail_reason(lex, reason)) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             get_secondary_engine_fail_reason(lex));
+  } else {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), reason);
+  }
+}
+
+static bool find_and_set_offload_fail_reason(const LEX *lex) {
+  // If we are unable to gather secondary-engine-specific error message,
+  // check known unsupported features and raise a specific offload error.
+  std::string err_msg;
+  if (lex->uses_stored_routines()) {
+    // We don't support secondary storage engine execution,
+    // if the query has statements that call stored routines.
+    err_msg = "Stored routines are not supported in secondary engines";
+  } else if (!has_secondary_engine_defined(lex)) {
+    // We don't support secondary storage engine execution,
+    // if at least one of the query tables have no secondary engine defined.
+    err_msg =
+        "No secondary engine defined for at least one of the query tables";
+  }
+  if (err_msg.length() > 0) {
+    set_fail_reason_and_raise_error(lex, err_msg.c_str());
+    return true;
+  }
+  return false;
+}
+
 bool validate_use_secondary_engine(const LEX *lex) {
-  const THD *thd = lex->thd;
+  if (lex->m_sql_cmd == nullptr) {
+    return false;
+  }
+  THD *thd = lex->thd;
   const Sql_cmd *sql_cmd = lex->m_sql_cmd;
   // Ensure that all read columns are in the secondary engine.
   if (sql_cmd->using_secondary_storage_engine()) {
     if (reads_not_secondary_columns(lex)) {
-      my_error(ER_SECONDARY_ENGINE, MYF(0),
-               "One or more read columns are marked as NOT SECONDARY");
+      const char *err_msg =
+          "One or more read columns are marked as NOT SECONDARY";
+      set_fail_reason_and_raise_error(lex, err_msg);
       return true;
     }
     return false;
   }
-
   // A query must be executed in secondary engine if these conditions are met:
   //
-  // 1) use_secondary_engine is FORCED
-  // and either
-  // 2) Is a SELECT statement that accesses one or more base tables.
-  // or
-  // 3) Is an INSERT SELECT or CREATE TABLE AS SELECT statement that accesses
-  // two or more base tables
+  // (1) use_secondary_engine is FORCED.
+  // (and either)
+  // (2) Is a SELECT statement that accesses one or more base tables.
+  // (or)
+  // (3) Is an INSERT SELECT or CREATE TABLE AS SELECT statement that accesses
+  // two or more base tables.
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
       ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
         lex->table_count >= 1) ||  // 2
        ((sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT ||
          sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE) &&
         lex->table_count >= 2))) {  // 3
-    my_error(
-        ER_SECONDARY_ENGINE, MYF(0),
-        "use_secondary_engine is FORCED but query could not be executed in "
-        "secondary engine");
-    return true;
+    // Gather secondary-engine-specific error message.
+    const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
+    if (offloadfail_reason != nullptr && strlen(offloadfail_reason) > 0) {
+      if (thd->is_error()) {
+        thd->clear_error();
+      }
+      my_error(ER_SECONDARY_ENGINE, MYF(0), offloadfail_reason);
+      return true;
+    }
+    // If we haven't generated a specific error so far,
+    // we try to generate one here.
+    if (!thd->is_error() && find_and_set_offload_fail_reason(lex)) {
+      return true;
+    }
+    // If no specifc error could be generated so far,
+    // we give out a generic one.
+    if (!thd->is_error()) {
+      const char *err_msg =
+          "use_secondary_engine is FORCED but query could not be executed in "
+          "secondary engine";
+      set_fail_reason_and_raise_error(lex, err_msg);
+      return true;
+    }
   }
-
   return false;
 }
 
@@ -479,6 +659,15 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
+bool has_external_table(Table_ref *query_tables) {
+  for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
+    if (ref->is_external()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
@@ -488,6 +677,10 @@ bool Sql_cmd_dml::execute(THD *thd) {
 
   bool statement_timer_armed = false;
   bool error_handler_active = false;
+
+  // flag to determine if execution was not offloaded to the secondary engine
+  // and ended up in the external engine in which case we throw an error.
+  bool external_table_not_offloaded = false;
 
   Ignore_error_handler ignore_handler;
   Strict_error_handler strict_handler;
@@ -544,6 +737,28 @@ bool Sql_cmd_dml::execute(THD *thd) {
       if (result->prepare(thd, *unit->get_unit_column_types(), unit)) goto err;
       m_lazy_result = false;
     }
+  }
+
+  if (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
+    if (has_external_table(lex->query_tables)) {
+      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
+               "Query could not be offloaded to the secondary engine");
+      external_table_not_offloaded = true;
+      goto err;  // NOLINT
+    }
+  } else if ((thd->secondary_engine_optimization() ==
+                  Secondary_engine_optimization::PRIMARY_ONLY &&
+              lex->thd->variables.use_secondary_engine !=
+                  SECONDARY_ENGINE_FORCED) &&
+             has_external_table(lex->query_tables)) {
+    // throw the propagated error from the external engine in case there is an
+    // external table
+    external_engine_fail_reason(lex);
+
+    // reset error message
+    set_external_engine_fail_reason(lex, nullptr);
+    external_table_not_offloaded = true;
+    goto err;  // NOLINT
   }
 
   if (validate_use_secondary_engine(lex)) goto err;
@@ -623,6 +838,25 @@ err:
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
+  // check if we already have a secondary-engine-specific error message
+  // populate otherwise
+  if (!external_table_not_offloaded) {
+    const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
+    if (offloadfail_reason == nullptr || strlen(offloadfail_reason) == 0) {
+      if (thd->is_error()) {
+        assert(thd->get_stmt_da() != nullptr);
+        // here we check if there is any table in an external engine to set the
+        // error there as well.
+        if (has_external_table(lex->query_tables)) {
+          set_external_engine_fail_reason(lex,
+                                          thd->get_stmt_da()->message_text());
+        }
+        set_secondary_engine_fail_reason(lex,
+                                         thd->get_stmt_da()->message_text());
+      }
+    }
+  }
+
   // Abort and cleanup the result set (if it has been prepared).
   if (result != nullptr) {
     result->abort_result_set(thd);
@@ -665,17 +899,6 @@ void accumulate_statement_cost(const LEX *lex) {
     total_cost += query_block_cost;
   }
   lex->thd->m_current_query_cost = total_cost;
-}
-
-static bool has_external_table(Table_ref *query_tables) {
-  for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
-    if (ref->table != nullptr &&
-        (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
-        ref->table->s->has_secondary_engine()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**
@@ -980,53 +1203,9 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   }
   return false;
 }
+
 const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
-  // Don't use secondary storage engines for statements that call stored
-  // routines.
-  if (lex->uses_stored_routines()) return nullptr;
-  // Now check if the opened tables are available in a secondary
-  // storage engine. Only use the secondary tables if all the tables
-  // have a secondary tables, and they are all in the same secondary
-  // storage engine.
-  const LEX_CSTRING *secondary_engine = nullptr;
-  const Table_ref *tl = lex->query_tables;
-
-  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr) {
-    // If table from Table_ref is either view or derived table then
-    // do not perform INSERT AS SELECT.
-    if (tl->is_view_or_derived()) return nullptr;
-    // For INSERT INTO SELECT statements, the table to insert into does not have
-    // to have a secondary engine. This table is always first in the list.
-    tl = tl->next_global;
-  }
-  for (; tl != nullptr; tl = tl->next_global) {
-    // Schema tables are not available in secondary engines.
-    if (tl->schema_table != nullptr) return nullptr;
-
-    // We're only interested in base tables.
-    if (tl->is_placeholder()) continue;
-
-    assert(!tl->table->s->is_secondary_engine());
-    // If not in a secondary engine
-    if (!tl->table->s->has_secondary_engine()) return nullptr;
-    // Compare two engine names using the system collation.
-    auto equal = [](const LEX_CSTRING &s1, const LEX_CSTRING &s2) {
-      return system_charset_info->coll->strnncollsp(
-                 system_charset_info,
-                 pointer_cast<const unsigned char *>(s1.str), s1.length,
-                 pointer_cast<const unsigned char *>(s2.str), s2.length) == 0;
-    };
-
-    if (secondary_engine == nullptr) {
-      // First base table. Save its secondary engine name for later.
-      secondary_engine = &tl->table->s->secondary_engine;
-    } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
-      // In a different secondary engine than the previous base tables.
-      return nullptr;
-    }
-  }
-
-  return secondary_engine;
+  return get_eligible_secondary_engine_from(lex);
 }
 
 /*****************************************************************************

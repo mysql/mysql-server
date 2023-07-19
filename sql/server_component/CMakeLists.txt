@@ -69,6 +69,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   storing_auto_thd.cc
   mysql_thd_store_imp.cc
   set_variables_helper.cc
+  mysql_simple_error_log_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

@@ -25,6 +25,7 @@
 #ifndef MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_MESSAGE_H_
 #define MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_MESSAGE_H_
 
+#include <cassert>
 #include <cstddef>       // size_t
 #include <cstdint>       // uint8_t
 #include <system_error>  // error_code
@@ -33,6 +34,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/ranges.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
+#include "mysqlrouter/classic_protocol_codec_binary.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
 #include "mysqlrouter/classic_protocol_constants.h"
@@ -1176,63 +1178,60 @@ class Codec<borrowable::message::server::StmtRow<Borrowed>>
 
     accu.step(bw::FixedInt<1>(0));
 
-    std::string nullbits;
-    nullbits.resize(bytes_per_bits(v_.types().size()));
-
     // null-bitmap starts with a 2-bit offset
     size_t bit_pos{2};
-    size_t byte_pos{};
-    for (const auto &field : v_) {
-      if (bit_pos > 7) {
-        bit_pos = 0;
-        ++byte_pos;
-      }
+    uint8_t null_bit_byte{};
 
-      if (!field) {
-        nullbits[byte_pos] |= 1 << bit_pos;
+    for (auto const &field : v_) {
+      if (!field) null_bit_byte |= (1 << bit_pos);
+
+      if (++bit_pos > 7) {
+        accu.step(bw::FixedInt<1>(null_bit_byte));
+
+        bit_pos = 0;
+        null_bit_byte = 0;
       }
     }
 
-    accu.step(bw::String<Borrowed>(nullbits));
+    if (bit_pos != 0) accu.step(bw::FixedInt<1>(null_bit_byte));
 
-    size_t n{};
-    for (const auto &field : v_) {
-      if (field) {
-        switch (v_.types()[n++]) {
-          case field_type::Bit:
-          case field_type::Blob:
-          case field_type::Varchar:
-          case field_type::VarString:
-          case field_type::Set:
-          case field_type::String:
-          case field_type::Enum:
-          case field_type::TinyBlob:
-          case field_type::MediumBlob:
-          case field_type::LongBlob:
-          case field_type::Decimal:
-          case field_type::NewDecimal:
-          case field_type::Geometry:
-            accu.step(bw::VarInt(field->size()));
-            break;
-          case field_type::Date:
-          case field_type::DateTime:
-          case field_type::Timestamp:
-          case field_type::Time:
-            accu.step(bw::FixedInt<1>(field->size()));
-            break;
-          case field_type::LongLong:
-          case field_type::Double:
-          case field_type::Long:
-          case field_type::Int24:
-          case field_type::Float:
-          case field_type::Short:
-          case field_type::Year:
-          case field_type::Tiny:
-            // fixed size
-            break;
-        }
-        accu.step(bw::String<Borrowed>(*field));
+    for (auto [n, field] : stdx::views::enumerate(v_)) {
+      if (!field) continue;
+
+      switch (v_.types()[n]) {
+        case field_type::Bit:
+        case field_type::Blob:
+        case field_type::Varchar:
+        case field_type::VarString:
+        case field_type::Set:
+        case field_type::String:
+        case field_type::Enum:
+        case field_type::TinyBlob:
+        case field_type::MediumBlob:
+        case field_type::LongBlob:
+        case field_type::Decimal:
+        case field_type::NewDecimal:
+        case field_type::Geometry:
+          accu.step(bw::VarInt(field->size()));
+          break;
+        case field_type::Date:
+        case field_type::DateTime:
+        case field_type::Timestamp:
+        case field_type::Time:
+          accu.step(bw::FixedInt<1>(field->size()));
+          break;
+        case field_type::LongLong:
+        case field_type::Double:
+        case field_type::Long:
+        case field_type::Int24:
+        case field_type::Float:
+        case field_type::Short:
+        case field_type::Year:
+        case field_type::Tiny:
+          // fixed size
+          break;
       }
+      accu.step(borrowed::wire::String(*field));
     }
 
     return accu.result();
@@ -1605,12 +1604,164 @@ class Codec<borrowable::message::client::Query<Borrowed>>
     : public impl::EncodeBase<
           Codec<borrowable::message::client::Query<Borrowed>>> {
   template <class Accumulator>
-  constexpr auto accumulate_fields(Accumulator &&accu) const {
+  auto accumulate_fields(Accumulator &&accu) const {
     namespace bw = borrowable::wire;
 
-    return accu.step(bw::FixedInt<1>(cmd_byte()))
-        .step(bw::String<Borrowed>(v_.statement()))
-        .result();
+    accu.step(bw::FixedInt<1>(cmd_byte()));
+
+    auto caps = this->caps();
+
+    if (caps.test(capabilities::pos::query_attributes)) {
+      uint64_t param_count = v_.values().size();
+      accu.step(bw::VarInt(param_count));  // param_count
+      accu.step(bw::VarInt(1));            // param_set_count: always 1
+
+      if (param_count > 0) {
+        // mark all that are NULL in the nullbits
+        //
+        // - one bit per parameter to send
+        // - if a parameter is NULL, the bit is set, and later no value is
+        // added.
+
+        uint8_t null_bit_byte{};
+        int bit_pos{};
+
+        for (auto const &param : v_.values()) {
+          if (!param.value) null_bit_byte |= 1 << bit_pos;
+
+          if (++bit_pos > 7) {
+            accu.step(bw::FixedInt<1>(null_bit_byte));
+
+            bit_pos = 0;
+            null_bit_byte = 0;
+          }
+        }
+
+        if (bit_pos != 0) accu.step(bw::FixedInt<1>(null_bit_byte));
+
+        accu.step(bw::FixedInt<1>(1));  // new_param_bind_flag: always 1
+
+        for (const auto &param : v_.values()) {
+          accu.step(bw::FixedInt<2>(param.type_and_flags))
+              .step(bw::VarString<Borrowed>(param.name));
+        }
+
+        for (const auto &param : v_.values()) {
+          if (!param.value) continue;
+
+          auto type = param.type_and_flags & 0xff;
+          switch (type) {
+            case field_type::Bit:
+            case field_type::Blob:
+            case field_type::Varchar:
+            case field_type::VarString:
+            case field_type::Set:
+            case field_type::String:
+            case field_type::Enum:
+            case field_type::TinyBlob:
+            case field_type::MediumBlob:
+            case field_type::LongBlob:
+            case field_type::Decimal:
+            case field_type::Json:
+            case field_type::NewDecimal:
+            case field_type::Geometry:
+              accu.template step<bw::VarInt>(param.value->size());
+              break;
+            case field_type::Date:
+            case field_type::DateTime:
+            case field_type::Timestamp:
+            case field_type::Time:
+              assert(param.value->size() <= 255);
+
+              accu.template step<bw::FixedInt<1>>(param.value->size());
+
+              break;
+            case field_type::LongLong:
+            case field_type::Double:
+              assert(param.value->size() == 8);
+
+              break;
+            case field_type::Long:
+            case field_type::Int24:
+            case field_type::Float:
+              assert(param.value->size() == 4);
+
+              break;
+            case field_type::Short:
+            case field_type::Year:
+              assert(param.value->size() == 2);
+
+              break;
+            case field_type::Tiny:
+              assert(param.value->size() == 1);
+
+              break;
+            default:
+              assert(true || "unknown field-type");
+              break;
+          }
+          accu.template step<bw::String<Borrowed>>(*param.value);
+        }
+      }
+    }
+
+    accu.step(bw::String<Borrowed>(v_.statement()));
+    return accu.result();
+  }
+
+  template <class Accu>
+  static stdx::expected<size_t, std::error_code> decode_field_size(
+      Accu &accu, uint8_t type) {
+    namespace bw = borrowable::wire;
+
+    switch (type) {
+      case field_type::Bit:
+      case field_type::Blob:
+      case field_type::Varchar:
+      case field_type::VarString:
+      case field_type::Set:
+      case field_type::String:
+      case field_type::Enum:
+      case field_type::TinyBlob:
+      case field_type::MediumBlob:
+      case field_type::LongBlob:
+      case field_type::Decimal:
+      case field_type::Json:
+      case field_type::NewDecimal:
+      case field_type::Geometry: {
+        auto string_field_size_res = accu.template step<bw::VarInt>();
+        if (!accu.result()) {
+          return stdx::make_unexpected(accu.result().error());
+        }
+
+        return string_field_size_res->value();
+      }
+      case field_type::Date:
+      case field_type::DateTime:
+      case field_type::Timestamp:
+      case field_type::Time: {
+        auto time_field_size_res = accu.template step<bw::FixedInt<1>>();
+        if (!accu.result()) {
+          return stdx::make_unexpected(accu.result().error());
+        }
+
+        return time_field_size_res->value();
+      }
+      case field_type::LongLong:
+      case field_type::Double:
+        return 8;
+      case field_type::Long:
+      case field_type::Int24:
+      case field_type::Float:
+        return 4;
+      case field_type::Short:
+      case field_type::Year:
+        return 2;
+      case field_type::Tiny:
+        return 1;
+    }
+
+    return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
   }
 
  public:
@@ -1639,11 +1790,98 @@ class Codec<borrowable::message::client::Query<Borrowed>>
       return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
+    std::vector<typename value_type::Param> params;
+    if (caps.test(capabilities::pos::query_attributes)) {
+      //
+      auto param_count_res = accu.template step<bw::VarInt>();
+      if (!param_count_res) return param_count_res.get_unexpected();
+
+      // currently always 1.
+      auto param_set_count_res = accu.template step<bw::VarInt>();
+      if (!param_set_count_res) return param_set_count_res.get_unexpected();
+
+      if (param_set_count_res->value() != 1) {
+        return stdx::make_unexpected(
+            make_error_code(codec_errc::invalid_input));
+      }
+
+      const auto param_count = param_count_res->value();
+      if (param_count > 0) {
+        // bit-map
+        const auto nullbits_res = accu.template step<bw::String<Borrowed>>(
+            bytes_per_bits(param_count));
+        if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+        const auto nullbits = nullbits_res->value();
+
+        // always 1
+        auto new_params_bound_res = accu.template step<bw::FixedInt<1>>();
+        if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+        auto new_params_bound = new_params_bound_res->value();
+        if (new_params_bound != 1) {
+          // Always 1, malformed packet error of not 1
+          return stdx::make_unexpected(
+              make_error_code(codec_errc::invalid_input));
+        }
+
+        // redundant, but protocol-docs says:
+        //
+        //   'if new-params-bind-flag == 1'
+        //
+        // therefore keep it.
+        if (new_params_bound == 1) {
+          for (long n{}; n < param_count; ++n) {
+            auto param_type_res = accu.template step<bw::FixedInt<2>>();
+            if (!accu.result()) {
+              return stdx::make_unexpected(accu.result().error());
+            }
+            auto param_name_res = accu.template step<bw::VarString<Borrowed>>();
+            if (!accu.result()) {
+              return stdx::make_unexpected(accu.result().error());
+            }
+
+            params.emplace_back(param_type_res->value(),
+                                param_name_res->value(),
+                                std::optional<std::string>());
+          }
+        }
+
+        for (long n{}, nullbit_pos{}, nullbyte_pos{}; n < param_count;
+             ++n, ++nullbit_pos) {
+          if (nullbit_pos > 7) {
+            ++nullbyte_pos;
+            nullbit_pos = 0;
+          }
+
+          if (!(nullbits[nullbyte_pos] & (1 << nullbit_pos))) {
+            auto &param = params[n];
+
+            auto field_size_res =
+                decode_field_size(accu, param.type_and_flags & 0xff);
+            if (!field_size_res) {
+              return stdx::make_unexpected(field_size_res.error());
+            }
+
+            auto param_value_res = accu.template step<bw::String<Borrowed>>(
+                field_size_res.value());
+            if (!accu.result()) {
+              return stdx::make_unexpected(accu.result().error());
+            }
+
+            param.value = param_value_res->value();
+          }
+        }
+      }
+    }
+
     auto statement_res = accu.template step<bw::String<Borrowed>>();
+
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-    return std::make_pair(accu.result().value(),
-                          value_type(statement_res->value()));
+    return std::make_pair(
+        accu.result().value(),
+        value_type(statement_res->value(), std::move(params)));
   }
 
  private:
@@ -1924,49 +2162,62 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
   auto accumulate_fields(Accumulator &&accu) const {
     namespace bw = borrowable::wire;
 
+    auto caps = this->caps();
+
     accu.step(bw::FixedInt<1>(cmd_byte()))
         .step(bw::FixedInt<4>(v_.statement_id()))
         .step(bw::FixedInt<1>(v_.flags().to_ullong()))
         .step(bw::FixedInt<4>(v_.iteration_count()));
 
-    // values.size() and types.size() MUST be the same
-    if (v_.values().empty()) return accu.result();
+    // num-params from the StmtPrepareOk
+    auto num_params = v_.values().size();
+
+    const bool supports_query_attributes =
+        caps.test(capabilities::pos::query_attributes);
+
+    if (supports_query_attributes &&
+        v_.flags().test(cursor::pos::param_count_available)) {
+      accu.step(bw::VarInt(num_params));
+    }
+
+    if (num_params == 0) return accu.result();
 
     // mark all that are NULL in the nullbits
     //
     // - one bit per parameter to send
     // - if a parameter is NULL, the bit is set, and later no value is added.
-    std::vector<uint8_t> nullbits(bytes_per_bits(v_.values().size()));
+    uint8_t null_bit_byte{};
+    int bit_pos{};
 
-    {
-      size_t byte_pos{}, bit_pos{};
-      for (auto const &v : v_.values()) {
-        if (bit_pos > 7) {
-          bit_pos = 0;
-          ++byte_pos;
-        }
+    for (auto const &param : v_.values()) {
+      if (!param.has_value()) null_bit_byte |= 1 << bit_pos;
 
-        if (!v) {
-          nullbits[byte_pos] |= 1 << bit_pos;
-        }
+      if (++bit_pos > 7) {
+        accu.step(bw::FixedInt<1>(null_bit_byte));
 
-        ++bit_pos;
+        bit_pos = 0;
+        null_bit_byte = 0;
       }
     }
 
-    accu
-        .step(bw::String<Borrowed>(typename bw::String<Borrowed>::value_type(
-            reinterpret_cast<const char *>(nullbits.data()), nullbits.size())))
-        .step(bw::FixedInt<1>(v_.new_params_bound()));
+    if (bit_pos != 0) accu.step(bw::FixedInt<1>(null_bit_byte));
+
+    accu.step(bw::FixedInt<1>(v_.new_params_bound()));
+
     if (v_.new_params_bound()) {
       for (const auto &param_def : v_.types()) {
         accu.step(bw::FixedInt<2>(param_def.type_and_flags));
+
+        if (supports_query_attributes) {
+          accu.step(borrowed::wire::VarString(param_def.name));
+        }
       }
     }
 
     for (auto [n, v] : stdx::views::enumerate(v_.values())) {
       // add all the values that aren't NULL
       if (!v.has_value()) continue;
+
       // write length of the type is a variable length
       switch (v_.types()[n].type_and_flags & 0xff) {
         case field_type::Bit:
@@ -2086,6 +2337,11 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
+    const auto param_count_available{1 << cursor::pos::param_count_available};
+
+    const bool supports_query_attributes =
+        caps.test(capabilities::pos::query_attributes);
+
     stdx::expected<std::vector<typename value_type::ParamDef>, std::error_code>
         metadata_res = metadata_lookup(statement_id_res->value());
     if (!metadata_res) {
@@ -2093,11 +2349,25 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
           make_error_code(codec_errc::statement_id_not_found));
     }
 
-    const size_t param_count = metadata_res->size();
+    size_t param_count = metadata_res->size();
+
+    if (supports_query_attributes &&
+        (flags_res->value() & param_count_available) != 0) {
+      auto param_count_res = accu.template step<bw::VarInt>();
+      if (!accu.result()) {
+        return stdx::make_unexpected(accu.result().error());
+      }
+
+      if (static_cast<uint64_t>(param_count_res->value()) < param_count) {
+        // can the param-count shrink?
+        return stdx::make_unexpected(
+            make_error_code(codec_errc::invalid_input));
+      }
+
+      param_count = param_count_res->value();
+    }
 
     if (param_count == 0) {
-      if (!accu.result()) return stdx::make_unexpected(accu.result().error());
-
       return std::make_pair(
           accu.result().value(),
           value_type(statement_id_res->value(), flags_res->value(),
@@ -2112,27 +2382,48 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     std::vector<typename value_type::ParamDef> types;
-    std::vector<std::optional<typename value_type::string_type>> values;
 
     auto new_params_bound = new_params_bound_res->value();
     if (new_params_bound == 0) {
+      // no new params, use the last known params.
       types = *metadata_res;
     } else if (new_params_bound == 1) {
+      // check that there is at least enough data for the types (a FixedInt<2>)
+      // before reserving memory.
+      if (param_count >= buffer.size() / 2) {
+        return stdx::make_unexpected(
+            make_error_code(codec_errc::invalid_input));
+      }
+
       types.reserve(param_count);
 
       for (size_t n{}; n < param_count; ++n) {
         auto type_res = accu.template step<bw::FixedInt<2>>();
         if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-        types.push_back(type_res->value());
+        if (supports_query_attributes) {
+          auto name_res = accu.template step<bw::VarString<Borrowed>>();
+          if (!accu.result()) {
+            return stdx::make_unexpected(accu.result().error());
+          }
+          types.emplace_back(type_res->value(), name_res->value());
+        } else {
+          types.emplace_back(type_res->value());
+        }
       }
     } else {
       return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
-    const auto nullbits = nullbits_res->value();
+    if (param_count != types.size()) {
+      // param-count and available types doesn't match.
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    std::vector<std::optional<typename value_type::string_type>> values;
     values.reserve(param_count);
 
+    const auto nullbits = nullbits_res->value();
     for (size_t n{}, bit_pos{}, byte_pos{}; n < param_count; ++n, ++bit_pos) {
       if (bit_pos > 7) {
         bit_pos = 0;
@@ -2204,6 +2495,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
         values.push_back(value_res->value());
       } else {
+        // NULL
         values.emplace_back(std::nullopt);
       }
     }
@@ -2624,8 +2916,8 @@ class Codec<borrowable::message::client::Greeting<Borrowed>>
     auto client_capabilities = classic_protocol::capabilities::value_type(
         capabilities_lo_res->value());
 
-    // decoding depends on the capabilities that both client and server have in
-    // common
+    // decoding depends on the capabilities that both client and server have
+    // in common
     auto shared_capabilities = caps & client_capabilities;
 
     if (shared_capabilities[classic_protocol::capabilities::pos::protocol_41]) {

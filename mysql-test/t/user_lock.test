@@ -537,13 +537,13 @@ SELECT IS_FREE_LOCK(REPEAT('a', 64)) = 0 AS expect_1;
 SELECT RELEASE_LOCK(REPEAT('a', 64)) = 1 AS expect_1;
 
 --echo # FT-14.3: Lock name too long.
---error ER_USER_LOCK_WRONG_NAME
+--error ER_USER_LOCK_OVERLONG_NAME
 SELECT GET_LOCK(REPEAT('a', 65), 0);
---error ER_USER_LOCK_WRONG_NAME
+--error ER_USER_LOCK_OVERLONG_NAME
 SELECT IS_USED_LOCK(REPEAT('a', 65));
---error ER_USER_LOCK_WRONG_NAME
+--error ER_USER_LOCK_OVERLONG_NAME
 SELECT IS_FREE_LOCK(REPEAT('a', 65));
---error ER_USER_LOCK_WRONG_NAME
+--error ER_USER_LOCK_OVERLONG_NAME
 SELECT RELEASE_LOCK(REPEAT('a', 65));
 
 --echo # FT-14.4: Check that lock names are case-insensitive.
@@ -679,6 +679,41 @@ select * from(SELECT MIN(GET_LOCK(0,0) / 1 ^ 0)) as a;
 select * from(SELECT MAX(RELEASE_LOCK(0) / 1 ^ 0)) as a;
 select * from(SELECT MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)) as a;
 SET @@session.div_precision_increment=default;
+
+--echo # Bug#35134926: Improve GET_LOCK() diagnostics
+--echo #
+
+--echo # Current limit is 64 characters.
+--echo # So, this should succeed:
+SELECT GET_LOCK('1234567890123456789012345678901234567890123456789012345678901234',1);
+--echo
+
+--echo # And this should fail:
+--error ER_USER_LOCK_OVERLONG_NAME
+SELECT GET_LOCK('12345678901234567890123456789012345678901234567890123456789012345',1);
+--echo
+
+--echo # Empty/NULL names: Fail and fail.
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK('',1);
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK(NULL,1);
+--echo
+
+--echo # Malformed name. Fail.
+SET @a=0x414243FAFA;
+--error ER_USER_LOCK_WRONG_NAME
+SELECT GET_LOCK(@a,1);
+--echo
+
+--echo # Well-formed name. Succeed.
+SET @a=0x414243;
+SELECT GET_LOCK(@a,1);
+--echo
+
+--echo # Clean up.
+SELECT RELEASE_ALL_LOCKS();
+--echo
 
 --echo #
 --echo # End of tests

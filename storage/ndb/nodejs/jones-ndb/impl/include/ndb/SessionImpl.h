@@ -30,8 +30,14 @@
   
 */ 
 
+#include "stdint.h"
+
 class TransactionImpl;
 class AsyncNdbContext;
+class Ndb;
+class Ndb_cluster_connection;
+struct NdbError;
+namespace v8 { class Isolate; }
 
 class CachedTransactionsAccountant {
 protected:

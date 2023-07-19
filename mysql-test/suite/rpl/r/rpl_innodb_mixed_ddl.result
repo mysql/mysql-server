@@ -13,6 +13,9 @@ binlog_format	MIXED
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 MIXED	MIXED
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ==========SLAVE===========
 show global variables like 'binlog_format%';
 Variable_name	Value
@@ -23,6 +26,9 @@ binlog_format	MIXED
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 MIXED	MIXED
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 ******************** DDL for database ********************
 DROP DATABASE IF EXISTS test_rpl;

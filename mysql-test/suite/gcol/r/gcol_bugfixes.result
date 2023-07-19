@@ -894,6 +894,8 @@ DROP TABLE t;
 # Bug#27954073 ASSERTION FAILED: !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
 #
 SET BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t(
 a INT,
 b INT GENERATED ALWAYS AS (0) VIRTUAL NOT NULL,
@@ -903,6 +905,8 @@ INSERT INTO t(a) VALUES(1),(1),(1),(1);
 DELETE FROM t WHERE a=1;
 DROP TABLE t;
 SET BINLOG_FORMAT=DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug #28652826  THE CONTINUATION OF BUG 27968952 .. CRASH & CORRUPTION
 # WITH GCOLS

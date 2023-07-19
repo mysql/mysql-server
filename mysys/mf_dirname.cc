@@ -43,34 +43,101 @@
   Get the string length of the directory part of name, including the
   last FN_LIBCHAR. If name is not a path, return 0.
 
-  Pre-condition: 'name' is a '\0'-terminated byte buffer.
+  On Windows, we special-case Shift-JIS (or more specifically,
+  Windows code-page 932).
 
-  @param name path to calculate directory length for.
-  @return length of directory part
+  Everything else (i.e. anything that's not CP932 and on Windows)
+  is considered binary. Specifically, we assume that drive and directory
+  separators are single-byte (and as defined by FN_LIBCHAR / FN_LIBCHAR2),
+  and that the string is '\0' terminated. Therefore, latin-*, UTF-8, and
+  other arguments that behave sufficiently like ASCII will work, whereas
+  e.g. UTF-16 would break as the separators would have '\0' as part of the
+  UTF-16 character. Fortunately, CP932 does not use '\0' as part of a
+  multi-byte character.
+
+  @param name  path to calculate directory length for.
+  @return length of directory part (including the last separator), or 0
  */
 size_t dirname_length(const char *name) {
+  const char *pos = name;     // position in input as we iterate over it
+  const char *sep = nullptr;  // position of most recent separator character
+
 #ifdef _WIN32
+  // If we're on Windows ...
+
+  /*
+    At present, the character set for file-paths is either CP932
+    (a 1/2 byte variable length charset) or considered binary.
+    (See the function comment on more information about what "binary"
+    implies in this context.)
+
+    fs_character_set() gets this info from GetLocaleInfo(), so it's not
+    something we configure within the server, we just roll with what we
+    find.
+
+    There is some non-standard oddness in Win's take on Shift-JIS, but
+    the important part is that characters we'd be interested in (like
+    '\0' '/' '\' ':') are single-width (1 byte).
+  */
   CHARSET_INFO *fs = fs_character_set();
-#endif
-  const char *pos = name - 1;
+
+  /*
+    If a drive letter separator is defined (e.g. ':'), see whether it
+    is present in the path. If so, skip the drive letter.
+    Luckily, ':' does not appear as part of a CP932 MB character, any
+    matches are genuine.
+  */
 #ifdef FN_DEVCHAR
-  const char *devchar_pos = strrchr(name, FN_DEVCHAR);
-  if (devchar_pos != nullptr) pos = devchar_pos;
+  const char *devchar_pos = strrchr(name, FN_DEVCHAR);  // find ':' if present
+
+  if (devchar_pos != nullptr) {
+    sep = devchar_pos;      // ':' counts as last character of path for now
+    pos = devchar_pos + 1;  // position behind ':'
+  }
 #endif
 
-  const char *gpos = pos++;
-  for (; *pos; pos++) /* Find last FN_LIBCHAR */
+  for (; *pos; pos++)  // Find last FN_LIBCHAR.
   {
-#ifdef _WIN32
+    /*
+      Check whether it's a multi-byte character.
+      If it is a MB character, then by definition it can't be a directory
+      separator, so we'll skip over it.
+
+      By definition (or rather, due to the way fs_character_set() works),
+      use_mb() is true for cp932, and false otherwise ("considered binary").
+
+      For well-formed cp932, if the character pointed at is a valid
+      multi-byte char header, the next character is guaranteed to be
+      not '\0', but we guard against malformedness.
+    */
     uint l;
-    if (use_mb(fs) && (l = my_ismbchar(fs, pos, pos + 3))) {
-      pos += l - 1;
+    if (use_mb(fs) && pos[1] &&
+        (l = my_ismbchar(fs, pos, pos + fs->mbmaxlen))) {
+      pos += l - 1;  // skip character. length-1 to account for loop's pos++.
       continue;
     }
-#endif
-    if (is_directory_separator(*pos)) gpos = pos;
+
+    if (is_directory_separator(*pos)) {  // If it's a directory separator,
+      sep = pos;                         // save its position.
+    }
   }
-  return gpos + 1 - name;
+
+#else
+  // not Windows ...
+  // FN_DEVCHAR should be undefined here, so we're not checking for it.
+
+  for (; *pos; pos++)  // Find last FN_LIBCHAR
+  {
+    if (is_directory_separator(*pos)) {  // If it's a directory separator,
+      sep = pos;                         // save its position.
+    }
+  }
+#endif
+
+  if (sep == nullptr)  // No directory separator found:
+    return 0;          // return 0
+
+  return (sep - name) + 1;  // Otherwise, return length including separator
 }
 
 /**

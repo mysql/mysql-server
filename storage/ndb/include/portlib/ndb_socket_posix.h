@@ -46,6 +46,11 @@
 #define INVALID_SOCKET -1
 
 using posix_poll_fd = struct pollfd;
+using socket_t = int;
+
+struct ndb_socket_t {
+  socket_t s = INVALID_SOCKET;
+};
 
 static inline int ndb_socket_reuseaddr(ndb_socket_t, int);
 

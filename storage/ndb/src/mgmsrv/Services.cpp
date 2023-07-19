@@ -42,6 +42,7 @@
 #include <ndb_base64.h>
 #include <ndberror.h>
 #include "portlib/NdbTCP.h"
+#include "portlib/ndb_sockaddr.h"
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
@@ -366,18 +367,17 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock,
   m_errorInsert= 0;
   m_vMajor = m_vMinor = m_vBuild = 0;
 
-  struct sockaddr_in6 addr;
+  ndb_sockaddr addr;
   if (ndb_getpeername(sock, &addr) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    char *addr_str = Ndb_inet_ntop(AF_INET6,
-                                   static_cast<void*>(&addr.sin6_addr),
+    char *addr_str = Ndb_inet_ntop(&addr,
                                    addr_buf,
                                    sizeof(addr_buf));
     char buf[512];
     char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
                                                      addr_str,
-                                                     ntohs(addr.sin6_port));
+                                                     addr.get_port());
     m_name.assfmt("%s", sockaddr_string);
   }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
@@ -555,7 +555,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr_in6 client_addr;
+  ndb_sockaddr client_addr;
   {
     int r = ndb_getpeername(m_secure_socket.ndb_socket(), &client_addr);
     if (r != 0 )

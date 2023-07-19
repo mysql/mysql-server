@@ -23,8 +23,15 @@
 */
 
 
+#include "ndb_sockaddr.h"
 #include "ndb_socket.h"
 #include <cstring>
+#ifdef _WIN32
+#include <Winsock2.h>
+#include <Ws2ipdef.h>
+#else
+#include <netinet/in.h>
+#endif
 
 /*
   Implement ndb_socketpair() so that it works both on UNIX and windows
@@ -34,19 +41,24 @@
 
 int ndb_socketpair(ndb_socket_t s[2])
 {
-  struct sockaddr_in6 addr;
+  ndb_sockaddr addr;
+  if (addr.get_address_family() == AF_INET6)
+  {
+    addr = ndb_sockaddr(&in6addr_loopback, 0);
+  }
+  else
+  {
+    in_addr in4;
+    in4.s_addr = htonl(INADDR_LOOPBACK);
+    addr = ndb_sockaddr(&in4, 0);
+  }
 
-  ndb_socket_t listener = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
+  ndb_socket_t listener = ndb_socket_create(addr.get_address_family());
   if (!ndb_socket_valid(listener))
     return -1;
 
-  std::memset(&addr, 0, sizeof(addr));
-  addr.sin6_family = AF_INET6;
-  addr.sin6_addr = in6addr_loopback; /* localhost */
-  addr.sin6_port = 0; /* Any port */
-
   /* bind any local address */
-  if (ndb_bind_inet(listener, &addr) == -1)
+  if (ndb_bind(listener, &addr) == -1)
     goto err;
 
   /* get sockname */
@@ -56,15 +68,14 @@ int ndb_socketpair(ndb_socket_t s[2])
   if (ndb_listen(listener, 1) == -1)
     goto err;
 
-  s[0] = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
-
+  s[0] = ndb_socket_create(addr.get_address_family());
   if (!ndb_socket_valid(s[0]))
     goto err;
 
-  if (ndb_connect_inet6(s[0], &addr) == -1)
+  if (ndb_connect(s[0], &addr) == -1)
     goto err;
 
-  s[1]= ndb_accept(listener, 0, 0);
+  s[1]= ndb_accept(listener, nullptr);
   if (!ndb_socket_valid(s[1]))
     goto err;
 

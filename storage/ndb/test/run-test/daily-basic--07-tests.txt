@@ -48,7 +48,7 @@ max-time: 180
 
 cmd: testSpj
 args: -n bug#23049170 -l 1 T1
-max-time: 180
+max-time: 300
 
 cmd: testBasic
 args: -n RollbackNothing T1 T6 D1 D2

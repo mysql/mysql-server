@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0purge_h
 #define trx0purge_h
 
-#include <unordered_set>
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 #include "page0page.h"
@@ -1079,8 +1078,9 @@ struct trx_purge_t {
   /** Heap for reading the undo log records */
   mem_heap_t *heap;
 
-  /** Set of all THDs allocated by the purge system. */
-  ut::unordered_set<THD *> thds;
+  /** Is the this thread related to purge? This is false by default and set to
+  true by srv_purge_coordinator_thread() and srv_worker_thread() only. */
+  static inline thread_local bool is_this_a_purge_thread{false};
 
   /** Set of all rseg queue. */
   std::vector<trx_rseg_t *> rsegs_queue;

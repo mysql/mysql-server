@@ -64,22 +64,23 @@ insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
 --let $index_stat_name=t1
 --source wait_index_stat_cache_updated.inc
 
+# put some entries into index stats cache
+select count(*) from t1 where b = 1;
+select count(*) from t1 where c = 1;
+show status like 'ndb_index_stat_cache%';
+
 connection server2;
 --echo Check if events were detected in the other MySQL Server as well
-# Disable query log since $old_event_count2 can be any value
---disable_query_log
-eval SELECT CASE VARIABLE_VALUE > $old_event_count2
-     WHEN 1 THEN 'YES' ELSE 'NO' END
-     AS events_detected
-     FROM performance_schema.global_status
-     WHERE VARIABLE_NAME LIKE 'Ndb_index_stat_event_count';
---enable_query_log
-connection server1;
+--let $old_event_count=$old_event_count2
+--let $index_stat_db=test
+--let $index_stat_name=t1
+--source wait_index_stat_cache_updated.inc
 
 # put some entries into index stats cache
 select count(*) from t1 where b = 1;
 select count(*) from t1 where c = 1;
 show status like 'ndb_index_stat_cache%';
+connection server1;
 
 drop table t1;
 

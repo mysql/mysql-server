@@ -76,6 +76,7 @@ while ($i) {
 --disable_query_log
 send_eval SHOW BINLOG EVENTS FROM $pos;
 --enable_query_log
+--replace_regex /position \d+/position #/
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 reap;
 

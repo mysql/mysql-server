@@ -113,6 +113,7 @@ usr/lib/mysql/plugin/component_keyring_oci.so
 usr/lib/mysql/plugin/component_enterprise_encryption.so
 usr/lib/mysql/plugin/component_masking.so
 usr/lib/mysql/plugin/component_masking_functions.so
+usr/lib/mysql/plugin/component_scheduler.so
 ")
 
    SET (DEB_INSTALL_TEST_PLUGINS

@@ -64,6 +64,8 @@ SET DEBUG_SYNC='ib_after_row_insert SIGNAL got_innodb_ticket WAIT_FOR proceed';
 INSERT INTO t1(col2) VALUES (20);
 In connection CON-1
 SET LOCAL binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC='now WAIT_FOR got_innodb_ticket';
 INSERT INTO t1(col2) SELECT 30;
 In connection CON-2

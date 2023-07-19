@@ -73,3 +73,31 @@ drop table table_28779;
 SELECT 1 /*!99999 /* */ */;
 SELECT 2 /*!12345 /* */ */;
 SELECT 3 /*! /* */ */;
+
+
+--echo #
+--echo # Deprecation warning if the version number is not immediately followed
+--echo # by a white-space character.
+--echo #
+
+--echo # No whitespace. Should raise warning.
+DO 1 /*!80034+1*/;
+
+--echo # Horizontal tab (0x09). Should pass without warning.
+DO 1 /*!80034	+1*/;
+
+--echo # Line feed (0x0a). Should pass without warning.
+DO 1 /*!80034
++1*/;
+
+--echo # Vertical tab (0x0b). Should pass without warning.
+DO 1 /*!80034+1*/;
+
+--echo # Form feed (0x0c). Should pass without warning.
+DO 1 /*!80034+1*/;
+
+--echo # Carriage return (0x0d). Should pass without warning.
+DO 1 /*!80034+1*/;
+
+--echo # Space (0x20). Should pass without warning.
+DO 1 /*!80034 +1*/;

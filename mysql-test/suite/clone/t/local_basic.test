@@ -194,3 +194,65 @@ if ($clone_remote_replace) {
 --source ../include/clone_connection_end.inc
 
 UNINSTALL PLUGIN clone;
+
+--echo #
+--echo # BUG#34828542: P_S.clone_status.gtid_executed does not have enough
+--echo #               column size
+--echo #
+
+--echo # Install Plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # Test case set up.
+SET @gtid_next_saved = @@SESSION.GTID_NEXT;
+SET @gtid_mode_saved = @@GLOBAL.GTID_MODE;
+SET @enforce_gtid_consistency_saved = @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY=ON;
+SET @@GLOBAL.GTID_MODE=OFF_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=ON_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=ON;
+
+delimiter //;
+CREATE PROCEDURE p1()
+BEGIN
+   DECLARE x INT DEFAULT 0;
+   WHILE x <= 2000 DO
+     SET gtid_next=CONCAT(UUID(),':',4000);
+     COMMIT;
+     SET x = x + 1;
+   END WHILE;
+END//
+
+DELIMITER ;//
+CALL p1();
+
+--echo # Restore GTID settings.
+SET @@SESSION.GTID_NEXT= @gtid_next_saved;
+SET @@GLOBAL.GTID_MODE=ON_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=OFF_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE= @gtid_mode_saved;
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY=@enforce_gtid_consistency_saved;
+
+--echo # Clone database.
+--source ../include/clone_command_send.inc
+--reap
+
+--echo # Restart cloned database
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+--source include/restart_mysqld.inc
+
+--echo # Check the length of gtid_executed > 4096 after bug fix.
+SELECT length(gtid_executed) from performance_schema.clone_status;
+
+#Cleanup
+--let restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+DROP PROCEDURE p1;
+
+UNINSTALL PLUGIN clone;
+
+--force-rmdir $CLONE_DATADIR

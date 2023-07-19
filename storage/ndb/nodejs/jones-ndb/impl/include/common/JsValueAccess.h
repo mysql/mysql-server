@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #define NODEJS_ADAPTER_INCLUDE_JSVALUEACCESS_H
 
 #include <cstddef>              // size_t
+#include <node_buffer.h>
 
 using v8::String;
 using v8::Number;
@@ -45,8 +46,6 @@ using v8::TryCatch;
 using v8::Message;
 
 typedef v8::FunctionCallbackInfo<Value> Arguments;
-
-#include "node_buffer.h"
 
 // HasProperty
 template <typename KEY>

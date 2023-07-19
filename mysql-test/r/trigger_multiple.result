@@ -2,7 +2,11 @@
 # WL#3253: multiple triggers per table
 #
 SET @binlog_format_saved = @@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Test 1.
 # Check that the sequence of triggers for the same combination 
@@ -499,5 +503,7 @@ CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bu` BEFORE UPDATE ON `t1` FOR EAC
 </mysqldump>
 DROP TABLE t1;
 SET binlog_format=@binlog_format_saved;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # End of tests.
 #

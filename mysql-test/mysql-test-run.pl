@@ -719,6 +719,7 @@ sub main {
     secondary_engine_offload_count_report_init();
     # Create virtual environment
     create_virtual_env($bindir);
+    reserve_secondary_ports();
   }
 
   if ($opt_summary_report) {
@@ -1757,7 +1758,7 @@ sub command_line_setup {
     'default-myisam!'       => \&collect_option,
     'disk-usage!'           => \&report_option,
     'enable-disabled'       => \&collect_option,
-    'fast'                  => \$opt_fast,
+    'fast!'                  => \$opt_fast,
     'force-restart'         => \$opt_force_restart,
     'help|h'                => \$opt_usage,
     'keep-ndbfs'            => \$opt_keep_ndbfs,
@@ -2083,6 +2084,7 @@ sub command_line_setup {
   # fast option
   if ($opt_fast) {
     # Kill processes instead of nice shutdown
+    mtr_report("Using kill instead of nice shutdown (--fast)");
     $opt_shutdown_timeout = 0;
   }
 
@@ -3383,6 +3385,7 @@ sub environment_setup {
     if $opt_sanitize;
 
   $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+    . ",detect_stack_use_after_return=false"
     if $opt_sanitize;
 
 # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
@@ -3405,6 +3408,34 @@ sub remove_vardir_subs() {
 
 # Remove var and any directories in var/ created by previous tests
 sub remove_stale_vardir () {
+
+  if ($opt_fast) {
+    mtr_report(" * NOTE! Using --fast for quicker development testing.");
+    mtr_report(" * This may cause spurious test failures if contents");
+    mtr_report(" * of std_data/ or data/ does not match the tests or");
+    mtr_report(" * compiled binaries. Fix by removing vardir (or run");
+    mtr_report(" * once without --fast).");
+
+    # Just clean the vardir, this allows reusing data/ and std_data/
+    # which otherwise takes time to create or copy.
+    mtr_report("Cleaning var directory to save time (--fast)");
+    foreach my $name (glob("$opt_vardir/*")) {
+      if (!-l $name && -d _) {
+        if ($name =~ /\/data$/ ||
+            $name =~ /\/std_data$/) {
+          # Preserve directory
+          next;
+        }
+        # Remove directory
+        rmtree($name);
+        next;
+      }
+      # Remove file
+      unlink($name);
+    }
+    return;
+  }
+
   mtr_report("Removing old var directory");
 
   mtr_error("No, don't remove the vardir when running with --extern")
@@ -3515,7 +3546,8 @@ sub setup_vardir() {
 
   # Copy all files from std_data into var/std_data
   # and make them world readable
-  copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data", "0022");
+  copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data", "0022")
+    unless -d "$opt_vardir/std_data";
 
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings")) {
@@ -4153,8 +4185,6 @@ sub mysql_install_db {
   my $install_chsdir  = $mysqld->value('character-sets-dir');
   my $install_datadir = $datadir || $mysqld->value('datadir');
 
-  mtr_report("Installing system database");
-
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
@@ -4210,6 +4240,14 @@ sub mysql_install_db {
 
   # Export MYSQLD_INSTALL_CMD variable containing <path>/mysqld <args>
   $ENV{'MYSQLD_INSTALL_CMD'} = "$exe_mysqld_bootstrap " . join(" ", @$args);
+
+  if ($opt_fast && -d $datadir) {
+     mtr_report("Reusing system database (--fast)");
+
+     return;
+  }
+
+  mtr_report("Installing system database");
 
   # Create the bootstrap.sql file
   my $bootstrap_sql_file = "$opt_vardir/tmp/bootstrap.sql";
@@ -7973,8 +8011,9 @@ Misc options
                         tests. This is needed after switching default storage
                         engine to InnoDB.
   disk-usage            Show disk usage of vardir after each test.
-  fast                  Run as fast as possible, dont't wait for servers
-                        to shutdown etc.
+  fast                  Run mtr.pl as fast as possible when using it for
+                        development. This involves reusing the vardir (just
+                        clean it) and don't wait for servers to shutdown.
   force-restart         Always restart servers between tests.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.

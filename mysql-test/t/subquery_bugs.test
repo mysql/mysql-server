@@ -1943,3 +1943,9 @@ eval explain $query;
 
 DROP VIEW v;
 DROP TABLE t;
+
+--echo # Bug#35338776: Failure in find_item_in_list with unknown column 
+
+--error ER_BAD_FIELD_ERROR
+SELECT(SELECT SIN(a.c7)),c7;
+

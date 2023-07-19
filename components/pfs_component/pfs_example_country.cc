@@ -35,7 +35,7 @@ unsigned int country_rows_in_table = 0;
 unsigned int country_next_available_index = 0;
 
 Country_record country_records_array[COUNTRY_MAX_ROWS] = {
-    {"", 0, "", 0, {0, true}, {0, true}, {0, true}, false}};
+    {"", 0, "", 0, "", 0, {0, true}, {0, true}, {0, true}, false}};
 
 /**
   Check for duplicate value of Primary/Unique Key column(s).
@@ -71,6 +71,7 @@ PSI_table_handle *country_open_table(PSI_pos **pos) {
   Country_Table_Handle *temp = new Country_Table_Handle();
   temp->current_row.name_length = 0;
   temp->current_row.continent_name_length = 0;
+  temp->current_row.country_code_length = 0;
   temp->current_row.year.is_null = true;
   temp->current_row.population.is_null = true;
   temp->current_row.growth_factor.is_null = true;
@@ -99,6 +100,8 @@ static void copy_record(Country_record *dest, Country_record *source) {
   dest->population = source->population;
   dest->growth_factor = source->growth_factor;
   dest->m_exist = source->m_exist;
+  dest->country_code_length = source->country_code_length;
+  strncpy(dest->country_code, source->country_code, dest->country_code_length);
 }
 
 /* Define implementation of PFS_engine_table_proxy. */
@@ -249,6 +252,10 @@ int country_read_column_value(PSI_table_handle *handle, PSI_field *field,
     case 4: /* GROWTH_FACTOR */
       pc_double_srv->set(field, h->current_row.growth_factor);
       break;
+    case 5: /* COUNTRY_CODE */
+      pc_text_srv->set(field, h->current_row.country_code,
+                       h->current_row.country_code_length);
+      break;
     default: /* We should never reach here */
       assert(0);
       break;
@@ -308,6 +315,8 @@ int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
   unsigned int *name_length = &h->current_row.name_length;
   char *continent_name = (char *)h->current_row.continent_name;
   unsigned int *continent_name_length = &h->current_row.continent_name_length;
+  char *country_code = (char *)h->current_row.country_code;
+  unsigned int *country_code_length = &h->current_row.country_code_length;
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
@@ -325,6 +334,9 @@ int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
       break;
     case 4: /* GROWTH_FACTOR */
       pc_double_srv->get(field, &h->current_row.growth_factor);
+      break;
+    case 5: /* COUNTRY_CODE */
+      pc_text_srv->get(field, country_code, country_code_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -361,6 +373,8 @@ int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
   unsigned int *name_length = &h->current_row.name_length;
   char *continent_name = (char *)h->current_row.continent_name;
   unsigned int *continent_name_length = &h->current_row.continent_name_length;
+  char *country_code = (char *)h->current_row.country_code;
+  unsigned int *country_code_length = &h->current_row.country_code_length;
 
   switch (index) {
     case 0: /* COUNTRY_NAME */
@@ -378,6 +392,9 @@ int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
       break;
     case 4: /* GROWTH_FACTOR */
       pc_double_srv->get(field, &h->current_row.growth_factor);
+      break;
+    case 5: /* COUNTRY_CODE */
+      pc_text_srv->get(field, country_code, country_code_length);
       break;
     default: /* We should never reach here */
       assert(0);
@@ -421,6 +438,7 @@ void init_country_share(PFS_engine_table_share_proxy *share) {
   share->m_table_definition =
       "NAME char(20) not null, CONTINENT char(20),"
       " YEAR year, POPULATION bigint, GROWTH_FACTOR double(10,2),"
+      " COUNTRY_CODE text,"
       " UNIQUE KEY(NAME, CONTINENT)";
   share->m_ref_length = sizeof(Country_POS);
   share->m_acl = EDITABLE;

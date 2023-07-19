@@ -2,12 +2,12 @@
 .\"     Title: ibd2sdi
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 06/02/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "IBD2SDI" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "IBD2SDI" "1" "06/02/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -348,11 +348,17 @@ $> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 \fB\-t \fR\fB\fI#\fR\fR
 Retrieves serialized dictionary information (SDI) matching the specified object type\&. SDI is provided for table (type=1) and tablespace (type=2) objects\&.
 .sp
+This example show output for a tablespace
+ts1
+in the
+test
+database:
+.sp
 .if n \{\
 .RS 4
 .\}
 .nf
-$> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
+$> \fBibd2sdi \-\-type=2 \&.\&./data/test/ts1\&.ibd\fR
 ["ibd2sdi"
 ,
 {
@@ -365,7 +371,7 @@ $> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "test/t1",
+        "name": "test/ts1",
         "comment": "",
         "options": "",
         "se_private_data": "flags=16417;id=2;server_version=80003;space_version=1;",
@@ -373,7 +379,7 @@ $> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
         "files": [
             {
                 "ordinal_position": 1,
-                "filename": "\&./test/t1\&.ibd",
+                "filename": "\&./test/ts1\&.ibd",
                 "se_private_data": "id=2;"
             }
         ]
@@ -385,6 +391,66 @@ $> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
 .if n \{\
 .RE
 .\}
+.sp
+Due to the way in which
+InnoDB
+handles default value metadata, a default value may be present and non\-empty in
+\fBibd2sdi\fR
+output for a given table column even if it is not defined using
+DEFAULT\&. Consider the two tables created using the following statements, in the database named
+i:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+CREATE TABLE t1 (c VARCHAR(16) NOT NULL);
+CREATE TABLE t2 (c VARCHAR(16) NOT NULL DEFAULT "Sakila");
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Using
+\fBibd2sdi\fR, we can see that the
+default_value
+for column
+c
+is nonempty and is in fact padded to length in both tables, like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> \fBibd2sdi \&.\&./data/i/t1\&.ibd  | grep \-m1 \*(Aq\e"default_value\e"\*(Aq | cut \-b34\- | sed \-e s/,//\fR
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\enAAAAAAAAAAA="
+$> \fBibd2sdi \&.\&./data/i/t2\&.ibd  | grep \-m1 \*(Aq\e"default_value\e"\*(Aq | cut \-b34\- | sed \-e s/,//\fR
+"BlNha2lsYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\enAAAAAAAAAAA="
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Examination of
+\fBibd2sdi\fR
+output may be easier using a JSON\-aware utility like
+\fB\m[blue]\fBjq\fR\m[]\&\s-2\u[1]\d\s+2\fR, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> \fBibd2sdi \&.\&./data/i/t1\&.ibd  | jq \*(Aq\&.[1]["object"]["dd_object"]["columns"][0]["default_value"]\*(Aq\fR
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\enAAAAAAAAAAA="
+$> \fBibd2sdi \&.\&./data/i/t2\&.ibd  | jq \*(Aq\&.[1]["object"]["dd_object"]["columns"][0]["default_value"]\*(Aq\fR
+"BlNha2lsYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\enAAAAAAAAAAA="
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For more information, see the
+\m[blue]\fBMySQL Internals documentation\fR\m[]\&\s-2\u[2]\d\s+2\&.
 .RE
 .sp
 .RS 4
@@ -498,6 +564,17 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+jq
+.RS 4
+\%https://stedolan.github.io/jq/
+.RE
+.IP " 2." 4
+MySQL Internals documentation
+.RS 4
+\%https://dev.mysql.com/doc/dev/
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

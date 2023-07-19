@@ -43,3 +43,35 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
 SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34826692: Index merge should favour union over sort_union
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, key(f1), key(f2, f3), key(f2));
+
+INSERT INTO t1 VALUES (0,1,2);
+INSERT INTO t1 VALUES (1,2,3);
+INSERT INTO t1 VALUES (2,3,4);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#35302794: Segfault in get_best_disjunct_quick on JOIN
+--echo #               and range predicates
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, key(f1), key(f2, f3), key(f2));
+
+INSERT INTO t1 VALUES (0,1,2);
+INSERT INTO t1 VALUES (1,2,3);
+INSERT INTO t1 VALUES (2,3,4);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT /*+ SET_VAR(optimizer_switch='index_merge_sort_union=off') */ *
+FROM t1 WHERE f1 = 0 OR f2 = 2;
+
+DROP TABLE t1;

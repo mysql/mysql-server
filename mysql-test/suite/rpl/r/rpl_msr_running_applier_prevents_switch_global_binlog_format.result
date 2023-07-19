@@ -10,6 +10,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
 set @saved_binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@global.binlog_format=STATEMENT;
 ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again.
 include/assert.inc [assert that @@global.binlog_format is not changed]
@@ -18,8 +20,12 @@ ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disal
 include/assert.inc [assert that @@global.binlog_format is not changed]
 include/rpl_stop_slaves.inc
 SET @@global.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to STATEMENT]
 set global binlog_format=@saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to @saved_binlog_format]
 include/rpl_start_slaves.inc
 include/rpl_end.inc

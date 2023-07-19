@@ -8702,6 +8702,24 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int
+cleanupGcpStopTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(0);
+
+  /* Reset GCP stop timeouts */
+  int code = DumpStateOrd::DihSetGcpStopVals;
+  restarter.dumpStateAllNodes(&code, 1);
+
+  /* Reset StopOnError behaviour */
+  code = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
+  restarter.dumpStateAllNodes(&code, 1);
+
+  return NDBT_OK;
+}
+
+
 int CMT_createTableHook(Ndb* ndb,
                         NdbDictionary::Table& table,
                         int when,
@@ -10645,6 +10663,221 @@ int runWatchdogSlowShutdownCleanup(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int runApiDetectNoFirstHeartbeat(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Steps
+   * 1 Stop a random data node from witch link to API node will be blocked
+   * 2 Connect new API Node
+   * 3 Block data node for sending signals to API node
+   * 4 Start data node
+   *
+   * Expectation
+   * - API node disconnected after 60 secs timeout
+   */
+
+  NdbRestarter restarter;
+
+  const int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Stop target Data Node." << endl;
+  if (restarter.restartOneDbNode(nodeId,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true)) {
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED;
+
+  g_err << "Connect new API Node." << endl;
+  Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  if (cluster_connection->connect() != 0)
+  {
+    g_err << "ERROR: connect failure." << endl;
+    return NDBT_FAILED;
+  }
+
+  Ndb* ndb = new Ndb(cluster_connection,
+                     "TEST_DB");
+  if (ndb->init() != 0)
+  {
+    g_err << "ERROR: Ndb::init failure." << endl;
+    return NDBT_FAILED;
+  }
+  if(ndb->waitUntilReady(30) != 0)
+  {
+    g_err << "ERROR: Ndb::waitUntilReady timeout." << endl;
+    return NDBT_FAILED;
+  }
+
+  const int apiNodeId = ndb->getNodeId();
+  g_err << "Blocking node " << nodeId << " for sending signals to API node " <<
+      apiNodeId << "." << endl;
+  const int dumpCodeBlockSend[] = {9988, apiNodeId};
+  const int dumpCodeUnblockSend [] = {9989, apiNodeId};
+  if (restarter.dumpStateOneNode(nodeId, dumpCodeBlockSend, 2))
+  {
+    g_err << "Dump state failed." << endl;
+      return NDBT_FAILED;
+  }
+
+  g_err << "Start target Data Node." << endl;
+  if (restarter.startNodes(&nodeId, 1) != 0)
+  {
+    g_err << "Wait node start failed" << endl;
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+      "Dump state failed.")
+    return NDBT_FAILED;
+  }
+
+  if(restarter.waitClusterStarted() != 0)
+  {
+    g_err << "ERROR: Cluster failed to start" << endl;
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+        "Dump state failed.")
+    return NDBT_FAILED;
+  }
+
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_CONNECTION, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  Uint32 timeout = 65000;
+  while(ndb_logevent_get_next(handle, &event, 1) >= 0 &&
+      event.type != NDB_LE_Disconnected && timeout>0)
+  {
+    timeout--;
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+
+  g_err << "Cleaning up" << endl;
+  // disconnect api node
+  delete ndb;
+  delete cluster_connection;
+
+  CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+        "Dump state failed.")
+
+  if(timeout==0)
+  {
+    g_err << "Timeout waiting for node " << nodeId << " to disconnect." << endl;
+    return NDBT_FAILED;
+  }
+  if(event.NODE_FAILREP.failed_node != static_cast<Uint32>(apiNodeId))
+  {
+    g_err << "Node " << event.NODE_FAILREP.failed_node << " disconnect " <<
+        "Expected node to disconnect is " << apiNodeId << "." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+/**
+ * LCPFragWatchdog (LCPFSW) monitors LCP progress and stops the DB node if no
+ * progress is made for a max lag, initialized by the config
+ * variable DB_LCP_SCAN_WATCHDOG_LIMIT = 60000 ms.  However this is
+ * relaxed in one phase of the LCP (LCP_WAIT_END_LCP) to allow for the
+ * worst case GCP completion, as the LCP requires a GCP to complete,
+ * and that may take more time than the configured LCP 'stall'
+ * limit. Max time a GCP is allowed to complete (gcp_stop_timer)
+ * depending primarily on the number of nodes in the cluster at any
+ * time, and is recalculated when nodes leave or join.
+ *
+ * The test case tests whether the lcp watchdog limit reflects the
+ * newly calculated values in the following cases :
+ * - 1) after all configured nodes joined initially
+ * - 2) one node leves while the system is running
+ * - 3) the node left in 2) rejoins.
+
+ * The test case runs the following steps after the above 3 scenarios :
+ *
+ * - delays GCP_SAVEREQ by error insertion (EI) to stall GCP.  This
+ *   tests the behaviour of the LCPFSWs when GCP is stalled for longer
+ *   than the configured LCPFSW limit.  One sub-case of that is where
+ *   the GCP is stalled for an LCP which was running prior to a node
+ *   completing its start.
+ *
+ * - waits for 3*lcp_max_lag, which is a little longer than the expected
+ *   LCP max lag.
+ *
+ * - clears EI and sleeps for 'clear_error_insert_seconds' to allow
+ *   the delayed GCP and LCP to complete.
+ *
+ * The test will fail if the calculated values is not applied to newer LCPs.
+ * Checked manually whether the newly calculated values in all 3 scenarios
+ * are applied.
+ */
+int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 db_node_count = restarter.getNumDbNodes();
+
+  if (db_node_count == 2) {
+    /**
+     * With just 2 nodes, in the node stopped case the survivor
+     * is Master and so the non-Master timer-change code is
+     * not exercised.
+     */
+    g_err << "Number of db nodes found " << db_node_count
+	  << ".  The test gives better coverage with 3 or more nodes." << endl;
+  }
+
+  int result = NDBT_OK;
+  const int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  const Uint32 lcp_max_lag = ctx->getProperty("MaxLcpLag",
+                                              Uint32(60));
+  const Uint32 clear_error_insert_seconds = 20;
+
+  for (int scenario=1; scenario < 4; scenario++)
+  {
+    switch (scenario)
+    {
+    case 1:
+      g_err << "Scenario 1 : block GCP, check no LCP stall" << endl;
+      break;
+    case 2:
+      g_err << "Scenario 2 : Stop node, block GCP, check no LCP stall" << endl;
+      g_err << "Stopping node : " << victim << endl;
+      CHECK2(restarter.restartOneDbNode(victim,
+                                       true, /* initial */
+                                       true,  /* nostart  */
+                                       false, /* abort */
+                                       false  /* force */) == 0);
+      g_err << "Waiting until node " << victim << " stops" << endl;
+      restarter.waitNodesNoStart(&victim, 1);
+      break;
+    case 3:
+      g_err << "Scenario 3 : Start node, block GCP, check no LCP stall" << endl;
+      g_err << "Starting node " << victim << endl;
+      CHECK2(restarter.startNodes(&victim, 1) == 0);
+      CHECK2(restarter.waitClusterStarted() == 0);
+      break;
+    default:
+      abort();
+    }
+
+    g_err << "Inserting err delaying GCP_SAVEREQ" << endl;
+    CHECK2(restarter.insertErrorInAllNodes(7237) == 0);
+
+    g_err << "Sleeping for 3 * MaxLcpLag = " << 3*lcp_max_lag << " seconds."
+          << endl;
+    NdbSleep_SecSleep(3*lcp_max_lag);
+
+    // Remove the error insertion and let the GCP and LCP to finish
+    CHECK2(restarter.insertErrorInAllNodes(0) == 0);
+
+    g_err << "Sleeping for "
+          << clear_error_insert_seconds
+          << "s to allow GCP and LCP to resume." << endl;
+     NdbSleep_SecSleep(clear_error_insert_seconds);
+  }
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -11315,6 +11548,7 @@ TESTCASE("GcpStop",
 {
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
+  FINALIZER(cleanupGcpStopTest);
   FINALIZER(runDropEvent);
 }
 TESTCASE("GcpStopIsolation",
@@ -11324,6 +11558,7 @@ TESTCASE("GcpStopIsolation",
   TC_PROPERTY("GcpStopIsolation", Uint32(1));
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
+  FINALIZER(cleanupGcpStopTest);
   FINALIZER(runDropEvent);
 }
 TESTCASE("LCPLMBLeak",
@@ -11501,6 +11736,40 @@ TESTCASE("WatchdogSlowShutdown",
 {
   INITIALIZER(runWatchdogSlowShutdown);
   FINALIZER(runWatchdogSlowShutdownCleanup);
+}
+TESTCASE("ApiDetectNoFirstHeartbeat",
+         "Check that data nodes are notified of API node disconnection "
+         "when communication is available one-way (from API node to data node)."
+         "Includes the case where the link from data node to API node was broken"
+         "before the first API_REGCONF arrived to API node");
+{
+  STEP(runApiDetectNoFirstHeartbeat);
+}
+TESTCASE("CheckGcpStopTimerDistributed",
+         "Check that the lack of Gcp cordinator recalculating "
+	 "and distributing gcp_stop_timer does not result in "
+         "an LCP failure in participants")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(2));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MICRO_GCP_TIMEOUT));
+  // Set to a nonzero value to force GCP cordinator to recalculate
+  // gcp_stop_timer.
+  TC_PROPERTY("ConfigValue1", Uint32(120000));
+
+  const Uint32 MaxLcpSeconds = 30;
+
+  TC_PROPERTY("ConfigVarId2", Uint32(CFG_DB_LCP_SCAN_WATCHDOG_LIMIT));
+  // Reduce default LCP watchdog max limit from 60 sec
+  // to reduce the test run time.
+  TC_PROPERTY("ConfigValue2", MaxLcpSeconds);
+
+  TC_PROPERTY("MaxLcpLag", MaxLcpSeconds);
+
+  INITIALIZER(runChangeDataNodeConfig);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runDelayGCP_SAVEREQ);
+  FINALIZER(runChangeDataNodeConfig);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart)

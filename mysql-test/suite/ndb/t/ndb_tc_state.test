@@ -1,0 +1,115 @@
+-- source include/have_ndb.inc
+
+# Regression test for TC state problem fixes
+# Problem where TC retains state from previous aborted transactions
+# which used deferred triggers for FK/UK maintenance.
+# That state causes an issue for subsequent autocommit
+# transactions where
+#  a The operation request has IgnoreError and Commit flags
+#  b The operation fails
+#
+# This test case reproduces the problem by :
+#  1. Issuing a number of transactions which require deferred trigger
+#     maintenance (due to commit-time-checked FKs), but fail before
+#     commit (due to some other reason)
+#  2. Issuing a number of autocommit transactions which meet the
+#     criteria a+b using both PK and UK access methods.
+
+use test;
+
+# Create tables in FK relationship to cause
+# commit-time deferred trigger usage
+#
+create table parent (a int primary key, b int) engine=ndb;
+create table child (a int primary key, b int, foreign key (a) references
+parent(a)) engine=ndb;
+
+# Create table using unique key
+create table t1 (a int primary key, b int, c int, unique(b)) engine=ndb;
+
+# Create one valid parent row
+insert into parent values (1,1);
+
+
+--let $cases=6
+--let $case=0
+# No PK insert case as MySQLD does not have a route to issuing
+# an insert with IgnoreError and Commit flags set
+# Can be done from NdbApi.
+
+while ($case < $cases)
+{
+  if ($case==0)
+  {
+    # PK update
+    --let $autocommit_stmt=update t1 set c=10 where a=
+  }
+  if ($case==1)
+  {
+    # PK delete
+    --let $autocommit_stmt=delete from t1 where a=
+  }
+  if ($case==2)
+  {
+    # PK select
+    --let $autocommit_stmt=select c from t1 where a=
+  }
+  if ($case==3)
+  {
+    # UK update
+    --let $autocommit_stmt=update t1 set c=20 where b=
+  }
+  if ($case==4)
+  {
+    # UK delete
+    --let $autocommit_stmt=delete from t1 where b=
+  }
+  if ($case==5)
+  {
+    # UK select
+    --let $autocommit_stmt=select c from t1 where b=
+  }
+
+  --echo Testing case $case : $autocommit_stmt
+
+
+  # Issue 10x transactions which fail + rollback due to duplicate PK.
+  # The first insert in each succeeds, and sets the ApiConnectRecord's
+  # TF_DEFERRED_FK flag indicating pre-commit deferred triggers should
+  # be fired.
+  # Initial (failing) select with varying key is done to give varied
+  # hinting.
+  # 10x is done to ensure that most transaction objects this session
+  # might pick up later are affected
+
+  let $i=10;
+  while ($i)
+  {
+    begin;
+    # Hint to somewhere
+    --eval select * from child where a=$i
+    insert into child values (1,1);
+    --error 1062
+    # Cause failure + rollback due to existing key
+    insert into child values (1,1);
+    dec $i;
+  }
+
+  # Now issue an autocommit operation which may reuse the TC side
+  # transaction object from above
+
+  # Multiple times to offset hinting effects
+  let $i=10;
+  while ($i)
+  {
+    --eval $autocommit_stmt$i
+    dec $i;
+  }
+
+  inc $case;
+}
+
+drop table t1;
+drop table child;
+drop table parent;
+

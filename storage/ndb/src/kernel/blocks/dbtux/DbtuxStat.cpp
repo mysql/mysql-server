@@ -652,6 +652,7 @@ Dbtux::statMonCheck(Signal* signal, StatMon& mon)
     {
       const Uint64 count = frag.m_entryCount;
       const Uint64 ops = frag.m_entryOps;
+      D("statMonCheck" << V(ops) << V(count));
       if (count <= 1)
       {
         jam();
@@ -661,16 +662,29 @@ Dbtux::statMonCheck(Signal* signal, StatMon& mon)
       else
       {
         jam();
-        // compute scaled percentags - see wl4124.txt
-        double a = c_indexStatTriggerPct;
-        double b = c_indexStatTriggerScale;
-        double c = (double)count;
-        double d = 1 + 0.01 * b * tux_log2(c); // inverse scale factor
-        double e = a / d; // scaled trigger pct
-        double f = (double)ops;
-        double g = 100.0 * f / c;
-        update = (g >= e);
-        D("statMonCheck" << V(update) << V(f) << V(c));
+        /*
+         * Check if the percent change in the index is high enough to trigger
+         * an update. The change is computed using the number of index
+         * operations since the last update compared to the number of entries.
+         * Note that this trigger percent threshold is scaled down
+         * logarithmically for large indexes.
+         */
+        const double triggerPercent = c_indexStatTriggerPct;
+
+        /*
+         * Compute scale factor depending on the number of entries and
+         * the IndexStatTriggerScale option and use it to scale down
+         * the trigger percent.
+         */
+        const double triggerScale = c_indexStatTriggerScale;
+        const double fragEntryCount = (double)count;
+        const double scaleFactor = 1 + 0.01 * triggerScale * tux_log2(fragEntryCount);
+        const double scaledTriggerPercent = triggerPercent / scaleFactor;
+
+        const double fragEntryOps = (double)ops;
+        const double indexPercentChange = 100.0 * fragEntryOps / fragEntryCount;
+        update = (indexPercentChange >= scaledTriggerPercent);
+        D("statMonCheck" << V(update) << V(indexPercentChange) << V(scaledTriggerPercent));
       }
     }
 

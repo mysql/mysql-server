@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 SET default_storage_engine=ARCHIVE;
@@ -12969,3 +12975,5 @@ id	x
 5	6
 DROP VIEW v;
 DROP TABLE archive_table, innodb_table;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

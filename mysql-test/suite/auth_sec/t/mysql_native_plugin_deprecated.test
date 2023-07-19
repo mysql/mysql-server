@@ -1,0 +1,52 @@
+--echo #
+--echo # Bug #35336317: Deprecate mysql_native_password
+--echo #
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 0
+--let $assert_select= 'mysql_native_password' is deprecated
+--let $assert_text= There shouldn't be a warning when no user authenticated with native
+--source include/assert_grep.inc
+--source include/count_sessions.inc
+
+CREATE USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password';
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 1
+--let $assert_select= 'mysql_native_password' is deprecated
+--let $assert_text= There should be one warning from CREATE USER
+--source include/assert_grep.inc
+
+--echo # connect mysql_native_user
+connect(con1,localhost,bug35336317,,,);
+connection default;
+disconnect con1;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 2
+--let $assert_select= 'mysql_native_password' is deprecated
+--let $assert_text= There should be a 2nd warning when authenticating mysql_native_password
+--source include/assert_grep.inc
+
+ALTER USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password' BY 'foo';
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 3
+--let $assert_select= 'mysql_native_password' is deprecated
+--let $assert_text= There should be a 3nd warning from ALTER USER
+--source include/assert_grep.inc
+
+SET PASSWORD FOR bug35336317@localhost = 'baz';
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 4
+--let $assert_select= 'mysql_native_password' is deprecated
+--let $assert_text= And a 4th warning from SET PASSWORD
+--source include/assert_grep.inc
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+DROP USER bug35336317@localhost;
+
+
+--echo # End of 8.0 tests

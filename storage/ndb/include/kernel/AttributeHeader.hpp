@@ -25,6 +25,9 @@
 #ifndef ATTRIBUTE_HEADER
 #define ATTRIBUTE_HEADER
 
+#include <stdio.h>  // FILE
+#include "ndb_types.h"
+
 #define JAM_FILE_ID 6
 
 

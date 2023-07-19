@@ -354,21 +354,21 @@ create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
 # exceptions tables were setup as expected
 show variables like 'server_id';
 --let $server_num=1.1
---let $pattern=%NDB Replica%
+--let $pattern=%Replica:%
 --let $limit=4
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
 
 
 --connection server2
 --disable_query_log
-call mtr.add_suppression("NDB Replica: .* No extra row author bits in table.*");
+call mtr.add_suppression("Replica: .* No extra row author bits in table.*");
 call mtr.add_suppression("Failed to setup binlogging for table 'test.t3oneex'");
 call mtr.add_suppression("Distribution of CREATE TABLE 'test.t3oneex' failed");
 --enable_query_log
 
 show variables like 'server_id';
 --let $server_num=2.1
---let $pattern=%NDB Replica%
+--let $pattern=%Replica:%
 --let $limit=6
 
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
@@ -541,11 +541,11 @@ drop table test.t1$EX;
 
 --disable_query_log
 --connection server1
-call mtr.add_suppression("NDB Replica: exceptions table .* has wrong definition .*");
+call mtr.add_suppression("Replica: exceptions table .* has wrong definition .*");
 --connection server2
-call mtr.add_suppression("NDB Replica: exceptions table .* has wrong definition .*");
+call mtr.add_suppression("Replica: exceptions table .* has wrong definition .*");
 --connection slave
-call mtr.add_suppression("NDB Replica: exceptions table .* has wrong definition .*");
+call mtr.add_suppression("Replica: exceptions table .* has wrong definition .*");
 --connection master
 --enable_query_log
 
@@ -569,7 +569,7 @@ create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
 show warnings;
 
 --let $server_num=1.1
---let $pattern=%NDB Replica%
+--let $pattern=%Replica\:%
 --let $limit=2
 
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
@@ -601,9 +601,9 @@ b varchar(100)) engine=ndb;
 --source ndb_rpl_get_server_error_log.inc
 --disable_query_log 
 # t2$EX is exceptions table, conflict function should not be used 
-select count(*) from test.server_error_log where line like '%NDB Replica%t2$EX is exceptions table: not using conflict function%';
+select count(*) from test.server_error_log where line like '%Replica%t2$EX is exceptions table: not using conflict function%';
 # normal table test.t2 is not exceptions table, should have conflict function 
-select count(*) from test.server_error_log where line like '%NDB Replica%test.t2 using conflict_fn NDB$EPOCH%';
+select count(*) from test.server_error_log where line like '%Replica%test.t2 using conflict_fn NDB$EPOCH%';
 --enable_query_log
 
 drop table test.server_error_log;

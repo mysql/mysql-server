@@ -2685,6 +2685,12 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   unique_ptr_destroy_only<handler> handler(
       get_new_handler(table.s, is_partitioned, thd->mem_root, hton));
 
+  DBUG_EXECUTE_IF("before_secondary_engine_load_start", {
+    const char action[] =
+        "now SIGNAL before_load_start WAIT_FOR metadata_check_done";
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+  });
+
   // Load table from primary into secondary engine and add to change
   // propagation if that is enabled.
   return handler->ha_load_table(table);
@@ -11544,6 +11550,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   // Initiate loading into or unloading from secondary engine.
   if (is_load) {
+    DEBUG_SYNC(thd, "before_secondary_engine_load_table");
     if (DBUG_EVALUATE_IF("sim_secload_fail",
                          (my_error(ER_SECONDARY_ENGINE, MYF(0),
                                    "Simulated failure of secondary_load()"),

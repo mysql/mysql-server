@@ -1,4 +1,6 @@
 SET @saved_binlog_format= @@SESSION.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SET @@foreign_key_checks= DEFAULT;
 #
@@ -209,9 +211,13 @@ CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
 UNIQUE KEY my_key(j));
 INSERT INTO parent VALUES (2, 1);
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
 FOREIGN KEY (fk) REFERENCES parent(j)) AS SELECT pk, j AS fk FROM source;
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT * FROM child;
 pk	fk
 1	1
@@ -245,9 +251,13 @@ WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
 NULL
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
 UNIQUE KEY my_key(j)) AS SELECT * FROM source;
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT * FROM child;
 pk	fk
 SET @@foreign_key_checks= 1;

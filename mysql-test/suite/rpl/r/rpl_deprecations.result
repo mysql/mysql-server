@@ -78,7 +78,9 @@ include/suppress_messages.inc
 # Connection 2 suppresses message <The syntax 'log_slave_updates' is deprecated and will be removed in a future release. Please use log_replica_updates instead.>.
 include/save_error_log_position.inc
 include/rpl_restart_server.inc [server_number=2]
-include/assert_error_log.inc [server: 2, pattern: The syntax '--master-info-repository' is deprecated and will be removed in a future release.
+include/assert_error_log.inc [server: 2, pattern: 'binlog_format' is deprecated and will be removed in a future release.
+'--sync-relay-log-info' is deprecated and will be removed in a future release.
+The syntax '--master-info-repository' is deprecated and will be removed in a future release.
 The syntax '--master-info-file' is deprecated and will be removed in a future release.
 The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
 The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
@@ -134,13 +136,20 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET PERSIST replica_parallel_workers=0;
 Warnings:
 Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
+SET PERSIST binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+SET PERSIST sync_relay_log_info=10005;
+Warnings:
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY relay_log_info_file = "RLI_FILE";
 ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 include/save_error_log_position.inc
 include/rpl_restart_server.inc [server_number=2]
-include/assert_error_log.inc [server: 2, pattern: The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
+include/assert_error_log.inc [server: 2, pattern: 'binlog_format' is deprecated and will be removed in a future release.
+The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
 The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
@@ -148,9 +157,13 @@ The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a
 '@@master_info_repository' is deprecated and will be removed in a future release.
 '@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+'@@binlog_format' is deprecated and will be removed in a future release.
+'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 ]
 include/suppress_messages.inc
+# Connection 1 suppresses message <'binlog_format' is deprecated and will be removed in a future release.>.
 # Connection 1 suppresses message <The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.>.
+# Connection 2 suppresses message <'binlog_format' is deprecated and will be removed in a future release.>.
 # Connection 2 suppresses message <The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.>.
 include/suppress_messages.inc
 # Connection 1 suppresses message <The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.>.

@@ -1,6 +1,10 @@
 create function fn16456_1() returns int  return 1;
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create function fn16456()
 returns int
 begin
@@ -13,62 +17,92 @@ alter function fn16456_1 MODIFIES SQL DATA;
 ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 drop function fn16456_1;
 set global log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn16456()
 returns int
 begin
 return unix_timestamp();
 end|
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 set binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 drop function fn16456;
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn16456()
 returns int deterministic
 begin
 return unix_timestamp();
 end|
 set binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 set binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 drop function fn16456;
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn16456()
 returns int no sql
 begin
 return unix_timestamp();
 end|
 set binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 set binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 drop function fn16456;
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn16456()
 returns int reads sql data
 begin
 return unix_timestamp();
 end|
 set binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 set binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 select fn16456();
 fn16456()
 timestamp
 drop function fn16456;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.

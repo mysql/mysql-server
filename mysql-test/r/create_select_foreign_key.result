@@ -61,6 +61,8 @@ DROP TABLE innodb_table2;
 #
 SET sql_log_bin = ON;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
 AS SELECT 101 as m, 5 as n;
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`innodb_table1`, CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`))
@@ -71,6 +73,8 @@ DROP TABLE innodb_table1;
 # CASE 4 The behavior of CTAS, with sql_log_bin ON and format MIXED.
 # The behavior would be same as case 3 above.
 SET @@SESSION.binlog_format=MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
 AS SELECT 101 as m, 5 as n;
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`innodb_table1`, CONSTRAINT `innodb_table1_ibfk_1` FOREIGN KEY (`n`) REFERENCES `t0` (`f1`))
@@ -81,6 +85,8 @@ DROP TABLE innodb_table1;
 # CASE 5 The behavior of CTAS, with sql_log_bin ON and format ROW.
 #
 SET @@SESSION.binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE innodb_table1 (m INT, n INT, FOREIGN KEY (n) REFERENCES t0(f1))
 AS SELECT 101 as m, 5 as n;
 ERROR HY000: Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement.

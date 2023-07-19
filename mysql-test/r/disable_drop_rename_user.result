@@ -88,6 +88,8 @@ DROP PROCEDURE p1;
 # case7: check for function with normal_user
 connection normal_conn;
 set GLOBAL log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 CREATE USER u1;
 USE wl14073;
 CREATE DEFINER = u1 FUNCTION f1() RETURNS INT RETURN 1;

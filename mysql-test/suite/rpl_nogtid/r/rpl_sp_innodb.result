@@ -183,10 +183,20 @@ return unix_timestamp();
 end|
 ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn2()
 returns int
 no sql
@@ -575,7 +585,11 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysqltest`; SELECT `mysqltest2`.`f1`()
 master-bin.000001	#	Query	#	#	COMMIT
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 drop database mysqltest;
 drop database mysqltest2;
 use test;
@@ -1711,7 +1725,11 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 create procedure p1(p1 integer)
 delete from t1 limit p1;
 set @save_binlog_format=@@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 call p1(NULL);
 call p1(0);
 call p1(1);
@@ -1736,6 +1754,8 @@ select * from t1;
 c1
 # Cleanup
 set @@session.binlog_format=@save_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop table t1;
 drop procedure p1;
 # End of 5.5 tests.

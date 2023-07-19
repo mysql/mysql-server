@@ -8,12 +8,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    with ssl_fips_mode= 'ON'.
 #
 [connection server1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --ssl-fips-mode=ON
+include/rpl_reconnect.inc
 SET SESSION sql_log_bin= 0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 SET SESSION sql_log_bin= 1;
-SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
-SET @@GLOBAL.ssl_fips_mode= 'ON';
 #
 # 2. Start and bootstrap M1.
 #
@@ -34,6 +34,8 @@ Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not support
 #    Start GR on M2. Check the data is there.
 #
 [connection server2]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --ssl-fips-mode=ON
+include/rpl_reconnect.inc
 SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recovery_use_ssl;
 SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
 SET @group_replication_recovery_ssl_cert_save= @@GLOBAL.group_replication_recovery_ssl_cert;
@@ -45,15 +47,11 @@ SET GLOBAL group_replication_recovery_use_ssl= 1;
 SET GLOBAL group_replication_recovery_ssl_ca= 'MYSQL_TEST_DIR/std_data/cacert.pem';
 SET GLOBAL group_replication_recovery_ssl_cert= 'MYSQL_TEST_DIR/std_data/client-cert.pem';
 SET GLOBAL group_replication_recovery_ssl_key= 'MYSQL_TEST_DIR/std_data/client-key.pem';
-SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
-SET @@GLOBAL.ssl_fips_mode= 'ON';
 include/start_group_replication.inc
 #
 # Check the data is there
 #
 include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
-DROP TABLE t1;
-include/rpl_sync.inc
 #
 # 5. Restart M2 with weak cipher with Fips mode ON and verify it
 #    does not start.
@@ -74,7 +72,6 @@ include/stop_group_replication.inc
 #
 # Clean up
 #
-SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
 SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_save;
 SET @@GLOBAL.group_replication_recovery_ssl_ca= @group_replication_recovery_ssl_ca_save;
 SET @@GLOBAL.group_replication_recovery_ssl_cert= @group_replication_recovery_ssl_cert_save;
@@ -82,8 +79,8 @@ SET @@GLOBAL.group_replication_recovery_ssl_key= @group_replication_recovery_ssl
 SET @@GLOBAL.group_replication_recovery_ssl_cipher= @group_replication_recovery_ssl_cipher_save;
 SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
 [connection server1]
-SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
 SET SESSION sql_log_bin= 0;
 DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin= 1;
+DROP TABLE t1;
 include/group_replication_end.inc

@@ -1,7 +1,11 @@
 SET @@session.binlog_format= MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_format;
 @@session.binlog_format
 MIXED
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1(a INT) ENGINE=InnoDB;
 CREATE TEMPORARY TABLE tmp1 ENGINE=InnoDB SELECT * FROM t1;
 DROP TEMPORARY TABLE tmp1;
@@ -11,9 +15,13 @@ CREATE TEMPORARY TABLE tmp7 LIKE t1;
 DROP TEMPORARY TABLE tmp7;
 include/assert.inc [CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format= MIXED.]
 SET @@session.binlog_format= ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TEMPORARY TABLE tmp1 ENGINE=InnoDB SELECT * FROM t1;
 DROP TEMPORARY TABLE tmp1;
 CREATE TEMPORARY TABLE tmp5 (a INT) ENGINE=InnoDB;

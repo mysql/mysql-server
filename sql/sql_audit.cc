@@ -384,7 +384,13 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_host = sctx->host();
   event.general_external_user = sctx->external_user();
   event.general_rows = thd->get_stmt_da()->current_row_for_condition();
-  event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+
+  if (msg != nullptr && thd->lex->sql_command == SQLCOM_END &&
+      thd->get_command() != COM_QUERY) {
+    event.general_sql_command = {STRING_WITH_LEN("")};
+  } else {
+    event.general_sql_command = sql_statement_names[thd->lex->sql_command];
+  }
 
   event.general_charset = const_cast<CHARSET_INFO *>(
       thd_get_audit_query(thd, &event.general_query));

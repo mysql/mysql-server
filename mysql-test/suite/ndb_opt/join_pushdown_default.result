@@ -6442,6 +6442,39 @@ Warnings:
 Warning	3170	Memory capacity of 65536 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 set range_optimizer_max_mem_size = @save_range_opt_max;
 drop table t1;
+------------------------------------------------------------------
+Bug#35185670 'mysqld crashes on expensive query'
+or we may assert, or just hang until timeout...
+
+create table t1 (
+k1 varchar(32) not null,
+k2 int not null default 0,
+primary key(k1,k2),
+i int default 0
+) engine = ndbcluster
+partition by key() partitions 32;
+create table t2 (
+k1 int not null primary key
+) engine = ndbcluster
+partition by key() partitions 32;
+
+Inserting 2000 rows in table t1
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+
+Expect query and IN-condition to be pushed
+(If join_pushdown is enabled)
+explain select * from t1 left join t2 on t2.k1=t1.i where t1.k1 in ('foo', .... 'row# 1999' ) order by t1.k1, t1.k2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30,p31	range	PRIMARY	PRIMARY	130	NULL	2001	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t1`.`k1` in ('foo', .... 'row# 1999')); Using MRR
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30,p31	eq_ref	PRIMARY	PRIMARY	4	test.t1.i	1	100.00	Child of 't1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`k1` AS `k1`,`test`.`t1`.`k2` AS `k2`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`k1` AS `k1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`k1` = `test`.`t1`.`i`)) where (`test`.`t1`.`k1` in ('foo', .... 'row# 1999')) order by `test`.`t1`.`k1`,`test`.`t1`.`k2`
+select * from t1 left join t2 on t2.k1=t1.i where t1.k1 in ('foo', .... 'row# 1999' ) order by t1.k1, t1.k2;
+drop table t1;
+drop table t2;
 create table t(
 pk int primary key auto_increment,
 i int, 

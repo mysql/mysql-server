@@ -91,8 +91,8 @@ AuthCachingSha2Forwarder::init() {
 stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::client_data() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::client::AuthMethodData>(
@@ -152,13 +152,52 @@ AuthCachingSha2Forwarder::client_data() {
 
       return forward_client_to_server();
     }
-  } else {
+  } else if (msg_res->auth_method_data() == std::string_view("\x00", 1)) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::empty_password"));
+    }
+
+    src_protocol->password("");
+
+    stage(Stage::Response);
+
+    return forward_client_to_server();
+  } else if (connection()->context().connection_sharing() &&
+             socket_splicer->client_conn().is_secure_transport()) {
+    // while it is possible to request the plain-text password over
+    // plaintext-connections via "public-key", the router doesn't know how the
+    // client would react to that request.
+    //
+    // By default clients don't use the public-key auth and would close the
+    // connection with "caching-sha2-password requires a SSL connection".
+    //
+    // Long story short: only request the public-key via secure connections.
+
+    discard_current_msg(src_channel, src_protocol);
+
     if (auto &tr = tracer()) {
       tr.trace(
           Tracer::Event().stage("caching_sha2::forward::scrambled_password"));
     }
 
+    // ask the client for a plaintext password.
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::AuthMethodData>(
+        src_channel, src_protocol, {"\x04"});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    client_requested_full_auth_ = true;
+
+    stage(Stage::PlaintextPassword);
+
+    return Result::SendToClient;
+  } else {
     // if it isn't a public-key request, it is a fast-auth.
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::scrambled_password"));
+    }
+
     stage(Stage::Response);
 
     return forward_client_to_server();
@@ -215,8 +254,8 @@ AuthCachingSha2Forwarder::encrypted_password() {
 stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::plaintext_password() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::client::AuthMethodData>(
@@ -304,10 +343,29 @@ AuthCachingSha2Forwarder::plaintext_password() {
 stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::send_password() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_protocol = connection()->client_protocol();
 
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
+
+  if (!server_requested_full_auth_) {
+    // server hasn't requested full auth yet, it expects a scrambled password.
+    auto scramble_res =
+        Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
+                       *src_protocol->password());
+    if (!scramble_res) {
+      return send_server_failed(make_error_code(std::errc::bad_message));
+    }
+
+    stage(Stage::Response);
+
+    auto msg_res = ClassicFrame::send_msg<
+        classic_protocol::message::client::AuthMethodData>(
+        dst_channel, dst_protocol, {*scramble_res});
+    if (!msg_res) return send_server_failed(msg_res.error());
+
+    return Result::SendToServer;
+  }
 
   if (socket_splicer->server_conn().is_secure_transport()) {
     // the server-side is secure: send plaintext password
@@ -321,18 +379,19 @@ AuthCachingSha2Forwarder::send_password() {
     auto send_res = Auth::send_plaintext_password(
         dst_channel, dst_protocol, src_protocol->password().value());
     if (!send_res) return send_server_failed(send_res.error());
-  } else {
-    // the server is NOT secure: ask for the server's publickey
-    if (auto &tr = tracer()) {
-      tr.trace(
-          Tracer::Event().stage("caching_sha2::forward::public_key_request"));
-    }
-
-    stage(Stage::PublicKeyResponse);
-
-    auto send_res = Auth::send_public_key_request(dst_channel, dst_protocol);
-    if (!send_res) return send_server_failed(send_res.error());
+    return Result::SendToServer;
   }
+
+  // the server is NOT secure: ask for the server's publickey
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+  }
+
+  stage(Stage::PublicKeyResponse);
+
+  auto send_res = Auth::send_public_key_request(dst_channel, dst_protocol);
+  if (!send_res) return send_server_failed(send_res.error());
 
   return Result::SendToServer;
 }
@@ -484,6 +543,7 @@ AuthCachingSha2Forwarder::public_key() {
   return Result::SendToServer;
 }
 
+// after fast-auth failed.
 stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::auth_data() {
   auto *socket_splicer = connection()->socket_splicer();
@@ -497,6 +557,8 @@ AuthCachingSha2Forwarder::auth_data() {
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (msg_res->auth_method_data() == std::string_view("\x04")) {
+    server_requested_full_auth_ = true;
+
     if (auto &tr = tracer()) {
       tr.trace(
           Tracer::Event().stage("caching_sha2::forward::request_full_auth"));
@@ -507,6 +569,8 @@ AuthCachingSha2Forwarder::auth_data() {
 
       return send_password();
     } else {
+      client_requested_full_auth_ = true;
+
       stage(Stage::PlaintextPassword);
 
       return forward_server_to_client();
@@ -519,7 +583,7 @@ AuthCachingSha2Forwarder::auth_data() {
     // next is a Ok packet.
     stage(Stage::Response);
 
-    if (in_handshake_ && src_protocol->password().has_value()) {
+    if (client_requested_full_auth_) {
       // 0x03 means the client-greeting provided the right scrambled
       // password that matches the cached entry.
 

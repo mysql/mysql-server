@@ -1688,13 +1688,9 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
   // the user when such condition exists.
   MySQLSession rtr_acct_sess;
   {
-    MySQLSession::ConnectionParameters p = mysql_->get_connection_parameters();
-    p.conn_opts.username = username;
-    p.conn_opts.password = password;
-
     try {
       // will throw if logging in using Router's credentials fails
-      rtr_acct_sess.connect_and_set_opts(p);
+      rtr_acct_sess.connect(*mysql_.get(), username, password);
     } catch (const MySQLSession::Error &e) {
       failed_verification_handler(e);
       return;

@@ -58,6 +58,9 @@ SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
 SET PERSIST_ONLY binlog_expire_logs_auto_purge = @@GLOBAL.binlog_expire_logs_auto_purge;
 SET PERSIST_ONLY binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST_ONLY binlog_format = @@GLOBAL.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
 SET PERSIST_ONLY binlog_group_commit_sync_no_delay_count = @@GLOBAL.binlog_group_commit_sync_no_delay_count;
 SET PERSIST_ONLY binlog_gtid_simple_recovery = @@GLOBAL.binlog_gtid_simple_recovery;
@@ -99,6 +102,11 @@ ERROR HY000: Variable 'log_bin_basename' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY log_replica_updates = @@GLOBAL.log_replica_updates;
@@ -112,6 +120,11 @@ Warnings:
 Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
 Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
 SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY master_info_repository = @@GLOBAL.master_info_repository;
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
@@ -260,6 +273,9 @@ Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future 
 Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
+Warnings:
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
 include/assert.inc [Expect 101 persisted variables in persisted_variables table.]

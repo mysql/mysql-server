@@ -1,4 +1,6 @@
 SET @old_binlog_format= @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSTALL PLUGIN example SONAME 'ha_example.so';
 ################################################################################
 # Verifies if ER_BINLOG_STMT_MODE_AND_ROW_ENGINE happens by setting the binlog
@@ -12,6 +14,8 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 # ER_BINLOG_STMT_MODE_AND_ROW_ENGINE.
 ################################################################################
 SET binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 CREATE TABLE t_row (a VARCHAR(100)) ENGINE = InnoDB;
 ALTER TABLE t_row ADD COLUMN b INT;
@@ -34,6 +38,8 @@ DROP TABLE t_row;
 # ER_BINLOG_ROW_MODE_AND_STMT_ENGINE.
 ################################################################################
 SET binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
 ALTER TABLE t_stmt ADD COLUMN b INT;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'
@@ -51,4 +57,8 @@ DROP TABLE t_stmt;
 flush tables;
 UNINSTALL PLUGIN example;
 SET @@global.binlog_format = @old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@session.binlog_format = @old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

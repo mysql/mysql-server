@@ -4268,9 +4268,23 @@ bool is_secure_transport(int vio_type) {
   return false;
 }
 
+static void native_password_authentication_deprecation_warning() {
+  /*
+    Deprecate message for mysql_native_password plugin.
+  */
+  LogPluginErr(WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+               Cached_authentication_plugins::get_plugin_name(
+                   PLUGIN_MYSQL_NATIVE_PASSWORD),
+               Cached_authentication_plugins::get_plugin_name(
+                   PLUGIN_CACHING_SHA2_PASSWORD));
+}
+
 static int generate_native_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
   THD *thd = current_thd;
+
+  native_password_authentication_deprecation_warning();
+
   if (!thd->m_disable_password_validation) {
     if (my_validate_password_policy(inbuf, inbuflen)) return 1;
   }
@@ -4482,6 +4496,8 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
 
   DBUG_TRACE;
+
+  native_password_authentication_deprecation_warning();
 
   /* generate the scramble, or reuse the old one */
   if (mpvio->scramble[SCRAMBLE_LENGTH])

@@ -13,6 +13,8 @@ select 1 /*!32301 +1 */;
 select 1 /*!999999 +1 */;
 1
 1
+Warnings:
+Warning	4164	Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number.
 select 1--1;
 1--1
 2
@@ -33,6 +35,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 select 1/*!999992*/;
 1
 1
+Warnings:
+Warning	4164	Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number.
 select 1 + /*!00000 2 */ + 3 /*!99999 noise*/ + 4;
 1 +  2  + 3  + 4
 10
@@ -69,3 +73,24 @@ SELECT 3 /*! /* */ */;
 3
 Warnings:
 Warning	1681	Nested comment syntax is deprecated and will be removed in a future release.
+#
+# Deprecation warning if the version number is not immediately followed
+# by a white-space character.
+#
+# No whitespace. Should raise warning.
+DO 1 /*!80034+1*/;
+Warnings:
+Warning	4164	Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number.
+# Horizontal tab (0x09). Should pass without warning.
+DO 1 /*!80034	+1*/;
+# Line feed (0x0a). Should pass without warning.
+DO 1 /*!80034
++1*/;
+# Vertical tab (0x0b). Should pass without warning.
+DO 1 /*!80034+1*/;
+# Form feed (0x0c). Should pass without warning.
+DO 1 /*!80034+1*/;
+# Carriage return (0x0d). Should pass without warning.
+DO 1 /*!80034+1*/;
+# Space (0x20). Should pass without warning.
+DO 1 /*!80034 +1*/;

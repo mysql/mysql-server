@@ -1,16 +1,22 @@
 drop table if exists t1;
 '#--------------------FN_DYNVARS_063_01-------------------------#'
 SET @start_value= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 ## Creating new user tt ##
 CREATE USER tt@localhost;
 ## Setting value of variable to 0 ##
 SET @@global.log_bin_trust_function_creators = 0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 ## Creating new table t2 ##
 CREATE TABLE t2 (a INT);
 ## Creating & connecting with new connection test_con1 ##
 SELECT @@log_bin_trust_function_creators;
 @@log_bin_trust_function_creators
 0
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 ##  Creating new function f1 fails because no DETERMINISTIC ###
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
@@ -53,11 +59,15 @@ DROP TABLE t1;
 ## Switching to default connection ##
 ## Setting value of variable to 1 ##
 SET @@global.log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 ## Creating and connecting to new connection test_con2 ##
 ## Verifying value of variable ##
 SELECT @@log_bin_trust_function_creators;
 @@log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@sql_log_bin;
 @@sql_log_bin
 1
@@ -85,3 +95,5 @@ DROP TABLE t1,t2;
 ## Disconnecting test_con2##
 DROP USER tt@localhost;
 SET @@global.log_bin_trust_function_creators= @start_value;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.

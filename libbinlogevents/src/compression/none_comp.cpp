@@ -21,35 +21,36 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <compression/none_comp.h>
-#include <string.h>
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+#include <cstring>  // std::memcpy
 
-void None_comp::set_compression_level(unsigned int) {} /* purecov: inspected */
+namespace binary_log::transaction::compression {
 
-type None_comp::compression_type_code() {
-  return NONE; /* purecov: inspected */
+type None_comp::do_get_type_code() const { return type_code; }
+
+void None_comp::do_reset() {
+  m_input_data = nullptr;
+  m_input_size = 0;
 }
 
-bool None_comp::open() { return false; } /* purecov: inspected */
-
-bool None_comp::close() { return false; } /* purecov: inspected */
-
-std::tuple<std::size_t, bool> None_comp::compress(const unsigned char *buffer,
-                                                  std::size_t length) {
-  /* purecov: begin inspected */
-  auto min_capacity = length + (m_buffer_cursor - m_buffer);
-  if (min_capacity > m_buffer_capacity)
-    if (reserve(min_capacity)) return std::make_tuple(length, true);
-
-  memcpy(m_buffer_cursor, buffer, length);
-  m_buffer_cursor += length;
-  return std::make_tuple(0, false);
-  /* purecov: end */
+void None_comp::do_feed(const Char_t *input_data, Size_t input_size) {
+  assert(!m_input_data);
+  m_input_data = input_data;
+  m_input_size = input_size;
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+Compress_status None_comp::do_compress(Managed_buffer_sequence_t &out) {
+  auto grow_status = out.write(m_input_data, m_input_size);
+  if (grow_status != Compress_status::success) return grow_status;
+  reset();
+  return Compress_status::success;
+}
+
+Compress_status None_comp::do_finish([
+    [maybe_unused]] Managed_buffer_sequence_t &out) {
+  // This will only be called after a successful call to @c compress,
+  // so there is nothing to do.
+  return Compress_status::success;
+}
+
+}  // namespace binary_log::transaction::compression

@@ -34,7 +34,11 @@ a	b
 1	1
 2	2
 set @save_binlog_format= @@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 delete from ti1 where b=1;
 select * from ti1 order by b /* must be (2),(3) */;
 b
@@ -227,7 +231,11 @@ a	b
 1	1
 2	2
 set @save_binlog_format= @@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 delete from ti1 where b=1;
 select * from ti1 order by b /* must be (2),(3) */;
 b

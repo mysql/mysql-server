@@ -2,8 +2,10 @@
 --echo # We are using some debug-only features in this test
 -- source include/have_debug.inc
 -- source have_ndb_error_insert.inc
-call mtr.add_suppression("NDB: Failed to drop fk");
-call mtr.add_suppression("NDB: Failed to list dependent objects for table");
+--disable_query_log
+call mtr.add_suppression("Failed to drop fk");
+call mtr.add_suppression("Failed to list dependent objects for table");
+--enable_query_log
 
 # Magically turn off metadata compare since it causes tables and indexes to
 # be loaded from NDB in an order which is not expected by this test.

@@ -2701,9 +2701,13 @@ DROP TABLE t1,t2,t3,t4,t5,t6,t7;
 #                ENFORCED WITH UPDATE QUERIES.
 #-----------------------------------------------------------------------
 SET @binlog_format_saved = @@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # In default case, when ROW format and full row image are used the bug
 # is hidden, as all columns are marked as modified by UPDATE.
 SET binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE tst (
 id INT,
 start_date DATE,
@@ -2724,6 +2728,8 @@ ERROR HY000: Check constraint 'chk_dat' is violated.
 UPDATE tst SET id = 6, start_date = '2019-05-02', end_date = '2049-04-23' WHERE id = 5;
 DROP TABLE tst;
 SET binlog_format=@binlog_format_saved;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #-----------------------------------------------------------------------
 # Bug#29652464 - ORDER OF ADD AND DROP CHECK CONSTRAINT IN TABLE ALTER
 #                STATEMENT IS INCORRECT.

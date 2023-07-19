@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "client/client_priv.h"
 #include "my_sys.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
@@ -45,6 +46,7 @@ static const int INPUT_BUFFER_SIZE = 1024 * 1024;
 static const int OUTPUT_BUFFER_SIZE = 1024 * 1024;
 
 int main(int argc, char **argv) {
+  CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("lz4_decompress");
   MY_INIT(argv[0]);
   if (argc != 3) {
     usage();

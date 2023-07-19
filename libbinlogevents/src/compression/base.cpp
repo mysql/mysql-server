@@ -23,73 +23,19 @@
 #include <compression/base.h>
 #include <string>
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
 std::string type_to_string(type t) {
-  std::string res;
   switch (t) {
-    case binary_log::transaction::compression::type::ZSTD:
-      res = "ZSTD";
-      break;
-    case binary_log::transaction::compression::type::NONE:
-      res = "NONE";
-      break;
-    /* purecov: begin inspected */
+    using binary_log::transaction::compression::type;
+    case ZSTD:
+      return "ZSTD";
+    case NONE:
+      return "NONE";
     default:
-      res = "N/A";
       break;
-      /* purecov: end */
   }
-
-  return res;
+  return "N/A";
 }
 
-Base_compressor_decompressor::Base_compressor_decompressor() = default;
-
-Base_compressor_decompressor::~Base_compressor_decompressor() = default;
-
-bool Base_compressor_decompressor::set_buffer(unsigned char *buffer,
-                                              std::size_t capacity) {
-  m_buffer = m_buffer_cursor = buffer;
-  m_buffer_capacity = capacity;
-  return false;
-}
-
-std::tuple<unsigned char *, std::size_t, std::size_t>
-Base_compressor_decompressor::get_buffer() {
-  std::size_t ret_size = size();
-  return std::tuple<unsigned char *, std::size_t, std::size_t>(
-      m_buffer, ret_size, m_buffer_capacity);
-}
-
-std::size_t Base_compressor_decompressor::size() {
-  return (m_buffer_cursor - m_buffer);
-}
-
-std::size_t Base_compressor_decompressor::capacity() {
-  return m_buffer_capacity;
-}
-
-bool Base_compressor_decompressor::reserve(std::size_t bytes) {
-  if ((bytes + size()) >= m_buffer_capacity) {
-    unsigned int needed_blocks = (bytes / BLOCK_BYTES) + 1;
-    unsigned int curr_blocks = (m_buffer_capacity / BLOCK_BYTES) + 1;
-    std::size_t old_data_size = size();
-    std::size_t new_capacity = (curr_blocks + needed_blocks) * BLOCK_BYTES;
-    m_buffer = (unsigned char *)realloc(m_buffer, new_capacity);
-    // update the cursor variables
-    m_buffer_cursor = m_buffer + old_data_size;
-    m_buffer_capacity = new_capacity;
-  }
-
-  // out of memory ?
-  if (m_buffer == nullptr) return true;
-
-  return false;
-}
-
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression

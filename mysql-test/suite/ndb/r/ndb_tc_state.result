@@ -1,0 +1,455 @@
+use test;
+create table parent (a int primary key, b int) engine=ndb;
+create table child (a int primary key, b int, foreign key (a) references
+parent(a)) engine=ndb;
+create table t1 (a int primary key, b int, c int, unique(b)) engine=ndb;
+insert into parent values (1,1);
+Testing case 0 : update t1 set c=10 where a=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+update t1 set c=10 where a=10;
+update t1 set c=10 where a=9;
+update t1 set c=10 where a=8;
+update t1 set c=10 where a=7;
+update t1 set c=10 where a=6;
+update t1 set c=10 where a=5;
+update t1 set c=10 where a=4;
+update t1 set c=10 where a=3;
+update t1 set c=10 where a=2;
+update t1 set c=10 where a=1;
+Testing case 1 : delete from t1 where a=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+delete from t1 where a=10;
+delete from t1 where a=9;
+delete from t1 where a=8;
+delete from t1 where a=7;
+delete from t1 where a=6;
+delete from t1 where a=5;
+delete from t1 where a=4;
+delete from t1 where a=3;
+delete from t1 where a=2;
+delete from t1 where a=1;
+Testing case 2 : select c from t1 where a=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+select c from t1 where a=10;
+c
+select c from t1 where a=9;
+c
+select c from t1 where a=8;
+c
+select c from t1 where a=7;
+c
+select c from t1 where a=6;
+c
+select c from t1 where a=5;
+c
+select c from t1 where a=4;
+c
+select c from t1 where a=3;
+c
+select c from t1 where a=2;
+c
+select c from t1 where a=1;
+c
+Testing case 3 : update t1 set c=20 where b=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+update t1 set c=20 where b=10;
+update t1 set c=20 where b=9;
+update t1 set c=20 where b=8;
+update t1 set c=20 where b=7;
+update t1 set c=20 where b=6;
+update t1 set c=20 where b=5;
+update t1 set c=20 where b=4;
+update t1 set c=20 where b=3;
+update t1 set c=20 where b=2;
+update t1 set c=20 where b=1;
+Testing case 4 : delete from t1 where b=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+delete from t1 where b=10;
+delete from t1 where b=9;
+delete from t1 where b=8;
+delete from t1 where b=7;
+delete from t1 where b=6;
+delete from t1 where b=5;
+delete from t1 where b=4;
+delete from t1 where b=3;
+delete from t1 where b=2;
+delete from t1 where b=1;
+Testing case 5 : select c from t1 where b=
+begin;
+select * from child where a=10;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=9;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=8;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=7;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=6;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=5;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=4;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=3;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=2;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+begin;
+select * from child where a=1;
+a	b
+insert into child values (1,1);
+insert into child values (1,1);
+ERROR 23000: Duplicate entry '1' for key 'child.PRIMARY'
+select c from t1 where b=10;
+c
+select c from t1 where b=9;
+c
+select c from t1 where b=8;
+c
+select c from t1 where b=7;
+c
+select c from t1 where b=6;
+c
+select c from t1 where b=5;
+c
+select c from t1 where b=4;
+c
+select c from t1 where b=3;
+c
+select c from t1 where b=2;
+c
+select c from t1 where b=1;
+c
+drop table t1;
+drop table child;
+drop table parent;

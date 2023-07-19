@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
+#include "my_config.h"
 
 #define N (1024*1024)
 #define S 65537

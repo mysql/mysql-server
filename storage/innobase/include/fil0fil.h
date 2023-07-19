@@ -276,6 +276,11 @@ struct fil_space_t {
 
   /** Increment the page reference count. */
   void inc_ref() noexcept {
+    /* We assume space is protected from being removed either through
+    n_pending_ops or m_n_ref_count already bumped, OR MDL latch is
+    protecting it, OR it is a private space. Bumping the n_pending_ops
+    can be done only under fil shard mutex and stopping new bumps is also
+    done under this mutex */
     const auto o = m_n_ref_count.fetch_add(1);
     ut_a(o != std::numeric_limits<size_t>::max());
   }

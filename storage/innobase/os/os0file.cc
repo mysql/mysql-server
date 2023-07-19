@@ -887,8 +887,6 @@ thread.
 @return DB_SUCCESS or error code */
 static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
                                         void **m2, IORequest *type);
-#endif /* !UNIV_HOTBACKUP */
-
 #ifdef WIN_ASYNC_IO
 /** This function is only used in Windows asynchronous i/o.
 Waits for an aio operation to complete. This function is used to wait
@@ -911,6 +909,8 @@ for example
 static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
                                       IORequest *type);
 #endif /* WIN_ASYNC_IO */
+
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check the file type and determine if it can be deleted.
 @param[in]      name            Filename/Path to check

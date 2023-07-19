@@ -89,9 +89,10 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
   mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
   mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &opt_ssl_mode);
-  mysql_options(mysql, MYSQL_OPT_SSL_FIPS_MODE, &opt_ssl_fips_mode);
-  if (opt_ssl_fips_mode > 0 && mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR)
-    return 1;
+  if (opt_ssl_fips_mode > 0) {
+    mysql_options(mysql, MYSQL_OPT_SSL_FIPS_MODE, &opt_ssl_fips_mode);
+    if (mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR) return 1;
+  }
   mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
   if (opt_ssl_session_data) {
     FILE *fi = fopen(opt_ssl_session_data, "rb");

@@ -231,7 +231,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
   const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
   const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
-  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return -1;
   while (wildstr != wildend) {
     while (*wildstr != w_many && *wildstr != w_one) {
       int l;
@@ -962,7 +962,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
   const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
   const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
-  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return -1;
   while (wildstr != wildend) {
     while (*wildstr != w_many && *wildstr != w_one) {
       int l;

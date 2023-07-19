@@ -724,3 +724,19 @@ a	b
 2023-01-01	2023-01-01
 2023-1-1	2023-1-1
 DROP TABLE t;
+#
+# Bug#35173907: Assertion `CompatibleTypesForIndexLookup(eq_item,
+#               field, right)' failed
+#
+CREATE TABLE t(a DATE, KEY(a));
+INSERT INTO t VALUES ('2023-03-15');
+SET timestamp = UNIX_TIMESTAMP('2023-03-15 01:02:03');
+SELECT * FROM t WHERE a = CURRENT_TIME;
+a
+SELECT * FROM t WHERE a = CURRENT_TIMESTAMP;
+a
+SELECT * FROM t WHERE a = CURRENT_DATE;
+a
+2023-03-15
+SET timestamp = DEFAULT;
+DROP TABLE t;

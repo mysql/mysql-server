@@ -26,6 +26,9 @@
 #define NdbRecord_H
 
 #include "my_byteorder.h"
+#include "ndb_types.h"
+#include "util/Bitmask.hpp"
+#include "util/NdbSqlUtil.hpp"
 
 class NdbRecord {
 public:

@@ -96,34 +96,6 @@ external tools. */
 #include "univ.i"
 #include "ut0crc32.h"
 
-#ifdef CRC32_x86_64
-#include <nmmintrin.h>
-#include <wmmintrin.h>
-#endif /* CRC32_x86_64 */
-
-#ifdef CRC32_x86_64_WIN
-#include <intrin.h>
-#endif /* CRC32_x86_64_WIN */
-
-#ifdef CRC32_ARM64
-#include <arm_acle.h>
-#include <arm_neon.h>
-#endif /* CRC32_ARM64 */
-
-#ifdef CRC32_ARM64_DEFAULT
-#include <asm/hwcap.h>
-#include <sys/auxv.h>
-#endif /* CRC32_ARM64_DEFAULT */
-
-#ifdef CRC32_ARM64_APPLE
-#if __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>)
-#error \
-    "Current implementation is based on assumption that APPLE_ARM always " \
-    "supports crc32 and pmull and that there is no way to check it, yet it "\
-    "seem that this APPLE_ARM has getauxval()."
-#endif /* __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>) */
-#endif /* CRC32_ARM64_APPLE */
-
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t ut_crc32;
 

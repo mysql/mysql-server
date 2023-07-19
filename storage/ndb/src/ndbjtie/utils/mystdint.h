@@ -50,6 +50,7 @@
  */
 
 #include <ndb_global.h>
+#include "my_config.h"
 
 #ifdef HAVE_STDINT_H
 

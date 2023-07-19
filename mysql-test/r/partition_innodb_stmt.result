@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # connection default
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 CREATE TABLE t1
@@ -46,3 +52,5 @@ ERROR HY000: Cannot execute statement: impossible to write to binary log since B
 COMMIT;
 COMMIT;
 DROP TABLE t1;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

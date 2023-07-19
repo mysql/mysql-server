@@ -21,8 +21,6 @@ replace into mysql.ndb_replication values
 ("test", "t1", 1, 7, "NDB$EPOCH()"),
 ("test", "t2", 3, 7, NULL),
 ("test", "t2", 1, 7, "NDB$EPOCH_TRANS()");
-call mtr.add_suppression("NDB Replica: exceptions table .* has wrong definition .*");
-call mtr.add_suppression("Exceptions table *");
 create table test.t1$EX
 (SERVER_ID             int unsigned,
 NDB$MASTER_SERVER_ID  int unsigned,
@@ -40,7 +38,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb replica: exceptions table t1$ex has wrong definition (column 1): 
+[warning] replica: exceptions table t1$ex has wrong definition (column 1): 
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,
@@ -60,7 +58,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb replica: exceptions table t1$ex has wrong definition (column 5): old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column a$new in table t1$ex
+[warning] replica: exceptions table t1$ex has wrong definition (column 5): old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column a$new in table t1$ex
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,
@@ -80,7 +78,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb CHARACTER SET latin1;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb replica: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
+[warning] replica: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,

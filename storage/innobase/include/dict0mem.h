@@ -2132,7 +2132,7 @@ struct dict_table_t {
   uint32_t total_col_count{0};
 
   /** Set if table is upgraded instant table */
-  unsigned m_upgraded_instant : 1;
+  bool m_upgraded_instant{false};
 
   /** table dynamic metadata status, protected by dict_persist->mutex */
   std::atomic<table_dirty_status> dirty_status;
@@ -2531,13 +2531,11 @@ detect this and will eventually quit sooner. */
   bool has_instant_drop_cols() const { return (get_n_instant_drop_cols() > 0); }
 
   /** Set table to be upgraded table with INSTANT ADD columns in V1. */
-  void set_upgraded_instant() { m_upgraded_instant = 1; }
+  void set_upgraded_instant() { m_upgraded_instant = true; }
 
   /** Checks if table is upgraded table with INSTANT ADD columns in V1.
   @return       true if it is, false otherwise */
-  bool is_upgraded_instant() const {
-    return (m_upgraded_instant == 1) ? true : false;
-  }
+  bool is_upgraded_instant() const { return m_upgraded_instant; }
 
   /** Check whether the table is corrupted.
   @return true if the table is corrupted, otherwise false */
@@ -2844,6 +2842,13 @@ class Persister {
   virtual ulint read(PersistentTableMetadata &metadata, const byte *buffer,
                      ulint size, bool *corrupt) const = 0;
 
+  /** Aggregate metadata entries into a single metadata instance, considering
+  version numbers
+  @param[in,out] metadata        metadata object to be modified
+  @param[in]     new_entry       metadata entry from logs */
+  virtual void aggregate(PersistentTableMetadata &metadata,
+                         const PersistentTableMetadata &new_entry) const = 0;
+
   /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
   metadata of table
   @param[in]    id              Table id
@@ -2883,6 +2888,9 @@ class CorruptedIndexPersister : public Persister {
   is complete and we get everything, 0 if the buffer is incompleted */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
 
  private:
   /** The length of index_id_t we will write */
@@ -2926,6 +2934,9 @@ class AutoIncPersister : public Persister {
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
 };
 
 /** Container of persisters used in the system. Currently we don't need

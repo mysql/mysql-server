@@ -64,7 +64,7 @@ RESET MASTER;
 --let $out_filename = $MYSQLD_DATADIR/$binlog.header
 --let $file_start_pos = 0
 --let $file_stop_pos = 4
---source extra/binlog_tests/copy_file_segment.inc
+--source include/copy_file_segment.inc
 
 #
 # Prepare binary log with truncated Format_desc event
@@ -76,7 +76,7 @@ RESET MASTER;
 --let $file_start_pos = 0
 --let $file_stop_pos = $event_following_format_desc_start
 --dec $file_stop_pos
---source extra/binlog_tests/copy_file_segment.inc
+--source include/copy_file_segment.inc
 
 #
 # Prepare binary log without Format_desc event
@@ -87,10 +87,10 @@ RESET MASTER;
 --let $out_filename = $MYSQLD_DATADIR/$binlog.formatless
 --let $file_start_pos = 0
 --let $file_stop_pos = 4
---source extra/binlog_tests/copy_file_segment.inc
+--source include/copy_file_segment.inc
 --let $file_start_pos = $event_following_format_desc_start
 --let $file_stop_pos = $event_following_format_desc_stop
---source extra/binlog_tests/copy_file_segment.inc
+--source include/copy_file_segment.inc
 
 #
 # Backup binlog file

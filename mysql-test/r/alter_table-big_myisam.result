@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # 1.5) ALTER TABLE RENAME which fails at the late stage for SEs
 #      supporting and not supporting atomic DDL.
@@ -237,3 +243,5 @@ binlog.000001	#	Query	#	#	use `test`; insert into t1 values (1, 1, 1)
 binlog.000001	#	Query	#	#	COMMIT
 drop tables t1, t2;
 set debug_sync='RESET';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

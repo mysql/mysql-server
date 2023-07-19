@@ -573,3 +573,19 @@ INSERT INTO t VALUES
 # bug number in type_date and type_datetime).
 SELECT * FROM t WHERE a = b and b = TIME'01:02:03';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35173907: Assertion `CompatibleTypesForIndexLookup(eq_item,
+--echo #               field, right)' failed
+--echo #
+
+CREATE TABLE t(a TIME, KEY(a));
+INSERT INTO t VALUES ('01:02:03');
+SET timestamp = UNIX_TIMESTAMP('2023-03-15 01:02:03');
+# This is OK.
+SELECT * FROM t WHERE a = CURRENT_TIME;
+# The next two statements used to hit an assertion in the hypergraph optimizer.
+SELECT * FROM t WHERE a = CURRENT_TIMESTAMP;
+SELECT * FROM t WHERE a = CURRENT_DATE;
+SET timestamp = DEFAULT;
+DROP TABLE t;

@@ -76,7 +76,7 @@ eval CHANGE REPLICATION SOURCE TO
 source include/check_slave_no_error.inc;
 
 --disable_query_log
-call mtr.add_suppression("NDB Replica: At SQL thread start applying epoch .*");
+call mtr.add_suppression("Replica: At SQL thread start applying epoch .*");
 --enable_query_log
 
 # start the slave again

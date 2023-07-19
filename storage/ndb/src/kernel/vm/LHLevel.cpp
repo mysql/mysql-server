@@ -44,7 +44,7 @@ struct elem
   Uint16 head;
   static LHBits32 hash(Uint32 val)
   {
-    return LHBits32(md5_hash((Uint64*)&val, 1));
+    return LHBits32(md5_hash(&val, 1));
   }
 };
 

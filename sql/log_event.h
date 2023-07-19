@@ -198,13 +198,6 @@ int ignored_error_code(int err_code);
    NAME_LEN +                                                                  \
    1)
 
-/*
-  The new option is added to handle large packets that are sent from the master
-  to the slave. It is used to increase the thd(max_allowed) for both the
-  DUMP thread on the master and the SQL/IO thread on the slave.
-*/
-#define MAX_MAX_ALLOWED_PACKET 1024 * 1024 * 1024
-
 /* slave event post-header (this event is never written) */
 
 #define SL_MASTER_PORT_OFFSET 8
@@ -878,6 +871,11 @@ class Log_event {
     Returns the human readable name of the given event type.
   */
   static const char *get_type_str(Log_event_type type);
+  /// Get the name of an event type, or "Unknown" if out of range.
+  /// @param type The type as an int
+  /// @retval name of an event type, if it is one
+  /// @retval "Unknown" if the value is out of range
+  static const char *get_type_str(uint type);
   /**
     Returns the human readable name of this event's type.
   */

@@ -1,5 +1,9 @@
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET GLOBAL log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 SET NAMES binary;
@@ -1651,6 +1655,8 @@ DROP USER 'userbug33464'@'localhost';
 USE test;
 DROP DATABASE dbbug33464;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 CREATE USER user1@localhost;
 CREATE USER user2;
 GRANT CREATE ON db1.* TO 'user1'@'localhost';

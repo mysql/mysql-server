@@ -88,7 +88,15 @@ void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
 bool simplify_string_args(THD *thd, const DTCollation &c, Item **items,
                           uint nitems);
 
-String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer);
+String *eval_string_arg_noinline(const CHARSET_INFO *to_cs, Item *arg,
+                                 String *buffer);
+
+inline String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg,
+                               String *buffer) {
+  if (my_charset_same(to_cs, arg->collation.collation))
+    return arg->val_str(buffer);
+  return eval_string_arg_noinline(to_cs, arg, buffer);
+}
 
 class Item_func : public Item_result_field {
  protected:

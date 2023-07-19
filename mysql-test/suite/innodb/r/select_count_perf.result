@@ -4,6 +4,10 @@
 # by count(*) always reflects the correct view of the table according
 # to the transaction's selected isolation level.
 #
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Traverse various indexes to get the right counts.
 # This especially tests count(*) which is pushed down to InnoDB in WL#6742.
@@ -1891,3 +1895,5 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`c2_idx`) join `test`.`t2`
 DROP TABLE t1, t2;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

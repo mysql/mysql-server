@@ -28,6 +28,7 @@
 #include <kernel_types.h>
 #include <ndb_limits.h>
 #include <NdbThread.h>
+#include "SectionIterators.hpp"
 #include <TransporterRegistry.hpp>
 #include <NdbMutex.h>
 #include <Vector.hpp>
@@ -36,6 +37,9 @@
 #include <mgmapi.h>
 #include "trp_buffer.hpp"
 #include "my_thread.h"
+#include "NdbApiSignal.hpp"
+#include "transporter/TransporterCallback.hpp"
+#include "portlib/ndb_sockaddr.h"
 
 class ClusterMgr;
 class ArbitMgr;
@@ -122,7 +126,7 @@ private:
    * These are functions used by ndb_mgmd
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
-  struct in6_addr ext_get_connect_address(Uint32 nodeId);
+  ndb_sockaddr ext_get_connect_address(Uint32 nodeId);
   bool ext_isConnected(NodeId aNodeId);
   void ext_doConnect(int aNodeId);
 
@@ -704,84 +708,6 @@ trp_client::getNodeInfo(Uint32 nodeId) const
   return m_facade->theClusterMgr->getNodeInfo(nodeId);
 }
 
-/** 
- * LinearSectionIterator
- *
- * This is an implementation of GenericSectionIterator 
- * that iterates over one linear section of memory.
- * The iterator is used by the transporter at signal
- * send time to obtain all of the relevant words for the
- * signal section
- */
-class LinearSectionIterator: public GenericSectionIterator
-{
-private :
-  const Uint32* data;
-  Uint32 len;
-  bool read;
-public :
-  LinearSectionIterator(const Uint32* _data, Uint32 _len)
-  {
-    data= (_len == 0)? nullptr:_data;
-    len= _len;
-    read= false;
-  }
-
-  ~LinearSectionIterator() override
-  {}
-  
-  void reset() override
-  {
-    /* Reset iterator */
-    read= false;
-  }
-
-  const Uint32* getNextWords(Uint32& sz) override
-  {
-    if (likely(!read))
-    {
-      read= true;
-      sz= len;
-      return data;
-    }
-    sz= 0;
-    return nullptr;
-  }
-};
-
-
-/** 
- * SignalSectionIterator
- *
- * This is an implementation of GenericSectionIterator 
- * that uses chained NdbApiSignal objects to store a 
- * signal section.
- * The iterator is used by the transporter at signal
- * send time to obtain all of the relevant words for the
- * signal section
- */
-class SignalSectionIterator: public GenericSectionIterator
-{
-private :
-  NdbApiSignal* firstSignal;
-  NdbApiSignal* currentSignal;
-public :
-  SignalSectionIterator(NdbApiSignal* signal)
-  {
-    firstSignal= currentSignal= signal;
-  }
-
-  ~SignalSectionIterator() override
-  {}
-  
-  void reset() override
-  {
-    /* Reset iterator */
-    currentSignal= firstSignal;
-  }
-
-  const Uint32* getNextWords(Uint32& sz) override;
-};
 
 /*
  * GenericSectionIteratorReader
@@ -832,5 +758,6 @@ public :
     }
   }
 };
+
 
 #endif // TransporterFacade_H

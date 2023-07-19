@@ -3651,7 +3651,7 @@ ER_KEYRING_LOGGER_ERROR_MSG
   eng "%s"
 
 ER_AUDIT_LOG_FILTER_IS_NOT_INSTALLED
-  eng "Audit Log plugin supports a filtering, which has not been installed yet. Audit Log plugin will run in the legacy mode, which will be disabled in the next release."
+  eng "Audit Log plugin supports filtering mode, which has not been installed yet. Audit Log plugin will run in the legacy mode, which will be removed in the next release."
 
 ER_AUDIT_LOG_SWITCHING_TO_INCLUDE_LIST
   eng "Previously exclude list is used, now we start using include list, exclude list is set to NULL."
@@ -12159,7 +12159,7 @@ ER_AUTHENTICATION_OCI_TOKEN_NOT_VERIFIED
 ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
   eng "Could not download IDDP Public key. Please check if security token provided by '%s' for '%s'@'%s' is valid."
 
-ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
+OBSOLETE_ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
   eng "None of the groups extracted from security token matches any of the entries from authentication string."
 
 ER_SYS_VAR_REGISTRATION
@@ -12230,6 +12230,15 @@ ER_SECONDARY_ENGINE_DDL_FAILED
 
 ER_THREAD_POOL_CONNECTION_REPORT
    eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
+
+ER_WARN_SCHEDULED_TASK_RUN_FAILED
+   eng "Scheduled run of task %s failed"
+
+ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
+   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
+ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+  eng "Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

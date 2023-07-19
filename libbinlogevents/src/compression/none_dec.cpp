@@ -21,31 +21,35 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <compression/none_dec.h>
-#include <string.h>
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+#include <cstring>  // std::memcpy
 
-type None_dec::compression_type_code() { return NONE; } /* purecov: inspected */
+namespace binary_log::transaction::compression {
 
-bool None_dec::open() { return false; } /* purecov: inspected */
+type None_dec::do_get_type_code() const { return type_code; }
 
-bool None_dec::close() { return false; } /* purecov: inspected */
-
-std::tuple<std::size_t, bool> None_dec::decompress(const unsigned char *buffer,
-                                                   std::size_t length) {
-  /* purecov: begin inspected */
-  auto min_capacity = length + (m_buffer_cursor - m_buffer);
-  if (min_capacity > m_buffer_capacity)
-    if (reserve(min_capacity)) return std::make_tuple(length, true);
-
-  memcpy(m_buffer_cursor, buffer, length);
-  m_buffer_cursor += length;
-  return std::make_tuple(0, false);
-  /* purecov: end */
+void None_dec::do_reset() {
+  m_input_data = nullptr;
+  m_input_size = 0;
+  m_input_position = 0;
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+void None_dec::do_feed(const Char_t *input_data, Size_t input_size) {
+  m_input_data = input_data;
+  m_input_size = input_size;
+  m_input_position = 0;
+}
+
+std::pair<Decompress_status, Decompressor::Size_t> None_dec::do_decompress(
+    Char_t *out, Size_t output_size) {
+  if (m_input_position == m_input_size)
+    return std::make_pair(Decompress_status::end, 0);
+  auto copy_size = std::min(output_size, m_input_size - m_input_position);
+  std::memcpy(out, m_input_data + m_input_position, copy_size);
+  m_input_position += copy_size;
+  if (copy_size < output_size)
+    return std::make_pair(Decompress_status::truncated, copy_size);
+  return std::make_pair(Decompress_status::success, copy_size);
+}
+
+}  // namespace binary_log::transaction::compression

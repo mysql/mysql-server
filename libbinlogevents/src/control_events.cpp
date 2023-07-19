@@ -363,12 +363,6 @@ Transaction_payload_event::Transaction_payload_event(const char *payload,
       m_compression_type((transaction::compression::type)compression_type),
       m_uncompressed_size(uncompressed_size) {}
 
-Transaction_payload_event::Transaction_payload_event(const char *payload,
-                                                     uint64_t payload_size)
-    : Transaction_payload_event(payload, payload_size,
-                                transaction::compression::type::NONE,
-                                payload_size) {}
-
 Transaction_payload_event::~Transaction_payload_event() = default;
 
 Transaction_payload_event::Transaction_payload_event(
@@ -403,6 +397,11 @@ std::string Transaction_payload_event::to_string() const {
     oss << "\tuncompressed_size=" << m_uncompressed_size;
 
   return oss.str();
+}
+
+void Transaction_payload_event::set_payload(
+    Buffer_sequence_view_t *buffer_sequence_view) {
+  m_buffer_sequence_view = buffer_sequence_view;
 }
 
 #ifndef HAVE_MYSYS

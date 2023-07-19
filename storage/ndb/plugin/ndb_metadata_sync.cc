@@ -442,7 +442,6 @@ void Ndb_metadata_sync::reset_excluded_objects_state() {
 }
 
 void Ndb_metadata_sync::validate_excluded_objects(THD *thd) {
-  ndb_log_info("Validating excluded objects");
   /*
     The validation is done by the change monitor thread at the beginning of
     each detection cycle. There's a possibility that the binlog thread is

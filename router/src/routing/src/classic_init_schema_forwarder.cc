@@ -146,8 +146,9 @@ InitSchemaForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   // Ok packet may have session trackers.
   auto msg_res =
@@ -168,6 +169,8 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         true /* ignore some_state_changed */);
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   stage(Stage::Done);
 

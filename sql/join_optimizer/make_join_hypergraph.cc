@@ -3432,7 +3432,11 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
                                string *trace, JoinHypergraph *graph,
                                bool *where_is_always_false) {
   Table_ref *const table_ref = query_block->leaf_tables;
-  table_ref->fetch_number_of_rows(kRowEstimateFallback);
+  if (const int error = table_ref->fetch_number_of_rows(kRowEstimateFallback);
+      error) {
+    table_ref->table->file->print_error(error, MYF(0));
+    return true;
+  }
 
   RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
@@ -3595,7 +3599,11 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // ha_archive, though.)
   for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
-    tl->fetch_number_of_rows(kRowEstimateFallback);
+    if (const int error = tl->fetch_number_of_rows(kRowEstimateFallback);
+        error) {
+      tl->table->file->print_error(error, MYF(0));
+      return true;
+    }
   }
 
   // Construct the hypergraph from the relational expression.

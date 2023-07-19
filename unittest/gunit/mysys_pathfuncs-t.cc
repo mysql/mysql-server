@@ -229,4 +229,30 @@ TEST(Mysys, UnpackDirname) {
   EXPECT_STREQ("~___" FN_ROOTDIR "dir" FN_ROOTDIR, dst);
 }
 
+TEST(Mysys, DirnameLength) {
+  EXPECT_EQ(0, dirname_length(""));
+  EXPECT_EQ(1, dirname_length("/test1"));
+  EXPECT_EQ(2, dirname_length("a/test2"));
+  EXPECT_EQ(4, dirname_length("a/b/test3"));
+  EXPECT_EQ(4, dirname_length("x/y/"));
+#ifdef _WIN32
+  // \ is path-delimiter on Win
+  EXPECT_EQ(2, dirname_length("a\\b"));
+  EXPECT_EQ(4, dirname_length("a\\b\\cc"));
+  // : goes after drive-letter on Win
+  EXPECT_EQ(2, dirname_length("X:a"));
+  EXPECT_EQ(3, dirname_length("X:\\a"));
+  EXPECT_EQ(5, dirname_length("X:\\a\\b"));
+#else
+  // '\\' has no special meaning on non-Windows
+  EXPECT_EQ(0, dirname_length("a\\b"));
+  EXPECT_EQ(0, dirname_length("a\\b\\cc"));
+  // ':' has no special meaning on non-Windows
+  EXPECT_EQ(0, dirname_length("X:a"));
+  EXPECT_EQ(0, dirname_length("X:\\a"));
+  EXPECT_EQ(0, dirname_length("X:\\a\\b"));
+#endif
+  EXPECT_EQ(5, dirname_length("X:/a/b"));
+}
+
 }  // namespace mysys_pathfuncs

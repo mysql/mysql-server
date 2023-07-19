@@ -27,9 +27,13 @@ INSERT INTO t1 VALUES(24, 24);
 connection con0;
 SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 connection con1;
 SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Testing WHERE on keys using IN clause
 connection con0;
 START TRANSACTION;

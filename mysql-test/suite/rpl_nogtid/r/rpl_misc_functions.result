@@ -53,5 +53,18 @@ DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
+CREATE TABLE t1 AS SELECT ST_POINTFROMGEOHASH("0123", 4326);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ST_POINTFROMGEOHASH("0123", 4326)` point NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/sync_slave_sql_with_master.inc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ST_POINTFROMGEOHASH("0123", 4326)` point NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

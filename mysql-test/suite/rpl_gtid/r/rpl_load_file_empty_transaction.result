@@ -16,10 +16,14 @@ COMMIT;
 SET @@SESSION.GTID_NEXT='AUTOMATIC';
 [connection master]
 SET @@SESSION.binlog_format='statement';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@SESSION.GTID_NEXT='SERVER_UUID:2';
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 SET @@SESSION.GTID_NEXT='AUTOMATIC';
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc

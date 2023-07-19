@@ -43,11 +43,12 @@
 #include <Mutex.hpp>
 
 #include <signaldata/RedoStateRep.hpp>
-#include "../dblqh/Dblqh.hpp"
 #include <signaldata/BackupSignalData.hpp>
+#include "kernel/signaldata/FsOpenReq.hpp"
 
 #define JAM_FILE_ID 474
 
+class Dblqh;
 
 /**
  * Backup - This block manages database backup and restore

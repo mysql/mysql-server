@@ -1270,6 +1270,8 @@ class IndexStatsTable : public VirtualTable {
     Uint32 index_id;
     Uint32 index_version;
     Uint32 sample_version;
+    Uint32 load_time;
+    Uint32 sample_count;
   };
 
 public:
@@ -1285,9 +1287,13 @@ public:
         ndbtab->getColumn("index_version");
     const NdbDictionary::Column *const sample_version_col =
         ndbtab->getColumn("sample_version");
+    const NdbDictionary::Column *const load_time_col =
+        ndbtab->getColumn("load_time");
+    const NdbDictionary::Column *const sample_count_col =
+        ndbtab->getColumn("sample_count");
 
-    // Set up record specification for the 3 columns
-    NdbDictionary::RecordSpecification record_spec[3];
+    // Set up record specification for the 5 columns
+    NdbDictionary::RecordSpecification record_spec[5];
     record_spec[0].column = index_id_col;
     record_spec[0].offset = offsetof(IndexStatRow, index_id);
     record_spec[0].nullbit_byte_offset = 0;  // Not nullable
@@ -1302,14 +1308,26 @@ public:
     record_spec[2].offset = offsetof(IndexStatRow, sample_version);
     record_spec[2].nullbit_byte_offset = 0;  // Not nullable
     record_spec[2].nullbit_bit_in_byte = 0;
-    if (!ctx->createRecord(record_spec, 3, sizeof(record_spec[0]))) {
+
+    record_spec[3].column = load_time_col;
+    record_spec[3].offset = offsetof(IndexStatRow, load_time);
+    record_spec[3].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[3].nullbit_bit_in_byte = 0;
+
+    record_spec[4].column = sample_count_col;
+    record_spec[4].offset = offsetof(IndexStatRow, sample_count);
+    record_spec[4].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[4].nullbit_bit_in_byte = 0;
+    if (!ctx->createRecord(record_spec, 5, sizeof(record_spec[0]))) {
       return false;
     }
 
-    // Set up attribute mask to scan only the 3 columns of interest
+    // Set up attribute mask to scan only the 5 columns of interest
     const unsigned char attr_mask = ((1 << index_id_col->getColumnNo()) |
                                      (1 << index_version_col->getColumnNo()) |
-                                     (1 << sample_version_col->getColumnNo()));
+                                     (1 << sample_version_col->getColumnNo()) |
+                                     (1 << load_time_col->getColumnNo()) |
+                                     (1 << sample_count_col->getColumnNo()));
     if (!ctx->scanTable(ctx->getRecord(), NdbOperation::LM_Read, &attr_mask)) {
       return false;
     }
@@ -1326,6 +1344,8 @@ public:
       w.write_number(row_data->index_id);
       w.write_number(row_data->index_version);
       w.write_number(row_data->sample_version);
+      w.write_number(row_data->load_time);
+      w.write_number(row_data->sample_count);
       return 1;
     }
     if (scan_next_result == 1) {
@@ -1349,6 +1369,12 @@ public:
                                         NdbInfo::Column::Number)))
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("sample_version", 2,
+                                        NdbInfo::Column::Number)))
+      return nullptr;
+    if (!tab->addColumn(NdbInfo::Column("load_time", 3,
+                                        NdbInfo::Column::Number)))
+      return nullptr;
+    if (!tab->addColumn(NdbInfo::Column("sample_count", 4,
                                         NdbInfo::Column::Number)))
       return nullptr;
     return tab;

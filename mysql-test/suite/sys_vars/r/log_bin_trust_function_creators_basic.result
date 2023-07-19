@@ -1,45 +1,80 @@
 SET @start_global_value = @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @start_global_value;
 @start_global_value
 1
 '#--------------------FN_DYNVARS_063_01-------------------------#'
 SET @@global.log_bin_trust_function_creators = TRUE;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = DEFAULT;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 0
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_063_02-------------------------#'
 SET @@global.log_bin_trust_function_creators = DEFAULT;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators = 'FALSE';
 @@global.log_bin_trust_function_creators = 'FALSE'
 1
 Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect DOUBLE value: 'FALSE'
 '#--------------------FN_DYNVARS_063_03-------------------------#'
 SET @@global.log_bin_trust_function_creators = ON;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = OFF;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 0
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = 0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 0
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = TRUE;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = FALSE;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 0
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 '#-------------------FN_DYNVARS_063_04----------------------------#'
 SET @@session.log_bin_trust_function_creators = 0;
 ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable and should be set with SET GLOBAL
@@ -76,14 +111,23 @@ WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable
 '#---------------------FN_DYNVARS_063_07----------------------#'
 SET @@global.log_bin_trust_function_creators = TRUE;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
 @@log_bin_trust_function_creators = @@global.log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_063_08----------------------#'
 SET @@global.log_bin_trust_function_creators = TRUE;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@log_bin_trust_function_creators;
 @@log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT local.log_bin_trust_function_creators;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.log_bin_trust_function_creators;
@@ -93,6 +137,10 @@ ERROR 42S22: Unknown column 'log_bin_trust_function_creators' in 'field list'
 SELECT @@session.log_bin_trust_function_creators;
 ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable
 SET @@global.log_bin_trust_function_creators = @start_global_value;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators
 1
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.

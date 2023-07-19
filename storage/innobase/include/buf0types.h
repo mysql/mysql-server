@@ -244,7 +244,8 @@ class page_id_t {
   /** Retrieve the hash value.
   @return hashed value */
   inline uint64_t hash() const {
-    return ut::hash_uint64_pair(m_space, m_page_no);
+    constexpr uint64_t HASH_MASK = 1653893711;
+    return (((uint64_t)m_space << 20) + m_space + m_page_no) ^ HASH_MASK;
   }
 
   /** Reset the values from a (space, page_no).

@@ -20,15 +20,15 @@
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 
 --disable_query_log
-call mtr.add_suppression("NDB: Table upgrade required");
-call mtr.add_suppression("NDB: Table definition contains obsolete data types");
-call mtr.add_suppression("NDB: Failed to create entry in DD");
-call mtr.add_suppression("NDB: Failed to install table");
+call mtr.add_suppression("Table upgrade required");
+call mtr.add_suppression("Table definition contains obsolete data types");
+call mtr.add_suppression("Failed to create entry in DD");
+call mtr.add_suppression("Failed to install table");
 --connection server2
-call mtr.add_suppression("NDB: Table upgrade required");
-call mtr.add_suppression("NDB: Table definition contains obsolete data types");
-call mtr.add_suppression("NDB: Failed to create entry in DD");
-call mtr.add_suppression("NDB: Failed to install table");
+call mtr.add_suppression("Table upgrade required");
+call mtr.add_suppression("Table definition contains obsolete data types");
+call mtr.add_suppression("Failed to create entry in DD");
+call mtr.add_suppression("Failed to install table");
 --enable_query_log
 --connection server1
 

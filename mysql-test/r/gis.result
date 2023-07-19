@@ -4731,3 +4731,26 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t` where (mbrcontains(<cache>(st_geomfromtext('POLYGON((1 2, 2 2, 2 3, 1 2))')),`test`.`t`.`geom`) and (`test`.`t`.`c1` <> '10'))
 DROP TABLE t;
+# Test DEFAULT for GEOMETRY columns with no default defined.
+CREATE TABLE t1 (geom POINT SRID 0 NOT NULL);
+INSERT INTO t1 VALUES();
+ERROR HY000: Field 'geom' doesn't have a default value
+INSERT IGNORE INTO t1 VALUES();
+ERROR HY000: Field 'geom' doesn't have a default value
+INSERT IGNORE INTO t1 VALUES(DEFAULT);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t1 VALUES(DEFAULT);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(0 0)', 0));
+UPDATE t1 SET geom = DEFAULT;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = '';
+INSERT INTO t1 VALUES();
+ERROR HY000: Field 'geom' doesn't have a default value
+INSERT INTO t1 VALUES(DEFAULT);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+UPDATE t1 SET geom = DEFAULT;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SET sql_mode= @orig_sql_mode;
+DROP TABLE t1;

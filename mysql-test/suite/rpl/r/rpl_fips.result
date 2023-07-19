@@ -6,9 +6,22 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
 CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
 [on master]
-SET GLOBAL ssl_fips_mode=on;
+SET PERSIST_ONLY ssl_fips_mode=ON;
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+[on slave]
+SET PERSIST_ONLY ssl_fips_mode=ON;
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+[connection master]
+include/save_binlog_position.inc
+[on master]
 [on slave]
 include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
 # R1: Set the ssl connection OFF
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;;
 Warnings:
@@ -19,7 +32,7 @@ include/check_slave_no_error.inc
 [on slave]
 include/stop_slave.inc
 # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
-CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -32,7 +45,7 @@ SERVICE_STATE	LAST_ERROR_NUMBER
 OFF	2026
 # R3: Set the ssl connection ON and strong cipher
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'AES128-SHA';;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -46,5 +59,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_reset.inc
 [on master]
-SET GLOBAL ssl_fips_mode=off;
+RESET PERSIST ssl_fips_mode;
+[on slave]
+RESET PERSIST ssl_fips_mode;
+[on master]
 include/rpl_end.inc

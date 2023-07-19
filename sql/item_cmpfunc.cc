@@ -2038,6 +2038,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     *result = a_null == b_null;
     return true;
   }
+  *result = false;
   return false;
 }
 
@@ -3689,9 +3690,9 @@ String *Item_func_case::val_str(String *str) {
       return val_string_from_time(str);
     default: {
       Item *item = find_item(str);
-      if (item) {
-        String *res;
-        if ((res = item->val_str(str))) {
+      if (item != nullptr) {
+        String *res = item->val_str(str);
+        if (res != nullptr) {
           res->set_charset(collation.collation);
           null_value = false;
           return res;
@@ -3699,57 +3700,68 @@ String *Item_func_case::val_str(String *str) {
       }
     }
   }
-  null_value = true;
-  return (String *)nullptr;
+  if (current_thd->is_error()) {
+    return error_str();
+  } else {
+    return null_return_str();
+  }
 }
 
 longlong Item_func_case::val_int() {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  longlong res;
 
-  if (!item) {
-    null_value = true;
-    return 0;
+  if (item != nullptr) {
+    const longlong res = item->val_int();
+    null_value = item->null_value;
+    return res;
   }
-  res = item->val_int();
-  null_value = item->null_value;
-  return res;
+
+  if (current_thd->is_error()) {
+    return error_int();
+  }
+
+  null_value = true;
+  return 0;
 }
 
 double Item_func_case::val_real() {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  double res;
 
-  if (!item) {
-    null_value = true;
-    return 0;
+  if (item != nullptr) {
+    const double res = item->val_real();
+    null_value = item->null_value;
+    return res;
   }
-  res = item->val_real();
-  null_value = item->null_value;
-  return res;
+
+  if (current_thd->is_error()) {
+    return error_real();
+  }
+
+  null_value = true;
+  return 0.0;
 }
 
 my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value) {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  my_decimal *res;
 
-  if (!item) {
-    null_value = true;
-    return nullptr;
+  if (item != nullptr) {
+    my_decimal *res = item->val_decimal(decimal_value);
+    null_value = item->null_value;
+    return res;
   }
 
-  res = item->val_decimal(decimal_value);
-  null_value = item->null_value;
-  return res;
+  if (current_thd->is_error()) {
+    return error_decimal(decimal_value);
+  }
+
+  null_value = true;
+  return nullptr;
 }
 
 bool Item_func_case::val_json(Json_wrapper *wr) {
@@ -4363,22 +4375,24 @@ in_string::in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs)
   }
 }
 
+void in_string::cleanup() {
+  // Clear reference pointers and free any memory allocated for holding data.
+  for (uint i = 0; i < m_used_size; i++) {
+    String *str = base_pointers[i];
+    str->set(static_cast<const char *>(nullptr), 0, str->charset());
+  }
+}
+
 void in_string::set(uint pos, Item *item) {
   String *str = base_pointers[pos];
   String *res = eval_string_arg(collation, item, str);
-  if (res && res != str) {
-    if (res->uses_buffer_owned_by(str)) res->copy();
-    if (item->type() == Item::FUNC_ITEM)
-      str->copy(*res);
-    else
-      *str = *res;
-  }
-  if (!str->charset()) {
-    const CHARSET_INFO *cs;
-    if (!(cs = item->collation.collation))
-      cs = &my_charset_bin;  // Should never happen for STR items
-    str->set_charset(cs);
-  }
+  if (res == nullptr || res == str) return;
+
+  if (res->uses_buffer_owned_by(str)) res->copy();
+  if (item->type() == Item::FUNC_ITEM)
+    str->copy(*res);
+  else
+    *str = *res;
 }
 
 static int srtcmp_in(const CHARSET_INFO *cs, const String *x, const String *y) {
@@ -5359,7 +5373,10 @@ void Item_func_in::cleanup() {
   DBUG_TRACE;
   Item_int_func::cleanup();
   // Trigger re-population in next execution (if bisection is used)
-  if (m_need_populate) m_populated = false;
+  if (m_need_populate) {
+    if (m_const_array != nullptr) m_const_array->cleanup();
+    m_populated = false;
+  }
 
   if (!first_resolve_call) {
     /*

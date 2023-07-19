@@ -153,10 +153,7 @@ ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ALTER RESOURCE GROUP SYS_default VCPU=0;
 
 --error ER_DISALLOWED_OPERATION
-ALTER RESOURCE GROUP SYS_internal VCPU=0;
-
---error ER_DISALLOWED_OPERATION
-ALTER RESOURCE GROUP USR_default VCPU=0;
+ALTER RESOURCE GROUP USR_default VCPU=1;
 
 --echo # 11. Alter VCPU IDS and/or thread priority
 
@@ -211,8 +208,6 @@ DROP RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP RESOURCE GROUP USR_default;
 --error ER_DISALLOWED_OPERATION
 DROP RESOURCE GROUP SYS_default;
---error ER_DISALLOWED_OPERATION
-DROP RESOURCE GROUP SYS_internal;
 
 --echo # SET resource group tests.
 # 1. Assigning a non-existing resource group.
@@ -281,13 +276,6 @@ SET RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 --replace_regex /thread id \([0-9]+\)/thread id ID/
 --error ER_RESOURCE_GROUP_BIND_FAILED
 SET RESOURCE GROUP SYS_default;
-
---echo # 12. Assigning system internal resource group is not allowed.
---error ER_DISALLOWED_OPERATION
-SET RESOURCE GROUP SYS_internal;
---replace_result $pfs_system_thread_id1 pfs_system_thread_id1
---error ER_DISALLOWED_OPERATION
---eval SET RESOURCE GROUP SYS_internal FOR $pfs_system_thread_id1
 
 --echo # Query Hint Tests
 

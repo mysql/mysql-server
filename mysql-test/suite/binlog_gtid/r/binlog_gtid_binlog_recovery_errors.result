@@ -79,10 +79,14 @@ DELETE FROM t1;
 RESET MASTER;
 CREATE TABLE tmp1 (i INT) ENGINE=MyISAM;
 SET @@SESSION.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 BEGIN;
 INSERT INTO tmp1 (SELECT c1 FROM t1);
 COMMIT;
 SET @@SESSION.binlog_format = ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 extra/binlog_tests/recovery/kill_copy_malformed_restart.inc [orphan_commit]
 # Kill the server
 # restart: --debug=+d,eval_force_bin_log_recovery
@@ -100,6 +104,8 @@ DROP TEMPORARY TABLE IF EXISTS tmp1;
 RETURN 0;
 END|
 SET @@SESSION.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 BEGIN;
 SELECT func1();
 func1()
@@ -109,6 +115,8 @@ Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
 SET @@SESSION.binlog_format = ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 extra/binlog_tests/recovery/kill_copy_malformed_restart.inc [orphan_rollback]
 # Kill the server
 # restart: --debug=+d,eval_force_bin_log_recovery

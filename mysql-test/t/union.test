@@ -2037,7 +2037,7 @@ d2 date NOT NULL DEFAULT '2018-01-25',
 d3 date,
 d4 date DEFAULT NULL,
 d5 date DEFAULT '2017-11-14',
-g1 geometry NOT NULL
+g1 geometry
 );
 
 SHOW CREATE TABLE t1;

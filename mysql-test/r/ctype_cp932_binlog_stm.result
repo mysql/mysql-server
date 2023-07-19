@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop table if exists t1;
 set names cp932;
 set character_set_database = cp932;
@@ -19845,3 +19851,5 @@ hex(weight_string(cast(0x814081408140 as char),25, 4, 0xC0))
 #
 # End of 5.6 tests
 #
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

@@ -64,23 +64,45 @@ extern PSI_memory_key key_memory_log_event;
 #define BAPI_RETURN(x) DBUG_RETURN(x)
 #define BAPI_TRACE DBUG_TRACE
 #define BAPI_VOID_RETURN DBUG_VOID_RETURN
+#define BAPI_LOG(x, y) DBUG_LOG(x, y)
+#define BAPI_VAR(v) DBUG_VAR(v)
 #else
 #define BAPI_ASSERT(x) assert(x)
-#define BAPI_PRINT(name, params)
-#define BAPI_ENTER(x)
+#define BAPI_PRINT(name, params) \
+  do {                           \
+  } while (0)
+#define BAPI_ENTER(x) \
+  do {                \
+  } while (0)
 #define BAPI_RETURN(x) return (x)
-#define BAPI_TRACE
+#define BAPI_TRACE \
+  do {             \
+  } while (0)
 #define BAPI_VOID_RETURN return
+#define BAPI_LOG(x, y) \
+  do {                 \
+  } while (0)
+#define BAPI_VAR(v) ""
 #endif
 #else
 #define BAPI_ASSERT(x) \
   do {                 \
   } while (0)
-#define BAPI_PRINT(name, params)
-#define BAPI_ENTER(x)
+#define BAPI_PRINT(name, params) \
+  do {                           \
+  } while (0)
+#define BAPI_ENTER(x) \
+  do {                \
+  } while (0)
 #define BAPI_RETURN(x) return (x)
-#define BAPI_TRACE
+#define BAPI_TRACE \
+  do {             \
+  } while (0)
 #define BAPI_VOID_RETURN return
+#define BAPI_LOG(x, y) \
+  do {                 \
+  } while (0)
+#define BAPI_VAR(v) ""
 #endif
 
 #ifndef HAVE_STRNDUP

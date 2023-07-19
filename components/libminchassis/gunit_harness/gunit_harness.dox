@@ -1,0 +1,228 @@
+/* Copyright (c) 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/**
+  @page PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS Component unit testing using the minimal chasiss
+
+  This framework allows testing components without loading them into the server.
+
+  It's achieved by using the "minimal chassis" library to create a test harness
+  to test a component and a service defined by it.
+
+  The architecture is as follows:
+  1. The gunit test executable defines a special gmock test suite class that
+      sets up the test harness during its construction.
+  2. the main method initializes the gmock test framework and runs it.
+
+  The test harness consists of:
+  - a locally defined test harness "component" in the executable that implements
+      mock test services that the component-under-test requires.
+  - machinery to init the minimal chassis, to load the harness component and
+      the component under test and to fetch a reference to the service under
+  test into a test suite member variable for the tests to use.
+
+  @section PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS_S1 Component testing Howto
+
+  Imagine we have a component called "foo" that requires service a bar
+  and implements a service called foo_svc. The files for this are below:
+
+  @subsection PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS_S1_1 The foo files
+
+  include/mysql/components/services/service_foo.h
+
+  @code
+    #include <mysql/components/service.h>
+
+    BEGIN_SERVICE_DEFINITION(service_foo)
+      DECLARE_BOOL_METHOD(mtd_foo, (int param));
+    END_SERVICE_DEFINITION(service_foo);
+  @endcode
+
+  include/mysql/components/services/service_bar.h
+
+  @code
+    #include <mysql/components/service.h>
+
+    BEGIN_SERVICE_DEFINITION(service_bar)
+      DECLARE_BOOL_METHOD(mtd_bar, (int param));
+    END_SERVICE_DEFINITION(service_bar);
+  @endcode
+
+  components/foo/component_foo.cc
+
+  @code
+    #include "mysql/components/component_implementation.h"
+    #include "mysql/components/service_implementation.h"
+
+    REQUIRES_SERVICE_PLACEHOLDER(service_bar);
+    static DEFINE_BOOL_METHOD(svc_foo_mtd_foo, (int param)) {
+      return service_bar->mtd_bar(param);
+    }
+
+    BEGIN_SERVICE_IMPLEMENTATION(component_foo, service_foo)
+      svc_foo_mtd_foo
+    END_SERVICE_IMPLEMENTATION();
+
+    BEGIN_COMPONENT_PROVIDES(component_foo)
+      PROVIDES_SERVICE(component_foo, service_foo),
+    END_COMPONENT_PROVIDES();
+
+    BEGIN_COMPONENT_REQUIRES(component_foo)
+      REQUIRES_SERVICE(service_bar),
+    END_COMPONENT_REQUIRES();
+
+    BEGIN_COMPONENT_METADATA(component_foo)
+       METADATA("version", "1"),
+    END_COMPONENT_METADATA();
+
+    DECLARE_COMPONENT(component_foo, "component_foo")
+      nullptr, nullptr
+    END_DECLARE_COMPONENT();
+  @endcode
+
+  @subsection PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS_S1_2 Build a gunit test
+
+  Since component_foo requires service_bar we need to mock service_bar.
+
+  Thus we build a mock implementation as follows:
+
+  components/libminchassis/gunit_harness/include/mock/service_bar_empty.cc
+
+  @code
+    #include "mysql/components/component_implementation.h"
+    #include "mysql/components/service_implementation.h"
+    #include "mysql/components/services/service_bar.h"
+
+    namespace service_bar_spc {
+      DEFINE_BOOL_METHOD(mtd_bar, (int param)) {
+        return false;
+      }
+    }
+
+    BEGIN_SERVICE_IMPLEMENTATION(HARNESS_COMPONENT_NAME, service_bar)
+       service_bar_spc::mtd_bar END_SERVICE_IMPLEMENTATION();
+  @endcode
+
+  Now we will proceed to building a test harness "component" to embed
+  in our test.
+
+  We will copy the template from components/libminchassis/gunit_harness/harness_component into
+  our gunit directory components/foo/gunit and modify it as follows:
+
+  components/foo/gunit/test_harness_component.h
+
+  @code
+  #include "mysql/components/component_implementation.h"
+
+  ========== FILLME: Test Harness component name goes here ======
+  #define HARNESS_COMPONENT_NAME foo_harness
+  ===============================================================
+
+  extern mysql_component_t COMPONENT_REF(HARNESS_COMPONENT_NAME);
+  @endcode
+
+  components/foo/gunit/test_harness_component.cc
+
+  @code
+  #include "mysql/components/component_implementation.h"
+  #include "mysql/components/service_implementation.h"
+  #include "test_harness_component.h"
+
+  ================ FILLME: Service mock includes go here ================
+  #include "components/libminchassis/gunit_harness/include/mock/service_bar_empty.cc"
+  ===============================================================
+
+  #define STRINGIFY(x) #x
+
+  ================ Component declaration related stuff ================
+
+  BEGIN_COMPONENT_PROVIDES(HARNESS_COMPONENT_NAME)
+  ================ FILLME: Service mock refs go here ================
+    PROVIDES_SERVICE(HARNESS_COMPONENT_NAME, service_bar),
+  ===================================================================
+  END_COMPONENT_PROVIDES();
+
+  BEGIN_COMPONENT_REQUIRES(HARNESS_COMPONENT_NAME)
+  END_COMPONENT_REQUIRES();
+
+  BEGIN_COMPONENT_METADATA(HARNESS_COMPONENT_NAME)
+    METADATA("mysql.version", "1"),
+  END_COMPONENT_METADATA();
+  DECLARE_COMPONENT(HARNESS_COMPONENT_NAME, STRINGIFY(HARNESS_COMPONENT_NAME))
+    nullptr, nullptr END_DECLARE_COMPONENT();
+  @endcode
+
+  Now we can go ahead and implement our test driver:
+
+  components/foo/gunit/test_foo.cc
+
+  @code
+  #include <gtest/gtest.h>
+  #include "components/libminchassis/gunit_harness/include/test_harness_suite.h"
+  #include "mysql/components/services/mysql_foo.h"
+  #include "test_harness_component.h"
+
+  namespace foo_test {
+
+    const char component[] = "component_foo";
+    const char service[] = "service_foo";
+
+    using FooTest =
+      TestHarnessSuite_templ<SERVICE_TYPE(service_foo), component, service,
+                           &COMPONENT_REF(HARNESS_COMPONENT_NAME)>;
+
+    TEST_F(FooTest, ComponentLoaded) {
+      ASSERT_NE(m_test_svc, nullptr);
+      ASSERT_TRUE(m_test_svc->is_valid());
+    }
+
+    TEST_F(FooTest, CallFoo) {
+       ASSERT_FALSE((*m_test_svc)->mtd_foo(12));
+    }
+  }
+
+  int main(int argc, char *argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int ret = RUN_ALL_TESTS();
+  }
+  @endcode
+
+  And finally: here is the CMakeFiles.txt used for the harness component.
+
+  components/foo/gunit/CMakeLists.txt
+
+  @code
+  IF (NOT WITH_UNIT_TESTS)
+    RETURN()
+  ENDIF()
+
+  MYSQL_ADD_EXECUTABLE(test_foo-t
+    test_foo.cc
+    test_harness_component.cc
+    LINK_LIBRARIES gtest ${CMAKE_DL_LIBS} minchassis ${SSL_LIBRARIES}
+    SYSTEM_INCLUDE_DIRECTORIES ${GMOCK_INCLUDE_DIRS}
+    ADD_TEST test_foo-t
+    COMPONENT Test)
+  @endcode
+
+  @sa @ref TestHarnessSuite_templ
+*/

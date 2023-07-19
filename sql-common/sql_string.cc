@@ -244,39 +244,6 @@ bool String::copy(const char *str, size_t arg_length, const CHARSET_INFO *cs) {
 }
 
 /*
-  Checks that the source string can be just copied to the destination string
-  without conversion.
-
-  SYNPOSIS
-
-  needs_conversion()
-  arg_length		Length of string to copy.
-  from_cs		Character set to copy from
-  to_cs			Character set to copy to
-  uint32 *offset	Returns number of unaligned characters.
-
-  RETURN
-   0  No conversion needed
-   1  Either character set conversion or adding leading  zeros
-      (e.g. for UCS-2) must be done
-
-  NOTE
-  to_cs may be NULL for "no conversion" if the system variable
-  character_set_results is NULL.
-*/
-
-bool String::needs_conversion(size_t arg_length, const CHARSET_INFO *from_cs,
-                              const CHARSET_INFO *to_cs, size_t *offset) {
-  *offset = 0;
-  if (!to_cs || (to_cs == &my_charset_bin) || (to_cs == from_cs) ||
-      my_charset_same(from_cs, to_cs) ||
-      ((from_cs == &my_charset_bin) &&
-       (!(*offset = (arg_length % to_cs->mbminlen)))))
-    return false;
-  return true;
-}
-
-/*
   Checks that the source string can just be copied to the destination string
   without conversion.
   Unlike needs_conversion it will require conversion on incoming binary data

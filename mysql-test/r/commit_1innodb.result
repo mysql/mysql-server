@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
 set default_storage_engine = InnoDB;
@@ -333,6 +339,8 @@ drop table if exists t2;
 drop function if exists f1;
 drop procedure if exists p_verify_status_increment;
 set @binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set sql_mode=no_engine_substitution;
 create table t1 (a int unique);
 create table t2 (a int) engine=myisam;
@@ -895,3 +903,5 @@ SUCCESS
 drop table t1, t2, t3;
 drop procedure p_verify_status_increment;
 drop function f1;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

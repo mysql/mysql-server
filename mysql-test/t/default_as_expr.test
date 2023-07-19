@@ -614,6 +614,27 @@ SELECT * FROM t1;
 --enable_result_log
 DROP TABLE t1;
 
+CREATE TABLE t1 (a varchar(288) DEFAULT (CURRENT_USER()));
+INSERT INTO t1 VALUES ();
+--disable_result_log
+SELECT * FROM t1;
+--enable_result_log
+DROP TABLE t1;
+
+CREATE TABLE t1 (a varchar(288) DEFAULT (SESSION_USER()));
+INSERT INTO t1 VALUES ();
+--disable_result_log
+SELECT * FROM t1;
+--enable_result_log
+DROP TABLE t1;
+
+CREATE TABLE t1 (a varchar(288) DEFAULT (USER()));
+INSERT INTO t1 VALUES ();
+--disable_result_log
+SELECT * FROM t1;
+--enable_result_log
+DROP TABLE t1;
+
 --echo # Function that are still not allowed
 -- error ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (a varchar(64), b varchar(1024) DEFAULT (load_file(a)));
@@ -631,10 +652,6 @@ CREATE TABLE t1 (a int DEFAULT (last_insert_id()));
 CREATE TABLE t1 (a int DEFAULT (row_count()));
 -- error ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (a int, b int DEFAULT (sleep(a)));
--- error ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
-CREATE TABLE t1 (a varchar(32) DEFAULT (current_user()));
--- error ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
-CREATE TABLE t1 (a varchar(32) DEFAULT (session_user()));
 -- error ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (version()));
 

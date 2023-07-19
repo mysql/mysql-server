@@ -229,7 +229,9 @@ bool Keyring_encryption_test::test_aes() {
   std::cout << "Successfully decrypted plaintext using AES-CBC-256"
             << std::endl;
 
-  std::cout << "Decrypted plaintext: '" << output_2.get() << "'" << std::endl;
+  std::string decrypted_output{reinterpret_cast<char *>(output_2.get()),
+                               decrypted_length};
+  std::cout << "Decrypted plaintext: '" << decrypted_output << "'" << std::endl;
 
   if (writer->remove("secret_key_1", "keyring_aes_test") != 0) {
     std::cerr

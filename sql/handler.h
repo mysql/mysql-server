@@ -2427,6 +2427,32 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
 using secondary_engine_modify_access_path_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
+/**
+  Looks up and returns a specific secondary engine query offload or exec
+  failure reason as a string given a thread context (representing the query)
+  when the offloaded query fails in the secondary storage engine.
+
+  @param thd thread context.
+
+  @retval const char * as the offload failure reason.
+          The memory pointed to is managed by the handlerton and may be freed
+          when the statement completes.
+*/
+using get_secondary_engine_offload_or_exec_fail_reason_t =
+    const char *(*)(THD *thd);
+
+/**
+  Sets a specific secondary engine offload failure reason for a query
+  represented by the thread context when the offloaded query fails in
+  the secondary storage engine.
+
+  @param thd thread context.
+
+  @param const char * as the offload failure reason.
+*/
+using set_secondary_engine_offload_fail_reason_t = void (*)(THD *thd,
+                                                            const char *);
+
 // Capabilities (bit flags) for secondary engines.
 using SecondaryEngineFlags = uint64_t;
 enum class SecondaryEngineFlag : SecondaryEngineFlags {
@@ -2806,6 +2832,23 @@ struct handlerton {
   secondary_engine_modify_access_path_cost_t
       secondary_engine_modify_access_path_cost;
 
+  /// Pointer to a function that returns the query offload or exec failure
+  /// reason as a string given a thread context (representing the query) when
+  /// the offloaded query failed in a secondary storage engine.
+  ///
+  /// @see get_secondary_engine_offload_or_exec_fail_reason_t for function
+  /// signature.
+  get_secondary_engine_offload_or_exec_fail_reason_t
+      get_secondary_engine_offload_or_exec_fail_reason;
+
+  /// Pointer to a function that sets the offload failure reason as a string
+  /// for a thread context (representing the query) when the offloaded query
+  /// failed in a secondary storage engine.
+  ///
+  /// @see set_secondary_engine_offload_fail_reason_t for function signature.
+  set_secondary_engine_offload_fail_reason_t
+      set_secondary_engine_offload_fail_reason;
+
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
   se_before_rollback_t se_before_rollback;
@@ -2994,7 +3037,9 @@ enum enum_stats_auto_recalc : int {
   HA_STATS_AUTO_RECALC_OFF
 };
 
-/* struct to hold information about the table that should be created */
+/**
+  Struct to hold information about the table that should be created.
+ */
 struct HA_CREATE_INFO {
   const CHARSET_INFO *table_charset{nullptr};
   const CHARSET_INFO *default_table_charset{nullptr};
@@ -3026,6 +3071,8 @@ struct HA_CREATE_INFO {
    * Is nullptr if no secondary engine defined.
    */
   LEX_CSTRING secondary_engine{nullptr, 0};
+  /** Secondary engine load status */
+  bool secondary_load{false};
 
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};
@@ -6910,6 +6957,19 @@ class handler {
   void ha_mv_key_capacity(uint *num_keys, size_t *keys_length) const {
     return mv_key_capacity(num_keys, keys_length);
   }
+
+  /**
+    Propagates the secondary storage engine offload failure reason for a query
+    to the external engine when the offloaded query fails in the secondary
+    storage engine.
+  */
+  virtual void set_external_table_offload_error(const char * /*reason*/) {}
+
+  /**
+    Identifies and throws the propagated external engine query offload or exec
+    failure reason given by the external engine handler.
+  */
+  virtual void external_table_offload_error() const {}
 
  private:
   /**

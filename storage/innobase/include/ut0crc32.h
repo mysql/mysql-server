@@ -117,6 +117,34 @@ CRC32_DEFAULT
     know how to ask it to do it anyway. We use software implementation of crc32.
 */
 
+#ifdef CRC32_x86_64
+#include <nmmintrin.h>
+#include <wmmintrin.h>
+#endif /* CRC32_x86_64 */
+
+#ifdef CRC32_x86_64_WIN
+#include <intrin.h>
+#endif /* CRC32_x86_64_WIN */
+
+#ifdef CRC32_ARM64
+#include <arm_acle.h>
+#include <arm_neon.h>
+#endif /* CRC32_ARM64 */
+
+#ifdef CRC32_ARM64_DEFAULT
+#include <asm/hwcap.h>
+#include <sys/auxv.h>
+#endif /* CRC32_ARM64_DEFAULT */
+
+#ifdef CRC32_ARM64_APPLE
+#if __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>)
+#error \
+    "Current implementation is based on assumption that APPLE_ARM always " \
+    "supports crc32 and pmull and that there is no way to check it, yet it "\
+    "seem that this APPLE_ARM has getauxval()."
+#endif /* __has_include(<asm/hwcap.h>) &&  __has_include(<sys/auxv.h>) */
+#endif /* CRC32_ARM64_APPLE */
+
 /** Initializes the data structures used by ut_crc32*(). Does not do any
  allocations, would not hurt if called twice, but would be pointless. */
 void ut_crc32_init();
@@ -149,5 +177,34 @@ extern bool ut_crc32_cpu_enabled;
 
 /** Flag that tells whether the CPU supports polynomial multiplication or not.*/
 extern bool ut_poly_mul_cpu_enabled;
+
+#ifndef CRC32_DEFAULT
+/** Updates CRC32 value with hardware accelerated.
+@param[in]      crc     base CRC32 value
+@param[in]      data    8 bytes data to be processed
+@return updated CRC32 value */
+#ifdef CRC32_x86_64
+MY_ATTRIBUTE((target("sse4.2")))
+#elif defined(CRC32_ARM64_DEFAULT)
+MY_ATTRIBUTE((target("+crc")))
+#endif /* CRC32_x86_64 */
+static inline uint64_t crc32_update_uint64(uint64_t crc, uint64_t data) {
+#ifdef CRC32_x86_64
+  return _mm_crc32_u64(crc, data);
+#elif defined(CRC32_ARM64)
+  return (uint64_t)__crc32cd((uint32_t)crc, data);
+#endif /* CRC32_x86_64 */
+}
+
+/** Hashes a 64-bit integer with CRC32 instructions of the architecture.
+@param[in]	value	64-bit integer
+@return hashed value */
+static inline uint64_t crc32_hash_uint64(uint64_t value) {
+  ut_ad(ut_crc32_cpu_enabled);
+  value *= 0x1a2be5a5fa110e23;
+  return (crc32_update_uint64(0, value) ^ value) << 32 |
+         crc32_update_uint64(0, (value >> 32 | value << 32));
+}
+#endif /* !CRC32_DEFAULT */
 
 #endif /* ut0crc32_h */

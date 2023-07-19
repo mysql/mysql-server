@@ -31,7 +31,6 @@
    of the log; if it is the 3rd then there is this combination:
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
-
 #include "client/mysqlbinlog.h"
 
 #include <fcntl.h>
@@ -43,6 +42,7 @@
 #include <time.h>
 #include <algorithm>
 #include <map>
+#include <sstream>
 #include <utility>
 
 #include "caching_sha2_passwordopt-vars.h"
@@ -50,7 +50,7 @@
 #include "compression.h"
 #include "libbinlogevents/include/codecs/factory.h"
 #include "libbinlogevents/include/compression/factory.h"
-#include "libbinlogevents/include/compression/iterator.h"
+#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
 #include "libbinlogevents/include/trx_boundary_parser.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -61,6 +61,7 @@
 #include "my_time.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "scope_guard.h"
 #include "sql/binlog_reader.h"
 #include "sql/log_event.h"
 #include "sql/my_decimal.h"
@@ -136,16 +137,12 @@ class Database_rewrite {
     Rewrite_payload_result rewrite_inner_events(
         binary_log::transaction::compression::type compression_type,
         const char *orig_payload, std::size_t orig_payload_size,
-        std::size_t orig_payload_uncompressed_size,
         const binary_log::Format_description_event &fde) {
       // to return error or not
       auto err{false};
       auto error_val = Rewrite_payload_result{nullptr, 0, 0, 0, true};
 
       // output variables
-      unsigned char *obuffer{nullptr};
-      std::size_t obuffer_size{0};
-      std::size_t obuffer_capacity{0};
       std::size_t obuffer_size_uncompressed{0};
 
       // temporary buffer for holding uncompressed and rewritten events
@@ -153,59 +150,72 @@ class Database_rewrite {
       std::size_t ibuffer_capacity{0};
 
       // RAII objects
-      Buffer_realloc_manager obuffer_dealloc_guard(&obuffer);
       Buffer_realloc_manager ibuffer_dealloc_guard(&ibuffer);
 
-      // iterator to decompress events
-      binary_log::transaction::compression::Iterable_buffer it(
-          orig_payload, orig_payload_size, orig_payload_uncompressed_size,
-          compression_type);
+      // stream to decompress events
+      using Buffer_istream_t =
+          binary_log::transaction::compression::Payload_event_buffer_istream;
+      using Buffer_ptr_t = Buffer_istream_t::Buffer_ptr_t;
 
-      // compressor to compress this again
+      Buffer_istream_t istream(
+          reinterpret_cast<const unsigned char *>(orig_payload),
+          orig_payload_size, compression_type);
+      Buffer_ptr_t buffer_ptr;
+
+      // compressor to compress again
+      using Compress_status_t =
+          binary_log::transaction::compression::Compress_status;
+      using Managed_buffer_sequence_t =
+          mysqlns::buffer::Managed_buffer_sequence<>;
+      using Char_t = Managed_buffer_sequence_t::Char_t;
+      Managed_buffer_sequence_t managed_buffer_sequence;
       auto compressor =
           binary_log::transaction::compression::Factory::build_compressor(
               compression_type);
 
-      compressor->set_buffer(obuffer, obuffer_size);
-      compressor->reserve(orig_payload_uncompressed_size);
-      compressor->open();
-
       // rewrite and compress
-      for (auto ptr : it) {
-        std::size_t ev_len{uint4korr(ptr + EVENT_LEN_OFFSET)};
+      while (istream >> buffer_ptr) {
+        /// @todo: don't copy, just use the Decompressor's managed buffer
 
         // reserve input buffer size (we are modifying the input buffer contents
         // before compressing it back).
         std::tie(ibuffer, ibuffer_capacity, err) =
-            reserve(ibuffer, ibuffer_capacity, ev_len);
+            reserve(ibuffer, ibuffer_capacity, buffer_ptr->size());
         if (err) return error_val;
-        memcpy(ibuffer, ptr, ev_len);
+        memcpy(ibuffer, buffer_ptr->data(), buffer_ptr->size());
 
         // rewrite the database name if needed
+        std::size_t ev_len = 0;
         std::tie(ibuffer, ibuffer_capacity, ev_len, err) =
-            m_event_rewriter.rewrite_event(ibuffer, ibuffer_capacity, ev_len,
-                                           fde);
+            m_event_rewriter.rewrite_event(ibuffer, ibuffer_capacity,
+                                           buffer_ptr->size(), fde);
         if (err) return error_val;
 
-        auto left{ev_len};
-        while (left > 0 && !err) {
-          auto pos{ibuffer + (ev_len - left)};
-          std::tie(left, err) = compressor->compress(pos, left);
-        }
-
-        if (err) return error_val;
+        compressor->feed(ibuffer, ev_len);
+        if (compressor->compress(managed_buffer_sequence) !=
+            Compress_status_t::success)
+          return error_val;
         obuffer_size_uncompressed += ev_len;
       }
+      if (istream.has_error()) {
+        error("%s", istream.get_error_str().c_str());
+        return error_val;
+      }
 
-      compressor->close();
-      std::tie(obuffer, obuffer_size, obuffer_capacity) =
-          compressor->get_buffer();
+      if (compressor->finish(managed_buffer_sequence) !=
+          Compress_status_t::success)
+        return error_val;
 
-      // do not dispose of the obuffer (disable RAII for obuffer)
-      obuffer_dealloc_guard.release();
+      // Get contiguous output buffer from managed_buffer_sequence
+      auto *obuffer = static_cast<Char_t *>(
+          malloc(managed_buffer_sequence.read_part().size()));
+      if (obuffer == nullptr) return error_val;
+      managed_buffer_sequence.read_part().copy(obuffer);
 
       // set the new one and adjust event settings
-      return Rewrite_payload_result{obuffer, obuffer_capacity, obuffer_size,
+      return Rewrite_payload_result{obuffer,
+                                    managed_buffer_sequence.read_part().size(),
+                                    managed_buffer_sequence.read_part().size(),
                                     obuffer_size_uncompressed, false};
     }
 
@@ -232,7 +242,6 @@ class Database_rewrite {
 
       auto orig_payload{tpe.get_payload()};
       auto orig_payload_size{tpe.get_payload_size()};
-      auto orig_payload_uncompressed_size{tpe.get_uncompressed_size()};
       auto orig_payload_compression_type{tpe.get_compression_type()};
 
       unsigned char *rewritten_payload{nullptr};
@@ -249,8 +258,7 @@ class Database_rewrite {
                rewritten_payload_size, rewritten_payload_uncompressed_size,
                rewrite_payload_res) =
           rewrite_inner_events(orig_payload_compression_type, orig_payload,
-                               orig_payload_size,
-                               orig_payload_uncompressed_size, fde);
+                               orig_payload_size, fde);
 
       if (rewrite_payload_res) return Rewrite_result{nullptr, 0, 0, true};
 
@@ -263,7 +271,8 @@ class Database_rewrite {
       // start encoding it
       auto codec =
           binary_log::codecs::Factory::build_codec(tpe.header()->type_code);
-      uchar tpe_buffer[binary_log::Transaction_payload_event::MAX_DATA_LENGTH];
+      uchar tpe_buffer[binary_log::Transaction_payload_event::
+                           max_payload_data_header_length];
       auto result = codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
       if (result.second == true) return Rewrite_result{nullptr, 0, 0, true};
 
@@ -1851,7 +1860,15 @@ static struct my_option my_long_options[] = {
      "already have. NOTE: you will need a SUPER privilege to use this option.",
      &disable_log_bin, &disable_log_bin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-    {"force-if-open", 'F', "Force if binlog was not closed properly.",
+    {"force-if-open", 'F',
+     "If the IN_USE flag is set in the first event, run "
+     "anyways, and do not fail in case the file ends with a truncated event. "
+     "The IN_USE flag is set only for the binary log that is currently "
+     "written by the server; in case the server has crashed, the flag remains "
+     "set until the server is started up again and recovers the binary log. "
+     "Without -F, mysqlbinlog refuses to process file with the flag set. "
+     "Since the server may be writing the file, it is considered normal that "
+     "the last event is truncated.",
      &force_if_open_opt, &force_if_open_opt, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
     {"force-read", 'f', "Force reading unknown binlog events.", &force_opt,
@@ -2723,12 +2740,12 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT)) {
-      Binlog_read_error read_error = binlog_event_deserialize(
+      Binlog_read_error read_status = binlog_event_deserialize(
           reinterpret_cast<unsigned char *>(event_buf), event_len,
           &glob_description_event, opt_verify_binlog_checksum, &ev);
-
-      if (read_error.has_error()) {
-        error("Could not construct log event object: %s", read_error.get_str());
+      if (read_status.has_error()) {
+        error("Could not construct log event object: %s",
+              read_status.get_str());
         my_free(event_buf);
         return ERROR_STOP;
       }
@@ -3025,8 +3042,6 @@ typedef Basic_binlog_file_reader<
 */
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char *logname) {
-  Exit_status retval = OK_CONTINUE;
-
   ulong max_event_size = 0;
   mysql_get_option(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET, &max_event_size);
   Mysqlbinlog_file_reader mysqlbinlog_file_reader(opt_verify_binlog_checksum,
@@ -3043,8 +3058,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   transaction_parser.reset();
 
   if (fdle != nullptr) {
-    retval = process_event(print_event_info, fdle,
-                           mysqlbinlog_file_reader.event_start_pos(), logname);
+    auto retval =
+        process_event(print_event_info, fdle,
+                      mysqlbinlog_file_reader.event_start_pos(), logname);
     if (retval != OK_CONTINUE) return retval;
   }
 
@@ -3057,15 +3073,19 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     Log_event *ev = mysqlbinlog_file_reader.read_event_object();
     if (ev == nullptr) {
-      /*
-        if binlog wasn't closed properly ("in use" flag is set) don't complain
-        about a corruption, but treat it as EOF and move to the next binlog.
-      */
-      if ((mysqlbinlog_file_reader.format_description_event()->header()->flags &
-           LOG_EVENT_BINLOG_IN_USE_F) ||
-          mysqlbinlog_file_reader.get_error_type() ==
-              Binlog_read_error::READ_EOF)
-        return retval;
+      // Return success at end-of-file.
+      auto error_type = mysqlbinlog_file_reader.get_error_type();
+      if (error_type == Binlog_read_error::READ_EOF) return OK_CONTINUE;
+      // Also return success if the file is "in use" and the event is
+      // truncated: this may occur when the file is concurrently
+      // written by mysqld.
+      auto fde_flags =
+          mysqlbinlog_file_reader.format_description_event().header()->flags;
+      auto in_use_flag = fde_flags & LOG_EVENT_BINLOG_IN_USE_F;
+      if (in_use_flag != 0 && error_type == Binlog_read_error::TRUNC_EVENT) {
+        warning("File ends with a truncated event.");
+        return OK_CONTINUE;
+      }
 
       error(
           "Could not read entry at offset %s: "
@@ -3096,14 +3116,13 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       }
     }
 
-    if ((retval = process_event(print_event_info, ev, old_off, logname)) !=
-        OK_CONTINUE)
-      return retval;
+    auto retval = process_event(print_event_info, ev, old_off, logname);
+    if (retval != OK_CONTINUE) return retval;
   }
 
   /* NOTREACHED */
 
-  return retval;
+  return OK_CONTINUE;
 }
 
 /* Post processing of arguments to check for conflicts and other setups */
@@ -3386,61 +3405,70 @@ void Transaction_payload_log_event::print(FILE *,
   Format_description_event fde_no_crc = glob_description_event;
   fde_no_crc.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
-  bool error{false};
   IO_CACHE *const head = &info->head_cache;
   size_t current_buffer_size = 1024;
-  auto buffer = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, current_buffer_size,
-                                   MYF(MY_WME));
+  auto *buffer = static_cast<uchar *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, current_buffer_size, MYF(MY_WME)));
+  if (buffer == nullptr) {
+    head->error = -1;
+    error("Out of memory.");
+    return;
+  }
+  Scope_guard free_buffer_guard([&] { my_free(buffer); });
   if (!info->short_form) {
     std::ostringstream oss;
     oss << "\tTransaction_Payload\t" << to_string() << std::endl;
-    oss << "# Start of compressed events!" << std::endl;
+    oss << "# Start of compressed events." << std::endl;
     print_header(head, info, false);
     my_b_printf(head, "%s", oss.str().c_str());
   }
 
   // print the payload
-  binary_log::transaction::compression::Iterable_buffer it(
-      m_payload, m_payload_size, m_uncompressed_size, m_compression_type);
-
-  for (auto ptr : it) {
+  using Buffer_istream_t =
+      binary_log::transaction::compression::Payload_event_buffer_istream;
+  Buffer_istream_t istream(*this);
+  Buffer_istream_t::Buffer_ptr_t original_event_buffer;
+  while (istream >> original_event_buffer) {
     Log_event *ev = nullptr;
     bool is_deferred_event = false;
 
     // fix the checksum part
-    size_t event_len = uint4korr(ptr + EVENT_LEN_OFFSET);
+    size_t event_len = original_event_buffer->size();
 
-    // resize the buffer we are using to handle the event if needed
-    if (event_len > current_buffer_size) {
+    // Resize the buffer we are using to handle the event if needed.
+    //
+    // The condition `buffer==nullptr` is redundant, because if buffer
+    // is null, then current_buffer_size is 0, and event_len is
+    // guaranteed to be greater than 0 when `operator>>` completed
+    // without taking the stream to an error state.  But clang-tidy
+    // doesn't know that event_len is guaranteed to be greater than
+    // zero, and reports a possible memory leak.
+    if (buffer == nullptr || event_len > current_buffer_size) {
       current_buffer_size =
           round(((event_len + BINLOG_CHECKSUM_LEN) / 1024.0) + 1) * 1024;
-      buffer = (uchar *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
-                                   current_buffer_size, MYF(0));
-
-      /* purecov: begin inspected */
-      if (!buffer) {
-        // OOM
+      auto *new_buffer = static_cast<uchar *>(my_realloc(
+          PSI_NOT_INSTRUMENTED, buffer, current_buffer_size, MYF(0)));
+      if (new_buffer == nullptr) {
         head->error = -1;
-        my_b_printf(head, "# Out of memory!");
-        goto end;
+        error("Out of memory.");
+        return;
       }
-      /* purecov: end */
+      buffer = new_buffer;
     }
 
-    memcpy(buffer, ptr, event_len);
+    memcpy(buffer, original_event_buffer->data(), event_len);
 
     // rewrite the database name if needed
-    std::tie(buffer, current_buffer_size, event_len, error) =
+    bool rewrite_error{false};
+    std::tie(buffer, current_buffer_size, event_len, rewrite_error) =
         global_database_rewriter.rewrite(buffer, current_buffer_size, event_len,
                                          fde_no_crc);
 
-    /* purecov: begin inspected */
-    if (error) {
+    if (rewrite_error) {
       head->error = -1;
-      my_b_printf(head, "# Error while rewriting db for compressed events!");
-      goto end;
+      error("Error rewriting db for compressed events.");
+      return;
     }
-    /* purecov: end */
 
     // update the CRC
     if (has_crc) {
@@ -3450,14 +3478,13 @@ void Transaction_payload_log_event::print(FILE *,
     }
 
     // now deserialize the event
-    if (binlog_event_deserialize((const unsigned char *)buffer, event_len,
-                                 &glob_description_event, true, &ev)) {
-      /* purecov: begin inspected */
+    Binlog_read_error read_error =
+        binlog_event_deserialize((const unsigned char *)buffer, event_len,
+                                 &glob_description_event, true, &ev);
+    if (read_error.has_error()) {
       head->error = -1;
-      my_b_printf(
-          head, "# Error while handling compressed events! Corrupted binlog?");
-      goto end;
-      /* purecov: end */
+      error("Error decoding Payload_log_event: %s.", read_error.get_str());
+      return;
     }
 
     switch (ev->get_type_code()) {
@@ -3489,10 +3516,12 @@ void Transaction_payload_log_event::print(FILE *,
       current_buffer_size = 0; /* purecov: inspected */
     }
   }
+  if (istream.has_error()) {
+    error("%s", istream.get_error_str().c_str());
+    head->error = -1;
+    return;
+  }
 
-  if (!info->short_form) my_b_printf(head, "# End of compressed events!\n");
-
-end:
-  my_free(buffer);
+  if (!info->short_form) my_b_printf(head, "# End of compressed events.\n");
 }
 #endif

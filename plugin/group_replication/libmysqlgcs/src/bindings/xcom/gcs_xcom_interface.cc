@@ -207,7 +207,8 @@ void Gcs_xcom_interface::cleanup() {
 }
 
 void Gcs_xcom_interface::cleanup_thread_ssl_resources() {
-  ::get_network_management_interface()->cleanup_secure_connections_context();
+  ::get_network_management_interface()
+      ->delayed_cleanup_secure_connections_context();
 }
 
 Gcs_xcom_interface::Gcs_xcom_interface()

@@ -35,8 +35,8 @@
    @param[in] verify_checksum  Verify event_data's checksum if it is true.
    @param[out] event  the event object generated.
 
-   @retval Binlog_read_error::SUCCEED Succeed
-   @retval Other than Binlog_read_error::SUCCEED Error
+   @retval Binlog_read_error::SUCCESS Success
+   @retval Other than Binlog_read_error::SUCCESS Error
 */
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *event_data, unsigned int event_data_len,
@@ -74,7 +74,7 @@ class Binlog_event_data_istream {
      @param[in] verify_checksum Verify the event data's checksum if it is true.
      @param[in] checksum_alg Checksum algorithm for verifying the event data. It
                              is used only when verify_checksum is true.
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   template <class ALLOCATOR>
@@ -102,14 +102,14 @@ class Binlog_event_data_istream {
   /**
      Read the event header from the Basic_istream
 
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   virtual bool read_event_header();
   /**
      Check if it is a valid event header
 
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   bool check_event_header();
@@ -122,7 +122,7 @@ class Binlog_event_data_istream {
 
      @param[in] data    The buffer where the data stored.
      @param[in] length  Bytes of the data to be read.
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   template <Binlog_read_error::Error_type ERROR_TYPE>
@@ -162,7 +162,7 @@ class Binlog_event_data_istream {
      @param[in] verify_checksum Verify the event data's checksum if it is true.
      @param[in] checksum_alg Checksum algorithm for verifying the event data. It
                              is used only when verify_checksum is true.
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   bool fill_event_data(unsigned char *event_data, bool verify_checksum,
@@ -191,7 +191,7 @@ class Binlog_event_object_istream {
      @param[in] fde The Format_description_event for deserialization.
      @param[in] verify_checksum Verify the checksum of the event_data before
      @param[in] allocator It is used to allocate memory for the event data.
-     @return An valid event object if succeed.
+     @return An valid event object if success.
      @retval nullptr Error
   */
   template <class ALLOCATOR>
@@ -227,6 +227,50 @@ class Binlog_event_object_istream {
   EVENT_DATA_ISTREAM *m_data_istream = nullptr;
 };
 
+/// Interface class that all specializations of
+/// template <...> Basic_binlog_file_reader inherit from.
+class IBasic_binlog_file_reader {
+ public:
+  IBasic_binlog_file_reader() = default;
+  IBasic_binlog_file_reader(IBasic_binlog_file_reader &) = delete;
+  IBasic_binlog_file_reader(IBasic_binlog_file_reader &&) = delete;
+  IBasic_binlog_file_reader &operator=(IBasic_binlog_file_reader &) = delete;
+  IBasic_binlog_file_reader &operator=(IBasic_binlog_file_reader &&) = delete;
+  virtual ~IBasic_binlog_file_reader() = default;
+
+  /// Return true if there was a previous error.
+  virtual bool has_fatal_error() const = 0;
+
+  /// Return the type of error.
+  virtual Binlog_read_error::Error_type get_error_type() const = 0;
+
+  /// Return a string representing the error.
+  ///
+  /// The return value is static memory that is never deallocated.
+  virtual const char *get_error_str() const = 0;
+
+  /// Return the current position in bytes, relative to the beginning
+  /// of the file.
+  virtual my_off_t position() const = 0;
+
+  /// Read the next event from the stream.
+  ///
+  /// This function creates the object with "new".  It is the caller's
+  /// responsibility to delete it.
+  ///
+  /// @return Log_event on success, nullptr on error.  More
+  /// information about the error can be found using `get_error_type`
+  /// and `get_error_str`.
+  virtual Log_event *read_event_object() = 0;
+
+  /// Return a pointer the currently used
+  /// Format_description_log_event.
+  ///
+  /// The event is a member by this reader, so the caller must not use
+  /// the returned reference after this reader has been deleted.
+  virtual const Format_description_event &format_description_event() const = 0;
+};
+
 /**
    It owns an allocator, a byte stream, an event_data stream and an event object
    stream. The stream pipeline is setup in the constructor. All the objects
@@ -243,7 +287,7 @@ class Binlog_event_object_istream {
 */
 template <class IFILE, class EVENT_DATA_ISTREAM,
           template <class> class EVENT_OBJECT_ISTREAM, class ALLOCATOR>
-class Basic_binlog_file_reader {
+class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
  public:
   typedef EVENT_DATA_ISTREAM Event_data_istream;
   typedef EVENT_OBJECT_ISTREAM<Event_data_istream> Event_object_istream;
@@ -257,9 +301,12 @@ class Basic_binlog_file_reader {
         m_verify_checksum(verify_checksum) {}
 
   Basic_binlog_file_reader(const Basic_binlog_file_reader &) = delete;
+  Basic_binlog_file_reader(const Basic_binlog_file_reader &&) = delete;
   Basic_binlog_file_reader &operator=(const Basic_binlog_file_reader &) =
       delete;
-  ~Basic_binlog_file_reader() { close(); }
+  Basic_binlog_file_reader &operator=(const Basic_binlog_file_reader &&) =
+      delete;
+  ~Basic_binlog_file_reader() override { close(); }
 
   /**
      Open a binlog file and set read position to offset. It will read and store
@@ -270,7 +317,7 @@ class Basic_binlog_file_reader {
      @param[in] file_name  name of the binlog file which will be opened.
      @param[in] offset  The position where it starts to read.
      @param[out] fdle   For returning an Format_description_log_event object.
-     @retval false Succeed
+     @retval false Success
      @retval true Error
   */
   bool open(const char *file_name, my_off_t offset = 0,
@@ -299,8 +346,8 @@ class Basic_binlog_file_reader {
     m_fde = Format_description_event(BINLOG_VERSION, server_version);
   }
 
-  bool is_open() { return m_ifile.is_open(); }
-  my_off_t position() { return m_ifile.position(); }
+  bool is_open() const { return m_ifile.is_open(); }
+  my_off_t position() const override { return m_ifile.position(); }
   bool seek(my_off_t pos) { return m_ifile.seek(pos); }
 
   /**
@@ -315,7 +362,7 @@ class Basic_binlog_file_reader {
   /**
      wrapper of EVENT_OBJECT_ISTREAM::read_event_object.
   */
-  Log_event *read_event_object() {
+  Log_event *read_event_object() override {
     m_event_start_pos = position();
     Log_event *ev = m_object_istream.read_event_object(m_fde, m_verify_checksum,
                                                        &m_allocator);
@@ -324,15 +371,17 @@ class Basic_binlog_file_reader {
     return ev;
   }
 
-  bool has_fatal_error() { return m_error.has_fatal_error(); }
+  bool has_fatal_error() const override { return m_error.has_fatal_error(); }
   /**
      Return the error happened in the stream pipeline.
   */
-  Binlog_read_error::Error_type get_error_type() { return m_error.get_type(); }
+  Binlog_read_error::Error_type get_error_type() const override {
+    return m_error.get_type();
+  }
   /**
      Return the error message of the error happened in the stream pipeline.
   */
-  const char *get_error_str() { return m_error.get_str(); }
+  const char *get_error_str() const override { return m_error.get_str(); }
 
   IFILE *ifile() { return &m_ifile; }
   Event_data_istream *event_data_istream() { return &m_data_istream; }
@@ -342,7 +391,9 @@ class Basic_binlog_file_reader {
   void set_format_description_event(const Format_description_event &fde) {
     m_fde = fde;
   }
-  const Format_description_event *format_description_event() { return &m_fde; }
+  const Format_description_event &format_description_event() const override {
+    return m_fde;
+  }
   my_off_t event_start_pos() { return m_event_start_pos; }
 
  private:

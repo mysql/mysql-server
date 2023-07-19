@@ -604,21 +604,21 @@ DROP TABLE t1;
 # FT-14: Check the handling of user-level lock related function parameters.
 # FT-14.1: Lock names with NULL or "" assigned.
 SELECT GET_LOCK(NULL, 0);
-ERROR 42000: Incorrect user-level lock name 'NULL'.
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT GET_LOCK("", 0);
-ERROR 42000: Incorrect user-level lock name ''.
+ERROR 42000: Incorrect user-level lock name ''. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT RELEASE_LOCK(NULL);
-ERROR 42000: Incorrect user-level lock name 'NULL'.
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT RELEASE_LOCK("");
-ERROR 42000: Incorrect user-level lock name ''.
+ERROR 42000: Incorrect user-level lock name ''. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT IS_USED_LOCK(NULL);
-ERROR 42000: Incorrect user-level lock name 'NULL'.
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT IS_USED_LOCK("");
-ERROR 42000: Incorrect user-level lock name ''.
+ERROR 42000: Incorrect user-level lock name ''. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT IS_FREE_LOCK(NULL);
-ERROR 42000: Incorrect user-level lock name 'NULL'.
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
 SELECT IS_FREE_LOCK("");
-ERROR 42000: Incorrect user-level lock name ''.
+ERROR 42000: Incorrect user-level lock name ''. The name is empty, NULL, or can not be expressed in the current character-set.
 # FT-14.2: Length of lock name at the limit of 64.
 SELECT GET_LOCK(REPEAT('a', 64), 0) = 1 AS expect_1;
 expect_1
@@ -634,13 +634,13 @@ expect_1
 1
 # FT-14.3: Lock name too long.
 SELECT GET_LOCK(REPEAT('a', 65), 0);
-ERROR 42000: Incorrect user-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+ERROR 42000: User-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' should not exceed 64 characters.
 SELECT IS_USED_LOCK(REPEAT('a', 65));
-ERROR 42000: Incorrect user-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+ERROR 42000: User-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' should not exceed 64 characters.
 SELECT IS_FREE_LOCK(REPEAT('a', 65));
-ERROR 42000: Incorrect user-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+ERROR 42000: User-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' should not exceed 64 characters.
 SELECT RELEASE_LOCK(REPEAT('a', 65));
-ERROR 42000: Incorrect user-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.
+ERROR 42000: User-level lock name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' should not exceed 64 characters.
 # FT-14.4: Check that lock names are case-insensitive.
 SELECT GET_LOCK('A', 0);
 GET_LOCK('A', 0)
@@ -806,6 +806,40 @@ select * from(SELECT MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)) as a;
 MAX(RELEASE_ALL_LOCKS() / 1 ^ 0)
 0
 SET @@session.div_precision_increment=default;
+# Bug#35134926: Improve GET_LOCK() diagnostics
+#
+# Current limit is 64 characters.
+# So, this should succeed:
+SELECT GET_LOCK('1234567890123456789012345678901234567890123456789012345678901234',1);
+GET_LOCK('1234567890123456789012345678901234567890123456789012345678901234',1)
+1
+
+# And this should fail:
+SELECT GET_LOCK('12345678901234567890123456789012345678901234567890123456789012345',1);
+ERROR 42000: User-level lock name '12345678901234567890123456789012345678901234567890123456789012345' should not exceed 64 characters.
+
+# Empty/NULL names: Fail and fail.
+SELECT GET_LOCK('',1);
+ERROR 42000: Incorrect user-level lock name ''. The name is empty, NULL, or can not be expressed in the current character-set.
+SELECT GET_LOCK(NULL,1);
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
+
+# Malformed name. Fail.
+SET @a=0x414243FAFA;
+SELECT GET_LOCK(@a,1);
+ERROR 42000: Incorrect user-level lock name 'ABC\xFA\xFA'. The name is empty, NULL, or can not be expressed in the current character-set.
+
+# Well-formed name. Succeed.
+SET @a=0x414243;
+SELECT GET_LOCK(@a,1);
+GET_LOCK(@a,1)
+1
+
+# Clean up.
+SELECT RELEASE_ALL_LOCKS();
+RELEASE_ALL_LOCKS()
+2
+
 #
 # End of tests
 #

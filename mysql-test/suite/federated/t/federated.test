@@ -520,7 +520,8 @@ SELECT * FROM federated.t1 WHERE id = 5
 --sorted_result
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
   OR (col2 = 'three Three' AND col3 = 33);
-SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
+# Bug#35362984 Memory leak with index merge union plan
+SELECT /*+ INDEX_MERGE(t1 PRIMARY,col3) */* FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
   OR (col2 = 444 AND col3 = 4444444);
 --sorted_result
 SELECT * FROM federated.t1 WHERE id = 1 

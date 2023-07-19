@@ -1742,37 +1742,4 @@ const double MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO = 0.25;
 
 int32 mdl_get_unused_locks_count();
 
-/**
-  Inspect if MDL_context is owned by any thread.
-*/
-class MDL_lock_is_owned_visitor : public MDL_context_visitor {
- public:
-  MDL_lock_is_owned_visitor() : m_exists(false) {}
-
-  /**
-    Collects relevant information about the MDL lock owner.
-
-    This function is only called by MDL_context::find_lock_owner() when
-    searching for MDL lock owners to collect extra information about the
-    owner. As we only need to know that the MDL lock is owned, setting
-    m_exists to true is enough.
-  */
-
-  void visit_context(const MDL_context *ctx [[maybe_unused]]) override {
-    m_exists = true;
-  }
-
-  /**
-    Returns if an owner for the MDL lock being inspected exists.
-
-    @return true when MDL lock is owned, false otherwise.
-  */
-
-  bool exists() const { return m_exists; }
-
- private:
-  /* holds information about MDL being owned by any thread */
-  bool m_exists;
-};
-
 #endif

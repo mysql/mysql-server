@@ -252,19 +252,17 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
   @returns string pointer if success, NULL if error or NULL value
 */
 
-String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
-
+String *eval_string_arg_noinline(const CHARSET_INFO *to_cs, Item *arg,
+                                 String *buffer) {
   size_t offset;
   const bool convert =
       String::needs_conversion(0, arg->collation.collation, to_cs, &offset);
-  String *res = arg->val_str(convert ? &local_string : buffer);
 
-  // Return immediately if argument is a NULL value, or there was an error
-  if (res == nullptr) {
-    return nullptr;
-  }
   if (convert) {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
+    String *res = arg->val_str(&local_string);
+    // Return immediately if argument is a NULL value, or there was an error
+    if (res == nullptr) return nullptr;
     /*
       String must be converted from source character set. It has been built
       in the "local_string" buffer and will be copied with conversion into the
@@ -279,6 +277,10 @@ String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
     }
     return buffer;
   }
+  String *res = arg->val_str(buffer);
+  // Return immediately if argument is a NULL value, or there was an error
+  if (res == nullptr) return nullptr;
+
   // If source is a binary string, the string may have to be validated:
   if (to_cs != &my_charset_bin && arg->collation.collation == &my_charset_bin &&
       !res->is_valid_string(to_cs)) {
@@ -5301,7 +5303,11 @@ static bool check_and_convert_ull_name(char *buff, const String *org_name) {
   if (well_formed_error_pos || cannot_convert_error_pos ||
       from_end_pos < org_name->ptr() + org_name->length()) {
     ErrConvString err(org_name);
-    my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), err.ptr());
+    if (well_formed_error_pos || cannot_convert_error_pos)
+      my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), err.ptr());
+    else
+      my_error(ER_USER_LOCK_OVERLONG_NAME, MYF(0), err.ptr(),
+               (int)NAME_CHAR_LEN);
     return true;
   }
 
@@ -6006,8 +6012,9 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type) {
     const my_decimal *dec = static_cast<const my_decimal *>(from);
     dec->sanity_check();
     new (m_ptr) my_decimal(*dec);
-  } else
+  } else if (length > 0) {
     memcpy(m_ptr, from, length);
+  }
 
   m_length = length;
   m_type = type;
@@ -6050,14 +6057,9 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
 
   // args[0]->null_value could be outdated
   if (args[0]->type() == Item::FIELD_ITEM)
-    null_value = ((Item_field *)args[0])->field->is_null();
+    null_value = down_cast<Item_field *>(args[0])->field->is_null();
   else
     null_value = args[0]->null_value;
-
-  if (ptr == nullptr) {
-    assert(length == 0);
-    null_value = true;
-  }
 
   /*
     If we set a variable explicitly to NULL then keep the old

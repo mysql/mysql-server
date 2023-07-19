@@ -64,7 +64,6 @@ perl;
   if ((($output =~ m{$regex}ms) ? 1 : 0) != $positive)
   {
     print "ERROR: Command produced wrong output!\n";
-    print "ERROR: Command: '$cmd'\n";
     print "ERROR: Output expected to " . ($positive?'':'not '). "match " .
       "perl regex: '$regex'\n";
     $error= 1;
@@ -78,7 +77,8 @@ perl;
   }
   if ($error || $debug)
   {
-    print "======== BEGIN output ========\n$output\n" .
+    print "Command: '$cmd'\n";
+    print "======== BEGIN OUTPUT ========\n$output\n" .
       "======== END OUTPUT ========\n";
   }
 EOF

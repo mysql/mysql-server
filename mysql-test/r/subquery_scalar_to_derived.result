@@ -1435,6 +1435,40 @@ WHERE pedcompralote IN (SELECT cod FROM t2 WHERE ped=1779);
 tot	newcode
 0	1
 DROP TABLE t1, t2;
+# outer query has DEFAULT: verify it is handled correctly
+CREATE TABLE t(i INT DEFAULT 5);
+INSERT INTO t VALUES (4);
+SELECT DEFAULT(i) AS def,
+5 + DEFAULT(i) AS def2,
+i AS any_v,
+(SELECT i FROM t) AS subquery,
+SUM(i) AS summ
+FROM t;
+ERROR 42000: In aggregated query without GROUP BY, expression #3 of SELECT list contains nonaggregated column 'test.t.i'; this is incompatible with sql_mode=only_full_group_by
+SET SQL_MODE='';
+SELECT DEFAULT(i) AS def,
+5 + DEFAULT(i) AS def2,
+i AS any_v,
+(SELECT i FROM t) AS subquery,
+SUM(i) AS summ
+FROM t;
+def	def2	any_v	subquery	summ
+5	10	4	4	4
+EXPLAIN SELECT DEFAULT(i) AS def,
+5 + DEFAULT(i) AS def2,
+i AS any_v,
+(SELECT i FROM t) AS subquery,
+SUM(i) AS summ
+FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+4	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `derived_1_3`.`Name_exp_1` AS `def`,(5 + `derived_1_3`.`Name_exp_1`) AS `def2`,`derived_1_3`.`Name_exp_2` AS `any_v`,`derived_1_4`.`i` AS `subquery`,`derived_1_3`.`summ` AS `summ` from (/* select#3 */ select sum(`test`.`t`.`i`) AS `summ`,default(`test`.`t`.`i`) AS `Name_exp_1`,`test`.`t`.`i` AS `Name_exp_2` from `test`.`t`) `derived_1_3` left join (/* select#4 */ select `test`.`t`.`i` AS `i` from `test`.`t`) `derived_1_4` on(true) where true
+SET SQL_MODE=default;
+DROP TABLE t;
 #
 # 6.  S U B Q U E R Y   I N   H A V I N G   C L A U S E
 #
@@ -4657,11 +4691,14 @@ ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY
 SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
 SUM(f1)	ROW_NUMBER() OVER ()	(SELECT MIN(f1) FROM t1)
 NULL	1	NULL
+SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 SET optimizer_switch='subquery_to_derived=on';
 SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
 ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
-ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+SUM(f1)	ROW_NUMBER() OVER ()	(SELECT MIN(f1) FROM t1)
+NULL	1	NULL
 SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
 ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
@@ -4700,6 +4737,21 @@ t AS t3
 ORDER BY ROW_NUMBER() OVER (ORDER BY -t3.x);
 COUNT(*)	(SELECT 1 FROM t)
 0	NULL
+SET SQL_MODE=default;
+DROP TABLE t;
+#
+# Bug#35150085 Wrong item name in result set after transform
+#
+SET SQL_MODE='';
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (4);
+SELECT i AS i1,  # used to get renamed to i2
+i AS i2,
+(SELECT i FROM t) AS subquery,
+SUM(i) AS summ
+FROM t;
+i1	i2	subquery	summ
+4	4	4	4
 SET SQL_MODE=default;
 DROP TABLE t;
 SET optimizer_switch='subquery_to_derived=default';

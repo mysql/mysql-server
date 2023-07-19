@@ -64,8 +64,11 @@ static_assert(cl::Codec<cl::message::client::Quit>({}, {}).size() == 1);
 static_assert(cl::Codec<cl::borrowed::message::client::InitSchema>({"foo"}, {})
                   .size() == 1 + 3);
 
+#if 0
+// std::vector<> isn't constexpr.
 static_assert(cl::Codec<cl::borrowed::message::client::Query>({"foo"}, {})
                   .size() == 1 + 3);
+#endif
 
 static_assert(cl::Codec<cl::borrowed::message::client::ListFields>({"foo", ""},
                                                                    {})

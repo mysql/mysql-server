@@ -355,7 +355,7 @@ struct TTASFutexMutex {
         }
       }
 
-      ut_delay(ut::random_from_interval(0, max_delay));
+      ut_delay(ut::random_from_interval_fast(0, max_delay));
     }
 
     return (trylock());
@@ -491,7 +491,7 @@ struct TTASEventMutex {
         return (true);
       }
 
-      ut_delay(ut::random_from_interval(0, max_delay));
+      ut_delay(ut::random_from_interval_fast(0, max_delay));
 
       ++n_spins;
 

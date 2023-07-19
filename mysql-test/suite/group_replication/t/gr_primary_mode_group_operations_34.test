@@ -3,11 +3,6 @@
 # If the action thread is killed but the distributed execution
 # has already gone beyond a point where all servers agreed (cannot be
 # canceled) then the action will complete.
-# A warning shall be returned by the executing query stating the kill
-# had no effect.
-#
-# If the user kills the query thread then the action and query
-# threads shall be terminated.
 #
 # Test:
 #   0. This test requires two servers
@@ -17,8 +12,7 @@
 #      complete on all members
 #   4. Kill the query
 #   5. Unblock the debug point with "signal.action_stop_continue"
-#   6. Check the action returns and it says: Despite being killed, the
-#      operation still completed successfully.
+#   6. Check the action returns successfully.
 #   7. Cleanup
 #
 ###############################################################################
@@ -68,8 +62,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 
 --echo
---echo # 6. Check the action returns and it says: Despite being killed, the
---echo #    operation still completed successfully.
+--echo # 6. Check the action returns successfully.
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -91,6 +84,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+
+SET DEBUG_SYNC='RESET';
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

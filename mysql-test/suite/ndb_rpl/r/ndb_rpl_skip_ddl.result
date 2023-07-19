@@ -1,0 +1,100 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+show variables like 'replica_parallel_workers';
+Variable_name	Value
+replica_parallel_workers	1
+show variables like 'replica_skip_errors';
+Variable_name	Value
+replica_skip_errors	1007,1008,1050,1051,1054,1060,1061,1068,1091,1146
+create database extra;
+use test;
+create table t1 (a int primary key, rb int) engine=ndb;
+create table t3 (a int primary key, b int, c int) engine=ndb;
+create table t4 (a int primary key, b int) engine=ndb;
+create table t5 (a int primary key, b int, key yale (b)) engine=ndb;
+[connection master]
+#Create database (already exists on replica)
+create database extra;
+drop database extra;
+#Drop database (does not exist on replica)
+set sql_log_bin=0;
+create database surplus;
+set sql_log_bin=1;
+drop database surplus;
+use test;
+#Create table which already exists on replica
+create table t1 (a int primary key, sb int) engine=ndb;
+#Drop table which does not exist on replica
+set sql_log_bin=0;
+create table t2 (a int primary key, sb int) engine=ndb;
+set sql_log_bin=1;
+drop table t2;
+#Add column to table which already exists on replica table
+set sql_log_bin=0;
+create table t3 (a int primary key, b int) engine=ndb;
+set sql_log_bin=1;
+alter table t3 add column c int;
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+#Drop column which does not exist on replica table
+set sql_log_bin=0;
+create table t4 (a int primary key, b int, c int) engine=ndb;
+set sql_log_bin=1;
+alter table t4 drop column c;
+#Add index to table which already exists on replica table
+set sql_log_bin=0;
+create table t5 (a int primary key, b int, key chubb (b)) engine=ndb;
+set sql_log_bin=1;
+alter table t5 add index yale(b);
+Warnings:
+Warning	1831	Duplicate index 'yale' defined on the table 'test.t5'. This is deprecated and will be disallowed in a future release.
+#Drop index from table which does not exist on replica table
+alter table t5 drop index chubb;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+show tables;
+Tables_in_test
+t1
+t3
+t4
+t5
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `rb` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `yale` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+drop table t1;
+drop table t3;
+drop table t4;
+drop table t5;
+include/rpl_end.inc

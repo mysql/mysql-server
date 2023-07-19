@@ -1091,6 +1091,8 @@ create table t7(a bigint) engine= myisam;
 insert into t7(a) values(1),(2);
 delete from t7 where a = 1;
 set session binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_rows_query_log_events= on;
 # Test the comment event is sent in mixed mode for special
 # functions when setting binlog_rows_query_log_events= on

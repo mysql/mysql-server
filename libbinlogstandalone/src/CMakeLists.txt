@@ -22,11 +22,17 @@
 
 SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binlog_event.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/buffer/grow_calculator.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/buffer/grow_constraint.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/buffer/grow_status.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/codecs/binary.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/codecs/factory.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/base.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/compressor.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/decompressor.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/decompress_status.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/factory.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/iterator.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/payload_event_buffer_istream.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd_comp.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd_dec.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none_comp.cpp

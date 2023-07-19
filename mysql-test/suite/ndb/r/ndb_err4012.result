@@ -1,6 +1,4 @@
 # We are using some debug-only features in this test
-call mtr.add_suppression("NDB: Failed to drop fk");
-call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 SET SESSION debug="+d,ndb_metadata_compare_skip";
 # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;

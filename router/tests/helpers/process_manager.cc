@@ -407,6 +407,19 @@ ProcessWrapper &ProcessManager::launch_command(
       .spawn(params);
 }
 
+ProcessWrapper &ProcessManager::launch_command(
+    const std::string &command, const std::string &logging_file,
+    const std::vector<std::string> &params, ExitStatus expected_exit_status,
+    bool catch_stderr, std::chrono::milliseconds wait_for_notify_ready,
+    OutputResponder output_resp) {
+  return spawner(command, logging_file)
+      .catch_stderr(catch_stderr)
+      .expected_exit_code(expected_exit_status)
+      .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
+      .spawn(params);
+}
+
 ProcessWrapper &ProcessManager::launch_router(
     const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
     bool catch_stderr /*= true*/, bool with_sudo /*= false*/,

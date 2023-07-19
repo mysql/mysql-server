@@ -1,4 +1,6 @@
 set binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 reset master;
 create database testing_1;
 use testing_1;
@@ -63,6 +65,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
 RESET MASTER;
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 reset master;
 create database testing_1;
 use testing_1;
@@ -125,6 +129,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
 RESET MASTER;
 set binlog_format='row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 reset master;
 create database testing_1;
 use testing_1;

@@ -43,7 +43,9 @@ class mock_network_provider : public Network_provider {
               (override));
   MOCK_METHOD(int, close_connection, (const Network_connection &connection),
               (override));
-  MOCK_METHOD(bool, cleanup_secure_connections_context, (), (override));
+  MOCK_METHOD(void, cleanup_secure_connections_context, (), (override));
+  MOCK_METHOD(std::function<void()>, get_secure_connections_context_cleaner, (),
+              (override));
   MOCK_METHOD(bool, finalize_secure_connections_context, (), (override));
 };
 

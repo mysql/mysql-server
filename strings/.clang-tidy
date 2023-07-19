@@ -24,7 +24,6 @@
 # This is legacy code, so disable some warnings.
 Checks:
   -bugprone-assignment-in-if-condition,
-  -bugprone-easily-swappable-parameters,
   -bugprone-implicit-widening-of-multiplication-result,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-goto,

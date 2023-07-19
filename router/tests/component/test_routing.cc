@@ -419,6 +419,82 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
   connect_thread.join();
 }
 
+TEST_F(RouterRoutingTest, EccCertificate) {
+  RecordProperty("Bug", "35317484");
+  RecordProperty("Description",
+                 "Check if router can start with a ECC certificate");
+
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_classic_ecdh_rsa_port = port_pool_.get_next_available();
+  const auto router_classic_ecdh_dsa_port = port_pool_.get_next_available();
+  const auto router_classic_ecdsa_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0, server_x_port);
+
+  TempDirectory conf_dir("conf-ecc-certificate");
+  auto writer = config_writer(conf_dir.name());
+  writer.section(
+      "routing:classic_ecdh_rsa",
+      {
+          {"bind_port", std::to_string(router_classic_ecdh_rsa_port)},
+          {"mode", "read-write"},
+          {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
+          {"routing_strategy", "round-robin"},
+          {"protocol", "classic"},
+          {"client_ssl_key",
+           SSL_TEST_DATA_DIR "/ecdh_rsa_certs/server-key.pem"},
+          {"client_ssl_cert",
+           SSL_TEST_DATA_DIR "/ecdh_rsa_certs/server-cert.pem"},
+      });
+  writer.section(
+      "routing:classic_ecdh_dsa",
+      {
+          {"bind_port", std::to_string(router_classic_ecdh_dsa_port)},
+          {"mode", "read-write"},
+          {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
+          {"routing_strategy", "round-robin"},
+          {"protocol", "classic"},
+          {"client_ssl_key",
+           SSL_TEST_DATA_DIR "/ecdh_dsa_certs/server-key.pem"},
+          {"client_ssl_cert",
+           SSL_TEST_DATA_DIR "/ecdh_dsa_certs/server-cert.pem"},
+      });
+  writer.section(
+      "routing:classic_ecdsa",
+      {
+          {"bind_port", std::to_string(router_classic_ecdsa_port)},
+          {"mode", "read-write"},
+          {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
+          {"routing_strategy", "round-robin"},
+          {"protocol", "classic"},
+          {"client_ssl_key", SSL_TEST_DATA_DIR "/ecdsa_certs/server-key.pem"},
+          {"client_ssl_cert", SSL_TEST_DATA_DIR "/ecdsa_certs/server-cert.pem"},
+      });
+  ASSERT_NO_FATAL_FAILURE(router_spawner().spawn({"-c", writer.write()}));
+
+  {
+    mysqlrouter::MySQLSession client;
+    EXPECT_NO_THROW(client.connect("127.0.0.1", router_classic_ecdh_rsa_port,
+                                   "root", "fake-pass", "", ""));
+  }
+
+  {
+    mysqlrouter::MySQLSession client;
+    EXPECT_NO_THROW(client.connect("127.0.0.1", router_classic_ecdh_dsa_port,
+                                   "root", "fake-pass", "", ""));
+  }
+
+  {
+    mysqlrouter::MySQLSession client;
+    EXPECT_NO_THROW(client.connect("127.0.0.1", router_classic_ecdsa_port,
+                                   "root", "fake-pass", "", ""));
+  }
+}
+
 /**
  * check empty packet leads to an error.
  *

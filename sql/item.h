@@ -2591,6 +2591,7 @@ class Item : public Parse_tree_node {
 
     friend class Item_sum;
     friend class Item_field;
+    friend class Item_default_value;
     friend class Item_view_ref;
   };
 
@@ -3010,8 +3011,18 @@ class Item : public Parse_tree_node {
   struct Item_field_replacement : Item_replacement {
     Field *m_target;     ///< The field to be replaced
     Item_field *m_item;  ///< The replacement field
-    Item_field_replacement(Field *target, Item_field *item, Query_block *select)
-        : Item_replacement(select, select), m_target(target), m_item(item) {}
+    enum class Mode {
+      CONFLATE,      // include both Item_field and Item_default_value
+      FIELD,         // ignore Item_default_value
+      DEFAULT_VALUE  // ignore Item_field
+    };
+    Mode m_default_value;
+    Item_field_replacement(Field *target, Item_field *item, Query_block *select,
+                           Mode default_value = Mode::CONFLATE)
+        : Item_replacement(select, select),
+          m_target(target),
+          m_item(item),
+          m_default_value(default_value) {}
   };
 
   struct Item_view_ref_replacement : Item_replacement {
@@ -3192,12 +3203,16 @@ class Item : public Parse_tree_node {
   bool is_blob_field() const;
 
   /// Increment reference count
-  void increment_ref_count() { ++m_ref_count; }
+  void increment_ref_count() {
+    assert(!m_abandoned);
+    ++m_ref_count;
+  }
 
   /// Decrement reference count
   uint decrement_ref_count() {
     assert(m_ref_count > 0);
-    return --m_ref_count;
+    if (--m_ref_count == 0) m_abandoned = true;
+    return m_ref_count;
   }
 
  protected:
@@ -3401,10 +3416,23 @@ class Item : public Parse_tree_node {
   Item_result cmp_context;  ///< Comparison context
  private:
   /**
-    Number of references to this item from Item_ref objects. Used during
-    resolving to manage proper deletion of item sub-trees.
+    Number of references to this item. It is used for two purposes:
+    1. When eliminating redundant expressions, the reference count is used
+       to tell how many Item_ref objects that point to an item. When a
+       sub-tree of items is eliminated, it is traversed and any item that
+       is referenced from an Item_ref has its reference count decremented.
+       Only when the reference count reaches zero is the item actually deleted.
+    2. Keeping track of unused expressions selected from merged derived tables.
+       An item that is added to the select list of a query block has its
+       reference count set to 1. Any references from outer query blocks are
+       through Item_ref objects, thus they will cause the reference count
+       to be incremented. At end of resolving, the reference counts of all
+       items in select list of merged derived tables are decremented, thus
+       if the reference count becomes zero, the expression is known to
+       be unused and can be removed.
   */
   uint m_ref_count{0};
+  bool m_abandoned{false};    ///< true if item has been fully de-referenced
   const bool is_parser_item;  ///< true if allocated directly by parser
   int8 is_expensive_cache;    ///< Cache of result of is_expensive()
   uint8 m_data_type;          ///< Data type assigned to Item
@@ -6391,6 +6419,8 @@ class Item_default_value final : public Item_field {
              enum_query_type query_type) const override;
   table_map used_tables() const override { return 0; }
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+  Item *replace_item_field(uchar *) override;
 
   /*
     No additional privilege check for default values, as the walk() function
@@ -6410,6 +6440,7 @@ class Item_default_value final : public Item_field {
   }
 
   Item *transform(Item_transformer transformer, uchar *args) override;
+  Item *argument() const { return arg; }
 
  private:
   /// The argument for this function

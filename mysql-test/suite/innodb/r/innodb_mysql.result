@@ -1771,6 +1771,8 @@ drop table t1;
 SET SESSION AUTOCOMMIT = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Switch to connection con1
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
 ENGINE = InnoDB;
@@ -2060,18 +2062,28 @@ drop table t1, t2;
 #
 SET @save_log_bin= @@sql_log_bin;
 SET @save_binlog_format=@@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@sql_log_bin = 0;
 SET SESSION BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
 @@session.sql_log_bin	0
 @@session.binlog_format	STATEMENT
 @@session.transaction_isolation	READ-COMMITTED
+Warnings:
+Level	Warning
+Code	1287
+Message	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
 SET @@sql_log_bin=@save_log_bin;
 SET @@binlog_format=@save_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug#37284 Crash in Field_string::type()
 #

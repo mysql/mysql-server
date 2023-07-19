@@ -5982,18 +5982,16 @@ Dbspj::lookup_cleanup(Ptr<Request> requestPtr,
 
 Uint32
 Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
-                           const Uint64* src,
+                           const Uint32* src,
                            Uint32 srcLen,       // Len in #32bit words
                            const KeyDescriptor* desc)
 {
-  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS=
-    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
-  Uint64 alignedWorkspace[MAX_KEY_SIZE_IN_LONG_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 workspace[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   const bool hasVarKeys = desc->noOfVarKeys > 0;
   const bool hasCharAttr = desc->hasCharAttr;
   const bool compute_distkey = desc->noOfDistrKeys > 0;
 
-  const Uint64 *hashInput = 0;
+  const Uint32 *hashInput = NULL;
   Uint32 inputLen = 0;
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
   Uint32 * keyPartLenPtr;
@@ -6001,12 +5999,12 @@ Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
   /* Normalise KeyInfo into workspace if necessary */
   if (hasCharAttr || (compute_distkey && hasVarKeys))
   {
-    hashInput = alignedWorkspace;
+    hashInput = workspace;
     keyPartLenPtr = keyPartLen;
     inputLen = xfrm_key_hash(tableId,
-                             (Uint32*)src,
-                             (Uint32*)alignedWorkspace,
-                             sizeof(alignedWorkspace) >> 2,
+                             src,
+                             workspace,
+                             sizeof(workspace) >> 2,
                              keyPartLenPtr);
     if (unlikely(inputLen == 0))
     {
@@ -6034,9 +6032,9 @@ Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
 
     Uint32 distrKeyHash[4];
     /* Reshuffle primary key columns to get just distribution key */
-    Uint32 len = create_distr_key(tableId, (Uint32*)hashInput, (Uint32*)alignedWorkspace, keyPartLenPtr);
+    Uint32 len = create_distr_key(tableId, hashInput, workspace, keyPartLenPtr);
     /* Calculate distribution key hash */
-    md5_hash(distrKeyHash, alignedWorkspace, len);
+    md5_hash(distrKeyHash, workspace, len);
 
     /* Just one word used for distribution */
     dstHash[1] = distrKeyHash[1];
@@ -6055,12 +6053,7 @@ Dbspj::computeHash(Signal* signal,
   SegmentedSectionPtr ptr;
   getSection(ptr, ptrI);
 
-  /* NOTE:  md5_hash below require 64-bit alignment
-   */
-  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS=
-    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
-  Uint64 tmp64[MAX_KEY_SIZE_IN_LONG_WORDS];
-  Uint32 *tmp32 = (Uint32*)tmp64;
+  Uint32 tmp32[MAX_KEY_SIZE_IN_WORDS];
   ndbassert(ptr.sz <= MAX_KEY_SIZE_IN_WORDS);
   copy(tmp32, ptr);
 
@@ -6071,12 +6064,12 @@ Dbspj::computeHash(Signal* signal,
   if (need_special_hash)
   {
     jam();
-    return handle_special_hash(tableId, dst.hashInfo, tmp64, ptr.sz, desc);
+    return handle_special_hash(tableId, dst.hashInfo, tmp32, ptr.sz, desc);
   }
   else
   {
     jam();
-    md5_hash(dst.hashInfo, tmp64, ptr.sz);
+    md5_hash(dst.hashInfo, tmp32, ptr.sz);
     return 0;
   }
 }
@@ -6092,13 +6085,8 @@ Dbspj::computePartitionHash(Signal* signal,
   SegmentedSectionPtr ptr;
   getSection(ptr, ptrI);
 
-  /* NOTE:  md5_hash below require 64-bit alignment
-   */
-  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS=
-    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
-  Uint64 _space[MAX_KEY_SIZE_IN_LONG_WORDS];
-  Uint64 *tmp64 = _space;
-  Uint32 *tmp32 = (Uint32*)tmp64;
+  Uint32 _space[MAX_KEY_SIZE_IN_WORDS];
+  Uint32 *tmp32 = _space;
   Uint32 sz = ptr.sz;
   ndbassert(ptr.sz <= MAX_KEY_SIZE_IN_WORDS);
   copy(tmp32, ptr);
@@ -6133,11 +6121,11 @@ Dbspj::computePartitionHash(Signal* signal,
         }
       }
     }
-    tmp64 = (Uint64*)dst;
+    tmp32 = dst;
     sz = dstPos;
   }
 
-  md5_hash(dst.hashInfo, tmp64, sz);
+  md5_hash(dst.hashInfo, tmp32, sz);
   return 0;
 }
 

@@ -22,8 +22,18 @@ include/assert.inc [Assert that server is running in super read-only.]
 include/assert.inc [Assert that server is running in read-only.]
 
 # 5. Test changing value of variables.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 
 # 6. Cleanup.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 [connection server2]
 SET @@GLOBAL.binlog_checksum= @binlog_checksum_save;
 include/group_replication_end.inc

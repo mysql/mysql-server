@@ -301,3 +301,28 @@ DELETE FROM t1;
 DROP TABLE t1;
 SET NAMES DEFAULT;
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug 23014521 - mysqld crash at row_upd_sec_index_entry_low
+--echo #
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='';
+
+CREATE TABLE t1 (
+  col1 blob,
+  col3 blob,
+  col4 blob,
+  col5 blob GENERATED ALWAYS AS ((col1 - col4)) VIRTUAL,
+  col5x blob GENERATED ALWAYS AS ((col1 / col3)) VIRTUAL,
+  col9 text,
+  col2b blob GENERATED ALWAYS AS ((col5x / col5)) VIRTUAL,
+  KEY idx7 (col9(10), col5(5)),
+  KEY idx10 (col9(10), col2b(5))
+) ENGINE=InnoDB;
+INSERT INTO t1 (col1,col3,col4,col9) VALUES (REPEAT('a',20),REPEAT('a',20),REPEAT('a',20),REPEAT('a',20));
+UPDATE t1 SET col1 = 50;
+DELETE FROM t1;
+
+DROP TABLE t1;
+
+SET @@sql_mode=@org_mode;

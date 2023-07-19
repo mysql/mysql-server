@@ -3728,7 +3728,12 @@ bool ACL_compare::operator()(const ACL_ACCESS &a, const ACL_ACCESS &b) {
       if (a.host.ip_mask_type != b.host.ip_mask_type)
         return a.host.ip_mask_type < b.host.ip_mask_type;
 
-      return a.host.ip_mask > b.host.ip_mask;
+      /* if masks are not equal compare these */
+      if (a.host.ip_mask != b.host.ip_mask)
+        return a.host.ip_mask > b.host.ip_mask;
+
+      /* otherwise stick with the sort value */
+      return a.sort > b.sort;
     }
     /* The element with the IP goes first. */
     return true;

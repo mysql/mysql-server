@@ -1,0 +1,13 @@
+!include suite/ndb_rpl/my.cnf
+
+[mysqld]
+binlog-transaction-dependency-tracking=WRITESET
+ndb-log-transaction-dependency=ON
+replica-parallel-workers=10
+
+[mysqld.1.slave]
+
+#disable-log-bin
+replica-preserve-commit-order=1
+log-replica-updates=1
+replica_transaction_retries=1

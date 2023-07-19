@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_config.h"
 #include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
@@ -36,7 +37,7 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-
+#include "portlib/ndb_sockaddr.h"
 #include <portlib/ndb_localtime.h>
 #include <NdbTCP.h>
 
@@ -6822,8 +6823,8 @@ static bool validate_unique_mgm_ports(Vector<ConfigInfo::ConfigRuleSection>&,
 
     // Get ipv4/ipv6 address string from the hostname.
     std::string addr_str(hostname);
-    struct in6_addr addr;
-    if (Ndb_getInAddr6(&addr, hostname) != 0) {
+    ndb_sockaddr addr;
+    if (Ndb_getAddr(&addr, hostname) != 0) {
       if (!allow_unresolved) {
         ctx.reportError("Could not resolve hostname [node %d]: %s", nodeId,
                         hostname);
@@ -6835,8 +6836,7 @@ static bool validate_unique_mgm_ports(Vector<ConfigInfo::ConfigRuleSection>&,
 
     if (!allow_unresolved) {
       char addr_buf[NDB_ADDR_STRLEN];
-      addr_str = Ndb_inet_ntop(AF_INET6, static_cast<void*>(&addr), addr_buf,
-                               sizeof(addr_buf));
+      addr_str = Ndb_inet_ntop(&addr, addr_buf, sizeof(addr_buf));
     }
 
     // Create ipkey: <ip_string>:<port>

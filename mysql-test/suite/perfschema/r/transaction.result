@@ -98,7 +98,11 @@ START TRANSACTION;
 INSERT INTO t1 VALUES (302, 'REPEATABLE READ');
 COMMIT;
 SELECT @@binlog_format INTO @binlog_save;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
 INSERT INTO t1 VALUES (303, 'READ COMMITTED');
@@ -109,6 +113,8 @@ INSERT INTO t1 VALUES (304, 'READ UNCOMMITTED');
 COMMIT;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SET binlog_format= @binlog_save;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', 'SERIALIZABLE', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
@@ -554,6 +560,8 @@ CALL clear_history();
 # STEP 11.3 - STATEMENT ROLLBACK - AUTOCOMMIT OFF - BINLOG FORMAT 'STATEMENT'
 #
 SET SESSION binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION AUTOCOMMIT = 0;
 
 START TRANSACTION;
@@ -579,6 +587,8 @@ CALL clear_history();
 # STEP 11.4 - STATEMENT ROLLBACK - AUTOCOMMIT ON - BINLOG FORMAT 'STATEMENT'
 #
 SET SESSION binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION AUTOCOMMIT = 1;
 
 ## Expect binlog statement mode error

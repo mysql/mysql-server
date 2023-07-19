@@ -28,40 +28,30 @@
 #include <my_byteorder.h>
 #include <algorithm>
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
 std::unique_ptr<Compressor> Factory::build_compressor(type t) {
-  std::unique_ptr<Compressor> res{nullptr};
   switch (t) {
     case ZSTD:
-      res = std::make_unique<Zstd_comp>();
-      break;
+      return std::make_unique<Zstd_comp>();
     case NONE:
-      res = std::make_unique<None_comp>();
-      break;
+      return std::make_unique<None_comp>();
     default:
       break;
   }
-  return res;
+  return std::unique_ptr<Compressor>();
 }
 
 std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
-  std::unique_ptr<Decompressor> res{nullptr};
   switch (t) {
     case ZSTD:
-      res = std::make_unique<Zstd_dec>();
-      break;
+      return std::make_unique<Zstd_dec>();
     case NONE:
-      res = std::make_unique<None_dec>();
-      break;
+      return std::make_unique<None_dec>();
     default:
       break;
   }
-  return res;
+  return std::unique_ptr<Decompressor>();
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression

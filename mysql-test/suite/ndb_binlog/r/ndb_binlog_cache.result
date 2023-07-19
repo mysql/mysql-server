@@ -34,9 +34,8 @@ INSERT INTO t1 VALUES (7, repeat(0x41, 4096), repeat(0x42, 4096));
 ## Verify IO_CACHE write events and that warnings were logged
 
 include/assert.inc [There were >0 writes to IO_CACHE]
-
-MySQLD error output for server 1.1 matching pattern %NDB Binlog: Binary log cache data overflowed to disk%
-relevant
-[warning] ndb binlog: binary log cache data overflowed to disk. consider increasing --binlog-cache-size.
+# Check that error log contains message indicating cache spill
+Error log message
+Binlog: Binary log cache data overflowed to disk 1 time(s). Consider increasing --binlog-cache-size.
 
 DROP TABLE t1;
