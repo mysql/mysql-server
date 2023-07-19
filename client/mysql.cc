@@ -252,6 +252,12 @@ static char *opt_authentication_oci_client_config_profile = nullptr;
 static bool opt_tel_plugin = false;
 static const char *opt_tel_plugin_name = "telemetry_client";
 
+static struct my_option my_empty_options[] = {
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
+
+static void usage(int version);
+
 #include "authentication_kerberos_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
 #include "multi_factor_passwordopt-vars.h"
@@ -324,7 +330,7 @@ void tee_putc(int c, FILE *file);
 static void tee_print_sized_data(const char *, unsigned int, unsigned int,
                                  bool);
 /* The names of functions that actually do the manipulation. */
-static int get_options(int argc, char **argv);
+static int get_options(int *argc_ptr, char ***argv_ptr);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument);
 static int com_quit(String *str, char *), com_go(String *str, char *),
@@ -1345,10 +1351,12 @@ int main(int argc, char *argv[]) {
 
   get_current_os_user();
   get_current_os_sudouser();
-  if (get_options(argc, (char **)argv)) {
+
+  if (get_options(&argc, &argv)) {
     my_end(0);
     return EXIT_FAILURE;
   }
+
   if (status.batch && !status.line_buff &&
       !(status.line_buff = batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin))) {
     put_info(
@@ -1369,6 +1377,61 @@ int main(int argc, char *argv[]) {
   completion_hash_init(&ht, 128);
   memset(&mysql_handle, 0, sizeof(mysql_handle));
   global_attrs = new client_query_attributes();
+
+  if (opt_tel_plugin) {
+    /*
+      mysql_load_plugin() does not actually need a connection,
+      it only needs the plugin_directory to find the plugin.
+    */
+    MYSQL not_connected;
+    memset(&not_connected, 0, sizeof(not_connected));
+    mysql_options(&not_connected, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+    /*
+      Load a telemetry plugin if required.
+      The plugin may consume command lines arguments in argc, argv.
+    */
+    struct st_mysql_client_plugin *tel_plugin = mysql_load_plugin(
+        &not_connected, opt_tel_plugin_name, MYSQL_CLIENT_TELEMETRY_PLUGIN, 5,
+        my_defaults_file, my_defaults_group_suffix, my_defaults_extra_file,
+        &argc, argv);
+    if (!tel_plugin) {
+      /*
+        Print the actual root cause,
+        it contains details about why dlopen() failed.
+      */
+      put_info(mysql_error(&not_connected), INFO_ERROR);
+      return EXIT_FAILURE;
+    }
+
+    telemetry_client_attrs = new client_query_attributes();
+    snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
+             "Telemetry plugin <%s> is loaded.\n", opt_tel_plugin_name);
+    put_info(glob_buffer.ptr(), INFO_INFO);
+  }
+
+  /*
+    Now that every plugin (i.e., client_telemetry) consumed
+    plugin specific options,
+    make sure there are no unknown options remaining.
+  */
+  my_getopt_skip_unknown = false;
+  int ho_error;
+
+  if ((ho_error =
+           handle_options(&argc, &argv, my_empty_options, get_one_option))) {
+    exit(ho_error);
+  }
+
+  if (argc > 1) {
+    usage(0);
+    exit(1);
+  }
+
+  if (argc == 1) {
+    skip_updates = false;
+    my_free(current_db);
+    current_db = my_strdup(PSI_NOT_INSTRUMENTED, *argv, MYF(MY_WME));
+  }
 
   if (sql_connect(current_host, current_db, current_user, opt_silent)) {
     quick = true;  // Avoid history
@@ -1401,25 +1464,6 @@ int main(int argc, char *argv[]) {
   put_info(glob_buffer.ptr(), INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
-
-  if (opt_tel_plugin) {
-    /* Load a telemetry plugin if required */
-    struct st_mysql_client_plugin *tel_plugin = mysql_load_plugin(
-        &mysql_handle, opt_tel_plugin_name, MYSQL_CLIENT_TELEMETRY_PLUGIN, 3,
-        my_defaults_file, my_defaults_group_suffix, my_defaults_extra_file);
-    if (!tel_plugin) {
-      snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
-               "Cannot load the client telemetry plugin <%s>.\n",
-               opt_tel_plugin_name);
-      put_info(glob_buffer.ptr(), INFO_ERROR);
-      return EXIT_FAILURE;
-    }
-
-    telemetry_client_attrs = new client_query_attributes();
-    snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
-             "Telemetry plugin <%s> is loaded.\n", opt_tel_plugin_name);
-    put_info(glob_buffer.ptr(), INFO_INFO);
-  }
 
   if (!status.batch) {
     // history ignore patterns are initialized to default values
@@ -2189,7 +2233,7 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
   return false;
 }
 
-static int get_options(int argc, char **argv) {
+static int get_options(int *argc_ptr, char ***argv_ptr) {
   char *tmp, *pagpoint;
   int ho_error;
 
@@ -2211,9 +2255,15 @@ static int get_options(int argc, char **argv) {
     exit(1);
   }
 
-  if ((ho_error =
-           handle_options(&argc, &argv, my_long_options, get_one_option)))
+  /*
+    We may have options for the telemetry client plugin, to consume later.
+  */
+  my_getopt_skip_unknown = true;
+
+  if ((ho_error = handle_options(argc_ptr, argv_ptr, my_long_options,
+                                 get_one_option))) {
     exit(ho_error);
+  }
 
   if (mysql_options(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
                     &opt_max_allowed_packet) ||
@@ -2233,15 +2283,6 @@ static int get_options(int argc, char **argv) {
     connect_flag = 0; /* Not in interactive mode */
   }
 
-  if (argc > 1) {
-    usage(0);
-    exit(1);
-  }
-  if (argc == 1) {
-    skip_updates = false;
-    my_free(current_db);
-    current_db = my_strdup(PSI_NOT_INSTRUMENTED, *argv, MYF(MY_WME));
-  }
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
 
