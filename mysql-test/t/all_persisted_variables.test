@@ -55,7 +55,7 @@ let $total_global_vars=`SELECT COUNT(*)
 #   default for binlog_transaction_dependency_tracking. Both of these
 #   variables are deprecated.
 let $deprecated_and_incompatible_variables=1;
-let $persistent_vars = 448;
+let $persistent_vars = 446;
 expr $total_persistent_vars = $persistent_vars - $deprecated_and_incompatible_variables;
 
 --echo ***************************************************************
@@ -151,7 +151,7 @@ ORDER BY variable_name;
 
 --let $count_vars= `SELECT COUNT(*) FROM all_vars;`
 --echo
---let $assert_text= Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer 
+--let $assert_text= Expect 500+ variables in the table. Due to open Bugs, we are checking for fewer
 --let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $expected_var_count
 --source include/assert.inc
 

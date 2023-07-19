@@ -34,7 +34,7 @@ class Rpl_info_values;
 class Server_ids;
 
 enum enum_info_repository {
-  INFO_REPOSITORY_FILE = 0,
+  OBSOLETE_INFO_REPOSITORY_FILE = 0,
   INFO_REPOSITORY_TABLE,
   INFO_REPOSITORY_DUMMY,
   /*

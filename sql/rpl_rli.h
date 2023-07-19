@@ -142,7 +142,7 @@ Relay_log_info is initialized from a repository, i.e. table or file, if there is
 one. Otherwise, data members are initialized with defaults by calling
 init_relay_log_info().
 
-The relay.info table/file shall be updated whenever: (i) the relay log file
+The applier metadata shall be updated whenever: (i) the relay log file
 is rotated, (ii) SQL Thread is stopped, (iii) while processing a Xid_log_event,
 (iv) after a Query_log_event (i.e. commit or rollback) and (v) after processing
 any statement written to the binary log without a transaction context.

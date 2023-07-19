@@ -1292,28 +1292,28 @@ ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX
 ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX
   eng "Transaction's sequence number is inconsistent with that of a preceding one: sequence_number (%lld) <= previous sequence_number (%lld)"
 
-ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES
+OBSOLETE_ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES
   eng "For the creation of replication channels the connection metadata and applier metadata repositories must be set to TABLE"
 
 ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID
   eng "For the creation of replication channels the server id must be different from 0"
 
-ER_RPL_REPO_SHOULD_BE_TABLE
+OBSOLETE_ER_RPL_REPO_SHOULD_BE_TABLE
   eng "Replica: Wrong repository. Repository should be TABLE"
 
 ER_RPL_ERROR_CREATING_CONNECTION_METADATA
   eng "Error creating connection metadata: %s."
 
-ER_RPL_ERROR_CHANGING_CONNECTION_METADATA_REPO_TYPE
+OBSOLETE_ER_RPL_ERROR_CHANGING_CONNECTION_METADATA_REPO_TYPE
   eng "Error changing the type of connection metadata's repository: %s."
 
-ER_RPL_CHANGING_APPLIER_METADATA_REPO_TYPE_FAILED_DUE_TO_GAPS
+OBSOLETE_ER_RPL_CHANGING_AM_TYPE_FAILED_DUE_TO_GAPS
   eng "It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories. The gaps have to be sorted out before resuming with the type change."
 
 ER_RPL_ERROR_CREATING_APPLIER_METADATA
   eng "Error creating applier metadata: %s."
 
-ER_RPL_ERROR_CHANGING_APPLIER_METADATA_REPO_TYPE
+OBSOLETE_ER_RPL_ERROR_CHANGING_APPLIER_METADATA_REPO_TYPE
   eng "Error changing the type of applier metadata's repository: %s."
 
 ER_RPL_FAILED_TO_DELETE_FROM_REPLICA_WORKERS_INFO_REPOSITORY
@@ -1322,8 +1322,8 @@ ER_RPL_FAILED_TO_DELETE_FROM_REPLICA_WORKERS_INFO_REPOSITORY
 ER_RPL_FAILED_TO_RESET_STATE_IN_REPLICA_INFO_REPOSITORY
   eng "Could not store the reset Replica Worker state into the replica info repository."
 
-ER_RPL_ERROR_CHECKING_REPOSITORY
-  eng "Error in checking %s repository info type of %s."
+OBSOLETE_ER_RPL_ERROR_CHECKING_REPOSITORY
+  eng "Error in checking %s repository."
 
 ER_RPL_REPLICA_GENERIC_MESSAGE
   eng "Replica: %s"

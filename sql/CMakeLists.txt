@@ -1090,7 +1090,6 @@ SET (RPL_REPLICA_SRCS
   rpl_info.cc
   rpl_info_dummy.cc
   rpl_info_factory.cc
-  rpl_info_file.cc
   rpl_info_handler.cc
   rpl_info_table.cc
   rpl_info_table_access.cc

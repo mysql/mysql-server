@@ -295,7 +295,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev);
 static bool wait_for_relay_log_space(Relay_log_info *rli);
 static inline bool io_slave_killed(THD *thd, Master_info *mi);
 static inline bool monitor_io_replica_killed(THD *thd, Master_info *mi);
-static inline bool is_autocommit_off_and_infotables(THD *thd);
+static inline bool is_autocommit_off(THD *thd);
 static void print_replica_skip_errors(void);
 static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
                         const std::string &host = std::string(),
@@ -562,7 +562,7 @@ int ReplicaInitializer::init_replica() {
     channels and add them into channel_map
   */
   if ((error = Rpl_info_factory::create_slave_info_objects(
-           opt_mi_repository_id, opt_rli_repository_id, m_thread_mask,
+           INFO_REPOSITORY_TABLE, INFO_REPOSITORY_TABLE, m_thread_mask,
            &channel_map)))
     LogErr(ERROR_LEVEL,
            ER_RPL_REPLICA_FAILED_TO_CREATE_OR_RECOVER_INFO_REPOSITORIES);
@@ -1279,7 +1279,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
     transaction start to avoid table access deadlocks when START SLAVE
     is executed after RESET SLAVE.
   */
-  if (is_autocommit_off_and_infotables(thd)) {
+  if (is_autocommit_off(thd)) {
     if (trans_begin(thd)) {
       init_error = 1;
       goto end;
@@ -1346,7 +1346,7 @@ end:
     commit to avoid table access deadlocks when START SLAVE is executed
     after RESET SLAVE.
   */
-  if (is_autocommit_off_and_infotables(thd))
+  if (is_autocommit_off(thd))
     if (trans_commit(thd)) init_error = 1;
 
   mysql_mutex_unlock(&mi->rli->data_lock);
@@ -1435,8 +1435,7 @@ bool reset_info(Master_info *mi) {
   mi->init_master_log_pos();
   mi->master_uuid[0] = 0;
 
-  if (mi->reset && opt_mi_repository_id == INFO_REPOSITORY_TABLE &&
-      opt_rli_repository_id == INFO_REPOSITORY_TABLE && mi->flush_info(true)) {
+  if (mi->reset && mi->flush_info(true)) {
     my_error(ER_CONNECTION_METADATA, MYF(0));
     return true;
   }
@@ -1445,9 +1444,7 @@ bool reset_info(Master_info *mi) {
       (!mi->rli->is_privilege_checks_user_null() ||  // if PCU is not null
        mi->rli->is_row_format_required() ||          // or RRF is 1
        Relay_log_info::PK_CHECK_STREAM !=            // or RTPKC != STREAM
-           mi->rli->get_require_table_primary_key_check()) &&
-      opt_rli_repository_id == INFO_REPOSITORY_TABLE &&  // in TABLE repository.
-      opt_mi_repository_id == INFO_REPOSITORY_TABLE;
+           mi->rli->get_require_table_primary_key_check());
 
   if ((have_relay_log_data_to_persist && mi->rli->clear_info()) ||
       (!have_relay_log_data_to_persist && mi->rli->remove_info())) {
@@ -2204,21 +2201,16 @@ void delete_slave_info_objects() {
 }
 
 /**
-   Check if multi-statement transaction mode and master and slave info
-   repositories are set to table.
+   Check if in multi-statement transaction mode
 
    @param thd    THD object
 
    @retval true  Success
    @retval false Failure
 */
-static bool is_autocommit_off_and_infotables(THD *thd) {
+static bool is_autocommit_off(THD *thd) {
   DBUG_TRACE;
-  return (thd && thd->in_multi_stmt_transaction_mode() &&
-          (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-           opt_rli_repository_id == INFO_REPOSITORY_TABLE))
-             ? true
-             : false;
+  return (thd && thd->in_multi_stmt_transaction_mode());
 }
 
 static bool monitor_io_replica_killed(THD *thd, Master_info *mi) {
@@ -4007,9 +3999,7 @@ void set_slave_thread_options(THD *thd) {
     info tables updates which do not commit, like Rotate, Stop and
     skipped events handling.
   */
-  if ((thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
-      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-       opt_rli_repository_id == INFO_REPOSITORY_TABLE)) {
+  if ((thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT)) {
     thd->variables.option_bits |= OPTION_AUTOCOMMIT;
     thd->variables.option_bits &= ~OPTION_NOT_AUTOCOMMIT;
     thd->server_status |= SERVER_STATUS_AUTOCOMMIT;
@@ -5112,8 +5102,8 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
           /*
             The transactions has to be rolled back before
             load_mi_and_rli_from_repositories is called. Because
-            load_mi_and_rli_from_repositories will starts a new
-            transaction if master_info_repository is TABLE.
+            load_mi_and_rli_from_repositories will start a new
+            transaction.
           */
           rli->cleanup_context(thd, true);
           /*
@@ -6257,15 +6247,15 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     transaction start to avoid table access deadlocks when START SLAVE
     is executed after STOP SLAVE with MTS enabled.
   */
-  if (is_autocommit_off_and_infotables(thd))
+  if (is_autocommit_off(thd))
     if (trans_begin(thd)) goto err;
 
   for (uint id = 0; id < rli->recovery_parallel_workers; id++) {
     Slave_worker *worker =
-        Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli, true);
+        Rpl_info_factory::create_worker(INFO_REPOSITORY_TABLE, id, rli, true);
 
     if (!worker) {
-      if (is_autocommit_off_and_infotables(thd)) trans_rollback(thd);
+      if (is_autocommit_off(thd)) trans_rollback(thd);
       goto err;
     }
 
@@ -6297,7 +6287,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     commit to avoid table access deadlocks when START SLAVE is executed
     after STOP SLAVE with MTS enabled.
   */
-  if (is_autocommit_off_and_infotables(thd))
+  if (is_autocommit_off(thd))
     if (trans_commit(thd)) goto err;
 
   /*
@@ -6593,7 +6583,7 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
 
   mysql_mutex_assert_owner(&rli->run_lock);
 
-  if (!(w = Rpl_info_factory::create_worker(opt_rli_repository_id, i, rli,
+  if (!(w = Rpl_info_factory::create_worker(INFO_REPOSITORY_TABLE, i, rli,
                                             false))) {
     LogErr(ERROR_LEVEL, ER_RPL_REPLICA_WORKER_THREAD_CREATION_FAILED,
            rli->get_for_channel_str());
@@ -9280,8 +9270,8 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
 
     if (is_default) {
       if (!Rpl_info_factory::create_mi_and_rli_objects(
-              opt_mi_repository_id, opt_rli_repository_id,
-              channel_map.get_default_channel(), true, &channel_map)) {
+              INFO_REPOSITORY_TABLE, INFO_REPOSITORY_TABLE,
+              channel_map.get_default_channel(), &channel_map)) {
         error = ER_CONNECTION_METADATA;
         my_message(ER_CONNECTION_METADATA, ER_THD(thd, ER_CONNECTION_METADATA),
                    MYF(0));
@@ -10822,19 +10812,6 @@ int add_new_channel(Master_info **mi, const char *channel) {
   Ident_name_check ident_check_status;
 
   /*
-    Refuse to create a new channel if the repositories does not support this.
-  */
-
-  if (opt_mi_repository_id == INFO_REPOSITORY_FILE ||
-      opt_rli_repository_id == INFO_REPOSITORY_FILE) {
-    LogErr(ERROR_LEVEL,
-           ER_RPL_REPLICA_NEW_C_M_NEEDS_REPOS_TYPE_OTHER_THAN_FILE);
-    error = ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY;
-    my_error(ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY, MYF(0));
-    goto err;
-  }
-
-  /*
     Return if max num of replication channels exceeded already.
   */
 
@@ -10860,7 +10837,7 @@ int add_new_channel(Master_info **mi, const char *channel) {
   }
 
   if (!((*mi) = Rpl_info_factory::create_mi_and_rli_objects(
-            opt_mi_repository_id, opt_rli_repository_id, channel, false,
+            INFO_REPOSITORY_TABLE, INFO_REPOSITORY_TABLE, channel,
             &channel_map))) {
     error = ER_CONNECTION_METADATA;
     my_error(ER_CONNECTION_METADATA, MYF(0));

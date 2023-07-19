@@ -631,9 +631,6 @@ The following options may be given as the first argument:
  thread stores connection configuration and positions, in
  case --master-info-repository=FILE. This option is
  deprecated and will be removed in a future version.
- --master-info-repository=name 
- The repository format for the replication connection
- configuration.
  --master-retry-count=# 
  The number of times this replica will attempt to connect
  to a source before giving up. This option is deprecated
@@ -1107,9 +1104,6 @@ The following options may be given as the first argument:
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
- --relay-log-info-repository=name 
- Defines the type of the repository for the relay log
- information and associated workers.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -1803,7 +1797,6 @@ low-priority-updates FALSE
 lower-case-table-names 1
 mandatory-roles 
 master-info-file master.info
-master-info-repository TABLE
 master-retry-count 10
 master-verify-checksum FALSE
 max-allowed-packet 67108864
@@ -1949,7 +1942,6 @@ regexp-time-limit 32
 relay-log relaylog
 relay-log-index relaylog.index
 relay-log-info-file relay-log.info
-relay-log-info-repository TABLE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0

@@ -2911,19 +2911,6 @@ static int check_if_server_properly_configured() {
         startup_pre_reqs.transaction_write_set_extraction;
   }
 
-  if (startup_pre_reqs.mi_repository_type != 1)  // INFO_REPOSITORY_TABLE
-  {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_CONNECTION_METADATA_REPO_MUST_BE_TABLE);
-    return 1;
-  }
-
-  if (startup_pre_reqs.rli_repository_type != 1)  // INFO_REPOSITORY_TABLE
-  {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE);
-    return 1;
-  }
-
   if (startup_pre_reqs.parallel_applier_workers > 0) {
     if (startup_pre_reqs.parallel_applier_type !=
         CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK) {

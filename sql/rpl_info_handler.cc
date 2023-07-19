@@ -67,8 +67,6 @@ const char *Rpl_info_handler::get_rpl_info_type_str() {
   switch (do_get_rpl_info_type()) {
     case INFO_REPOSITORY_DUMMY:
       return "DUMMY";
-    case INFO_REPOSITORY_FILE:
-      return "FILE";
     case INFO_REPOSITORY_TABLE:
       return "TABLE";
   }
