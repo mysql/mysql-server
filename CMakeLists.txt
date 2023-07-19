@@ -737,11 +737,22 @@ SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
 INCLUDE(compile_flags)
 INCLUDE(install_layout)
 
+IF(WITH_ASAN OR WITH_LSAN OR WITH_MSAN OR WITH_TSAN OR WITH_UBSAN)
+  SET(WITH_SOME_SANITIZER ON)
+ELSE()
+  SET(WITH_SOME_SANITIZER OFF)
+ENDIF()
+
+
 # Add RPM or DEB platform flags for STANDALONE build.
 # Not for DEBUG builds, since both platforms use -O2 and _FORTIFY_SOURCE.
 # Not for Release or MinSizeRel, it will inflate binary sizes.
 IF(LINUX_STANDALONE AND (LINUX_DEB_PLATFORM OR LINUX_RPM_PLATFORM))
-  IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
+  # Do not add FORTIFY_SOURCE to any of the sanitizers
+  # https://github.com/google/sanitizers/issues/247
+  IF(WITH_SOME_SANITIZER)
+    SET(WITH_PACKAGE_FLAGS_DEFAULT OFF)
+  ELSEIF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
     SET(WITH_PACKAGE_FLAGS_DEFAULT OFF)
   ELSEIF(CMAKE_BUILD_TYPE_UPPER STREQUAL "RELWITHDEBINFO")
     SET(WITH_PACKAGE_FLAGS_DEFAULT ON)
@@ -828,9 +839,6 @@ INCLUDE(fprofile)
 INCLUDE(gloves)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
-INCLUDE(msvc_cppcheck)
-
-MSVC_CPPCHECK()
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -1069,6 +1077,9 @@ MACRO(DISABLE_MISSING_PROFILE_WARNING)
   ENDIF()
 ENDMACRO()
 
+OPTION(OPTIMIZE_SANITIZER_BUILDS
+  "Add -O1 -fno-inline to sanitizer builds" ON)
+
 MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
@@ -1078,7 +1089,7 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
     # We switch on basic optimization also for debug builds.
     # We disable inlining for stack trace readability.
     # With optimization we may get some warnings, so we switch off -Werror
-    IF(${ADD_OPTIMIZATION})
+    IF(${ADD_OPTIMIZATION} AND OPTIMIZE_SANITIZER_BUILDS)
       IF(MSVC)
         STRING_APPEND(CMAKE_C_FLAGS   " -O1 /Ob0")
         STRING_APPEND(CMAKE_CXX_FLAGS " -O1 /Ob0")
@@ -1998,6 +2009,15 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
+# Cannot use system tirpc with custom OpenSSL
+IF(WITH_SSL_PATH AND (LINUX_RHEL8 OR LINUX_RHEL9))
+  SET(WITH_TIRPC "bundled")
+ENDIF()
+
+IF(WITH_TIRPC STREQUAL "bundled")
+  ADD_SUBDIRECTORY(extra/tirpc)
+ENDIF()
+
 IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
@@ -2049,6 +2069,8 @@ OPTION(MYSQL_MAINTAINER_MODE
        "MySQL maintainer-specific development environment" OFF)
 
 INCLUDE(maintainer)
+INCLUDE(msvc_cppcheck)
+DO_MSVC_CPPCHECK()
 
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
@@ -2584,6 +2606,11 @@ IF(DOXYGEN_FOUND)
     SET_PROPERTY(TARGET doxygen PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
   ENDIF()
 ENDIF(DOXYGEN_FOUND)
+
+MYSQL_ADD_EXECUTABLE(stack_direction
+  ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+  SKIP_INSTALL
+  )
 
 INCLUDE(CPack)
 

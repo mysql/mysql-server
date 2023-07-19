@@ -478,7 +478,9 @@ SET(SQL_SHARED_SOURCES
   persisted_variable.cc
   protocol_classic.cc
   psi_memory_key.cc
+  psi_memory_resource.cc
   query_result.cc
+  raii/targeted_stringstream.cc
   range_optimizer/geometry_index_range_scan.cc
   range_optimizer/group_index_skip_scan.cc
   range_optimizer/group_index_skip_scan_plan.cc
@@ -692,7 +694,7 @@ IF(WITH_LOCK_ORDER)
     )
 
   # Bison output uses undefined symbols for clang >= v15
-  IF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
     ADD_COMPILE_FLAGS(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
   ENDIF()
@@ -893,7 +895,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
-  IF(MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
     ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
@@ -993,7 +995,7 @@ SET(BINLOG_SOURCE
   binlog/group_commit/atomic_bgc_ticket.cc
   binlog/group_commit/atomic_bgc_ticket_guard.cc
   binlog/monitoring/context.cc
-  binlog/tools/iterators.cc
+  binlog/decompressing_event_object_istream.cc
   binlog.cc
   binlog_istream.cc
   binlog_ostream.cc

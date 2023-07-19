@@ -178,7 +178,7 @@ INSERT INTO global_suppressions VALUES
  ("unknown option '--loose-"),
  ("unknown variable 'loose-"),
  ("Setting lower_case_table_names=2"),
- ("NDB Binlog:"),
+ ("\\[NDB\\] Binlog:"),
  ("Neither --relay-log nor --relay-log-index were used"),
  ("Query partially completed"),
  ("Replica SQL thread is stopped because UNTIL condition"),
@@ -368,6 +368,13 @@ INSERT INTO global_suppressions VALUES
    Manifest file processing
  */
  ("Manifest file '.*' is not read-only. For better security, please make sure that the file is read-only."),
+
+ /*
+   --ssl-fips-mode
+ */
+ ("'--ssl-fips-mode' is deprecated and will be removed in a future release."),
+
+ ("'mysql_native_password' is deprecated and will be removed in a future release."),
 
  ("THE_LAST_SUPPRESSION");
 

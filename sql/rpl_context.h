@@ -27,10 +27,13 @@
 #include <memory>
 
 #include "libbinlogevents/include/compression/compressor.h"  // binary_log::transaction::compression::Compressor
+#include "libbinlogevents/include/nodiscard.h"
 #include "my_inttypes.h"  // IWYU pragma: keep
 
+#include "libbinlogevents/include/compression/factory.h"
 #include "sql/binlog/group_commit/bgc_ticket.h"
 #include "sql/memory/aligned_atomic.h"
+#include "sql/resource_blocker.h"  // resource_blocker::User
 #include "sql/system_variables.h"
 
 #include <functional>
@@ -266,17 +269,29 @@ class Last_used_gtid_tracker_ctx {
 };
 
 class Transaction_compression_ctx {
+  using Compressor_t = binary_log::transaction::compression::Compressor;
+  using Grow_calculator_t = mysqlns::buffer::Grow_calculator;
+  using Factory_t = binary_log::transaction::compression::Factory;
+
  public:
-  static const size_t DEFAULT_COMPRESSION_BUFFER_SIZE;
+  using Compressor_ptr_t = std::shared_ptr<Compressor_t>;
+  using Managed_buffer_sequence_t = Compressor_t::Managed_buffer_sequence_t;
 
-  Transaction_compression_ctx();
-  virtual ~Transaction_compression_ctx();
+  explicit Transaction_compression_ctx(PSI_memory_key key);
 
-  binary_log::transaction::compression::Compressor *get_compressor(
-      THD *session);
+  /// Return the compressor.
+  ///
+  /// This constructs the compressor on the first invocation and
+  /// returns the same compressor on subsequent invocations.
+  Compressor_ptr_t get_compressor(THD *session);
 
- protected:
-  binary_log::transaction::compression::Compressor *m_compressor{nullptr};
+  /// Return reference to the buffer sequence holding compressed
+  /// bytes.
+  Managed_buffer_sequence_t &managed_buffer_sequence();
+
+ private:
+  Managed_buffer_sequence_t m_managed_buffer_sequence;
+  Compressor_ptr_t m_compressor;
 };
 
 /**
@@ -395,6 +410,8 @@ class Rpl_thd_context {
     TX_RPL_STAGE_END  // Not used
   };
 
+  resource_blocker::User dump_thread_user;
+
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
@@ -410,7 +427,10 @@ class Rpl_thd_context {
   Rpl_thd_context &operator=(const Rpl_thd_context &rsc);
 
  public:
-  Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
+  Rpl_thd_context()
+      : m_transaction_compression_ctx(
+            0),  // todo: specify proper key instead of 0
+        rpl_channel_type(NO_CHANNEL_INFO) {}
 
   /**
     Initializers. Clears the writeset session history and re-set delegate state

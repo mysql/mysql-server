@@ -48,3 +48,37 @@ f1	f2
 1	1
 2	2
 DROP TABLE t1;
+#
+# Bug#34826692: Index merge should favour union over sort_union
+#
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, key(f1), key(f2, f3), key(f2));
+INSERT INTO t1 VALUES (0,1,2);
+INSERT INTO t1 VALUES (1,2,3);
+INSERT INTO t1 VALUES (2,3,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f1,f2,f2_2	f1,f2_2	5,5	NULL	2	100.00	Using union(f1,f2_2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` = 0) or (`test`.`t1`.`f2` = 2))
+DROP TABLE t1;
+#
+# Bug#35302794: Segfault in get_best_disjunct_quick on JOIN
+#               and range predicates
+#
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, key(f1), key(f2, f3), key(f2));
+INSERT INTO t1 VALUES (0,1,2);
+INSERT INTO t1 VALUES (1,2,3);
+INSERT INTO t1 VALUES (2,3,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT /*+ SET_VAR(optimizer_switch='index_merge_sort_union=off') */ *
+FROM t1 WHERE f1 = 0 OR f2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	f1,f2,f2_2	f1,f2_2	5,5	NULL	2	100.00	Using union(f1,f2_2); Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_switch='index_merge_sort_union=off') */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3` from `test`.`t1` where ((`test`.`t1`.`f1` = 0) or (`test`.`t1`.`f2` = 2))
+DROP TABLE t1;

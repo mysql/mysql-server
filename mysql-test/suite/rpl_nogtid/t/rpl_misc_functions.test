@@ -112,6 +112,20 @@ DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
+
+connection master;
+CREATE TABLE t1 AS SELECT ST_POINTFROMGEOHASH("0123", 4326);
+SHOW CREATE TABLE t1;
+### show binlog events;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+
+SHOW CREATE TABLE t1;
+
+connection master;
+DROP TABLE t1;
+
 --remove_file $MYSQLD_DATADIR/test/rpl_misc_functions.outfile
 --source include/sync_slave_sql_with_master.inc
 

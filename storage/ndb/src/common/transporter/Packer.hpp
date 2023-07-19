@@ -27,6 +27,7 @@
 
 #include <TransporterDefinitions.hpp>
 #include "TransporterInternalDefinitions.hpp"
+#include "my_config.h"
 
 #ifdef WORDS_BIGENDIAN
   #define MY_OWN_BYTE_ORDER 1

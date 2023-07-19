@@ -3951,8 +3951,18 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         }
         // Similarly, strings and temporal types have different semantics for
         // equality comparison.
-        if (const_item->is_temporal() && !field_item->is_temporal()) {
-          return false;
+        if (const_item->is_temporal()) {
+          // No multiple equality for string columns compared to temporal
+          // values. See also comment in comparable_in_index().
+          if (!field_item->is_temporal()) {
+            return false;
+          }
+          // No multiple equality for TIME columns compared to temporal values.
+          // See also comment in comparable_in_index().
+          if (const_item->is_temporal_with_date() &&
+              !field_item->is_temporal_with_date()) {
+            return false;
+          }
         }
       }
 
@@ -3964,6 +3974,17 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         cond_equal->current_level.push_back(item_equal);
       }
       if (item_equal) {
+        if (item_equal->const_arg() != nullptr) {
+          // Make sure that the existing const and new one are of comparable
+          // collation.
+          DTCollation cmp_collation;
+          if (cmp_collation.set(const_item->collation,
+                                item_equal->const_arg()->collation,
+                                MY_COLL_CMP_CONV) ||
+              cmp_collation.derivation == DERIVATION_NONE) {
+            return false;
+          }
+        }
         /*
           The flag cond_false will be set to 1 after this, if item_equal
           already contains a constant and its value is  not equal to
@@ -5422,21 +5443,13 @@ bool JOIN::init_planner_arrays() {
     tab->table_ref = tl;
     tab->set_table(table);
     const int err = tl->fetch_number_of_rows();
-
-    // Initialize the cost model for the table
-    table->init_cost_model(cost_model());
-
-    DBUG_EXECUTE_IF("bug11747970_raise_error", {
-      if (!err) {
-        my_error(ER_UNKNOWN_ERROR, MYF(0));
-        return true;
-      }
-    });
-
     if (err) {
       table->file->print_error(err, MYF(0));
       return true;
     }
+    // Initialize the cost model for the table.
+    table->init_cost_model(cost_model());
+
     all_table_map |= tl->map();
     tab->set_join(this);
 

@@ -1621,28 +1621,17 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
   return max_space_id;
 }
 
-/** Loads definitions for table columns. */
-static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
-                              mem_heap_t *heap)    /*!< in/out: memory heap
-                                                   for temporary storage */
-{
-  dict_table_t *sys_columns;
-  dict_index_t *sys_index;
-  btr_pcur_t pcur;
-  dtuple_t *tuple;
-  dfield_t *dfield;
-  const rec_t *rec;
-  byte *buf;
-  ulint i;
-  mtr_t mtr;
-  ulint n_skipped = 0;
-
+/** Load columns in an innodb cached table object from SYS_COLUMNS table.
+@param[in, out]  table  Table cache object
+@param[in, out]  heap   memory heap for temporary storage */
+static void dict_load_columns(dict_table_t *table, mem_heap_t *heap) {
   ut_ad(dict_sys_mutex_own());
 
+  mtr_t mtr;
   mtr_start(&mtr);
 
-  sys_columns = dict_table_get_low("SYS_COLUMNS");
-  sys_index = UT_LIST_GET_FIRST(sys_columns->indexes);
+  dict_table_t *sys_columns = dict_table_get_low("SYS_COLUMNS");
+  dict_index_t *sys_index = UT_LIST_GET_FIRST(sys_columns->indexes);
   ut_ad(!dict_table_is_comp(sys_columns));
 
   ut_ad(name_of_col_is(sys_columns, sys_index, DICT_FLD__SYS_COLUMNS__NAME,
@@ -1650,27 +1639,30 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
   ut_ad(name_of_col_is(sys_columns, sys_index, DICT_FLD__SYS_COLUMNS__PREC,
                        "PREC"));
 
-  tuple = dtuple_create(heap, 1);
-  dfield = dtuple_get_nth_field(tuple, 0);
+  dtuple_t *tuple = dtuple_create(heap, 1);
+  dfield_t *dfield = dtuple_get_nth_field(tuple, 0);
 
-  buf = static_cast<byte *>(mem_heap_alloc(heap, 8));
+  byte *buf = static_cast<byte *>(mem_heap_alloc(heap, 8));
   mach_write_to_8(buf, table->id);
 
   dfield_set_data(dfield, buf, 8);
   dict_index_copy_types(tuple, sys_index, 1);
 
+  btr_pcur_t pcur;
   pcur.open_on_user_rec(sys_index, tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF, &mtr,
                         UT_LOCATION_HERE);
 
   ut_ad(table->n_t_cols == static_cast<ulint>(table->n_cols) +
                                static_cast<ulint>(table->n_v_cols));
 
-  for (i = 0; i + DATA_N_SYS_COLS < table->n_t_cols + n_skipped; i++) {
+  size_t non_v_cols = 0;
+  size_t n_skipped = 0;
+  for (size_t i = 0; i + DATA_N_SYS_COLS < table->n_t_cols + n_skipped; i++) {
     const char *err_msg;
     const char *name = nullptr;
     ulint nth_v_col = ULINT_UNDEFINED;
 
-    rec = pcur.get_rec();
+    const rec_t *rec = pcur.get_rec();
 
     ut_a(pcur.is_on_user_rec());
 
@@ -1682,6 +1674,11 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
       goto next_rec;
     } else if (err_msg) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_195) << err_msg;
+    }
+
+    if (nth_v_col == ULINT_UNDEFINED) {
+      /* Not a virtual column */
+      non_v_cols++;
     }
 
     /* Note: Currently we have one DOC_ID column that is
@@ -1727,6 +1724,11 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
 
   pcur.close();
   mtr_commit(&mtr);
+
+  /* The table is getting upgraded from 5.7 where there was no row version */
+  table->initial_col_count = table->current_col_count = table->total_col_count =
+      non_v_cols;
+  table->current_row_version = 0;
 }
 
 /** Loads definitions for index fields.

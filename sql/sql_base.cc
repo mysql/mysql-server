@@ -8081,74 +8081,48 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, Table_ref *first_table,
   return found;
 }
 
-/*
+/**
   Find Item in list of items (find_field_in_tables analog)
 
-  TODO
-    is it better return only counter?
+  @param      thd        pointer to current thread
+  @param      find       Item to find
+  @param      items      List of items to search
+  @param[out] found      Returns the pointer to the found item, or nullptr
+                         if the item was not found
+  @param[out] counter    Returns number of found item in list
+  @param[out] resolution Set to the resolution type if the item is found
+                         (it says whether the item is resolved against an
+                          alias, or as a field name without alias, or as a
+                          field hidden by alias, or ignoring alias)
 
-  SYNOPSIS
-    find_item_in_list()
-    find			Item to find
-    items			List of items
-    counter			To return number of found item
-    report_error
-      REPORT_ALL_ERRORS		report errors, return 0 if error
-      REPORT_EXCEPT_NOT_FOUND	Do not report 'not found' error and
-                                return not_found_item, report other errors,
-                                return 0
-      IGNORE_ERRORS		Do not report errors, return 0 if error
-    resolution                  Set to the resolution type if the item is found
-                                (it says whether the item is resolved
-                                 against an alias name,
-                                 or as a field name without alias,
-                                 or as a field hidden by alias,
-                                 or ignoring alias)
+  @note "counter" and "resolution" are undefined unless "found" identifies
+        an item.
 
-  RETURN VALUES
-    0			Item is not found or item is not unique,
-                        error message is reported
-    not_found_item	Function was called with
-                        report_error == REPORT_EXCEPT_NOT_FOUND and
-                        item was not found. No error message was reported
-                        found field
+  @returns true if error, false if success
 */
-
-/* Special Item pointer to serve as a return value from find_item_in_list(). */
-Item **not_found_item = (Item **)0x1;
-
-Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
-                         uint *counter,
-                         find_item_error_report_type report_error,
-                         enum_resolution_type *resolution) {
-  Item **found = nullptr, **found_unaliased = nullptr;
-  const char *db_name = nullptr;
-  const char *field_name = nullptr;
-  const char *table_name = nullptr;
-  bool found_unaliased_non_uniq = false;
-  /*
-    true if the item that we search for is a valid name reference
-    (and not an item that happens to have a name).
-  */
-  bool is_ref_by_name = false;
-  uint unaliased_counter = 0;
-
+bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
+                       Item ***found, uint *counter,
+                       enum_resolution_type *resolution) {
+  *found = nullptr;
   *resolution = NOT_RESOLVED;
 
-  is_ref_by_name =
-      (find->type() == Item::FIELD_ITEM || find->type() == Item::REF_ITEM);
-  if (is_ref_by_name) {
-    field_name = ((Item_ident *)find)->field_name;
-    table_name = ((Item_ident *)find)->table_name;
-    db_name = ((Item_ident *)find)->db_name;
-  }
+  Item **found_unaliased = nullptr;
+  bool found_unaliased_non_uniq = false;
+  uint unaliased_counter = 0;
+
+  Item_ident *const find_ident =
+      find->type() == Item::FIELD_ITEM || find->type() == Item::REF_ITEM
+          ? down_cast<Item_ident *>(find)
+          : nullptr;
 
   int i = 0;
   for (auto it = VisibleFields(*items).begin();
        it != VisibleFields(*items).end(); ++it, ++i) {
     Item *item = *it;
-    if (field_name && item->real_item()->type() == Item::FIELD_ITEM) {
-      Item_ident *item_field = (Item_ident *)item;
+
+    if (find_ident != nullptr &&
+        item->real_item()->type() == Item::FIELD_ITEM) {
+      Item_ident *item_field = down_cast<Item_ident *>(item);
 
       /*
         In case of group_concat() with ORDER BY condition in the QUERY
@@ -8158,7 +8132,7 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       */
       if (!item_field->item_name.is_set()) continue;
 
-      if (table_name) {
+      if (find_ident->table_name != nullptr) {
         /*
           If table name is specified we should find field 'field_name' in
           table 'table_name'. According to SQL-standard we should ignore
@@ -8167,21 +8141,15 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
           Since we should NOT prefer fields from the select list over
           other fields from the tables participating in this select in
           case of ambiguity we have to do extra check outside this function.
-
-          We use strcmp for table names and database names as these may be
-          case sensitive. In cases where they are not case sensitive, they
-          are always in lower case.
-
-          item_field->field_name and item_field->table_name can be 0x0 if
-          item is not fix_field()'ed yet.
         */
-        if (item_field->field_name && item_field->table_name &&
-            !my_strcasecmp(system_charset_info, item_field->field_name,
-                           field_name) &&
-            !my_strcasecmp(table_alias_charset, item_field->table_name,
-                           table_name) &&
-            (!db_name ||
-             (item_field->db_name && !strcmp(item_field->db_name, db_name)))) {
+        if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                           find_ident->field_name) &&
+            (item_field->table_name != nullptr &&
+             !my_strcasecmp(table_alias_charset, item_field->table_name,
+                            find_ident->table_name)) &&
+            (find_ident->db_name == nullptr ||
+             (item_field->db_name != nullptr &&
+              !strcmp(item_field->db_name, find_ident->db_name)))) {
           if (found_unaliased) {
             if ((*found_unaliased)->eq(item, false)) continue;
             /*
@@ -8189,20 +8157,19 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
               We already can bail out because we are searching through
               unaliased names only and will have duplicate error anyway.
             */
-            if (report_error != IGNORE_ERRORS)
-              my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(),
-                       thd->where);
-            return (Item **)nullptr;
+            my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
+            return true;
           }
           found_unaliased = &*it;
           unaliased_counter = i;
           *resolution = RESOLVED_IGNORING_ALIAS;
-          if (db_name) break;  // Perfect match
+          if (find_ident->db_name != nullptr) break;  // Perfect match
         }
       } else {
-        int fname_cmp = my_strcasecmp(system_charset_info,
-                                      item_field->field_name, field_name);
-        if (item_field->item_name.eq_safe(field_name)) {
+        int fname_cmp =
+            my_strcasecmp(system_charset_info, item_field->field_name,
+                          find_ident->field_name);
+        if (item_field->item_name.eq_safe(find_ident->field_name)) {
           /*
             If table name was not given we should scan through aliases
             and non-aliased fields first. We are also checking unaliased
@@ -8210,14 +8177,12 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
             instantly field (hidden by alias) if no suitable alias or
             non-aliased field was found.
           */
-          if (found) {
-            if ((*found)->eq(item, false)) continue;  // Same field twice
-            if (report_error != IGNORE_ERRORS)
-              my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(),
-                       thd->where);
-            return (Item **)nullptr;
+          if (*found != nullptr) {
+            if ((**found)->eq(item, false)) continue;  // Same field twice
+            my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
+            return true;
           }
-          found = &*it;
+          *found = &*it;
           *counter = i;
           *resolution =
               fname_cmp ? RESOLVED_AGAINST_ALIAS : RESOLVED_WITH_NO_ALIAS;
@@ -8237,25 +8202,26 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
           unaliased_counter = i;
         }
       }
-    } else if (!table_name) {
+    } else if (find_ident == nullptr || find_ident->table_name == nullptr) {
       if (item->type() == Item::FUNC_ITEM &&
           down_cast<const Item_func *>(item)->functype() ==
               Item_func::ROLLUP_GROUP_ITEM_FUNC) {
         item = down_cast<Item_rollup_group_item *>(item)->inner_item();
       }
-      if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
-        found = &*it;
+      if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
+        *found = &*it;
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       } else if (find->eq(item, false)) {
-        found = &*it;
+        *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
         break;
       }
-    } else if (table_name && item->type() == Item::REF_ITEM &&
-               ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
+    } else if (find_ident != nullptr && find_ident->table_name != nullptr &&
+               item->type() == Item::REF_ITEM &&
+               down_cast<Item_ref *>(item)->ref_type() == Item_ref::VIEW_REF) {
       /*
         TODO:Here we process prefixed view references only. What we should
         really do is process all types of Item_refs. But this will currently
@@ -8268,13 +8234,16 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         because in the context of views they have the same meaning as
         Item_field for tables.
       */
-      Item_ident *item_ref = (Item_ident *)item;
-      if (item_ref->item_name.eq_safe(field_name) && item_ref->table_name &&
+      Item_ident *item_ref = down_cast<Item_ident *>(item);
+      if (!my_strcasecmp(system_charset_info, item_ref->field_name,
+                         find_ident->field_name) &&
+          item_ref->table_name != nullptr &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
-                         table_name) &&
-          (!db_name ||
-           (item_ref->db_name && !strcmp(item_ref->db_name, db_name)))) {
-        found = &*it;
+                         find_ident->table_name) &&
+          (find_ident->db_name == nullptr ||
+           (item_ref->db_name != nullptr &&
+            !strcmp(item_ref->db_name, find_ident->db_name)))) {
+        *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
         break;
@@ -8282,33 +8251,26 @@ Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
     } else if (item->type() == Item::FUNC_ITEM &&
                down_cast<const Item_func *>(item)->functype() ==
                    Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-      if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
-        found = &*it;
+      if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
+        *found = &*it;
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       }
     }
   }
-  if (!found) {
+  if (*found == nullptr) {
     if (found_unaliased_non_uniq) {
-      if (report_error != IGNORE_ERRORS)
-        my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
-      return (Item **)nullptr;
+      my_error(ER_NON_UNIQ_ERROR, MYF(0), find->full_name(), thd->where);
+      return true;
     }
     if (found_unaliased) {
-      found = found_unaliased;
+      *found = found_unaliased;
       *counter = unaliased_counter;
       *resolution = RESOLVED_BEHIND_ALIAS;
     }
   }
-  if (found) return found;
-  if (report_error != REPORT_EXCEPT_NOT_FOUND) {
-    if (report_error == REPORT_ALL_ERRORS)
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), find->full_name(), thd->where);
-    return (Item **)nullptr;
-  } else
-    return not_found_item;
+  return false;
 }
 
 /*
@@ -9067,6 +9029,11 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
     if (!ref.is_null()) {
       ref[0] = item;
       ref.pop_front();
+      /*
+        Items present in ref_array have a positive reference count since
+        removal of unused columns from derived tables depends on this.
+      */
+      item->increment_ref_count();
     }
     Item *typed_item = nullptr;
     if (typed_items != nullptr && typed_it != typed_items->end()) {

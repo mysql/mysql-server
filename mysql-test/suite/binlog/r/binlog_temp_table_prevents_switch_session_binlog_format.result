@@ -1,4 +1,6 @@
 SET SESSION binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is STATEMENT]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -25,6 +27,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to ROW
 DROP TEMPORARY TABLE t1;
 SET SESSION binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to ROW]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -51,6 +55,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to MIXED
 DROP TEMPORARY TABLE t1;
 SET SESSION binlog_format = 'MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to MIXED]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -77,8 +83,12 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Reset binlog_format to STATEMENT
 DROP TEMPORARY TABLE t1;
 SET SESSION binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to STATEMENT]
 SET @@SESSION.binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is STATEMENT]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -105,6 +115,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to ROW
 DROP TEMPORARY TABLE t1;
 SET @@SESSION.binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to ROW]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -131,6 +143,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to MIXED
 DROP TEMPORARY TABLE t1;
 SET @@SESSION.binlog_format = 'MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to MIXED]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -157,8 +171,12 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Reset binlog_format to STATEMENT
 DROP TEMPORARY TABLE t1;
 SET @@SESSION.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to STATEMENT]
 SET @@binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is STATEMENT]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -185,6 +203,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to ROW
 DROP TEMPORARY TABLE t1;
 SET @@binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to ROW]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -211,6 +231,8 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Set binlog_format to MIXED
 DROP TEMPORARY TABLE t1;
 SET @@binlog_format = 'MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to MIXED]
 CREATE TEMPORARY TABLE t1 (a VARCHAR(100));
 #
@@ -237,4 +259,6 @@ include/assert.inc [assert that @@SESSION.binlog_format is not changed]
 # Reset binlog_format to STATEMENT
 DROP TEMPORARY TABLE t1;
 SET @@binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@SESSION.binlog_format is set to STATEMENT]

@@ -1818,15 +1818,34 @@ static inline void row_upd_eval_new_vals(
   }
 }
 
+/** Copies the data pointed to by the new values for virtual fields to update
+@param[in,out]  update          an update vector */
+static void row_upd_dup_v_new_vals(const upd_t *update) {
+  ut_ad(update != nullptr);
+
+  for (ulint j = 0; j < upd_get_n_fields(update); j++) {
+    upd_field_t *upd_field = upd_get_nth_field(update, j);
+    if (upd_field->new_val.type.is_virtual()) {
+      if (dfield_is_multi_value(&upd_field->new_val)) {
+        dfield_multi_value_dup(&upd_field->new_val, update->heap);
+      } else {
+        dfield_dup(&upd_field->new_val, update->heap);
+      }
+    }
+  }
+}
+
 /** Stores to the heap the virtual columns that need for any indexes
 @param[in,out]  node            row update node
-@param[in]      update          an update vector if it is update
+@param[in,out]  update          an update vector if it is update
 @param[in]      thd             mysql thread handle
 @param[in,out]  mysql_table     mysql table object */
 static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
                                 TABLE *mysql_table) {
   mem_heap_t *heap = nullptr;
   dict_index_t *index = node->table->first_index();
+  bool new_val_v_cols_dup = false;
+  const ulint n_upd = update ? upd_get_n_fields(update) : 0;
 
   for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
        col_no++) {
@@ -1834,7 +1853,6 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
 
     if (col->m_col.ord_part) {
       dfield_t *dfield = dtuple_get_nth_v_field(node->row, col_no);
-      ulint n_upd = update ? upd_get_n_fields(update) : 0;
       ulint i = 0;
 
       /* Check if the value is already in update vector */
@@ -1874,6 +1892,10 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
               dfield_dup(dfield, node->heap);
             }
             if (dfield_is_null(dfield)) {
+              if (!new_val_v_cols_dup) {
+                row_upd_dup_v_new_vals(update);
+                new_val_v_cols_dup = true;
+              }
               innobase_get_computed_value(node->row, col, index, &heap,
                                           node->heap, nullptr, thd, mysql_table,
                                           nullptr, nullptr, nullptr);

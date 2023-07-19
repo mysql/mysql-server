@@ -228,10 +228,69 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                       "' on connection failed: " + mysql_error(connection_);
     throw Error(msg, mysql_errno(connection_));
   }
+}
 
-  // archive options for future connection templating
-  conn_params_.ssl_opts = {ssl_mode, tls_version, ssl_cipher, ca,
-                           capath,   crl,         crlpath};
+mysql_ssl_mode MySQLSession::ssl_mode() const {
+  SslMode ssl_mode;
+  if (!get_option(ssl_mode)) {
+    assert(0 && "get_option<SslMode>() failed unexpectedly");
+  }
+
+  return mysql_ssl_mode(ssl_mode.value());
+}
+
+std::string MySQLSession::tls_version() const {
+  TlsVersion tls_version;
+  if (!get_option(tls_version)) {
+    assert(0 && "get_option<TlsVersion>() failed unexpectedly");
+  }
+
+  return tls_version.value() ? tls_version.value() : "";
+}
+
+std::string MySQLSession::ssl_cipher() const {
+  SslCipher ssl_cipher;
+  if (!get_option(ssl_cipher)) {
+    assert(0 && "get_option<SslCipher>() failed unexpectedly");
+  }
+
+  return ssl_cipher.value() ? ssl_cipher.value() : "";
+}
+
+std::string MySQLSession::ssl_ca() const {
+  SslCa ssl_ca;
+  if (!get_option(ssl_ca)) {
+    assert(0 && "get_option<SslCa>() failed unexpectedly");
+  }
+
+  return ssl_ca.value() ? ssl_ca.value() : "";
+}
+
+std::string MySQLSession::ssl_capath() const {
+  SslCaPath ssl_capath;
+  if (!get_option(ssl_capath)) {
+    assert(0 && "get_option<SslCaPath>() failed unexpectedly");
+  }
+
+  return ssl_capath.value() ? ssl_capath.value() : "";
+}
+
+std::string MySQLSession::ssl_crl() const {
+  SslCrl ssl_crl;
+  if (!get_option(ssl_crl)) {
+    assert(0 && "get_option<SslCrl>() failed unexpectedly");
+  }
+
+  return ssl_crl.value() ? ssl_crl.value() : "";
+}
+
+std::string MySQLSession::ssl_crlpath() const {
+  SslCrlPath ssl_crlpath;
+  if (!get_option(ssl_crlpath)) {
+    assert(0 && "get_option<SslCrlPath>() failed unexpectedly");
+  }
+
+  return ssl_crlpath.value() ? ssl_crlpath.value() : "";
 }
 
 void MySQLSession::set_ssl_cert(const std::string &cert,
@@ -241,9 +300,42 @@ void MySQLSession::set_ssl_cert(const std::string &cert,
                     std::string(mysql_error(connection_)),
                 mysql_errno(connection_));
   }
+}
 
-  // archive options for future connection templating
-  conn_params_.ssl_cert = {cert, key};
+std::string MySQLSession::ssl_cert() const {
+  SslCert ssl_cert;
+  if (!get_option(ssl_cert)) {
+    assert(0 && "get_option<SslCert>() failed unexpectedly");
+  }
+
+  return ssl_cert.value() ? ssl_cert.value() : "";
+}
+
+std::string MySQLSession::ssl_key() const {
+  SslKey ssl_key;
+  if (!get_option(ssl_key)) {
+    assert(0 && "get_option<SslKey>() failed unexpectedly");
+  }
+
+  return ssl_key.value() ? ssl_key.value() : "";
+}
+
+int MySQLSession::connect_timeout() const {
+  ConnectTimeout connect_timeout;
+  if (!get_option(connect_timeout)) {
+    assert(0 && "get_option<ConnectTimeout>() failed unexpectedly");
+  }
+
+  return connect_timeout.value();
+}
+
+int MySQLSession::read_timeout() const {
+  ReadTimeout read_timeout;
+  if (!get_option(read_timeout)) {
+    assert(0 && "get_option<ReadTimeout>() failed unexpectedly");
+  }
+
+  return read_timeout.value();
 }
 
 void MySQLSession::connect(const std::string &host, unsigned int port,
@@ -276,7 +368,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                                  ? unix_socket
                                  : host + ":" + std::to_string(port);
 
-  const bool ssl_disabled = conn_params_.ssl_opts.ssl_mode == SSL_MODE_DISABLED;
+  const bool ssl_disabled = ssl_mode() == SSL_MODE_DISABLED;
   auto &ssl_sessions_cache = SSLSessionsCache::instance();
 
   if (!ssl_disabled) {
@@ -300,36 +392,29 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   connected_ = true;
   connection_address_ = endpoint_str;
 
-  // archive options for future connection templating
-  conn_params_.conn_opts = {
-      host,        port,           username,        password,
-      unix_socket, default_schema, connect_timeout, read_timeout};
+  // save the information about the endpoint we connected to
+  connect_params_ = {host, port, unix_socket, default_schema};
 }
 
-void MySQLSession::connect_and_set_opts(
-    const ConnectionParameters &conn_params) {
-  // should only be used on fresh objects
-  // assert(!connected_);
-
+void MySQLSession::connect(const MySQLSession &other,
+                           const std::string &username,
+                           const std::string &password) {
   // below methods can throw:
   //   MySQLSession::Error (std::runtime_error)
   //   std::invalid_argument (std::logic_error)
 
-  set_ssl_options(conn_params.ssl_opts.ssl_mode,
-                  conn_params.ssl_opts.tls_version,
-                  conn_params.ssl_opts.ssl_cipher, conn_params.ssl_opts.ca,
-                  conn_params.ssl_opts.capath, conn_params.ssl_opts.crl,
-                  conn_params.ssl_opts.crlpath);
+  set_ssl_options(other.ssl_mode(), other.tls_version(), other.ssl_cipher(),
+                  other.ssl_ca(), other.ssl_capath(), other.ssl_crl(),
+                  other.ssl_crlpath());
 
-  if (!conn_params.ssl_cert.cert.empty() || !conn_params.ssl_cert.key.empty())
-    set_ssl_cert(conn_params.ssl_cert.cert, conn_params.ssl_cert.key);
+  if (!other.ssl_cert().empty() || !other.ssl_key().empty()) {
+    set_ssl_cert(other.ssl_cert(), other.ssl_key());
+  }
 
-  connect(conn_params.conn_opts.host, conn_params.conn_opts.port,
-          conn_params.conn_opts.username, conn_params.conn_opts.password,
-          conn_params.conn_opts.unix_socket,
-          conn_params.conn_opts.default_schema,
-          conn_params.conn_opts.connect_timeout,
-          conn_params.conn_opts.read_timeout);
+  connect(other.connect_params_.host, other.connect_params_.port, username,
+          password, other.connect_params_.unix_socket,
+          other.connect_params_.unix_socket, other.connect_timeout(),
+          other.read_timeout());
 }
 
 void MySQLSession::disconnect() {

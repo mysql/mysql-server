@@ -28,6 +28,7 @@
 #include "util/require.h"
 #include <ndb_global.h>
 #include "portlib/mt-asm.h"
+#include "transporter/TransporterRegistry.hpp"
 
 #include <NdbSleep.h>
 

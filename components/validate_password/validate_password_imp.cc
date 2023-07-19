@@ -30,11 +30,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <iomanip>
 #include <set>  // std::set
 #include <sstream>
+#include <unordered_set>
 
 #include "mysql/components/library_mysys/my_memory.h"
 #include "mysql/components/services/mysql_rwlock.h"
 #include "mysql/components/services/psi_memory.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 
 #define PSI_NOT_INSTRUMENTED 0
 const int MAX_DICTIONARY_FILE_LENGTH = (1024 * 1024);
@@ -90,6 +92,7 @@ static char *validate_password_dictionary_file;
 static char *validate_password_dictionary_file_last_parsed = nullptr;
 static long long validate_password_dictionary_file_words_count = 0;
 static bool check_user_name;
+static int validate_password_changed_characters_percentage = 0;
 /*
   This variable is used, to make sure the use of component services
   after the component load/initialization is done.
@@ -594,6 +597,114 @@ DEFINE_BOOL_METHOD(validate_password_imp::validate,
                                             validate_password_policy) == 0);
 }
 
+/**
+  Validate if number of changed characters matches the pre-configured
+  criteria
+
+  @param [in]  current_password Current password
+  @param [in]  new_password     New password
+  @param [out] minimum_required Minimum required number of changed characters
+  @param [out] changed          Actual number of changed characters
+
+  @returns Result of validation
+    @retval false Success
+    @retval true  Error
+*/
+DEFINE_BOOL_METHOD(validate_password_changed_characters_imp::validate,
+                   (my_h_string current_password, my_h_string new_password,
+                    uint *minimum_required, uint *changed)) {
+  try {
+    uint current_length = 0, new_length = 0;
+    if (changed) *changed = 0;
+
+    /* quick exit if restriction is not imposed */
+    if (validate_password_changed_characters_percentage == 0) return false;
+
+    /* Convert passwords to lowercase before comparison */
+    my_h_string current_password_lc, new_password_lc;
+    if (mysql_service_mysql_string_factory->create(&current_password_lc) ||
+        mysql_service_mysql_string_factory->create(&new_password_lc)) {
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .lookup(ER_VALIDATE_PWD_STRING_HANDLER_MEM_ALLOCATION_FAILED);
+      return true;
+    }
+
+    auto cleanup_guard = create_scope_guard([&] {
+      mysql_service_mysql_string_factory->destroy(current_password_lc);
+      mysql_service_mysql_string_factory->destroy(new_password_lc);
+    });
+
+    if (mysql_service_mysql_string_case->tolower(&current_password_lc,
+                                                 current_password) ||
+        mysql_service_mysql_string_case->tolower(&new_password_lc,
+                                                 new_password)) {
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .lookup(ER_VALIDATE_PWD_STRING_CONV_TO_LOWERCASE_FAILED);
+      return true;
+    }
+
+    if (mysql_service_mysql_string_character_access->get_char_length(
+            current_password_lc, &current_length) ||
+        mysql_service_mysql_string_character_access->get_char_length(
+            new_password_lc, &new_length)) {
+      return true;
+    }
+
+    /* Determine number of characters required to be changed */
+    uint number_of_characters_to_be_changed =
+        (std::max(static_cast<uint>(validate_password_length), current_length) *
+         (static_cast<uint>(validate_password_changed_characters_percentage)) /
+         100);
+
+    if (minimum_required)
+      *minimum_required = number_of_characters_to_be_changed;
+
+    std::unordered_set<long> characters;
+    auto process_password = [&characters](my_h_string password,
+                                          bool add) -> bool {
+      int pos = 0;
+      ulong character = 0;
+      my_h_string_iterator password_iterator{nullptr};
+
+      if (mysql_service_mysql_string_iterator->iterator_create(
+              password, &password_iterator))
+        return true;
+
+      auto iterator_cleanup = create_scope_guard([&] {
+        mysql_service_mysql_string_iterator->iterator_destroy(
+            password_iterator);
+      });
+
+      while (!mysql_service_mysql_string_iterator->iterator_get_next(
+          password_iterator, &pos)) {
+        if (mysql_service_mysql_string_value->get(password_iterator,
+                                                  &character))
+          return true;
+
+        if (add)
+          (void)characters.insert(character);
+        else
+          (void)characters.erase(character);
+      }
+      return false;
+    };
+
+    if (process_password(new_password_lc, true)) return true;
+
+    if (process_password(current_password_lc, false)) return true;
+
+    if (changed) *changed = characters.size();
+
+    return (characters.size() < number_of_characters_to_be_changed);
+  } catch (...) {
+    return true;
+  }
+}
+
 int register_status_variables() {
   if (mysql_service_status_variable_registration->register_variable(
           (SHOW_VAR *)&validate_password_status_variables)) {
@@ -607,7 +718,10 @@ int register_status_variables() {
 }
 
 int register_system_variables() {
-  INTEGRAL_CHECK_ARG(int) length, num_count, mixed_case_count, spl_char_count;
+  INTEGRAL_CHECK_ARG(int)
+  length, num_count, mixed_case_count, spl_char_count,
+      changed_characters_percentage;
+
   length.def_val = 8;
   length.min_val = 0;
   length.max_val = 0;
@@ -731,7 +845,30 @@ int register_system_variables() {
                 "validate_password.check_user_name");
     goto check_user_name;
   }
+
+  changed_characters_percentage.def_val = 0;
+  changed_characters_percentage.min_val = 0;
+  changed_characters_percentage.max_val = 100;
+  changed_characters_percentage.blk_sz = 0;
+  if (mysql_service_component_sys_variable_register->register_variable(
+          "validate_password", "changed_characters_percentage",
+          PLUGIN_VAR_INT | PLUGIN_VAR_RQCMDARG,
+          "password validate percentage of changed characters required in new "
+          "password. Valid values between 0 and 100.",
+          nullptr, length_update, (void *)&changed_characters_percentage,
+          (void *)&validate_password_changed_characters_percentage)) {
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(ERROR_LEVEL)
+        .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                "validate_password.changed_characters_percentage");
+    goto changed_characters_percentage;
+  }
   return 0; /* All system variables registered successfully */
+
+changed_characters_percentage:
+  mysql_service_component_sys_variable_unregister->unregister_variable(
+      "validate_password", "check_user_name");
 check_user_name:
   mysql_service_component_sys_variable_unregister->unregister_variable(
       "validate_password", "dictionary_file");
@@ -828,6 +965,15 @@ int unregister_system_variables() {
         .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
                 "validate_password.check_user_name");
   }
+
+  if (mysql_service_component_sys_variable_unregister->unregister_variable(
+          "validate_password", "changed_characters_percentage")) {
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(ERROR_LEVEL)
+        .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                "validate_password.changed_characters_percentage");
+  }
   return 0;
 }
 
@@ -921,9 +1067,14 @@ BEGIN_SERVICE_IMPLEMENTATION(validate_password, validate_password)
 validate_password_imp::validate,
     validate_password_imp::get_strength END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(validate_password,
+                             validate_password_changed_characters)
+validate_password_changed_characters_imp::validate END_SERVICE_IMPLEMENTATION();
+
 /* component provides: the validate_password service */
 BEGIN_COMPONENT_PROVIDES(validate_password)
 PROVIDES_SERVICE(validate_password, validate_password),
+    PROVIDES_SERVICE(validate_password, validate_password_changed_characters),
     END_COMPONENT_PROVIDES();
 
 /* A block for specifying dependencies of this Component. Note that for each
@@ -931,11 +1082,13 @@ PROVIDES_SERVICE(validate_password, validate_password),
   header file of the Component, and an entry on requires list below. */
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_character_access);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_case);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_iterator);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_ctype);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_string_value);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
@@ -950,10 +1103,11 @@ REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
 */
 BEGIN_COMPONENT_REQUIRES(validate_password)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
+    REQUIRES_SERVICE(mysql_string_character_access),
     REQUIRES_SERVICE(mysql_string_factory), REQUIRES_SERVICE(mysql_string_case),
     REQUIRES_SERVICE(mysql_string_converter),
     REQUIRES_SERVICE(mysql_string_iterator),
-    REQUIRES_SERVICE(mysql_string_ctype),
+    REQUIRES_SERVICE(mysql_string_ctype), REQUIRES_SERVICE(mysql_string_value),
     REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
     REQUIRES_SERVICE(status_variable_registration),

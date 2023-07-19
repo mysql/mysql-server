@@ -1,0 +1,41 @@
+#
+# Initialize
+#
+SET @@global.binlog_expire_logs_seconds = 1;
+RESET MASTER;
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+#
+# Lock instance for backup
+#
+[connection con1]
+LOCK INSTANCE FOR BACKUP;
+#
+# Flush binary logs so binary logs are purged
+#
+[connection default]
+include/save_error_log_position.inc
+FLUSH BINARY LOGS;
+#
+# Check that binary logs have not been purged
+#
+include/assert_error_log.inc [server: 1, pattern: Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.]
+#
+# Unlock instance
+#
+[connection con1]
+UNLOCK INSTANCE;
+#
+# Generate log purge
+#
+[connection default]
+include/save_error_log_position.inc
+FLUSH BINARY LOGS;
+#
+# Check relay logs have been purged
+#
+include/assert_error_log.inc [server: 1, pattern: NONE]
+#
+# Cleanup
+#
+SET @@global.binlog_expire_logs_seconds = BINLOG_EXPIRE_LOGS_SECONDS_SAVED;

@@ -775,22 +775,18 @@ bool Item_func_to_base64::resolve_type(THD *thd) {
 
 String *Item_func_to_base64::val_str_ascii(String *str) {
   String *res = args[0]->val_str(str);
-  bool too_long = false;
-  uint64 length;
-  if (!res || res->length() > (uint)base64_encode_max_arg_length() ||
-      (too_long =
-           ((length = base64_needed_encoded_length((uint64)res->length())) >
-            current_thd->variables.max_allowed_packet)) ||
-      tmp_value.alloc((uint)length)) {
-    null_value = true;  // NULL input, too long input, or OOM.
-    if (too_long) {
-      return push_packet_overflow_warning(current_thd, func_name());
-    }
-    return nullptr;
-  }
-  base64_encode(res->ptr(), (int)res->length(), tmp_value.ptr());
+  if (res == nullptr) return error_str();
+  if (res->length() > base64_encode_max_arg_length()) return null_return_str();
+
+  uint64 length = base64_needed_encoded_length(res->length());
+  if (length > current_thd->variables.max_allowed_packet)
+    return push_packet_overflow_warning(current_thd, func_name());
+
+  if (tmp_value.alloc(length)) return error_str();
+
+  base64_encode(res->ptr(), res->length(), tmp_value.ptr());
   assert(length > 0);
-  tmp_value.length((uint)length - 1);  // Without trailing '\0'
+  tmp_value.length(length - 1);  // Without trailing '\0'
   null_value = false;
   return &tmp_value;
 }
@@ -809,26 +805,23 @@ bool Item_func_from_base64::resolve_type(THD *thd) {
 
 String *Item_func_from_base64::val_str(String *str) {
   String *res = args[0]->val_str_ascii(str);
-  bool too_long = false;
-  int64 length;
-  const char *end_ptr;
+  if (res == nullptr) return error_str();
+  if (res->length() > base64_decode_max_arg_length()) return null_return_str();
 
-  if (!res || res->length() > (uint)base64_decode_max_arg_length() ||
-      (too_long = ((uint64)(length = base64_needed_decoded_length(
-                                (uint64)res->length())) >
-                   current_thd->variables.max_allowed_packet)) ||
-      tmp_value.alloc((uint)length) ||
-      (length = base64_decode(res->ptr(), (uint64)res->length(),
-                              tmp_value.ptr(), &end_ptr, 0)) < 0 ||
-      end_ptr < res->ptr() + res->length()) {
-    null_value =
-        true;  // NULL input, too long input, OOM, or badly formed input
-    if (too_long) {
-      return push_packet_overflow_warning(current_thd, func_name());
-    }
-    return nullptr;
+  uint64 length = base64_needed_decoded_length(res->length());
+  if (length > current_thd->variables.max_allowed_packet)
+    return push_packet_overflow_warning(current_thd, func_name());
+
+  if (tmp_value.alloc(length)) return error_str();
+
+  const char *end_ptr;
+  int64 decoded_length =
+      base64_decode(res->ptr(), res->length(), tmp_value.ptr(), &end_ptr, 0);
+  if (decoded_length < 0 || end_ptr < res->ptr() + res->length()) {
+    return null_return_str();
   }
-  tmp_value.length((uint)length);
+
+  tmp_value.length(decoded_length);
   null_value = false;
   return &tmp_value;
 }
@@ -2423,17 +2416,16 @@ void Item_func_make_set::update_used_tables() {
 
 String *Item_func_make_set::val_str(String *str) {
   assert(fixed);
-  ulonglong bits;
   bool first_found = false;
   Item **ptr = args;
-  String *result = nullptr;
   THD *thd = current_thd;
 
-  bits = item->val_int();
+  ulonglong bits = item->val_int();
   if ((null_value = item->null_value)) return nullptr;
 
-  if (arg_count < 64) bits &= ((ulonglong)1 << arg_count) - 1;
+  if (arg_count < 64) bits &= (1ULL << arg_count) - 1;
 
+  tmp_str.set("", 0, collation.collation);
   for (; bits; bits >>= 1, ptr++) {
     if ((bits & 1) == 0) {
       continue;
@@ -2441,36 +2433,22 @@ String *Item_func_make_set::val_str(String *str) {
     String *res = eval_string_arg(collation.collation, *ptr, str);
     if (res == nullptr) {
       if (thd->is_error()) {
-        null_value = true;
-        return nullptr;
+        return error_str();
       }
       continue;  // Skip nulls
     }
 
-    if (!first_found) {  // First argument
-      first_found = true;
-      if (res != str)
-        result = res;  // Use original string
-      else {
-        if (tmp_str.copy(*res))  // Don't use 'str'
-          return make_empty_result();
-        result = &tmp_str;
+    if (first_found) {
+      if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
+          tmp_str.append(*res)) {
+        return make_empty_result();
       }
     } else {
-      if (result != &tmp_str) {  // Copy data to tmp_str
-        if (tmp_str.alloc((result != nullptr ? result->length() : 0) +
-                          res->length() + 1) ||
-            tmp_str.copy(*result))
-          return make_empty_result();
-        result = &tmp_str;
-      }
-      if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
-          tmp_str.append(*res))
-        return make_empty_result();
+      first_found = true;
+      if (tmp_str.copy(*res)) return make_empty_result();
     }
   }
-  if (result == nullptr) return make_empty_result();
-  return result;
+  return &tmp_str;
 }
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg) {

@@ -1130,6 +1130,10 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
     query_block->context.resolve_in_select_list = true;
 
+    // Use the hypergraph optimizer for the SELECT statement, if enabled.
+    lex->using_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     Query_result *result = new (thd->mem_root)
@@ -3108,6 +3112,10 @@ reexecute:
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY &&
           !m_lex->unit->is_executed()) {
+        if (has_external_table(m_lex->query_tables)) {
+          set_external_engine_fail_reason(m_lex,
+                                          thd->get_stmt_da()->message_text());
+        }
         thd->clear_error();
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_ONLY);

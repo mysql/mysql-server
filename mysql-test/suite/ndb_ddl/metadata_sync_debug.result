@@ -102,7 +102,6 @@ a INT PRIMARY KEY,
 b VARCHAR(255)
 ) ENGINE NDB;
 SET GLOBAL debug = '+d,ndb_metadata_sync_fail';
-CALL mtr.add_suppression("NDB Binlog: Failed to synchronize table");
 SET GLOBAL ndb_metadata_check_interval = 0;
 SET GLOBAL ndb_metadata_check = true;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;

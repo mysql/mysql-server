@@ -1880,12 +1880,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     case COM_CHANGE_USER: {
       MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
-      /*
-        LOCK_thd_security_ctx protects the THD's security-context from
-        inspection by SHOW PROCESSLIST while we're updating it. Nested
-        acquiring of LOCK_thd_data is fine (see below).
-      */
-      MUTEX_LOCK(grd_secctx, &thd->LOCK_thd_security_ctx);
 
       int auth_rc;
       thd->status_var.com_other++;
@@ -1894,7 +1888,17 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       USER_CONN *save_user_connect =
           const_cast<USER_CONN *>(thd->get_user_connect());
       LEX_CSTRING save_db = thd->db();
+
+      /*
+        LOCK_thd_security_ctx protects the THD's security-context from
+        inspection by SHOW PROCESSLIST while we're updating it. However,
+        there is no need to protect this context while we're reading it,
+        sinceother threads are not supposed to modify it.
+        Nested acquiring of LOCK_thd_data is fine (see below).
+      */
       Security_context save_security_ctx(*(thd->security_context()));
+
+      MUTEX_LOCK(grd_secctx, &thd->LOCK_thd_security_ctx);
 
       auth_rc = acl_authenticate(thd, COM_CHANGE_USER);
       auth_rc |= mysql_audit_notify(
@@ -3328,8 +3332,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   /*
-    Pre-open temporary tables to simplify privilege checking
-    for statements which need this.
+    Open all temporary tables referenced in statement.
+    A session has all privileges for any temporary table that it has created,
+    however a table must be opened in order to identify it as a temporary table.
   */
   if (sql_command_flags[lex->sql_command] & CF_PREOPEN_TMP_TABLES) {
     if (open_temporary_tables(thd, all_tables)) goto error;

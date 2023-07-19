@@ -466,7 +466,18 @@ ClusterMgr::threadMain()
 	raw_sendSignal(&signal, nodeId);
       }//if
       
-      if (cm_node.hbMissed == 4 && cm_node.hbFrequency > 0)
+      /**
+       * Node can be reported as disconnected in two different ways
+       * 1 - Node was reported as connected, hbFrequency already configured
+       * (arrived as part of an earlier API_REGCONF signal received) but no
+       * API_REGCONF arriving for, at least, 4 * hbFrequency millisecond.
+       * 2 - Node reported as connected, first API_REGCONF missed for more
+       * them maxTimeWithoutFirstApiRegConfMillis / minHeartBeatInterval
+       * (60 seconds).
+       */
+      if ((cm_node.hbMissed == 4 && cm_node.hbFrequency > 0) ||
+          (cm_node.hbMissed == maxIntervalsWithoutFirstApiRegConf &&
+           cm_node.hbFrequency == 0))
       {
         nodeFailRep->noOfNodes++;
         NodeBitmask::set(theAllNodes, nodeId);

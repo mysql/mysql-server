@@ -35,7 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace ut::detail {
 
-thread_local uint64_t random_seed = 0;
+/* Changes for each threads for more different sequences. */
+thread_local uint64_t random_seed = ut::this_thread_hash + my_timer_cycles();
 
 /* This is a "precomputed" table of random hash values. */
 alignas(ut::INNODB_CACHE_LINE_SIZE)

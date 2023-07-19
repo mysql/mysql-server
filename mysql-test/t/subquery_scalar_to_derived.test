@@ -826,6 +826,30 @@ WHERE pedcompralote IN (SELECT cod FROM t2 WHERE ped=1779);
 
 DROP TABLE t1, t2;
 
+--echo # outer query has DEFAULT: verify it is handled correctly
+CREATE TABLE t(i INT DEFAULT 5);
+INSERT INTO t VALUES (4);
+
+let $query =
+SELECT DEFAULT(i) AS def,
+       5 + DEFAULT(i) AS def2,
+       i AS any_v,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval $query;
+
+SET SQL_MODE='';
+
+eval $query;
+eval EXPLAIN $query;
+
+SET SQL_MODE=default;
+
+DROP TABLE t;
+
 --echo #
 --echo # 6.  S U B Q U E R Y   I N   H A V I N G   C L A U S E
 --echo #
@@ -2334,23 +2358,34 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 INTEGER);
+
+let $query1=
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+let $query2=
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+let $query3=
+SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+
 SET optimizer_switch='subquery_to_derived=default';
 # This will throw error
 --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+eval $query1;
 # This should throw error. But does not because before the full group by verification
 # happens, order by elements are removed (not correct for this case).
-SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+eval $query2;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval $query3;
+
 SET optimizer_switch='subquery_to_derived=on';
 # This will throw error (not as precise as when the transformation is off)
 --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
-# This will throw error. Since the order by field is now visible in the derived
-# table.
+eval $query1;
+# This should throw error. But does not because before the full group by verification
+# happens, order by elements are removed (not correct for this case).
+eval $query2;
 --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
-SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+eval $query3;
+
 DROP TABLE t1;
 
 --echo #
@@ -2381,6 +2416,24 @@ FROM t AS t1,
      (SELECT 1 FROM t) AS t2,
      t AS t3
 ORDER BY ROW_NUMBER() OVER (ORDER BY -t3.x);
+
+SET SQL_MODE=default;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35150085 Wrong item name in result set after transform
+--echo #
+
+SET SQL_MODE='';
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (4);
+
+SELECT i AS i1,  # used to get renamed to i2
+       i AS i2,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
 
 SET SQL_MODE=default;
 DROP TABLE t;

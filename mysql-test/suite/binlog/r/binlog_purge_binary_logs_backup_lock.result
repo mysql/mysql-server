@@ -1,0 +1,36 @@
+#
+# Initialization
+#
+RESET MASTER;
+CREATE TABLE t1 (c INT);
+FLUSH BINARY LOGS;
+SHOW BINARY LOGS;
+Log_name	File_size	Encrypted
+binlog.000001	SIZE	No
+binlog.000002	SIZE	No
+#
+# Execute PURGE BINARY LOGS but stop on a sync point
+#
+[connection default]
+PURGE BINARY LOGS TO 'binlog.000001';
+[START] PURGE BINARY LOGS TO 'binlog.000001';
+#
+# Check errors for LOCK INSTANCE FOR BACKUP operation
+#
+SET SESSION lock_wait_timeout = 1;
+LOCK INSTANCE FOR BACKUP;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+#
+# Continue PURGE BINARY LOGS operation
+#
+[END] PURGE BINARY LOGS TO 'binlog.000001';
+#
+# Check no errors for LOCK INSTANCE FOR BACKUP operation
+#
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+#
+# Cleanup
+#
+[connection default]
+DROP TABLE t1;

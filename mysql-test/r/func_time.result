@@ -1075,7 +1075,11 @@ select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET GLOBAL log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create table t1 (a timestamp default '2005-05-05 01:01:01',
 b timestamp default '2005-05-05 01:01:01');
 drop function if exists t_slow_sysdate;
@@ -1100,6 +1104,8 @@ drop trigger t_before;
 drop function t_slow_sysdate;
 drop table t1;
 SET GLOBAL log_bin_trust_function_creators = 0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create table t1 (a datetime, i int, b datetime);
 insert into t1 select sysdate(), sleep(1), sysdate() from dual;
 select a != b from t1;
@@ -1119,6 +1125,8 @@ call t_sysdate();
 1
 drop procedure t_sysdate;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 select timestampdiff(month,'2004-09-11','2004-09-11');
 timestampdiff(month,'2004-09-11','2004-09-11')
 0

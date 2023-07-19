@@ -48,6 +48,7 @@
 #include "my_double2ulonglong.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
+#include "scope_guard.h"
 #include "sql-common/json_binary.h"  // json_binary::serialize
 #include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
 #include "sql/create_field.h"
@@ -4756,7 +4757,7 @@ String *Field_temporal_with_date::val_str(String *val_buffer, String *) const {
   val_buffer->alloc(field_length + 1);
   val_buffer->set_charset(&my_charset_numeric);
   if (get_date_internal(&ltime)) {
-    val_buffer->set_ascii(my_zero_datetime6, field_length);
+    val_buffer->copy(my_zero_datetime6, field_length, &my_charset_numeric);
     return val_buffer;
   }
   make_datetime((Date_time_format *)nullptr, &ltime, val_buffer, dec);
@@ -9947,6 +9948,40 @@ Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
   return res;
 }
 
+int Field_typed_array::key_cmp(const uchar *key_ptr, uint key_length) const {
+  Json_wrapper col_val;
+  Json_wrapper key;
+  String value, tmp;
+  uchar buff[MAX_KEY_LENGTH];
+
+  // Convert key into json object for easy comparison.
+  const size_t org_length =
+      m_conv_item->field->get_key_image(buff, key_length, imagetype::itRAW);
+  auto cleanup_guard = create_scope_guard([&] {
+    // Restore original key image.
+    m_conv_item->field->set_key_image(buff, org_length);
+  });
+
+  m_conv_item->field->set_key_image(key_ptr, key_length);
+  if (sql_scalar_to_json(m_conv_item, "<Field_typed_array::key_cmp>", &value,
+                         &tmp, &key, nullptr, true)) {
+    return -1;
+  }
+
+  // Compare colum value with the key.
+  if (val_json(&col_val)) {
+    return -1;
+  }
+  assert(col_val.type() == enum_json_type::J_ARRAY);
+  for (uint i = 0; i < col_val.length(); i++) {
+    Json_wrapper elt = col_val[i];
+    if (key.compare(elt) == 0) {
+      return 0;
+    }
+  }
+  return -1;
+}
+
 void Field_typed_array::init(TABLE *table_arg) {
   Field::init(table_arg);
 
@@ -10373,32 +10408,33 @@ uint32 Create_field_wrapper::max_display_length() const {
   return m_field->max_display_width_in_codepoints();
 }
 
-Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
+Create_field *generate_create_field(THD *thd, Item *source_item,
+                                    TABLE *tmp_table) {
   Field *tmp_table_field;
-  if (item->type() == Item::FUNC_ITEM) {
+  if (source_item->type() == Item::FUNC_ITEM) {
     /*
       If the function returns an array, use the method provided by the function
       to create the tmp table field, as the generic
       tmp_table_field_from_field_type() can't handle typed arrays.
     */
-    if (item->result_type() != STRING_RESULT || item->returns_array())
-      tmp_table_field = item->tmp_table_field(tmp_table);
-    else
-      tmp_table_field = item->tmp_table_field_from_field_type(tmp_table, false);
+    if (source_item->result_type() != STRING_RESULT ||
+        source_item->returns_array()) {
+      tmp_table_field = source_item->tmp_table_field(tmp_table);
+    } else {
+      tmp_table_field =
+          source_item->tmp_table_field_from_field_type(tmp_table, false);
+    }
   } else {
-    Field *from_field, *default_field;
-    tmp_table_field = create_tmp_field(thd, tmp_table, item, item->type(),
-                                       nullptr, &from_field, &default_field,
-                                       false, false, false, false);
+    Field *from_field;
+    Field *default_field;
+    tmp_table_field = create_tmp_field(
+        thd, tmp_table, source_item, source_item->type(), nullptr, &from_field,
+        &default_field, false, false, false, false);
   }
+  if (!tmp_table_field) return nullptr; /* purecov: inspected */
 
-  if (!tmp_table_field) {
-    return nullptr; /* purecov: inspected */
-  }
-
-  Field *table_field;
-
-  switch (item->type()) {
+  Field *table_field = nullptr;
+  switch (source_item->type()) {
     case Item::FIELD_ITEM:
     case Item::TRIGGER_FIELD_ITEM: {
       /*
@@ -10406,33 +10442,34 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
         and pseudo-fields used in trigger's body. These fields are used to copy
         defaults values later inside constructor of the class Create_field.
        */
-      table_field = ((Item_field *)item)->field;
+      table_field = down_cast<Item_field *>(source_item)->field;
       break;
     }
     default: {
       /*
-        If the expression is of temporal type having date and non-nullable,
-        a zero date is generated. If in strict mode, then zero date is
-        invalid. For such cases no default is generated.
+        No default should be generated:
+        1. If the expression is of temporal type having date and non-nullable,
+        and we're in strict mode, as the zero date is invalid.
+        2. If the expression is of GEOMETRY type, and it is non-nullable.
        */
-      table_field = nullptr;
-      if (is_temporal_type_with_date(tmp_table_field->type()) &&
-          thd->is_strict_mode() && !item->is_nullable())
+      if (!source_item->is_nullable() &&
+          ((is_temporal_type_with_date(tmp_table_field->type()) &&
+            thd->is_strict_mode() /*(1)*/) ||
+           (tmp_table_field->type() == MYSQL_TYPE_GEOMETRY) /*(2)*/)) {
         tmp_table_field->set_flag(NO_DEFAULT_VALUE_FLAG);
+      }
     }
   }
 
   assert(tmp_table_field->gcol_info == nullptr &&
          tmp_table_field->stored_in_db);
-  Create_field *cr_field =
+  Create_field *create_field =
       new (thd->mem_root) Create_field(tmp_table_field, table_field);
-
-  if (!cr_field) {
-    return nullptr; /* purecov: inspected */
-  }
+  if (!create_field) return nullptr; /* purecov: inspected */
 
   // Mark if collation was specified explicitly by user for the column.
-  if (item->type() == Item::FIELD_ITEM) {
+  if (source_item->type() == Item::FIELD_ITEM) {
+    assert(table_field != nullptr);
     const TABLE *table = table_field->table;
     assert(table);
     const dd::Table *table_obj =
@@ -10447,16 +10484,16 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
       }
     }
 
-    cr_field->is_explicit_collation = false;
+    create_field->is_explicit_collation = false;
     if (table_obj) {
       const dd::Column *c = table_obj->get_column(table_field->field_name);
-      if (c) cr_field->is_explicit_collation = c->is_explicit_collation();
+      if (c) create_field->is_explicit_collation = c->is_explicit_collation();
     }
   }
 
-  if (item->is_nullable()) cr_field->flags &= ~NOT_NULL_FLAG;
+  if (source_item->is_nullable()) create_field->flags &= ~NOT_NULL_FLAG;
 
-  return cr_field;
+  return create_field;
 }
 
 const char *get_field_name_or_expression(THD *thd, const Field *field) {

@@ -26,8 +26,13 @@
 #define NDB_PROCESSINFO_HPP
 
 
+#include <stddef.h>  // size_t
+#include "ndb_types.h"
+#include "portlib/ndb_socket.h"  // socklen_t
+
 /* Forward Declarations */
 class ProcessInfoRep;
+class ndb_sockaddr;
 
 /* Class ProcessInfo */
 class ProcessInfo {
@@ -50,8 +55,7 @@ public:
   void setUriPath(Uint32 *signal_data);
   void setUriScheme(const char *);
   void setProcessName(const char *);
-  void setHostAddress(const struct sockaddr *, socklen_t);
-  void setHostAddress(const struct in6_addr *);
+  void setHostAddress(const ndb_sockaddr *);
   void setHostAddress(Uint32 *signal_data);
   void setHostAddress(const char *);
   void setPid();

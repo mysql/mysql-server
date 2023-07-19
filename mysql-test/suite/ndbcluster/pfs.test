@@ -45,8 +45,26 @@ SELECT IF(PFS_MEM.SUM_NUMBER_OF_BYTES_ALLOC > 0, "true", "false") AS has_alloc_m
   ON PFS_MEM.THREAD_ID = PFS_THR.THREAD_ID
   WHERE PFS_THR.name LIKE '%ndb_binlog%' AND EVENT_NAME LIKE '%THD::main_mem_root%';
 
+--echo # The amount of memory used when accessing DD from ndbcluster plugin
+--echo # threads can be queried
+SELECT IF(PFS_MEM.SUM_NUMBER_OF_BYTES_ALLOC > 0, "true", "false") AS has_alloc_mem
+  FROM performance_schema.memory_summary_by_thread_by_event_name PFS_MEM
+  JOIN performance_schema.threads PFS_THR
+  ON PFS_MEM.THREAD_ID = PFS_THR.THREAD_ID
+  WHERE PFS_THR.name LIKE '%ndb_binlog%' AND
+    EVENT_NAME LIKE '%Ndb_dd_client::dd_mem_root%';
+
 --echo # The instrumented memory roots can be queried
 SELECT EVENT_NAME
   FROM performance_schema.memory_summary_by_thread_by_event_name
   WHERE THREAD_ID = PS_CURRENT_THREAD_ID() AND
     EVENT_NAME LIKE 'memory/ndbcluster/%';
+
+--echo # Log messages written by ndbcluster plugin can be queried
+--echo # using the error_log table where the SUBSYSTEM column is
+--echo # set to "NDB"
+query_vertical
+SELECT THREAD_ID, PRIO, ERROR_CODE, SUBSYSTEM, DATA
+    FROM performance_schema.error_log
+    WHERE SUBSYSTEM = "NDB" AND
+      DATA LIKE "%all storage nodes connected%";

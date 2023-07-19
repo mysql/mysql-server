@@ -144,8 +144,9 @@ class Binlog_sender {
      - binlog_row_event_max_size is defined as an unsigned long,
        thence in theory row events can be bigger than UINT_MAX32.
 
-     - max_allowed_packet is set to MAX_MAX_ALLOWED_PACKET which is in
-       turn defined as 1GB (i.e., 1024*1024*1024). (@c Binlog_sender::init()).
+     - max_allowed_packet is set to binary_log::max_log_event_size
+       which is in turn defined as 1GB (i.e., 1024*1024*1024). (@c
+       Binlog_sender::init()).
 
      Therefore, anything bigger than UINT_MAX32 is not loadable into the
      packet, thus we set the limit to 4GB (which is the value for UINT_MAX32,

@@ -12166,6 +12166,69 @@ runCreateManyDataFiles(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runManyNdbObjectsGetTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  if (pDict->createTable(* pTab) != 0)
+  {
+    ndbout << "ERROR: line: " << __LINE__ << endl;
+    ndbout << pDict->getNdbError();
+    return NDBT_FAILED;
+  }
+
+  BaseString db_name = pNdb->getDatabaseName();
+  BaseString tab_name = pTab->getName();
+
+  /*
+   * The below created Ndb objects will most likely get consecutive blocknumbers.
+   * In that case eigth of them (0x12, 0x52, 0x92, 0xd2, 0x111, 0x151, 0x191,
+   * 0x1d1) will if treated as data node block numbers be mapped to block
+   * number of V_QUERY.
+   * By provoking a GET_TABINFOREQ to be sent from each Ndb object will
+   * demonstrate Bug#35154637.
+   */
+  constexpr Uint32 object_count = 512;
+  Ndb* ndb_objects[object_count];
+  for (Uint32 i = 0; i < object_count; i++)
+  {
+    ndb_objects[i] = new Ndb(&ctx->m_cluster_connection, db_name.c_str());
+    if (ndb_objects[i]->init() != 0)
+    {
+      ndbout << "ERROR: line: " << __LINE__ << endl;
+      ndbout << ndb_objects[i]->getNdbError();
+      return NDBT_FAILED;
+    }
+  }
+  for (Uint32 i = object_count; i > 0;)
+  {
+    i--;
+    NdbDictionary::Dictionary *dict = ndb_objects[i]->getDictionary();
+    dict->invalidateTable(tab_name.c_str());
+    const NdbDictionary::Table* tab = dict->getTable(tab_name.c_str());
+    if (tab == nullptr)
+    {
+      ndbout << "ERROR: line: " << __LINE__ << endl;
+      ndbout << dict->getNdbError();
+      return NDBT_FAILED;
+    }
+  }
+  for (Uint32 i = 0; i < object_count; i++)
+  {
+    delete ndb_objects[i];
+  }
+  if (pDict->dropTable(tab_name.c_str()) != 0)
+  {
+    ndbout << "ERROR: line: " << __LINE__ << endl;
+    ndbout << pDict->getNdbError();
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -12610,6 +12673,11 @@ TESTCASE("CreateManyDataFiles", "Test lack of DiskPageBufferMemory "
   INITIALIZER(runCreateManyDataFiles);
   FINALIZER(runDropTableSpaceLG);
   FINALIZER(changeStartDiskPageBufMem);
+}
+TESTCASE("ManyNdbObjectsGetTable", "Have many Ndb objects to get table "
+         "definition.")
+{
+  STEP(runManyNdbObjectsGetTable);
 }
 
 NDBT_TESTSUITE_END(testDict)

@@ -81,7 +81,7 @@ ndb$frag_locks	344	96
 ndb$frag_mem_use	344	100
 ndb$frag_operations	344	192
 ndb$hwinfo	2	44
-ndb$index_stats	64	12
+ndb$index_stats	64	20
 ndb$logbuffers	8	40
 ndb$logspaces	8	40
 ndb$membership	2	88

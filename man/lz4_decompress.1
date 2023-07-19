@@ -2,12 +2,12 @@
 .\"     Title: lz4_decompress
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 06/02/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "LZ4_DECOMPRESS" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "LZ4_DECOMPRESS" "1" "06/02/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,6 +39,25 @@ The
 utility decompresses
 \fBmysqlpump\fR
 output that was created using LZ4 compression\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBlz4_decompress\fR
+is deprecated as of MySQL 8\&.0\&.34; expect it to be removed in a future version of MySQL\&. This is because the associated
+\fBmysqlpump\fR
+utility is deprecated as of MySQL 8\&.0\&.34\&.
+.sp .5v
+.RE
 .if n \{\
 .sp
 .\}

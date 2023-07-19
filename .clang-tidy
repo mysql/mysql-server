@@ -23,6 +23,7 @@
 Checks:
   -*,
   bugprone-*,
+  -bugprone-easily-swappable-parameters,
   clang-analyzer-*,
   -clang-diagnostic-unused-function,
   cppcoreguidelines-*,
@@ -39,12 +40,15 @@ Checks:
   -google-runtime-int,
   misc-*,
   -misc-const-correctness,
+  modernize-use-nullptr,
   llvm-*,
   -llvm-header-guard,
   -llvm-include-order,
   performance-*,
   readability-*,
-  -readability-braces-around-statements
+  -readability-braces-around-statements,
+  -readability-named-parameter
+  -readability-redundant-member-init
 
 CheckOptions:
   - key:        readability-magic-numbers.IgnoredIntegerValues

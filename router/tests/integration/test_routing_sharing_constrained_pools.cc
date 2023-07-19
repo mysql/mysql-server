@@ -955,7 +955,6 @@ class ShareConnectionTestTemp
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        s->flush_privileges();       // reset the auth-cache
         s->close_all_connections();  // reset the router's connection-pool
         s->reset_to_defaults();
       }
@@ -1331,6 +1330,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/do", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         // cli1: set-option
@@ -1356,7 +1356,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       } else {
         // cli1: set-option
@@ -1426,7 +1426,87 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
 }
 
 TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_set_option_reconnect) {
+  RecordProperty(
+      "Description",
+      "check if the multi-statement flag is recovered after a reconnect");
+
+  SCOPED_TRACE("// ensure the pool is empty");
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  if (can_share) {
+    // connection is in the pool
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// enable multi-statement support on 1st connection.");
+  ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
+
+  if (can_share) {
+    // connection is in the pool
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// verify multi-statement works");
+  {
+    auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE(
+      "// open a 2nd connection which should reuse the 1st connection.");
+  MysqlClient cli_blocker;
+  cli_blocker.username(account.username);
+  cli_blocker.password(account.password);
+
+  ASSERT_NO_ERROR(cli_blocker.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+  {
+    auto query_res = cli_blocker.query("DO /* client[1] = FAIL */ 1; DO 2");
+    ASSERT_ERROR(query_res);
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// the 1st connection still is multi-statement");
+  {
+    auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+}
+
+TEST_P(ShareConnectionTinyPoolOneServerTest,
        overlapping_connections_different_accounts) {
+  for (auto &s : shared_servers()) {
+    s->flush_privileges();  // reset the auth-cache
+  }
+
   MysqlClient cli1, cli2, cli3;
 
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
@@ -1523,6 +1603,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/do", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         // cli1: set-option
@@ -1548,7 +1629,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       } else {
         // cli1: set-option
@@ -2078,38 +2159,6 @@ class WarningsChecker : public Checker {
 
     // send a statement with generates a warning or error.
     ASSERT_NO_ERROR(cli.query(stmt));
-
-    // router will return the response and inject a SHOW WARNINGS
-    // before returning the connection to the pool.
-    //
-    // c->r   : stmt
-    //    r->s: stmt
-    //    r<-s: ok, warnings
-    // c<-r   : ok, warnings
-    //    r->s: SHOW WARNINGS
-    //    r<-s: row, ... row_end
-    //    r--s: idle ... to pool
-    //
-    // As the checker may expect that the connection is pooled right after the
-    // client gets the Ok, it may sent the next command while the SHOW WARNINGS
-    // still runs.
-    //
-    // By sending a ping, it can be ensured that the SHOW WARNINGS finished and
-    // the connection is in the pool.
-    //
-    // c->r   : stmt
-    //    r->s: stmt
-    //    r<-s: ok, warnings
-    // c<-r   : ok, warnings
-    //    r->s: SHOW WARNINGS
-    // c->r   : ping
-    //    r<-s: row, ... row_end
-    //    r->s: ping
-    //    r<-s: ok
-    // c<-r   : ok
-    //    r--s: idle ... to pool
-
-    ASSERT_NO_ERROR(cli.ping());
   }
 
   std::function<void(MysqlClient &cli)> verifier() override {
@@ -2253,10 +2302,12 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
       std::make_unique<SetSessionVarChecker>(
           SetSessionVarChecker::test_values_type{{"timestamp", "1.500000"},
                                                  {"unique_checks", "0"}}));
+
   checkers.emplace_back(
       "warnings",
       std::make_unique<WarningsChecker>(WarningsChecker::test_values_type{
           {"DO 0/0", 1365}, {"DO _utf8''", 3719}}));
+
   checkers.emplace_back(
       "no-warnings", std::make_unique<NoWarningsChecker>(
                          NoWarningsChecker::test_values_type{"DO 1", "DO 2"}));
@@ -2333,7 +2384,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
               GTEST_SKIP() << connect_res.error();
             }
             ASSERT_NO_ERROR(connect_res);
-
             //
             ASSERT_NO_ERROR(cli.ping());
           }
@@ -2349,15 +2399,18 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
         }
 
         if (clean_pool_before_verify && can_share && can_fetch_password) {
-          // only close server's connections the connections are expected to be
-          // in the pool.
+          // wait until all connections are pooled.
+          ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
+              kMaxPoolSize, 1s));
+
+          // only close the connections that are expected to be in the pool.
           for (auto &s : shared_servers()) {
             s->close_all_connections();
           }
 
-          // wait a bit to give the connection pool time to notice that the
-          // connection got closed.
-          std::this_thread::sleep_for(50ms);
+          // wait until all connections are pooled.
+          ASSERT_NO_ERROR(
+              shared_router()->wait_for_idle_server_connections(0, 1s));
         }
 
         // verify variables that were set are reapplied.
@@ -3272,6 +3325,274 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, forbidden_statements_if_sharing) {
       ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
     }
   }
+}
+
+/**
+ * check max-connection errors are properly forwarded to the client at connect.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_server_greeting_error) {
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  Scope_guard restore_at_end{[this]() {
+    auto reset_globals = [this]() -> stdx::expected<void, MysqlError> {
+      auto admin_account = SharedServer::admin_account();
+
+      MysqlClient admin_cli;
+
+      admin_cli.username(admin_account.username);
+      admin_cli.password(admin_account.password);
+
+      auto connect_res = admin_cli.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      if (!connect_res) return stdx::make_unexpected(connect_res.error());
+
+      auto query_res = admin_cli.query("SET GLOBAL max_connections = DEFAULT");
+      if (!query_res) return stdx::make_unexpected(query_res.error());
+
+      return {};
+    };
+
+    // it may take a while until the last connection of the test is closed
+    // before this admin connection can be opened to reset the globals again.
+    auto end_time = std::chrono::steady_clock::now() + 1s;
+
+    while (true) {
+      auto reset_res = reset_globals();
+      if (!reset_res) {
+        auto ec = reset_res.error();
+
+        // wait a bit until all connections are closed.
+        //
+        // 1040 is Too many connections.
+        if (ec.value() == 1040 && std::chrono::steady_clock::now() < end_time) {
+          std::this_thread::sleep_for(20ms);
+          continue;
+        }
+      }
+
+      ASSERT_NO_ERROR(reset_res);
+      break;
+    }
+  }};
+
+  SCOPED_TRACE("// testing");
+  {
+    SCOPED_TRACE("// connecting, keep open and block sharing");
+
+    auto account = SharedServer::native_empty_password_account();
+
+    MysqlClient cli;  // keep it open
+    {
+      cli.username(account.username);
+      cli.password(account.password);
+
+      auto connect_res = cli.connect(shared_router()->host(),
+                                     shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+
+      // block sharing
+      ASSERT_NO_ERROR(cli.query("BEGIN"));
+    }
+
+    // fails at auth as the a SUPER account could still connect
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    SCOPED_TRACE("// connect as SUPER user, keep open, block sharing");
+    MysqlClient cli_super;  // keep it open
+    {
+      auto admin_account = SharedServer::admin_account();
+
+      cli_super.username(admin_account.username);
+      cli_super.password(admin_account.password);
+
+      auto connect_res = cli_super.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+
+      // block sharing
+      ASSERT_NO_ERROR(cli_super.query("BEGIN"));
+    }
+
+    // fails at connect at greeting, as SUPER and max_connections are connected.
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    // closing the super connection would make it end up in the pool, but the
+    // scope-guard needs to to be closed to open its own connection.
+    cli_super.query("KILL CONNECTION_ID()");
+  }
+
+  SCOPED_TRACE("// cleanup");
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  // calls Scope_guard
+}
+
+/**
+ * check max-connection errors are properly forwarded to the client after query.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_server_greeting_error_at_query) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  Scope_guard restore_at_end{[this]() {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+  }};
+
+  SCOPED_TRACE("// testing");
+  {
+    SCOPED_TRACE("// connecting, keep open and block sharing");
+
+    auto account = SharedServer::native_empty_password_account();
+
+    MysqlClient cli1;  // keep it open
+    {
+      cli1.username(account.username);
+      cli1.password(account.password);
+
+      auto connect_res = cli1.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    if (can_share) {
+      // wait until the connection is pooled.
+      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    }
+
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      if (can_share) {
+        ASSERT_NO_ERROR(connect_res);
+
+        // block the connection.
+        ASSERT_NO_ERROR(cli2.query("BEGIN"));
+
+        // trigger a reconnect on the earlier connection should fail with
+        // "max-connections"
+        auto cmd_res = cli1.query("DO 1");
+        ASSERT_ERROR(cmd_res);
+        EXPECT_EQ(cmd_res.error().value(), 1040);
+      } else {
+        ASSERT_ERROR(connect_res);
+        EXPECT_EQ(connect_res.error().value(), 1040);
+      }
+    }
+  }
+
+  SCOPED_TRACE("// cleanup");
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  // calls Scope_guard
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTinyPoolOneServerTest,

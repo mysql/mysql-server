@@ -57,8 +57,12 @@ include/rpl_sync.inc
 ==== Case 2A: temp table transaction not logged in row format ====
 ---- Initialize ----
 SET @save.binlog_format= @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/stop_slave_sql.inc
 SET @@global.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/start_slave_sql.inc
 ---- Test ----
 include/gtid_step_reset.inc
@@ -72,12 +76,20 @@ DROP TEMPORARY TABLE t2;
 include/rpl_sync.inc
 include/stop_slave_sql.inc
 SET @@global.binlog_format= @save.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ==== Case 2B: transaction with no effect not logged in row format ====
 ---- Initialize ----
 SET @save.binlog_format= @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@global.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/start_slave_sql.inc
 SET @@session.binlog_format= statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1(id INT) ENGINE = InnoDB;
 include/rpl_sync.inc
 INSERT INTO t1 VALUES (0);
@@ -89,9 +101,13 @@ DROP TABLE t1;
 include/rpl_sync.inc
 include/stop_slave_sql.inc
 SET @@global.binlog_format= @save.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/start_slave_sql.inc
 ==== Case 3: explicit empty transaction on master ====
 SET @@SESSION.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/gtid_step_reset.inc
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;

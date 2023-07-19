@@ -3475,18 +3475,35 @@ void CostingReceiver::ProposeHashJoin(
     }
   }
 
-  const double hash_memory_used_bytes =
-      estimated_bytes_per_row * right_path->num_output_rows();
+  const double reuse_buffer_probability = [&]() {
+    if (right_path->parameter_tables > 0) {
+      // right_path has external dependencies, so the buffer cannot be reused.
+      return 0.0;
+    } else {
+      /*
+        If the full data set from right_path fits in the join buffer,
+        we never need to rebuild the hash table. build_cost should
+        then be counted as init_once_cost. Otherwise, build_cost will
+        be incurred for each re-scan. To get a good estimate of
+        init_once_cost we therefor need to estimate the chance of
+        exceeding the join buffer size. We estimate this probability as:
 
-  if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9 &&
-      right_path->parameter_tables == 0) {
-    // Fits in memory (with 10% estimation margin), and has
-    // no external dependencies, so the hash table can be reused.
-    join_path.init_once_cost = build_cost + outer->init_once_cost;
-  } else {
-    join_path.init_once_cost =
-        outer->init_once_cost + right_path->init_once_cost;
-  }
+        (expected_data_volume / join_buffer_size)^2
+
+        for expected_data_volume < join_buffer_size and 1.0 otherwise.
+      */
+      const double buffer_usage = std::min(
+          1.0, estimated_bytes_per_row * right_path->num_output_rows() /
+                   m_thd->variables.join_buff_size);
+      return 1.0 - buffer_usage * buffer_usage;
+    }
+  }();
+
+  join_path.init_once_cost =
+      outer->init_once_cost +
+      (1.0 - reuse_buffer_probability) * right_path->init_once_cost +
+      reuse_buffer_probability * build_cost;
+
   join_path.cost = cost;
 
   // For each scan, hash join will read the left side once and the right side
@@ -3883,7 +3900,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
       left_path->immediate_update_delete_table;
 
   const AccessPath *inner = join_path.nested_loop_join().inner;
-  double inner_rescan_cost = inner->rescan_cost();
+  double filter_cost = 0.0;
 
   double right_path_already_applied_selectivity = 1.0;
   join_path.nested_loop_join().equijoin_predicates = OverflowBitset{};
@@ -3928,17 +3945,17 @@ void CostingReceiver::ProposeNestedLoopJoin(
           AlreadyAppliedAsSargable(condition, left_path, right_path);
       if (!subsumed) {
         equijoin_predicates.SetBit(join_cond_idx);
-        inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                                properties.contained_subqueries)
-                                 .cost_if_not_materialized;
+        filter_cost += EstimateFilterCost(m_thd, rows_after_filtering,
+                                          properties.contained_subqueries)
+                           .cost_if_not_materialized;
         rows_after_filtering *= properties.selectivity;
       }
     }
     for (const CachedPropertiesForPredicate &properties :
          edge->expr->properties_for_join_conditions) {
-      inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                              properties.contained_subqueries)
-                               .cost_if_not_materialized;
+      filter_cost += EstimateFilterCost(m_thd, rows_after_filtering,
+                                        properties.contained_subqueries)
+                         .cost_if_not_materialized;
       rows_after_filtering *= properties.selectivity;
     }
     join_path.nested_loop_join().equijoin_predicates =
@@ -3991,9 +4008,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // expensive on the right side (e.g. a large table scan). Obviously, this is a
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
+  const double first_loop_cost = (inner->cost + filter_cost) *
+                                 std::min(1.0, ceil(outer->num_output_rows()));
+
+  const double subsequent_loops_cost =
+      (inner->rescan_cost() + filter_cost) *
+      std::max(0.0, outer->num_output_rows() - 1.0);
+
   join_path.cost_before_filter = join_path.cost =
-      outer->cost + inner->init_cost +
-      inner_rescan_cost * ceil(outer->num_output_rows());
+      outer->cost + first_loop_cost + subsequent_loops_cost;
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something
@@ -5580,6 +5603,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // is broader than the ORDER BY clause.
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        if (sort_ahead_ordering.sort_ahead_only) {
+          continue;
+        }
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
@@ -5589,9 +5615,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
           // The ordering derived from DISTINCT. Always propose this one,
           // regardless of whether it also satisfies the ORDER BY ordering.
-        } else if (grouping.GetElements().size() <
+        } else if (grouping.size() <
                    orderings.ordering(sort_ahead_ordering.ordering_idx)
-                       .GetElements()
                        .size()) {
           // This sort-ahead ordering is too wide and may cause duplicates to be
           // returned. Don't propose it.
@@ -5774,6 +5799,9 @@ static int FindBestOrderingForWindow(
   bool best_following_both_orders = false;
   int best_num_matching_windows = 0;
   for (size_t i = 0; i < sort_ahead_orderings.size(); ++i) {
+    if (sort_ahead_orderings[i].sort_ahead_only) {
+      continue;
+    }
     const int ordering_idx = sort_ahead_orderings[i].ordering_idx;
     LogicalOrderings::StateIndex ordering_state =
         orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
@@ -6562,7 +6590,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       (!receiver.HasSeen(TablesBetween(0, graph.nodes.size())) ||
        receiver.root_candidates().empty())) {
     my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "All plans were rejected by the secondary storage engine.");
+             "All plans were rejected by the secondary storage engine");
     return nullptr;
   }
   Prealloced_array<AccessPath *, 4> root_candidates =
@@ -6912,7 +6940,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     // (e.g., sorting, limit, grouping) that we could not build a complete plan.
     assert(secondary_engine_cost_hook != nullptr);
     my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "All plans were rejected by the secondary storage engine.");
+             "All plans were rejected by the secondary storage engine");
     return nullptr;
   }
 

@@ -25,9 +25,6 @@
 #include <cstdlib>
 #include <cstring>
 
-/* We only need the tokens here */
-#define YYSTYPE_IS_DECLARED
-
 #include "sql/lex.h"
 #include "sql/lex_symbol.h"
 #include "sql/sql_hints.yy.h"

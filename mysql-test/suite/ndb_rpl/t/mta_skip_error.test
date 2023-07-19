@@ -18,7 +18,8 @@ insert into t1 values(997, 997, 997);
 select count(*) from t1;
 
 # Supress warnings from ndbcluster epoch sequence checking
-call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+--disable_query_log ONCE
+call mtr.add_suppression("Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 
 --echo # Add rows on replica, used for causing uniqueness violation
 insert into t1 values (2001,2001,1001);

@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 # Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
 # --------------------------------------------------------------------------
@@ -48,3 +54,5 @@ RESET MASTER;
 include/assert.inc [Table and contents created through mysqltest match 0x610D0A62.]
 include/assert.inc [Table and contents created while replaying binary log without --binary-mode set match 0x61(0D)0A62.]
 include/assert.inc [Table and contents created while replaying binary log with --binary-mode set match 0x610D0A62.]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

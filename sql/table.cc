@@ -4156,6 +4156,7 @@ void TABLE::reset() {
   set_keyread(false);
   no_keyread = false;
   all_partitions_pruned_away = false;
+  reginfo.join_tab = nullptr;
   reginfo.not_exists_optimize = false;
   reginfo.impossible_range = false;
   m_record_buffer = Record_buffer{0, 0, nullptr};
@@ -6555,12 +6556,11 @@ int Table_ref::fetch_number_of_rows(ha_rows fallback_estimate) {
                  // Recursive reference is never a const table
                  fallback_estimate);
   } else {
-    if (const int error =
-            table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-        error) {
+    int error = table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    DBUG_EXECUTE_IF("bug35208539_raise_error", error = HA_ERR_GENERIC;);
+    if (error) {
       return error;
     }
-
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
     // _something_ to work with.
@@ -7263,6 +7263,13 @@ void TABLE::column_bitmaps_set(MY_BITMAP *read_set_arg,
   if (file && created) file->column_bitmaps_signal();
 }
 
+handler *TABLE::get_primary_handler() const {
+  if (s->is_primary_engine()) {
+    return file;
+  }
+  return file->ha_get_primary_handler();
+}
+
 bool Table_ref::set_recursive_reference() {
   if (query_block->recursive_reference != nullptr) return true;
   query_block->recursive_reference = this;
@@ -7278,6 +7285,18 @@ bool Table_ref::is_derived_unfinished_materialization() const {
 uint Table_ref::get_hidden_field_count_for_derived() const {
   assert(is_view_or_derived());
   return derived_result->get_hidden_field_count();
+}
+
+bool Table_ref::is_external() const {
+  if (m_table_ref_type == TABLE_REF_BASE_TABLE && table != nullptr &&
+      table->file != nullptr) {
+    handler *primary_handler = table->get_primary_handler();
+    return primary_handler != nullptr &&
+           Overlaps(primary_handler->ht->flags,
+                    HTON_SUPPORTS_EXTERNAL_SOURCE) &&
+           primary_handler->get_table_share()->has_secondary_engine();
+  }
+  return false;
 }
 
 void LEX_MFA::copy(LEX_MFA *m, MEM_ROOT *alloc) {

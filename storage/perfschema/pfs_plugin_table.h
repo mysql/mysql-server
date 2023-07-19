@@ -85,6 +85,9 @@ extern SERVICE_TYPE(pfs_plugin_column_timestamp_v2)
 extern SERVICE_TYPE(pfs_plugin_column_year_v1)
     SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_year_v1);
 
+extern SERVICE_TYPE(pfs_plugin_column_text_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_text_v1);
+
 void init_pfs_plugin_table();
 void cleanup_pfs_plugin_table();
 #endif /* PFS_PLUGIN_TABLE_H */

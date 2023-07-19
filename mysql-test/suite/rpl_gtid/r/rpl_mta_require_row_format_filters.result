@@ -21,10 +21,14 @@ include/stop_slave.inc
 [connection master]
 INSERT INTO t1 VALUES (1);
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 INSERT INTO t1 VALUES (2);
 SET GTID_NEXT=AUTOMATIC;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection slave]
 include/start_slave_io.inc
 [connection master]
@@ -59,8 +63,12 @@ include/start_slave_io.inc
 [connection master]
 use ignored_db;
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1);
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 use test;
 [connection slave]
 include/start_slave_sql.inc
@@ -87,8 +95,12 @@ include/start_slave.inc
 [connection master]
 USE ignored_db;
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 use test;
 include/sync_slave_sql_with_master.inc
 include/assert.inc [table is empty on the secondary]
@@ -110,8 +122,12 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload);
 include/start_slave.inc
 [connection master]
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/assert.inc [table is empty on the secondary]
 include/stop_slave.inc
@@ -134,10 +150,14 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 [connection master]
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET GTID_NEXT=AUTOMATIC;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/assert.inc [table is empty on the secondary]
 [connection master]
@@ -150,8 +170,12 @@ include/rpl_reset.inc
 [connection master]
 CREATE TABLE tload (c1 TEXT);
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=3944]
 include/stop_slave.inc

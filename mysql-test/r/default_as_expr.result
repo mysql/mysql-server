@@ -722,6 +722,18 @@ CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (database()));
 INSERT INTO t1 VALUES ();
 SELECT * FROM t1;
 DROP TABLE t1;
+CREATE TABLE t1 (a varchar(288) DEFAULT (CURRENT_USER()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(288) DEFAULT (SESSION_USER()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(288) DEFAULT (USER()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
 # Function that are still not allowed
 CREATE TABLE t1 (a varchar(64), b varchar(1024) DEFAULT (load_file(a)));
 ERROR HY000: Default value expression of column 'b' contains a disallowed function: load_file.
@@ -739,10 +751,6 @@ CREATE TABLE t1 (a int DEFAULT (row_count()));
 ERROR HY000: Default value expression of column 'a' contains a disallowed function: row_count.
 CREATE TABLE t1 (a int, b int DEFAULT (sleep(a)));
 ERROR HY000: Default value expression of column 'b' contains a disallowed function: sleep.
-CREATE TABLE t1 (a varchar(32) DEFAULT (current_user()));
-ERROR HY000: Default value expression of column 'a' contains a disallowed function: current_user.
-CREATE TABLE t1 (a varchar(32) DEFAULT (session_user()));
-ERROR HY000: Default value expression of column 'a' contains a disallowed function: user.
 CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (version()));
 ERROR HY000: Default value expression of column 'b' contains a disallowed function: version().
 CREATE TABLE t1 (id char(40) DEFAULT (uuid()) DEFAULT 4);

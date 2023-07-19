@@ -59,7 +59,6 @@ namespace resourcegroups {
 
 extern const char *SYS_DEFAULT_RESOURCE_GROUP_NAME;
 extern const char *USR_DEFAULT_RESOURCE_GROUP_NAME;
-extern const char *SYS_INTERNAL_RESOURCE_GROUP_NAME;
 
 /**
   This is a singleton class that provides various functionalities related to
@@ -182,13 +181,6 @@ class Resource_group_mgr {
   void remove_resource_group(const std::string &name);
 
   /**
-    Extract(unlink) the resource group from the map identified by it's name.
-
-    @param name of the resource group.
-  */
-  void extract_resource_group(const std::string &name);
-
-  /**
     Create an in-memory resource group identified by its attributes
     and add it to the resource group map.
 
@@ -255,16 +247,6 @@ class Resource_group_mgr {
   }
 
   /**
-    Return the SYS_internal resource group instance.
-
-    @return pointer to the SYS_internal resource group.
-  */
-
-  Resource_group *sys_internal_resource_group() {
-    return m_sys_internal_resource_group;
-  }
-
-  /**
     Return the USR_default resource group instance.
 
     @return pointer to the USR_default resource group.
@@ -294,18 +276,6 @@ class Resource_group_mgr {
   bool is_resource_group_default(const Resource_group *res_grp) {
     return (res_grp == m_usr_default_resource_group ||
             res_grp == m_sys_default_resource_group);
-  }
-
-  /**
-    Check if a given Resource group is SYS_internal.
-
-    @param  res_grp  Resource group instance.
-
-    @return true if resource is SYS_internal else false.
-  */
-
-  bool is_sys_internal_resource_group(const Resource_group *res_grp) const {
-    return (res_grp == m_sys_internal_resource_group);
   }
 
   /**
@@ -449,9 +419,6 @@ class Resource_group_mgr {
   Resource_group *m_usr_default_resource_group;
   Resource_group *m_sys_default_resource_group;
 
-  /** Pointer to SYS_internal resource group. */
-  Resource_group *m_sys_internal_resource_group;
-
   /**
     Map mapping resource group name with it's corresponding in-memory
     Resource_group object
@@ -495,7 +462,6 @@ class Resource_group_mgr {
         m_notify_handle(0),
         m_usr_default_resource_group(nullptr),
         m_sys_default_resource_group(nullptr),
-        m_sys_internal_resource_group(nullptr),
         m_resource_group_hash(nullptr),
         m_thread_priority_available(false),
         m_resource_group_support(false),

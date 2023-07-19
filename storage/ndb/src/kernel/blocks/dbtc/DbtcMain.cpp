@@ -2911,10 +2911,7 @@ void Dbtc::hash(Signal* signal, CacheRecord * const regCachePtr)
    */
   if (keylen <= SectionSegment::DataLength)
   {
-    /* No need to copy keyinfo into a linear space 
-     * Note that we require that the data in the section is
-     * 64-bit aligned for md5_hash below
-     */
+    /* No need to copy keyinfo into a linear space */
     ndbassert( keyInfoSection.p != NULL );
 
     Tdata32= &keyInfoSection.p->theData[0];
@@ -2929,7 +2926,7 @@ void Dbtc::hash(Signal* signal, CacheRecord * const regCachePtr)
   Uint32 tmp[4];
   if(!regCachePtr->m_special_hash)
   {
-    md5_hash(tmp, (Uint64*)&Tdata32[0], keylen);
+    md5_hash(tmp, Tdata32, keylen);
   }
   else
   {
@@ -2966,16 +2963,13 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
 			  Uint32 tabPtrI,
 			  bool distr)
 {
-  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS= 
-    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
-  Uint64 alignedWorkspace[MAX_KEY_SIZE_IN_LONG_WORDS * MAX_XFRM_MULTIPLY];
-  Uint32* workspace= (Uint32*)alignedWorkspace;
+  Uint32 workspace[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   const TableRecord* tabPtrP = &tableRecord[tabPtrI];
   const bool hasVarKeys = tabPtrP->hasVarKeys;
   const bool hasCharAttr = tabPtrP->hasCharAttr;
   const bool compute_distkey = distr && (tabPtrP->noOfDistrKeys > 0);
   
-  const Uint32 *hashInput = workspace;
+  const Uint32 *hashInput;
   Uint32 inputLen = 0;
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
   Uint32 * keyPartLenPtr;
@@ -2983,11 +2977,12 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
   /* Normalise KeyInfo into workspace if necessary */
   if(hasCharAttr || (compute_distkey && hasVarKeys))
   {
+    hashInput = workspace;
     keyPartLenPtr = keyPartLen;
     inputLen = xfrm_key_hash(tabPtrI,
                              src,
                              workspace,
-                             sizeof(alignedWorkspace) >> 2,
+                             sizeof(workspace) >> 2,
                              keyPartLenPtr);
     if (unlikely(inputLen == 0))
     {
@@ -3003,7 +2998,7 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
   }
   
   /* Calculate primary key hash */
-  md5_hash(dstHash, (Uint64*)hashInput, inputLen);
+  md5_hash(dstHash, hashInput, inputLen);
   
   /* If the distribution key != primary key then we have to
    * form a distribution key from the primary key and calculate 
@@ -3017,7 +3012,7 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
     /* Reshuffle primary key columns to get just distribution key */
     Uint32 len = create_distr_key(tabPtrI, hashInput, workspace, keyPartLenPtr);
     /* Calculate distribution key hash */
-    md5_hash(distrKeyHash, (Uint64*) workspace, len);
+    md5_hash(distrKeyHash, workspace, len);
 
     /* Just one word used for distribution */
     dstHash[1] = distrKeyHash[1];
@@ -3046,7 +3041,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
-  tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
+  // Clear all ApiConnectRecord flags
+  regApiPtr->m_flags = 0;
   regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
   ndbassert(regApiPtr->tcConnect.isEmpty());
@@ -3057,8 +3053,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->lqhkeyreqrec = 0;
   regApiPtr->tckeyrec = 0;
   regApiPtr->tcindxrec = 0;
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
   regApiPtr->failureNr = TfailureNr;
   regApiPtr->transid[0] = Ttransid0;
   regApiPtr->transid[1] = Ttransid1;
@@ -3083,8 +3077,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   // FiredTriggers should have been released when previous transaction ended. 
   ndbrequire(regApiPtr->theFiredTriggers.isEmpty());
   // Index data
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_INDEX_OP_RETURN);
   regApiPtr->noIndexOp = 0;
   if(releaseIndexOperations)
   {
@@ -3096,10 +3088,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   }
   regApiPtr->immediateTriggerId = RNIL;
 
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS);
   c_counters.ctransCount++;
 
 #ifdef ERROR_INSERT

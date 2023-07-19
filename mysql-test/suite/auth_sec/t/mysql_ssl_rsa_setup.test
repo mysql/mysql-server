@@ -368,3 +368,15 @@ EOF
 --rmdir $CADIR_LOCATION
 
 #------------------------------------------------------------------------------
+
+--echo #
+--echo # WL#15668: Deprecate mysql_ssl_rsa_setup
+--echo #
+
+--exec $MYSQL_SSL_RSA_SETUP --help > $MYSQLTEST_VARDIR/tmp/wl15668.out 2>&1
+--let $assert_text=Looking for a deprecation message
+--let $assert_match=mysql_ssl_rsa_setup is deprecated
+--let $assert_select=WARNING
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/wl15668.out
+--source include/assert_grep.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/wl15668.out

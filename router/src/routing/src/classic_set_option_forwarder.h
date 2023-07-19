@@ -55,6 +55,8 @@ class SetOptionForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> error();
 
   Stage stage_{Stage::Command};
+
+  uint16_t option_value_{};
 };
 
 #endif

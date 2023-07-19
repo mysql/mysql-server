@@ -163,36 +163,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   static const char kSslModeRequired[];
   static const char kSslModeVerifyCa[];
   static const char kSslModeVerifyIdentity[];
-
-  // this struct contains all parameters which would be needed if you wanted to
-  // create a new connection with same parameters (server address, options,
-  // etc)
-  struct ConnectionParameters {
-    struct SslOptions {
-      mysql_ssl_mode ssl_mode;
-      std::string tls_version;
-      std::string ssl_cipher;
-      std::string ca;
-      std::string capath;
-      std::string crl;
-      std::string crlpath;
-    } ssl_opts;
-    struct SslCert {
-      std::string cert;
-      std::string key;
-    } ssl_cert;
-    struct ConnOptions {
-      std::string host;
-      unsigned int port;
-      std::string username;
-      std::string password;
-      std::string unix_socket;
-      std::string default_schema;
-      int connect_timeout;
-      int read_timeout;
-    } conn_opts;
-  };
-
   //
   // mysql_option's
   //
@@ -363,6 +333,20 @@ class ROUTER_LIB_EXPORT MySQLSession {
                                const std::string &crl,
                                const std::string &crlpath);
 
+  mysql_ssl_mode ssl_mode() const;
+  std::string tls_version() const;
+  std::string ssl_cipher() const;
+  std::string ssl_ca() const;
+  std::string ssl_capath() const;
+  std::string ssl_crl() const;
+  std::string ssl_crlpath() const;
+
+  std::string ssl_cert() const;
+  std::string ssl_key() const;
+
+  int connect_timeout() const;
+  int read_timeout() const;
+
   // throws Error
   virtual void set_ssl_cert(const std::string &cert, const std::string &key);
 
@@ -406,7 +390,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
    * @retval false if option is not known.
    */
   template <class GettableMysqlOption>
-  bool get_option(GettableMysqlOption &opt) {
+  bool get_option(GettableMysqlOption &opt) const {
     if (0 != mysql_get_option(connection_, opt.option(), opt.data())) {
       return false;
     }
@@ -423,28 +407,11 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual void disconnect();
 
   /**
-   * This is an alternative way to initialise a new connection.  It calls
-   * connect() and several other methods under the hood.  Along with its
-   * counterpart `get_connection_parameters()`, it's useful for spawning
-   * new connections using an existing connection as a template.
-   *
-   * @param conn_params Connection parameters
-   *
-   * @see get_connection_parameters()
+   * Connect using the same settings and parameters that were used for the last
+   * other.connect() using provided credentials.
    */
-  virtual void connect_and_set_opts(const ConnectionParameters &conn_params);
-
-  /**
-   * Returns connection parameters which could be used as a template for
-   * spawning new connections.
-   *
-   * @see connect_and_set_opts()
-   *
-   * @returns parameters used to create current connection
-   */
-  virtual ConnectionParameters get_connection_parameters() {
-    return conn_params_;
-  }
+  virtual void connect(const MySQLSession &other, const std::string &username,
+                       const std::string &password);
 
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
@@ -481,7 +448,14 @@ class ROUTER_LIB_EXPORT MySQLSession {
   std::unique_ptr<LoggingStrategy> logging_strategy_;
 
  private:
-  ConnectionParameters conn_params_;
+  // stores selected parameters that were passed to the last successful call to
+  // connect()
+  struct {
+    std::string host;
+    unsigned int port{};
+    std::string unix_socket;
+    std::string default_schema;
+  } connect_params_;
 
   MYSQL *connection_;
   bool connected_;

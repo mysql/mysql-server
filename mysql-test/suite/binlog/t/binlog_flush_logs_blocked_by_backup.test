@@ -1,0 +1,109 @@
+# === Purpose ===
+# Check FLUSH BINARY LOGS operation is mutually exclusive with BACKUP lock.
+#
+# === Requirements ===
+# R1. FLUSH BINARY LOGS must skip purge operation when executed
+#     with LOCK INSTANCE FOR BACKUP statement
+#
+# === Implementation ===
+# 1. Initialize
+# 2. Lock instance for backup
+# 3. Flush binary logs so replay log is purged
+# 4. Check that relay logs have not been purged
+# 5. Unlock instance
+# 6. Generate log purge
+# 7. Check relay logs have been purged
+#
+# === References ===
+# Bug#35342521	Binary log purge should hold IX backup lock
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Initialize
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--let $binlog_expire_logs_seconds_saved = `SELECT @@global.binlog_expire_logs_seconds`
+SET @@global.binlog_expire_logs_seconds = 1;
+
+RESET MASTER;
+
+FLUSH BINARY LOGS;
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # Lock instance for backup
+--echo #
+
+--connect (con1, localhost, root,,)
+
+--let $rpl_connection_name = con1
+--source include/rpl_connection.inc
+
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # Flush binary logs so binary logs are purged
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+--source include/save_error_log_position.inc
+
+--let $before_flush = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+# wait longer than binlog_expire_logs_seconds
+--sleep 2
+FLUSH BINARY LOGS;
+--let $after_flush = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+
+--echo #
+--echo # Check that binary logs have not been purged
+--echo #
+
+--assert($before_flush == $after_flush)
+
+--let $error_pattern = Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.
+--source include/assert_error_log.inc
+
+--echo #
+--echo # Unlock instance
+--echo #
+
+--let $rpl_connection_name = con1
+--source include/rpl_connection.inc
+
+UNLOCK INSTANCE;
+
+--echo #
+--echo # Generate log purge
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+--source include/save_error_log_position.inc
+
+--let $before_flush = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+FLUSH BINARY LOGS;
+--let $after_flush = query_get_value(SHOW BINARY LOGS, Log_name, 1)
+
+--echo #
+--echo # Check relay logs have been purged
+--echo #
+
+--assert($before_flush != $after_flush)
+
+--let $error_pattern = NONE
+--source include/assert_error_log.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--replace_result $binlog_expire_logs_seconds_saved BINLOG_EXPIRE_LOGS_SECONDS_SAVED
+--eval SET @@global.binlog_expire_logs_seconds = $binlog_expire_logs_seconds_saved

@@ -4100,6 +4100,7 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
+            // We read the key for cmp_key() usage -> no xfrm
             const bool xfrm = false;
             Uint32 len = readTablePk(localkey.m_page_no,
                                      localkey.m_page_idx,
@@ -6394,11 +6395,7 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
   if (oprec.p->hashValue.valid_bits() < fragrecptr.p->MAX_HASH_VALUE_BITS)
   {
     jam();
-    union {
-      Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
-      Uint64 keys_align;
-    };
-    (void)keys_align;
+    Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
     Local_key localkey;
     localkey = oprec.p->localdata;
     const bool xfrm = fragrecptr.p->hasCharAttr;
@@ -6419,7 +6416,7 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
        * element is in the wrong place in the hash since it won't be found
        * by anyone even if in the right place.
        */
-      oprec.p->hashValue = LHBits32(md5_hash((Uint64*)&keys[0], len));
+      oprec.p->hashValue = LHBits32(md5_hash(&keys[0], len));
     }
   }
   return oprec.p->hashValue;
@@ -6430,11 +6427,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   jam();
   assert(ElementHeader::getUnlocked(*elemptr));
 
-  union {
-    Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
-    Uint64 keys_align;
-  };
-  (void)keys_align;
+  Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
   Uint32 elemhead = *elemptr;
   Local_key localkey;
   elemptr += 1;
@@ -6453,7 +6446,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   if (len > 0)
   {
     jam();
-    return LHBits32(md5_hash((Uint64*)&keys[0], len));
+    return LHBits32(md5_hash(&keys[0], len));
   }
   else
   { // Return an invalid hash value if no data

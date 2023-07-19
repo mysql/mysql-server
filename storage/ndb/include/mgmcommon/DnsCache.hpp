@@ -39,13 +39,13 @@
   allowed.
 */
 
-struct in6_addr;
+class ndb_sockaddr;
 
 class LocalDnsCache {
 public:
   ~LocalDnsCache();
 
-  int getAddress(in6_addr * result, const char *hostname);
+  int getAddress(ndb_sockaddr * result, const char *hostname);
 protected:
   /* no heap allocation */
   static void * operator new(std::size_t) = delete;
@@ -55,9 +55,9 @@ private:
   // Negative cache of DNS misses
   std::unordered_set<std::string> m_failed_lookups;
   // Positive cache of DNS lookups
-  std::unordered_map<std::string, in6_addr*> m_resolver_cache;
+  std::unordered_map<std::string, ndb_sockaddr*> m_resolver_cache;
 
-  bool getCachedOrResolveAddress(in6_addr* result, const char* hostname);
+  bool getCachedOrResolveAddress(ndb_sockaddr* result, const char* hostname);
 };
 
 #endif

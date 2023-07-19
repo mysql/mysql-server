@@ -371,7 +371,11 @@ drop table t1, t2;
 drop database TESTDB;
 flush privileges;
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET GLOBAL log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 CREATE USER `a@`@localhost;
 GRANT ALL PRIVILEGES ON test.* TO `a@`@localhost;
 GRANT EXECUTE ON * TO `a@`@localhost;
@@ -388,6 +392,8 @@ DROP TABLE t2;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
 DROP USER `a@`@localhost;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 drop database if exists mysqltest_1;
 drop database if exists mysqltest_2;
 drop user mysqltest_u1@localhost;

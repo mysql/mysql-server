@@ -131,7 +131,7 @@ class MySQLRoutingConnectionBase {
 
   void accepted();
 
-  void connected();
+  virtual void connected();
 
   template <class F>
   auto disconnect_request(F &&f) {

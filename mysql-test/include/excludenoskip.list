@@ -319,5 +319,7 @@ have_openssl_binary_version.inc
 # skip the test if the openssl library doesn't support TLS 1.3 (not openssl 1.1)
 not_tlsv13.inc
 
-# skip tests which require resource groups feature.
-have_resource_groups.inc
+# 32. These tests are skipped as they require Python and Ruby for external
+# language component which is not supported for now
+have_python.inc
+have_ruby.inc

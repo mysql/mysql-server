@@ -23,6 +23,7 @@
 SET(TEST_MODULE mysql_protocol)
 
 FOREACH(test_file
+    test_classic_protocol_binary.cc
     test_classic_protocol_frame.cc
     test_classic_protocol_message.cc
     test_classic_protocol_session_track.cc
@@ -85,7 +86,11 @@ IF(LIBFUZZER_COMPILE_FLAGS)
       # daemon
       binlog_dump_gtid
       reset_connection
-      clone)
+      clone
+
+      binary_datetime
+      binary_time
+      )
     MYSQL_ADD_EXECUTABLE(routertest_fuzz_mysql_protocol_${CMD}
       fuzz_${CMD}.cc
       COMPONENT Router

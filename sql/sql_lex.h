@@ -2214,6 +2214,7 @@ class Query_block : public Query_term {
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_fields_map *lifted_where_fields,
       bool added_card_check);
+  void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);
@@ -2225,10 +2226,10 @@ class Query_block : public Query_term {
   bool setup_group(THD *thd);
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block);
-  void remove_redundant_subquery_clauses(THD *thd,
+  bool remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
   void repoint_contexts_of_join_nests(mem_root_deque<Table_ref *> join_list);
-  void empty_order_list(Query_block *sl);
+  bool empty_order_list(Query_block *sl);
   bool setup_join_cond(THD *thd, mem_root_deque<Table_ref *> *tables,
                        bool in_update);
   bool find_common_table_expr(THD *thd, Table_ident *table_id, Table_ref *tl,

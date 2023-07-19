@@ -94,6 +94,9 @@ class Ndb_dd_client {
   ulonglong m_save_option_bits{0};
   bool m_comitted{false};
   bool m_auto_rollback{true};
+  // Separate MEM_ROOT to avoid affecting THD::mem_root
+  MEM_ROOT m_dd_mem_root;
+  MEM_ROOT *const m_prev_mem_root;
 
   void disable_autocommit();
 

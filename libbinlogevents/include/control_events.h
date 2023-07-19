@@ -43,10 +43,10 @@
 #include <vector>
 
 #include "binlog_event.h"
+#include "buffer/buffer_sequence_view.h"  // Buffer_sequence_view
+#include "compression/base.h"  // binary_log::transaction::compression::type
 #include "template_utils.h"
 #include "uuid.h"
-
-#include "compression/base.h"  // binary_log::transaction::compression::type
 
 namespace binary_log {
 /**
@@ -719,167 +719,192 @@ struct gtid_info {
   int64_t rpl_gtid_gno;
 };
 
-/**
-  This event is a wrapper event and encloses many other events.
-
-  It is mostly used for carrying compressed payloads as its content
-  can be compressed, in which case, its metadata shall contain
-  information about the compression metadata as well.
- */
+/// Event that encloses all the events of a transaction.
+///
+/// It is used for carrying compressed payloads, and contains
+/// compression metadata.
 class Transaction_payload_event : public Binary_log_event {
+ public:
+  using Buffer_sequence_view_t = mysqlns::buffer::Buffer_sequence_view<>;
+
  private:
   Transaction_payload_event &operator=(const Transaction_payload_event &) =
       delete;
   Transaction_payload_event(const Transaction_payload_event &) = delete;
 
  protected:
-  /**
-    The raw bytes which are the data that this event contains.
-   */
+  /// The compressed data, when entire payload is in one chunk.
   const char *m_payload{nullptr};
 
-  /**
-    The size of the data.
-   */
+  /// The compressed data, when payload consists of a sequence of buffers
+  Buffer_sequence_view_t *m_buffer_sequence_view;
+
+  /// The size of the compressed data.
   uint64_t m_payload_size{0};
 
-  /**
-    If the data is compressed, which compression was used.
-
-    For now, the only compressors supported are: ZSTD or NONE.
-
-    NONE means no compression at all. ZSTD means using ZSTD compression.
-   */
+  /// The compression algorithm that was used.
   transaction::compression::type m_compression_type{
       transaction::compression::type::NONE};
 
-  /**
-    The size of the data uncompressed. This is the same as @c m_payload_size if
-    there is no compression involved.
-   */
+  /// The uncompressed size of the data. This is the same as @c
+  /// m_payload_size if the algorithms is NONE.
   uint64_t m_uncompressed_size{0};
 
  public:
-  static const unsigned short COMPRESSION_TYPE_MIN_LENGTH = 1;
-  static const unsigned short COMPRESSION_TYPE_MAX_LENGTH = 9;
-  static const unsigned short PAYLOAD_SIZE_MIN_LENGTH = 0;
-  static const unsigned short PAYLOAD_SIZE_MAX_LENGTH = 9;
-  static const unsigned short UNCOMPRESSED_SIZE_MIN_LENGTH = 0;
-  static const unsigned short UNCOMPRESSED_SIZE_MAX_LENGTH = 9;
+  /// There are four fields: "compression type", "payload size",
+  /// "uncompressed size", and "end mark".  Each of the three first
+  /// fields is stored as a triple, where:
+  /// - the first element is a type code,
+  /// - the second element is a number containing the length of the
+  ///   third element, and
+  /// - the third element is the value.
+  /// The last field, "end mark", is stored as only a type code.  All
+  /// elements are stored in the "net_store_length" format.
+  /// net_store_length stores 64 bit numbers in a variable length
+  /// format, using 1 to 9 bytes depending on the magnitude of the
+  /// value; 1 for values up to 250, longer for bigger values.
+  ///
+  /// So:
+  /// - The first element in each triple is always length 1 since type
+  ///   codes are small;
+  /// - the second element in each triple is always length 1 since the
+  ///   third field is at most 9 bytes;
+  /// - the third field in each triple is:
+  ///   - at most 1 for the "compression type" since type codes are small;
+  ///   - at most 9 for the "payload size" and "uncompressed size".
+  /// - the end mark is always 1 byte since it is a constant value
+  ///   less than 250
+  static constexpr size_t compression_type_max_length = 1 + 1 + 1;
+  static constexpr size_t payload_size_max_length = 1 + 1 + 9;
+  static constexpr size_t uncompressed_size_max_length = 1 + 1 + 9;
+  static constexpr size_t end_mark_max_length = 1;
 
-  static const int MAX_DATA_LENGTH = COMPRESSION_TYPE_MAX_LENGTH +
-                                     PAYLOAD_SIZE_MAX_LENGTH +
-                                     UNCOMPRESSED_SIZE_MAX_LENGTH;
-  /**
-    Creates @c Transaction_payload_event with the given data which has the
-    given size.
+  /// The maximum size of the "payload data header".
+  ///
+  /// Any log event consists of the common-header (19 bytes, same
+  /// format for all event types), followed by a post-header (size
+  /// defined per event type; 0 for payload events), followed by data
+  /// (variable length and defined by each event type).  For payload
+  /// events, the data contains a payload data header (these 4
+  /// fields), followed by the payload (compressed data).
+  static constexpr size_t max_payload_data_header_length =
+      compression_type_max_length + payload_size_max_length +
+      uncompressed_size_max_length + end_mark_max_length;
 
-    @param payload the data that this event shall wrap.
-    @param payload_size the size of the payload.
+  /// The maximum size of all headers, i.e., everything but the
+  /// payload.
+  ///
+  /// This includes common-header, post-header, and payload
+  /// data header.
+  static constexpr size_t max_length_of_all_headers =
+      LOG_EVENT_HEADER_LEN + Binary_log_event::TRANSACTION_PAYLOAD_HEADER_LEN +
+      max_payload_data_header_length;
+  /// The maximum length of the payload size, defined such that the total
+  /// event size does not exceed max_log_event_size.
+  static constexpr size_t max_payload_length =
+      max_log_event_size - max_length_of_all_headers;
 
-    The data shall not be compressed. However, there is no other validation
-    that this is the case.
-   */
-  Transaction_payload_event(const char *payload, uint64_t payload_size);
-
-  /**
-    Creates @c Transaction_payload_event with the given data which has the
-    given size. The data provided may or may not have been compressed. In
-    any case the compression_type must be set.
-
-    @param payload the data that this event shall wrap.
-    @param payload_size the size of the payload.
-    @param compression_type the compression type used for the data provided.
-    @param uncompressed_size the size of the data when uncompressed.
-
-    The data may or may not be compressed. There is no validation or check
-    that it is or that the payload matches the metadata provided.
-   */
+  /// Construct an object from the given fields.
+  ///
+  /// @param payload The (compressed) payload data.
+  ///
+  /// @param payload_size The size of @c payload in bytes.
+  ///
+  /// @param compression_type the compression type that was used to
+  /// compress @c payload.
+  ///
+  /// @param uncompressed_size the size of the data when uncompressed.
+  ///
+  /// The function does not validate that the payload matches the
+  /// metadata provided.
   Transaction_payload_event(const char *payload, uint64_t payload_size,
                             uint16_t compression_type,
                             uint64_t uncompressed_size);
 
-  /**
-    This constructor takes a raw buffer and a format descriptor event and
-    decodes the buffer. It populates this event metadata with the contents
-    of the buffer.
-
-    @param buf the buffer to decode.
-    @param fde the format description event used to decode the buffer.
-   */
+  /// Decode the event from a buffer.
+  ///
+  /// @param buf The buffer to decode.
+  ///
+  /// @param fde The format description event used to decode the
+  /// buffer.
   Transaction_payload_event(const char *buf,
                             const Format_description_event *fde);
 
-  /**
-    This destroys the transaction payload event.
-   */
   ~Transaction_payload_event() override;
 
-  /**
-    Shall set the compression type used for the enclosed payload.
-
-    @param type the compression type.
-   */
+  /// Set the compression type used for the enclosed payload.
+  ///
+  /// @note API clients must call either all or none of set_payload,
+  /// set_payload_size, set_compression_type, and
+  /// set_uncompressed_size.
+  ///
+  /// @param type the compression type.
   void set_compression_type(transaction::compression::type type) {
     m_compression_type = type;
   }
 
-  /**
-    Shall return the compression type used for the enclosed payload.
-
-    @return the compression type.
-   */
+  /// @return the compression type.
   transaction::compression::type get_compression_type() const {
     return m_compression_type;
   }
 
-  /**
-    Shall set the size of the payload inside this event.
-
-    @param size The payload size.
-   */
+  /// Set the (compressed) size of the payload in this event.
+  ///
+  /// @note API clients must call either all or none of set_payload,
+  /// set_payload_size, set_compression_type, and
+  /// set_uncompressed_size.
+  ///
+  /// @param size The compressed size of the payload.
   void set_payload_size(uint64_t size) { m_payload_size = size; }
 
-  /**
-    Shall get the size of the payload inside this event.
-
-    @return The payload size.
-   */
+  /// @return The payload size.
   uint64_t get_payload_size() const { return m_payload_size; }
 
-  /**
-    Shall set the uncompressed size of the payload.
-
-    @param size the uncompressed size of the payload.
-   */
+  /// Set the uncompressed size of the payload.
+  ///
+  /// @note API clients must call either all or none of set_payload,
+  /// set_payload_size, set_compression_type, and
+  /// set_uncompressed_size.
+  ///
+  /// @param size The uncompressed size of the payload.
   void set_uncompressed_size(uint64_t size) { m_uncompressed_size = size; }
 
-  /**
-    Shall get the uncompressed size of the event.
-
-    @return uncompressed_size.
-   */
+  /// Return the alleged uncompressed size according to the field
+  /// stored in the event.
+  ///
+  /// This cannot be trusted; the actual size can only be computed by
+  /// decompressing the event.
   uint64_t get_uncompressed_size() const { return m_uncompressed_size; }
 
-  /**
-    Shall set the payload of the event.
-
-    @param data the payload of the event.
-   */
+  /// Set the (possibly compressed) payload for the event.
+  ///
+  /// The ownership and responsibility to destroy the data is
+  /// transferred to the event.
+  ///
+  /// @note API clients must call either all or none of set_payload,
+  /// set_payload_size, set_compression_type, and
+  /// set_uncompressed_size.
+  ///
+  /// @param data The payload of the event.
   void set_payload(const char *data) { m_payload = data; }
 
-  /**
-    Shall get the payload of the event.
-
-    @return the payload of the event.
-   */
+  /// @return the payload of the event.
   const char *get_payload() const { return m_payload; }
 
-  /**
-    Shall return a textual representation of this event.
+  /// Set the (possibly compressed) payload for the event.
+  ///
+  /// The payload is given as a Buffer_sequence_view.  The ownership
+  /// of the data remains with the caller; the caller must ensure that
+  /// the iterators remain valid for as long as this event needs them.
+  ///
+  /// @note API clients must call either all or none of set_payload,
+  /// set_payload_size, set_compression_type, and
+  /// set_uncompressed_size.
+  ///
+  /// @param buffer_sequence_view Container holding the data.
+  void set_payload(Buffer_sequence_view_t *buffer_sequence_view);
 
-    @return a textial representation of this event.
-   */
+  /// @return a textual representation of this event.
   std::string to_string() const;
 
 #ifndef HAVE_MYSYS

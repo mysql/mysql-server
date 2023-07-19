@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Initialize ====
+SET @@session.binlog_transaction_compression = 1;
+CREATE TABLE t (info TEXT, data BLOB);
+# Adding debug point 'binlog_transaction_compression_max_size_800' to @@GLOBAL.debug
+==== Test ====
+INSERT INTO t VALUES('compressible', REPEAT('a', 1024));
+INSERT INTO t VALUES('non-compressible', RANDOM_BYTES(1024));
+include/sync_slave_sql_with_master.inc
+[connection master]
+==== Validate ====
+include/save_binlog_position.inc
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (info TEXT, data BLOB)
+master-bin.000001	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+==== Clean up ====
+# Removing debug point 'binlog_transaction_compression_max_size_800' from @@GLOBAL.debug
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

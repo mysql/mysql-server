@@ -28,6 +28,8 @@ KILL QUERY <CONNECTION_ID>;
 [connection master]
 ERROR 70100: Query execution was interrupted
 SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [At most one row should be inserted in db1.t1]
 include/assert.inc [At least one row should be inserted in db1.trigger_table]
 SET SQL_LOG_BIN=0;
@@ -77,6 +79,8 @@ KILL QUERY <CONNECTION_ID>;
 [connection master]
 ERROR 70100: Query execution was interrupted
 SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [At most one row should be inserted in ignored_db.t1]
 include/assert.inc [At least one row should be inserted in ignored_db.trigger_table]
 SET SQL_LOG_BIN=0;
@@ -112,6 +116,8 @@ KILL QUERY <CONNECTION_ID>;
 [connection master]
 ERROR 70100: Query execution was interrupted
 SET @@GLOBAL.BINLOG_FORMAT = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [At most one row should be inserted in db1.ignored_table]
 include/assert.inc [At least one row should be inserted in db1.trigger_table]
 SET SQL_LOG_BIN=0;

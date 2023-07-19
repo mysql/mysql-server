@@ -2140,7 +2140,7 @@ static bool fill_dd_table_from_create_info(
   if (create_info->secondary_engine.str != nullptr) {
     table_options->set("secondary_engine",
                        make_string_type(create_info->secondary_engine));
-    table_options->set("secondary_load", false);
+    table_options->set("secondary_load", create_info->secondary_load);
   }
 
   tab_obj->set_engine_attribute(create_info->engine_attribute);

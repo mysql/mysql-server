@@ -321,10 +321,24 @@ extern void _db_flush_gcov_();
     }                                                  \
   } while (0)
 
+/**
+  Shortcut for printing a variable name and its value in DBUG_LOG output.
+
+  Use like:
+
+  DBUG_LOG("info", DBUG_VAR(i) << " " << DBUG_VAR(thd->query));
+
+  Example output for the above might be:
+
+  i=[4711] thd->query=[INSERT INTO t VALUES (1)]
+*/
+#define DBUG_VAR(v) #v << "=[" << (v) << "]"
+
 #else /* NDEBUG */
 #define DBUG_LOG(keyword, v) \
   do {                       \
   } while (0)
+#define DBUG_VAR(v) ""
 #endif /* NDEBUG */
 
 /**

@@ -269,9 +269,14 @@ ConnectProcessor::from_pool() {
 
     auto client_caps = client_protocol->shared_capabilities();
 
-    client_caps.reset(classic_protocol::capabilities::pos::ssl)
+    client_caps
+        // connection specific.
+        .reset(classic_protocol::capabilities::pos::ssl)
         .reset(classic_protocol::capabilities::pos::compress)
-        .reset(classic_protocol::capabilities::pos::compress_zstd);
+        .reset(classic_protocol::capabilities::pos::compress_zstd)
+        // session specific capabilities which can be recovered by
+        // set_server_option()
+        .reset(classic_protocol::capabilities::pos::multi_statements);
 
     auto pool_res = pool->pop_if(
         [client_caps, ep = mysqlrouter::to_string(server_endpoint_),
@@ -280,7 +285,8 @@ ConnectProcessor::from_pool() {
 
           pooled_caps.reset(classic_protocol::capabilities::pos::ssl)
               .reset(classic_protocol::capabilities::pos::compress)
-              .reset(classic_protocol::capabilities::pos::compress_zstd);
+              .reset(classic_protocol::capabilities::pos::compress_zstd)
+              .reset(classic_protocol::capabilities::pos::multi_statements);
 
           return (pooled_conn.endpoint() == ep &&  //
                   client_caps == pooled_caps &&    //

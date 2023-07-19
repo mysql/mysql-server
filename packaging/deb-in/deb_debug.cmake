@@ -217,6 +217,7 @@ usr/lib/mysql/plugin/debug/component_keyring_oci.so
 usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 usr/lib/mysql/plugin/debug/component_masking.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
+usr/lib/mysql/plugin/debug/component_scheduler.so
 ")
   ENDIF()
   IF (DEB_AWS_SDK)

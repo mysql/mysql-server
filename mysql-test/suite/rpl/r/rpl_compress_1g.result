@@ -1,0 +1,134 @@
+include/save_sysvars.inc [ "GLOBAL.max_allowed_packet" ]
+SET @@global.max_allowed_packet = 1024*1024*1024;
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+==== Setup variables ====
+
+==== Scenario: compression=0 ====
+[connection master]
+* Writing 8 * 16778240 random bytes to file, 8 times
+FLUSH BINARY LOGS;
+SET @@session.binlog_transaction_compression = 0;
+include/save_binlog_position.inc
+CREATE TABLE t1 (x LONGBLOB);
+BEGIN;
+# Iteration 1/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 2/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 3/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 4/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 5/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 6/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 7/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 8/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+COMMIT;
+
+==== Verify result on source ====
+# There should be no payload event.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (x LONGBLOB)
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
+include/assert.inc [The source's table size should equal the size of inserted data]
+include/sync_slave_sql_with_master.inc
+==== Verify result on replica ====
+include/assert.inc [The replica's table size should equal the size of inserted data]
+
+==== Clean up scenario ====
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+==== Scenario: compression=1 ====
+[connection master]
+* Writing 8 * 16778240 random bytes to file, 8 times
+FLUSH BINARY LOGS;
+SET @@session.binlog_transaction_compression = 1;
+include/save_binlog_position.inc
+CREATE TABLE t1 (x LONGBLOB);
+BEGIN;
+# Iteration 1/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 2/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 3/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 4/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 5/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 6/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 7/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+# Iteration 8/8
+INSERT INTO t1 VALUES (LOAD_FILE('FILE'));
+COMMIT;
+
+==== Verify result on source ====
+# There should be no payload event.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t1 (x LONGBLOB)
+master-bin.000004	#	Query	#	#	BEGIN
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000004	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000004	#	Xid	#	#	COMMIT /* XID */
+master-bin.000004	#	Rotate	#	#	master-bin.000005;pos=POS
+include/assert.inc [The source's table size should equal the size of inserted data]
+include/sync_slave_sql_with_master.inc
+==== Verify result on replica ====
+include/assert.inc [The replica's table size should equal the size of inserted data]
+
+==== Clean up scenario ====
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+==== Clean up test case ====
+[connection master]
+include/restore_sysvars.inc
+include/rpl_end.inc

@@ -43,7 +43,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -58,7 +62,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -74,7 +82,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UUID() function.
@@ -88,7 +100,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UUID() function.
@@ -102,7 +118,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UUID() function.
@@ -116,7 +136,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -133,7 +157,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -146,7 +174,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -160,7 +192,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -174,7 +210,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -188,7 +228,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -203,7 +247,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -216,7 +264,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UUID() function.
@@ -230,7 +282,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UUID() function.
@@ -244,7 +300,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -259,7 +319,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -272,7 +336,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UUID() function.
@@ -286,7 +354,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UUID() function.
@@ -300,7 +372,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -315,7 +391,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -330,7 +410,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe UUID() function.
@@ -344,7 +428,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe UUID() function.
@@ -358,7 +446,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe UUID() function.
@@ -372,7 +464,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -389,7 +485,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing @@hostname unsafeness ====
@@ -405,7 +505,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -420,7 +524,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -436,7 +544,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
@@ -450,7 +562,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
@@ -464,7 +580,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe @@hostname variable.
@@ -478,7 +598,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -495,7 +619,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -508,7 +636,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -522,7 +654,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -536,7 +672,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -550,7 +690,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -565,7 +709,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -578,7 +726,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
@@ -592,7 +744,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
@@ -606,7 +762,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -621,7 +781,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -634,7 +798,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
@@ -648,7 +816,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
@@ -662,7 +834,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -677,7 +853,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing SELECT...LIMIT unsafeness ====
@@ -693,7 +873,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -706,7 +890,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -720,7 +908,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -734,7 +926,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -748,7 +944,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -763,7 +963,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -776,7 +980,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
@@ -790,7 +998,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
@@ -804,7 +1016,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -819,7 +1035,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -832,7 +1052,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
@@ -846,7 +1070,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
@@ -860,7 +1088,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -875,7 +1107,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -890,7 +1126,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -904,7 +1144,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -918,7 +1162,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -932,7 +1180,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -949,7 +1201,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of insert of two autoinc values ====
@@ -965,7 +1221,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -978,7 +1238,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -992,7 +1256,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -1006,7 +1274,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -1020,7 +1292,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1035,7 +1311,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1048,7 +1328,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
@@ -1062,7 +1346,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
@@ -1076,7 +1364,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1091,7 +1383,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1104,7 +1400,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
@@ -1118,7 +1418,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
@@ -1132,7 +1436,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1147,7 +1455,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of UDF's ====
@@ -1163,7 +1475,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -1178,7 +1494,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -1194,7 +1514,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UDF.
@@ -1208,7 +1532,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UDF.
@@ -1222,7 +1550,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UDF.
@@ -1236,7 +1568,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -1253,7 +1589,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1266,7 +1606,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1280,7 +1624,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1294,7 +1642,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1308,7 +1660,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1323,7 +1679,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1336,7 +1696,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UDF.
@@ -1350,7 +1714,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UDF.
@@ -1364,7 +1732,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1379,7 +1751,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1392,7 +1768,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UDF.
@@ -1406,7 +1786,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UDF.
@@ -1420,7 +1804,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1435,7 +1823,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
@@ -1448,7 +1840,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1462,7 +1858,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1476,7 +1876,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1490,7 +1894,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP VIEW view_sidef_1;
 
@@ -1505,7 +1913,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of access to mysql.general_log ====
@@ -1521,7 +1933,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1534,7 +1950,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1548,7 +1968,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1562,7 +1986,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1576,7 +2004,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1591,7 +2023,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1604,7 +2040,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
@@ -1618,7 +2058,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
@@ -1632,7 +2076,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1647,7 +2095,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1660,7 +2112,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
@@ -1674,7 +2130,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
@@ -1688,7 +2148,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1703,7 +2167,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -1718,7 +2186,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1732,7 +2204,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1746,7 +2222,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1760,7 +2240,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -1777,7 +2261,11 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing a statement that is unsafe in many ways ====
@@ -1799,7 +2287,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1818,7 +2310,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1838,7 +2334,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1858,7 +2358,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1878,7 +2382,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1899,7 +2407,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1918,7 +2430,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
@@ -1938,7 +2454,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
@@ -1958,7 +2478,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1979,7 +2503,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1998,7 +2526,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
@@ -2018,7 +2550,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
@@ -2038,7 +2574,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -2059,7 +2599,11 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 
 ==== Testing a statement that is unsafe several times ====
@@ -2076,7 +2620,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -2090,7 +2638,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2105,7 +2657,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2120,7 +2676,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2135,7 +2695,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -2151,7 +2715,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -2165,7 +2733,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe several times.
@@ -2180,7 +2752,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe several times.
@@ -2195,7 +2771,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -2211,7 +2791,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -2225,7 +2809,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe several times.
@@ -2240,7 +2828,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe several times.
@@ -2255,7 +2847,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -2271,7 +2867,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 Invoking function func_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
@@ -2285,7 +2885,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2300,7 +2904,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2315,7 +2923,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2330,7 +2942,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP VIEW view_sidef_2;
 DROP VIEW view_sidef_1;
 
@@ -2346,7 +2962,11 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [Event should be a Table_map_log_event]
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP PREPARE prep_1;
 DROP TRIGGER double_autoinc_trig;
 DROP TABLE t0, t1, t2, t3, ta0, ta1, ta2, ta3,
@@ -2522,7 +3142,11 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
 SET @old_binlog_format = @@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET binlog_format = MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT);
 INSERT INTO t2 VALUES (1), (2);
@@ -2543,6 +3167,8 @@ binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 SET @@session.binlog_format = @old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TABLE t1, t2;
 DROP FUNCTION func_limit;
 CREATE TABLE t1 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
@@ -2560,6 +3186,8 @@ INSERT INTO t2 SET a = func_modify_t1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 SET SESSION binlog_format = MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Check if the statement is logged in row format.
 INSERT INTO t2 SET a = func_modify_t1();
 include/show_binlog_events.inc
@@ -2573,6 +3201,8 @@ binlog.000001	#	Query	#	#	COMMIT
 DROP TABLE t1,t2;
 DROP FUNCTION func_modify_t1;
 SET SESSION binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
 CREATE TABLE t3 (a INT, b INT PRIMARY KEY AUTO_INCREMENT);
@@ -2587,6 +3217,8 @@ INSERT INTO t1 SET a = 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 SET SESSION binlog_format = MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Check if the statement is logged in row format.
 INSERT INTO t1 SET a = 2;
 include/show_binlog_events.inc
@@ -2604,6 +3236,8 @@ binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 DROP TABLE t1,t2,t3;
 SET SESSION binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(1000)) charset latin1;
 INSERT INTO t1 VALUES (CURRENT_USER());
 Warnings:

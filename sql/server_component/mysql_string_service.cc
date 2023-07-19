@@ -42,6 +42,19 @@ PSI_memory_key key_memory_string_service_iterator;
   register to the server.
 */
 
+namespace {
+/**
+  mysql_string_itrerator structure to provide service to components
+*/
+struct st_string_iterator {
+  String *iterator_str;
+  const char *iterator_ptr;
+  int ctype;
+  int value_status;
+  ulong value;
+};
+}  // namespace
+
 struct my_h_string_imp {};
 
 struct my_h_string_iterator_imp {};
@@ -321,6 +334,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == nullptr) return true;
     const String *str = iterator->iterator_str;
+    my_charset_conv_mb_wc mb_wc = (str->charset())->cset->mb_wc;
     const CHARSET_INFO *cs = str->charset();
     const char *end = str->ptr() + str->length();
     *out_char = 0;
@@ -329,6 +343,11 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
         cs, out_char, pointer_cast<const uchar *>(iterator->iterator_ptr),
         pointer_cast<const uchar *>(end)));
     iterator->ctype = *out_char;
+    iterator->value_status =
+        (*mb_wc)(str->charset(), &iterator->value,
+                 pointer_cast<const uchar *>(iterator->iterator_ptr),
+                 pointer_cast<const uchar *>(end));
+    if (iterator->value_status <= 0) iterator->value = 0;
     tmp_len = (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
     if (iterator->iterator_ptr + tmp_len > end)
       return true;
@@ -384,6 +403,20 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
     if (iterator == nullptr) return true;
     *out = (iterator->ctype & _MY_NMR);
     return false;
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::get,
+                   (my_h_string_iterator iter, ulong *out)) {
+  try {
+    if (out == nullptr) return true;
+    st_string_iterator *iterator = (st_string_iterator *)iter;
+    if (iterator == nullptr) return true;
+    *out = iterator->value;
+    return (iterator->value_status <= 0);
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }

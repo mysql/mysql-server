@@ -43,6 +43,7 @@
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
+#include "my_sys.h"
 
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -607,6 +608,35 @@ class String {
   */
   char *dup(MEM_ROOT *root) const;
 };
+
+/**
+  Checks that the source string can be just copied to the destination string
+  without conversion.
+
+  @param arg_length     Length of string to copy.
+  @param from_cs        Character set to copy from
+  @param to_cs          Character set to copy to
+  @param *offset	Returns number of unaligned characters.
+
+  @returns true if conversion is required, false otherwise.
+
+  @note
+  to_cs may be nullptr for "no conversion" if the system variable
+  character_set_results is NULL.
+*/
+
+inline bool String::needs_conversion(size_t arg_length,
+                                     const CHARSET_INFO *from_cs,
+                                     const CHARSET_INFO *to_cs,
+                                     size_t *offset) {
+  *offset = 0;
+  if (to_cs == nullptr || (to_cs == &my_charset_bin) || from_cs == to_cs ||
+      my_charset_same(from_cs, to_cs) ||
+      ((from_cs == &my_charset_bin) &&
+       (0 == (*offset = (arg_length % to_cs->mbminlen)))))
+    return false;
+  return true;
+}
 
 static inline void swap(String &a, String &b) noexcept { a.swap(b); }
 

@@ -41,6 +41,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
@@ -301,6 +302,82 @@ class SP_instr_error_handler : public Internal_error_handler {
   bool cts_table_exists_error = false;
 };
 
+/**
+  Execute an expression (e.g an IF) that is not a complete SQL statement.
+
+  Expressions that may be executed in this function:
+    IF, CASE, DECLARE, SET, RETURN
+
+  @param      thd    thread context
+  @param[out] nextp  next instruction pointer
+
+  @returns false if success, true if error
+*/
+bool sp_lex_instr::execute_expression(THD *thd, uint *nextp) {
+  auto execute_guard = create_scope_guard([&]() {
+    m_lex->cleanup(true);
+    if (thd->in_sub_stmt == 0) {
+      thd->get_stmt_da()->set_overwrite_status(true);
+      thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+      thd->get_stmt_da()->set_overwrite_status(false);
+    }
+    thd_proc_info(thd, "closing tables");
+    close_thread_tables(thd);
+    thd_proc_info(thd, nullptr);
+
+    if (thd->in_sub_stmt == 0) {
+      if (thd->transaction_rollback_request) {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      } else if (!thd->in_multi_stmt_transaction_mode()) {
+        thd->mdl_context.release_transactional_locks();
+      } else {
+        thd->mdl_context.release_statement_locks();
+      }
+    }
+  });
+
+  /*
+    Check privileges for tables in expression, open and lock those tables,
+    bind data to expression so that it is ready for execution.
+
+    Notice that temporary tables must be opened before privilege checking.
+    This is because a session has all privileges for any temporary table that
+    it has created, however a table must be opened in order to identify it as
+    a temporary table.
+  */
+  if (m_lex->query_tables != nullptr) {
+    if (open_temporary_tables(thd, m_lex->query_tables)) {
+      return true;
+    }
+    if (check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
+                           UINT_MAX, false)) {
+      return true;
+    }
+  }
+  if (open_and_lock_tables(thd, m_lex->query_tables, 0)) {
+    return true;
+  }
+
+  m_lex->restore_cmd_properties();
+  bind_fields(m_arena.item_list());
+
+  /*
+    Trace the expression. This is not an SQL statement, but pretend it is
+    a SELECT query expression.
+  */
+  Opt_trace_start ots(thd, m_lex->query_tables, SQLCOM_SELECT, &m_lex->var_list,
+                      nullptr, 0, this, thd->variables.character_set_client);
+  const Opt_trace_object trace_command(&thd->opt_trace);
+  const Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+
+  if (exec_core(thd, nextp)) {
+    return true;
+  }
+
+  return false;
+}
+
 bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
                                            bool open_tables) {
   /*
@@ -376,66 +453,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   if (!error) {
     if (open_tables) {
-      // todo: break this block out into a separate function.
-      /*
-        IF, CASE, DECLARE, SET, RETURN, have 'open_tables' true; they may
-        have a subquery in parameter and are worth tracing. They don't
-        correspond to a SQL command so we pretend that they are SQLCOM_SELECT.
-      */
-      Opt_trace_start ots(thd, m_lex->query_tables, SQLCOM_SELECT,
-                          &m_lex->var_list, nullptr, 0, this,
-                          thd->variables.character_set_client);
-      Opt_trace_object trace_command(&thd->opt_trace);
-      Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
-
-      /*
-        Check whenever we have access to tables for this statement
-        and open and lock them before executing instructions core function.
-        If we are not opening any tables, we don't need to check permissions
-        either.
-      */
-      if (m_lex->query_tables)
-        error = (open_temporary_tables(thd, m_lex->query_tables) ||
-                 check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
-                                    UINT_MAX, false));
-
-      if (!error) error = open_and_lock_tables(thd, m_lex->query_tables, 0);
-
-      if (!error) {
-        m_lex->restore_cmd_properties();
-        bind_fields(m_arena.item_list());
-
-        error = exec_core(thd, nextp);
-        DBUG_PRINT("info", ("exec_core returned: %d", error));
-      }
-
-      /*
-        Call after unit->cleanup() to close open table
-        key read.
-      */
-
-      m_lex->cleanup(true);
-
-      /* Here we also commit or rollback the current statement. */
-
-      if (!thd->in_sub_stmt) {
-        thd->get_stmt_da()->set_overwrite_status(true);
-        thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-        thd->get_stmt_da()->set_overwrite_status(false);
-      }
-      thd_proc_info(thd, "closing tables");
-      close_thread_tables(thd);
-      thd_proc_info(thd, nullptr);
-
-      if (!thd->in_sub_stmt) {
-        if (thd->transaction_rollback_request) {
-          trans_rollback_implicit(thd);
-          thd->mdl_context.release_transactional_locks();
-        } else if (!thd->in_multi_stmt_transaction_mode())
-          thd->mdl_context.release_transactional_locks();
-        else
-          thd->mdl_context.release_statement_locks();
-      }
+      error = execute_expression(thd, nextp);
+      DBUG_PRINT("info", ("exec_expression returned: %d", error));
     } else {
       DEBUG_SYNC(thd, "sp_lex_instr_before_exec_core");
       error = exec_core(thd, nextp);

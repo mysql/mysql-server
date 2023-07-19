@@ -25,6 +25,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -39,15 +40,7 @@
 #include "mysys_err.h"
 #include "vio/vio_priv.h"
 
-#include <openssl/dh.h>
-
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-#include <openssl/ec.h>
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-#include <dh_keys.h>
-#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
+#include <dh_ecdh_config.h>
 
 #include "my_openssl_fips.h"
 #define TLS_VERSION_OPTION_SIZE 256
@@ -144,35 +137,6 @@ static const char tls_cipher_blocked[] = {
 static bool ssl_initialized = false;
 
 /* Helper functions */
-
-int vio_security_level(void) {
-  int vio_security_level = 2;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-  /*
-    create a temporary SSL_CTX, we're going to use it to fetch
-    the current OpenSSL security level. So that we can generate
-    keys accordingly.
-  */
-  SSL_CTX *temp_ssl_ctx = SSL_CTX_new(TLS_server_method());
-
-  /* get the current security level */
-  vio_security_level = SSL_CTX_get_security_level(temp_ssl_ctx);
-
-  assert(vio_security_level <= 5);
-
-  /* current range for security level is [1,5] */
-  if (vio_security_level > 5)
-    vio_security_level = 5;
-  else if (vio_security_level <= 1)
-    vio_security_level = 2;
-
-  /* get rid of temp_ssl_ctx, we're done with it */
-  SSL_CTX_free(temp_ssl_ctx);
-#endif
-
-  DBUG_EXECUTE_IF("crypto_policy_3", vio_security_level = 3;);
-  return vio_security_level;
-}
 
 static void report_errors() {
   unsigned long l;
@@ -505,9 +469,6 @@ static struct st_VioSSLFd *new_VioSSLFd(
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   int ret_set_cipherlist = 0;
   std::string cipher_list;
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-  EC_KEY *eckey = nullptr;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
   DBUG_TRACE;
   DBUG_PRINT(
       "enter",
@@ -643,53 +604,17 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 
   /* DH stuff */
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  if (SSL_CTX_set_dh_auto(ssl_fd->ssl_context, 1) != 1) {
+  if (set_dh(ssl_fd->ssl_context)) {
+    printf("%s\n", ERR_error_string(ERR_get_error(), NULL));
     *error = SSL_INITERR_DHFAIL;
     goto error;
   }
-#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
-  {
-    int sec_level = vio_security_level();
-
-    BIO *bio_storage =
-        BIO_new_mem_buf(const_cast<char *>(dh_keys[sec_level].data()),
-                        dh_keys[sec_level].size());
-
-    DH *dh = PEM_read_bio_DHparams(bio_storage, NULL, NULL, NULL);
-
-    if (SSL_CTX_set_tmp_dh(ssl_fd->ssl_context, dh) == 0) {
-      printf("%s\n", ERR_error_string(ERR_get_error(), NULL));
-      DH_free(dh);
-      BIO_free(bio_storage);
-      *error = SSL_INITERR_DHFAIL;
-      goto error;
-    }
-    DH_free(dh);
-    BIO_free(bio_storage);
-  }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   /* ECDH stuff */
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
-  /* We choose P-256 curve. */
-  eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-  if (!eckey) {
+  if (set_ecdh(ssl_fd->ssl_context)) {
     *error = SSL_INITERR_ECDHFAIL;
     goto error;
   }
-  if (SSL_CTX_set_tmp_ecdh(ssl_fd->ssl_context, eckey) != 1) {
-    EC_KEY_free(eckey);
-    *error = SSL_INITERR_ECDHFAIL;
-    goto error;
-  }
-  EC_KEY_free(eckey);
-#else
-  if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) == 0) {
-    *error = SSL_INITERR_ECDHFAIL;
-    goto error;
-  }
-#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
   /*

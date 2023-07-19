@@ -48,6 +48,8 @@ class AuthNativeForwarder : public ForwardingProcessor {
     Init,
 
     ClientData,
+    CachingSha2Scrambled,
+    CachingSha2Plaintext,
     Response,
 
     Error,
@@ -66,6 +68,8 @@ class AuthNativeForwarder : public ForwardingProcessor {
 
   stdx::expected<Result, std::error_code> init();
   stdx::expected<Result, std::error_code> client_data();
+  stdx::expected<Result, std::error_code> caching_sha2_scrambled();
+  stdx::expected<Result, std::error_code> caching_sha2_plaintext();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> error();
   stdx::expected<Result, std::error_code> ok();

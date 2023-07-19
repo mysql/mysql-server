@@ -1,0 +1,27 @@
+#
+# Initialization
+#
+RESET MASTER;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) SECONDARY_ENGINE rapid;
+FLUSH BINARY LOGS;
+SHOW BINARY LOGS;
+Log_name	File_size	Encrypted
+binlog.000001	SIZE	No
+binlog.000002	SIZE	No
+#
+# Run ALTER TABLE in separate connection
+#
+[connection default]
+[START] ALTER TABLE t1 SECONDARY_LOAD;
+#
+# Check PURGE BINARY LOGS can be executed
+#
+PURGE BINARY LOGS TO 'BINLOG_FILE';
+#
+# Continue ALTER TABLE statement
+#
+[END] ALTER TABLE t1 SECONDARY_LOAD;
+#
+# Cleanup
+#
+DROP TABLE t1;

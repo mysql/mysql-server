@@ -2633,6 +2633,7 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     assert(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
   }
+  secondary_load = share->secondary_load;
 
   if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
     /* m_implicit_tablespace_autoextend_size = 0 is a valid value. Hence,
@@ -3272,6 +3273,9 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Add record to duplicate records filter for multi-value index read.
+  // (m_unique != nullptr in case of multi-value index read)
+  if (!result && !mrr_have_range && m_unique != nullptr) filter_dup_records();
   table->set_row_status_from_handler(result);
   return result;
 }
@@ -3313,9 +3317,12 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   @param[out] buf  Row data
 
   @return Operation status.
-    @retval  0                   Success
-    @retval  HA_ERR_END_OF_FILE  Row not found
-    @retval  != 0                Error
+    @retval  0                    Success
+    @retval  HA_ERR_END_OF_FILE   Row not found
+    @retval  HA_ERR_KEY_NOT_FOUND This return value indicates duplicate row
+                                  returned from storage engine during
+                                  multi-value index read.
+    @retval  != 0                 Error
 */
 
 int handler::ha_index_next(uchar *buf) {
@@ -3351,9 +3358,15 @@ int handler::ha_index_next(uchar *buf) {
   @param[out] buf  Row data
 
   @return Operation status.
-    @retval  0                   Success
-    @retval  HA_ERR_END_OF_FILE  Row not found
-    @retval  != 0                Error
+    @retval  0                    Success
+    @retval  HA_ERR_END_OF_FILE   Row not found
+    @retval  HA_ERR_KEY_NOT_FOUND This return value indicates duplicate row
+                                  returned from storage engine during
+                                  multi-value index read. HA_ERR_KEY_NOT_FOUND
+                                  indicates end of result for ref scan. And for
+                                  range and index scan, current result row needs
+                                  to skipped.
+    @retval  != 0                 Error
 */
 
 int handler::ha_index_prev(uchar *buf) {
@@ -3372,6 +3385,11 @@ int handler::ha_index_prev(uchar *buf) {
     result = update_generated_read_fields(buf, table, active_index);
     m_update_generated_read_fields = false;
   }
+  // Filter duplicate records from multi-valued index read.
+  // (m_unique != nullptr in case of multi-valued index read)
+  if (!result && !mrr_have_range && m_unique != nullptr && filter_dup_records())
+    result = HA_ERR_KEY_NOT_FOUND;
+
   table->set_row_status_from_handler(result);
   return result;
 }
@@ -3453,9 +3471,12 @@ int handler::ha_index_last(uchar *buf) {
   @param      keylen  Length of key
 
   @return Operation status.
-    @retval  0                   Success
-    @retval  HA_ERR_END_OF_FILE  Row not found
-    @retval  != 0                Error
+    @retval  0                    Success
+    @retval  HA_ERR_END_OF_FILE   Row not found
+    @retval  HA_ERR_KEY_NOT_FOUND This return value indicates indicates row
+                                  returned from storage engine during
+                                  multi-value index read.
+    @retval  != 0                 Error
 */
 
 int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen) {
@@ -7418,9 +7439,16 @@ void handler::set_end_range(const key_range *range,
     - 1   : Key is larger than range
 */
 int handler::compare_key(key_range *range) {
-  int cmp;
+  int cmp = -1;
   if (!range || in_range_check_pushed_down) return 0;  // No max range
-  cmp = key_cmp(range_key_part, range->key, range->length);
+  /*
+    Virtual fields are not updated during multi-valued index read in MRR.
+    Hence key comparison is skipped for MV index.
+    TODO: Disable MRR on MV index or implement a comparison logic.
+  */
+  if (!(table->key_info[active_index].flags & HA_MULTI_VALUED_KEY)) {
+    cmp = key_cmp(range_key_part, range->key, range->length);
+  }
   if (!cmp) cmp = key_compare_result_on_equal;
   return cmp;
 }

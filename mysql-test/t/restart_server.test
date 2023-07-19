@@ -1,3 +1,5 @@
+# Hangs forever with ASAN and gcc >= 10.0
+--source include/not_asan.inc
 --source include/have_mysqld_safe.inc
 --source include/not_windows.inc
 

@@ -409,7 +409,7 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
 #ifdef UNIV_DEBUG
   /* The check is done randomly from time to time, because the check adds
   a kind of extra synchronization which itself could hide existing bugs. */
-  if (ut::random_from_interval(0, 99) == 0) {
+  if (ut::random_from_interval_fast(0, 99) == 0) {
     /* Assert that all transaction ids in list are active. */
     for (auto trx_id : trx_ids) {
       while (trx_sys->latch_and_execute_with_active_trx(

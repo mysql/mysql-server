@@ -23,10 +23,13 @@
  */
 
 #include "adapter_global.h"
+#include "ndbapi/NdbDictionary.hpp"
+#include "ndbapi/NdbTransaction.hpp"
 #include "unified_debug.h"
 #include "KeyOperation.h"
 #include "JsValueAccess.h"
 
+class NdbOperation;
 
 const char * opcode_strings[17] = 
  { 0, "read  ", "insert", 0, "update", 0, 0, 0, "write ",

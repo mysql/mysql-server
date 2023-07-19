@@ -405,6 +405,11 @@ struct Log_event_basic_info {
 
 #define LOG_EVENT_HEADER_LEN 19U /* the fixed header length */
 
+/// The maximum value for MAX_ALLOWED_PACKET.  This is also the
+/// maxmium size of binlog events, and dump threads always use this
+/// value for max_allowed_packet.
+constexpr size_t max_log_event_size = 1024 * 1024 * 1024;
+
 /**
    Fixed header length, where 4.x and 5.0 agree. That is, 5.0 may have a longer
    header (it will for sure when we have the unique event's ID), but at least

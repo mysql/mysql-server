@@ -517,7 +517,7 @@ void warn_on_deprecated_user_defined_collation(
 %parse-param { class Parse_tree_root **parse_tree }
 
 %lex-param { class THD *YYTHD }
-%pure-parser                                    /* We have threads */
+%define api.pure                                    /* We have threads */
 /*
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
@@ -2314,7 +2314,7 @@ sql_statement:
         ;
 
 opt_end_of_input:
-          /* empty */
+          %empty
         | END_OF_INPUT
         ;
 
@@ -2527,7 +2527,7 @@ execute:
         ;
 
 execute_using:
-          /* nothing */
+          %empty
         | USING execute_var_list
         ;
 
@@ -3253,7 +3253,7 @@ source_def:
         ;
 
 ignore_server_id_list:
-          /* Empty */
+            %empty
           | ignore_server_id
           | ignore_server_id_list ',' ignore_server_id
         ;
@@ -3386,8 +3386,7 @@ source_file_def:
         ;
 
 opt_channel:
-          /*empty */
-          { $$ = {}; }
+          %empty { $$ = {}; }
         | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
           { $$ = to_lex_cstring($3); }
         ;
@@ -3564,7 +3563,7 @@ create_srs_stmt:
         ;
 
 srs_attributes:
-          /* empty */
+          %empty
           {
             $$ = NEW_PTN Sql_cmd_srs_attributes();
             if (!$$)
@@ -3623,7 +3622,7 @@ srs_attributes:
         ;
 
 default_role_clause:
-          /* empty */
+          %empty
           {
             $$= 0;
           }
@@ -3749,7 +3748,7 @@ ev_schedule_time:
         ;
 
 opt_ev_status:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
@@ -3771,7 +3770,7 @@ opt_ev_status:
         ;
 
 ev_starts:
-          /* empty */
+          %empty
           {
             Item *item= NEW_PTN Item_func_now_local(0);
             if (item == NULL)
@@ -3787,7 +3786,7 @@ ev_starts:
         ;
 
 ev_ends:
-          /* empty */
+          %empty
         | ENDS_SYM expr
           {
             ITEMIZE($2, &$2);
@@ -3797,7 +3796,7 @@ ev_ends:
         ;
 
 opt_ev_on_completion:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | ev_on_completion
         ;
 
@@ -3817,7 +3816,7 @@ ev_on_completion:
         ;
 
 opt_ev_comment:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
             Lex->event_parse_data->comment= $2;
@@ -3933,12 +3932,12 @@ sp_name:
         ;
 
 sp_a_chistics:
-          /* Empty */ {}
+          %empty {}
         | sp_a_chistics sp_chistic {}
         ;
 
 sp_c_chistics:
-          /* Empty */ {}
+          %empty {}
         | sp_c_chistics sp_c_chistic {}
         ;
 
@@ -3986,7 +3985,7 @@ call_stmt:
         ;
 
 opt_paren_expr_list:
-            /* Empty */ { $$= NULL; }
+            %empty { $$= NULL; }
           | '(' opt_expr_list ')'
             {
               $$= $2;
@@ -3995,7 +3994,7 @@ opt_paren_expr_list:
 
 /* Stored FUNCTION parameter declaration list */
 sp_fdparam_list:
-          /* Empty */
+          %empty
         | sp_fdparams
         ;
 
@@ -4057,7 +4056,7 @@ sp_fdparam:
 
 /* Stored PROCEDURE parameter declaration list */
 sp_pdparam_list:
-          /* Empty */
+          %empty
         | sp_pdparams
         ;
 
@@ -4117,14 +4116,14 @@ sp_pdparam:
         ;
 
 sp_opt_inout:
-          /* Empty */ { $$= sp_variable::MODE_IN; }
+          %empty      { $$= sp_variable::MODE_IN; }
         | IN_SYM      { $$= sp_variable::MODE_IN; }
         | OUT_SYM     { $$= sp_variable::MODE_OUT; }
         | INOUT_SYM   { $$= sp_variable::MODE_INOUT; }
         ;
 
 sp_proc_stmts:
-          /* Empty */ {}
+          %empty {}
         | sp_proc_stmts  sp_proc_stmt ';'
         ;
 
@@ -4134,7 +4133,7 @@ sp_proc_stmts1:
         ;
 
 sp_decls:
-          /* Empty */
+          %empty
           {
             $$.vars= $$.conds= $$.hndlrs= $$.curs= 0;
           }
@@ -4503,7 +4502,7 @@ sqlstate:
         ;
 
 opt_value:
-          /* Empty */  {}
+          %empty {}
         | VALUE_SYM    {}
         ;
 
@@ -4590,15 +4589,13 @@ signal_value:
         ;
 
 opt_signal_value:
-          /* empty */
-          { $$= NULL; }
+          %empty { $$= NULL; }
         | signal_value
           { $$= $1; }
         ;
 
 opt_set_signal_information:
-          /* empty */
-          { $$= NEW_PTN Set_signal_information(); }
+          %empty { $$= NEW_PTN Set_signal_information(); }
         | SET_SYM signal_information_item_list
           { $$= $2; }
         ;
@@ -4691,7 +4688,7 @@ get_diagnostics:
 
 which_area:
         /* If <which area> is not specified, then CURRENT is implicit. */
-          { $$= Diagnostics_information::CURRENT_AREA; }
+           %empty { $$= Diagnostics_information::CURRENT_AREA; }
         | CURRENT_SYM
           { $$= Diagnostics_information::CURRENT_AREA; }
         | STACKED_SYM
@@ -4884,7 +4881,7 @@ sp_decl_idents:
         ;
 
 sp_opt_default:
-        /* Empty */
+          %empty
           {
             $$.expr_start= NULL;
             $$.expr = NULL;
@@ -5242,7 +5239,7 @@ sp_proc_stmt_close:
         ;
 
 sp_opt_fetch_noise:
-          /* Empty */
+          %empty
         | NEXT_SYM FROM
         | FROM
         ;
@@ -5362,7 +5359,7 @@ sp_if:
         ;
 
 sp_elseifs:
-          /* Empty */
+          %empty
         | ELSEIF_SYM sp_if
         | ELSE sp_proc_stmts1
         ;
@@ -5571,7 +5568,7 @@ searched_when_clause:
         ;
 
 else_clause_opt:
-          /* empty */
+          %empty
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
@@ -5627,7 +5624,7 @@ sp_labeled_control:
         ;
 
 sp_opt_label:
-          /* Empty  */  { $$= NULL_CSTR; }
+          %empty { $$= NULL_CSTR; }
         | label_ident   { $$= $1; }
         ;
 
@@ -5889,7 +5886,7 @@ trg_event:
 */
 
 opt_ts_datafile_name:
-    /* empty */ { $$= { nullptr, 0}; }
+      %empty { $$= { nullptr, 0}; }
     | ADD ts_datafile
       {
         $$ = $2;
@@ -5897,7 +5894,7 @@ opt_ts_datafile_name:
     ;
 
 opt_logfile_group_name:
-          /* empty */ { $$= { nullptr, 0}; }
+          %empty { $$= { nullptr, 0}; }
         | USE_SYM LOGFILE_SYM GROUP_SYM ident
           {
             $$= $4;
@@ -5905,7 +5902,7 @@ opt_logfile_group_name:
         ;
 
 opt_tablespace_options:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | tablespace_option_list
         ;
 
@@ -5939,7 +5936,7 @@ tablespace_option:
         ;
 
 opt_alter_tablespace_options:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | alter_tablespace_option_list
         ;
 
@@ -5969,7 +5966,7 @@ alter_tablespace_option:
         ;
 
 opt_undo_tablespace_options:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | undo_tablespace_option_list
         ;
 
@@ -5993,7 +5990,7 @@ undo_tablespace_option:
         ;
 
 opt_logfile_group_options:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | logfile_group_option_list
         ;
 
@@ -6023,7 +6020,7 @@ logfile_group_option:
         ;
 
 opt_alter_logfile_group_options:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | alter_logfile_group_option_list
         ;
 
@@ -6256,7 +6253,7 @@ opt_create_partitioning_etc:
         ;
 
 opt_duplicate_as_qe:
-          /* empty */
+          %empty
           {
             $$.opt_create_table_options= NULL;
             $$.opt_partitioning= NULL;
@@ -6331,13 +6328,12 @@ part_type_def:
         ;
 
 opt_linear:
-          /* empty */ { $$= false; }
+          %empty { $$= false; }
         | LINEAR_SYM  { $$= true; }
         ;
 
 opt_key_algo:
-          /* empty */
-          { $$= enum_key_algorithm::KEY_ALGORITHM_NONE; }
+          %empty { $$= enum_key_algorithm::KEY_ALGORITHM_NONE; }
         | ALGORITHM_SYM EQ real_ulong_num
           {
             switch ($3) {
@@ -6355,8 +6351,7 @@ opt_key_algo:
         ;
 
 opt_num_parts:
-          /* empty */
-          { $$= 0; }
+          %empty { $$= 0; }
         | PARTITIONS_SYM real_ulong_num
           {
             if ($2 == 0)
@@ -6369,7 +6364,7 @@ opt_num_parts:
         ;
 
 opt_sub_part:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | SUBPARTITION_SYM BY opt_linear HASH_SYM '(' bit_expr ')'
           opt_num_subparts
           {
@@ -6384,7 +6379,7 @@ opt_sub_part:
 
 
 opt_name_list:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | name_list
         ;
 
@@ -6405,8 +6400,7 @@ name_list:
         ;
 
 opt_num_subparts:
-          /* empty */
-          { $$= 0; }
+          %empty { $$= 0; }
         | SUBPARTITIONS_SYM real_ulong_num
           {
             if ($2 == 0)
@@ -6419,7 +6413,7 @@ opt_num_subparts:
         ;
 
 opt_part_defs:
-          /* empty */           { $$= NULL; }
+          %empty { $$= NULL; }
         | '(' part_def_list ')' { $$= $2; }
         ;
 
@@ -6447,7 +6441,7 @@ part_definition:
         ;
 
 opt_part_values:
-          /* empty */
+          %empty
           {
             $$.type= partition_type::HASH;
           }
@@ -6535,7 +6529,7 @@ part_value_item:
 
 
 opt_sub_partition:
-          /* empty */           { $$= NULL; }
+          %empty { $$= NULL; }
         | '(' sub_part_list ')' { $$= $2; }
         ;
 
@@ -6562,7 +6556,7 @@ sub_part_definition:
         ;
 
 opt_part_options:
-         /* empty */ { $$= NULL; }
+         %empty { $$= NULL; }
        | part_option_list
        ;
 
@@ -6632,7 +6626,7 @@ alter_database_option:
         ;
 
 opt_create_database_options:
-          /* empty */ {}
+          %empty {}
         | create_database_options {}
         ;
 
@@ -6667,7 +6661,7 @@ create_database_option:
         ;
 
 opt_if_not_exists:
-          /* empty */   { $$= false; }
+          %empty { $$= false; }
         | IF not EXISTS { $$= true; }
         ;
 
@@ -6702,7 +6696,7 @@ create_table_options:
         ;
 
 opt_comma:
-          /* empty */
+          %empty
         | ','
         ;
 
@@ -6962,7 +6956,7 @@ column_def:
         ;
 
 opt_references:
-          /* empty */      { $$= NULL; }
+           %empty { $$= NULL; }
         |  references
           {
             /* Currently we ignore FK references here: */
@@ -7018,17 +7012,17 @@ check_constraint:
         ;
 
 opt_constraint_name:
-          /* empty */          { $$= NULL_STR; }
+          %empty { $$= NULL_STR; }
         | CONSTRAINT opt_ident { $$= $2; }
         ;
 
 opt_not:
-          /* empty */  { $$= false; }
+          %empty       { $$= false; }
         | NOT_SYM      { $$= true; }
         ;
 
 opt_constraint_enforcement:
-          /* empty */            { $$= true; }
+          %empty { $$= true; }
         | constraint_enforcement { $$= $1; }
         ;
 
@@ -7063,12 +7057,12 @@ field_def:
         ;
 
 opt_generated_always:
-          /* empty */
+          %empty
         | GENERATED ALWAYS_SYM
         ;
 
 opt_stored_attribute:
-          /* empty */ { $$= Virtual_or_stored::VIRTUAL; }
+          %empty      { $$= Virtual_or_stored::VIRTUAL; }
         | VIRTUAL_SYM { $$= Virtual_or_stored::VIRTUAL; }
         | STORED_SYM  { $$= Virtual_or_stored::STORED; }
         ;
@@ -7320,7 +7314,7 @@ real_type:
         ;
 
 opt_PRECISION:
-          /* empty */
+          %empty
         | PRECISION
         ;
 
@@ -7332,7 +7326,7 @@ numeric_type:
         ;
 
 standard_float_options:
-          /* empty */
+          %empty
           {
             $$.length = nullptr;
             $$.dec = nullptr;
@@ -7345,7 +7339,7 @@ standard_float_options:
         ;
 
 float_options:
-          /* empty */
+          %empty
           {
             $$.length= NULL;
             $$.dec= NULL;
@@ -7368,12 +7362,12 @@ precision:
 
 
 type_datetime_precision:
-          /* empty */                { $$= NULL; }
+          %empty { $$= NULL; }
         | '(' NUM ')'                { $$= $2.str; }
         ;
 
 func_datetime_precision:
-          /* empty */                { $$= 0; }
+          %empty { $$= 0; }
         | '(' ')'                    { $$= 0; }
         | '(' NUM ')'
            {
@@ -7383,7 +7377,7 @@ func_datetime_precision:
         ;
 
 field_options:
-          /* empty */ { $$ = 0; }
+          %empty { $$ = 0; }
         | field_opt_list
         ;
 
@@ -7413,12 +7407,12 @@ field_length:
         | '(' NUM ')'           { $$= $2.str; };
 
 opt_field_length:
-          /* empty */  { $$= NULL; /* use default length */ }
+          %empty { $$= NULL; /* use default length */ }
         | field_length
         ;
 
 opt_precision:
-          /* empty */
+          %empty
           {
             $$.length= NULL;
             $$.dec = NULL;
@@ -7427,7 +7421,7 @@ opt_precision:
         ;
 
 opt_column_attribute_list:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | column_attribute_list
         ;
 
@@ -7616,7 +7610,7 @@ charset_name:
         ;
 
 opt_load_data_charset:
-          /* Empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | character_set charset_name { $$ = $2; }
         ;
 
@@ -7649,12 +7643,12 @@ collation_name:
         ;
 
 opt_collate:
-          /* empty */                { $$ = nullptr; }
+          %empty { $$ = nullptr; }
         | COLLATE_SYM collation_name { $$ = $2; }
         ;
 
 opt_default:
-          /* empty */ {}
+          %empty {}
         | DEFAULT_SYM {}
         ;
 
@@ -7703,7 +7697,7 @@ unicode:
         ;
 
 opt_charset_with_opt_binary:
-          /* empty */
+          %empty
           {
             $$.charset= NULL;
             $$.force_binary= false;
@@ -7747,7 +7741,7 @@ opt_charset_with_opt_binary:
         ;
 
 opt_bin_mod:
-          /* empty */ { $$= false; }
+          %empty { $$= false; }
         | BINARY_SYM {
             warn_about_deprecated_binary(YYTHD);
             $$= true;
@@ -7768,7 +7762,7 @@ ws_num_codepoints:
         ;
 
 opt_primary:
-          /* empty */
+          %empty
         | PRIMARY_SYM
         ;
 
@@ -7788,7 +7782,7 @@ references:
         ;
 
 opt_ref_list:
-          /* empty */      { $$= NULL; }
+          %empty { $$= NULL; }
         | '(' reference_list ')' { $$= $2; }
         ;
 
@@ -7810,14 +7804,14 @@ reference_list:
         ;
 
 opt_match_clause:
-          /* empty */      { $$= FK_MATCH_UNDEF; }
+          %empty { $$= FK_MATCH_UNDEF; }
         | MATCH FULL       { $$= FK_MATCH_FULL; }
         | MATCH PARTIAL    { $$= FK_MATCH_PARTIAL; }
         | MATCH SIMPLE_SYM { $$= FK_MATCH_SIMPLE; }
         ;
 
 opt_on_update_delete:
-          /* empty */
+          %empty
           {
             $$.fk_update_opt= FK_OPTION_UNDEF;
             $$.fk_delete_opt= FK_OPTION_UNDEF;
@@ -7865,7 +7859,7 @@ key_or_index:
         ;
 
 opt_key_or_index:
-          /* empty */ {}
+          %empty {}
         | key_or_index
         ;
 
@@ -7876,12 +7870,12 @@ keys_or_index:
         ;
 
 opt_unique:
-          /* empty */  { $$= KEYTYPE_MULTIPLE; }
+          %empty { $$= KEYTYPE_MULTIPLE; }
         | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 
 opt_fulltext_index_options:
-          /* Empty. */ { $$.init(YYMEM_ROOT); }
+          %empty { $$.init(YYMEM_ROOT); }
         | fulltext_index_options
         ;
 
@@ -7916,7 +7910,7 @@ fulltext_index_option:
         ;
 
 opt_spatial_index_options:
-          /* Empty. */ { $$.init(YYMEM_ROOT); }
+          %empty { $$.init(YYMEM_ROOT); }
         | spatial_index_options
         ;
 
@@ -7940,7 +7934,7 @@ spatial_index_option:
         ;
 
 opt_index_options:
-          /* Empty. */ { $$.init(YYMEM_ROOT); }
+          %empty { $$.init(YYMEM_ROOT); }
         | index_options
         ;
 
@@ -8009,7 +8003,7 @@ opt_index_name_and_type:
         ;
 
 opt_index_type_clause:
-          /* empty */                { $$ = nullptr; }
+          %empty { $$ = nullptr; }
         | index_type_clause
         ;
 
@@ -8093,7 +8087,7 @@ key_part_with_expression:
         ;
 
 opt_ident:
-          /* empty */ { $$= NULL_STR; }
+          %empty { $$= NULL_STR; }
         | ident
         ;
 
@@ -8480,7 +8474,7 @@ alter_user_stmt:
         ;
 
 opt_replace_password:
-          /* empty */                       { $$ = LEX_CSTRING{nullptr, 0}; }
+          %empty { $$ = LEX_CSTRING{nullptr, 0}; }
         | REPLACE_SYM TEXT_STRING_password  { $$ = to_lex_cstring($2); }
         ;
 
@@ -8504,7 +8498,7 @@ alter_user_command:
         ;
 
 opt_user_attribute:
-          /* empty */
+          %empty
           {
             LEX *lex= Lex;
             lex->alter_user_attribute =
@@ -8526,7 +8520,7 @@ opt_user_attribute:
           }
         ;
 opt_account_lock_password_expire_options:
-          /* empty */ {}
+          %empty {}
         | opt_account_lock_password_expire_option_list
         ;
 
@@ -8666,7 +8660,7 @@ opt_account_lock_password_expire_option:
         ;
 
 connect_options:
-          /* empty */ {}
+          %empty {}
         | WITH connect_option_list
         ;
 
@@ -8716,14 +8710,14 @@ user_func:
         ;
 
 ev_alter_on_schedule_completion:
-          /* empty */ { $$= 0;}
+          %empty { $$= 0;}
         | ON_SYM SCHEDULE_SYM ev_schedule_time { $$= 1; }
         | ev_on_completion { $$= 1; }
         | ON_SYM SCHEDULE_SYM ev_schedule_time ev_on_completion { $$= 1; }
         ;
 
 opt_ev_rename_to:
-          /* empty */ { $$= 0;}
+          %empty { $$= 0;}
         | RENAME TO_SYM sp_name
           {
             /*
@@ -8736,12 +8730,12 @@ opt_ev_rename_to:
         ;
 
 opt_ev_sql_stmt:
-          /* empty*/ { $$= 0;}
+          %empty { $$= 0;}
         | DO_SYM ev_sql_stmt { $$= 1; }
         ;
 
 ident_or_empty:
-          /* empty */ { $$.str= 0; $$.length= 0; }
+          %empty { $$.str= 0; $$.length= 0; }
         | ident { $$= $1; }
         ;
 
@@ -8786,7 +8780,7 @@ alter_table_partition_options:
         ;
 
 opt_alter_command_list:
-          /* empty */
+          %empty
           {
             $$.flags.init();
             $$.actions= NULL;
@@ -8907,7 +8901,7 @@ standalone_alter_commands:
         ;
 
 opt_with_validation:
-          /* empty */ { $$= Alter_info::ALTER_VALIDATION_DEFAULT; }
+          %empty { $$= Alter_info::ALTER_VALIDATION_DEFAULT; }
         | with_validation
         ;
 
@@ -9106,7 +9100,7 @@ alter_commands_modifier:
         ;
 
 opt_index_lock_and_algorithm:
-          /* Empty. */ { $$.init(); }
+          %empty { $$.init(); }
         | alter_lock_option
           {
             $$.init();
@@ -9182,29 +9176,29 @@ alter_lock_option_value:
         ;
 
 opt_column:
-          /* empty */
+          %empty
         | COLUMN_SYM
         ;
 
 opt_ignore:
-          /* empty */ { $$= false; }
+          %empty      { $$= false; }
         | IGNORE_SYM  { $$= true; }
         ;
 
 opt_restrict:
-          /* empty */ { $$= DROP_DEFAULT; }
+          %empty      { $$= DROP_DEFAULT; }
         | RESTRICT    { $$= DROP_RESTRICT; }
         | CASCADE     { $$= DROP_CASCADE; }
         ;
 
 opt_place:
-          /* empty */           { $$= NULL; }
+          %empty                { $$= NULL; }
         | AFTER_SYM ident       { $$= $2.str; }
         | FIRST_SYM             { $$= first_keyword; }
         ;
 
 opt_to:
-          /* empty */ {}
+          %empty {}
         | TO_SYM {}
         | EQ {}
         | AS {}
@@ -9229,7 +9223,7 @@ group_replication_start:
         ;
 
 opt_group_replication_start_options:
-          /* empty */
+          %empty
         | group_replication_start_options
         ;
 
@@ -9352,7 +9346,7 @@ start:
         ;
 
 opt_start_transaction_option_list:
-          /* empty */
+          %empty
           {
             $$= 0;
           }
@@ -9389,9 +9383,7 @@ start_transaction_option:
         ;
 
 opt_user_option:
-          {
-            /* empty */
-          }
+          %empty {}
         | USER EQ TEXT_STRING_sys
           {
             Lex->slave_connection.user= $3.str;
@@ -9399,9 +9391,7 @@ opt_user_option:
         ;
 
 opt_password_option:
-          {
-            /* empty */
-          }
+          %empty {}
         | PASSWORD EQ TEXT_STRING_sys
           {
             Lex->slave_connection.password= $3.str;
@@ -9409,9 +9399,7 @@ opt_password_option:
           }
 
 opt_default_auth_option:
-          {
-            /* empty */
-          }
+          %empty {}
         | DEFAULT_AUTH_SYM EQ TEXT_STRING_sys
           {
             Lex->slave_connection.plugin_auth= $3.str;
@@ -9419,9 +9407,7 @@ opt_default_auth_option:
         ;
 
 opt_plugin_dir_option:
-          {
-            /* empty */
-          }
+          %empty {}
         | PLUGIN_DIR_SYM EQ TEXT_STRING_sys
           {
             Lex->slave_connection.plugin_dir= $3.str;
@@ -9429,7 +9415,7 @@ opt_plugin_dir_option:
         ;
 
 opt_replica_thread_option_list:
-          /* empty */
+          %empty
           {
             $$= 0;
           }
@@ -9462,7 +9448,7 @@ replica_thread_option:
         ;
 
 opt_replica_until:
-          /*empty*/
+          %empty
           {
             LEX *lex= Lex;
             lex->mi.slave_until= false;
@@ -9525,7 +9511,7 @@ checksum:
         ;
 
 opt_checksum_type:
-          /* empty */   { $$= 0; }
+          %empty        { $$= 0; }
         | QUICK         { $$= T_QUICK; }
         | EXTENDED_SYM  { $$= T_EXTEND; }
         ;
@@ -9540,7 +9526,7 @@ repair_table_stmt:
         ;
 
 opt_mi_repair_types:
-          /* empty */ { $$.flags = T_MEDIUM; $$.sql_flags= 0; }
+          %empty { $$.flags = T_MEDIUM; $$.sql_flags= 0; }
         | mi_repair_types
         ;
 
@@ -9576,7 +9562,7 @@ analyze_table_stmt:
         ;
 
 opt_histogram_update_param:
-          /* empty */
+          %empty
           {
             $$.num_buckets= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS;
             $$.data= { nullptr, 0 };
@@ -9605,7 +9591,7 @@ opt_histogram_update_param:
         ;
 
 opt_histogram:
-          /* empty */
+          %empty
           {
             $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
             $$.columns= nullptr;
@@ -9646,7 +9632,7 @@ check_table_stmt:
         ;
 
 opt_mi_check_types:
-          /* empty */ { $$.flags = T_MEDIUM; $$.sql_flags= 0; }
+          %empty { $$.flags = T_MEDIUM; $$.sql_flags= 0; }
         | mi_check_types
         ;
 
@@ -9682,7 +9668,7 @@ optimize_table_stmt:
         ;
 
 opt_no_write_to_binlog:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | NO_WRITE_TO_BINLOG { $$= 1; }
         | LOCAL_SYM { $$= 1; }
         ;
@@ -9813,7 +9799,7 @@ adm_partition:
         ;
 
 opt_cache_key_list:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | key_or_index '(' opt_key_usage_list ')'
           {
             init_index_hints($3, INDEX_HINT_USE,
@@ -9824,7 +9810,7 @@ opt_cache_key_list:
         ;
 
 opt_ignore_leaves:
-          /* empty */       { $$= false; }
+          %empty { $$= false; }
         | IGNORE_SYM LEAVES { $$= true; }
         ;
 
@@ -10039,7 +10025,7 @@ query_specification:
         ;
 
 opt_from_clause:
-          /* Empty. */ %prec EMPTY_FROM_CLAUSE { $$.init(YYMEM_ROOT); }
+          %empty %prec EMPTY_FROM_CLAUSE { $$.init(YYMEM_ROOT); }
         | from_clause
         ;
 
@@ -10086,7 +10072,7 @@ explicit_table:
         ;
 
 select_options:
-          /* empty*/
+          %empty
           {
             $$.query_spec_options= 0;
           }
@@ -10155,7 +10141,7 @@ table_locking_list:
         ;
 
 opt_locked_row_action:
-          /* Empty */ { $$= Locked_row_action::WAIT; }
+          %empty { $$= Locked_row_action::WAIT; }
         | locked_row_action
         ;
 
@@ -10196,7 +10182,7 @@ select_item:
 
 
 select_alias:
-          /* empty */ { $$=null_lex_str;}
+          %empty { $$=null_lex_str;}
         | AS ident { $$=$2; }
         | AS TEXT_STRING_validated { $$=$2; }
         | ident { $$=$1; }
@@ -10204,7 +10190,7 @@ select_alias:
         ;
 
 optional_braces:
-          /* empty */ {}
+          %empty {}
         | '(' ')' {}
         ;
 
@@ -10380,7 +10366,7 @@ predicate:
 
 opt_of:
           OF_SYM
-        |
+        | %empty
         ;
 
 bit_expr:
@@ -10607,7 +10593,7 @@ simple_expr:
         ;
 
 opt_array_cast:
-        /* empty */ { $$= false; }
+          %empty { $$= false; }
         | ARRAY_SYM { $$= true; }
         ;
 
@@ -10851,6 +10837,7 @@ opt_returning_type:
           // The default returning type is CHAR(512). (The max length of 512
           // is chosen so that the returned values are not handled as BLOBs
           // internally. See CONVERT_IF_BIGGER_TO_BLOB.)
+          %empty
           {
             $$= {ITEM_CAST_CHAR, nullptr, "512", nullptr};
           }
@@ -11035,17 +11022,17 @@ fulltext_options:
         ;
 
 opt_natural_language_mode:
-          /* nothing */                         { $$= FT_NL; }
+          %empty { $$= FT_NL; }
         | IN_SYM NATURAL LANGUAGE_SYM MODE_SYM  { $$= FT_NL; }
         ;
 
 opt_query_expansion:
-          /* nothing */                         { $$= 0;         }
+          %empty { $$= 0;         }
         | WITH QUERY_SYM EXPANSION_SYM          { $$= FT_EXPAND; }
         ;
 
 opt_udf_expr_list:
-        /* empty */     { $$= NULL; }
+          %empty { $$= NULL; }
         | udf_expr_list { $$= $1; }
         ;
 
@@ -11258,7 +11245,7 @@ window_func_call:       // Window functions which do not exist as set functions
         ;
 
 opt_lead_lag_info:
-          /* Nothing */
+          %empty
           {
             $$.offset= NULL;
             $$.default_value= NULL;
@@ -11286,7 +11273,7 @@ param_or_var:
         ;
 
 opt_ll_default:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11297,7 +11284,7 @@ opt_ll_default:
         ;
 
 opt_null_treatment:
-          /* Nothing */
+          %empty
           {
             $$= NT_NONE;
           }
@@ -11313,7 +11300,7 @@ opt_null_treatment:
 
 
 opt_from_first_last:
-          /* Nothing */
+          %empty
           {
             $$= NFL_NONE;
           }
@@ -11328,7 +11315,7 @@ opt_from_first_last:
         ;
 
 opt_windowing_clause:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11391,7 +11378,7 @@ window_spec_details:
          ;
 
 opt_existing_window_name:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11402,7 +11389,7 @@ opt_existing_window_name:
         ;
 
 opt_partition_clause:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11413,7 +11400,7 @@ opt_partition_clause:
         ;
 
 opt_window_order_by_clause:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11424,7 +11411,7 @@ opt_window_order_by_clause:
         ;
 
 opt_window_frame_clause:
-          /* Nothing*/
+          %empty
           {
             $$= NULL;
           }
@@ -11502,7 +11489,7 @@ window_frame_bound:
         ;
 
 opt_window_frame_exclusion:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -11559,12 +11546,12 @@ rvalue_system_or_user_variable:
         ;
 
 opt_distinct:
-          /* empty */ { $$ = 0; }
+          %empty      { $$ = 0; }
         | DISTINCT    { $$ = 1; }
         ;
 
 opt_gconcat_separator:
-          /* empty */
+          %empty
           {
             $$= NEW_PTN String(",", 1, &my_charset_latin1);
             if ($$ == NULL)
@@ -11574,7 +11561,7 @@ opt_gconcat_separator:
         ;
 
 opt_gorder_clause:
-          /* empty */               { $$= NULL; }
+          %empty                    { $$= NULL; }
         | ORDER_SYM BY gorder_list  { $$= $3; }
         ;
 
@@ -11772,7 +11759,7 @@ cast_type:
         ;
 
 opt_expr_list:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | expr_list
         ;
 
@@ -11812,12 +11799,12 @@ ident_list:
         ;
 
 opt_expr:
-          /* empty */    { $$= NULL; }
+          %empty         { $$= NULL; }
         | expr           { $$= $1; }
         ;
 
 opt_else:
-          /* empty */  { $$= NULL; }
+          %empty       { $$= NULL; }
         | ELSE expr    { $$= $2; }
         ;
 
@@ -11987,12 +11974,12 @@ outer_join_type:
         ;
 
 opt_inner:
-          /* empty */
+          %empty
         | INNER_SYM
         ;
 
 opt_outer:
-          /* empty */
+          %empty
         | OUTER_SYM
         ;
 
@@ -12001,7 +11988,7 @@ opt_outer:
   a new rule for partition_list.
 */
 opt_use_partition:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | use_partition
         ;
 
@@ -12156,6 +12143,7 @@ jt_column:
         ;
 
 jt_column_type:
+          %empty
           {
             $$= enum_jt_column::JTC_PATH;
           }
@@ -12169,7 +12157,7 @@ jt_column_type:
 // JSON_VALUE. If both clauses are specified, the ON EMPTY clause
 // should come before the ON ERROR clause.
 opt_on_empty_or_error:
-          /* empty */
+          %empty
           {
             $$.empty = {Json_on_response_type::IMPLICIT, nullptr};
             $$.error = {Json_on_response_type::IMPLICIT, nullptr};
@@ -12226,7 +12214,7 @@ json_on_response:
         ;
 
 index_hint_clause:
-          /* empty */
+          %empty
           {
             $$= old_mode ?  INDEX_HINT_MASK_JOIN : INDEX_HINT_MASK_ALL;
           }
@@ -12265,7 +12253,7 @@ index_hints_list:
         ;
 
 opt_index_hints_list:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | index_hints_list
         ;
 
@@ -12274,7 +12262,7 @@ opt_key_definition:
         ;
 
 opt_key_usage_list:
-          /* empty */
+          %empty
           {
             $$= NEW_PTN List<Index_hint>;
             Index_hint *hint= NEW_PTN Index_hint(NULL, 0);
@@ -12373,22 +12361,22 @@ date_time_type:
         ;
 
 opt_as:
-          /* empty */
+          %empty
         | AS
         ;
 
 opt_table_alias:
-          /* empty */  { $$ = NULL_CSTR; }
+          %empty { $$ = NULL_CSTR; }
         | opt_as ident { $$ = to_lex_cstring($2); }
         ;
 
 opt_all:
-          /* empty */
+          %empty
         | ALL
         ;
 
 opt_where_clause:
-          /* empty */   { $$ = nullptr; }
+          %empty { $$ = nullptr; }
         | where_clause
         ;
 
@@ -12397,7 +12385,7 @@ where_clause:
         ;
 
 opt_having_clause:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | HAVING expr
           {
             $$= new PTI_having(@$, $2);
@@ -12446,7 +12434,7 @@ common_table_expr:
         ;
 
 opt_derived_column_list:
-          /* empty */
+          %empty
           {
             /*
               Because () isn't accepted by the rule of
@@ -12477,7 +12465,7 @@ simple_ident_list:
         ;
 
 opt_window_clause:
-          /* Nothing */
+          %empty
           {
             $$= NULL;
           }
@@ -12517,7 +12505,7 @@ window_definition:
 */
 
 opt_group_clause:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | GROUP_SYM BY group_list olap_opt
           {
             $$= NEW_PTN PT_group($3, $4);
@@ -12541,7 +12529,7 @@ group_list:
 
 
 olap_opt:
-          /* empty */   { $$= UNSPECIFIED_OLAP_TYPE; }
+          %empty { $$= UNSPECIFIED_OLAP_TYPE; }
         | WITH_ROLLUP_SYM { $$= ROLLUP_TYPE; }
             /*
               'WITH ROLLUP' is needed for backward compatibility,
@@ -12579,7 +12567,7 @@ alter_order_item:
         ;
 
 opt_order_clause:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | order_clause
         ;
 
@@ -12606,7 +12594,7 @@ order_list:
         ;
 
 opt_ordering_direction:
-          /* empty */ { $$= ORDER_NOT_RELEVANT; }
+          %empty { $$= ORDER_NOT_RELEVANT; }
         | ordering_direction
         ;
 
@@ -12616,7 +12604,7 @@ ordering_direction:
         ;
 
 opt_limit_clause:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | limit_clause
         ;
 
@@ -12672,7 +12660,7 @@ limit_option:
         ;
 
 opt_simple_limit:
-          /* empty */        { $$= NULL; }
+          %empty { $$= NULL; }
         | LIMIT limit_option { $$= $2; }
         ;
 
@@ -13061,22 +13049,22 @@ table_alias_ref_list:
         ;
 
 if_exists:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | IF EXISTS { $$= 1; }
         ;
 
 opt_ignore_unknown_user:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
         | IGNORE_SYM UNKNOWN_SYM USER { $$= 1; }
         ;
 
 opt_temporary:
-          /* empty */ { $$= false; }
+          %empty { $$= false; }
         | TEMPORARY   { $$= true; }
         ;
 
 opt_drop_ts_options:
-        /* empty*/ { $$= NULL; }
+        %empty { $$= NULL; }
       | drop_ts_option_list
       ;
 
@@ -13208,7 +13196,7 @@ replace_stmt:
         ;
 
 insert_lock_option:
-          /* empty */   { $$= TL_WRITE_CONCURRENT_DEFAULT; }
+          %empty { $$= TL_WRITE_CONCURRENT_DEFAULT; }
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
@@ -13236,7 +13224,7 @@ replace_lock_option:
         ;
 
 opt_INTO:
-          /* empty */
+          %empty
         | INTO
         ;
 
@@ -13346,7 +13334,7 @@ equal:
         ;
 
 opt_equal:
-          /* empty */
+          %empty
         | equal
         ;
 
@@ -13359,7 +13347,7 @@ row_value_explicit:
         ;
 
 opt_values:
-          /* empty */
+          %empty
           {
             $$= NEW_PTN PT_item_list;
             if ($$ == NULL)
@@ -13392,7 +13380,7 @@ expr_or_default:
         ;
 
 opt_values_reference:
-          /* empty */
+          %empty
           {
             $$.table_alias = NULL_CSTR;
             $$.column_list = NULL;
@@ -13410,7 +13398,7 @@ opt_values_reference:
         ;
 
 opt_insert_update_list:
-          /* empty */
+          %empty
           {
             $$.value_list= NULL;
             $$.column_list= NULL;
@@ -13441,7 +13429,7 @@ update_stmt:
         ;
 
 opt_with_clause:
-          /* empty */ { $$= NULL; }
+          %empty { $$= NULL; }
         | with_clause { $$= $1; }
         ;
 
@@ -13473,7 +13461,7 @@ update_elem:
         ;
 
 opt_low_priority:
-          /* empty */ { $$= TL_WRITE_DEFAULT; }
+          %empty { $$= TL_WRITE_DEFAULT; }
         | LOW_PRIORITY { $$= TL_WRITE_LOW_PRIORITY; }
         ;
 
@@ -13517,12 +13505,12 @@ delete_stmt:
         ;
 
 opt_wild:
-          /* empty */
+          %empty
         | '.' '*'
         ;
 
 opt_delete_options:
-          /* empty */                          { $$= 0; }
+          %empty { $$= 0; }
         | opt_delete_option opt_delete_options { $$= $1 | $2; }
         ;
 
@@ -13540,12 +13528,12 @@ truncate_stmt:
         ;
 
 opt_table:
-          /* empty */
+          %empty
         | TABLE_SYM
         ;
 
 opt_profile_defs:
-          /* empty */   { $$ = 0; }
+          %empty { $$ = 0; }
         | profile_defs
         ;
 
@@ -13567,7 +13555,7 @@ profile_def:
         ;
 
 opt_for_query:
-          /* empty */   { $$ = 0; }
+          %empty { $$ = 0; }
         | FOR_SYM QUERY_SYM NUM
           {
             int error;
@@ -13939,27 +13927,27 @@ master_or_binary:
         ;
 
 opt_storage:
-          /* empty */
+          %empty
         | STORAGE_SYM
         ;
 
 opt_db:
-          /* empty */  { $$= 0; }
+          %empty { $$= 0; }
         | from_or_in ident { $$= $2.str; }
         ;
 
 opt_full:
-          /* empty */ { $$= 0; }
+          %empty      { $$= 0; }
         | FULL        { $$= 1; }
         ;
 
 opt_extended:
-          /* empty */   { $$= 0; }
+          %empty        { $$= 0; }
         | EXTENDED_SYM  { $$= 1; }
         ;
 
 opt_show_cmd_type:
-          /* empty */          { $$= Show_cmd_type::STANDARD; }
+          %empty               { $$= Show_cmd_type::STANDARD; }
         | FULL                 { $$= Show_cmd_type::FULL_SHOW; }
         | EXTENDED_SYM         { $$= Show_cmd_type::EXTENDED_SHOW; }
         | EXTENDED_SYM FULL    { $$= Show_cmd_type::EXTENDED_FULL_SHOW; }
@@ -13971,17 +13959,17 @@ from_or_in:
         ;
 
 opt_binlog_in:
-          /* empty */            { $$ = {}; }
+          %empty                 { $$ = {}; }
         | IN_SYM TEXT_STRING_sys { $$ = $2; }
         ;
 
 binlog_from:
-          /* empty */        { Lex->mi.pos = 4; /* skip magic number */ }
+          %empty { Lex->mi.pos = 4; /* skip magic number */ }
         | FROM ulonglong_num { Lex->mi.pos = $2; }
         ;
 
 opt_wild_or_where:
-          /* empty */                   { $$ = {}; }
+          %empty                        { $$ = {}; }
         | LIKE TEXT_STRING_literal      { $$ = { $2, {} }; }
         | where_clause                  { $$ = { {}, $1 }; }
         ;
@@ -14020,7 +14008,7 @@ describe_command:
         ;
 
 opt_explain_format:
-          /* empty */
+          %empty
           {
             $$.is_explicit = false;
             $$.explain_format_type = YYTHD->variables.explain_format;
@@ -14058,7 +14046,7 @@ opt_explain_options:
         ;
 
 opt_describe_column:
-          /* empty */ { $$= LEX_STRING{ nullptr, 0 }; }
+          %empty { $$= LEX_STRING{ nullptr, 0 }; }
         | text_string
           {
             if ($1 != nullptr)
@@ -14101,7 +14089,7 @@ flush_options:
         ;
 
 opt_flush_lock:
-          /* empty */ {}
+          %empty {}
         | WITH READ_SYM LOCK_SYM
           {
             Table_ref *tables= Lex->query_tables;
@@ -14174,7 +14162,7 @@ flush_option:
         ;
 
 opt_table_list:
-          /* empty */  { $$= NULL; }
+          %empty { $$= NULL; }
         | table_list
         ;
 
@@ -14201,7 +14189,7 @@ reset_options:
         ;
 
 opt_if_exists_ident:
-          /* empty */
+          %empty
           {
             LEX *lex=Lex;
             lex->drop_if_exists= false;
@@ -14276,12 +14264,12 @@ reset_option:
         ;
 
 opt_replica_reset_options:
-          /* empty */ { Lex->reset_slave_info.all= false; }
+          %empty      { Lex->reset_slave_info.all= false; }
         | ALL         { Lex->reset_slave_info.all= true; }
         ;
 
 source_reset_options:
-          /* empty */ {}
+          %empty {}
         | TO_SYM real_ulonglong_num
           {
             if ($2 == 0 || $2 > MAX_ALLOWED_FN_EXT_RESET_MASTER)
@@ -14341,7 +14329,7 @@ kill:
         ;
 
 kill_option:
-          /* empty */ { Lex->type= 0; }
+          %empty         { Lex->type= 0; }
         | CONNECTION_SYM { Lex->type= 0; }
         | QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; }
         ;
@@ -14412,17 +14400,17 @@ data_or_xml:
         ;
 
 opt_local:
-          /* empty */ { $$= false; }
+          %empty      { $$= false; }
         | LOCAL_SYM   { $$= true; }
         ;
 
 opt_from_keyword:
-          /* empty */ {}
+          %empty      {}
         | FROM        {}
         ;
 
 load_data_lock:
-          /* empty */ { $$= TL_WRITE_DEFAULT; }
+          %empty      { $$= TL_WRITE_DEFAULT; }
         | CONCURRENT  { $$= TL_WRITE_CONCURRENT_INSERT; }
         | LOW_PRIORITY { $$= TL_WRITE_LOW_PRIORITY; }
         ;
@@ -14434,7 +14422,7 @@ load_source_type:
         ;
 
 opt_source_count:
-          /* empty */   { $$= 0; }
+          %empty { $$= 0; }
         | COUNT_SYM NUM { $$= atol($2.str); }
         | IDENT_sys NUM
           {
@@ -14448,12 +14436,12 @@ opt_source_count:
         ;
 
 opt_source_order:
-          /* empty */  { $$= false; }
+          %empty { $$= false; }
         | IN_SYM PRIMARY_SYM KEY_SYM ORDER_SYM { $$= true; }
         ;
 
 opt_duplicate:
-          /* empty */ { $$= On_duplicate::ERROR; }
+          %empty { $$= On_duplicate::ERROR; }
         | duplicate
         ;
 
@@ -14463,7 +14451,7 @@ duplicate:
         ;
 
 opt_field_term:
-          /* empty */             { $$.cleanup(); }
+          %empty { $$.cleanup(); }
         | COLUMNS field_term_list { $$= $2; }
         ;
 
@@ -14501,7 +14489,7 @@ field_term:
         ;
 
 opt_line_term:
-          /* empty */          { $$.cleanup(); }
+          %empty { $$.cleanup(); }
         | LINES line_term_list { $$= $2; }
         ;
 
@@ -14528,12 +14516,12 @@ line_term:
         ;
 
 opt_xml_rows_identified_by:
-          /* empty */                            { $$= nullptr; }
+          %empty { $$= nullptr; }
         | ROWS_SYM IDENTIFIED_SYM BY text_string { $$= $4; }
         ;
 
 opt_ignore_lines:
-          /* empty */                   { $$= 0; }
+          %empty { $$= 0; }
         | IGNORE_SYM NUM lines_or_rows  { $$= atol($2.str); }
         ;
 
@@ -14543,7 +14531,7 @@ lines_or_rows:
         ;
 
 opt_field_or_var_spec:
-          /* empty */            { $$= nullptr; }
+          %empty                 { $$= nullptr; }
         | '(' fields_or_vars ')' { $$= $2; }
         | '(' ')'                { $$= nullptr; }
         ;
@@ -14572,7 +14560,7 @@ field_or_var:
         ;
 
 opt_load_data_set_spec:
-          /* empty */                { $$= {nullptr, nullptr, nullptr}; }
+          %empty { $$= {nullptr, nullptr, nullptr}; }
         | SET_SYM load_data_set_list { $$= $2; }
         ;
 
@@ -14624,7 +14612,7 @@ load_data_set_elem:
         ;
 
 opt_load_algorithm:
-          /* empty */               { $$ = false; }
+          %empty                    { $$ = false; }
         | ALGORITHM_SYM EQ BULK_SYM { $$ = true; }
         ;
 
@@ -14803,7 +14791,7 @@ temporal_literal:
         ;
 
 opt_interval:
-          /* empty */   { $$ = false; }
+          %empty        { $$ = false; }
         | INTERVAL_SYM  { $$ = true; }
         ;
 
@@ -15839,7 +15827,7 @@ set_role_stmt:
         ;
 
 opt_except_role_list:
-          /* empty */          { $$= NULL; }
+          %empty               { $$= NULL; }
         | EXCEPT_SYM role_list { $$= $2; }
         ;
 
@@ -15892,7 +15880,7 @@ start_option_value_list_following_option_type:
 
 // Remainder of the option value list after first option value.
 option_value_list_continued:
-          /* empty */           { $$= NULL; }
+          %empty                { $$= NULL; }
         | ',' option_value_list { $$= $2; }
         ;
 
@@ -15926,21 +15914,21 @@ option_type:
         ;
 
 opt_var_type:
-          /* empty */ { $$=OPT_SESSION; }
+          %empty      { $$=OPT_SESSION; }
         | GLOBAL_SYM  { $$=OPT_GLOBAL; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
         ;
 
 opt_rvalue_system_variable_type:
-          /* empty */     { $$=OPT_DEFAULT; }
+          %empty          { $$=OPT_DEFAULT; }
         | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
         | LOCAL_SYM '.'   { $$=OPT_SESSION; }
         | SESSION_SYM '.' { $$=OPT_SESSION; }
         ;
 
 opt_set_var_ident_type:
-          /* empty */     { $$=OPT_DEFAULT; }
+          %empty          { $$=OPT_DEFAULT; }
         | PERSIST_SYM '.' { $$=OPT_PERSIST; }
         | PERSIST_ONLY_SYM '.' {$$=OPT_PERSIST_ONLY; }
         | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
@@ -16053,7 +16041,7 @@ transaction_access_mode:
         ;
 
 opt_transaction_access_mode:
-          /* empty */                 { $$= NULL; }
+          %empty { $$= NULL; }
         | ',' transaction_access_mode { $$= $2; }
         ;
 
@@ -16065,7 +16053,7 @@ isolation_level:
         ;
 
 opt_isolation_level:
-          /* empty */         { $$= NULL; }
+          %empty { $$= NULL; }
         | ',' isolation_level { $$= $2; }
         ;
 
@@ -16479,14 +16467,14 @@ grant:
         ;
 
 opt_acl_type:
-          /* Empty */   { $$= Acl_type::TABLE; }
+          %empty        { $$= Acl_type::TABLE; }
         | TABLE_SYM     { $$= Acl_type::TABLE; }
         | FUNCTION_SYM  { $$= Acl_type::FUNCTION; }
         | PROCEDURE_SYM { $$= Acl_type::PROCEDURE; }
         ;
 
 opt_privileges:
-          /* empty */
+          %empty
         | PRIVILEGES
         ;
 
@@ -16597,12 +16585,12 @@ role_or_privilege:
         ;
 
 opt_with_admin_option:
-          /* empty */           { $$= false; }
+          %empty                { $$= false; }
         | WITH ADMIN_SYM OPTION { $$= true; }
         ;
 
 opt_and:
-          /* empty */
+          %empty
         | AND_SYM
         ;
 
@@ -16742,12 +16730,12 @@ role_list:
         ;
 
 opt_retain_current_password:
-          /* empty */   { $$= false; }
+          %empty { $$= false; }
         | RETAIN_SYM CURRENT_SYM PASSWORD { $$= true; }
         ;
 
 opt_discard_old_password:
-          /* empty */   { $$= false; }
+          %empty { $$= false; }
         | DISCARD_SYM OLD_SYM PASSWORD { $$= true; }
 
 
@@ -16815,7 +16803,7 @@ create_user:
         ;
 
 opt_create_user_with_mfa:
-          /* empty */                                   { $$ = {}; }
+          %empty { $$ = {}; }
         | AND_SYM identification
           {
             $2->nth_factor = 2;
@@ -17148,7 +17136,7 @@ alter_user_list:
         ;
 
 opt_column_list:
-          /* empty */        { $$= NULL; }
+          %empty { $$= NULL; }
         | '(' column_list ')' { $$= $2; }
         ;
 
@@ -17168,7 +17156,7 @@ column_list:
         ;
 
 require_clause:
-          /* empty */
+          %empty
         | REQUIRE_SYM require_list
           {
             Lex->ssl_type=SSL_TYPE_SPECIFIED;
@@ -17188,18 +17176,17 @@ require_clause:
         ;
 
 grant_options:
-          /* empty */ {}
+          %empty {}
         | WITH GRANT OPTION
           { Lex->grant |= GRANT_ACL;}
         ;
 
 opt_grant_option:
-          /* empty */       { $$= false; }
+          %empty { $$= false; }
         | WITH GRANT OPTION { $$= true; }
         ;
 opt_with_roles:
-          /* empty */
-          { Lex->grant_as.role_type = role_enum::ROLE_NONE; }
+          %empty { Lex->grant_as.role_type = role_enum::ROLE_NONE; }
         | WITH ROLE_SYM role_list
           { Lex->grant_as.role_type = role_enum::ROLE_NAME;
             Lex->grant_as.role_list = $3;
@@ -17215,8 +17202,7 @@ opt_with_roles:
           { Lex->grant_as.role_type = role_enum::ROLE_DEFAULT; }
 
 opt_grant_as:
-          /* empty */
-          { Lex->grant_as.grant_as_used = false; }
+          %empty { Lex->grant_as.grant_as_used = false; }
         | AS user opt_with_roles
           {
             Lex->grant_as.grant_as_used = true;
@@ -17234,26 +17220,24 @@ begin_stmt:
         ;
 
 opt_work:
-          /* empty */ {}
+          %empty {}
         | WORK_SYM  {}
         ;
 
 opt_chain:
-          /* empty */
-          { $$= TVL_UNKNOWN; }
+          %empty                   { $$= TVL_UNKNOWN; }
         | AND_SYM NO_SYM CHAIN_SYM { $$= TVL_NO; }
         | AND_SYM CHAIN_SYM        { $$= TVL_YES; }
         ;
 
 opt_release:
-          /* empty */
-          { $$= TVL_UNKNOWN; }
+          %empty             { $$= TVL_UNKNOWN; }
         | RELEASE_SYM        { $$= TVL_YES; }
         | NO_SYM RELEASE_SYM { $$= TVL_NO; }
 ;
 
 opt_savepoint:
-          /* empty */ {}
+          %empty {}
         | SAVEPOINT_SYM {}
         ;
 
@@ -17312,7 +17296,7 @@ release:
 
 
 union_option:
-          /* empty */ { $$=1; }
+          %empty    { $$=1; }
         | DISTINCT  { $$=1; }
         | ALL       { $$=0; }
         ;
@@ -17355,7 +17339,7 @@ query_spec_option:
 **************************************************************************/
 
 init_lex_create_info:
-          /* empty */
+          %empty
           {
             // Initialize context for 'CREATE view_or_trigger_or_sp_or_event'
             Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
@@ -17402,7 +17386,7 @@ definer_opt:
         ;
 
 no_definer:
-          /* empty */
+          %empty
           {
             /*
               We have to distinguish missing DEFINER-clause from case when
@@ -17452,8 +17436,7 @@ view_algorithm:
         ;
 
 view_suid:
-          /* empty */
-          { Lex->create_view_suid= VIEW_SUID_DEFAULT; }
+          %empty { Lex->create_view_suid= VIEW_SUID_DEFAULT; }
         | SQL_SYM SECURITY_SYM DEFINER_SYM
           { Lex->create_view_suid= VIEW_SUID_DEFINER; }
         | SQL_SYM SECURITY_SYM INVOKER_SYM
@@ -17552,7 +17535,7 @@ view_query_block:
         ;
 
 view_check_option:
-          /* empty */                     { $$= VIEW_CHECK_NONE; }
+          %empty                          { $$= VIEW_CHECK_NONE; }
         | WITH CHECK_SYM OPTION           { $$= VIEW_CHECK_CASCADED; }
         | WITH CASCADED CHECK_SYM OPTION  { $$= VIEW_CHECK_CASCADED; }
         | WITH LOCAL_SYM CHECK_SYM OPTION { $$= VIEW_CHECK_LOCAL; }
@@ -17572,7 +17555,7 @@ trigger_action_order:
           ;
 
 trigger_follows_precedes_clause:
-            /* empty */
+            %empty
             {
               $$.ordering_clause= TRG_ORDER_NONE;
               $$.anchor_trigger_name= NULL_CSTR;
@@ -17968,7 +17951,7 @@ xa:
         ;
 
 opt_convert_xid:
-          /* empty */ { $$= false; }
+           %empty              { $$= false; }
          | CONVERT_SYM XID_SYM { $$= true; }
 
 xid:
@@ -18014,19 +17997,18 @@ begin_or_start:
         ;
 
 opt_join_or_resume:
-          /* nothing */ { $$= XA_NONE;        }
+          %empty        { $$= XA_NONE;        }
         | JOIN_SYM      { $$= XA_JOIN;        }
         | RESUME_SYM    { $$= XA_RESUME;      }
         ;
 
 opt_one_phase:
-          /* nothing */     { $$= XA_NONE;        }
+          %empty            { $$= XA_NONE;        }
         | ONE_SYM PHASE_SYM { $$= XA_ONE_PHASE;   }
         ;
 
 opt_suspend:
-          /* nothing */
-          { $$= XA_NONE;        }
+          %empty { $$= XA_NONE;        }
         | SUSPEND_SYM
           { $$= XA_SUSPEND;     }
         | SUSPEND_SYM FOR_SYM MIGRATE_SYM
@@ -18034,7 +18016,7 @@ opt_suspend:
         ;
 
 install_option_type:
-        /* empty */ { $$=OPT_GLOBAL; }
+          %empty      { $$=OPT_GLOBAL; }
         | GLOBAL_SYM  { $$=OPT_GLOBAL; }
         | PERSIST_SYM { $$=OPT_PERSIST; }
         ;
@@ -18072,7 +18054,7 @@ install_set_value_list:
         ;
 
 opt_install_set_value_list:
-        /* empty */
+          %empty
           {
             $$ = NEW_PTN List<PT_install_component_set_element>;
           }
@@ -18183,7 +18165,7 @@ opt_datadir_ssl:
         ;
 
 opt_ssl:
-          /* empty */
+          %empty
           {
             Lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
           }
@@ -18203,7 +18185,7 @@ resource_group_types:
         ;
 
 opt_resource_group_vcpu_list:
-          /* empty */
+          %empty
           {
             /* Make an empty list. */
             $$= NEW_PTN Mem_root_array<resourcegroups::Range>(YYMEM_ROOT);
@@ -18256,7 +18238,7 @@ signed_num:
         ;
 
 opt_resource_group_priority:
-          /* empty */ { $$.is_default= true; }
+          %empty { $$.is_default= true; }
         | THREAD_PRIORITY_SYM opt_equal signed_num
           {
             $$.is_default= false;
@@ -18265,7 +18247,7 @@ opt_resource_group_priority:
         ;
 
 opt_resource_group_enable_disable:
-          /* empty */ { $$.is_default= true; }
+          %empty { $$.is_default= true; }
         | ENABLE_SYM
           {
             $$.is_default= false;
@@ -18279,7 +18261,7 @@ opt_resource_group_enable_disable:
         ;
 
 opt_force:
-          /* empty */ { $$= false; }
+          %empty      { $$= false; }
         | FORCE_SYM   { $$= true; }
         ;
 

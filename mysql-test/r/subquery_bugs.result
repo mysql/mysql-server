@@ -853,7 +853,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a DATETIME(2));
 INSERT INTO t1 VALUES(NOW(2)),(NOW(2));
 SELECT STD(IS_FREE_LOCK(0x2ADA5C38)),1 FROM t1 WHERE a+(EXISTS(SELECT 1));
-ERROR 42000: Incorrect user-level lock name '*\xDA\8'.
+ERROR 42000: Incorrect user-level lock name '*\xDA\8'. The name is empty, NULL, or can not be expressed in the current character-set.
 DROP TABLE t1;
 #
 # Bug#29668446 REGRESSION: CRASH IN DO_DIV_MOD()
@@ -2310,3 +2310,6 @@ Warnings:
 Note	1003	/* select#1 */ select (/* select#4 */ select (`test`.`t`.`f` = 1) AS `f` from `test`.`t`) AS `f` from `test`.`t` `t1` join `test`.`t` where false
 DROP VIEW v;
 DROP TABLE t;
+# Bug#35338776: Failure in find_item_in_list with unknown column 
+SELECT(SELECT SIN(a.c7)),c7;
+ERROR 42S22: Unknown column 'a.c7' in 'field list'

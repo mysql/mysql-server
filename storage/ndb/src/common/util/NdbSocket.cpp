@@ -75,7 +75,7 @@ void NdbSocket::free_ssl(SSL *ssl) {
 
 /* NdbSocket public instance methods */
 int NdbSocket::readln(int timeout_msec, int *time, char *buf,
-                         int len, NdbMutex * mutex) const {
+                      int len, NdbMutex * mutex) const {
   if(ssl) return ssl_readln(timeout_msec, time, buf, len, mutex);
   return readln_socket(s, timeout_msec, time, buf, len, mutex);
 }
@@ -405,6 +405,7 @@ int NdbSocket::ssl_read(int timeout, char *buf, int len) const {
 
 class TlsLineReader {
   const NdbSocket & m_socket;
+  NdbMutex * m_held_mutex;
   char * m_buf;
   int m_buf_len;
   int m_bytes_read {0};
@@ -412,12 +413,20 @@ class TlsLineReader {
   bool m_error {false};
 
 public:
-  TlsLineReader(const NdbSocket &s, char * buf, int buf_len) :
-    m_socket(s), m_buf(buf), m_buf_len(buf_len) {}
+  TlsLineReader(const NdbSocket &s, char * buf, int buf_len, NdbMutex * m) :
+    m_socket(s), m_held_mutex(m), m_buf(buf), m_buf_len(buf_len) {}
   void read(int timeout, int * elapsed);
   bool error()    { return m_error; }    // true on timeout, eof, buffer full
   bool complete() { return m_complete; } // true if a complete line is available
   int length()    { return m_bytes_read; } // length read
+};
+
+/* Unlock a mutex on entry, then lock it at end of scope. */
+class UnlockGuard {
+  NdbMutex * m_mtx;
+public:
+  UnlockGuard(NdbMutex *m) : m_mtx(m) { if(m_mtx) NdbMutex_Unlock(m_mtx); }
+  ~UnlockGuard()                      { if(m_mtx) NdbMutex_Lock(m_mtx); }
 };
 
 /*
@@ -432,16 +441,15 @@ int NdbSocket::ssl_readln(int timeout, int * elapsed,
 
   /* Initial poll, with unlocking of mutex. */
   int result;
-  if(mutex) NdbMutex_Unlock(heldMutex);
   {
+    UnlockGuard guard(heldMutex);
     Timer t(elapsed);
     result = poll_readable(timeout);
   }
-  if(mutex) NdbMutex_Lock(heldMutex);
   if(result <= 0) return -1;
 
   /* Read until a complete line is available, eof, or timeout */
-  TlsLineReader reader(*this, buf, len);
+  TlsLineReader reader(*this, buf, len, heldMutex);
 
   do {
     reader.read(timeout, elapsed);
@@ -459,11 +467,16 @@ int NdbSocket::ssl_readln(int timeout, int * elapsed,
 }
 
 void TlsLineReader::read(int timeout, int * elapsed) {
-  int peek_len = m_socket.ssl_peek(m_buf, m_buf_len - 1);
+  int peek_len = 0;
+  {
+    UnlockGuard guard(m_held_mutex);
+    peek_len = m_socket.ssl_peek(m_buf, m_buf_len - 1);
+  }
 
   while((peek_len == TLS_BUSY_TRY_AGAIN) && (*elapsed < timeout)) {
+    UnlockGuard guard(m_held_mutex);
     Timer pollTimer(elapsed);
-    m_socket.poll_readable(timeout);
+    m_socket.poll_readable(timeout - *elapsed);
     peek_len = m_socket.ssl_peek(m_buf, m_buf_len - 1);
   }
 

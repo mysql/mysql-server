@@ -825,11 +825,21 @@ void BuildInterestingOrders(
 
     table_map used_tables = 0;
     bool aggregates_required = false;
+    bool sort_ahead_only = false;
     for (OrderElement element :
          orderings->ordering(ordering_idx).GetElements()) {
       Item *item = orderings->item(element.item);
       used_tables |= item->used_tables();
       aggregates_required |= (item->has_aggregation() || item->has_wf());
+      const Item *real_item = item->real_item();
+      sort_ahead_only =
+          sort_ahead_only ||
+          std::none_of(query_block->join->fields->cbegin(),
+                       query_block->join->fields->cend(),
+                       [real_item](const Item *field) {
+                         return real_item->eq(field->real_item(),
+                                              /*binary_cmp=*/true);
+                       });
     }
     NodeMap required_nodes = GetNodeMapFromTableMap(
         used_tables & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT),
@@ -837,7 +847,8 @@ void BuildInterestingOrders(
 
     ORDER *order = BuildSortAheadOrdering(thd, orderings,
                                           orderings->ordering(ordering_idx));
-    sort_ahead_orderings->push_back(SortAheadOrdering{
-        ordering_idx, required_nodes, aggregates_required, order});
+    sort_ahead_orderings->push_back(
+        SortAheadOrdering{ordering_idx, required_nodes, aggregates_required,
+                          sort_ahead_only, order});
   }
 }

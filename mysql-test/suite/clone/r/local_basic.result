@@ -177,3 +177,46 @@ ALTER SCHEMA schema_read_only READ ONLY=0;
 DROP SCHEMA schema_read_only;
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN clone;
+#
+# BUG#34828542: P_S.clone_status.gtid_executed does not have enough
+#               column size
+#
+# Install Plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+# Test case set up.
+SET @gtid_next_saved = @@SESSION.GTID_NEXT;
+SET @gtid_mode_saved = @@GLOBAL.GTID_MODE;
+SET @enforce_gtid_consistency_saved = @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY=ON;
+SET @@GLOBAL.GTID_MODE=OFF_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=ON_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=ON;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE x INT DEFAULT 0;
+WHILE x <= 2000 DO
+SET gtid_next=CONCAT(UUID(),':',4000);
+COMMIT;
+SET x = x + 1;
+END WHILE;
+END//
+CALL p1();
+# Restore GTID settings.
+SET @@SESSION.GTID_NEXT= @gtid_next_saved;
+SET @@GLOBAL.GTID_MODE=ON_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE=OFF_PERMISSIVE;
+SET @@GLOBAL.GTID_MODE= @gtid_mode_saved;
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY=@enforce_gtid_consistency_saved;
+# Clone database.
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+# Restart cloned database
+# restart: --datadir=CLONE_DATADIR
+# Check the length of gtid_executed > 4096 after bug fix.
+SELECT length(gtid_executed) from performance_schema.clone_status;
+length(gtid_executed)
+86081
+# restart:
+DROP PROCEDURE p1;
+UNINSTALL PLUGIN clone;

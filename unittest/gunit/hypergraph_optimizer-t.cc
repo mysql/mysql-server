@@ -6531,14 +6531,16 @@ RelationalExpression *CloneRelationalExpr(THD *thd,
 // Generate all possible complete binary trees of (exactly) the given size,
 // consisting only of inner joins, and with fake tables at the leaves.
 vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
-    THD *thd, size_t num_relations, size_t start_idx) {
+    THD *thd, size_t num_relations, size_t start_idx,
+    vector<unique_ptr_destroy_only<Fake_TABLE>> *tables) {
   assert(num_relations != 0);
 
   vector<RelationalExpression *> ret;
   if (num_relations == 1) {
-    TABLE *table =
-        new (thd->mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true);
+    Fake_TABLE *table = new (thd->mem_root)
+        Fake_TABLE(/*column_count=*/1, /*cols_nullable=*/true);
     table->pos_in_table_list->set_tableno(start_idx);
+    tables->emplace_back(table);
 
     // For debugging only.
     char name[32];
@@ -6558,9 +6560,9 @@ vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
   for (size_t num_left = 1; num_left <= num_relations - 1; ++num_left) {
     size_t num_right = num_relations - num_left;
     vector<RelationalExpression *> left =
-        GenerateAllCompleteBinaryTrees(thd, num_left, start_idx);
-    vector<RelationalExpression *> right =
-        GenerateAllCompleteBinaryTrees(thd, num_right, start_idx + num_left);
+        GenerateAllCompleteBinaryTrees(thd, num_left, start_idx, tables);
+    vector<RelationalExpression *> right = GenerateAllCompleteBinaryTrees(
+        thd, num_right, start_idx + num_left, tables);
 
     // Generate all pairs of trees, cloning as we go.
     for (size_t i = 0; i < left.size(); ++i) {
@@ -6662,12 +6664,12 @@ std::pair<size_t, size_t> CountTreesAndPlans(
     const std::vector<RelationalExpression::Type> &join_types) {
   size_t num_trees = 0, num_plans = 0;
 
-  vector<RelationalExpression *> roots =
-      GenerateAllCompleteBinaryTrees(thd, num_relations, /*start_idx=*/0);
+  vector<unique_ptr_destroy_only<Fake_TABLE>> tables;
+  vector<RelationalExpression *> roots = GenerateAllCompleteBinaryTrees(
+      thd, num_relations, /*start_idx=*/0, &tables);
   for (RelationalExpression *expr : roots) {
     vector<RelationalExpression *> join_ops;
     vector<Item_field *> fields;
-    vector<TABLE *> tables;
 
     // Which tables can get NULL-complemented rows due to outer joins.
     // We use this to reject inner joins against them, on the basis
@@ -6675,21 +6677,20 @@ std::pair<size_t, size_t> CountTreesAndPlans(
     unordered_map<RelationalExpression *, table_map> generated_nulls;
 
     // Collect lists of all ops, and create tables where needed.
-    ForEachOperator(expr, [&join_ops, &fields, &generated_nulls,
-                           &tables](RelationalExpression *op) {
-      if (op->type == RelationalExpression::TABLE) {
-        Item_field *field = new Item_field(op->table->table->field[0]);
-        field->quick_fix_field();
-        fields.push_back(field);
-        op->tables_in_subtree = op->table->map();
-        generated_nulls.emplace(op, 0);
-        tables.push_back(op->table->table);
-      } else {
-        join_ops.push_back(op);
-        op->equijoin_conditions.clear();
-        op->equijoin_conditions.push_back(nullptr);
-      }
-    });
+    ForEachOperator(
+        expr, [&join_ops, &fields, &generated_nulls](RelationalExpression *op) {
+          if (op->type == RelationalExpression::TABLE) {
+            Item_field *field = new Item_field(op->table->table->field[0]);
+            field->quick_fix_field();
+            fields.push_back(field);
+            op->tables_in_subtree = op->table->map();
+            generated_nulls.emplace(op, 0);
+          } else {
+            join_ops.push_back(op);
+            op->equijoin_conditions.clear();
+            op->equijoin_conditions.push_back(nullptr);
+          }
+        });
 
     TryAllPredicates(
         join_ops, fields, join_types, &generated_nulls, /*idx=*/0, [&] {
@@ -6704,11 +6705,6 @@ std::pair<size_t, size_t> CountTreesAndPlans(
           ++num_trees;
           num_plans += receiver.count(TablesBetween(0, num_relations));
         });
-
-    // Clean up allocated memory.
-    for (TABLE *table : tables) {
-      destroy(pointer_cast<Fake_TABLE *>(table));
-    }
   }
 
   return {num_trees, num_plans};

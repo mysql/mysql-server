@@ -149,9 +149,23 @@ RegisterReplicaForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code>
 RegisterReplicaForwarder::ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
+
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("register_replica::ok"));
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   stage(Stage::Done);
 

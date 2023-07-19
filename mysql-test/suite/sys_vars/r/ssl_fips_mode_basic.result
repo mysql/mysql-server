@@ -1,62 +1,88 @@
-# Few positive cases
 SET GLOBAL ssl_fips_mode=0;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
 OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode=1;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
-ON
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode=2;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
-STRICT
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode=off;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
 OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode=on;
-SELECT @@GLOBAL.ssl_fips_mode;
-@@GLOBAL.ssl_fips_mode
-ON
-SET GLOBAL ssl_fips_mode=strict;
-SELECT @@GLOBAL.ssl_fips_mode;
-@@GLOBAL.ssl_fips_mode
-STRICT
-SET GLOBAL ssl_fips_mode='oFf';
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
 OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+SET GLOBAL ssl_fips_mode=strict;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+SET GLOBAL ssl_fips_mode='oFf';
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
+SELECT @@GLOBAL.ssl_fips_mode;
+@@GLOBAL.ssl_fips_mode
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode='oN';
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
-ON
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode='Strict';
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SELECT @@GLOBAL.ssl_fips_mode;
 @@GLOBAL.ssl_fips_mode
-STRICT
-# Few negative cases
+OFF
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
 SET GLOBAL ssl_fips_mode='';
-ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of ''
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SET GLOBAL ssl_fips_mode=3;
-ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of '3'
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SET GLOBAL ssl_fips_mode=-1;
-ERROR 42000: Variable 'ssl_fips_mode' can't be set to the value of '-1'
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 SET SESSION ssl_fips_mode=1;
-ERROR HY000: Variable 'ssl_fips_mode' is a GLOBAL variable and should be set with SET GLOBAL
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 CREATE USER u1 IDENTIFIED BY 'pwd';
 ##Test: User without admin/super privilege
 SET GLOBAL ssl_fips_mode=ON;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 ##Test: User with admin privilege
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
 SET GLOBAL ssl_fips_mode=ON;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1;
 ##Test: User with SUPER privilege
 GRANT SUPER ON *.* TO u1;
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 SET GLOBAL ssl_fips_mode=ON;
+ERROR HY000: Variable 'ssl_fips_mode' is a read only variable
 CLEANUP
-SET GLOBAL ssl_fips_mode=OFF;
 DROP USER u1;

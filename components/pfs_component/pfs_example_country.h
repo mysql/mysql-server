@@ -49,6 +49,8 @@ class Country_record {
   unsigned int name_length;
   char continent_name[CONTINENT_NAME_LEN];
   unsigned int continent_name_length;
+  char country_code[COUNTRY_CODE_LEN];
+  unsigned int country_code_length;
   PSI_year year;
   PSI_bigint population;
   PSI_double growth_factor;

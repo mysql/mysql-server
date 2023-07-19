@@ -1127,6 +1127,8 @@ id	code	name
 5	3	Sasha
 COMMIT;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
@@ -3012,10 +3014,14 @@ create table t1(a int not null, b int, primary key(a)) engine=innodb;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t1 set b = 5 where b = 1;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 select * from t1 where a = 7 and b = 3 for update;
@@ -3055,6 +3061,8 @@ d	e
 8	6
 12	1
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t1 select * from t2;
@@ -3086,38 +3094,56 @@ a	b
 8	6
 12	1
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 insert into t1 select * from t2;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 update t3 set b = (select b from t2 where a = d);
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 create table t4(a int not null, b int, primary key(a)) engine=innodb select * from t2;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t5 (select * from t2 lock in share mode);
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t6 set e = (select b from t2 where a = d lock in share mode);
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 create table t7(a int not null, b int, primary key(a)) engine=innodb select * from t2 lock in share mode;
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t8 (select * from t2 for update);
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t9 set e = (select b from t2 where a = d for update);
 SET binlog_format='MIXED';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 create table t10(a int not null, b int, primary key(a)) engine=innodb select * from t2 for update;
@@ -3445,7 +3471,11 @@ count_alloc WHERE event_name like 'memory/innodb/other'
 count_alloc
 0
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET GLOBAL log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create table t1 (col1 integer primary key, col2 integer) engine=innodb;
 insert t1 values (1,100);
 create function f1 () returns integer begin
@@ -3466,3 +3496,5 @@ rollback;
 drop table t1;
 drop function f1;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.

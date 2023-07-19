@@ -450,7 +450,9 @@ ErrorBundle ErrorCodes[] = {
   { 884,  DMEC, AE, "Stack overflow in interpreter" },
   { 885,  DMEC, AE, "Stack underflow in interpreter" },
   { 886,  DMEC, AE, "More than 65535 instructions executed in interpreter" },
-  { 897,  DMEC, AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
+  { 897,  DMEC, AE, "Update attempt of primary key via ndbcluster internal api"
+                    " (if this occurs via the MySQL server it is a bug,"
+                    " please report)" },
   { 892,  DMEC, AE, "Unsupported type in scan filter" },
   { 1233, DMEC, AE, "Table read-only" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
@@ -825,6 +827,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },
+  // Error 4202 has been deprecated by bug# ..
   { 4202, DMEC, AE, "Set value on tuple key attribute is not allowed" },
   { 4203, DMEC, AE, "Trying to set a NOT NULL attribute to NULL" },
   { 4204, DMEC, AE, "Set value and Read/Delete Tuple is incompatible" },

@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 ( a int );
 INSERT INTO t1 VALUES (1),(2),(1);
 CREATE TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
@@ -9,3 +15,5 @@ ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

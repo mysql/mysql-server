@@ -56,6 +56,7 @@
 #include <signaldata/Sync.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
+#include "transporter/TransporterCallback.hpp"
 
 #include <Properties.hpp>
 #include "Configuration.hpp"
@@ -3533,7 +3534,20 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_status = FragmentSendInfo::SendComplete;
     return true;
   }
-  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+  /*
+   * Fragmented signals must not be sent to a V_QUERY block since different
+   * signal fragments may then arrive at different block instances.
+   * It only makes sense to check for specific m_block number for data nodes.
+   * For other nodes block number in signal is only relevant for one API/MGM
+   * node, that is if a non DB node is receiver it must be alone in the
+   * receiver group.
+   */
+  if (unlikely(blockToMain(rg.m_block) == V_QUERY))
+  {
+    ndbrequire(rg.m_nodes.count() == 1);
+    const Uint32 nodeId = rg.m_nodes.find_first();
+    ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+  }
 
   /**
    * Setup info object
@@ -3896,7 +3910,20 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
      */
     return true;
   }
-  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+  /*
+   * Fragmented signals must not be sent to a V_QUERY block since different
+   * signal fragments may then arrive at different block instances.
+   * It only makes sense to check for specific m_block number for data nodes.
+   * For other nodes block number in signal is only relevant for one API/MGM
+   * node, that is if a non DB node is receiver it must be alone in the
+   * receiver group.
+   */
+  if (unlikely(blockToMain(rg.m_block) == V_QUERY))
+  {
+    ndbrequire(rg.m_nodes.count() == 1);
+    const Uint32 nodeId = rg.m_nodes.find_first();
+    ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+  }
 
   /**
    * Setup info object
@@ -4685,6 +4712,22 @@ SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 }
 
 
+/**
+ * xfrm_key_hash() and xfrm_attr_hash()
+ *
+ * Utilities for extracting key components required for generating a
+ * hash value into the specified 'dst' location.
+ *
+ * In case a character collation is available for the key, the 'xfrm'
+ * will transform the attr values in such a way that binary different
+ * values which compare as equal gets the same transformed hash value.
+ *
+ * NOTE: Do not use these methods for comparing keys: Two keys comparing
+ *       as unequal may still have the same hash key representation.
+ *       In particular, do not use these methods as a replacement for
+ *       the xfrm_key() and xfrm_attr() methods existing prior to 8.0.
+ *       You will likely need the cmp_key() & cmp_attr() methods instead.
+ */
 Uint32
 SimulatedBlock::xfrm_key_hash(
                          Uint32 tab, const Uint32* src,

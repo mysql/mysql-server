@@ -25,9 +25,9 @@ NAME
 bar1
 bar2
 select * from performance_schema.pfs_example_country;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-foo1	bar1	2016	10000	1.11
-foo2	bar2	2016	1000	2.22
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+foo1	bar1	2016	10000	1.11	FO1
+foo2	bar2	2016	1000	2.22	FO2
 ----------------------------------
 Inserting rows in component tables
 ----------------------------------
@@ -35,16 +35,16 @@ insert into performance_schema.pfs_example_continent
 values ("bar3");
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'pfs_example_continent'
 insert into performance_schema.pfs_example_country
-values ("foo3", "bar3", 2016, 100, 3.33);
+values ("foo3", "bar3", 2016, 100, 3.33, "FO3");
 select * from performance_schema.pfs_example_continent;
 NAME
 bar1
 bar2
 select * from performance_schema.pfs_example_country;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-foo1	bar1	2016	10000	1.11
-foo2	bar2	2016	1000	2.22
-foo3	bar3	2016	100	3.33
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+foo1	bar1	2016	10000	1.11	FO1
+foo2	bar2	2016	1000	2.22	FO2
+foo3	bar3	2016	100	3.33	FO3
 --------------------------------------
 Fetching records from component tables
 --------------------------------------
@@ -72,10 +72,10 @@ NAME
 bar1
 bar2
 select * from performance_schema.pfs_example_country;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-foo1	bar1	2016	10000	8.88
-foo2	bar2	2016	1000	2.22
-foo3	bar3	2016	100	3.33
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+foo1	bar1	2016	10000	8.88	FO1
+foo2	bar2	2016	1000	2.22	FO2
+foo3	bar3	2016	100	3.33	FO3
 --------------------------------------
 Fetching records from component tables
 --------------------------------------
@@ -103,10 +103,10 @@ update performance_schema.setup_instruments set ENABLED='YES', TIMED='YES';
 insert into performance_schema.setup_objects values
 ('TABLE', "performance_schema", "pfs_example_country", 'YES', 'YES');
 select * from performance_schema.pfs_example_country;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-foo1	bar1	2016	10000	8.88
-foo2	bar2	2016	1000	2.22
-foo3	bar3	2016	100	3.33
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+foo1	bar1	2016	10000	8.88	FO1
+foo2	bar2	2016	1000	2.22	FO2
+foo3	bar3	2016	100	3.33	FO3
 truncate table performance_schema.table_io_waits_summary_by_table;
 truncate table performance_schema.table_io_waits_summary_by_index_usage;
 ---------- table I/O stat by table name ----------
@@ -124,7 +124,7 @@ NAME	0	0	0	0	0
 NULL	0	0	0	0	0
 ---------- insert query ----------
 insert into performance_schema.pfs_example_country
-values ("foo4", "bar4", 2016, 100, 4.44);
+values ("foo4", "bar4", 2016, 100, 4.44, "FO4");
 ---------- table I/O stat by table name ----------
 select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
 from performance_schema.table_io_waits_summary_by_table
@@ -192,38 +192,38 @@ delete from performance_schema.setup_objects
 where OBJECT_NAME="pfs_example_country";
 ---------- Index fetch with partial key ----------
 INSERT into performance_schema.pfs_example_country values
-("Home", "Europe", 2022, 1, 1),
-("Home", "America", 2022, 2, 2),
-("Canada", "America", 2022, 3, 3);
+("Home", "Europe", 2022, 1, 1, "HO1"),
+("Home", "America", 2022, 2, 2, "HO2"),
+("Canada", "America", 2022, 3, 3, "CAN");
 SELECT * FROM performance_schema.pfs_example_country
 WHERE NAME = 'nowhere';
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
 SELECT * FROM performance_schema.pfs_example_country
 FORCE INDEX(name)
 WHERE NAME = 'nowhere';
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
 SELECT * FROM performance_schema.pfs_example_country
 WHERE NAME = 'Canada';
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-Canada	America	2022	3	3.00
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+Canada	America	2022	3	3.00	CAN
 SELECT * FROM performance_schema.pfs_example_country
 FORCE INDEX(name)
 WHERE NAME = 'Canada';
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-Canada	America	2022	3	3.00
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+Canada	America	2022	3	3.00	CAN
 SELECT * FROM performance_schema.pfs_example_country
 WHERE NAME = 'Home'
   ORDER BY CONTINENT;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-Home	America	2022	2	2.00
-Home	Europe	2022	1	1.00
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+Home	America	2022	2	2.00	HO2
+Home	Europe	2022	1	1.00	HO1
 SELECT * FROM performance_schema.pfs_example_country
 FORCE INDEX(name)
 WHERE NAME = 'Home'
   ORDER BY CONTINENT;
-NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR
-Home	America	2022	2	2.00
-Home	Europe	2022	1	1.00
+NAME	CONTINENT	YEAR	POPULATION	GROWTH_FACTOR	COUNTRY_CODE
+Home	America	2022	2	2.00	HO2
+Home	Europe	2022	1	1.00	HO1
 -------------------------------------------------------
 Fetching from component table after component uninstall
 -------------------------------------------------------

@@ -51,7 +51,7 @@
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define MAX_MYSQL_VAR 512
+#define MAX_MYSQL_VAR 8192
 #define SHUTDOWN_DEF_TIMEOUT 3600 /* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
@@ -876,8 +876,15 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           return -1;
         }
 
-        assert(mysql_num_rows(res) < MAX_MYSQL_VAR);
-
+        if (mysql_num_rows(res) >= MAX_MYSQL_VAR) {
+          my_printf_error(0,
+                          "Too many rows returned: '%llu'. "
+                          "Expecting no more than '%d' rows",
+                          error_flags, (unsigned long long)mysql_num_rows(res),
+                          MAX_MYSQL_VAR);
+          mysql_free_result(res);
+          return -1;
+        }
         if (!opt_vertical)
           print_header(res);
         else {

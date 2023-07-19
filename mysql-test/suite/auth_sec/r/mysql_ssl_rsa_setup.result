@@ -55,3 +55,7 @@ Pattern "MySQL_Server_.*_Auto_Generated_Client_Certificate" found
 # Restart completed.
 No ssl errors found after running mysql server with newely created certs.
 # restart:
+#
+# WL#15668: Deprecate mysql_ssl_rsa_setup
+#
+include/assert_grep.inc [Looking for a deprecation message]

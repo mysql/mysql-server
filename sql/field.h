@@ -4172,7 +4172,25 @@ class Field_typed_array final : public Field_json {
     SE to be returned to server. They will be filtered by WHERE condition later.
   */
   int key_cmp(const uchar *, const uchar *) const override { return -1; }
-  int key_cmp(const uchar *, uint) const override { return -1; }
+  /**
+   * @brief This function will behave similarly to MEMBER OF json operation,
+   *        unlike regular key_cmp. The key value will be checked against
+   *        members of the array and the presence of the key will be considered
+   *        as the record matching the given key. This particular definition is
+   *        used in descending ref index scans. Descending index scan uses
+   *        handler::ha_index_prev() function to read from the storage engine
+   *        which does not compare the index key with the search key [unlike
+   *        handler::ha_index_next_same()]. Hence each retrieved record needs
+   *        to be validated to find a stop point. Refer key_cmp_if_same() and
+   *        RefIterator<true>::Read() for more details.
+   *
+   * @param   key_ptr         Pointer to the key
+   * @param   key_length      Key length
+   * @return
+   *      0   Key found in the record
+   *      -1  Key not found in the record
+   */
+  int key_cmp(const uchar *key_ptr, uint key_length) const override;
   /**
     Multi-valued index always works only as a pre-filter for actual
     condition check, and the latter always use binary collation, so no point
@@ -4660,14 +4678,15 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
     indexed expression.
 
   @param thd       Thread handler
-  @param item      The item to generate a Create_field from
+  @param source_item      The item to generate a Create_field from
   @param tmp_table A table object which is used to generate a temporary table
                    field, as described above. This doesn't need to be an
                    existing table.
   @return          A Create_field generated from the input item, or nullptr
                    in case of errors.
 */
-Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table);
+Create_field *generate_create_field(THD *thd, Item *source_item,
+                                    TABLE *tmp_table);
 
 inline bool is_blob(enum_field_types sql_type) {
   return (sql_type == MYSQL_TYPE_BLOB || sql_type == MYSQL_TYPE_MEDIUM_BLOB ||

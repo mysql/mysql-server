@@ -1,9 +1,9 @@
 SELECT @@global.connection_memory_chunk_size;
 @@global.connection_memory_chunk_size
-8912
+8192
 SELECT @@session.connection_memory_chunk_size;
 @@session.connection_memory_chunk_size
-8912
+8192
 SET @@global.connection_memory_chunk_size = 25666777;
 SELECT @@global.connection_memory_chunk_size;
 @@global.connection_memory_chunk_size
@@ -54,19 +54,19 @@ SET @@global.connection_memory_chunk_size = NULL;
 ERROR 42000: Incorrect argument type to variable 'connection_memory_chunk_size'
 SELECT @@global.connection_memory_chunk_size;
 @@global.connection_memory_chunk_size
-8912
+8192
 SET @@session.connection_memory_chunk_size = NULL;
 ERROR 42000: Incorrect argument type to variable 'connection_memory_chunk_size'
 SELECT @@session.connection_memory_chunk_size;
 @@session.connection_memory_chunk_size
-8912
+8192
 SET @@global.connection_memory_chunk_size = 'foo';
 ERROR 42000: Incorrect argument type to variable 'connection_memory_chunk_size'
 SELECT @@global.connection_memory_chunk_size;
 @@global.connection_memory_chunk_size
-8912
+8192
 SET @@session.connection_memory_chunk_size = 'foo';
 ERROR 42000: Incorrect argument type to variable 'connection_memory_chunk_size'
 SELECT @@session.connection_memory_chunk_size;
 @@session.connection_memory_chunk_size
-8912
+8192

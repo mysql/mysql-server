@@ -2980,7 +2980,7 @@ d2 date NOT NULL DEFAULT '2018-01-25',
 d3 date,
 d4 date DEFAULT NULL,
 d5 date DEFAULT '2017-11-14',
-g1 geometry NOT NULL
+g1 geometry
 );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2995,7 +2995,7 @@ t1	CREATE TABLE `t1` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT '2017-11-14',
-  `g1` geometry NOT NULL
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SQL_MODE='';
 SELECT @@SQL_MODE;
@@ -3017,7 +3017,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT '2017-11-14',
-  `g1` geometry NOT NULL
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t2;
 CREATE TEMPORARY TABLE t2 AS
@@ -3037,7 +3037,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT NULL,
-  `g1` geometry NOT NULL DEFAULT ''
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t2;
 CREATE TEMPORARY TABLE t2 AS
@@ -3057,7 +3057,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT NULL,
-  `g1` geometry NOT NULL DEFAULT ''
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # With UNION and UNION ALL, defaults are not inherited; every
 # column gets, as default, NULL (if nullable) or 0 (if not
@@ -3066,7 +3066,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
 INSERT INTO t2 VALUES();
 SELECT * FROM t2;
 i1	i2	i3	i4	i5	d1	d2	d3	d4	d5	g1
-0	0	NULL	NULL	NULL	0000-00-00	0000-00-00	NULL	NULL	NULL	
+0	0	NULL	NULL	NULL	0000-00-00	0000-00-00	NULL	NULL	NULL	NULL
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE=DEFAULT;
 SELECT @@SQL_MODE;
@@ -3088,7 +3088,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT '2017-11-14',
-  `g1` geometry NOT NULL
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t2;
 CREATE TEMPORARY TABLE t2 AS
@@ -3108,7 +3108,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT NULL,
-  `g1` geometry NOT NULL DEFAULT ''
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t2;
 CREATE TEMPORARY TABLE t2 AS
@@ -3128,7 +3128,7 @@ t2	CREATE TEMPORARY TABLE `t2` (
   `d3` date DEFAULT NULL,
   `d4` date DEFAULT NULL,
   `d5` date DEFAULT NULL,
-  `g1` geometry NOT NULL DEFAULT ''
+  `g1` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # With UNION and UNION ALL, defaults are not inherited; every
 # column gets, as default, NULL (if nullable) or 0 (if not

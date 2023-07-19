@@ -79,7 +79,7 @@ include/start_slave.inc
 set @@global.source_verify_checksum = 1;
 set @@session.debug='d,simulate_checksum_test_failure';
 show binlog events;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Error reading Log_event at position 4: Failed decoding event: Event crc check failed! Most likely there is event corruption.
 set @@session.debug='';
 set @@global.source_verify_checksum = default;
 include/stop_slave.inc

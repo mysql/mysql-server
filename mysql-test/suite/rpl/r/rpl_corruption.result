@@ -18,7 +18,7 @@ include/stop_slave.inc
 # 2. Corruption in master binlog and SHOW BINLOG EVENTS
 # Adding debug point 'corrupt_read_log_event' to @@GLOBAL.debug
 SHOW BINLOG EVENTS;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Error reading Log_event at position #: Failed decoding event: Event crc check failed! Most likely there is event corruption.
 # 3. Master read a corrupted event from binlog and send the error to slave
 START SLAVE IO_THREAD;
 Warnings:

@@ -42,9 +42,6 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : WL#12527 Test is shaky - needs to be fixed.
-innodb.doublewrite_on_to_reduced                  : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
-innodb.doublewrite_reduced                        : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
-innodb.doublewrite_reduced_odirect                : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633

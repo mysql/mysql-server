@@ -22,11 +22,13 @@
 
 #include <algorithm>
 
-#include "mutex_lock.h"  // MUTEX_LOCK
+#include "mutex_lock.h"            // MUTEX_LOCK
+#include "mysql/psi/mysql_cond.h"  // mysql_cond_timedwait
 #include "sql/binlog.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/debug_sync.h"                              // DEBUG_SYNC
-#include "sql/raii/sentry.h"                             // raii::Sentry<>
+#include "sql/mysqld.h"       //PSI_stage_info stage_wait_on_commit_ticket
+#include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/rpl_rli_pdb.h"                       // Slave_worker
@@ -175,12 +177,22 @@ void Commit_stage_manager::wait_for_ticket_turn(THD *thd,
   if (ticket != ticket_manager.get_front_ticket() &&
       ticket > ticket_manager.get_coalesced_ticket() && !thd->killed) {
     CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("inside_wait_on_ticket");
-    MUTEX_LOCK(guard, &this->m_lock_wait_for_ticket_turn);
-    while (ticket != ticket_manager.get_front_ticket() &&
-           ticket > ticket_manager.get_coalesced_ticket() && !thd->killed) {
-      mysql_cond_wait(&this->m_cond_wait_for_ticket_turn,
-                      &this->m_lock_wait_for_ticket_turn);
+    PSI_stage_info old_stage;
+    {
+      MUTEX_LOCK(guard, &this->m_lock_wait_for_ticket_turn);
+      thd->ENTER_COND(&this->m_cond_wait_for_ticket_turn,
+                      &this->m_lock_wait_for_ticket_turn,
+                      &stage_wait_on_commit_ticket, &old_stage);
+      struct timespec abstime;
+      while (ticket != ticket_manager.get_front_ticket() &&
+             ticket > ticket_manager.get_coalesced_ticket() && !thd->killed) {
+        // in rare cases View Changes cause ticket changes with no broadcast
+        set_timespec(&abstime, 1);
+        mysql_cond_timedwait(&this->m_cond_wait_for_ticket_turn,
+                             &this->m_lock_wait_for_ticket_turn, &abstime);
+      }
     }
+    thd->EXIT_COND(&old_stage);
   }
 
 #ifndef NDEBUG
@@ -515,6 +527,14 @@ void Commit_stage_manager::update_ticket_manager(
   auto &ticket_manager = binlog::Bgc_ticket_manager::instance();
   ticket_manager.add_processed_sessions_to_front_ticket(sessions_count,
                                                         session_ticket);
+
+  DBUG_EXECUTE_IF("rpl_end_of_ticket_blocked", {
+    const char act[] =
+        "now signal signal.end_of_ticket_waiting wait_for "
+        "signal.end_of_ticket_continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   this->signal_end_of_ticket();
 }
 

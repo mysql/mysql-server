@@ -25,7 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /** @file include/ddl0impl-buffer.h
- DDL buffer infrastrucure.
+ DDL buffer infrastructure.
  Created 2020-11-01 by Sunny Bains. */
 
 #ifndef ddl0impl_buffer_h
@@ -35,89 +35,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 
 namespace ddl {
-
-/** For DDL memory allocations that use the mem_key_ddl handle. */
-struct PFS_buffer : private ut::Non_copyable {
-  using Type = byte;
-  using Allocator = ut::allocator<Type>;
-
-  /** Constructor. */
-  PFS_buffer() = default;
-
-  /** Destructor. */
-  ~PFS_buffer() noexcept { deallocate(); }
-
-  /** @return allocated and initialized memory or nullptr on failure.
-  @param[in] size               Number of bytes to allocate. */
-  byte *allocate(size_t size) noexcept {
-    ut_a(m_size == 0);
-    ut_a(m_ptr == nullptr);
-
-    m_ptr = static_cast<byte *>(
-        ut::malloc_large_page_withkey(ut::make_psi_memory_key(mem_key_ddl),
-                                      size, ut::fallback_to_normal_page_t{}));
-
-    if (m_ptr != nullptr) {
-      m_size = size;
-      memset(m_ptr, 0x0, m_size);
-    }
-
-    return m_ptr;
-  }
-
-  /** Deallocate the memory. */
-  void deallocate() noexcept {
-    ut::free_large_page(m_ptr, ut::fallback_to_normal_page_t{});
-    m_ptr = nullptr;
-  }
-
-  /** Pointer to allocated buffer. */
-  byte *m_ptr{};
-
-  /** Number of bytes allocated. */
-  size_t m_size{};
-};
-
-/** Buffer used for reading and writing to the temporary files. */
-struct Aligned_buffer : private ut::Non_copyable {
-  /** Constructor. */
-  Aligned_buffer() = default;
-
-  /** Destructor. */
-  ~Aligned_buffer() = default;
-
-  /** Allocate the buffer.
-  @param[in] size               Size of the buffer.
-  @return true on success. */
-  bool allocate(size_t size) noexcept {
-    ut_a(m_io_buffer.second == 0);
-    ut_a(m_io_buffer.first == nullptr);
-
-    /* Extra space to align memory for O_DIRECT. */
-    auto ptr = m_buffer.allocate(size + UNIV_SECTOR_SIZE);
-
-    if (ptr == nullptr) {
-      return false;
-    }
-
-    m_io_buffer.second = size;
-    m_io_buffer.first = static_cast<byte *>(ut_align(ptr, UNIV_SECTOR_SIZE));
-
-    return true;
-  }
-
-  /** Get the IO buffer.
-  @return the io buffer suitably aligned. */
-  IO_buffer io_buffer() noexcept { return m_io_buffer; }
-
- private:
-  /** Raw buffer (unaligned pointer). */
-  PFS_buffer m_buffer{};
-
-  /** The IO buffer. */
-  IO_buffer m_io_buffer{};
-};
-
 /** Buffer for sorting in main memory. */
 struct Key_sort_buffer : private ut::Non_copyable {
   /** Callback for writing serialized data to to disk.

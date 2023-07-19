@@ -407,27 +407,18 @@ ServerGreetor::server_greeting_error() {
 
   auto msg = *msg_res;
 
-  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    // RouterRoutingTest.RoutingTooManyServerConnections expects this
-    // message.
-    log_debug(
-        "Error from the server while waiting for greetings message: "
-        "%u, '%s'",
-        msg.error_code(), std::string(msg.message()).c_str());
-  }
-
   stage(Stage::Error);
-  if (!in_handshake_) {
-    on_error_({msg.error_code(), std::string(msg.message()),
-               std::string(msg.sql_state())});
 
-    discard_current_msg(src_channel, src_protocol);
+  // the message arrived before the handshake started and is therefore in
+  // in 3.21 format which has no "sql-state".
+  //
+  // 08004 is 'server rejected connection'
+  on_error_(
+      {msg.error_code(), std::string(msg.message()), std::string("08004")});
 
-    return Result::Again;
-  }
+  discard_current_msg(src_channel, src_protocol);
 
-  // forward the packet and close the connection.
-  return forward_server_to_client();
+  return Result::Again;
 }
 
 // called after server connection is established.
@@ -585,6 +576,8 @@ ServerGreetor::server_greeting_greeting() {
         ClassicFrame::send_msg<classic_protocol::message::server::Greeting>(
             dst_channel, dst_protocol, msg);
     if (!send_res) return send_client_failed(send_res.error());
+
+    dst_protocol->server_greeting(msg);
 
     stage(Stage::ServerGreetingSent);  // hand over to the ServerFirstConnector
     return Result::SendToClient;
@@ -1125,10 +1118,6 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
 
   stage(Stage::Error);
 
-  if (in_handshake_) {
-    return forward_server_to_client();
-  }
-
   on_error_({msg.error_code(), std::string(msg.message()),
              std::string(msg.sql_state())});
 
@@ -1162,6 +1151,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
         net::buffer(msg.session_changes()),
         src_protocol->shared_capabilities());
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   // if the server accepted the schema, track it.
   if (src_protocol->shared_capabilities().test(
@@ -1263,6 +1254,17 @@ ServerFirstConnector::server_greeted() {
     auto *src_protocol = connection()->client_protocol();
 
     stage(Stage::Error);
+
+    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+      auto ec = reconnect_error();
+
+      // RouterRoutingTest.RoutingTooManyServerConnections expects this
+      // message.
+      log_debug(
+          "Error from the server while waiting for greetings message: "
+          "%u, '%s'",
+          ec.error_code(), ec.message().c_str());
+    }
 
     return reconnect_send_error_msg(src_channel, src_protocol);
   }

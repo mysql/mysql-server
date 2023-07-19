@@ -281,10 +281,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                    insert_field_list, &fields, base_ref_items))
     return true;
 
-  // Ensure that all selected expressions have a positive reference count
-  for (auto it : fields) {
-    it->increment_ref_count();
-  }
   resolve_place = RESOLVE_NONE;
 
   const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
@@ -396,7 +392,8 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (unit->item &&                           // 1)
       !thd->lex->is_view_context_analysis())  // 2)
   {
-    remove_redundant_subquery_clauses(thd, hidden_group_field_count);
+    if (remove_redundant_subquery_clauses(thd, hidden_group_field_count))
+      return true;
   }
 
   /*
@@ -3650,7 +3647,7 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
         }
       }
     } else {
-      derived_query_block->empty_order_list(this);
+      if (derived_query_block->empty_order_list(this)) return true;
       trace_derived.add_alnum("transformations_to_derived_table",
                               "removed_ordering");
     }
@@ -4100,9 +4097,10 @@ void Query_block::merge_contexts(Query_block *inner) {
    @param thd               thread handler
    @param hidden_group_field_count Number of hidden group fields added
                             by setup_group().
+   @return true on error
 */
 
-void Query_block::remove_redundant_subquery_clauses(
+bool Query_block::remove_redundant_subquery_clauses(
     THD *thd, int hidden_group_field_count) {
   Item_subselect *subq_predicate = master_query_expression()->item;
   enum change {
@@ -4114,7 +4112,7 @@ void Query_block::remove_redundant_subquery_clauses(
   uint possible_changes;
 
   if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS) {
-    if (has_limit()) return;
+    if (has_limit()) return false;
     possible_changes = REMOVE_ORDER;
   } else {
     assert(subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
@@ -4128,7 +4126,7 @@ void Query_block::remove_redundant_subquery_clauses(
 
   if ((possible_changes & REMOVE_ORDER) && order_list.elements) {
     changelog |= REMOVE_ORDER;
-    empty_order_list(this);
+    if (empty_order_list(this)) return true;
   }
 
   if ((possible_changes & REMOVE_DISTINCT) && is_distinct()) {
@@ -4170,6 +4168,7 @@ void Query_block::remove_redundant_subquery_clauses(
       if (changelog & REMOVE_GROUP) trace_changes.add_alnum("removed_grouping");
     }
   }
+  return false;
 }
 
 /**
@@ -4180,9 +4179,32 @@ void Query_block::remove_redundant_subquery_clauses(
   @param sl  Query block that possible subquery blocks in the ORDER BY clause
              are attached to (may be different from "this" when query block has
              been merged into an outer query block).
+  @returns true on error
 */
 
-void Query_block::empty_order_list(Query_block *sl) {
+bool Query_block::empty_order_list(Query_block *sl) {
+  for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
+    if (o->is_item_original()) {
+      Item *const order_item = o->item_initial;
+      Item::Cleanup_after_removal_context ctx(sl);
+      order_item->walk(&Item::clean_up_after_removal, walk_options,
+                       pointer_cast<uchar *>(&ctx));
+      if (order_item->hidden && m_windows.elements != 0) {
+        // Below, when we pop off the unused expression from the select list,
+        // we do it only if the query block has no windows. So, instead, we
+        // replace the ordering expression in the select list and
+        // base_ref_items with a hidden NULL which is harmless.
+        Item *const replacement = new (parent_lex->thd->mem_root) Item_null;
+        if (replacement == nullptr) return true;
+        replacement->hidden = true;
+        std::replace(fields.begin(), fields.end(), order_item, replacement);
+        std::replace(base_ref_items.begin(),
+                     base_ref_items.begin() + fields.size(), order_item,
+                     replacement);
+      }
+    }
+  }
+  order_list.clear();
   if (m_windows.elements != 0) {
     /*
       The next lines doing cleanup of ORDER elements expect the
@@ -4191,21 +4213,13 @@ void Query_block::empty_order_list(Query_block *sl) {
       window, that end is actually the PARTITION BY and ORDER BY clause of the
       window, so do not chop then: leave the items in place.
     */
-    order_list.clear();
-    return;
+    return false;
   }
-  for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
-    if (o->is_item_original()) {
-      Item::Cleanup_after_removal_context ctx(sl);
-      (*o->item)->walk(&Item::clean_up_after_removal, walk_options,
-                       pointer_cast<uchar *>(&ctx));
-    }
-  }
-  order_list.clear();
   while (hidden_order_field_count-- > 0) {
     fields.pop_front();
     base_ref_items[fields.size()] = nullptr;
   }
+  return false;
 }
 
 /*****************************************************************************
@@ -4276,13 +4290,13 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     return false;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
-  select_item = find_item_in_list(thd, order_item, fields, &counter,
-                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
-  if (!select_item)
-    return true; /* The item is not unique, or some other error occurred. */
+  if (find_item_in_list(thd, order_item, fields, &select_item, &counter,
+                        &resolution)) {
+    return true;
+  }
 
   /* Check whether the resolved field is unambiguous. */
-  if (select_item != not_found_item) {
+  if (select_item != nullptr) {
     Item *view_ref = nullptr;
     /*
       If we have found field not by its alias in select list but by its
@@ -4405,7 +4419,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
     a column in some outer query. Exactly because of the second case
-    we come to this point even if (select_item == not_found_item),
+    we come to this point even if (select_item == nullptr),
     in spite of that fix_fields() calls find_item_in_list() one more
     time.
 
@@ -4494,7 +4508,8 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
       // Update with the correct ref item.
       uint counter = fields->size();
       for (uint i = 0; i < fields->size(); i++) {
-        if (order_item->eq(ref_item_array[i]->real_item(), false)) {
+        if (order_item->real_item()->eq(ref_item_array[i]->real_item(),
+                                        false)) {
           order->item = &ref_item_array[i];
           // Order by is now referencing select expression, so increment the
           // reference count for the select expression.
@@ -4510,6 +4525,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
         fields->push_front(order_item);
         order_item->hidden = true;
         order->in_field_list = false;
+        order->item = &ref_item_array[counter];
       }
       continue;
     }
@@ -4602,8 +4618,7 @@ bool Query_block::setup_order_final(THD *thd) {
   DBUG_TRACE;
   if (is_implicitly_grouped()) {
     // Result will contain zero or one row - ordering is redundant
-    empty_order_list(this);
-    return false;
+    return empty_order_list(this);
   }
 
   if (!master_query_expression()->is_simple()) {
@@ -4613,7 +4628,7 @@ bool Query_block::setup_order_final(THD *thd) {
     if (result.second) {
       // Part of set operation which requires global ordering may skip local
       // order
-      empty_order_list(this);
+      if (empty_order_list(this)) return true;
     }
   }
 
@@ -5840,6 +5855,7 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
     new_item->update_used_tables();
     if (new_item != select_expr) {
       new_item->hidden = was_hidden;
+      new_item->increment_ref_count();
       *lii = new_item;
       for (size_t i = 0; i < list->size(); i++) {
         if ((*ref_item_array)[i] == select_expr)
@@ -5989,18 +6005,28 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
   if (new_item == nullptr) return true;
   new_item->update_used_tables();
   if (new_item != *expr) {
-    // Replace in base_ref_items
-    for (size_t i = 0; i < fields.size(); i++) {
-      if (base_ref_items[i] == *expr) {
-        base_ref_items[i] = new_item;
-        break;
-      }
-    }
+    // Save our original item name at this level
+    auto saved_item_name =
+        (*expr)->orig_name.is_set() ? (*expr)->orig_name : (*expr)->item_name;
+    replace_referenced_item(*expr, new_item);
     // Replace in fields
-    *expr = new_item;
+    const auto it = find(fields.begin(), fields.end(), new_item);
+    if (it == fields.end()) {
+      *expr = new_item;
+    } else {
+      // More than one occurrence of same replaced field, make another copy so
+      // we do not clobber the item_name (alias) of another occurrence in select
+      // list.
+      Item_field *f = down_cast<Item_field *>(new_item);
+      Item_field *cpy = new (parent_lex->thd->mem_root) Item_field(f->field);
+      if (cpy == nullptr) return true;
+      *expr = cpy;
+    }
+
     // Mark this expression as hidden if it was hidden in this query
     // block.
     (*expr)->hidden = was_hidden;
+    (*expr)->item_name = saved_item_name;
   }
   return false;
 }
@@ -6074,8 +6100,12 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
   Table_ref *tl = nullptr;
   Query_block *new_derived = nullptr;
   List<Item> item_fields_or_view_refs;
-  std::unordered_map<Field *, Item_field *> unique_fields;
   std::vector<Item_view_ref *> unique_view_refs;
+  std::unordered_map<Field *, Item_field *> unique_fields;
+  std::unordered_map<Field *, Item_field *> unique_default_values;
+  std::unordered_map<Field *, Item_field *> *field_classes[] = {
+      &unique_default_values, &unique_fields};
+
   /*
     In addition to adding the aggregates to the derived table's SELECT list,
     we need to add all referenced fields that will be needed in this query
@@ -6295,13 +6325,23 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
           lfi.remove();
       }
     }
-    // We now have all fields and view references; now find only unique ones.
+    // We now have all fields, default values and view references; now find only
+    // unique ones.
     lfi.init(item_fields_or_view_refs);
     while ((lf = lfi++)) {
       if (lf->type() == Item::FIELD_ITEM) {
         Item_field *f = down_cast<Item_field *>(lf);
         if (unique_fields.find(f->field) == unique_fields.end()) {
           unique_fields.emplace(std::pair<Field *, Item_field *>(f->field, f));
+        }
+      } else if (lf->type() == Item::DEFAULT_VALUE_ITEM) {
+        Item_default_value *dv = down_cast<Item_default_value *>(lf);
+        Item_field *lf_field =
+            down_cast<Item_field *>(dv->argument()->real_item());
+        if (unique_default_values.find(lf_field->field) ==
+            unique_default_values.end()) {
+          unique_default_values.emplace(
+              std::pair<Field *, Item_field *>(lf_field->field, dv));
         }
       } else {
         Item_view_ref *vr = down_cast<Item_view_ref *>(lf);
@@ -6322,11 +6362,13 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       vr->depended_from = nullptr;
     }
 
-    for (auto pair : unique_fields) {
-      if (new_derived->add_item_to_list(pair.second)) return true;
-      if (baptize_item(thd, pair.second, &field_no)) return true;
-      if (update_context_to_derived(pair.second, new_derived)) return true;
-      pair.second->depended_from = nullptr;
+    for (auto field_class : field_classes) {
+      for (auto pair : *field_class) {
+        if (new_derived->add_item_to_list(pair.second)) return true;
+        if (baptize_item(thd, pair.second, &field_no)) return true;
+        if (update_context_to_derived(pair.second, new_derived)) return true;
+        pair.second->depended_from = nullptr;
+      }
     }
 
     if (new_derived->has_sj_candidates() &&
@@ -6436,7 +6478,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     */
     if (remove_aggregates(thd, new_derived)) return true;
 
-    // field_ptr now points to the first of the view references added to the
+    // field_ptr now points to the first of any view references added to the
     // select list of the derived table's query block. We now create new fields
     // for this block which will point to the corresponding item in the derived
     // table and then we substitute the new fields for the view refs.
@@ -6449,42 +6491,45 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       }
       ++field_ptr;
     }
-    // field_ptr now points to the first of the fields added to the select list
-    // of the derived table's query block. We now create new fields for this
-    // block which will point to the corresponding fields moved to the derived
-    // table and then we substitute the new fields for the old ones.
-    for (auto pair : unique_fields) {
-      auto replaces_field = new (thd->mem_root) Item_field(*field_ptr);
-      if (replaces_field == nullptr) return true;
-      // replaces_field->set_orig_names();
-      // Get back our original item name at this level
-      replaces_field->item_name.set(pair.second->orig_name.ptr());
-      // don't want synthetic name rolled back
-      pair.second->orig_name.set(nullptr, 0);
-      // We can update context of the field moved into the derived table
-      // now that replaces_field has inherited the upper context
-      pair.second->context = &new_derived->context;
+    for (auto field_class : field_classes) {
+      // field_ptr now points to the first of the fields added to the select
+      // list of the derived table's query block. We now create new fields for
+      // this block which will point to the corresponding fields moved to the
+      // derived table and then we substitute the new fields for the old ones.
+      for (auto pair : *field_class) {
+        auto replaces_field = new (thd->mem_root) Item_field(*field_ptr);
+        if (replaces_field == nullptr) return true;
 
-      for (const auto &[expr, was_hidden] : contrib_exprs) {
-        Item_field *replacement = replaces_field;
-        // If this expression was hidden, we need to make a copy of the derived
-        // table field. The same derived table field cannot be marked both
-        // hidden and visible if the field replaces two different expressions
-        // in the transforming query block.
-        if (was_hidden) {
-          auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
-          if (hidden_field == nullptr) return true;
-          hidden_field->item_name.set(pair.second->orig_name.ptr());
-          pair.second->orig_name.set(nullptr, 0);
-          pair.second->context = &new_derived->context;
-          replacement = hidden_field;
+        // We can update context of the field moved into the derived table
+        // now that replaces_field has inherited the upper context
+        pair.second->context = &new_derived->context;
+
+        replaces_field->increment_ref_count();
+
+        for (const auto &[expr, was_hidden] : contrib_exprs) {
+          Item_field *replacement = replaces_field;
+          // If this expression was hidden, we need to make a copy of the
+          // derived table field. The same derived table field cannot be marked
+          // both hidden and visible if the field replaces two different
+          // expressions in the transforming query block.
+          if (was_hidden) {
+            auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
+            if (hidden_field == nullptr) return true;
+            hidden_field->item_name.set(pair.second->orig_name.ptr());
+            pair.second->context = &new_derived->context;
+            replacement = hidden_field;
+          }
+          Item::Item_field_replacement info(
+              pair.first, replacement, this,
+              field_class == &unique_default_values
+                  ? Item::Item_field_replacement::Mode::DEFAULT_VALUE
+                  : Item::Item_field_replacement::Mode::FIELD);
+          if (replace_item_in_expression(expr, was_hidden, &info,
+                                         &Item::replace_item_field))
+            return true;
         }
-        Item::Item_field_replacement info(pair.first, replacement, this);
-        if (replace_item_in_expression(expr, was_hidden, &info,
-                                       &Item::replace_item_field))
-          return true;
+        ++field_ptr;
       }
-      ++field_ptr;
     }
 
     OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_object,
@@ -6831,6 +6876,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         lifted_fields->m_field_positions.push_back(fields.size() -
                                                    hidden_fields);
         fields.push_back(inner_field);
+        inner_field->increment_ref_count();
         // We have added to fields; master_query_expression->types must
         // always be equal to it;
         master_query_expression()->types.push_back(inner_field);
@@ -6884,11 +6930,12 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   // added to group by above.
   if (!selected_field_in_group_by &&
       !fields[first_non_hidden]->has_aggregation()) {
-    Item *func_any =
-        new (thd->mem_root) Item_func_any_value(fields[first_non_hidden]);
+    Item *const old_field = fields[first_non_hidden];
+    Item *func_any = new (thd->mem_root) Item_func_any_value(old_field);
     if (func_any == nullptr) return true;
     if (func_any->fix_fields(thd, &func_any)) return true;
     fields[first_non_hidden] = func_any;
+    replace_referenced_item(old_field, func_any);
   }
 
   if (!m_agg_func_used) {
@@ -6922,6 +6969,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     base_ref_items[fields.size()] = cnt;
     lifted_fields->m_field_positions.push_back(fields.size() - hidden_fields);
     fields.push_back(cnt);
+    cnt->increment_ref_count();
     m_agg_func_used = true;
     // Add a new column to the derived table's query expression
     derived->derived_query_expression()->types.push_back(cnt);
@@ -7001,6 +7049,31 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
   }
   derived->join_cond()->update_used_tables();
   return false;
+}
+
+/**
+  Replace item in select list and preserve its reference count.
+
+  @param old_item  Item to be replaced.
+  @param new_item  Item to replace the old item.
+
+  If old item is present in base_ref_items, make sure it is replaced there.
+
+  Also make sure that reference count for old item is preserved in new item.
+*/
+void Query_block::replace_referenced_item(Item *const old_item,
+                                          Item *const new_item) {
+  for (size_t i = 0; i < fields.size(); i++) {
+    if (base_ref_items[i] == old_item) {
+      base_ref_items[i] = new_item;
+      break;
+    }
+  }
+  // Keep the same number of references as for the old expression:
+  new_item->increment_ref_count();
+  while (old_item->decrement_ref_count() > 0) {
+    new_item->increment_ref_count();
+  }
 }
 
 /**
@@ -7123,6 +7196,9 @@ bool is_correlated_predicate_eligible(Item *cor_pred) {
     if (!item->is_outer_reference()) {
       if (item->real_item()->type() != Item::FIELD_ITEM) return false;
       non_correlated_operand = true;
+    } else if (item->used_tables() & ~PSEUDO_TABLE_BITS) {
+      // Inner table reference mixed with outer table reference is not allowed.
+      return false;
     }
   }
   // We need to find one non-correlated operand in the correlated predicate
@@ -7692,15 +7768,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
           return true;
         Item *unwrapped_select_expr = unwrap_rollup_group(select_expr);
         if (unwrapped_select_expr != prev_value) {
-          // If we replace a subquery in the select field list, possibly
-          // hidden inside a rollup wrapper, replace corresponding item
-          // in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == prev_value)
-              base_ref_items[i] = unwrapped_select_expr;
-          }
-          // All items in select list must have a positive ref count.
-          unwrapped_select_expr->increment_ref_count();
+          replace_referenced_item(prev_value, unwrapped_select_expr);
         }
         if (fields.size() != old_size) {
           // The (implicit) iterator over fields has been invalidated,

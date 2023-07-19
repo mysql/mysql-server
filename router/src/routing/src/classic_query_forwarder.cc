@@ -321,7 +321,7 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
         last = tkn;
       }
 
-      if (first.id == SET_SYM) {
+      if (first.id == SET_SYM || first.id == USE_SYM) {
         if (!classified) {
           return StmtClassifier::NoStateChangeIgnoreTracker;
         } else {
@@ -380,9 +380,15 @@ static stdx::expected<void, std::error_code> send_resultset(
   }
 
   {
+    const auto forwarded_status_flags =
+        classic_protocol::status::in_transaction |
+        classic_protocol::status::in_transaction_readonly |
+        classic_protocol::status::autocommit;
+
     const auto send_res = ClassicFrame::send_msg<
-        classic_protocol::borrowed::message::server::Eof>(src_channel,
-                                                          src_protocol, {});
+        classic_protocol::borrowed::message::server::Eof>(
+        src_channel, src_protocol,
+        {src_protocol->status_flags() & forwarded_status_flags, 0});
     if (!send_res) return stdx::make_unexpected(send_res.error());
   }
 
@@ -925,8 +931,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row() {
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
@@ -944,6 +951,8 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
         net::buffer(msg.session_changes()),
         src_protocol->shared_capabilities());
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   if (msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {
@@ -969,8 +978,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
@@ -988,6 +998,8 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),
         stmt_classified_ & StmtClassifier::NoStateChangeIgnoreTracker);
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
     connection()->some_state_changed(true);

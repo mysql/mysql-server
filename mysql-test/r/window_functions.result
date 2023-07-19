@@ -9357,7 +9357,7 @@ DEGREES((1.595545e+308)), REPEAT(FIRST_VALUE('%0') OVER(), 30));
 ERROR 22003: DOUBLE value is out of range in 'degrees(1.595545e+308)'
 DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
 RESPECT NULLS OVER(), UUID_SHORT());
-ERROR 42000: Incorrect user-level lock name 'NULL'.
+ERROR 42000: Incorrect user-level lock name 'NULL'. The name is empty, NULL, or can not be expressed in the current character-set.
 # End of test for Bug#26975848, Bug#27062796, Bug#27062694
 # Bug#31361428: Assertion `rowno != 0' failed. in bring_back_frame_row
 CREATE TABLE t(a INTEGER);

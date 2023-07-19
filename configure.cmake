@@ -224,6 +224,9 @@ CHECK_INCLUDE_FILES ("sys/types.h;sasl/sasl.h" HAVE_SASL_SASL_H)
 IF(WITH_ASAN)
   CHECK_SYMBOL_EXISTS (__lsan_do_recoverable_leak_check
     "sanitizer/lsan_interface.h" HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK)
+ELSE()
+  UNSET(HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK)
+  UNSET(HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK CACHE)
 ENDIF()
 CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
@@ -418,27 +421,6 @@ int main()
   struct timespec ts;
   return clock_gettime(CLOCK_REALTIME, &ts);
 }" HAVE_CLOCK_REALTIME)
-
-IF(NOT STACK_DIRECTION)
-  IF(CMAKE_CROSSCOMPILING)
-   MESSAGE(FATAL_ERROR 
-   "STACK_DIRECTION is not defined.  Please specify -DSTACK_DIRECTION=1 "
-   "or -DSTACK_DIRECTION=-1 when calling cmake.")
-  ELSE()
-    TRY_RUN(STACKDIR_RUN_RESULT STACKDIR_COMPILE_RESULT    
-     ${CMAKE_BINARY_DIR} 
-     ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
-     )
-     # Test program returns 0 (down) or 1 (up).
-     # Convert to -1 or 1
-     IF(STACKDIR_RUN_RESULT EQUAL 0)
-       SET(STACK_DIRECTION -1 CACHE INTERNAL "Stack grows direction")
-     ELSE()
-       SET(STACK_DIRECTION 1 CACHE INTERNAL "Stack grows direction")
-     ENDIF()
-     MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
-   ENDIF()
-ENDIF()
 
 CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)

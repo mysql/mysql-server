@@ -1,0 +1,34 @@
+# Init: Clear binary logs from previous tests.
+RESET MASTER;
+==== R1: Error for corrupted file ====
+# Create a corrupted binary log.
+# Adding debug point 'set_query_log_event_size_to_5' to @@GLOBAL.debug
+CREATE TABLE t (a INT);
+# Removing debug point 'set_query_log_event_size_to_5' from @@GLOBAL.debug
+# Verify that mysqlbinlog fails
+include/save_binlog_position.inc
+include/assert_command_output.inc
+# Rotate and verify that mysqlbinlog still fails.
+FLUSH BINARY LOGS;
+include/assert_command_output.inc
+# Clean up.
+DROP TABLE t;
+RESET MASTER;
+==== R2.1: No error for truncated file when IN_USE flag is set ====
+# Create a truncated binary log.
+CREATE TABLE t (a INT);
+include/save_binlog_position.inc
+include/assert_command_output.inc
+# Clean up.
+DROP TABLE t;
+RESET MASTER;
+==== R2.2: Error for truncated file when IN_USE flag is not set ====
+# Create a truncated binary log.
+CREATE TABLE t (a INT);
+include/save_binlog_position.inc
+FLUSH BINARY LOGS;
+# Rotate and verify that mysqlbinlog now fails.
+include/assert_command_output.inc
+# Clean up.
+DROP TABLE t;
+RESET MASTER;

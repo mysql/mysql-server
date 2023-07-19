@@ -1,51 +1,97 @@
 SET @start_value= @@global.log_statements_unsafe_for_binlog;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= DEFAULT;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= TRUE;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= true;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= 0;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 0
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= 1;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @goodvar= TRUE;
 SET @@global.log_statements_unsafe_for_binlog= @goodvar;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET GLOBAL log_statements_unsafe_for_binlog= DEFAULT;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET GLOBAL log_statements_unsafe_for_binlog= ON;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 1
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET GLOBAL log_statements_unsafe_for_binlog= OFF;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 0
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET GLOBAL log_statements_unsafe_for_binlog= -0;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 0
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET GLOBAL log_statements_unsafe_for_binlog= 0.00;
 ERROR 42000: Incorrect argument type to variable 'log_statements_unsafe_for_binlog'
 SET GLOBAL log_statements_unsafe_for_binlog= +0;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SELECT @@global.log_statements_unsafe_for_binlog;
 @@global.log_statements_unsafe_for_binlog
 0
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET @@global.log_statements_unsafe_for_binlog= 'DEFAULT';
 ERROR 42000: Variable 'log_statements_unsafe_for_binlog' can't be set to the value of 'DEFAULT'
 SET @@global.log_statements_unsafe_for_binlog= 'true';
@@ -74,3 +120,5 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SET @@SESSION log_statements_unsafe_for_binlog= TRUE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_statements_unsafe_for_binlog= TRUE' at line 1
 SET @@global.log_statements_unsafe_for_binlog= @start_value;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.

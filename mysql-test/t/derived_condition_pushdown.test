@@ -1313,9 +1313,11 @@ eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
 eval EXECUTE stmt USING @a, @b;
 SET @a = 2;
 SET @b = '2023-05-06 16:49:45';
+SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
 --replace_regex $elide_costs
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a, @b;
+SET timestamp=default;
 
 DROP TABLE t1;
 

@@ -16,7 +16,7 @@ CREATE TABLE t1 (a int) engine ndb;
 # Without patch, restart will hang for more than ndb-wait-setup
 --connection server2
 --disable_query_log
-call mtr.add_suppression("NDB: Tables not available after [0-9]* seconds. Consider increasing --ndb-wait-setup value");
+call mtr.add_suppression("Tables not available after [0-9]* seconds. Consider increasing --ndb-wait-setup value");
 --enable_query_log
 --let $mysqld_name=mysqld.2.1
 --source include/restart_mysqld.inc

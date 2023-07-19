@@ -2974,3 +2974,11 @@ do nullif(st_within(
 --echo #
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 DO 1 IN (JSON_PRETTY(''), ANY_VALUE(JSON_ARRAYAGG('')));
+
+--echo #
+--echo # Bug#35217471 json.json_no_table MTR test fails on valgrind/
+--echo #              longlong2decimal & int2my_decimal
+--echo #
+--error ER_CANNOT_CONVERT_STRING
+do cast(json_arrayagg(convert(utc_timestamp() using gb2312)) <=>
+        instr(1 , 0xf722a67b) as char);

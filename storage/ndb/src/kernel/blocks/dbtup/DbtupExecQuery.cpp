@@ -1868,8 +1868,7 @@ int Dbtup::handleReadReq(Signal* signal,
                              &cinBuffer[0],
                              req_struct->attrinfo_len,
                              dst,
-                             dstLen,
-                             false);
+                             dstLen);
     if (likely(ret >= 0))
     {
 /* ------------------------------------------------------------------------- */
@@ -3539,8 +3538,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
                                   &cinBuffer[5],
                                   RinitReadLen,
                                   &dst[0],
-                                  dstLen,
-                                  false);
+                                  dstLen);
         if (TnoDataRW >= 0)
         {
           jamDebug();
@@ -3656,8 +3654,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
                                 &cinBuffer[5],
                                 RinitReadLen,
                                 &dst[0],
-                                dstLen,
-                                false);
+                                dstLen);
       if (TnoDataRW >= 0)
       {
         jamDebug();
@@ -3682,8 +3679,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
                                 &cinBuffer[RinstructionCounter],
                                 RfinalRLen,
                                 &dst[RattroutCounter],
-                                (dstLen - RattroutCounter),
-                                 false);
+                                (dstLen - RattroutCounter));
       if (TnoDataRW >= 0)
       {
         jamDebug();
@@ -3892,8 +3888,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 				     &theAttrinfo,
 				     (Uint32)1,
 				     &TregMemBuffer[theRegister],
-				     (Uint32)3,
-                                     false);
+				     (Uint32)3);
 	  if (TnoDataRW == 2)
           {
 	    /* ------------------------------------------------------------- */
@@ -4297,8 +4292,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
         {
 	  Int32 TnoDataR = readAttributes(req_struct,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz,
-                                          false);
+					  tmpArea, tmpAreaSz);
 	  
 	  if (unlikely(TnoDataR < 0))
           {
@@ -4388,8 +4382,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
           Int32 TnoDataR = readAttributes(req_struct,
                                           &attr2Id, 1,
                                           &tmpArea[firstAttrWords],
-                                          tmpAreaSz-firstAttrWords,
-                                          false);
+                                          tmpAreaSz-firstAttrWords);
           if (unlikely(TnoDataR < 0))
           {
             jam();
@@ -4578,8 +4571,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
         {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz,
-                                          false);
+					  tmpArea, tmpAreaSz);
 	  
 	  if (unlikely(TnoDataR < 0))
           {
@@ -4613,8 +4605,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
         {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz,
-                                          false);
+					  tmpArea, tmpAreaSz);
 	  
 	  if (unlikely(TnoDataR < 0))
           {
@@ -5771,7 +5762,7 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 			 attrIds,
 			 numAttrs,
 			 dst,
-			 ZNIL, false);
+			 ZNIL);
     
     // done
     if (likely(ret >= 0)) {

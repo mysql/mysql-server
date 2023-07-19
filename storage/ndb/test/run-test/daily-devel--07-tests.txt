@@ -279,3 +279,20 @@ max-time: 120
 cmd: testScan
 args: -n ScanOnDMLLateUnlock T1
 max-time : 120
+
+cmd: testNodeRestart
+args: -n ApiDetectNoFirstHeartbeat T1
+max-time: 180
+
+cmd: testDict
+args: -n ManyNdbObjectsGetTable T1
+max-time: 60
+
+cmd: testNodeRestart
+args: -n CheckGcpStopTimerDistributed T1
+max-time: 520
+
+cmd: testNdbApi
+args: -n TestSlowConnectEnable T1
+max-time: 600
+

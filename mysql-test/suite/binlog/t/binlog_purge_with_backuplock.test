@@ -31,12 +31,16 @@
 
 --source include/have_binlog_format_row.inc
 
+--disable_query_log
+CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.");
+--enable_query_log
+
 RESET MASTER;
 
 --echo #
 --echo # 1. Save current binlog file name
 --source include/save_binlog_position.inc
---let $first_binlog_file= $binlog_file
+--let $first_binlog_file = $binlog_file
 
 --echo #
 --echo # 2. Generate new binlogs
@@ -52,14 +56,16 @@ LOCK INSTANCE FOR BACKUP;
 --echo #
 --echo # 3.2 Purge binlogs
 --source include/save_binlog_position.inc
+
 FLUSH BINARY LOGS;
+
 --replace_result $binlog_file BINLOG_FILE
 --error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
 --eval PURGE BINARY LOGS TO '$binlog_file'
 
 --echo #
 --echo # 3.3 Verify that binlogs are not purged
---let $binlog_name= query_get_value(show master logs, Log_name, 1)
+--let $binlog_name = query_get_value(SHOW MASTER LOGS, Log_name, 1)
 --let $assert_text = Expected binary log file
 --let $assert_cond = "$binlog_name" = "$first_binlog_file"
 --source include/assert.inc
@@ -76,8 +82,10 @@ LOCK INSTANCE FOR BACKUP;
 
 --echo #
 --echo # 4.2 Purge binlogs
-let $date=`select NOW()`;
+let $date = `select NOW()`;
+
 FLUSH BINARY LOGS;
+
 --disable_query_log
 --error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
 --eval PURGE BINARY LOGS BEFORE '$date'
@@ -85,7 +93,7 @@ FLUSH BINARY LOGS;
 
 --echo #
 --echo # 4.3 Verify that binlogs are not purged
---let $binlog_name= query_get_value(show master logs, Log_name, 1)
+--let $binlog_name = query_get_value(SHOW MASTER LOGS, Log_name, 1)
 --let $assert_text = Expected binary log file
 --let $assert_cond = "$binlog_name" = "$first_binlog_file"
 --source include/assert.inc

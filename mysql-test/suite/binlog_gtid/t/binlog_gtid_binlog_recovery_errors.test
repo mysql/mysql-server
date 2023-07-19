@@ -227,6 +227,7 @@
 #   see extra/xa_crash_safe_tests/setup.inc
 #
 --source include/have_binlog_format_row.inc
+--source include/big_test.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

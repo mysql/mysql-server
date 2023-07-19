@@ -25,6 +25,8 @@
 #ifndef MGMAPI_DEBUG_H
 #define MGMAPI_DEBUG_H
 
+#include "mgmapi.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

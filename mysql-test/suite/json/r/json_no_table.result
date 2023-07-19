@@ -4291,3 +4291,10 @@ ERROR 22023: Invalid GIS data provided to function st_astext.
 #
 DO 1 IN (JSON_PRETTY(''), ANY_VALUE(JSON_ARRAYAGG('')));
 ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+#
+# Bug#35217471 json.json_no_table MTR test fails on valgrind/
+#              longlong2decimal & int2my_decimal
+#
+do cast(json_arrayagg(convert(utc_timestamp() using gb2312)) <=>
+instr(1 , 0xf722a67b) as char);
+ERROR HY000: Cannot convert string '\xF7"\xA6{' from binary to utf8mb3

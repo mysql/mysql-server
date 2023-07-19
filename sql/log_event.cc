@@ -34,6 +34,7 @@
 #include <sys/time.h>
 #endif
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -69,8 +70,9 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/field_common_properties.h"
-#include "sql/my_decimal.h"   // my_decimal
-#include "sql/rpl_handler.h"  // RUN_HOOK
+#include "sql/my_decimal.h"               // my_decimal
+#include "sql/raii/thread_stage_guard.h"  // NAMED_THD_STAGE_GUARD
+#include "sql/rpl_handler.h"              // RUN_HOOK
 #include "sql/rpl_tblmap.h"
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/system_variables.h"
@@ -168,7 +170,7 @@ Error_log_throttle slave_ignored_err_throttle(
 
 #include "libbinlogevents/include/codecs/binary.h"
 #include "libbinlogevents/include/codecs/factory.h"
-#include "libbinlogevents/include/compression/iterator.h"
+#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
 #include "mysqld_error.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_record.h"  // enum_row_image_type, Bit_reader
@@ -860,10 +862,10 @@ time_t Log_event::get_time() {
 
 #endif
 
-/**
-  @return
-  returns the human readable name of the event's type
-*/
+const char *Log_event::get_type_str(uint type) {
+  if (type > binary_log::ENUM_END_EVENT) return "Unknown";
+  return get_type_str(Log_event_type(type));
+}
 
 const char *Log_event::get_type_str(Log_event_type type) {
   switch (type) {
@@ -1274,8 +1276,11 @@ uint32 Log_event::write_header_to_memory(uchar *buf) {
   int4store(buf, timestamp);
   buf[EVENT_TYPE_OFFSET] = get_type_code();
   int4store(buf + SERVER_ID_OFFSET, server_id);
-  int4store(buf + EVENT_LEN_OFFSET,
-            static_cast<uint32>(common_header->data_written));
+  uint32 event_size = static_cast<uint32>(common_header->data_written);
+  DBUG_EXECUTE_IF("set_query_log_event_size_to_5", {
+    if (get_type_code() == binary_log::QUERY_EVENT) event_size = 5;
+  });
+  int4store(buf + EVENT_LEN_OFFSET, event_size);
   int4store(buf + LOG_POS_OFFSET, static_cast<uint32>(common_header->log_pos));
   int2store(buf + FLAGS_OFFSET, common_header->flags);
 
@@ -3396,6 +3401,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     SET PSEUDO_THREAD_ID=
     for each query using temp tables.
   */
+
   int4store(buf + Q_THREAD_ID_OFFSET, slave_proxy_id);
   int4store(buf + Q_EXEC_TIME_OFFSET, exec_time);
   buf[Q_DB_LEN_OFFSET] = (char)db_len;
@@ -13294,8 +13300,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     if (thd->rpl_thd_ctx.binlog_group_commit_ctx()
             .get_session_ticket()
             .is_set()) {
-      assert(thd->rpl_thd_ctx.binlog_group_commit_ctx().get_session_ticket() ==
-             bgc_group_ticket);
+      assert(
+          !(bgc_group_ticket >
+            thd->rpl_thd_ctx.binlog_group_commit_ctx().get_session_ticket()));
     }
 #endif
     /*
@@ -13988,25 +13995,24 @@ uint8 Transaction_payload_log_event::mts_number_dbs() {
 
 int Transaction_payload_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_TRACE;
-  int res = 0;
-  PSI_stage_info old_stage;
-
-  /* apply events in the payload */
-
-  binary_log::transaction::compression::Iterable_buffer it(
-      m_payload, m_payload_size, m_uncompressed_size, m_compression_type);
-
-  thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
-                   __FILE__, __LINE__);
-  for (auto ptr : it) {
-    THD_STAGE_INFO(thd, old_stage);
-    if ((res = apply_payload_event(rli, (const uchar *)ptr))) break;
-    thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
-                     __FILE__, __LINE__);
+  using Istream_t =
+      binary_log::transaction::compression::Payload_event_buffer_istream;
+  Istream_t istream(*this);
+  NAMED_THD_STAGE_GUARD(stage_guard, thd, stage_binlog_transaction_decompress);
+  Istream_t::Buffer_ptr_t buffer;
+  while (istream >> buffer) {
+    stage_guard.set_old_stage();
+    /// @todo Use Decompressing_event_object_istream instead
+    if (apply_payload_event(rli, (const uchar *)buffer->data())) return 1;
+    stage_guard.set_new_stage();
   }
-  THD_STAGE_INFO(thd, old_stage);
+  if (istream.has_error()) {
+    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS,
+           rli->get_for_channel_str(), istream.get_error_str().c_str());
+    return 1;
+  }
 
-  return res;
+  return 0;
 }
 
 static bool shall_delete_event_after_apply(Log_event *ev) {
@@ -14132,21 +14138,32 @@ Log_event::enum_skip_reason Transaction_payload_log_event::do_shall_skip(
 bool Transaction_payload_log_event::write(Basic_ostream *ostream) {
   DBUG_TRACE;
   auto codec = binary_log::codecs::Factory::build_codec(header()->type_code);
-  auto buffer_size = MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN;
-  unsigned char buffer[MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN];
-  auto result = codec->encode(*this, buffer, buffer_size);
+  unsigned char all_headers_buffer[max_length_of_all_headers];
+  auto result =
+      codec->encode(*this, all_headers_buffer, max_length_of_all_headers);
+  if (result.second) return true;
   size_t data_size = result.first + m_payload_size;
 
-  if (result.second == true) goto end;
+  // header + post-header
+  if (write_header(ostream, data_size) ||
+      wrapper_my_b_safe_write(ostream, (uchar *)all_headers_buffer,
+                              result.first))
+    return true;
 
-  return write_header(ostream, data_size) ||
-         wrapper_my_b_safe_write(ostream, (uchar *)buffer, result.first) ||
-         wrapper_my_b_safe_write(ostream,
-                                 reinterpret_cast<const uchar *>(m_payload),
-                                 m_payload_size) ||
-         write_footer(ostream);
-end:
-  return true;
+  // data
+  if (m_payload == nullptr) {
+    for (auto &buffer_view : *m_buffer_sequence_view) {
+      if (wrapper_my_b_safe_write(ostream, buffer_view.data(),
+                                  buffer_view.size()))
+        return true;
+    }
+  } else if (wrapper_my_b_safe_write(ostream,
+                                     reinterpret_cast<const uchar *>(m_payload),
+                                     m_payload_size))
+    return true;
+
+  // footer
+  return write_footer(ostream);
 }
 
 int Transaction_payload_log_event::pack_info(Protocol *protocol) {

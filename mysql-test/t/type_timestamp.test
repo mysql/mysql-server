@@ -499,3 +499,24 @@ SET @@sql_mode= @org_mode;
 --echo # End of 5.6 tests
 --echo #
 
+
+--echo #
+--echo # Bug#35135132 bool String::copy -
+--echo #              Assertion `!str || str != m_ptr' failed.
+--echo #
+
+SET SESSION SQL_MODE='';
+
+CREATE TABLE t1 (
+  c1 smallint DEFAULT NULL,
+  c2 timestamp NOT NULL
+);
+INSERT INTO t1 VALUES (2,'2006-07-01 22:00:00'),(6,'0000-00-00 00:00:00');
+
+SELECT
+CONCAT_WS('out', c1, (CASE 42 WHEN c1 THEN c1 ELSE c2 END), c2, 'hello')
+FROM t1;
+
+DROP TABLE t1;
+
+SET SESSION SQL_MODE=DEFAULT;

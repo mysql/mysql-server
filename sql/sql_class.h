@@ -4689,7 +4689,7 @@ class THD : public MDL_context_owner,
 
  private:
   std::unordered_map<unsigned int, void *> external_store_;
-};
+};  // End of class THD
 
 /**
    Return lock_tables_mode for secondary engine.

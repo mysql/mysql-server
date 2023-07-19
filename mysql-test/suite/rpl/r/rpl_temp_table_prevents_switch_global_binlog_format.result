@@ -10,11 +10,15 @@ include/stop_slave_sql.inc
 # of all replication channels have open temporary table(s).
 #
 SET @@global.binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Set binlog format to statement for replicating
 # CREATE TEMPORARY TABLE temp1 on master.
 #
 SET @@global.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Start slave applier, so that SET @@global.binlog_format=STATEMENT
 # takes effect on the default slave channel.

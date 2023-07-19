@@ -235,9 +235,13 @@ DROP TABLE t1;
 # runtime and which values are not allowed.
 #
 SET SESSION binlog_format= STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO tn VALUES ('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 SET SESSION binlog_format= "ROW";
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION transaction_write_set_extraction=OFF;
 ERROR HY000: The write set algorithm cannot be changed when Group replication is running.
 INSERT INTO tn VALUES ('hash');

@@ -1000,9 +1000,9 @@ static ha_rows read_all_rows(
 
     ++(*found_rows);
     num_total_records++;
-    if (pq)
-      pq->push(tables);
-    else {
+    if (pq != nullptr) {
+      if (pq->push(tables)) return HA_POS_ERROR;
+    } else {
       size_t key_length;
       bool out_of_mem_or_error = alloc_and_make_sortkey(
           param, fs_info, tables, &key_length, &longest_addon_so_far);
@@ -1262,6 +1262,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       const CHARSET_INFO *cs = item->collation.collation;
 
       String *res = item->val_str(tmp_buffer);
+      if (current_thd->is_error()) {
+        return UINT_MAX;
+      }
       if (res == nullptr)  // Value is NULL.
       {
         assert(item->is_nullable());
@@ -1307,6 +1310,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     case INT_RESULT: {
       assert(!is_varlen);
       longlong value = item->int_sort_key();
+      if (current_thd->is_error()) {
+        return UINT_MAX;
+      }
 
       /*
         Note: item->null_value can't be trusted alone here; there are cases
@@ -1356,6 +1362,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     case REAL_RESULT: {
       assert(!is_varlen);
       double value = item->val_real();
+      if (current_thd->is_error()) {
+        return UINT_MAX;
+      }
       if (item->null_value) {
         assert(item->is_nullable());
         *null_indicator = 0;

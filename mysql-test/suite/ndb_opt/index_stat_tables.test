@@ -12,3 +12,6 @@ SHOW WARNINGS;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM mysql.ndb_index_stat_sample;
 SHOW WARNINGS;
+
+# Check that the index_stats view metadata is as expected
+SHOW CREATE VIEW ndbinfo.index_stats;

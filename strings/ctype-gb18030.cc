@@ -20164,7 +20164,7 @@ static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
   size_t s_gb, w_gb;
   size_t s_len = 0, w_len;
 
-  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return -1;
 
   while (wildstr != wildend) {
     while (true) {

@@ -32,6 +32,6 @@
 
 extern REQUIRES_PSI_COND_SERVICE_PLACEHOLDER;
 
-#define PSI_COND_CALL(M) mysql_service_psi_cond_v1->M
+#define PSI_COND_CALL(M) SERVICE_PLACEHOLDER(psi_cond_v1)->M
 
 #endif /* COMPONENTS_SERVICES_PSI_COND_H */

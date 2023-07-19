@@ -1018,6 +1018,10 @@ TEST_P(ShareConnectionTestWithRestartedServer,
               // unknown prepared statement handler.
               expected_error_code = 1243;
               break;
+            case cmd_byte<
+                classic_protocol::message::client::SetOption>():  // 27
+              expected_error_code = 1835;  // malformed packet
+              break;
           }
 
           EXPECT_EQ(msg.error_code(), expected_error_code) << msg.message();

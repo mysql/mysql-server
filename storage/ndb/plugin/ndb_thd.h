@@ -126,4 +126,22 @@ enum condition_logging_level { INFO, WARNING, ERROR };
 void log_and_clear_thd_conditions(THD *thd,
                                   condition_logging_level logging_level);
 
+/**
+   @brief RAII class for checking that size of memory (MEM_ROOT's in particular)
+   in given THD hasn't changed when it goes of out scope. To be used by long
+   lived threads in the ndbcluster plugin that owns a THD whose memory
+   consumption should not grow over time.
+
+   @note Currently only monitors THD::mem_root but might need to check more.
+ */
+class Ndb_thd_memory_guard {
+#ifndef NDEBUG
+  const THD *const m_thd;
+  const size_t m_thd_mem_root_size_before;
+#endif
+ public:
+  Ndb_thd_memory_guard(THD *thd);
+  ~Ndb_thd_memory_guard();
+};
+
 #endif

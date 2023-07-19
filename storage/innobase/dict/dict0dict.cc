@@ -4043,6 +4043,8 @@ void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
 
     persister = dict_persist->persisters->get(type);
     ut_ad(persister != nullptr);
+    pos++;
+    size--;
 
     consumed = persister->read(*metadata, pos, size, &corrupt);
     ut_ad(consumed != 0);
@@ -4071,18 +4073,16 @@ void dict_table_load_dynamic_metadata(dict_table_t *table) {
 
   mutex_enter(&dict_persist->mutex);
 
-  std::string *readmeta;
   uint64_t version;
-  readmeta = table_buffer->get(table->id, &version);
+  const auto readmeta = table_buffer->get(table->id, &version);
 
-  if (readmeta->length() != 0) {
+  if (!readmeta.empty()) {
     /* Persistent dynamic metadata of this table have changed
     recently, we need to update them to in-memory table */
     PersistentTableMetadata metadata(table->id, version);
 
-    dict_table_read_dynamic_metadata(
-        reinterpret_cast<const byte *>(readmeta->data()), readmeta->length(),
-        &metadata);
+    dict_table_read_dynamic_metadata(readmeta.data(), readmeta.size(),
+                                     &metadata);
 
     bool is_dirty = dict_table_apply_dynamic_metadata(table, &metadata);
 
@@ -4102,8 +4102,6 @@ void dict_table_load_dynamic_metadata(dict_table_t *table) {
   }
 
   mutex_exit(&dict_persist->mutex);
-
-  ut::delete_(readmeta);
 }
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
@@ -5414,9 +5412,9 @@ void DDTableBuffer::truncate() {
 has to delete the returned std::string object by ut::delete_
 @param[in]      id      table id
 @param[out]     version table dynamic metadata version
-@return the metadata saved in a string object, if nothing, the
-string would be of length 0 */
-std::string *DDTableBuffer::get(table_id_t id, uint64_t *version) {
+@return the metadata saved in a vector object, if nothing, the
+vector would be empty */
+std::vector<byte> DDTableBuffer::get(table_id_t id, uint64_t *version) {
   btr_cur_t cursor;
   mtr_t mtr;
   ulint len;
@@ -5453,8 +5451,7 @@ std::string *DDTableBuffer::get(table_id_t id, uint64_t *version) {
     *version = 0;
   }
 
-  std::string *metadata = ut::new_withkey<std::string>(
-      UT_NEW_THIS_FILE_PSI_KEY, reinterpret_cast<const char *>(field), len);
+  std::vector<byte> metadata{field, field + len};
 
   mtr.commit();
 
@@ -5569,22 +5566,13 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
                                     bool *corrupt) const {
   const byte *end = buffer + size;
   ulint consumed = 0;
-  byte type;
   ulint num;
 
   *corrupt = false;
 
-  /* It should contain PM_INDEX_CORRUPTED and number at least */
-  if (size <= 2) {
+  /* It should contain a number at least */
+  if (size <= 1) {
     return (0);
-  }
-
-  type = *buffer++;
-  ++consumed;
-
-  if (type != PM_INDEX_CORRUPTED) {
-    *corrupt = true;
-    return (consumed);
   }
 
   num = mach_read_from_1(buffer);
@@ -5612,6 +5600,14 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
   return (consumed);
 }
 
+void CorruptedIndexPersister::aggregate(
+    PersistentTableMetadata &metadata,
+    const PersistentTableMetadata &new_entry) const {
+  for (auto id : new_entry.get_corrupted_indexes()) {
+    metadata.add_corrupted_index(id);
+  }
+}
+
 /** Write the autoinc counter of a table, we can pre-calculate
 the size by calling get_write_size()
 @param[in]      metadata        persistent metadata
@@ -5637,55 +5633,44 @@ ulint AutoIncPersister::write(const PersistentTableMetadata &metadata,
 }
 
 /** Read the autoinc counter from buffer, and store them to
-metadata object
+a metadata object
 @param[out]     metadata        metadata where we store the read data
 @param[in]      buffer          buffer to read
 @param[in]      size            size of buffer
 @param[out]     corrupt         true if we found something wrong in
-                                the buffer except incomplete buffer,
-                                otherwise false
+                                  the buffer except incomplete buffer,
+                                  otherwise false
 @return the bytes we read from the buffer if the buffer data
 is complete and we get everything, 0 if the buffer is incomplete */
 ulint AutoIncPersister::read(PersistentTableMetadata &metadata,
                              const byte *buffer, ulint size,
                              bool *corrupt) const {
-  const byte *end = buffer + size;
-  ulint consumed = 0;
-  byte type;
-  uint64_t autoinc;
-
   *corrupt = false;
 
-  /* It should contain PM_TABLE_AUTO_INC and the counter at least */
-  if (size < 2) {
-    return (0);
-  }
-
-  type = *buffer++;
-  ++consumed;
-
-  if (type != PM_TABLE_AUTO_INC) {
-    *corrupt = true;
-    return (consumed);
-  }
-
   const byte *start = buffer;
-  autoinc = mach_parse_u64_much_compressed(&start, end);
+  const auto autoinc = mach_parse_u64_much_compressed(&start, buffer + size);
 
   if (start == nullptr) {
     /* Just incomplete data, not corrupted */
     return (0);
   }
 
-  if (autoinc == 0) {
-    metadata.set_autoinc(autoinc);
-  } else {
-    metadata.set_autoinc_if_bigger(autoinc);
-  }
+  metadata.set_autoinc(autoinc);
 
-  consumed += start - buffer;
+  const ulint consumed = start - buffer;
   ut_ad(consumed <= size);
   return (consumed);
+}
+
+void AutoIncPersister::aggregate(
+    PersistentTableMetadata &metadata,
+    const PersistentTableMetadata &new_entry) const {
+  if (new_entry.get_version() > metadata.get_version()) {
+    metadata.set_autoinc(new_entry.get_autoinc());
+    metadata.set_version(new_entry.get_version());
+  } else if (new_entry.get_version() == metadata.get_version()) {
+    metadata.set_autoinc_if_bigger(new_entry.get_autoinc());
+  }
 }
 
 /** Destructor */

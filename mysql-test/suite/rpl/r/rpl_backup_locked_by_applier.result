@@ -1,0 +1,44 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Initialization
+#
+# Adding debug point 'syncpoint_purge_applied_logs_after_backup_lock' to @@GLOBAL.debug
+#
+# Trigger log purge on replica
+#
+[connection master]
+FLUSH BINARY LOGS;
+#
+# Check backup cannot be held
+#
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR reached_purge_applied_logs_after_backup_lock';
+SET SESSION lock_wait_timeout = 1;
+LOCK INSTANCE FOR BACKUP;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+#
+# Unblock applier
+#
+SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
+# Removing debug point 'syncpoint_purge_applied_logs_after_backup_lock' from @@GLOBAL.debug
+#
+# Wait for replica to process the rest of the binlog
+#
+[connection master]
+CREATE TABLE t (a INT);
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+#
+# Check LOCK INSTANCE FOR BACKUP can be executed
+#
+SET SESSION lock_wait_timeout = 30;
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+#
+# Cleanup
+#
+include/rpl_end.inc

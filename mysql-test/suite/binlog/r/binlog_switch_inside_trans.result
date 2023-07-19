@@ -1,10 +1,14 @@
 set @save_binlog_format= @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @save_binlog_dirct= @@global.binlog_direct_non_transactional_updates;
 create table t1 (a int) engine= myisam;
 create table t2 (a int) engine= innodb;
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
 0
@@ -17,11 +21,15 @@ SET AUTOCOMMIT=1;
 # are writable outside a transaction.
 # Current session values are ROW, FALSE, TRUE, respectively.
 set @@session.binlog_format= statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_direct_non_transactional_updates= TRUE;
 set @@session.sql_log_bin= FALSE;
 SELECT @@session.binlog_format;
 @@session.binlog_format
 STATEMENT
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
 1
@@ -70,11 +78,15 @@ commit;
 # Current session values are STATEMENT, TRUE, FALSE, respectively.
 set AUTOCOMMIT=0;
 set @@session.binlog_format= 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_direct_non_transactional_updates= FALSE;
 set @@session.sql_log_bin= TRUE;
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
 0
@@ -96,6 +108,8 @@ ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
 0
@@ -118,6 +132,8 @@ ERROR HY000: Cannot modify @@session.sql_log_bin inside a transaction
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
 0
@@ -134,16 +150,24 @@ insert into t2 values (5);
 SELECT @@global.binlog_format;
 @@global.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@global.binlog_format= statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@global.binlog_direct_non_transactional_updates= TRUE;
 SELECT @@global.binlog_format;
 @@global.binlog_format
 STATEMENT
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT @@global.binlog_direct_non_transactional_updates;
 @@global.binlog_direct_non_transactional_updates
 1
 commit;
 set @@global.binlog_format= @save_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@global.binlog_direct_non_transactional_updates= @save_binlog_dirct;
 create table t3(a int, b int) engine= innodb;
 create table t4(a int) engine= innodb;
@@ -162,6 +186,8 @@ ERROR HY000: Cannot change the binary logging format inside a stored function or
 SELECT @@session.binlog_format;
 @@session.binlog_format
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create table t6(a int, b int) engine= innodb;
 create table t7(a int) engine= innodb;
 create table t8(a int) engine= innodb;

@@ -30,6 +30,8 @@
 #include "mysql/harness/tls_error.h"
 #include "openssl_version.h"
 
+#include <dh_ecdh_config.h>
+
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
 #define TLS_CLIENT_METHOD() TLS_client_method()
 #else
@@ -38,6 +40,8 @@
 
 TlsClientContext::TlsClientContext(TlsVerify mode)
     : TlsContext(TLS_CLIENT_METHOD()) {
+  (void)set_ecdh(ssl_ctx_.get());
+  (void)set_dh(ssl_ctx_.get());
   verify(mode);
 }
 

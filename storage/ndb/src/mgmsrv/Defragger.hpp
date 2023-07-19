@@ -23,6 +23,7 @@
 #ifndef Defragger_H
 #define Defragger_H
 
+#include "SignalSender.hpp"
 #include "util/ndb_math.h"
 
 /*

@@ -23,6 +23,7 @@
 #ifndef HA_NDBINFO_H
 #define HA_NDBINFO_H
 
+#include "my_config.h"  // WORDS_BIGENDIAN
 #include "sql/handler.h"
 
 class ha_ndbinfo : public handler {

@@ -2778,13 +2778,7 @@ trx_t *innobase_trx_allocate(THD *thd) /*!< in: user thread handle */
   MONITOR_ATOMIC_INC(MONITOR_TRX_ALLOCATIONS);
   trx = trx_allocate_for_mysql();
 
-  rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
-
-  if (purge_sys->thds.find(thd) != purge_sys->thds.end()) {
-    trx->purge_sys_trx = true;
-  }
-
-  rw_lock_s_unlock(&purge_sys->latch);
+  trx->purge_sys_trx = purge_sys->is_this_a_purge_thread;
 
   trx->mysql_thd = thd;
 
@@ -17500,21 +17494,18 @@ static uint64_t innodb_get_auto_increment_for_uncached(
   DDTableBuffer *table_buffer = dict_persist->table_buffer;
 
   uint64_t version;
-  std::string *readmeta = table_buffer->get(se_private_id, &version);
+  const auto readmeta = table_buffer->get(se_private_id, &version);
 
-  if (readmeta->length() != 0) {
+  if (!readmeta.empty()) {
     PersistentTableMetadata metadata(se_private_id, version);
 
-    dict_table_read_dynamic_metadata(
-        reinterpret_cast<const byte *>(readmeta->data()), readmeta->length(),
-        &metadata);
+    dict_table_read_dynamic_metadata(readmeta.data(), readmeta.size(),
+                                     &metadata);
 
     meta_autoinc = metadata.get_autoinc();
   }
 
   mutex_exit(&dict_persist->mutex);
-
-  ut::delete_(readmeta);
 
   return (std::max(meta_autoinc, autoinc));
 }

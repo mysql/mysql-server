@@ -30,6 +30,7 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "sql/check_stack.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -43,6 +44,8 @@
 int Fake_TABLE::highest_table_id = 5;
 
 int main(int argc, char **argv) {
+  initialize_stack_direction();
+
   ::testing::InitGoogleTest(&argc, argv);
 
 #if defined(HAVE_WINNUMA)

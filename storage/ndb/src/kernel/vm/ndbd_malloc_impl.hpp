@@ -25,6 +25,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include "my_config.h"
 #include "util/require.h"
 #include <algorithm>
 #ifdef VM_TRACE

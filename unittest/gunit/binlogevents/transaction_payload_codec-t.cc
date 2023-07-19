@@ -82,8 +82,9 @@ class TransactionPayloadCodecTest : public ::testing::Test {
     // decoding by hand
     // -------------------------------------
 
-    Transaction_payload_event decoded(static_cast<const char *>(nullptr),
-                                      static_cast<uint64_t>(0));
+    Transaction_payload_event decoded(
+        static_cast<const char *>(nullptr), static_cast<uint64_t>(0),
+        transaction::compression::type::NONE, payload_size);
 
     // decode the post LOG_EVENT header
     auto buffer = enc_buffer;

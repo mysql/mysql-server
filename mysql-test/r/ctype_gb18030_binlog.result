@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 SET NAMES gb18030;
 CREATE TABLE t1 (
@@ -26,3 +32,5 @@ B2E2CAD462696E6C6F67B8B4D6C6A3ACB2E2CAD4CBC4D7D6BDDAB1E0C2EB3A8139EF318139EF3281
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

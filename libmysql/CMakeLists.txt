@@ -145,6 +145,9 @@ SET(CLIENT_API_FUNCTIONS
   mysql_get_ssl_session_reused
   mysql_get_ssl_session_data
   mysql_free_ssl_session_data
+  mysql_binlog_close
+  mysql_binlog_fetch
+  mysql_binlog_open
   CACHE INTERNAL "Functions exported by client API"
 )
 

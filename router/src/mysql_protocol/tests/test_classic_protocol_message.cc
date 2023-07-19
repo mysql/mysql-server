@@ -30,6 +30,8 @@
 
 #include <gtest/gtest.h>
 
+#include <mysql.h>  // MYSQL_TYPE_TINY
+
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "test_classic_protocol_codec.h"
@@ -432,6 +434,45 @@ TEST(MessageServerError, short_sql_state) {
 
 // server::Greeting
 
+TEST(MessageServerGreeting, construct) {
+  classic_protocol::message::server::Greeting msg{
+      0x0a, "8.0.12", 1,    "012345678901234567",
+      0,    0xff,     0x10, "mysql_native_password"};
+
+  EXPECT_EQ(msg.protocol_version(), 10);
+  EXPECT_EQ(msg.version(), "8.0.12");
+  EXPECT_EQ(msg.connection_id(), 1);
+  EXPECT_EQ(msg.auth_method_data(), "012345678901234567");
+  EXPECT_EQ(msg.capabilities(), 0);
+  EXPECT_EQ(msg.collation(), 0xff);
+  EXPECT_EQ(msg.status_flags(), 0x10);
+  EXPECT_EQ(msg.auth_method_name(), "mysql_native_password");
+}
+
+TEST(MessageServerGreeting, setter) {
+  classic_protocol::message::server::Greeting msg{
+      0x0a, "8.0.12", 1,    "012345678901234567",
+      0,    0xff,     0x10, "mysql_native_password"};
+
+  msg.protocol_version(0x09);
+  msg.version("8.0.13");
+  msg.connection_id(2);
+  msg.auth_method_data("012345678901234568");
+  msg.capabilities(1);
+  msg.collation(0x0);
+  msg.status_flags(0x11);
+  msg.auth_method_name("mysql_old_password");
+
+  EXPECT_EQ(msg.protocol_version(), 9);
+  EXPECT_EQ(msg.version(), "8.0.13");
+  EXPECT_EQ(msg.connection_id(), 2);
+  EXPECT_EQ(msg.auth_method_data(), "012345678901234568");
+  EXPECT_EQ(msg.capabilities(), 1);
+  EXPECT_EQ(msg.collation(), 0x0);
+  EXPECT_EQ(msg.status_flags(), 0x11);
+  EXPECT_EQ(msg.auth_method_name(), "mysql_old_password");
+}
+
 using CodecMessageServerGreetingTest =
     CodecTest<classic_protocol::message::server::Greeting>;
 
@@ -699,6 +740,37 @@ TEST_P(CodecMessageServerStmtRowTest, decode) {
 
 // server::StmtPrepareOk
 
+TEST(MessageServerStmtPrepareOk, constructed) {
+  classic_protocol::message::server::StmtPrepareOk msg(0, 1, 2, 3, 4);
+
+  EXPECT_EQ(msg.statement_id(), 0);
+  EXPECT_EQ(msg.column_count(), 1);
+  EXPECT_EQ(msg.param_count(), 2);
+  EXPECT_EQ(msg.warning_count(), 3);
+  EXPECT_EQ(msg.with_metadata(), 4);
+}
+
+TEST(MessageServerStmtPrepareOk, setters) {
+  classic_protocol::message::server::StmtPrepareOk msg(0, 1, 2, 3, 4);
+
+  // check the setters overwrite the initial values.
+
+  msg.statement_id(5);
+  EXPECT_EQ(msg.statement_id(), 5);
+
+  msg.warning_count(6);
+  EXPECT_EQ(msg.warning_count(), 6);
+
+  msg.param_count(7);
+  EXPECT_EQ(msg.param_count(), 7);
+
+  msg.column_count(8);
+  EXPECT_EQ(msg.column_count(), 8);
+
+  msg.with_metadata(9);
+  EXPECT_EQ(msg.with_metadata(), 9);
+}
+
 using CodecMessageServerStmtPrepareOkTest =
     CodecTest<classic_protocol::message::server::StmtPrepareOk>;
 
@@ -889,6 +961,23 @@ TEST_P(CodecMessageClientQueryTest, decode) { test_decode(GetParam()); }
 const CodecParam<classic_protocol::message::client::Query>
     codec_message_client_query_param[] = {
         {"do_1", {"DO 1"}, {}, {0x03, 'D', 'O', ' ', '1'}},
+        {"do_2_query_attributes_no_params",
+         {"DO 2"},
+         {classic_protocol::capabilities::query_attributes},
+         {0x03, 0x00, 0x01, 'D', 'O', ' ', '2'}},
+        {"do_3_query_attributes_one_int_param",
+         {"DO 3", {{MYSQL_TYPE_TINY, "name", std::string{0x00}}}},
+         {classic_protocol::capabilities::query_attributes},
+         {0x03,                      // cmd
+          0x01,                      // param-count
+          0x01,                      // param-set-count
+          0x00,                      // null-bit-map: no NULL
+          0x01,                      // new-params-bound = 0x01
+                                     // param[0]:
+          0x01, 0x00,                // .param_type_and_flag: TINY
+          0x04, 'n', 'a', 'm', 'e',  // .name
+          0x00,                      // .value TINY{0}
+          'D', 'O', ' ', '3'}},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientQueryTest,
@@ -1177,11 +1266,239 @@ TEST_P(CodecMessageClientStmtExecuteTest, decode) {
 
 const CodecParam<classic_protocol::message::client::StmtExecute>
     codec_stmt_execute_param[] = {
-        {"exec_stmt",
-         {1, 0x00, 1, true, {classic_protocol::field_type::Varchar}, {{"foo"}}},
-         {},
-         {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-          0x01, 0x0f, 0x00, 0x03, 0x66, 0x6f, 0x6f}},
+        {"one_param",
+         {1,                                        // stmt-id
+          0x00,                                     // flags
+          1,                                        // iteration-count
+          true,                                     // new-params bound
+          {classic_protocol::field_type::Varchar},  // types
+          {{"foo"}}},                               // values
+         {},                                        // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x00,                    // flags
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x00,                    // null-bitmap
+             0x01,                    // new-params bound
+             0x0f, 0x00,              // parameter-type[0]: Varchar
+             0x03, 0x66, 0x6f, 0x6f   // data[0]: len=3, "foo"
+         }},
+        {"one_null_param",
+         {1,                                        // stmt-id
+          0x00,                                     // flags
+          1,                                        // iteration-count
+          true,                                     // new-params bound
+          {classic_protocol::field_type::Varchar},  // types
+          {{std::nullopt}}},                        // values
+         {},                                        // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x00,                    // flags
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x01,                    // null-bitmap: data[0]: null
+             0x01,                    // new-params bound
+             0x0f, 0x00,              // parameter-type[0]: Varchar
+         }},
+        {"cap_query_attributes_one_param_no_param_count_avail",
+         {
+             1,     // stmt-id
+             0x00,  // flags: 0
+             1,     // iteration_count: 1
+             true,  // new-params bound
+             {{classic_protocol::field_type::String, "abc"}},  // types
+             {{"val"}},                                        // values
+         },                                                    // msg
+         {classic_protocol::capabilities::query_attributes},   // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x00,                    // flags
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x00,                    // null-bitmap
+             0x01,                    // new-params bound
+             0xfe, 0x00,              // parameter-type[0]: String
+             0x03, 0x61, 0x62, 0x63,  // name[0]: len=3, "abc"
+             0x03, 0x76, 0x61, 0x6c   // data[0]: len=3, "val"
+         }},
+        {"cap_query_attributes_one_param",
+         {
+             1,     // stmt-id
+             0x08,  // flags
+             1,     // iteration_count
+             true,  // new-params bound
+             {{classic_protocol::field_type::String, "abc"}},  // types
+             {{"val"}},                                        // values
+         },                                                    // msg
+         {classic_protocol::capabilities::query_attributes},   // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x08,                    // flags: param-count-available
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x01,                    // param-count
+             0x00,                    // null-bitmap
+             0x01,                    // new-params bound
+             0xfe, 0x00,              // parameter-type[0]: String
+             0x03, 0x61, 0x62, 0x63,  // name[0]: len=3, "abc"
+             0x03, 0x76, 0x61, 0x6c   // data[0]: len=3, "val"
+         }},
+        {"cap_query_attributes_null_param",
+         {
+             1,     // stmt-id
+             0x08,  // flags
+             1,     // iteration_count
+             true,  // new-params bound
+             {{classic_protocol::field_type::String, "abc"}},  // types
+             {{std::nullopt}},                                 // values
+         },                                                    // msg
+         {classic_protocol::capabilities::query_attributes},   // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x08,                    // flags: param-count-available
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x01,                    // param-count
+             0x01,                    // null-bitmap: data[0]: NULL
+             0x01,                    // new-params bound
+             0xfe, 0x00,              // parameter-type[0]: String
+             0x03, 0x61, 0x62, 0x63,  // name[0]: len=3, "abc"
+         }},
+        {"cap_query_attributes_8_params",
+         {
+             1,     // stmt-id
+             0x08,  // flags
+             1,     // iteration_count
+             true,  // new-params bound
+             {
+                 {classic_protocol::field_type::Bit, ""},
+                 {classic_protocol::field_type::Blob, "1"},
+                 {classic_protocol::field_type::Varchar, "2"},
+                 {classic_protocol::field_type::VarString, "3"},
+                 {classic_protocol::field_type::Set, "4"},
+                 {classic_protocol::field_type::String, "5"},
+                 {classic_protocol::field_type::Enum, "6"},
+                 {classic_protocol::field_type::TinyBlob, "7"},
+             },  // types
+             {{"a"},
+              {"bc"},
+              {"def"},
+              {"ghij"},
+              {"klm"},
+              {"no"},
+              {"p"},
+              {"qrstuvwxyz"}},                                // values
+         },                                                   // msg
+         {classic_protocol::capabilities::query_attributes},  // caps
+         {
+             // serialized
+             0x17,                          // cmd
+             0x01, 0x00, 0x00, 0x00,        // stmt-id
+             0x08,                          // flags: param-count-available
+             0x01, 0x00, 0x00, 0x00,        // iteration-count
+             0x08,                          // param-count
+             0x00,                          // null-bitmap
+             0x01,                          // new-params bound
+             0x10, 0x00,                    // parameter-type[0]: Bit
+             0x00,                          // name[0]: len=0, ""
+             0xfc, 0x00,                    // parameter-type[1]: Blob
+             0x01, 0x31,                    // name[1]: len=1, "1"
+             0x0f, 0x00,                    // parameter-type[2]: Varchar
+             0x01, 0x32,                    // name[2]: len=1, "2"
+             0xfd, 0x00,                    // parameter-type[3]: VarString
+             0x01, 0x33,                    // name[3]: len=1, "3"
+             0xf8, 0x00,                    // parameter-type[4]: Set
+             0x01, 0x34,                    // name[4]: len=1, "4"
+             0xfe, 0x00,                    // parameter-type[5]: String
+             0x01, 0x35,                    // name[5]: len=1, "5"
+             0xf7, 0x00,                    // parameter-type[6]: Enum
+             0x01, 0x36,                    // name[6]: len=1, "6"
+             0xf9, 0x00,                    // parameter-type[7]: TinyBlob
+             0x01, 0x37,                    // name[7]: len=1, "7"
+             0x01, 0x61,                    // data[0]: len=1, "a"
+             0x02, 0x62, 0x63,              // data[1]: len=2, "bc"
+             0x03, 0x64, 0x65, 0x66,        // data[2]: len=3, "def"
+             0x04, 0x67, 0x68, 0x69, 0x6a,  // data[3]: len=4, "ghij"
+             0x03, 0x6b, 0x6c, 0x6d,        // data[4]: len=5, "klm"
+             0x02, 0x6e, 0x6f,              // data[5]: len=4, "no"
+             0x01, 0x70,                    // data[6]: len=3, "p"
+             0x0a, 0x71, 0x72, 0x73, 0x74,  // data[7]: len=10, "qrstuvwxyz"
+             0x75, 0x76, 0x77, 0x78, 0x79,  //
+             0x7a,                          //
+         }},
+        {"cap_query_attributes_9_params",
+         {
+             1,     // stmt-id
+             0x08,  // flags
+             1,     // iteration_count
+             true,  // new-params bound
+             {
+                 {classic_protocol::field_type::Decimal, ""},
+                 {classic_protocol::field_type::Tiny, "1"},
+                 {classic_protocol::field_type::Short, "2"},
+                 {classic_protocol::field_type::Long, "3"},
+                 {classic_protocol::field_type::Float, "4"},
+                 {classic_protocol::field_type::Double, "5"},
+                 {classic_protocol::field_type::Null, "6"},
+                 {classic_protocol::field_type::Timestamp, "7"},
+                 {classic_protocol::field_type::LongLong, "8"},
+             },  // types
+             {{"\x1"},
+              {"\x1"},
+              {{"\x2\x0", 2}},
+              {{"\x4\x0\x0\x0", 4}},
+              {"\x7f\x7f\x7f\x7f"},
+              {"\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f"},
+              {std::nullopt},
+              {""},
+              {{"\x08\x00\x00\x00\x00\x00\x00\x00", 8}}},     // values
+         },                                                   // msg
+         {classic_protocol::capabilities::query_attributes},  // caps
+         {
+             // serialized
+             0x17,                    // cmd
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x08,                    // flags: param-count-available
+             0x01, 0x00, 0x00, 0x00,  // iteration-count
+             0x09,                    // param-count
+             0x40, 0x00,              // null-bitmap: data[6]: NULL
+             0x01,                    // new-params bound
+             0x00, 0x00,              // parameter-type[0]: Decimal
+             0x00,                    // name[0]: len=0, ""
+             0x01, 0x00,              // parameter-type[1]: Tiny
+             0x01, 0x31,              // name[1]: len=1, "1"
+             0x02, 0x00,              // parameter-type[2]: Short
+             0x01, 0x32,              // name[2]: len=1, "2"
+             0x03, 0x00,              // parameter-type[3]: Long
+             0x01, 0x33,              // name[3]: len=1, "3"
+             0x04, 0x00,              // parameter-type[4]: Float
+             0x01, 0x34,              // name[4]: len=1, "4"
+             0x05, 0x00,              // parameter-type[5]: Double
+             0x01, 0x35,              // name[5]: len=1, "5"
+             0x06, 0x00,              // parameter-type[6]: Null
+             0x01, 0x36,              // name[6]: len=1, "6"
+             0x07, 0x00,              // parameter-type[7]: Timestamp
+             0x01, 0x37,              // name[7]: len=1, "7"
+             0x08, 0x00,              // parameter-type[8]: LongLong
+             0x01, 0x38,              // name[8]: len=1, "8"
+             0x01, 0x01,              // data[0]: len=1, "a"
+             0x01,                    // data[1]: <tiny>1
+             0x02, 0x00,              // data[2]: <short>2
+             0x04, 0x00, 0x00, 0x00,  // data[3]: <long>4
+             0x7f, 0x7f, 0x7f, 0x7f,  // data[4]: <float>
+             0x7f, 0x7f, 0x7f, 0x7f,  // data[5]: <double>
+             0x7f, 0x7f, 0x7f, 0x7f,  //
+                                      // data[6]: NULL
+             0x00,                    // data[7]: len=0, ""
+             0x08, 0x00, 0x00, 0x00,  // data[8]: len=10, "qrstuvwxyz"
+             0x00, 0x00, 0x00, 0x00,  //
+         }},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtExecuteTest,
@@ -1189,6 +1506,25 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtExecuteTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
+
+TEST(CodecMessageClientStmtExecuteFail, param_count_less_than_num_params) {
+  using msg_type = classic_protocol::message::client::StmtExecute;
+
+  auto caps = classic_protocol::capabilities::query_attributes;
+
+  std::array<uint8_t, 11> encoded{
+      0x17,                    // cmd
+      0x01, 0x00, 0x00, 0x00,  // stmt-id
+      0x10,                    // flags: param-count-available
+      0x01, 0x00, 0x00, 0x00,  // iteration-count
+      0x00,                    // param-count
+  };
+
+  auto decode_res = classic_protocol::Codec<msg_type>::decode(
+      net::buffer(encoded), caps,
+      [](auto /* stmt_id */) { return std::vector<msg_type::ParamDef>{0xff}; });
+  EXPECT_FALSE(decode_res);
+}
 
 // client::StmtClose
 

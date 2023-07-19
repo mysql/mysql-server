@@ -7328,7 +7328,7 @@ ER_CHANGE_SOURCE_PASSWORD_LENGTH
   eng "The password provided for the replication user exceeds the maximum length of 32 characters"
 
 ER_USER_LOCK_WRONG_NAME 42000
-        eng "Incorrect user-level lock name '%-.192s'."
+  eng "Incorrect user-level lock name '%-.192s'. The name is empty, NULL, or can not be expressed in the current character-set."
 
 # Should be different from ER_LOCK_DEADLOCK since it doesn't cause implicit
 # rollback. Should not be mapped to SQLSTATE 40001 for the same reason.
@@ -9953,6 +9953,14 @@ ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
 ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS
   eng "'%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
 
+ER_USER_LOCK_OVERLONG_NAME  42000
+  eng "User-level lock name '%-.192s' should not exceed %d characters."
+
+ER_WARN_NO_SPACE_VERSION_COMMENT
+  eng "Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number."
+
+ER_VALIDATE_PASSWORD_INSUFFICIENT_CHANGED_CHARACTERS
+  eng "The new password must have at least '%u' characters that are different from the old password. It has only '%u' character(s) different. For this comparison, uppercase letters and lowercase letters are considered to be equal."
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

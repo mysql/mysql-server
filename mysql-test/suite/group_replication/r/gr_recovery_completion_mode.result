@@ -30,6 +30,8 @@ SET SESSION sql_log_bin=1;
 #
 SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
 SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 server_2 (server2)
 LOCK TABLE t1 READ;
 slave (server2)
@@ -39,6 +41,8 @@ LOCK TABLE t2 READ;
 #
 server2
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 #
 # Insert some transaction on server 1 that will be cached on server 2
 #
@@ -85,6 +89,8 @@ INSERT INTO t1 VALUES (1);
 #
 server2
 SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 #
 # Lock table t1 and table t2 on server 2
 # Table t1: Blocks first phase of recovery
@@ -130,4 +136,6 @@ server2
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

@@ -20,11 +20,28 @@ CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQ
 
 --echo [on master]
 connection master;
-SET GLOBAL ssl_fips_mode=on;
+SET PERSIST_ONLY ssl_fips_mode=ON;
+
+--echo [on slave]
+connection slave;
+SET PERSIST_ONLY ssl_fips_mode=ON;
+
+# Restart master
+--source include/stop_slave.inc
+--let $rpl_server_number=1
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/save_binlog_position.inc
+
+--echo [on master]
+connection master;
 
 --echo [on slave]
 connection slave;
 source include/stop_slave.inc;
+--let $rpl_server_number=2
+--source include/rpl_restart_server.inc
 --echo # R1: Set the ssl connection OFF
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
@@ -36,7 +53,7 @@ connection slave;
 source include/stop_slave.inc;
 --echo # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1
 START SLAVE;
 --let $slave_io_errno= 2026
 --source include/wait_for_slave_io_error.inc
@@ -47,7 +64,7 @@ select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_conn
 connection slave;
 --source include/stop_slave.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'AES128-SHA';
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256'
 source include/start_slave.inc;
 --source include/check_slave_no_error.inc
 
@@ -62,10 +79,20 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
+--echo [on master]
+connection master;
+RESET PERSIST ssl_fips_mode;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo [on slave]
+connection slave;
+RESET PERSIST ssl_fips_mode;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 --echo [on master]
 connection master;
-SET GLOBAL ssl_fips_mode=off;
 
 --source include/rpl_end.inc
 --source include/force_restart.inc

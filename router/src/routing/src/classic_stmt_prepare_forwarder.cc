@@ -163,7 +163,10 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("stmt_prepare::ok"));
+    tr.trace(Tracer::Event().stage(
+        "stmt_prepare::ok: stmt-id: " +
+        std::to_string(msg_res->statement_id()) +
+        ", param-count: " + std::to_string(msg_res->param_count())));
   }
 
   auto stmt_prep_ok = *msg_res;
@@ -173,7 +176,7 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
     params_left_ = stmt_prep_ok.param_count();
   }
 
-  prep_stmt_.parameters.resize(stmt_prep_ok.param_count());
+  prep_stmt_.parameters.reserve(stmt_prep_ok.param_count());
   stmt_id_ = stmt_prep_ok.statement_id();
 
   connection()->some_state_changed(true);

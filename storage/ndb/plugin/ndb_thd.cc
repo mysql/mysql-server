@@ -136,3 +136,15 @@ void log_and_clear_thd_conditions(THD *thd,
   }
   clear_thd_conditions(thd);
 }
+
+Ndb_thd_memory_guard::Ndb_thd_memory_guard(THD *thd [[maybe_unused]])
+#ifndef NDEBUG
+    : m_thd(thd),
+      m_thd_mem_root_size_before(thd->mem_root->allocated_size())
+#endif
+{
+}
+
+Ndb_thd_memory_guard::~Ndb_thd_memory_guard() {
+  assert(m_thd->mem_root->allocated_size() <= m_thd_mem_root_size_before);
+}

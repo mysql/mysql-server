@@ -554,8 +554,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
                           (Uint32*)tablePtr.p,
                           pos.m_realpid_mm,
                           key_mm.m_page_idx,
-			  pkData,
-                          true);
+                          pkData,
+                          /*hash=*/true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
@@ -570,7 +570,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.fragmentId;
       lockReq->fragPtrI = RNIL; // no cached frag ptr yet
-      lockReq->hashValue = md5_hash((Uint64*)pkData, pkSize);
+      lockReq->hashValue = md5_hash(pkData, pkSize);
       lockReq->page_id = key_mm.m_page_no;
       lockReq->page_idx = key_mm.m_page_idx;
       lockReq->transId1 = scan.m_transId1;

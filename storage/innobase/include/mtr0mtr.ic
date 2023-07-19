@@ -42,21 +42,6 @@ void mtr_t::memo_push(void *object, mtr_memo_type_t type) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(ut_is_2pow(type));
 
-  /* If this mtr has x-fixed a clean page then we set
-  the made_dirty flag. This tells us if we need
-  insert the dirtied page to the flush list in mtr_commit. */
-
-  if ((type == MTR_MEMO_PAGE_X_FIX || type == MTR_MEMO_PAGE_SX_FIX) &&
-      !m_impl.m_made_dirty) {
-    m_impl.m_made_dirty =
-        is_block_dirtied(reinterpret_cast<const buf_block_t *>(object));
-  } else if (type == MTR_MEMO_BUF_FIX && !m_impl.m_made_dirty) {
-    if (reinterpret_cast<const buf_block_t *>(object)
-            ->made_dirty_with_no_latch) {
-      m_impl.m_made_dirty = true;
-    }
-  }
-
   mtr_memo_slot_t *slot;
 
   slot = m_impl.m_memo.push<mtr_memo_slot_t *>(sizeof(*slot));
@@ -112,10 +97,6 @@ void mtr_t::sx_latch_at_savepoint(ulint savepoint, buf_block_t *block) {
 
   rw_lock_sx_lock(&block->lock, UT_LOCATION_HERE);
 
-  if (!m_impl.m_made_dirty) {
-    m_impl.m_made_dirty = is_block_dirtied(block);
-  }
-
   slot->type = MTR_MEMO_PAGE_SX_FIX;
 }
 
@@ -140,10 +121,6 @@ void mtr_t::x_latch_at_savepoint(ulint savepoint, buf_block_t *block) {
   ut_a(slot->type == MTR_MEMO_BUF_FIX);
 
   rw_lock_x_lock(&block->lock, UT_LOCATION_HERE);
-
-  if (!m_impl.m_made_dirty) {
-    m_impl.m_made_dirty = is_block_dirtied(block);
-  }
 
   slot->type = MTR_MEMO_PAGE_X_FIX;
 }

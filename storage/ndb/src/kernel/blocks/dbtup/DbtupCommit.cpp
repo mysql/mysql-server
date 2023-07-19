@@ -30,6 +30,7 @@
 #include <pc.hpp>
 #include <signaldata/TupCommit.hpp>
 #include <EventLogger.hpp>
+#include "../backup/Backup.hpp"
 #include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 416

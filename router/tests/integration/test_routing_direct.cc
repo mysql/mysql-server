@@ -629,8 +629,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
   return stdx::make_unexpected(MysqlError(1, "no rows", "HY000"));
 }
 
-class ConnectionTest : public RouterComponentTest,
-                       public ::testing::WithParamInterface<ConnectionParam> {
+class ConnectionTestBase : public RouterComponentTest {
  public:
   static constexpr const size_t kNumServers = 1;
 
@@ -657,13 +656,11 @@ class ConnectionTest : public RouterComponentTest,
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
-      } else {
-        s->flush_privileges();  // reset the auth-cache
       }
     }
   }
 
-  ~ConnectionTest() override {
+  ~ConnectionTestBase() override {
     if (::testing::Test::HasFailure()) {
       shared_router()->process_manager().dump_logs();
     }
@@ -677,6 +674,9 @@ class ConnectionTest : public RouterComponentTest,
   const std::string wrong_password_{"wrong_password"};
   const std::string empty_password_{""};
 };
+
+class ConnectionTest : public ConnectionTestBase,
+                       public ::testing::WithParamInterface<ConnectionParam> {};
 
 // check that CMD_KILL opens a new connection to the server.
 TEST_P(ConnectionTest, classic_protocol_kill_zero) {
@@ -965,6 +965,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
 #endif
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -991,6 +995,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1028,6 +1036,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2) {
 
 #if !defined(_WIN32)
 TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_socket) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1051,6 +1063,10 @@ TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_socket) {
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_over_socket) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1077,6 +1093,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_over_socket) {
 #endif
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_with_schema) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -2866,180 +2886,6 @@ TEST_P(ConnectionTest, classic_protocol_binlog_dump_gtid_fail_wrong_position) {
   }
 }
 
-//
-// mysql_native_password
-//
-
-TEST_P(ConnectionTest, classic_protocol_native_user_no_pass) {
-  auto account = SharedServer::native_empty_password_account();
-
-  MysqlClient cli;
-
-  cli.username(account.username);
-  cli.password(account.password);
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-}
-
-TEST_P(ConnectionTest, classic_protocol_native_user_with_pass) {
-  auto account = SharedServer::native_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-empty-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(empty_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-}
-
-//
-// caching_sha2_password
-//
-
-TEST_P(ConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
-  auto account = SharedServer::caching_sha2_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled) {
-      // the client side is not encrypted, but caching-sha2 wants SSL.
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
-      // Authentication plugin 'caching_sha2_password' reported error:
-      // Authentication requires secure connection.
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-    }
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-
-    if (GetParam().client_ssl_mode == kDisabled) {
-      EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
-      // Authentication plugin 'caching_sha2_password' reported error:
-      // Authentication requires secure connection.
-    } else {
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // "Access denied for user ..."
-    }
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-empty-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(empty_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-}
-
-TEST_P(ConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
-  auto account = SharedServer::caching_sha2_empty_password_account();
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(account.username);
-    cli.password(account.password);
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(account.username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    if (GetParam().client_ssl_mode == kDisabled) {
-      EXPECT_EQ(connect_res.error().value(), 2061) << connect_res.error();
-      // Authentication plugin 'caching_sha2_password' reported error:
-      // Authentication requires secure connection.
-    } else {
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // "Access denied for user ..."
-    }
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(account.username);
-    cli.password(account.password);
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-  }
-}
-
 /**
  * Check, caching-sha2-password over plaintext works.
  *
@@ -3137,94 +2983,6 @@ TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_plaintext_with_pass) {
 //
 // sha256_password
 //
-
-TEST_P(ConnectionTest, classic_protocol_sha256_password_no_pass) {
-  auto account = SharedServer::sha256_empty_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
-                                shared_router()->port(GetParam())));
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-}
-
-TEST_P(ConnectionTest, classic_protocol_sha256_password_with_pass) {
-  auto account = SharedServer::sha256_password_account();
-
-  std::string username(account.username);
-  std::string password(account.password);
-
-  {
-    SCOPED_TRACE("// user exists, with pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(password);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    if (GetParam().client_ssl_mode == kDisabled &&
-        (GetParam().server_ssl_mode == kPreferred ||
-         GetParam().server_ssl_mode == kRequired)) {
-      ASSERT_ERROR(connect_res);
-      EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-      // Access denied for user '...'@'localhost' (using password: YES)
-    } else {
-      ASSERT_NO_ERROR(connect_res);
-    }
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(wrong_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-
-  {
-    SCOPED_TRACE("// user exists, with pass, but wrong-empty-pass");
-    MysqlClient cli;
-
-    cli.username(username);
-    cli.password(empty_password_);
-
-    auto connect_res =
-        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
-    ASSERT_ERROR(connect_res);
-    EXPECT_EQ(connect_res.error().value(), 1045) << connect_res.error();
-    // "Access denied for user ..."
-  }
-}
 
 /**
  * Check, sha256-password over plaintext works with get-server-key.
@@ -3347,6 +3105,10 @@ TEST_P(
 TEST_P(
     ConnectionTest,
     classic_protocol_caching_sha2_password_over_plaintext_with_get_server_key) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   if (GetParam().client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
@@ -3543,6 +3305,137 @@ TEST_P(ConnectionTest, classic_protocol_unknown_command) {
 }
 
 /**
+ * check max-connection errors are properly forwarded to the client.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  Scope_guard restore_at_end{[this]() {
+    auto reset_globals = [this]() -> stdx::expected<void, MysqlError> {
+      auto admin_account = SharedServer::admin_account();
+
+      MysqlClient admin_cli;
+
+      admin_cli.username(admin_account.username);
+      admin_cli.password(admin_account.password);
+
+      auto connect_res = admin_cli.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      if (!connect_res) return stdx::make_unexpected(connect_res.error());
+
+      auto query_res = admin_cli.query("SET GLOBAL max_connections = DEFAULT");
+      if (!query_res) return stdx::make_unexpected(query_res.error());
+
+      return {};
+    };
+
+    // it may take a while until the last connection of the test is closed
+    // before this admin connection can be opened to reset the globals again.
+    auto end_time = std::chrono::steady_clock::now() + 1s;
+
+    while (true) {
+      auto reset_res = reset_globals();
+      if (!reset_res) {
+        auto ec = reset_res.error();
+
+        // wait a bit until all connections are closed.
+        //
+        // 1040 is Too many connections.
+        if (ec.value() == 1040 && std::chrono::steady_clock::now() < end_time) {
+          std::this_thread::sleep_for(20ms);
+          continue;
+        }
+      }
+
+      ASSERT_NO_ERROR(reset_res);
+      break;
+    }
+  }};
+
+  {
+    SCOPED_TRACE("// connecting to server");
+
+    auto account = SharedServer::native_password_account();
+
+    MysqlClient cli;  // keep it open
+    {
+      cli.username(account.username);
+      cli.password(account.password);
+
+      auto connect_res = cli.connect(shared_router()->host(),
+                                     shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    // fails at auth as the a SUPER account could still connect
+    SCOPED_TRACE("// connecting to server");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    SCOPED_TRACE("// connecting to server as SUPER user");
+    MysqlClient cli_super;  // keep it open
+    {
+      auto admin_account = SharedServer::admin_account();
+
+      cli_super.username(admin_account.username);
+      cli_super.password(admin_account.password);
+
+      auto connect_res = cli_super.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    // fails at greeting, as one SUPER-connection and ${max_connections}
+    // user-connections are connected.
+    SCOPED_TRACE("// connecting to server");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+  }
+
+  SCOPED_TRACE("// reset again");  // before the Scope_guard fires.
+}
+
+/**
  * check that server doesn't report "Aborted Clients".
  */
 TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
@@ -3581,11 +3474,183 @@ TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
   EXPECT_EQ((*before_res)[0][0], (*after_res)[0][0]);
 }
 
+TEST_P(ConnectionTest, classic_protocol_charset_after_connect) {
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  cli.set_option(MysqlClient::CharsetName("latin1"));
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  {
+    auto cmd_res = query_one_result(
+        cli, "select @@character_set_client, @@collation_connection");
+    ASSERT_NO_ERROR(cmd_res);
+
+    EXPECT_THAT(*cmd_res,
+                ElementsAre(ElementsAre("latin1", "latin1_swedish_ci")));
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          ::testing::ValuesIn(connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
                          });
+
+static constexpr const char *default_auth_params[] = {
+    "default",
+    "mysql_native_password",
+    "caching_sha2_password",
+    "sha256_password",
+};
+
+struct ConnectTestParam {
+  std::string scenario;
+  SharedServer::Account account;
+
+  std::function<int(ConnectionParam)> expected_error_code_func;
+};
+
+static ConnectTestParam connect_test_params[] = {
+    // mysql_native_password
+    //
+    {"native_password_account_with_empty_password",
+     SharedServer::native_empty_password_account(), [](auto) { return 0; }},
+    {"native_password_account_with_empty_password_auth_with_wrong_password",
+     SharedServer::Account{
+         SharedServer::native_empty_password_account().username,
+         "wrong-password",
+         SharedServer::caching_sha2_empty_password_account().auth_method},
+     [](auto) { return 1045; }},
+    {"native_password_account_with_password",
+     SharedServer::native_password_account(), [](auto) { return 0; }},
+    {"native_password_account_with_password_auth_with_wrong_password",
+     SharedServer::Account{SharedServer::native_password_account().username,
+                           "wrong-password",
+                           SharedServer::native_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+    {"native_password_account_with_password_auth_with_empty_password",
+     SharedServer::Account{SharedServer::native_password_account().username, "",
+                           SharedServer::native_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+
+    // caching_sha2_password
+    //
+    {"caching_sha2_password_account_with_empty_password",
+     SharedServer::caching_sha2_empty_password_account(),
+     [](auto) { return 0; }},
+    {"caching_sha2_password_account_with_empty_password_auth_with_wrong_"
+     "password",
+     SharedServer::Account{
+         SharedServer::caching_sha2_empty_password_account().username,
+         "wrong-password",
+         SharedServer::caching_sha2_empty_password_account().auth_method},
+     [](auto connect_param) {
+       return connect_param.client_ssl_mode == kDisabled ? 2061 : 1045;
+     }},  // "Access denied for user ..."
+    {"caching_sha2_password_account_with_password",
+     SharedServer::caching_sha2_password_account(),
+     [](auto connect_param) {
+       return connect_param.client_ssl_mode == kDisabled ? 2061 : 0;
+     }},
+    {"caching_sha2_password_account_with_password_auth_with_wrong_password",
+     SharedServer::Account{
+         SharedServer::caching_sha2_password_account().username,
+         "wrong-password",
+         SharedServer::caching_sha2_password_account().auth_method},
+     [](auto connect_param) {
+       return connect_param.client_ssl_mode == kDisabled ? 2061 : 1045;
+     }},  // "Access denied for user ..."
+    {"caching_sha2_password_account_with_password_auth_with_empty_password",
+     SharedServer::Account{
+         SharedServer::caching_sha2_password_account().username, "",
+         SharedServer::caching_sha2_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+
+    // sha256_password
+    //
+    {"sha256_password_account_with_empty_password",
+     SharedServer::sha256_empty_password_account(), [](auto) { return 0; }},
+    {"sha256_password_account_with_empty_password_auth_with_wrong_password",
+     SharedServer::Account{
+         SharedServer::sha256_empty_password_account().username,
+         "wrong-password",
+         SharedServer::sha256_empty_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+    {"sha256_password_account_with_password",
+     SharedServer::sha256_password_account(),
+     [](auto connect_param) {
+       return (connect_param.client_ssl_mode == kDisabled &&
+               (connect_param.server_ssl_mode == kPreferred ||
+                connect_param.server_ssl_mode == kRequired))
+                  ? 1045
+                  : 0;
+     }},
+    {"sha256_password_account_with_password_auth_with_wrong_password",
+     SharedServer::Account{SharedServer::sha256_password_account().username,
+                           "wrong-password",
+                           SharedServer::sha256_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+    {"sha256_password_account_with_password_auth_with_empty_password",
+     SharedServer::Account{SharedServer::sha256_password_account().username, "",
+                           SharedServer::sha256_password_account().auth_method},
+     [](auto) { return 1045; }},  // "Access denied for user ..."
+};
+
+class ConnectionConnectTest
+    : public ConnectionTestBase,
+      public ::testing::WithParamInterface<
+          std::tuple<ConnectTestParam, ConnectionParam, const char *>> {};
+
+TEST_P(ConnectionConnectTest, classic_protocol_connect) {
+  auto [test_param, connect_param, default_auth] = GetParam();
+
+  auto [test_name, account, expected_error_code_func] = test_param;
+
+  if (account.auth_method == "caching_sha2_password") {
+    for (auto &srv : shared_servers()) {
+      srv->flush_privileges();  // reset the auth-cache
+    }
+  }
+
+  MysqlClient cli;
+
+  if (default_auth != "default"sv) {
+    cli.set_option(MysqlClient::DefaultAuthentication(default_auth));
+  }
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  auto connect_res = cli.connect(shared_router()->host(),
+                                 shared_router()->port(connect_param));
+
+  auto expected_error_code = expected_error_code_func(connect_param);
+
+  if (expected_error_code == 0) {
+    ASSERT_NO_ERROR(connect_res);
+  } else {
+    ASSERT_ERROR(connect_res);
+    EXPECT_EQ(connect_res.error().value(), expected_error_code);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ConnectionConnectTest,
+    ::testing::Combine(::testing::ValuesIn(connect_test_params),
+                       ::testing::ValuesIn(connection_params),
+                       ::testing::ValuesIn(default_auth_params)),
+    [](auto &info) {
+      return std::get<0>(info.param).scenario + "__via_" +
+             std::get<1>(info.param).testname + "__default_auth_is_" +
+             std::string(std::get<2>(info.param));
+    });
 
 struct BenchmarkParam {
   std::string testname;
@@ -3623,8 +3688,6 @@ class Benchmark : public RouterComponentTest,
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
-      } else {
-        s->flush_privileges();  // reset the auth-cache
       }
     }
   }

@@ -148,9 +148,9 @@ SET GLOBAL ndb_metadata_check = false;
 
 # Suppress expected warnings in the log due to table with old temporal types
 --disable_query_log
-call mtr.add_suppression("NDB: Table upgrade required");
-call mtr.add_suppression("NDB: Failed to create entry in DD for table");
-call mtr.add_suppression("NDB: Failed to install table");
+call mtr.add_suppression("Table upgrade required");
+call mtr.add_suppression("Failed to create entry in DD for table");
+call mtr.add_suppression("Failed to install table");
 --enable_query_log
 
 #

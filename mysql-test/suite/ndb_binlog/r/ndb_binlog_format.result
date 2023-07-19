@@ -3,6 +3,8 @@ CREATE TABLE t2 (b INT, c INT) ENGINE=BLACKHOLE;
 CREATE TABLE t3 (e INT, f INT) ENGINE=NDB;
 RESET MASTER;
 SET SESSION BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;

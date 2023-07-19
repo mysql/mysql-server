@@ -80,11 +80,16 @@ ENDMACRO()
 MACRO (MYSQL_CHECK_RAPIDJSON)
   IF (NOT WITH_RAPIDJSON OR
       NOT WITH_RAPIDJSON STREQUAL "system")
-    SET(WITH_RAPIDJSON "bundled")
+    SET(WITH_RAPIDJSON "bundled"
+      CACHE STRING "By default use bundled rapidjson on this platform")
   ENDIF()
 
   IF (WITH_RAPIDJSON STREQUAL "bundled")
     SET(RAPIDJSON_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/rapidjson/include)
+    # We must include this first, in case we use other Homebrew libraries.
+    IF(APPLE)
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${RAPIDJSON_INCLUDE_DIR})
+    ENDIF()
   ELSEIF(WITH_RAPIDJSON STREQUAL "system")
     FIND_SYSTEM_RAPIDJSON()
     IF (NOT SYSTEM_RAPIDJSON_FOUND)

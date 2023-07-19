@@ -22,13 +22,15 @@
 
 #include "sql/rpl_applier_reader.h"
 #include "include/mutex_lock.h"
+#include "include/mysqld_errmsg.h"  // ER_OUT_OF_RESOURCES_MSG
+#include "include/scope_guard.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
-#include "sql/sql_backup_lock.h"
+#include "sql/sql_backup_lock.h"  // is_instance_backup_locked et al.
 
 /**
    It manages a stage and the related mutex and makes the process of
@@ -414,17 +416,22 @@ bool Rpl_applier_reader::purge_applied_logs() {
 
   if (!relay_log_purge) return false;
 
-  Is_instance_backup_locked_result is_instance_locked =
-      is_instance_backup_locked(m_rli->info_thd);
-  if (is_instance_locked == Is_instance_backup_locked_result::OOM) {
-    m_errmsg =
-        "Out of memory happened when checking if instance was locked for "
-        "backup";
-    return true;
+  // lock BACKUP lock for the duration of PURGE operation
+  Shared_backup_lock_guard backup_lock{current_thd};
+  switch (backup_lock) {
+    case Shared_backup_lock_guard::Lock_result::locked:
+      break;
+    case Shared_backup_lock_guard::Lock_result::not_locked: {
+      LogErr(WARNING_LEVEL, ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK);
+      return false;
+    }
+    case Shared_backup_lock_guard::Lock_result::oom: {
+      m_errmsg = ER_OUT_OF_RESOURCES_MSG;
+      return true;
+    }
   }
 
-  if (is_instance_locked == Is_instance_backup_locked_result::LOCKED)
-    return false;
+  CONDITIONAL_SYNC_POINT("purge_applied_logs_after_backup_lock");
 
   if (m_rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
     m_errmsg = "Error purging processed logs";

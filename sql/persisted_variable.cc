@@ -31,6 +31,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <array>
 #include <iomanip>
 #include <memory>
 #include <new>
@@ -1836,6 +1837,37 @@ void Persisted_variables_cache::load_aliases() {
 }
 
 /**
+  Function to recategorize variables based on changes in their properties.
+
+  It is possible that during the course of development, we reclassify
+  certain variables. Such an action may have an impact on when and how
+  the persisted values of such variables are used/applied.
+
+  If such variables are persisted using previous versions of the server
+  binary, it is important that we move them to correct in-memory
+  containers so that,
+  1. Variables will be handled as required during bootstrap
+  2. Upon next change to persisted option file, variables will be
+     placed into appropriate JSON arrays.
+*/
+void Persisted_variables_cache::handle_option_type_change() {
+  std::array<std::string, 1> dynamic_to_parse_early_static = {"ssl_fips_mode"};
+
+  for (auto one : dynamic_to_parse_early_static) {
+    auto find_variable = [&one](st_persist_var const &s) -> bool {
+      return s.key == one;
+    };
+    auto it = std::find_if(m_persisted_dynamic_variables.begin(),
+                           m_persisted_dynamic_variables.end(), find_variable);
+    if (it != m_persisted_dynamic_variables.end()) {
+      st_persist_var variable_info = *it;
+      m_persisted_static_parse_early_variables[one] = variable_info;
+      m_persisted_dynamic_variables.erase(it);
+    }
+  }
+}
+
+/**
   read_persist_file() reads the persisted config file
 
   This function does following:
@@ -1920,7 +1952,10 @@ int Persisted_variables_cache::read_persist_file() {
       break;
   };
 
-  if (!retval) load_aliases();
+  if (!retval) {
+    load_aliases();
+    handle_option_type_change();
+  }
   return retval;
 }
 
