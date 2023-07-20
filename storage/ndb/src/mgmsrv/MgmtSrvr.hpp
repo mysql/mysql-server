@@ -25,6 +25,8 @@
 #ifndef MgmtSrvr_H
 #define MgmtSrvr_H
 
+#include <atomic>
+
 #include "Config.hpp"
 #include "ConfigSubscriber.hpp"
 
@@ -93,6 +95,8 @@ public:
    *   with the setSignalLoggingMode method.
    */
   enum LogMode {In, Out, InOut, Off};
+
+  enum TlsStats { accepted, upgraded, current, tls, authfail };
 
   /**
      @struct MgmtOpts
@@ -327,6 +331,9 @@ public:
    *   @return  The error text.
    */
   const char* getErrorText(int errorCode, char *buf, int buf_sz);
+
+  void tls_stat_increment(unsigned int idx);
+  void tls_stat_decrement(unsigned int idx);
 
 private:
   void config_changed(NodeId, const Config*) override;
@@ -602,6 +609,9 @@ private:
                           const ndb_sockaddr* client_addr,
                           int& error_code, BaseString& error_string,
                           Uint32 timeout_s = 20);
+
+  std::atomic<uint32_t> m_tls_stats[5] {0};
+
 public:
   /*
     Nodeid allocation

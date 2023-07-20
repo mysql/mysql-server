@@ -5666,6 +5666,16 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
   return true;
 }
 
+void MgmtSrvr::tls_stat_increment(unsigned int idx) {
+  if(idx < sizeof(m_tls_stats))
+    m_tls_stats[idx]++;
+}
+
+void MgmtSrvr::tls_stat_decrement(unsigned int idx) {
+  if(idx < sizeof(m_tls_stats))
+    m_tls_stats[idx]--;
+}
+
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;

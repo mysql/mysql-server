@@ -38,6 +38,7 @@ class MgmApiSession : public SocketServer::Session
 {
   static void list_session(SocketServer::Session *_s, void *data);
   static void get_session(SocketServer::Session *_s, void *data);
+  static void show_cert(SocketServer::Session *_s, void *data);
 private:
   typedef Parser<MgmApiSession> Parser_t;
 
@@ -55,6 +56,7 @@ private:
   // for listing sessions and other fun:
   Parser_t::Context *m_ctx;
   Uint64 m_session_id;
+  struct x509_st * m_cert {nullptr};
 
   int m_errorInsert;
 
@@ -144,6 +146,8 @@ public:
   void report_event(Parser_t::Context &ctx, Properties const &args);
 
   void listSessions(Parser_t::Context &ctx, Properties const &args);
+  void listCerts(Parser_t::Context &ctx, Properties const &args);
+  void getTlsStats(Parser_t::Context &ctx, Properties const &args);
 
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);

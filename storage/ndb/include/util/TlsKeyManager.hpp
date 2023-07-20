@@ -41,7 +41,16 @@ class ClientAuthorization;
 
 class TlsKeyManager {
 public:
-  enum TlsVersion { Tls12, Tls13 };
+  struct cert_record {
+    static constexpr size_t SN_buf_len = 65;
+    static constexpr size_t CN_buf_len = 65;
+
+    char serial[SN_buf_len];
+    char name[CN_buf_len];
+    struct tm exp_tm;
+    time_t expires {0};
+    bool active {false};
+  };
 
   TlsKeyManager();
   ~TlsKeyManager();
@@ -64,9 +73,11 @@ public:
   /* Get SSL_CTX */
   struct ssl_ctx_st * ctx() const { return m_ctx; }
 
+  /* Certificate table routines */
   void cert_table_set(int node_id, struct x509_st *);
   void cert_table_clear(int node_id);
   bool iterate_cert_table(int & node_id, cert_table_entry *);
+  static void describe_cert(cert_record &, struct x509_st *);
 
   // Check replacement date of our own node certificate
   // pct should be a number between 0.0 and 1.0, where 0 represents the
@@ -141,14 +152,7 @@ private:
   PkiFile::PathName m_key_file, m_cert_file;
   char * m_path_string {nullptr};
   TlsSearchPath * m_search_path {nullptr};
-  static constexpr size_t SN_buf_len = 30;
-  static constexpr size_t CN_buf_len = 65;
-  struct private_cert_table_entry {
-    char serial[SN_buf_len];
-    char name[CN_buf_len];
-    time_t expires {0};
-    bool active {false};
-  } m_cert_table[MAX_NODES];
+  cert_record m_cert_table[MAX_NODES];
   NodeCertificate m_node_cert;
   NdbMutex m_cert_table_mutex;
   int m_error {0};
@@ -158,7 +162,7 @@ private:
 
   void init(const char *, int, Node::Type, UserType);
 
-  bool cert_table_get(const private_cert_table_entry &,
+  bool cert_table_get(const cert_record &,
                       cert_table_entry *) const;
   void free_path_strings();
 };

@@ -4014,6 +4014,7 @@ ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
     MGM_ARG("id", Int, Mandatory, "Node ID"),
     MGM_ARG("m_stopSelf", Int, Optional, "m_stopSelf"),
     MGM_ARG("m_stop", Int, Optional, "stop session"),
+    MGM_ARG("tls", Int, Optional, "session is using TLS"),
     MGM_ARG("nodeid", Int, Optional, "allocated node id"),
     MGM_ARG("parser_buffer_len", Int, Optional, "waiting in buffer"),
     MGM_ARG("parser_status", Int, Optional, "parser status"),
@@ -4056,6 +4057,10 @@ ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
     if(prop->get("parser_status",&(s->parser_status)))
       rlen+=sizeof(s->parser_status);
   }
+
+  /* tls is a late addition to the struct, so check length */
+  if(*len > rlen && prop->get("tls",&(s->tls)))
+    rlen+=sizeof(s->tls);
 
   *len= rlen;
   retval= 1;
@@ -4228,6 +4233,122 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
 ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle h)
 {
   return h->socket.ndb_socket();
+}
+
+int ndb_mgm_has_tls(NdbMgmHandle h)
+{
+  return h->socket.has_tls() ? 1 : 0;
+}
+
+static ndb_mgm_cert_table * new_cert_table()
+{
+  ndb_mgm_cert_table * table = new ndb_mgm_cert_table;
+  table->session_id = 0;
+  table->peer_address = nullptr;
+  table->cert_serial = nullptr;
+  table->cert_name = nullptr;
+  table->cert_expires = nullptr;
+  table->next = nullptr;
+  return table;
+}
+
+int ndb_mgm_list_certs(NdbMgmHandle handle, ndb_mgm_cert_table ** data)
+{
+  DBUG_ENTER("ndb_mgm_list_certs");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  SecureSocketOutputStream out(handle->socket, handle->timeout);
+  SecureSocketInputStream in(handle->socket, handle->timeout);
+
+  out.println("list certs");
+  out.println("%s", "");
+
+  /* See listCerts() and show_cert() in mgmsrv/Services.cpp for reply format */
+  int ok = false;
+  char buf[1024];
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("list certs reply\n", buf))
+    DBUG_RETURN(-1);
+
+  int ncerts = 0;
+  struct ndb_mgm_cert_table * current = *data = nullptr;
+  while(in.gets(buf, sizeof(buf))) {
+    if(strcmp("\n", buf) == 0) {  /* Blank line at end of input */
+      ok = true;
+      break;
+    }
+    Vector<BaseString> parts;
+    BaseString line(buf);
+    if(line.split(parts, ":", 2) != 2)
+      break;
+    if(parts[0] == "session") {
+      ncerts++;
+      current = new_cert_table();
+      current->next = *data;
+      *data = current;
+      current->session_id = strtoull(parts[1].c_str(), nullptr, 10);
+    }
+    else {
+      char * value = strdup(parts[1].substr(1).trim("\n").c_str());
+      if(parts[0] == "address")
+        current->peer_address = value;
+      else if(parts[0] == "serial")
+        current->cert_serial = value;
+      else if(parts[0] == "name")
+        current->cert_name = value;
+      else if(parts[0] == "expires")
+        current->cert_expires = value;
+      else
+        free(value);  // unexpected input
+    }
+  }
+
+  if(ok) DBUG_RETURN(ncerts);
+  DBUG_RETURN(-1);
+}
+
+void ndb_mgm_cert_table_free(ndb_mgm_cert_table ** list) {
+  while(*list) {
+    ndb_mgm_cert_table * t = *list;
+    free((void *) t->cert_expires);
+    free((void *) t->cert_name);
+    free((void *) t->cert_serial);
+    free((void *) t->peer_address);
+    *list = t->next;
+    delete t;
+  }
+}
+
+int  ndb_mgm_get_tls_stats(NdbMgmHandle handle, ndb_mgm_tls_stats * result) {
+  DBUG_ENTER("ndb_mgm_get_tls_stats");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get tls stats reply", nullptr, ""),
+    MGM_ARG("accepted", Int, Mandatory, "Total accepted connections"),
+    MGM_ARG("upgraded", Int, Mandatory, "Total connections upgraded to TLS"),
+    MGM_ARG("current", Int, Mandatory, "Current open connections"),
+    MGM_ARG("tls", Int, Mandatory, "Current connections using TLS"),
+    MGM_ARG("authfail", Int, Mandatory, "Total authorization errors"),
+    MGM_END()
+  };
+
+  const Properties * prop =
+    ndb_mgm_call(handle, reply, "get tls stats", nullptr);
+
+  CHECK_REPLY(handle, prop, 0);
+
+  prop->get("accepted", & (result->accepted));
+  prop->get("upgraded", & (result->upgraded));
+  prop->get("current", & (result->current));
+  prop->get("tls", & (result->tls));
+  prop->get("authfail", & (result->authfail));
+
+  delete prop;
+  DBUG_RETURN(0);
 }
 
 

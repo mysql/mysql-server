@@ -446,20 +446,25 @@ int TlsKeyManager::perform_client_host_auth(ClientAuthorization * auth) {
 /*
  * Certificate table routines
  */
+void TlsKeyManager::describe_cert(cert_record & entry,
+                                  struct x509_st * cert) {
+  SerialNumber::print(entry.serial, cert_record::SN_buf_len,
+                      X509_get0_serialNumber(cert));
+  Certificate::get_common_name(cert, entry.name, cert_record::CN_buf_len);
+  entry.expires = 0;
+  if(ASN1_TIME_to_tm(X509_get0_notAfter(cert), & entry.exp_tm))
+    entry.expires = mktime(& entry.exp_tm);
+}
+
 void TlsKeyManager::cert_table_set(int node_id, X509 * cert) {
   Guard mutex_guard(& m_cert_table_mutex);
-  struct tm expires;
   assert(node_id < MAX_NODES);
   if(node_id == 0) return; // Client certs do not go into table
 
   /* In the case of a multi-transporter, the entry may already be active */
-  struct private_cert_table_entry & entry = m_cert_table[node_id];
+  struct cert_record & entry = m_cert_table[node_id];
   if(! entry.active) {
-    SerialNumber::print(entry.serial, SN_buf_len, X509_get0_serialNumber(cert));
-    Certificate::get_common_name(cert, entry.name, CN_buf_len);
-    entry.expires = 0;
-    if(ASN1_TIME_to_tm(X509_get0_notAfter(cert), & expires))
-      entry.expires = mktime(& expires);
+    describe_cert(entry, cert);
     entry.active = true;
   }
 }
@@ -468,14 +473,14 @@ void TlsKeyManager::cert_table_clear(int node_id) {
   Guard mutex_guard(& m_cert_table_mutex);
   assert(node_id < MAX_NODES);
 
-  struct private_cert_table_entry & entry = m_cert_table[node_id];
+  struct cert_record & entry = m_cert_table[node_id];
   entry.serial[0] = '\0';
   entry.name[0] = '\0';
   entry.expires = 0;
   entry.active = false;
 }
 
-bool TlsKeyManager::cert_table_get(const private_cert_table_entry & row,
+bool TlsKeyManager::cert_table_get(const cert_record & row,
                                     cert_table_entry * client_row) const
 {
   assert(row.active);
@@ -492,7 +497,7 @@ bool TlsKeyManager::iterate_cert_table(int & node, cert_table_entry * client) {
   if(m_ctx) {
     while(node < MAX_NODES_ID) {
       node += 1;
-      const private_cert_table_entry & row = m_cert_table[node];
+      const cert_record & row = m_cert_table[node];
       if(row.active)
         return cert_table_get(row, client);
     }

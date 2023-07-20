@@ -1,0 +1,20 @@
+--source include/have_ndb.inc
+--source suite/ndb_tls/include/check_openssl.inc
+
+# The server is up
+#
+SELECT 1;
+
+# Run "TLS INFO" from the mgm client, but discard the output
+# (because the number of connections reported will vary with timing)
+--exec $NDB_MGM -e "TLS INFO" >> $NDB_TOOLS_OUTPUT
+
+# Also test the --test-tls option
+--exec $NDB_MGM --test-tls >> $NDB_TOOLS_OUTPUT
+
+# And test "TLS INFO" from a plaintext connection
+--exec $NDB_MGM --ndb-mgm-tls=deferred -e "TLS INFO" >> $NDB_TOOLS_OUTPUT
+
+# cleanup
+--remove_file $NDB_TOOLS_OUTPUT
+

@@ -282,6 +282,10 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("list sessions", &MgmApiSession::listSessions, "", &Basic),
 
+  MGM_CMD("list certs", &MgmApiSession::listCerts, "Show TLS certificates", &Basic),
+
+  MGM_CMD("get tls stats", &MgmApiSession::getTlsStats, "Get TLS statistics", &Basic),
+
   MGM_CMD("get session id", &MgmApiSession::getSessionId, "", &Basic),
 
   MGM_CMD("get session", &MgmApiSession::getSession, "", &Basic),
@@ -375,6 +379,8 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock,
   m_mutex= NdbMutex_Create();
   m_errorInsert= 0;
   m_vMajor = m_vMinor = m_vBuild = 0;
+  mgm.tls_stat_increment(MgmtSrvr::TlsStats::accepted);
+  mgm.tls_stat_increment(MgmtSrvr::TlsStats::current);
 
   ndb_sockaddr addr;
   if (ndb_getpeername(sock, &addr) == 0)
@@ -408,6 +414,12 @@ MgmApiSession::~MgmApiSession()
     m_secure_socket.close();
     m_secure_socket.invalidate();
   }
+  if(m_cert)
+  {
+    X509_free(m_cert);
+    m_mgmsrv.tls_stat_decrement(MgmtSrvr::TlsStats::tls);
+  }
+  m_mgmsrv.tls_stat_decrement(MgmtSrvr::TlsStats::current);
   if(m_stopSelf < 0)
     g_RestartServer= true;
   if(m_stopSelf)
@@ -543,6 +555,7 @@ int MgmAuth::checkAuth(int cmdAuthLevel, int serverOpt, int sessionAuthLevel) {
 
 void
 MgmApiSession::reportAuthFailure(int code) {
+  m_mgmsrv.tls_stat_increment(MgmtSrvr::TlsStats::authfail);
   m_output->println("Authorization failed");
   m_output->println("Error: %s", MgmAuth::message(code));
   m_output->print("\n");
@@ -1514,13 +1527,15 @@ MgmApiSession::on_verify(int r, X509_STORE_CTX * ctx) {
   if(r) {
     /* certificate verification has succeeded */
     m_sessionAuthLevel |= (MgmAuth::clientHasTls | MgmAuth::clientHasCert);
+    m_cert = X509_STORE_CTX_get_current_cert(ctx);
+    X509_up_ref(m_cert);
   }
   return TlsKeyManager::on_verify(r, ctx);
 }
 
 void
 MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
-                       Properties const &) {
+                        Properties const &) {
   struct ssl_ctx_st * ctx = nullptr;
   struct ssl_st * ssl = nullptr;
   const char * result = "Failed";
@@ -1550,6 +1565,8 @@ MgmApiSession::startTls(Parser<MgmApiSession>::Context &,
       SSL_set_verify(ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
                      mgmsession_on_verify);
       m_secure_socket.do_tls_handshake();
+      m_mgmsrv.tls_stat_increment(MgmtSrvr::TlsStats::upgraded);
+      m_mgmsrv.tls_stat_increment(MgmtSrvr::TlsStats::tls);
     }
     else
       NdbSocket::free_ssl(ssl);
@@ -2136,6 +2153,39 @@ MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
 }
 
 void
+MgmApiSession::show_cert(SocketServer::Session *_s, void *data)
+{
+  MgmApiSession *s= (MgmApiSession *)_s;
+  MgmApiSession *lister= (MgmApiSession*) data;
+
+  if(s!=lister)
+    NdbMutex_Lock(s->m_mutex);
+
+  Uint64 id= s->m_session_id;
+  if(s->m_cert)
+  {
+    char addr_buf[NDB_ADDR_STRLEN];
+    ndb_sockaddr peerAddr;
+    ndb_getpeername(s->m_secure_socket.ndb_socket(), &peerAddr);
+    Ndb_inet_ntop(&peerAddr, addr_buf, NDB_ADDR_STRLEN);
+
+    TlsKeyManager::cert_record record;
+    TlsKeyManager::describe_cert(record, s->m_cert);
+    char exptime[32];
+    strftime(exptime, sizeof(exptime), "%d-%b-%Y", & record.exp_tm);
+
+    lister->m_output->println("session: %llu",id);
+    lister->m_output->println("address: %s", addr_buf);
+    lister->m_output->println("serial: %s", record.serial);
+    lister->m_output->println("name: %s", record.name);
+    lister->m_output->println("expires: %s", exptime);
+  }
+
+  if(s!=lister)
+    NdbMutex_Unlock(s->m_mutex);
+}
+
+void
 MgmApiSession::list_session(SocketServer::Session *_s, void *data)
 {
   MgmApiSession *s= (MgmApiSession *)_s;
@@ -2148,6 +2198,9 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   lister->m_output->println("session: %llu",id);
   lister->m_output->println("session.%llu.m_stopSelf: %d",id,s->m_stopSelf);
   lister->m_output->println("session.%llu.m_stop: %d",id,s->m_stop);
+  lister->m_output->println("session.%llu.tls: %d", id,
+                            s->m_secure_socket.has_tls() ? 1 : 0);
+
   if(s->m_ctx)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);
@@ -2191,6 +2244,29 @@ MgmApiSession::listSessions(Parser_t::Context &ctx,
 }
 
 void
+MgmApiSession::listCerts(Parser_t::Context &ctx, Properties const &args) {
+  m_output->println("list certs reply");
+  m_mgmsrv.get_socket_server()->foreachSession(show_cert,(void*)this);
+  m_output->println("%s", "");
+}
+
+void
+MgmApiSession::getTlsStats(Parser_t::Context &ctx, Properties const &args) {
+  m_output->println("get tls stats reply");
+  m_output->println("accepted: %u",
+                    m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::accepted].load());
+  m_output->println("upgraded: %u",
+                    m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::upgraded].load());
+  m_output->println("current: %u",
+                    m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::current].load());
+  m_output->println("tls: %u",
+                    m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::tls].load());
+  m_output->println("authfail: %u",
+                    m_mgmsrv.m_tls_stats[MgmtSrvr::TlsStats::authfail].load());
+  m_output->println("%s", "");
+}
+
+void
 MgmApiSession::getSessionId(Parser_t::Context &ctx,
                                  Properties const &args) {
   m_output->println("get session id reply");
@@ -2224,6 +2300,7 @@ MgmApiSession::get_session(SocketServer::Session *_s, void *data)
   p->l->m_output->println("id: %llu",s->m_session_id);
   p->l->m_output->println("m_stopSelf: %d",s->m_stopSelf);
   p->l->m_output->println("m_stop: %d",s->m_stop);
+  p->l->m_output->println("tls: %d", s->m_secure_socket.has_tls() ? 1 : 0);
   if(s->m_ctx)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);

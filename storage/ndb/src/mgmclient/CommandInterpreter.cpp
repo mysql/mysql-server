@@ -150,6 +150,7 @@ public:
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
   int executeStartTls();
+  void executeShowTlsInfo(const char* parameters);
   const char* get_current_prompt() const
   {
     // return the current prompt
@@ -280,6 +281,7 @@ static const char* helpText =
 "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
 "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
 "START TLS                              Start TLS on connection\n"
+"TLS INFO                               Display TLS connection certificates\n"
 "START BACKUP [<backup id>] [ENCRYPT [PASSWORD='<password>']] "
   "[SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup "
@@ -1055,6 +1057,8 @@ CommandInterpreter::connect(bool interactive)
       ndb_mgm_destroy_handle(&m_mgmsrv);
       exit(-1);
     }
+  } else {
+    m_mgmsrv2 = nullptr;
   }
 
   if (ndb_mgm_set_connectstring(m_mgmsrv, m_constr))
@@ -1421,6 +1425,12 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   }
   else if (native_strcasecmp(firstToken, "CLUSTERLOG") == 0){
     executeClusterLog(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if (native_strcasecmp(firstToken, "TLS") == 0 &&
+           allAfterFirstToken != nullptr &&
+	   native_strncasecmp(allAfterFirstToken, "INFO", 4) == 0) {
+    executeShowTlsInfo(allAfterFirstToken);
     DBUG_RETURN(true);
   }
   else if(native_strcasecmp(firstToken, "START") == 0 &&
@@ -2130,6 +2140,62 @@ CommandInterpreter::executeStartTls()
   if(result == 0) ndbout_c("TLS started.");
   else printError();
   return result;
+}
+
+static void describeConnection(const char * name, NdbMgmHandle h)
+{
+  if(h)
+  {
+    if(ndb_mgm_has_tls(h))
+      ndbout_c("%s is using TLS", name);
+    else if(ndb_mgm_get_connected_host(h))
+      ndbout_c("%s is using cleartext.", name);
+    else
+      ndbout_c("%s is not connected.", name);
+  }
+  else ndbout_c("%s is not connected.", name);
+}
+
+void
+CommandInterpreter::executeShowTlsInfo(const char *)
+{
+  ndbout_c(" ");
+  describeConnection("Main interactive connection", m_mgmsrv);
+  describeConnection("Event listener connection", m_mgmsrv2);
+
+  ndb_mgm_cert_table * info;
+  int r = ndb_mgm_list_certs(m_mgmsrv, &info);
+  if(r < 0) {
+    ndbout_c(" failed. ");
+    return;
+  }
+  ndbout_c(" ");
+  ndbout_c("Server reports %d TLS connection%s.\n", r, r==1 ? "":"s");
+  ndb_mgm_cert_table * c = info;
+  while(c) {
+    ndbout_c("  Session ID:          %ju", uintmax_t(c->session_id));
+    ndbout_c("  Peer address:        %s", c->peer_address);
+    ndbout_c("  Certificate name:    %s", c->cert_name);
+    ndbout_c("  Certificate serial:  %s", c->cert_serial);
+    ndbout_c("  Certificate expires: %s", c->cert_expires);
+    ndbout_c(" ");
+    c = c->next;
+  }
+  ndb_mgm_cert_table_free(&info);
+
+  ndb_mgm_tls_stats stats;
+  r = ndb_mgm_get_tls_stats(m_mgmsrv, &stats);
+  if(r < 0) {
+    ndbout_c(" Failed to obtain TLS statistics. ");
+    return;
+  }
+  ndbout_c(" ");
+  ndbout_c("    Server statistics since restart");
+  ndbout_c("  Total accepted connections:        %u", stats.accepted);
+  ndbout_c("  Total connections upgraded to TLS: %u", stats.upgraded);
+  ndbout_c("  Current connections:               %u", stats.current);
+  ndbout_c("  Current connections using TLS:     %u", stats.tls);
+  ndbout_c("  Authorization failures:            %u", stats.authfail);
 }
 
 //*****************************************************************************

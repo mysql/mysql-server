@@ -141,6 +141,7 @@ extern "C" {
     Uint32 nodeid;
     Uint32 parser_buffer_len;
     Uint32 parser_status;
+    Uint32 tls;
   };
 
   int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,

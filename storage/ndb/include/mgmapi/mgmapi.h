@@ -1627,6 +1627,70 @@ extern "C" {
                           int retry_delay_in_seconds, int verbose,
                           int tls_req_level);
 
+  /**
+   * Check whether a connected handle is using TLS
+   *
+   * @param   handle        Management handle.
+   *
+   * @return                0  if handle is not using TLS.
+   *                        12 if handle is using TLS version 1.2
+   *                        13 if handle is using TLS version 1.3
+   */
+  int ndb_mgm_has_tls(NdbMgmHandle);
+
+  /**
+   * Struct ndb\_mgm\_cert\_table is a linked structure describing a
+   * TLS client session.
+   */
+  struct ndb_mgm_cert_table {
+    Uint64 session_id;
+    char * peer_address;
+    char * cert_serial;
+    char * cert_name;
+    char * cert_expires;
+    struct ndb_mgm_cert_table * next;
+  };
+
+  /**
+   * Query TLS certificates of connected MGM clients
+   *
+   * @param   handle        Management handle.
+   * @param   list          Address of pointer to ndb_mgm_cert_table (out)
+   *
+   * @return                The total number of linked decriptions, if positive.
+   *                        If zero, success, but no TLS connections to report.
+   *                        -1 on error.
+   *
+   * On return, list will be populated with a pointer to a table. The table
+   * should be freed after use by calling ndb\_mgm\_cert\_table\_free().
+   */
+  int ndb_mgm_list_certs(NdbMgmHandle, ndb_mgm_cert_table ** list);
+
+  /**
+   * Free a linked list of certificate descriptions.
+   */
+  void ndb_mgm_cert_table_free(ndb_mgm_cert_table ** list);
+
+  /**
+   * Struct ndb\_mgm\_tls\_stats stores TLS-related statistics from the server.
+   */
+  struct ndb_mgm_tls_stats {
+    Uint32 accepted;  // total client connections accepted
+    Uint32 upgraded;  // client connections upgraded to TLS
+    Uint32 current;   // total current open client sessions
+    Uint32 tls;       // current open client sessions using TLS
+    Uint32 authfail;  // total authorization failures
+  };
+
+  /**
+   * Query server TLS statistics
+   * @param   handle        Management handle
+   * @param   result        Pointer to structure that will hold result data
+   *
+   * @return  0 on success, -1 on error
+   */
+   int ndb_mgm_get_tls_stats(NdbMgmHandle handle, ndb_mgm_tls_stats * result);
+
 #ifdef __cplusplus
 }
 #endif
