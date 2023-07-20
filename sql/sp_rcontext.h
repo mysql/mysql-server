@@ -207,7 +207,7 @@ class sp_rcontext {
 
   /// Get the Handler_call_frame representing the currently active handler.
   Handler_call_frame *current_handler_frame() const {
-    return m_activated_handlers.size() ? m_activated_handlers.back() : NULL;
+    return m_activated_handlers.size() ? m_activated_handlers.back() : nullptr;
   }
 
   /// Handle current SQL condition (if any).

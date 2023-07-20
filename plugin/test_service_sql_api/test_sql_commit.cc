@@ -762,7 +762,7 @@ static void test_sql(void *p) {
   DBUG_TRACE;
 
   WRITE_STR("[srv_session_open]\n");
-  MYSQL_SESSION session = srv_session_open(NULL, NULL);
+  MYSQL_SESSION session = srv_session_open(nullptr, nullptr);
 
   if (!session) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_open failed.");

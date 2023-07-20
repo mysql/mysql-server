@@ -2015,7 +2015,7 @@ static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
   else if (diff_check("mtrdiff"))
     diff_name = "mtrdiff";
   else
-    diff_name = 0;
+    diff_name = nullptr;
 #else
   // Otherwise always assume it's called diff
   diff_name = "diff";
@@ -7808,8 +7808,8 @@ static struct my_option my_long_options[] = {
      nullptr, 0, nullptr},
 #ifdef _WIN32
     {"safe-process-pid", OPT_SAFEPROCESS_PID, "PID of safeprocess.",
-     &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
+     &opt_safe_process_pid, &opt_safe_process_pid, nullptr, GET_INT,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
@@ -8136,7 +8136,7 @@ void init_win_path_patterns() {
   for (i = 0; i < num_paths; i++) {
     VAR *v;
     if (*(paths[i]) == '$') {
-      v = var_get(paths[i], 0, 0, 0);
+      v = var_get(paths[i], nullptr, 0, 0);
       p = my_strdup(PSI_NOT_INSTRUMENTED, v->str_val, MYF(MY_FAE));
     } else
       p = my_strdup(PSI_NOT_INSTRUMENTED, paths[i], MYF(MY_FAE));

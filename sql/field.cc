@@ -2644,9 +2644,9 @@ longlong Field_decimal::val_int() const {
   int not_used;
   if (is_unsigned())
     return my_strntoull(&my_charset_bin, pointer_cast<const char *>(ptr),
-                        field_length, 10, NULL, &not_used);
+                        field_length, 10, nullptr, &not_used);
   return my_strntoll(&my_charset_bin, pointer_cast<const char *>(ptr),
-                     field_length, 10, NULL, &not_used);
+                     field_length, 10, nullptr, &not_used);
 }
 
 String *Field_decimal::val_str(String *, String *val_ptr) const {
@@ -4004,7 +4004,7 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 size_t Field_longlong::make_sort_key(uchar *to, size_t length) const {
   assert(length == PACK_LENGTH);
 #ifdef WORDS_BIGENDIAN
-  if (table == NULL || !table->s->db_low_byte_first)
+  if (table == nullptr || !table->s->db_low_byte_first)
     copy_integer<true>(to, length, ptr, PACK_LENGTH, is_unsigned());
   else
 #endif

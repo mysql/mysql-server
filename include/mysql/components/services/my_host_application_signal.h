@@ -57,7 +57,7 @@ bool my_host_application_signal(SERVICE_TYPE(registry) * registry,
 inline bool my_host_application_signal_shutdown(SERVICE_TYPE(registry) *
                                                 registry) {
   return my_host_application_signal<HOST_APPLICATION_SIGNAL_SHUTDOWN, void *>(
-      registry, NULL);
+      registry, nullptr);
 }
 
 #endif /* MY_HOST_APPLICATION_SIGNAL_H */

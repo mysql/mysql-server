@@ -112,11 +112,12 @@ int main(int argc, char **argv) {
 #ifdef _WIN32
     case SIGSEGV:
       RaiseException(EXCEPTION_ACCESS_VIOLATION, EXCEPTION_NONCONTINUABLE, 0,
-                     NULL);
+                     nullptr);
       break;
     case SIGINT:
     case SIGABRT:
-      RaiseException(EXCEPTION_BREAKPOINT, EXCEPTION_NONCONTINUABLE, 0, NULL);
+      RaiseException(EXCEPTION_BREAKPOINT, EXCEPTION_NONCONTINUABLE, 0,
+                     nullptr);
       break;
 #else
     default:

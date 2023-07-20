@@ -109,7 +109,7 @@ std::string find_full_executable_path(const std::string &argv0) {
 
   // the bin folder is not usually in the path, just the lib folder
   std::array<char, MAX_PATH> szPath;
-  if (GetModuleFileName(NULL, szPath.data(), szPath.size()) != 0) {
+  if (GetModuleFileName(nullptr, szPath.data(), szPath.size()) != 0) {
     return szPath.data();
   }
 #else

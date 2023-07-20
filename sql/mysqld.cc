@@ -1765,7 +1765,7 @@ void substitute_progpath(char **argv) {
   if (test_if_hard_path(argv[0])) return;
 
 #if defined(_WIN32)
-  if (GetModuleFileName(NULL, my_progpath, sizeof(my_progpath))) {
+  if (GetModuleFileName(nullptr, my_progpath, sizeof(my_progpath))) {
     my_orig_progname = argv[0];
     argv[0] = my_progpath;
   }
@@ -1821,9 +1821,9 @@ void substitute_progpath(char **argv) {
 static Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor =
     nullptr;
 #ifdef _WIN32
-static Named_pipe_listener *named_pipe_listener = NULL;
-Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor = NULL;
-Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor = NULL;
+static Named_pipe_listener *named_pipe_listener = nullptr;
+Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor = nullptr;
+Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor = nullptr;
 mysql_rwlock_t LOCK_named_pipe_full_access_group;
 char *named_pipe_full_access_group;
 #endif
@@ -2358,9 +2358,9 @@ static void close_connections(void) {
   if (mysqld_socket_acceptor != nullptr)
     mysqld_socket_acceptor->close_listener();
 #ifdef _WIN32
-  if (named_pipe_acceptor != NULL) named_pipe_acceptor->close_listener();
+  if (named_pipe_acceptor != nullptr) named_pipe_acceptor->close_listener();
 
-  if (shared_mem_acceptor != NULL) shared_mem_acceptor->close_listener();
+  if (shared_mem_acceptor != nullptr) shared_mem_acceptor->close_listener();
 #endif
 
   /*
@@ -2636,9 +2636,9 @@ static void free_connection_acceptors() {
 
 #ifdef _WIN32
   delete named_pipe_acceptor;
-  named_pipe_acceptor = NULL;
+  named_pipe_acceptor = nullptr;
   delete shared_mem_acceptor;
-  shared_mem_acceptor = NULL;
+  shared_mem_acceptor = nullptr;
 #endif
 }
 
@@ -3302,13 +3302,13 @@ static bool network_init(void) {
     const std::string pipe_name = mysqld_unix_port ? mysqld_unix_port : "";
 
     named_pipe_listener = new (std::nothrow) Named_pipe_listener(&pipe_name);
-    if (named_pipe_listener == NULL) return true;
+    if (named_pipe_listener == nullptr) return true;
 
     named_pipe_acceptor = new (std::nothrow)
         Connection_acceptor<Named_pipe_listener>(named_pipe_listener);
-    if (named_pipe_acceptor == NULL) {
+    if (named_pipe_acceptor == nullptr) {
       delete named_pipe_listener;
-      named_pipe_listener = NULL;
+      named_pipe_listener = nullptr;
       return true;
     }
 
@@ -3323,13 +3323,13 @@ static bool network_init(void) {
 
     Shared_mem_listener *shared_mem_listener =
         new (std::nothrow) Shared_mem_listener(&shared_mem_base_name);
-    if (shared_mem_listener == NULL) return true;
+    if (shared_mem_listener == nullptr) return true;
 
     shared_mem_acceptor = new (std::nothrow)
         Connection_acceptor<Shared_mem_listener>(shared_mem_listener);
-    if (shared_mem_acceptor == NULL) {
+    if (shared_mem_acceptor == nullptr) {
       delete shared_mem_listener;
-      shared_mem_listener = NULL;
+      shared_mem_listener = nullptr;
       return true;
     }
 
@@ -3359,7 +3359,7 @@ extern "C" void *socket_conn_event_handler(void *arg) {
 
   decrement_handler_count();
   my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 extern "C" void *named_pipe_conn_event_handler(void *arg) {
@@ -3371,7 +3371,7 @@ extern "C" void *named_pipe_conn_event_handler(void *arg) {
 
   decrement_handler_count();
   my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 extern "C" void *shared_mem_conn_event_handler(void *arg) {
@@ -3383,7 +3383,7 @@ extern "C" void *shared_mem_conn_event_handler(void *arg) {
 
   decrement_handler_count();
   my_thread_end();
-  return 0;
+  return nullptr;
 }
 
 void setup_conn_event_handler_threads() {
@@ -3517,7 +3517,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers) {
     DWORD written;
     const char msg[] = "Got exception in exception handler!\n";
     WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), msg, sizeof(msg) - 1, &written,
-              NULL);
+              nullptr);
   }
   /*
     Return EXCEPTION_CONTINUE_SEARCH to give JIT debugger
@@ -5076,7 +5076,7 @@ int init_common_variables() {
     nelem = getpagesizes(NULL, 0);
     if (nelem > 0) {
       size_t *pagesize = (size_t *)malloc(sizeof(size_t) * nelem);
-      if (pagesize != NULL && getpagesizes(pagesize, nelem) > 0) {
+      if (pagesize != nullptr && getpagesizes(pagesize, nelem) > 0) {
         size_t max_page_size = 0;
         for (int i = 0; i < nelem; i++) {
           if (pagesize[i] > max_page_size &&
@@ -7067,7 +7067,7 @@ extern "C" void *handle_shutdown_and_restart(void *) {
 
   my_thread_init();
   /* This call should create the message queue for this thread. */
-  PeekMessage(&msg, NULL, 1, 65534, PM_NOREMOVE);
+  PeekMessage(&msg, nullptr, 1, 65534, PM_NOREMOVE);
   const DWORD ret_code = WaitForMultipleObjects(
       2, static_cast<HANDLE *>(event_handles), FALSE, INFINITE);
 
@@ -7080,9 +7080,9 @@ extern "C" void *handle_shutdown_and_restart(void *) {
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
-    my_thread_exit(0);
+    my_thread_exit(nullptr);
   }
-  return 0;
+  return nullptr;
 }
 
 static void create_shutdown_and_restart_thread() {
@@ -7102,12 +7102,12 @@ static void create_shutdown_and_restart_thread() {
 
   hEventShutdown =
       CreateEvent(shutdown_sec_attr, FALSE, FALSE, shutdown_event_name);
-  hEventRestart = CreateEvent(0, FALSE, FALSE, restart_event_name);
+  hEventRestart = CreateEvent(nullptr, FALSE, FALSE, restart_event_name);
 
   my_thread_attr_init(&thr_attr);
 
   if (my_thread_create(&shutdown_restart_thr_handle, &thr_attr,
-                       handle_shutdown_and_restart, 0))
+                       handle_shutdown_and_restart, nullptr))
     LogErr(WARNING_LEVEL, ER_CANT_CREATE_SHUTDOWN_THREAD, errno);
 
   my_security_attr_free(shutdown_sec_attr);
@@ -8391,8 +8391,8 @@ int mysqld_main(int argc, char **argv)
   int ret = 0;
 #ifdef _WIN32
   if (shutdown_restart_thr_handle.handle)
-    ret = my_thread_join(&shutdown_restart_thr_handle, NULL);
-  shutdown_restart_thr_handle.handle = NULL;
+    ret = my_thread_join(&shutdown_restart_thr_handle, nullptr);
+  shutdown_restart_thr_handle.handle = nullptr;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "shutdown ", ret);
 #else
@@ -8569,7 +8569,7 @@ int mysqld_main(int argc, char **argv) {
 
     if (argc == 2) {
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
-                                    file_path, "", NULL))
+                                    file_path, "", nullptr))
         return 0;
       if (Service.IsService(argv[1])) /* Start an optional service */
       {
@@ -8589,7 +8589,7 @@ int mysqld_main(int argc, char **argv) {
     } else if (argc == 3) /* install or remove any optional service */
     {
       if (!default_service_handling(argv, argv[2], argv[2], file_path, "",
-                                    NULL))
+                                    nullptr))
         return 0;
       if (Service.IsService(argv[2])) {
         /*
@@ -8663,7 +8663,7 @@ int mysqld_main(int argc, char **argv) {
     Service.my_argv = argv;
   }
 
-  return mysql_service(NULL);
+  return mysql_service(nullptr);
 }
 #endif  // _WIN32
 
@@ -9265,8 +9265,8 @@ struct my_option my_long_options[] = {
      "wait "
      "before trying to kill the windows service during startup"
      "(Default: 15000).",
-     &slow_start_timeout, &slow_start_timeout, 0, GET_ULONG, REQUIRED_ARG,
-     15000, 0, 0, 0, 0, 0},
+     &slow_start_timeout, &slow_start_timeout, nullptr, GET_ULONG, REQUIRED_ARG,
+     15000, 0, 0, nullptr, 0, nullptr},
 #endif
     {"sporadic-binlog-dump-fail", 0,
      "Option used by mysql-test for debugging and testing of replication.",
@@ -9281,10 +9281,11 @@ struct my_option my_long_options[] = {
      &opt_use_admin_ssl, &opt_use_admin_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0,
      0, nullptr, 0, nullptr},
 #ifdef _WIN32
-    {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
-     0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"standalone", 0, "Dummy option to start as a standalone program (NT).",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"no-monitor", 0, "Disable monitor process.", &opt_no_monitor,
-     &opt_no_monitor, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_no_monitor, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
     {"symbolic-links", 's',
      "Enable symbolic link support (deprecated and will be  removed in a future"

@@ -195,7 +195,7 @@ bool my_gethwaddr(uchar *to) {
   address_len = sizeof(IP_ADAPTER_ADDRESSES);
 
   /* Get the required size for the address data. */
-  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, 0, &adapterAddresses,
+  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, nullptr, &adapterAddresses,
                              &address_len) == ERROR_BUFFER_OVERFLOW) {
     pAdapterAddresses = static_cast<PIP_ADAPTER_ADDRESSES>(
         my_malloc(key_memory_win_IP_ADAPTER_ADDRESSES, address_len, 0));
@@ -204,7 +204,7 @@ bool my_gethwaddr(uchar *to) {
     pAdapterAddresses = &adapterAddresses; /* one is enough don't alloc */
 
   /* Get the hardware info. */
-  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, 0, pAdapterAddresses,
+  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, nullptr, pAdapterAddresses,
                              &address_len) == NO_ERROR) {
     pCurrAddresses = pAdapterAddresses;
 

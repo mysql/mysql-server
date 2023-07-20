@@ -203,7 +203,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
 #if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
   /*
     If we try to load a protocol trace plugin but one is already
-    loaded (global trace_plugin pointer is not NULL) then we ignore
+    loaded (global trace_plugin pointer is not nullptr) then we ignore
     the new trace plugin and give error. This is done before the
     new plugin gets initialized.
   */
@@ -243,7 +243,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
 #if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
   /*
     If loaded plugin is a protocol trace one, then set the global
-    trace_plugin pointer to point at it. When trace_plugin is not NULL,
+    trace_plugin pointer to point at it. When trace_plugin is not nullptr,
     each new connection will be traced using the plugin pointed by it
     (see MYSQL_TRACE_STAGE() macro in libmysql/mysql_trace.h).
   */
@@ -501,8 +501,8 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
 #ifdef _WIN32
     /* There should be no win32 calls between failed dlopen() and GetLastError()
      */
-    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, GetLastError(), 0,
-                      win_errormsg, 2048, NULL))
+    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(), 0,
+                      win_errormsg, 2048, nullptr))
       errmsg = win_errormsg;
     else
       errmsg = "";

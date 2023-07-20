@@ -1168,7 +1168,7 @@ void Rsa_authentication_keys::get_key_file_path(char *key,
    */
   if (strchr(key, FN_LIBCHAR) != nullptr
 #ifdef _WIN32
-      || strchr(key, FN_LIBCHAR2) != NULL
+      || strchr(key, FN_LIBCHAR2) != nullptr
 #endif
   )
     key_file_path->set_quick(key, strlen(key), system_charset_info);

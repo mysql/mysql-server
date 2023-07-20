@@ -151,10 +151,10 @@ class Scoped_event : private ut::Non_copyable {
     NULL, for the application to test successful event creation with the
     get_handle() method, but this is currently not supported (and thus not
     tested) by this implementation. */
-    ut_a(m_event != NULL);
+    ut_a(m_event != nullptr);
   }
   ~Scoped_event() {
-    if (m_event != NULL) {
+    if (m_event != nullptr) {
       CloseHandle(m_event);
     }
   }

@@ -581,7 +581,7 @@ class Open_tables_state {
  public:
   Reprepare_observer *get_reprepare_observer() const {
     return m_reprepare_observers.size() > 0 ? m_reprepare_observers.back()
-                                            : NULL;
+                                            : nullptr;
   }
 
   void push_reprepare_observer(Reprepare_observer *o) {

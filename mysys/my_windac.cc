@@ -75,10 +75,10 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
                             DWORD owner_rights, DWORD everyone_rights) {
   /* Top-level SID authority */
   SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
-  PSID everyone_sid = 0;
-  HANDLE htoken = 0;
-  SECURITY_ATTRIBUTES *sa = 0;
-  PACL dacl = 0;
+  PSID everyone_sid = nullptr;
+  HANDLE htoken = nullptr;
+  SECURITY_ATTRIBUTES *sa = nullptr;
+  PACL dacl = nullptr;
   DWORD owner_token_length, dacl_length;
   SECURITY_DESCRIPTOR *sd;
   PTOKEN_USER owner_token;
@@ -106,7 +106,7 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
     *perror = "Failed to retrieve thread access token";
     goto error;
   }
-  GetTokenInformation(htoken, TokenUser, 0, 0, &owner_token_length);
+  GetTokenInformation(htoken, TokenUser, nullptr, 0, &owner_token_length);
 
   if (!my_multi_malloc(
           key_memory_win_SECURITY_ATTRIBUTES, MYF(MY_WME), &sa,
@@ -176,7 +176,7 @@ error:
   if (htoken) CloseHandle(htoken);
   my_free(sa);
   my_free(dacl);
-  *psa = 0;
+  *psa = nullptr;
   return 1;
 }
 

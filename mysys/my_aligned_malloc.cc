@@ -44,14 +44,14 @@ void *my_aligned_malloc(size_t size, size_t alignment) {
 #elif defined(HAVE_MEMALIGN)
   /* Solaris */
   ptr = memalign(alignment, size);
-  if (ptr == NULL) {
-    return NULL;
+  if (ptr == nullptr) {
+    return nullptr;
   }
 #elif defined(HAVE_ALIGNED_MALLOC)
   /* Windows */
   ptr = _aligned_malloc(size, alignment);
-  if (ptr == NULL) {
-    return NULL;
+  if (ptr == nullptr) {
+    return nullptr;
   }
 #else
 #error "Missing implementation for posix_memalign, memalign or _aligned_malloc"

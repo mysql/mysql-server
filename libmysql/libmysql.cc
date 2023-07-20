@@ -260,7 +260,7 @@ void STDCALL mysql_debug(const char *debug [[maybe_unused]]) {
       char buff[80];
       buff[sizeof(buff) - 1] = 0;
       strxnmov(buff, sizeof(buff) - 1, "libmysql: ", env, NullS);
-      MessageBox((HWND)0, "Debugging variable MYSQL_DEBUG used", buff, MB_OK);
+      MessageBox(nullptr, "Debugging variable MYSQL_DEBUG used", buff, MB_OK);
     }
 #endif
   }

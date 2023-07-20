@@ -487,7 +487,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info, char *to,
 }
 
 #ifdef _WIN32
-static CHARSET_INFO *fs_cset_cache = NULL;
+static CHARSET_INFO *fs_cset_cache = nullptr;
 
 CHARSET_INFO *fs_character_set() {
   if (!fs_cset_cache) {

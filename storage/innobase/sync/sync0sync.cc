@@ -248,7 +248,7 @@ void MutexMonitor::enable() {
   LatchMetaData::iterator end = latch_meta.end();
 
   for (LatchMetaData::iterator it = latch_meta.begin(); it != end; ++it) {
-    if (*it != NULL) {
+    if (*it != nullptr) {
       (*it)->get_counter()->enable();
     }
   }
@@ -262,7 +262,7 @@ void MutexMonitor::disable() {
   LatchMetaData::iterator end = latch_meta.end();
 
   for (LatchMetaData::iterator it = latch_meta.begin(); it != end; ++it) {
-    if (*it != NULL) {
+    if (*it != nullptr) {
       (*it)->get_counter()->disable();
     }
   }
@@ -276,7 +276,7 @@ void MutexMonitor::reset() {
   LatchMetaData::iterator end = latch_meta.end();
 
   for (LatchMetaData::iterator it = latch_meta.begin(); it != end; ++it) {
-    if (*it != NULL) {
+    if (*it != nullptr) {
       (*it)->get_counter()->reset();
     }
   }

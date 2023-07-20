@@ -29,12 +29,12 @@ NTService::NTService() {
   bOsNT = FALSE;
 
   // service variables
-  ServiceName = NULL;
-  hExitEvent = 0;
+  ServiceName = nullptr;
+  hExitEvent = nullptr;
   bPause = FALSE;
   bRunning = FALSE;
-  hThreadHandle = 0;
-  fpServiceThread = NULL;
+  hThreadHandle = nullptr;
+  fpServiceThread = nullptr;
 
   // time-out variables
   nStartTimeOut = 15000;
@@ -47,13 +47,13 @@ NTService::NTService() {
   dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   dwStartType = SERVICE_AUTO_START;
   dwErrorControl = SERVICE_ERROR_NORMAL;
-  szLoadOrderGroup = NULL;
-  lpdwTagID = NULL;
-  szDependencies = NULL;
+  szLoadOrderGroup = nullptr;
+  lpdwTagID = nullptr;
+  szDependencies = nullptr;
 
   my_argc = 0;
-  my_argv = NULL;
-  hShutdownEvent = 0;
+  my_argv = nullptr;
+  hShutdownEvent = nullptr;
   nError = 0;
   dwState = 0;
 }
@@ -62,7 +62,7 @@ NTService::NTService() {
 
  -------------------------------------------------------------------------- */
 NTService::~NTService() {
-  if (ServiceName != NULL) delete[] ServiceName;
+  if (ServiceName != nullptr) delete[] ServiceName;
 }
 /* ------------------------------------------------------------------------
 
@@ -93,7 +93,7 @@ long NTService::Init(LPCSTR szInternName, void *ServiceThread,
   SERVICE_TABLE_ENTRY stb[] = {
       {const_cast<char *>(szInternName),
        reinterpret_cast<LPSERVICE_MAIN_FUNCTION>(ServiceMain)},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   return StartServiceCtrlDispatcher(stb);  // register with the Service Manager
 }
@@ -116,10 +116,10 @@ BOOL NTService::Install(int startType, LPCSTR szInternName,
   if (!SeekStatus(szInternName, 1)) return FALSE;
 
   char szFilePath[_MAX_PATH];
-  GetModuleFileName(NULL, szFilePath, sizeof(szFilePath));
+  GetModuleFileName(nullptr, szFilePath, sizeof(szFilePath));
 
   // open a connection to the SCM
-  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE)))
+  if (!(scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE)))
     printf("Failed to install the service (Couldn't open the SCM)\n");
   else  // Install the new service
   {
@@ -166,7 +166,7 @@ BOOL NTService::Remove(LPCSTR szInternName) {
   nError = 0;
 
   // open a connection to the SCM
-  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE))) {
+  if (!(scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE))) {
     printf("Failed to remove the service (Couldn't open the SCM)\n");
   } else {
     if ((service = OpenService(scm, szInternName, DELETE))) {
@@ -211,7 +211,8 @@ void NTService::ServiceMain(DWORD /* argc */, LPTSTR * /* argv */) {
     goto error;
 
   // create the exit event
-  if (!(pService->hExitEvent = CreateEvent(0, TRUE, FALSE, 0))) goto error;
+  if (!(pService->hExitEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr)))
+    goto error;
 
   if (!pService->SetStatus(SERVICE_START_PENDING, NO_ERROR, 0, 3,
                            pService->nStartTimeOut))
@@ -380,7 +381,7 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType) {
   SC_HANDLE service, scm;
 
   // open a connection to the SCM
-  if (!(scm = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE))) {
+  if (!(scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE))) {
     DWORD ret_error = GetLastError();
     if (ret_error == ERROR_ACCESS_DENIED) {
       printf("Install/Remove of the Service Denied!\n");
@@ -452,7 +453,7 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType) {
   BOOL ret_value = FALSE;
   SC_HANDLE service, scm;
 
-  if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE))) {
+  if ((scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE))) {
     if ((service = OpenService(scm, service_name, SERVICE_QUERY_STATUS))) {
       ret_value = TRUE;
       CloseServiceHandle(service);

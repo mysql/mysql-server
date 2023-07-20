@@ -216,7 +216,7 @@ class basic_named_pipe_impl : public basic_named_pipe_impl_base {
     do {
       native_handle_ =
           CreateFile(TEXT(ep.path().c_str()), GENERIC_READ | GENERIC_WRITE, 0,
-                     NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                     nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 
       if (native_handle_ == impl::named_pipe::kInvalidHandle) {
         auto const error_code = win32::last_error_code();
@@ -296,7 +296,7 @@ class basic_named_pipe : private basic_named_pipe_impl<Protocol> {
          ++bufcur) {
       DWORD numRead{0};
       if (!ReadFile(native_handle(), bufcur->data(), bufcur->size(), &numRead,
-                    NULL)) {
+                    nullptr)) {
         return stdx::make_unexpected(win32::last_error_code());
       }
 
@@ -321,7 +321,7 @@ class basic_named_pipe : private basic_named_pipe_impl<Protocol> {
       DWORD written{0};
 
       if (!WriteFile(native_handle(), bufcur->data(), bufcur->size(), &written,
-                     NULL)) {
+                     nullptr)) {
         return stdx::make_unexpected(win32::last_error_code());
       }
 
@@ -546,7 +546,7 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
           TEXT(ep_.path().c_str()), PIPE_ACCESS_DUPLEX,
           protocol.type() | protocol.protocol() | PIPE_REJECT_REMOTE_CLIENTS |
               flags,
-          back_log_, 1024 * 16, 1024 * 16, NMPWAIT_USE_DEFAULT_WAIT, NULL);
+          back_log_, 1024 * 16, 1024 * 16, NMPWAIT_USE_DEFAULT_WAIT, nullptr);
 
       if (handle == impl::named_pipe::kInvalidHandle) {
         auto ec = win32::last_error_code();
@@ -596,7 +596,7 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
 
     const auto protocol = protocol_type();
 
-    const bool connected = ConnectNamedPipe(native_handle(), NULL);
+    const bool connected = ConnectNamedPipe(native_handle(), nullptr);
     if (!connected) {
       auto last_ec = win32::last_error_code();
 

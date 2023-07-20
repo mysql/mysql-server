@@ -883,7 +883,7 @@ static void test_sql(void *p) {
 
   /* Open session 1: Must pass */
   WRITE_STR("[srv_session_open]\n");
-  session = srv_session_open(NULL, NULL);
+  session = srv_session_open(nullptr, nullptr);
   if (!session) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_open failed");
     goto end;

@@ -613,7 +613,7 @@ static void test_sql(void *p) {
 
   /* Open Session 1 */
   WRITE_STR("Opening Session 1\n");
-  MYSQL_SESSION session = srv_session_open(NULL, plugin_ctx);
+  MYSQL_SESSION session = srv_session_open(nullptr, plugin_ctx);
   if (!session)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open Session 1 failed.");
 

@@ -185,7 +185,7 @@ int get_ER_error_msg_by_symbol(const char *symbol) {
 static bool print_win_error_msg(DWORD error, bool verbose) {
   LPTSTR s;
   if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                    NULL, error, 0, (LPTSTR)&s, 0, NULL)) {
+                    nullptr, error, 0, (LPTSTR)&s, 0, nullptr)) {
     if (verbose)
       printf("Win32 error code %lu: %s", error, s);
     else

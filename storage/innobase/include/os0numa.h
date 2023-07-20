@@ -99,7 +99,7 @@ inline int os_numa_num_configured_cpus() {
   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buf;
   DWORD buf_bytes = 0;
 
-  if (GetLogicalProcessorInformationEx(RelationGroup, NULL, &buf_bytes)) {
+  if (GetLogicalProcessorInformationEx(RelationGroup, nullptr, &buf_bytes)) {
     /* GetLogicalProcessorInformationEx() unexpectedly succeeded. */
     return (1);
   }
@@ -115,7 +115,7 @@ inline int os_numa_num_configured_cpus() {
   buf = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *>(
       LocalAlloc(LMEM_FIXED, buf_bytes));
 
-  if (buf == NULL) {
+  if (buf == nullptr) {
     return (1);
   }
 
@@ -183,16 +183,16 @@ inline int os_numa_node_of_cpu(int cpu) {
 /** Allocate a memory on a given NUMA node.
 @param[in]      size    number of bytes to allocate
 @param[in]      node    NUMA node on which to allocate the memory
-@return pointer to allocated memory or NULL if allocation failed */
+@return pointer to allocated memory or nullptr if allocation failed */
 inline void *os_numa_alloc_onnode(size_t size, int node) {
 #if defined(HAVE_LIBNUMA)
   return (numa_alloc_onnode(size, node));
 #elif defined(HAVE_WINNUMA)
-  return (VirtualAllocExNuma(GetCurrentProcess(), NULL, size,
+  return (VirtualAllocExNuma(GetCurrentProcess(), nullptr, size,
                              MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE, node));
 #else
   ut_error;
-  return (NULL);
+  return (nullptr);
 #endif
 }
 

@@ -161,7 +161,7 @@ class Blob {
   size_t m_len;  ///< Length of the memory region.
 
  public:
-  Blob() : m_ptr(NULL), m_len(0) {}
+  Blob() : m_ptr(nullptr), m_len(0) {}
 
   Blob(const byte *ptr, const size_t len)
       : m_ptr(const_cast<byte *>(ptr)), m_len(len) {}
@@ -180,7 +180,7 @@ class Blob {
     return pos < len() ? m_ptr[pos] : out_of_range;
   }
 
-  bool is_null() const { return m_ptr == NULL; }
+  bool is_null() const { return m_ptr == nullptr; }
 
   void trim(size_t l) { m_len = l; }
 };

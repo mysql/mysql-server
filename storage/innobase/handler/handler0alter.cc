@@ -2052,7 +2052,7 @@ added
     tbl_name_len = strlen(tbl_name);
     tbl_namep = &tbl_name[0];
 
-    if (fk_key->ref_db.str != NULL) {
+    if (fk_key->ref_db.str != nullptr) {
       tablename_to_filename(fk_key->ref_db.str, db_name, MAX_DATABASE_NAME_LEN);
       innobase_casedn_str(db_name);
       db_name_len = strlen(db_name);

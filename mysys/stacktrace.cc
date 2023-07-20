@@ -203,7 +203,7 @@ static bool my_demangle_symbol(char *line) {
   char *demangled = nullptr;
 #ifdef __APPLE__  // OS X formatting of stacktraces is different from Linux
   char *begin = strstr(line, "_Z");
-  char *end = begin ? strchr(begin, ' ') : NULL;
+  char *end = begin ? strchr(begin, ' ') : nullptr;
 
   if (begin && end) {
     begin[-1] = '\0';
@@ -211,7 +211,7 @@ static bool my_demangle_symbol(char *line) {
     int status;
     demangled = my_demangle(begin, &status);
     if (!demangled || status) {
-      demangled = NULL;
+      demangled = nullptr;
       begin[-1] = '_';
       *end = ' ';
     }
@@ -348,7 +348,7 @@ static void get_symbol_path(char *path, size_t size) {
     Add "debug" subdirectory of the application directory, sometimes PDB will
     placed here by installation.
   */
-  GetModuleFileName(NULL, pdb_debug_dir, MAX_PATH);
+  GetModuleFileName(nullptr, pdb_debug_dir, MAX_PATH);
   p = strrchr(pdb_debug_dir, '\\');
   if (p) {
     *p = 0;
@@ -464,7 +464,8 @@ void my_print_stacktrace(const uchar * /* stack_bottom */,
     BOOL have_symbol = false;
     BOOL have_source = false;
 
-    if (!StackWalk64(machine, hProcess, hThread, &frame, &context, 0, 0, 0, 0))
+    if (!StackWalk64(machine, hProcess, hThread, &frame, &context, nullptr,
+                     nullptr, nullptr, nullptr))
       break;
     addr = frame.AddrPC.Offset;
 
@@ -512,9 +513,9 @@ void my_write_core(int /* sig */) {
 
   if (!exception_ptrs) return;
 
-  if (GetModuleFileName(NULL, path, sizeof(path))) {
+  if (GetModuleFileName(nullptr, path, sizeof(path))) {
     char module_name[MAX_PATH];
-    _splitpath(path, NULL, NULL, module_name, NULL);
+    _splitpath(path, nullptr, nullptr, module_name, nullptr);
     // max length of a value being placed to dump_fname is
     // MAX_PATH + 1 byte for '.' + up to 10 bytes for string
     // representation of DWORD value + 4 bytes for .dmp suffix +
@@ -524,7 +525,7 @@ void my_write_core(int /* sig */) {
     snprintf(dump_fname, sizeof(dump_fname), "%s.%lu.dmp", module_name,
              GetCurrentProcessId());
   }
-  my_create_minidump(dump_fname, 0, 0);
+  my_create_minidump(dump_fname, nullptr, 0);
 }
 
 /** Create a minidump.
@@ -536,10 +537,10 @@ void my_write_core(int /* sig */) {
 void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
   char path[MAX_PATH];
   MINIDUMP_EXCEPTION_INFORMATION info;
-  PMINIDUMP_EXCEPTION_INFORMATION info_ptr = NULL;
+  PMINIDUMP_EXCEPTION_INFORMATION info_ptr = nullptr;
   HANDLE hFile;
 
-  if (process == 0) {
+  if (process == nullptr) {
     /* Does not need to CloseHandle() for the below. */
     process = GetCurrentProcess();
     pid = GetCurrentProcessId();
@@ -549,14 +550,15 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
     info_ptr = &info;
   }
 
-  hFile = CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
-                     FILE_ATTRIBUTE_NORMAL, 0);
+  hFile = CreateFile(name, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                     FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hFile) {
     const MINIDUMP_TYPE mdt =
         (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithThreadInfo |
                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
-    if (MiniDumpWriteDump(process, pid, hFile, mdt, info_ptr, 0, 0)) {
+    if (MiniDumpWriteDump(process, pid, hFile, mdt, info_ptr, nullptr,
+                          nullptr)) {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ? path : name);
     } else {
@@ -583,9 +585,9 @@ void my_safe_puts_stderr(const char *val, size_t len) {
 #ifdef _WIN32
 size_t my_write_stderr(const void *buf, size_t count) {
   DWORD bytes_written;
-  SetFilePointer(GetStdHandle(STD_ERROR_HANDLE), 0, NULL, FILE_END);
+  SetFilePointer(GetStdHandle(STD_ERROR_HANDLE), 0, nullptr, FILE_END);
   WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf, (DWORD)count, &bytes_written,
-            NULL);
+            nullptr);
   return bytes_written;
 }
 #else

@@ -464,10 +464,10 @@ Vio *vio_new_win32pipe(HANDLE hPipe) {
     }
 
     /* Create an object for event notification. */
-    vio->overlapped.hEvent = CreateEvent(NULL, false, false, NULL);
-    if (vio->overlapped.hEvent == NULL) {
+    vio->overlapped.hEvent = CreateEvent(nullptr, false, false, nullptr);
+    if (vio->overlapped.hEvent == nullptr) {
       internal_vio_delete(vio);
-      return NULL;
+      return nullptr;
     }
     vio->hPipe = hPipe;
   }

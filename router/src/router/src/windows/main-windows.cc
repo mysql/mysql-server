@@ -161,11 +161,11 @@ ServiceStatus check_service_operations(int argc, char **argv,
 
         {
           char abs_path[1024];
-          GetFullPathName(argv[0], sizeof(abs_path), abs_path, NULL);
+          GetFullPathName(argv[0], sizeof(abs_path), abs_path, nullptr);
           add_quoted_string(full_service_path, abs_path);
           full_service_path.append(" -c ");
           GetFullPathName(conf_opts.config_file.c_str(), sizeof(abs_path),
-                          abs_path, NULL);
+                          abs_path, nullptr);
           add_quoted_string(full_service_path, abs_path);
         }
         full_service_path.append(" --service ");
@@ -222,7 +222,7 @@ void do_windows_cleanup() noexcept {
   if (g_service.IsNT() && g_windows_service) {
     g_service.Stop();
   } else {
-    g_service.SetShutdownEvent(0);
+    g_service.SetShutdownEvent(nullptr);
   }
 }
 

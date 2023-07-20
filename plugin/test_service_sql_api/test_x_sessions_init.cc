@@ -119,7 +119,7 @@ static void test_session(void *p) {
   /* Open sessions: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("srv_session_open %d\n", i);
-    sessions[i] = srv_session_open(NULL, NULL);
+    sessions[i] = srv_session_open(nullptr, nullptr);
     if (!sessions[i])
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);
@@ -150,7 +150,7 @@ static void test_session_non_reverse(void *p [[maybe_unused]]) {
   /* Open sessions: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("srv_session_open %d\n", i);
-    sessions[i] = srv_session_open(NULL, NULL);
+    sessions[i] = srv_session_open(nullptr, nullptr);
     if (!sessions[i])
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);
@@ -184,7 +184,7 @@ static void test_session_only_open(void *p [[maybe_unused]]) {
   //  for (int i= 0; i < nb_sessions; i++)
   for (int i = 0; i < 0; i++) {
     WRITE_VAL("srv_session_open %d\n", i);
-    sessions[i] = srv_session_open(NULL, NULL);
+    sessions[i] = srv_session_open(nullptr, nullptr);
     if (!sessions[i])
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);
@@ -196,7 +196,7 @@ static void test_session_only_open(void *p [[maybe_unused]]) {
   memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "SELECT * FROM test.t_int";
   cmd.com_query.length = strlen(cmd.com_query.query);
-  command_service_run_command(NULL, COM_QUERY, &cmd,
+  command_service_run_command(nullptr, COM_QUERY, &cmd,
                               &my_charset_utf8mb3_general_ci, &sql_cbs,
                               CS_TEXT_REPRESENTATION, ctx);
   delete ctx;

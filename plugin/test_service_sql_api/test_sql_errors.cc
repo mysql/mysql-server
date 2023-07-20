@@ -676,7 +676,7 @@ static void test_sql(void *p) {
 
   /* Opening session 1 */
   WRITE_STR("Opening Session 1\n");
-  session_1 = srv_session_open(NULL, plugin_ctx);
+  session_1 = srv_session_open(nullptr, plugin_ctx);
   if (!session_1)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open session_1 failed.");
   else
@@ -697,7 +697,7 @@ static void test_sql(void *p) {
 */
   /* Opening session 2 */
   WRITE_STR("\nOpening Session 2\n");
-  session_2 = srv_session_open(NULL, plugin_ctx);
+  session_2 = srv_session_open(nullptr, plugin_ctx);
   if (!session_2)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open session_2 failed.");
   else
@@ -756,7 +756,7 @@ static void test_session_only_open(void *p [[maybe_unused]]) {
   /* Open sessions: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("srv_session_open %d\n", i);
-    sessions[i] = srv_session_open(NULL, NULL);
+    sessions[i] = srv_session_open(nullptr, nullptr);
     if (!sessions[i]) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);

@@ -97,9 +97,9 @@ std::string UniqueId::get_lock_file_dir() const {
 #else
 
 bool UniqueId::lock_file(const std::string &file_name) {
-  lock_file_fd_ = ::CreateFile(file_name.c_str(), GENERIC_READ, 0, NULL,
-                               OPEN_ALWAYS, 0, NULL);
-  if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {
+  lock_file_fd_ = ::CreateFile(file_name.c_str(), GENERIC_READ, 0, nullptr,
+                               OPEN_ALWAYS, 0, nullptr);
+  if (lock_file_fd_ != nullptr && lock_file_fd_ != INVALID_HANDLE_VALUE) {
     return true;
   }
 
@@ -187,7 +187,7 @@ UniqueId::~UniqueId() {
    */
 
 #else
-  if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {
+  if (lock_file_fd_ != nullptr && lock_file_fd_ != INVALID_HANDLE_VALUE) {
     ::CloseHandle(lock_file_fd_);
   }
 

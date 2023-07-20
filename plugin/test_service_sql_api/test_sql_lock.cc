@@ -543,12 +543,12 @@ static void test_isolation_levels(void *p) {
 
   /* Open session 1 and session 2 */
   WRITE_STR("\nOpening Session 1\n");
-  session_1 = srv_session_open(NULL, plugin_ctx);
+  session_1 = srv_session_open(nullptr, plugin_ctx);
   if (!session_1)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "open session_1 failed.");
 
   WRITE_STR("Opening Session 2\n");
-  session_2 = srv_session_open(NULL, plugin_ctx);
+  session_2 = srv_session_open(nullptr, plugin_ctx);
   if (!session_2)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "open session_2 failed.");
 
@@ -797,17 +797,17 @@ static void test_locking(void *p) {
 
   /* Open session 1 and session 2 */
   WRITE_STR("\nOpening Session 1\n");
-  session_1 = srv_session_open(NULL, plugin_ctx);
+  session_1 = srv_session_open(nullptr, plugin_ctx);
   if (!session_1)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "open session_1 failed.");
 
   WRITE_STR("Opening Session 2\n");
-  session_2 = srv_session_open(NULL, plugin_ctx);
+  session_2 = srv_session_open(nullptr, plugin_ctx);
   if (!session_2)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "open session_2 failed.");
 
   WRITE_STR("Opening Session 3\n");
-  session_3 = srv_session_open(NULL, plugin_ctx);
+  session_3 = srv_session_open(nullptr, plugin_ctx);
   if (!session_3)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "open session_3 failed.");
 

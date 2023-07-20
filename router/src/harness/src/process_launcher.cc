@@ -201,7 +201,7 @@ void ProcessLauncher::start() {
 
   saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
   saAttr.bInheritHandle = TRUE;
-  saAttr.lpSecurityDescriptor = NULL;
+  saAttr.lpSecurityDescriptor = nullptr;
 
   if (!CreatePipe(&child_out_rd, &child_out_wr, &saAttr, 0)) {
     throw std::system_error(last_error_code(), "Failed to create child_out_rd");
@@ -212,7 +212,7 @@ void ProcessLauncher::start() {
 
   // force non blocking IO in Windows
   // DWORD mode = PIPE_NOWAIT;
-  // BOOL res = SetNamedPipeHandleState(child_out_rd, &mode, NULL, NULL);
+  // BOOL res = SetNamedPipeHandleState(child_out_rd, &mode, nullptr, nullptr);
 
   if (!CreatePipe(&child_in_rd, &child_in_wr, &saAttr, 0))
     throw std::system_error(last_error_code(), "Failed to create child_in_rd");
@@ -233,7 +233,7 @@ void ProcessLauncher::start() {
   // in/out pipes FDs
   SIZE_T size = 0;
   // figure out the size needed for a 1-elem list
-  if (InitializeProcThreadAttributeList(NULL, 1, 0, &size) == FALSE &&
+  if (InitializeProcThreadAttributeList(nullptr, 1, 0, &size) == FALSE &&
       GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
     throw std::system_error(last_error_code(),
                             "Failed to InitializeProcThreadAttributeList() "
@@ -264,7 +264,7 @@ void ProcessLauncher::start() {
   if (UpdateProcThreadAttribute(attribute_list, 0,
                                 PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
                                 handles_to_inherit, sizeof(handles_to_inherit),
-                                NULL, NULL) == FALSE) {
+                                nullptr, nullptr) == FALSE) {
     throw std::system_error(
         last_error_code(),
         "Failed to UpdateProcThreadAttribute() when launching a process " +
@@ -285,15 +285,15 @@ void ProcessLauncher::start() {
 
   // launch the process
   BOOL bSuccess =
-      CreateProcess(NULL,                               // lpApplicationName
+      CreateProcess(nullptr,                            // lpApplicationName
                     &create_process_arguments.front(),  // lpCommandLine
-                    NULL,                               // lpProcessAttributes
-                    NULL,                               // lpThreadAttributes
+                    nullptr,                            // lpProcessAttributes
+                    nullptr,                            // lpThreadAttributes
                     TRUE,                               // bInheritHandles
                     CREATE_NEW_PROCESS_GROUP |
                         EXTENDED_STARTUPINFO_PRESENT,  // dwCreationFlags
-                    NULL,                              // lpEnvironment
-                    NULL,                              // lpCurrentDirectory
+                    nullptr,                           // lpEnvironment
+                    nullptr,                           // lpCurrentDirectory
                     &si_ex.StartupInfo,                // lpStartupInfo
                     &pi);                              // lpProcessInformation
 
@@ -425,8 +425,8 @@ int ProcessLauncher::read(char *buf, size_t count,
 
   do {
     // check if there is data in the pipe before issuing a blocking read
-    BOOL bSuccess =
-        PeekNamedPipe(child_out_rd, NULL, 0, NULL, &dwBytesAvail, NULL);
+    BOOL bSuccess = PeekNamedPipe(child_out_rd, nullptr, 0, nullptr,
+                                  &dwBytesAvail, nullptr);
 
     if (!bSuccess) {
       auto ec = last_error_code();
@@ -456,7 +456,7 @@ int ProcessLauncher::read(char *buf, size_t count,
     timeout -= interval;
   } while (true);
 
-  BOOL bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, NULL);
+  BOOL bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, nullptr);
 
   if (bSuccess == FALSE) {
     auto ec = last_error_code();
@@ -474,7 +474,7 @@ int ProcessLauncher::read(char *buf, size_t count,
 int ProcessLauncher::write(const char *buf, size_t count) {
   DWORD dwBytesWritten;
 
-  BOOL bSuccess = WriteFile(child_in_wr, buf, count, &dwBytesWritten, NULL);
+  BOOL bSuccess = WriteFile(child_in_wr, buf, count, &dwBytesWritten, nullptr);
   if (!bSuccess) {
     auto ec = last_error_code();
     if (ec !=

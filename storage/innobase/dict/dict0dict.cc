@@ -5690,7 +5690,7 @@ Persister *Persisters::get(persistent_type_t type) const {
 
   persisters_t::const_iterator iter = m_persisters.find(type);
 
-  return (iter == m_persisters.end() ? NULL : iter->second);
+  return (iter == m_persisters.end() ? nullptr : iter->second);
 }
 
 /** Add a specified persister of type, we will allocate the Persister

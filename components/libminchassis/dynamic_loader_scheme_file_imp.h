@@ -33,19 +33,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(_WIN32)
 #define dlsym(lib, name) (void *)GetProcAddress((HMODULE)lib, name)
-#define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
+#define dlopen(libname, unused) LoadLibraryEx(libname, nullptr, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
 #define RTLD_NOW 0x00002
-#define DLERROR_GENERATE(errmsg, error_number)                          \
-  char win_errormsg[2048];                                              \
-  if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, error_number, 0,     \
-                    win_errormsg, 2048, NULL)) {                        \
-    char *ptr;                                                          \
-    for (ptr = &win_errormsg[0] + strlen(win_errormsg) - 1;             \
-         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); ptr--) \
-      *ptr = 0;                                                         \
-    errmsg = win_errormsg;                                              \
-  } else                                                                \
+#define DLERROR_GENERATE(errmsg, error_number)                            \
+  char win_errormsg[2048];                                                \
+  if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error_number, 0, \
+                    win_errormsg, 2048, nullptr)) {                       \
+    char *ptr;                                                            \
+    for (ptr = &win_errormsg[0] + strlen(win_errormsg) - 1;               \
+         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); ptr--)   \
+      *ptr = 0;                                                           \
+    errmsg = win_errormsg;                                                \
+  } else                                                                  \
     errmsg = ""
 #define dlerror() ""
 #define dlopen_errno GetLastError()

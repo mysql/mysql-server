@@ -89,7 +89,8 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count) {
 }
 
 bool vio_is_connected_pipe(Vio *vio) {
-  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL)) return true;
+  if (PeekNamedPipe(vio->hPipe, nullptr, 0, nullptr, nullptr, nullptr))
+    return true;
   return (GetLastError() != ERROR_BROKEN_PIPE);
 }
 
@@ -106,7 +107,7 @@ int vio_shutdown_pipe(Vio *vio) {
   }
 
   vio->inactive = true;
-  vio->hPipe = NULL;
+  vio->hPipe = nullptr;
   vio->mysql_socket = MYSQL_INVALID_SOCKET;
 
   return ret;

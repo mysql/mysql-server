@@ -40,7 +40,7 @@ TEST(Thread, CreateAndJoin) {
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
 #ifdef _WIN32
-  const HANDLE null_thr_handle = NULL;
+  const HANDLE null_thr_handle = nullptr;
 #endif
   int ret, tries = 10;
   while (tries) {

@@ -1751,7 +1751,7 @@ void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
   }
 
   for (uint i = 0; i < param->keys; i++) {
-    if (tree->keys[i] == NULL) continue;
+    if (tree->keys[i] == nullptr) continue;
 
     uint real_key_nr = param->real_keynr[i];
 

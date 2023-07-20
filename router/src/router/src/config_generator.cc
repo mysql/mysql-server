@@ -2000,7 +2000,7 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id,
 // This is only for Windows
 static std::string find_plugin_path() {
   std::array<char, MAX_PATH> szPath;
-  if (GetModuleFileName(NULL, szPath.data(), szPath.size()) != 0) {
+  if (GetModuleFileName(nullptr, szPath.data(), szPath.size()) != 0) {
     // bin/mysqlrouter/../../lib/
     auto p = mysql_harness::Path(szPath.data()).dirname().dirname();
 

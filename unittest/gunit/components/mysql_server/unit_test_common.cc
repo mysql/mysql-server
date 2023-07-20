@@ -83,7 +83,7 @@ int make_realpath(char *to, const char *filename) {
   }
   return result;
 #else
-  int ret = GetFullPathName(filename, FN_REFLEN, to, NULL);
+  int ret = GetFullPathName(filename, FN_REFLEN, to, nullptr);
   if (ret == 0) {
     return -1;
   }

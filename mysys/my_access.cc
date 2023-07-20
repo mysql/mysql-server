@@ -200,7 +200,7 @@ bool is_filename_allowed(const char *name [[maybe_unused]],
     For Windows, check if the file name contains : character.
     Start from end of path and search if the file name contains :
   */
-  const char *ch = NULL;
+  const char *ch = nullptr;
   for (ch = name + length - 1; ch >= name; --ch) {
     if (FN_LIBCHAR == *ch || '/' == *ch)
       break;

@@ -200,7 +200,7 @@ class MutexMonitor {
     for (LatchMetaData::iterator it = latch_meta.begin(); it != end; ++it) {
       /* Some of the slots will be null in non-debug mode */
 
-      if (*it == NULL) {
+      if (*it == nullptr) {
         continue;
       }
 

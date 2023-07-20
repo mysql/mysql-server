@@ -259,8 +259,8 @@ int vio_set_blocking(Vio *vio, bool status) {
   {
     int flags;
 
-    if ((flags = fcntl(mysql_socket_getfd(vio->mysql_socket), F_GETFL, NULL)) <
-        0)
+    if ((flags = fcntl(mysql_socket_getfd(vio->mysql_socket), F_GETFL,
+                       nullptr)) < 0)
       return -1;
 
     /*
@@ -448,7 +448,7 @@ static void vio_wait_until_woken(Vio *vio) {
   if (vio->kq_fd != -1) {
     struct kevent kev;
 
-    EV_SET(&kev, WAKEUP_EVENT_ID, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+    EV_SET(&kev, WAKEUP_EVENT_ID, EVFILT_USER, 0, NOTE_TRIGGER, 0, nullptr);
     int nev = kevent(vio->kq_fd, &kev, 1, nullptr, 0, nullptr);
     if (nev != -1) {
       while (vio->kevent_wakeup_flag.test_and_set()) {
@@ -947,7 +947,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
   /* The first argument is ignored on Windows. */
   do {
     ret = select((int)(fd + 1), &readfds, &writefds, &exceptfds,
-                 (timeout >= 0) ? &tm : NULL);
+                 (timeout >= 0) ? &tm : nullptr);
   } while (ret < 0 && vio_should_retry(vio) &&
            (retry_count++ < vio->retry_count));
 

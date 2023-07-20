@@ -1249,7 +1249,7 @@ int AckContainer::resize(unsigned int size, const AckInfo **ackinfo) {
   m_ack_array = nullptr;
   if (m_size) {
     m_ack_array = (AckInfo *)DBUG_EVALUATE_IF(
-        "rpl_semisync_simulate_allocate_ack_container_failure", NULL,
+        "rpl_semisync_simulate_allocate_ack_container_failure", nullptr,
         my_malloc(0, sizeof(AckInfo) * (size - 1), MYF(MY_ZEROFILL)));
     if (m_ack_array == nullptr) {
       m_ack_array = old_ack_array;

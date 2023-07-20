@@ -134,7 +134,7 @@ static bool isRouterServiceInstalled(const std::string &service_name) {
   SC_HANDLE service, scm;
   bool result = false;
 
-  if ((scm = OpenSCManager(0, 0, SC_MANAGER_ENUMERATE_SERVICE))) {
+  if ((scm = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE))) {
     if ((service =
              OpenService(scm, service_name.c_str(), SERVICE_QUERY_STATUS))) {
       CloseServiceHandle(service);

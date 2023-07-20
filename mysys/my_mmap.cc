@@ -55,7 +55,7 @@ int my_msync(int fd, void *addr, size_t len, int flags) {
 #elif defined(_WIN32)
 
 static SECURITY_ATTRIBUTES mmap_security_attributes = {
-    sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
+    sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
 
 void *my_mmap(void *addr [[maybe_unused]], size_t len, int prot,
               int flags [[maybe_unused]], File fd, my_off_t offset) {
@@ -68,8 +68,8 @@ void *my_mmap(void *addr [[maybe_unused]], size_t len, int prot,
   if (hFile == INVALID_HANDLE_VALUE) return MAP_FAILED;
 
   hFileMap = CreateFileMapping(hFile, &mmap_security_attributes, PAGE_READWRITE,
-                               0, (DWORD)len, NULL);
-  if (hFileMap == 0) return MAP_FAILED;
+                               0, (DWORD)len, nullptr);
+  if (hFileMap == nullptr) return MAP_FAILED;
 
   ptr = MapViewOfFile(hFileMap,
                       prot & PROT_WRITE ? FILE_MAP_WRITE : FILE_MAP_READ,

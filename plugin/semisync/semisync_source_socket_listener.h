@@ -86,7 +86,7 @@ class Select_socket_listener {
     m_fds = m_init_fds;
     struct timeval tv = {1, 0};
     /* select requires max fd + 1 for the first argument */
-    return select(m_max_fd + 1, &m_fds, NULL, NULL, &tv);
+    return select(m_max_fd + 1, &m_fds, nullptr, nullptr, &tv);
   }
 
   bool is_socket_active(int index) {

@@ -240,7 +240,7 @@ bool set_dh(SSL_CTX *ctx) {
       return true;
   };
 
-  pctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", NULL);
+  pctx = EVP_PKEY_CTX_new_from_name(nullptr, "DH", nullptr);
   params[0] = OSSL_PARAM_construct_utf8_string(
       "group", const_cast<char *>(rfc7919_primes[prime_index]), 0);
   params[1] = OSSL_PARAM_construct_end();

@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
       size_t bytes_to_write = OUTPUT_BUFFER_SIZE;
       size_t result = LZ4F_decompress(
           decompression_context, output_buffer, &bytes_to_write,
-          input_buffer + bytes_processed, &current_bytes_processed, NULL);
+          input_buffer + bytes_processed, &current_bytes_processed, nullptr);
       if (LZ4F_isError(result)) {
         fprintf(stderr,
                 "lz4_decompress: [Error] Encountered problem during "

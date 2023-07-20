@@ -56,10 +56,10 @@ extern "C" auth_plugin_t win_auth_client_plugin = {
     "Windows Authentication Plugin - client side",
     {0, 1, 0},
     "GPL",
-    NULL,
+    nullptr,
     win_auth_client_plugin_init,
     win_auth_client_plugin_deinit,
-    NULL,  // option handling
-    NULL,
+    nullptr,  // option handling
+    nullptr,
     win_auth_handshake_client,
     nullptr};

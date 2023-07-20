@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "my_macros.h"
 #include "os0file.h"
 #include "sql_const.h"
 #include "srv0srv.h"
@@ -328,7 +329,7 @@ struct Slot {
 #ifdef UNIV_PFS_IO
       nullptr,  // m_psi
 #endif
-      0  // m_file
+      IF_WIN(nullptr, 0)  // m_file
   };
 
   /** file name or path */
@@ -566,11 +567,11 @@ class AIO {
   static void wake_at_shutdown() {
     s_reads->signal();
 
-    if (s_writes != NULL) {
+    if (s_writes != nullptr) {
       s_writes->signal();
     }
 
-    if (s_ibuf != NULL) {
+    if (s_ibuf != nullptr) {
       s_ibuf->signal();
     }
   }
@@ -1793,7 +1794,7 @@ static char *os_file_get_parent_dir(const char *path) {
 void test_os_file_get_parent_dir(const char *child_dir,
                                  const char *expected_dir) {
   char *child = mem_strdup(child_dir);
-  char *expected = expected_dir == NULL ? NULL : mem_strdup(expected_dir);
+  char *expected = expected_dir == nullptr ? nullptr : mem_strdup(expected_dir);
 
   /* os_file_get_parent_dir() assumes that separators are
   converted to OS_PATH_SEPARATOR. */
@@ -1802,8 +1803,8 @@ void test_os_file_get_parent_dir(const char *child_dir,
 
   char *parent = os_file_get_parent_dir(child);
 
-  bool unexpected =
-      (expected == NULL ? (parent != NULL) : (0 != strcmp(parent, expected)));
+  bool unexpected = (expected == nullptr ? (parent != nullptr)
+                                         : (0 != strcmp(parent, expected)));
   if (unexpected) {
     ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_752)
         << "os_file_get_parent_dir('" << child << "') returned '" << parent
@@ -1817,23 +1818,23 @@ void test_os_file_get_parent_dir(const char *child_dir,
 /* Test the function os_file_get_parent_dir. */
 void unit_test_os_file_get_parent_dir() {
   test_os_file_get_parent_dir("/usr/lib/a", "/usr/lib");
-  test_os_file_get_parent_dir("/usr/", NULL);
-  test_os_file_get_parent_dir("//usr//", NULL);
-  test_os_file_get_parent_dir("usr", NULL);
-  test_os_file_get_parent_dir("usr//", NULL);
-  test_os_file_get_parent_dir("/", NULL);
-  test_os_file_get_parent_dir("//", NULL);
-  test_os_file_get_parent_dir(".", NULL);
-  test_os_file_get_parent_dir("..", NULL);
+  test_os_file_get_parent_dir("/usr/", nullptr);
+  test_os_file_get_parent_dir("//usr//", nullptr);
+  test_os_file_get_parent_dir("usr", nullptr);
+  test_os_file_get_parent_dir("usr//", nullptr);
+  test_os_file_get_parent_dir("/", nullptr);
+  test_os_file_get_parent_dir("//", nullptr);
+  test_os_file_get_parent_dir(".", nullptr);
+  test_os_file_get_parent_dir("..", nullptr);
 #ifdef _WIN32
-  test_os_file_get_parent_dir("D:", NULL);
-  test_os_file_get_parent_dir("D:/", NULL);
-  test_os_file_get_parent_dir("D:\\", NULL);
-  test_os_file_get_parent_dir("D:/data", NULL);
-  test_os_file_get_parent_dir("D:/data/", NULL);
-  test_os_file_get_parent_dir("D:\\data\\", NULL);
-  test_os_file_get_parent_dir("D:///data/////", NULL);
-  test_os_file_get_parent_dir("D:\\\\\\data\\\\\\\\", NULL);
+  test_os_file_get_parent_dir("D:", nullptr);
+  test_os_file_get_parent_dir("D:/", nullptr);
+  test_os_file_get_parent_dir("D:\\", nullptr);
+  test_os_file_get_parent_dir("D:/data", nullptr);
+  test_os_file_get_parent_dir("D:/data/", nullptr);
+  test_os_file_get_parent_dir("D:\\data\\", nullptr);
+  test_os_file_get_parent_dir("D:///data/////", nullptr);
+  test_os_file_get_parent_dir("D:\\\\\\data\\\\\\\\", nullptr);
   test_os_file_get_parent_dir("D:/data//a", "D:/data");
   test_os_file_get_parent_dir("D:\\data\\\\a", "D:\\data");
   test_os_file_get_parent_dir("D:///data//a///b/", "D:///data//a");
@@ -3729,7 +3730,7 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   overlapped.Offset = (DWORD)m_offset & 0xFFFFFFFF;
   overlapped.OffsetHigh = (DWORD)(m_offset >> 32);
 
-  ut_a(overlapped.hEvent != NULL);
+  ut_a(overlapped.hEvent != nullptr);
 
   BOOL result;
   DWORD n_bytes_transfered = 0;
@@ -3793,12 +3794,12 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   OVERLAPPED overlapped{};
   overlapped.hEvent = local_event.get_handle();
 
-  ut_a(overlapped.hEvent != NULL);
+  ut_a(overlapped.hEvent != nullptr);
 
   DWORD temp;
 
   BOOL result = DeviceIoControl(fh, FSCTL_SET_ZERO_DATA, &punch, sizeof(punch),
-                                NULL, 0, &temp, &overlapped);
+                                nullptr, 0, &temp, &overlapped);
 
   if (!result) {
     if (GetLastError() == ERROR_IO_PENDING) {
@@ -3911,7 +3912,7 @@ bool os_file_flush_func(os_file_t file) {
     return (true);
   }
 
-  os_file_handle_error(NULL, "flush");
+  os_file_handle_error(nullptr, "flush");
 
   /* It is a fatal error if a file flush does not succeed, because then
   the database can get corrupt on disk */
@@ -4113,8 +4114,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
   do {
     /* Use default security attributes and no template file. */
 
-    file = CreateFile((LPCTSTR)name, access, share_mode, NULL, create_flag,
-                      attributes, NULL);
+    file = CreateFile((LPCTSTR)name, access, share_mode, nullptr, create_flag,
+                      attributes, nullptr);
 
     if (file == INVALID_HANDLE_VALUE) {
       *success = false;
@@ -4131,7 +4132,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 
       /* This is a best effort use case, if it fails then we will find out when
       we try and punch the hole. */
-      DeviceIoControl(file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &temp, NULL);
+      DeviceIoControl(file, FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0, &temp,
+                      nullptr);
     }
 
   } while (retry);
@@ -4152,7 +4154,7 @@ but reports the error and returns false.
 bool os_file_create_directory(const char *pathname, bool fail_if_exists) {
   BOOL rcode;
 
-  rcode = CreateDirectory((LPCTSTR)pathname, NULL);
+  rcode = CreateDirectory((LPCTSTR)pathname, nullptr);
   if (!(rcode != 0 ||
         (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
     os_file_handle_error_no_exit(pathname, "CreateDirectory", false);
@@ -4333,8 +4335,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   do {
     /* Use default security attributes and no template file. */
-    file.m_file = CreateFile((LPCTSTR)name, access, share_mode, NULL,
-                             create_flag, attributes, NULL);
+    file.m_file = CreateFile((LPCTSTR)name, access, share_mode, nullptr,
+                             create_flag, attributes, nullptr);
 
     if (file.m_file == INVALID_HANDLE_VALUE) {
       const char *operation;
@@ -4358,8 +4360,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
       /* This is a best effort use case, if it fails then
       we will find out when we try and punch the hole. */
-      DeviceIoControl(file.m_file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &temp,
-                      NULL);
+      DeviceIoControl(file.m_file, FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0,
+                      &temp, nullptr);
     }
 
   } while (retry);
@@ -4448,9 +4450,9 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
   }
 
   file.m_file = CreateFile((LPCTSTR)name, access, share_mode,
-                           NULL,  // Security attributes
+                           nullptr,  // Security attributes
                            create_flag, attributes,
-                           NULL);  // No template file
+                           nullptr);  // No template file
 
   *success = (file.m_file != INVALID_HANDLE_VALUE);
 
@@ -4458,8 +4460,8 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
     DWORD temp;
     /* This is a best effort use case, if it fails then we will find out when
     we try and punch the hole. */
-    DeviceIoControl(file.m_file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &temp,
-                    NULL);
+    DeviceIoControl(file.m_file, FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0,
+                    &temp, nullptr);
   }
 
   return (file);
@@ -4517,7 +4519,7 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 
     if (lasterr == ERROR_FILE_NOT_FOUND || lasterr == ERROR_PATH_NOT_FOUND) {
       /* The file does not exist, this not an error */
-      if (exist != NULL) {
+      if (exist != nullptr) {
         *exist = false;
       }
 
@@ -4605,7 +4607,7 @@ bool os_file_close_func(os_file_t file) {
     return (true);
   }
 
-  os_file_handle_error(NULL, "close");
+  os_file_handle_error(nullptr, "close");
 
   return (false);
 }
@@ -4744,10 +4746,10 @@ static dberr_t os_file_get_status_win32(const char *path,
 
       fh = CreateFile((LPCTSTR)path,  // File to open
                       access, FILE_SHARE_READ,
-                      NULL,                   // Default security
+                      nullptr,                // Default security
                       OPEN_EXISTING,          // Existing file only
                       FILE_ATTRIBUTE_NORMAL,  // Normal file
-                      NULL);                  // No attr. template
+                      nullptr);               // No attr. template
 
       if (fh == INVALID_HANDLE_VALUE) {
         stat_info->rw_perm = false;
@@ -4805,7 +4807,7 @@ static bool os_file_truncate_win32(const char *pathname, pfs_os_file_t file,
 
   length.QuadPart = size;
 
-  BOOL success = SetFilePointerEx(file.m_file, length, NULL, FILE_BEGIN);
+  BOOL success = SetFilePointerEx(file.m_file, length, nullptr, FILE_BEGIN);
 
   if (!success) {
     os_file_handle_error_no_exit(pathname, "SetFilePointerEx", false);
@@ -5651,7 +5653,7 @@ bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset) {
 
   length.QuadPart = offset;
 
-  success = SetFilePointerEx(file, length, NULL, FILE_BEGIN);
+  success = SetFilePointerEx(file, length, nullptr, FILE_BEGIN);
 
 #else  /* _WIN32 */
   off_t ret;
@@ -6130,7 +6132,7 @@ dberr_t AIO::init_slots() {
 
 #ifdef WIN_ASYNC_IO
 
-    slot.handle = CreateEvent(NULL, TRUE, FALSE, NULL);
+    slot.handle = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 
     OVERLAPPED *over = &slot.control;
 
@@ -6191,7 +6193,7 @@ dberr_t AIO::init() {
   ut_a(!m_slots.empty());
 
 #ifdef _WIN32
-  ut_a(m_handles == NULL);
+  ut_a(m_handles == nullptr);
 
   m_handles =
       ut::new_withkey<Handles>(UT_NEW_THIS_FILE_PSI_KEY, m_slots.size());
@@ -6985,8 +6987,8 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 
     if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
         array->is_empty() && !buf_flush_page_cleaner_is_active()) {
-      *m1 = NULL;
-      *m2 = NULL;
+      *m1 = nullptr;
+      *m2 = nullptr;
 
       array->release();
 
@@ -7032,7 +7034,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
       /* This read/write does not go through os_file_read
       and os_file_write APIs, need to register with
       performance schema explicitly here. */
-      struct PSI_file_locker *locker = NULL;
+      struct PSI_file_locker *locker = nullptr;
       PSI_file_locker_state state;
       register_pfs_file_io_begin(
           &state, locker, slot->file, slot->len,

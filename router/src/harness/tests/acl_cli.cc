@@ -85,8 +85,8 @@ int main(int argc, char **argv) {
       DWORD domain_sz = sizeof(Domain);
       SID_NAME_USE sid_type;
 
-      LookupAccountSidA(NULL, access_ace.sid().native(), Name, &name_sz, Domain,
-                        &domain_sz, &sid_type);
+      LookupAccountSidA(nullptr, access_ace.sid().native(), Name, &name_sz,
+                        Domain, &domain_sz, &sid_type);
 
       std::cout << "  - sid: " << access_ace.sid().to_string() << " (" << Domain
                 << "\\" << Name << ")\n";

@@ -184,7 +184,7 @@ static char *directory_file_name(char *dst, const char *src) {
 
 MY_DIR *my_dir(const char *path, myf MyFlags) {
   char *buffer;
-  MY_DIR *result = 0;
+  MY_DIR *result = nullptr;
   FILEINFO finfo;
   Entries_array *dir_entries_storage;
   MEM_ROOT *names_storage;
@@ -192,7 +192,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   ushort mode;
   char tmp_path[FN_REFLEN], *tmp_file, attrib;
   __int64 handle = -1;
-  void *rawmem = NULL;
+  void *rawmem = nullptr;
 
   DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' stat: %d  MyFlags: %d", path, MyFlags));
@@ -254,7 +254,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
         finfo.mystat->st_mode = mode;
         finfo.mystat->st_mtime = ((uint32)find.time_write);
       } else
-        finfo.mystat = NULL;
+        finfo.mystat = nullptr;
 
       if (dir_entries_storage->push_back(finfo)) goto error;
     } while (_findnext(handle, &find) == 0);

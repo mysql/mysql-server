@@ -160,7 +160,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags) {
   }
   return result;
 #else
-  const int ret = GetFullPathName(filename, FN_REFLEN, to, NULL);
+  const int ret = GetFullPathName(filename, FN_REFLEN, to, nullptr);
   if (ret == 0 || ret > FN_REFLEN) {
     set_my_errno((ret > FN_REFLEN) ? ENAMETOOLONG : GetLastError());
     if (MyFlags & MY_WME) {

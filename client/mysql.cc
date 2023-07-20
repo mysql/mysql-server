@@ -240,7 +240,7 @@ static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
 #if defined(_WIN32)
-static char *shared_memory_base_name = 0;
+static char *shared_memory_base_name = nullptr;
 #endif
 static uint opt_protocol = 0;
 static const CHARSET_INFO *charset_info = &my_charset_latin1;
@@ -1914,8 +1914,8 @@ static struct my_option my_long_options[] = {
 #endif
 #include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
-    {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"pipe", 'W', "Use named pipes to connect to server.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
@@ -1952,8 +1952,8 @@ static struct my_option my_long_options[] = {
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
-     &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &shared_memory_base_name, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR_ALLOC,

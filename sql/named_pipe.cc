@@ -83,18 +83,18 @@ static bool check_windows_group_for_everyone(const char *group_name,
     DWORD size_referencedDomainName = MAX_PATH;
     SID_NAME_USE sid_name_use;
 
-    if (!LookupAccountName(NULL, group_name, soughtSID, &size_sought_sid,
+    if (!LookupAccountName(nullptr, group_name, soughtSID, &size_sought_sid,
                            referencedDomainName, &size_referencedDomainName,
                            &sid_name_use)) {
       return false;
     }
 
-    if (!CreateWellKnownSid(WinWorldSid, NULL, worldSID, &size_world_sid)) {
+    if (!CreateWellKnownSid(WinWorldSid, nullptr, worldSID, &size_world_sid)) {
       const DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, last_error_num,
+                    nullptr, last_error_num,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                    sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
       my_printf_error(
           ER_UNKNOWN_ERROR,
           "check_windows_group_for_everyone, CreateWellKnownSid failed: %s",
@@ -155,12 +155,12 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
   // Treat the NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE value
   // as a special case: we  convert it to the "world" SID
   if (strcmp(group_name, NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE) == 0) {
-    if (!CreateWellKnownSid(WinWorldSid, NULL, soughtSID, &size_sid)) {
+    if (!CreateWellKnownSid(WinWorldSid, nullptr, soughtSID, &size_sid)) {
       const DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, last_error_num,
+                    nullptr, last_error_num,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                    sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
       log_message(
           LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
           LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
@@ -169,14 +169,14 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
       return true;
     }
   } else {
-    if (!LookupAccountName(NULL, group_name, soughtSID, &size_sid,
+    if (!LookupAccountName(nullptr, group_name, soughtSID, &size_sid,
                            referencedDomainName, &size_referencedDomainName,
                            &sid_name_use)) {
       const DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, last_error_num,
+                    nullptr, last_error_num,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                    sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
       log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                   "LookupAccountName failed", last_error_msg);
@@ -192,8 +192,8 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
     }
   }
 
-  PACL pNewDACL = NULL;
-  PACL pOldDACL = NULL;
+  PACL pNewDACL = nullptr;
+  PACL pOldDACL = nullptr;
   BOOL dacl_present_in_descriptor = FALSE;
   BOOL dacl_defaulted = FALSE;
   if (!GetSecurityDescriptorDacl(psa->lpSecurityDescriptor,
@@ -202,9 +202,9 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
       !dacl_present_in_descriptor) {
     const DWORD last_error_num = GetLastError();
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL, last_error_num,
+                  nullptr, last_error_num,
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                  sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
     log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                 LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                 "GetSecurityDescriptorDacl failed", last_error_msg);
@@ -249,9 +249,9 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
                                  FALSE)) {
     const DWORD last_error_num = GetLastError();
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL, last_error_num,
+                  nullptr, last_error_num,
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                  sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
     log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                 LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                 "SetSecurityDescriptorDacl failed", last_error_msg);
@@ -330,9 +330,9 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
     } else {
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
                         FORMAT_MESSAGE_MAX_WIDTH_MASK,
-                    NULL, last_error_num,
+                    nullptr, last_error_num,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+                    sizeof(last_error_msg) / sizeof(TCHAR), nullptr);
       char num_buff[20];
       longlong10_to_str(last_error_num, num_buff, 10);
 

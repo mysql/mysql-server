@@ -777,7 +777,7 @@ class sp_head {
     function call is NULL.
   */
   sp_instr *get_instr(uint i) {
-    return (i < (uint)m_instructions.size()) ? m_instructions.at(i) : NULL;
+    return (i < (uint)m_instructions.size()) ? m_instructions.at(i) : nullptr;
   }
 
   /**

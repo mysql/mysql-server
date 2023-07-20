@@ -89,7 +89,7 @@ static void test_session(void *p) {
   /* Open session 1: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("sql open session %d.\n", i);
-    sessions[i] = srv_session_open(NULL, plugin_ctx);
+    sessions[i] = srv_session_open(nullptr, plugin_ctx);
     if (!sessions[i])
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);
@@ -108,7 +108,7 @@ static void test_session(void *p) {
   /* Open session 1: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("sql open session %d.\n", i);
-    sessions[i] = srv_session_open(NULL, plugin_ctx);
+    sessions[i] = srv_session_open(nullptr, plugin_ctx);
     if (!sessions[i])
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_open_%d failed.", i);

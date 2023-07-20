@@ -71,7 +71,7 @@ static WORD logger_to_eventlog_severity(LogLevel level) {
 
 static void create_eventlog_registry_entry(
     const std::string &event_source_name) {
-  HKEY hRegKey = NULL;
+  HKEY hRegKey = nullptr;
   TCHAR szPath[MAX_PATH];
   DWORD dwTypes;
 
@@ -149,7 +149,7 @@ EventlogHandler::EventlogHandler(
   if (create_registry_entries)
     create_eventlog_registry_entry(event_source_name_);
 
-  event_src_ = RegisterEventSourceA(NULL, event_source_name_.c_str());
+  event_src_ = RegisterEventSourceA(nullptr, event_source_name_.c_str());
   if (!event_src_) {
     throw std::runtime_error("Cannot create event log source, error: " +
                              std::to_string(GetLastError()));
@@ -166,7 +166,7 @@ void EventlogHandler::do_log(
   const auto severity = logger_to_eventlog_severity(record.level);
 
   ReportEvent(event_src_, severity, /*category*/ 0,
-              /*eventid*/ MSG_EVENTLOG, NULL, 3, 0, strings, NULL);
+              /*eventid*/ MSG_EVENTLOG, nullptr, 3, 0, strings, nullptr);
 }
 
 extern "C" {

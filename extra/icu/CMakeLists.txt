@@ -64,6 +64,9 @@ ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wzero-as-null-pointer-constant" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
+  # For WIN32_CLANG, replace it, since we do not use ICU_LINUX_COMPILE_OPTIONS.
+  STRING(REPLACE "-Wzero-as-null-pointer-constant" ""
+    CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 

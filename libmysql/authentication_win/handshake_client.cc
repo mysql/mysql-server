@@ -68,7 +68,7 @@ class Handshake_client : public Handshake {
 
 Handshake_client::Handshake_client(Connection &con, const char *target,
                                    size_t len)
-    : Handshake(SSP_NAME, CLIENT), m_service_name(NULL), m_con(con) {
+    : Handshake(SSP_NAME, CLIENT), m_service_name(nullptr), m_con(con) {
   if (!target || 0 == len) return;
 
   // Convert received UPN to internal WCHAR representation.
@@ -263,17 +263,17 @@ Blob Handshake_client::process_data(const Blob &data) {
 
   ret = InitializeSecurityContextW(
       &m_cred,
-      m_round == 1 ? NULL : &m_sctx,  // partial context
-      m_service_name,                 // service name
-      ASC_REQ_ALLOCATE_MEMORY,        // requested attributes
-      0,                              // reserved
-      SECURITY_NETWORK_DREP,          // data representation
-      m_round == 1 ? NULL : &input,   // input data
-      0,                              // reserved
-      &m_sctx,                        // context
-      &m_output,                      // output data
-      &m_atts,                        // attributes
-      &m_expire);                     // expire date
+      m_round == 1 ? nullptr : &m_sctx,  // partial context
+      m_service_name,                    // service name
+      ASC_REQ_ALLOCATE_MEMORY,           // requested attributes
+      0,                                 // reserved
+      SECURITY_NETWORK_DREP,             // data representation
+      m_round == 1 ? nullptr : &input,   // input data
+      0,                                 // reserved
+      &m_sctx,                           // context
+      &m_output,                         // output data
+      &m_atts,                           // attributes
+      &m_expire);                        // expire date
 
   if (process_result(ret)) {
     DBUG_PRINT("error",
@@ -451,9 +451,9 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   // Create authentication handshake context using the given service name.
 
-  Handshake_client hndshk(con,
-                          service_name[0] ? (char *)service_name.ptr() : NULL,
-                          service_name.len());
+  Handshake_client hndshk(
+      con, service_name[0] ? (char *)service_name.ptr() : nullptr,
+      service_name.len());
   if (hndshk.error()) {
     ERROR_LOG(ERROR, ("Could not create authentication handshake context"));
     return CR_ERROR;

@@ -136,7 +136,7 @@ static bool verify_individual_certificate(const char *ssl_cert,
   }
 
   if (!X509_STORE_CTX_init(store_ctx.get(), store.get(), server_cert.get(),
-                           NULL)) {
+                           nullptr)) {
     /* purecov: begin inspected */
     LogErr(ERROR_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
@@ -169,7 +169,7 @@ static bool verify_ca_certificates(const char *ssl_ca, const char *ssl_capath,
                                    const char *ssl_crl_path) {
   bool r_value = false;
   if (ssl_ca && ssl_ca[0]) {
-    if (verify_individual_certificate(ssl_ca, NULL, NULL, ssl_crl,
+    if (verify_individual_certificate(ssl_ca, nullptr, nullptr, ssl_crl,
                                       ssl_crl_path))
       r_value = true;
   }
@@ -196,8 +196,8 @@ static bool verify_ca_certificates(const char *ssl_ca, const char *ssl_capath,
       if (!MY_S_ISDIR(ca_dir->dir_entry[file_count].mystat->st_mode)) {
         file_path.length = dir_path_length;
         dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
-        if ((r_value = verify_individual_certificate(file_path.str, NULL, NULL,
-                                                     ssl_crl, ssl_crl_path)))
+        if ((r_value = verify_individual_certificate(
+                 file_path.str, nullptr, nullptr, ssl_crl, ssl_crl_path)))
           r_value = true;
       }
     }

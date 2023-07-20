@@ -23540,7 +23540,7 @@ static void test_bug34869076() {
 }
 
 static void test_wl15651() {
-  MYSQL *mysql_async = NULL, *mysql_sync = NULL;
+  MYSQL *mysql_async = nullptr, *mysql_sync = nullptr;
   net_async_status status;
   MYSQL *ret;
 
@@ -23576,7 +23576,7 @@ static void test_wl15651() {
   DIE_UNLESS(cs == CONNECT_STAGE_INVALID);
 
   /* test stages for a nonblocking conneciton */
-  mysql_async = mysql_client_init(NULL);
+  mysql_async = mysql_client_init(nullptr);
   DIE_UNLESS(mysql_async != nullptr);
 
   cs = mysql_get_connect_nonblocking_stage(mysql_async);
@@ -23609,7 +23609,7 @@ static void test_wl15651() {
   mysql_close(mysql_async);
 
   /* test stages for a blocking conneciton */
-  mysql_sync = mysql_client_init(NULL);
+  mysql_sync = mysql_client_init(nullptr);
   DIE_UNLESS(mysql_sync != nullptr);
 
   cs = mysql_get_connect_nonblocking_stage(mysql_sync);

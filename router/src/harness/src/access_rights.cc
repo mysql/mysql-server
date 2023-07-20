@@ -123,7 +123,7 @@ stdx::expected<Allocated<TOKEN_USER>, std::error_code> token_user(
   HANDLE h_token = handle.native_handle();
   // Gets the user token from the security token (this one only finds out the
   // buffer size required)
-  if (!GetTokenInformation(h_token, token_class, NULL, 0, &token_size)) {
+  if (!GetTokenInformation(h_token, token_class, nullptr, 0, &token_size)) {
     auto ec = last_error_code();
 
     if (ec !=
@@ -285,8 +285,8 @@ std::string SecurityDescriptor::to_string() const {
 
   LPSTR out_s{nullptr};
 
-  ConvertSecurityDescriptorToStringSecurityDescriptorA(desc_, SDDL_REVISION_1,
-                                                       sec_info, &out_s, NULL);
+  ConvertSecurityDescriptorToStringSecurityDescriptorA(
+      desc_, SDDL_REVISION_1, sec_info, &out_s, nullptr);
 
   // LocalFree(out_s) on exit.
   std::unique_ptr<char, decltype(&LocalFree)> out_s_guard(out_s, &LocalFree);

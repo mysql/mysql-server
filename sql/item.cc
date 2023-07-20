@@ -5570,7 +5570,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
                               context->query_block, this,
                               ref_type == REF_ITEM || ref_type == FIELD_ITEM
                                   ? down_cast<Item_ident *>(*reference)
-                                  : NULL);
+                                  : nullptr);
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables

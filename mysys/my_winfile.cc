@@ -163,7 +163,7 @@ HandleInfo GetHandleInfo(File fd) {
 }
 
 File RegisterHandle(HANDLE handle, int oflag) {
-  assert(handle != 0);
+  assert(handle != nullptr);
   HandleInfoVector &hiv = *hivp;
 
   MUTEX_LOCK(g, &THR_LOCK_open);
@@ -205,7 +205,9 @@ LARGE_INTEGER MakeLargeInteger(int64_t src) {
   return li;
 }
 
-OVERLAPPED MakeOverlapped(DWORD l, DWORD h) { return {0, 0, {{l, h}}, 0}; }
+OVERLAPPED MakeOverlapped(DWORD l, DWORD h) {
+  return {0, 0, {{l, h}}, nullptr};
+}
 
 OVERLAPPED MakeOverlapped(int64_t src) {
   const LARGE_INTEGER li = MakeLargeInteger(src);

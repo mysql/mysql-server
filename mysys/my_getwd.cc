@@ -138,7 +138,7 @@ int test_if_hard_path(const char *dir_name) {
     return (home_dir != NullS && test_if_hard_path(home_dir));
   if (dir_name[0] == FN_LIBCHAR) return (true);
 #ifdef FN_DEVCHAR
-  return (strchr(dir_name, FN_DEVCHAR) != 0);
+  return (strchr(dir_name, FN_DEVCHAR) != nullptr);
 #else
   return false;
 #endif

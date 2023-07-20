@@ -804,7 +804,7 @@ static void test_sql(void *p) {
   /* Open session 1 */
   WRITE_SEP();
   WRITE_STR("Open session_1\n");
-  MYSQL_SESSION session_1 = srv_session_open(NULL, plugin_ctx);
+  MYSQL_SESSION session_1 = srv_session_open(nullptr, plugin_ctx);
   if (!session_1)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open session_1 failed.");
 

@@ -2603,8 +2603,8 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
       ha_resolve_by_name_raw(thd, lex_cstring_handle(table->engine()));
 
   // Return DB_TYPE_UNKNOWN and no error if engine is not loaded.
-  *db_type =
-      ha_legacy_type(tmp_plugin ? plugin_data<handlerton *>(tmp_plugin) : NULL);
+  *db_type = ha_legacy_type(tmp_plugin ? plugin_data<handlerton *>(tmp_plugin)
+                                       : nullptr);
 
   return false;
 }

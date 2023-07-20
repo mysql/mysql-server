@@ -608,7 +608,7 @@ static void test_com_reset_connection_from_another_session(void *p) {
   WRITE_STR("COM_RESET_CONNECTION from another session\n");
 
   MYSQL_SESSION st_session;
-  ENSURE_API_NOT_NULL(st_session = srv_session_open(NULL, p));
+  ENSURE_API_NOT_NULL(st_session = srv_session_open(nullptr, p));
 
   const my_thread_id session_id = srv_session_info_get_session_id(st_session);
 

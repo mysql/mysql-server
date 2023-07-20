@@ -197,10 +197,10 @@ class EventlogSubscription {
     // - every event dating back <value defined in TimeCreated[...] expression>
     //   before subscribing
     // - every new event that appears after subscribing
-    subscription_ =
-        EvtSubscribe(NULL, NULL, channel, query, NULL, &callback_context_,
-                     (EVT_SUBSCRIBE_CALLBACK)eventlog_event_cb,
-                     EvtSubscribeStartAtOldestRecord);
+    subscription_ = EvtSubscribe(nullptr, nullptr, channel, query, nullptr,
+                                 &callback_context_,
+                                 (EVT_SUBSCRIBE_CALLBACK)eventlog_event_cb,
+                                 EvtSubscribeStartAtOldestRecord);
 
     if (!subscription_) {
       DWORD status = GetLastError();
@@ -340,8 +340,8 @@ class EventlogSubscription {
     {
       DWORD buf_used = 0;      // \_ we have no use for them but
       DWORD property_cnt = 0;  // /  they must be supplied to EvtRender
-      if (!EvtRender(NULL, event, EvtRenderEventXml, buf_size, buf, &buf_used,
-                     &property_cnt)) {
+      if (!EvtRender(nullptr, event, EvtRenderEventXml, buf_size, buf,
+                     &buf_used, &property_cnt)) {
         DWORD status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER)
           throw std::runtime_error("EvtRender() failed: buffer is too small");

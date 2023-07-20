@@ -1175,13 +1175,13 @@ static inline int inline_mysql_socket_shutdown(
   int result;
 
 #ifdef _WIN32
-  static LPFN_DISCONNECTEX DisconnectEx = NULL;
-  if (DisconnectEx == NULL) {
+  static LPFN_DISCONNECTEX DisconnectEx = nullptr;
+  if (DisconnectEx == nullptr) {
     DWORD dwBytesReturned;
     GUID guidDisconnectEx = WSAID_DISCONNECTEX;
     WSAIoctl(mysql_socket.fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
              &guidDisconnectEx, sizeof(GUID), &DisconnectEx,
-             sizeof(DisconnectEx), &dwBytesReturned, NULL, NULL);
+             sizeof(DisconnectEx), &dwBytesReturned, nullptr, nullptr);
   }
 #endif
 
@@ -1198,8 +1198,8 @@ static inline int inline_mysql_socket_shutdown(
 /* Instrumented code */
 #ifdef _WIN32
       if (DisconnectEx)
-        result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0,
-                               (DWORD)0) == TRUE)
+        result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) nullptr,
+                               (DWORD)0, (DWORD)0) == TRUE)
                      ? 0
                      : -1;
       else
@@ -1219,7 +1219,7 @@ static inline int inline_mysql_socket_shutdown(
 /* Non instrumented code */
 #ifdef _WIN32
   if (DisconnectEx)
-    result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0,
+    result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED) nullptr, (DWORD)0,
                            (DWORD)0) == TRUE)
                  ? 0
                  : -1;

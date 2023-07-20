@@ -68,7 +68,7 @@ bool parse_mysql_connstring(const std::string &connstring,
     char *tmp = tmp_buffer;
     DWORD tmp_size = sizeof(tmp_buffer);
     if (!GetUserNameA(tmp_buffer, &tmp_size)) {
-      tmp = NULL;
+      tmp = nullptr;
     }
 #else
     const char *tmp = getenv("USER");

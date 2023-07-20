@@ -132,7 +132,7 @@ int mysql_router_thread_create(mysql_router_thread_handle *thread,
   stack_size = attr ? attr->dwStackSize : kDefaultStackSizeInKiloBytes;
 
   thread->handle =
-      (HANDLE)_beginthreadex(NULL, stack_size, win_thread_start, par, 0,
+      (HANDLE)_beginthreadex(nullptr, stack_size, win_thread_start, par, 0,
                              (unsigned int *)&thread->thread);
 
   if (thread->handle) {
@@ -144,7 +144,7 @@ int mysql_router_thread_create(mysql_router_thread_handle *thread,
         mysql_router_thread_join. It will be closed there.
       */
       CloseHandle(thread->handle);
-      thread->handle = NULL;
+      thread->handle = nullptr;
     }
     return 0;
   }
@@ -153,7 +153,7 @@ int mysql_router_thread_create(mysql_router_thread_handle *thread,
 
 error_return:
   thread->thread = 0;
-  thread->handle = NULL;
+  thread->handle = nullptr;
   return 1;
 #endif
 }
@@ -172,7 +172,7 @@ int mysql_router_thread_join(mysql_router_thread_handle *thread,
   }
   if (thread->handle) CloseHandle(thread->handle);
   thread->thread = 0;
-  thread->handle = NULL;
+  thread->handle = nullptr;
   return result;
 #endif
 }

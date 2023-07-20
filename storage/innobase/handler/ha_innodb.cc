@@ -23876,7 +23876,7 @@ void ib_senderrf(THD *thd, ib_log_level_t level, uint32_t code, ...) {
   if (size > 0) {
     str = static_cast<char *>(malloc(size));
   }
-  if (str == NULL) {
+  if (str == nullptr) {
     va_end(args);
     return; /* Watch for Out-Of-Memory */
   }
@@ -23892,7 +23892,7 @@ void ib_senderrf(THD *thd, ib_log_level_t level, uint32_t code, ...) {
 #else
   /* Use a fixed length string. */
   str = static_cast<char *>(malloc(BUFSIZ));
-  if (str == NULL) {
+  if (str == nullptr) {
     va_end(args);
     return; /* Watch for Out-Of-Memory */
   }
@@ -23966,7 +23966,7 @@ void ib_errf(THD *thd,             /*!< in/out: session */
   if (size > 0) {
     str = static_cast<char *>(malloc(size));
   }
-  if (str == NULL) {
+  if (str == nullptr) {
     va_end(args);
     return; /* Watch for Out-Of-Memory */
   }
@@ -23982,7 +23982,7 @@ void ib_errf(THD *thd,             /*!< in/out: session */
 #else
   /* Use a fixed length string. */
   str = static_cast<char *>(malloc(BUFSIZ));
-  if (str == NULL) {
+  if (str == nullptr) {
     va_end(args);
     return; /* Watch for Out-Of-Memory */
   }

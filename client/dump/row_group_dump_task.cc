@@ -32,7 +32,7 @@ void Row_group_dump_task::set_completed() {
   for (std::vector<Row *>::iterator it = m_rows.begin(); it != m_rows.end();
        ++it) {
     delete *it;
-    *it = NULL;
+    *it = nullptr;
   }
 
   Abstract_simple_dump_task::set_completed();

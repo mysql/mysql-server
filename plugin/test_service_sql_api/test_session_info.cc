@@ -615,7 +615,7 @@ static void test_sql(void *p) {
 
   /* Opening session 1 */
   WRITE_STR("Opening Session 1\n");
-  session_1 = srv_session_open(NULL, plugin_ctx);
+  session_1 = srv_session_open(nullptr, plugin_ctx);
   if (!session_1)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 1 failed");
   else
@@ -623,7 +623,7 @@ static void test_sql(void *p) {
 
   /* Opening session 2 */
   WRITE_STR("Opening Session 2\n");
-  session_2 = srv_session_open(NULL, plugin_ctx);
+  session_2 = srv_session_open(nullptr, plugin_ctx);
   if (!session_2)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 2 failed");
   else
@@ -989,7 +989,7 @@ static void test_sql(void *p) {
       srv_session_info_set_connection_type(session_2, VIO_TYPE_SHARED_MEMORY));
   WRITE_STR("\n");
 
-  session_3 = srv_session_open(NULL, plugin_ctx);
+  session_3 = srv_session_open(nullptr, plugin_ctx);
   if (!session_3)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Opening Session 3 failed");
   else {

@@ -670,7 +670,7 @@ static bool remove_nonrange_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
   for (uint i = 0; i < param->keys; i++) {
     if (tree->keys[i]) {
       if (tree->keys[i]->root->part) {
-        tree->keys[i] = NULL;
+        tree->keys[i] = nullptr;
         tree->keys_map.clear_bit(i);
       } else
         res = true;
@@ -710,7 +710,7 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
   */
   if (!tree1->merges.is_empty()) {
     for (uint i = 0; i < param->keys; i++)
-      if (tree1->keys[i] != NULL &&
+      if (tree1->keys[i] != nullptr &&
           tree1->keys[i]->type == SEL_ROOT::Type::KEY_RANGE) {
         tree1->merges.clear();
         break;
@@ -718,7 +718,7 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
   }
   if (!tree2->merges.is_empty()) {
     for (uint i = 0; i < param->keys; i++)
-      if (tree2->keys[i] != NULL &&
+      if (tree2->keys[i] != nullptr &&
           tree2->keys[i]->type == SEL_ROOT::Type::KEY_RANGE) {
         tree2->merges.clear();
         break;

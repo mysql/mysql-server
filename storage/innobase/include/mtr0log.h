@@ -191,7 +191,8 @@ static inline byte *mlog_write_initial_log_record_fast(const byte *ptr,
                                                        mtr_t *mtr);
 #else /* !UNIV_HOTBACKUP */
 #define mlog_write_initial_log_record(ptr, type, mtr) ((void)0)
-#define mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr) ((byte *)0)
+#define mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr) \
+  ((byte *)nullptr)
 #endif /* !UNIV_HOTBACKUP */
 
 /** Parses an initial log record written by mlog_write_initial_dict_log_record.

@@ -335,8 +335,8 @@ class NetworkInterfaceResults {
     std::string out;
 
     // first, call it with 0 to get the buffer length
-    auto out_len =
-        WideCharToMultiByte(CP_UTF8, 0, ws.data(), ws.size(), nullptr, 0, 0, 0);
+    auto out_len = WideCharToMultiByte(CP_UTF8, 0, ws.data(), ws.size(),
+                                       nullptr, 0, nullptr, nullptr);
 
     if (0 == out_len) {
       return stdx::make_unexpected(
@@ -345,8 +345,9 @@ class NetworkInterfaceResults {
 
     out.resize(out_len);
 
-    out_len = WideCharToMultiByte(CP_UTF8, 0, ws.data(), ws.size(),
-                                  &out.front(), out.capacity(), 0, 0);
+    out_len =
+        WideCharToMultiByte(CP_UTF8, 0, ws.data(), ws.size(), &out.front(),
+                            out.capacity(), nullptr, nullptr);
     if (0 == out_len) {
       return stdx::make_unexpected(
           std::error_code(GetLastError(), std::system_category()));

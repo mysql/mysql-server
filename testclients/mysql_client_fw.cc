@@ -50,7 +50,7 @@ static char *opt_password = nullptr;
 static char *opt_host = nullptr;
 static char *opt_unix_socket = nullptr;
 #if defined(_WIN32)
-static char *shared_memory_base_name = 0;
+static char *shared_memory_base_name = nullptr;
 #endif
 static unsigned int opt_port;
 static bool tty_password = false;
@@ -1094,8 +1094,8 @@ static struct my_option client_test_long_options[] = {
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", 'm', "Base name of shared memory.",
-     &shared_memory_base_name, (uchar **)&shared_memory_base_name, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &shared_memory_base_name, (uchar **)&shared_memory_base_name, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
     {"socket", 'S', "Socket file to use for connection", &opt_unix_socket,
      &opt_unix_socket, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,

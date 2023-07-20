@@ -263,9 +263,9 @@ static bool page_decompress(byte *buf, byte *scratch, page_size_t page_size) {
  */
 static char *error_message(int error) {
   static char err_msg[1024] = {'\0'};
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error,
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)err_msg,
-                sizeof(err_msg), NULL);
+                sizeof(err_msg), nullptr);
 
   return (err_msg);
 }
@@ -273,7 +273,7 @@ static char *error_message(int error) {
 
 /***********************************************/ /*
   @param>>_______[in] name>_____name of file.
-  @retval file pointer; file pointer is NULL when error occurred.
+  @retval file pointer; file pointer is NULL nullptr when error occurred.
  */
 
 static FILE *open_file(const char *name) {
@@ -295,13 +295,13 @@ static FILE *open_file(const char *name) {
   /* CreateFile() also provide advisory lock with the usage of
   access and share mode of the file.*/
   hFile =
-      CreateFile((LPCTSTR)name, access, 0L, NULL, OPEN_EXISTING, NULL, NULL);
+      CreateFile((LPCTSTR)name, access, 0L, nullptr, OPEN_EXISTING, 0, nullptr);
 
   if (hFile == INVALID_HANDLE_VALUE) {
     /* print the error message. */
     fprintf(stderr, "Filename::%s %s\n", name, error_message(GetLastError()));
 
-    return (NULL);
+    return (nullptr);
   }
 
   /* get the file descriptor. */
@@ -1139,7 +1139,7 @@ static void parse_page(const byte *page, FILE *file) {
 /**
 @param [in,out] file_name	name of the filename
 
-@returns FILE pointer if successfully created else NULL when error occurred.
+@returns FILE pointer if successfully created else nullptr when error occurred.
 */
 static FILE *create_file(char *file_name) {
   FILE *file = nullptr;
@@ -1155,15 +1155,15 @@ static FILE *create_file(char *file_name) {
   HANDLE hFile; /* handle to open file. */
   int fd = 0;
   hFile = CreateFile((LPCTSTR)file_name, GENERIC_READ | GENERIC_WRITE,
-                     FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, CREATE_NEW,
-                     NULL, NULL);
+                     FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, CREATE_NEW,
+                     0, nullptr);
 
   if (hFile == INVALID_HANDLE_VALUE) {
     /* print the error message. */
     fprintf(stderr, "Filename::%s %s\n", file_name,
             error_message(GetLastError()));
 
-    return (NULL);
+    return (nullptr);
   }
 
   /* get the file descriptor. */
@@ -1507,7 +1507,7 @@ int main(int argc, char **argv) {
     if (!read_from_stdin) {
       size = st.st_size;
       fil_in = open_file(filename);
-      /*If fil_in is NULL, terminate as some error encountered */
+      /*If fil_in is nullptr, terminate as some error encountered */
       if (fil_in == nullptr) {
         return 1;
       }

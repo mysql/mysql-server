@@ -148,7 +148,7 @@ using std::string;
 using std::swap;
 
 #define STATE_DATA(M) \
-  (NULL != (M) ? &(MYSQL_EXTENSION_PTR(M)->state_change) : NULL)
+  (nullptr != (M) ? &(MYSQL_EXTENSION_PTR(M)->state_change) : nullptr)
 
 #define ADD_INFO(M, element, type)                       \
   {                                                      \
@@ -433,10 +433,10 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
     if ((hPipe = CreateFile(pipe_name,
                             FILE_READ_ATTRIBUTES | FILE_READ_DATA |
                                 FILE_WRITE_ATTRIBUTES | FILE_WRITE_DATA,
-                            0, NULL, OPEN_EXISTING,
+                            0, nullptr, OPEN_EXISTING,
                             FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT |
                                 SECURITY_IDENTIFICATION,
-                            NULL)) != INVALID_HANDLE_VALUE)
+                            nullptr)) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY) {
       set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR, unknown_sqlstate,
@@ -459,7 +459,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
     return INVALID_HANDLE_VALUE;
   }
   dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
-  if (!SetNamedPipeHandleState(hPipe, &dwMode, NULL, NULL)) {
+  if (!SetNamedPipeHandleState(hPipe, &dwMode, nullptr, nullptr)) {
     CloseHandle(hPipe);
     set_mysql_extended_error(mysql, CR_NAMEDPIPESETSTATE_ERROR,
                              unknown_sqlstate,
@@ -500,23 +500,23 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     event_client_read are events for transfer data between server and client
     handle_file_map is file-mapping object, use for create shared memory
   */
-  HANDLE event_connect_request = NULL;
-  HANDLE event_connect_answer = NULL;
-  HANDLE handle_connect_file_map = NULL;
-  char *handle_connect_map = NULL;
+  HANDLE event_connect_request = nullptr;
+  HANDLE event_connect_answer = nullptr;
+  HANDLE handle_connect_file_map = nullptr;
+  char *handle_connect_map = nullptr;
 
-  char *handle_map = NULL;
-  HANDLE event_server_wrote = NULL;
-  HANDLE event_server_read = NULL;
-  HANDLE event_client_wrote = NULL;
-  HANDLE event_client_read = NULL;
-  HANDLE event_conn_closed = NULL;
-  HANDLE handle_file_map = NULL;
-  HANDLE connect_named_mutex = NULL;
+  char *handle_map = nullptr;
+  HANDLE event_server_wrote = nullptr;
+  HANDLE event_server_read = nullptr;
+  HANDLE event_client_wrote = nullptr;
+  HANDLE event_client_read = nullptr;
+  HANDLE event_conn_closed = nullptr;
+  HANDLE handle_file_map = nullptr;
+  HANDLE connect_named_mutex = nullptr;
   ulong connect_number;
   char connect_number_char[22];
-  char *tmp = NULL;
-  char *suffix_pos = NULL;
+  char *tmp = nullptr;
+  char *suffix_pos = nullptr;
   DWORD error_allow = 0;
   DWORD error_code = 0;
   const DWORD event_access_rights = SYNCHRONIZE | EVENT_MODIFY_STATE;
@@ -525,13 +525,13 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   const char *prefix;
 
   /*
-    If this is NULL, somebody freed the MYSQL* options.  mysql_close()
+    If this is nullptr, somebody freed the MYSQL* options.  mysql_close()
     is a good candidate.  We don't just silently (re)set it to
     def_shared_memory_base_name as that would create really confusing/buggy
     behavior if the user passed in a different name on the command-line or
     in a my.cnf.
   */
-  assert(shared_memory_base_name != NULL);
+  assert(shared_memory_base_name != nullptr);
 
   /*
      get enough space base-name + '_' + longest suffix we might ever send
@@ -581,7 +581,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
 
   my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
   connect_named_mutex = OpenMutex(SYNCHRONIZE, false, tmp);
-  if (connect_named_mutex == NULL) {
+  if (connect_named_mutex == nullptr) {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
     goto err;
   }
@@ -610,7 +610,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
 
   ReleaseMutex(connect_named_mutex);
   CloseHandle(connect_named_mutex);
-  connect_named_mutex = NULL;
+  connect_named_mutex = nullptr;
 
   longlong10_to_str(connect_number, connect_number_char, 10);
 
@@ -626,48 +626,49 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   suffix_pos = strxmov(tmp, prefix, shared_memory_base_name, "_",
                        connect_number_char, "_", NullS);
   my_stpcpy(suffix_pos, "DATA");
-  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE, false, tmp)) == NULL) {
+  if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE, false, tmp)) ==
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
     goto err2;
   }
   if ((handle_map = static_cast<char *>(MapViewOfFile(
            handle_file_map, FILE_MAP_WRITE, 0, 0, smem_buffer_length))) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_MAP_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "SERVER_WROTE");
   if ((event_server_wrote = OpenEvent(event_access_rights, false, tmp)) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "SERVER_READ");
   if ((event_server_read = OpenEvent(event_access_rights, false, tmp)) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_WROTE");
   if ((event_client_wrote = OpenEvent(event_access_rights, false, tmp)) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CLIENT_READ");
   if ((event_client_read = OpenEvent(event_access_rights, false, tmp)) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   my_stpcpy(suffix_pos, "CONNECTION_CLOSED");
   if ((event_conn_closed = OpenEvent(event_access_rights, false, tmp)) ==
-      NULL) {
+      nullptr) {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
@@ -1869,7 +1870,7 @@ static int check_license(MYSQL *mysql) {
   if (!(res = mysql_use_result(mysql))) return 1;
   row = mysql_fetch_row(res);
   /*
-    If no rows in result set, or column value is NULL (none of these
+    If no rows in result set, or column value is nullptr (none of these
     two is ever true for server variables now), or column value
     mismatch, set wrong license error.
   */
@@ -3653,10 +3654,10 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
 
 #if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
   int cn_loc = -1;
-  char *cn = NULL;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
+  char *cn = nullptr;
+  ASN1_STRING *cn_asn1 = nullptr;
+  X509_NAME_ENTRY *cn_entry = nullptr;
+  X509_NAME *subject = nullptr;
 #endif
 
   DBUG_TRACE;
@@ -3711,14 +3712,14 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
 
   // Get the CN entry for given location
   cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL) {
+  if (cn_entry == nullptr) {
     *errptr = "Failed to get CN entry using CN location";
     goto error;
   }
 
   // Get CN from common name entry
   cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL) {
+  if (cn_asn1 == nullptr) {
     *errptr = "Failed to get CN from CN entry";
     goto error;
   }
@@ -4165,7 +4166,7 @@ static size_t get_length_store_length(size_t length) {
  @param src Source buff of size src_len
  @param src_end One byte past the end of the src buffer
 
- @return pointer dest+src_len+header size or NULL if
+ @return pointer dest+src_len+header size or nullptr if
 */
 
 static char *write_length_encoded_string4(char *dest, char *dest_end,
@@ -6458,7 +6459,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
       net_clear_error(net);
     } else {
       mysql->options.protocol = MYSQL_PROTOCOL_MEMORY;
-      unix_socket = 0;
+      unix_socket = nullptr;
       host = mysql->options.shared_memory_base_name;
       snprintf(ctx->host_info = ctx->buff, sizeof(ctx->buff) - 1,
                ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);

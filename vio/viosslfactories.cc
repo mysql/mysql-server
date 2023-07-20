@@ -362,11 +362,11 @@ static void init_ssl_locks() {
 }
 
 static void set_lock_callback_functions(bool init) {
-  CRYPTO_set_locking_callback(init ? openssl_lock_function : NULL);
-  CRYPTO_set_id_callback(init ? openssl_id_function : NULL);
-  CRYPTO_set_dynlock_create_callback(init ? openssl_dynlock_create : NULL);
-  CRYPTO_set_dynlock_destroy_callback(init ? openssl_dynlock_destroy : NULL);
-  CRYPTO_set_dynlock_lock_callback(init ? openssl_lock : NULL);
+  CRYPTO_set_locking_callback(init ? openssl_lock_function : nullptr);
+  CRYPTO_set_id_callback(init ? openssl_id_function : nullptr);
+  CRYPTO_set_dynlock_create_callback(init ? openssl_dynlock_create : nullptr);
+  CRYPTO_set_dynlock_destroy_callback(init ? openssl_dynlock_destroy : nullptr);
+  CRYPTO_set_dynlock_lock_callback(init ? openssl_lock : nullptr);
 }
 
 static void init_lock_callback_functions() {
@@ -610,7 +610,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
 
   /* DH stuff */
   if (set_dh(ssl_fd->ssl_context)) {
-    printf("%s\n", ERR_error_string(ERR_get_error(), NULL));
+    printf("%s\n", ERR_error_string(ERR_get_error(), nullptr));
     *error = SSL_INITERR_DHFAIL;
     goto error;
   }
@@ -670,7 +670,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 
   /*
     Turn off verification of servers certificate if both
-    ca_file and ca_path is set to NULL
+    ca_file and ca_path is set to nullptr
   */
   if (ca_file == nullptr && ca_path == nullptr) verify = SSL_VERIFY_NONE;
 

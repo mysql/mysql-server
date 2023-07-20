@@ -3499,7 +3499,8 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
   thread_attrs->m_user_data = pfs->m_user_data;
   thread_attrs->m_system_thread = pfs->m_system_thread;
 
-  assert(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
+  assert(pfs->m_sock_addr_len <=
+         static_cast<int>(sizeof(PSI_thread_attrs::m_sock_addr)));
   thread_attrs->m_sock_addr_length = pfs->m_sock_addr_len;
   if (thread_attrs->m_sock_addr_length > 0) {
     memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);

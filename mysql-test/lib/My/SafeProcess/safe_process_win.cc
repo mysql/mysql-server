@@ -98,7 +98,7 @@ static void message(const char *fmt, ...) {
     if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
                           FORMAT_MESSAGE_ALLOCATE_BUFFER |
                           FORMAT_MESSAGE_IGNORE_INSERTS,
-                      NULL, last_err, 0, (LPSTR)&message_text, 0, NULL)) {
+                      nullptr, last_err, 0, (LPSTR)&message_text, 0, nullptr)) {
       std::fprintf(stderr, "error: %lu, %s\n", (unsigned long)last_err,
                    message_text);
       LocalFree(message_text);
@@ -169,11 +169,11 @@ int main(int argc, const char **argv) {
   sprintf(safe_process_name, "safe_process[%lu]", (unsigned long)pid);
 
   // Create an event for the signal handler
-  if ((shutdown_event = CreateEvent(NULL, TRUE, FALSE, safe_process_name)) ==
-      NULL)
+  if ((shutdown_event = CreateEvent(nullptr, TRUE, FALSE, safe_process_name)) ==
+      nullptr)
     die("Failed to create shutdown_event");
 
-  HANDLE wait_handles[NUM_HANDLES] = {0};
+  HANDLE wait_handles[NUM_HANDLES] = {nullptr};
   wait_handles[EVENT] = shutdown_event;
 
   signal(SIGINT, handle_signal);
@@ -226,7 +226,7 @@ int main(int argc, const char **argv) {
       else if (strncmp(arg, "--parent-pid", 10) == 0) {
         // Override parent_pid with a value provided by user
         const char *start;
-        if ((start = strstr(arg, "=")) == NULL)
+        if ((start = strstr(arg, "=")) == nullptr)
           die("Could not find start of option value in '%s'", arg);
         // Step past '='
         start++;
@@ -250,7 +250,7 @@ int main(int argc, const char **argv) {
   if (parent_pid == pid) die("parent_pid is equal to own pid!");
 
   if ((wait_handles[PARENT] = OpenProcess(SYNCHRONIZE, FALSE, parent_pid)) ==
-      NULL)
+      nullptr)
     die("Failed to open parent process with pid: %lu",
         (unsigned long)parent_pid);
 
@@ -261,13 +261,13 @@ int main(int argc, const char **argv) {
 
   // Create the job object to make it possible to kill the process
   // and all of it's children in one go.
-  HANDLE job_handle = CreateJobObject(NULL, NULL);
-  if (job_handle == NULL) die("CreateJobObject failed");
+  HANDLE job_handle = CreateJobObject(nullptr, nullptr);
+  if (job_handle == nullptr) die("CreateJobObject failed");
 
   // Create a completion port for the job object.
   HANDLE port_handle =
       CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 1);
-  if (port_handle == NULL) die("CreateIoCompletionPort failed");
+  if (port_handle == nullptr) die("CreateIoCompletionPort failed");
 
   JOBOBJECT_ASSOCIATE_COMPLETION_PORT job_port_info;
   job_port_info.CompletionKey = job_handle;
@@ -328,9 +328,10 @@ int main(int argc, const char **argv) {
 
   for (unsigned int i = 0; i < sizeof(create_flags) / sizeof(create_flags[0]);
        i++) {
-    process_created = CreateProcess(
-        NULL, (LPSTR)child_args, NULL, NULL, TRUE,  // Inherit handles
-        CREATE_SUSPENDED | create_flags[i], NULL, NULL, &si, &process_info);
+    process_created = CreateProcess(nullptr, (LPSTR)child_args, nullptr,
+                                    nullptr, TRUE,  // Inherit handles
+                                    CREATE_SUSPENDED | create_flags[i], nullptr,
+                                    nullptr, &si, &process_info);
     if (process_created) {
       jobobject_assigned =
           AssignProcessToJobObject(job_handle, process_info.hProcess);

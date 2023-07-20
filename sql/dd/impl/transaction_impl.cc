@@ -129,7 +129,7 @@ Raw_table *Open_dictionary_tables_ctx::get_table(
     const String_type &name) const {
   Object_table_map::const_iterator it = m_tables.find(name);
 
-  return it == m_tables.end() ? NULL : it->second;
+  return it == m_tables.end() ? nullptr : it->second;
 }
 
 ///////////////////////////////////////////////////////////////////////////

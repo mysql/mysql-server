@@ -53,7 +53,7 @@ my_option *Abstract_program::get_options_array() { return &this->m_options[0]; }
 
 Abstract_program::Abstract_program()
     : m_debug_options(this), m_help_options(this) {
-  this->add_providers(&this->m_help_options, &this->m_debug_options, NULL);
+  this->add_providers(&this->m_help_options, &this->m_debug_options, nullptr);
 }
 
 void Abstract_program::run(int argc, char **argv) {
@@ -97,7 +97,7 @@ void Abstract_program::init_name(char *name_from_cmd_line) {
   char *name;
 
   char name_buf[FN_REFLEN];
-  if (GetModuleFileName(NULL, name_buf, FN_REFLEN) != 0) {
+  if (GetModuleFileName(nullptr, name_buf, FN_REFLEN) != 0) {
     name = name_buf;
   } else {
     name = name_from_cmd_line;

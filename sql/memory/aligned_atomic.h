@@ -59,9 +59,9 @@ static inline size_t _cache_line_size() {
   size_t line_size{0};
   DWORD buffer_size = 0;
   DWORD i = 0;
-  SYSTEM_LOGICAL_PROCESSOR_INFORMATION *buffer = 0;
+  SYSTEM_LOGICAL_PROCESSOR_INFORMATION *buffer = nullptr;
 
-  GetLogicalProcessorInformation(0, &buffer_size);
+  GetLogicalProcessorInformation(nullptr, &buffer_size);
   buffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION *)malloc(buffer_size);
   GetLogicalProcessorInformation(&buffer[0], &buffer_size);
 

@@ -320,7 +320,7 @@ bool send_service_status(const Service_status_msg &msg) {
 
   DWORD bytes_written = 0;
   WriteFile(get_service_status_pipe_in_mysqld(), &msg, sizeof(msg),
-            &bytes_written, 0);
+            &bytes_written, nullptr);
   signal_event(Signal_type::SIGNAL_SERVICE_STATUS_CMD);
   WaitForSingleObject(service_status_cmd_processed_handle, 1000);
   return false;

@@ -407,8 +407,8 @@ static bool check_session_admin(sys_var *self, THD *thd, set_var *setv) {
 
 #ifdef WITH_LOCK_ORDER
 
-#define LO_TRAILING_PROPERTIES                                          \
-  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), NULL, \
+#define LO_TRAILING_PROPERTIES                                             \
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), nullptr, \
       sys_var::PARSE_EARLY
 
 static Sys_var_bool Sys_lo_enabled("lock_order", "Enable the lock order.",
@@ -486,8 +486,8 @@ static Sys_var_bool Sys_lo_debug_missing_key(
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 #define PFS_TRAILING_PROPERTIES                                         \
-  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), NULL, \
-      sys_var::PARSE_EARLY
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), \
+      nullptr, sys_var::PARSE_EARLY
 
 static Sys_var_bool Sys_pfs_enabled("performance_schema",
                                     "Enable the performance schema.",
@@ -3933,7 +3933,7 @@ static Sys_var_bool Sys_shared_memory(
 static Sys_var_charptr Sys_shared_memory_base_name(
     "shared_memory_base_name", "Base name of shared memory",
     READ_ONLY NON_PERSIST GLOBAL_VAR(shared_memory_base_name),
-    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
 #endif
 
 // this has to be NO_CMD_LINE as the command-line option has a different name
@@ -4349,11 +4349,11 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
   DBUG_TRACE;
   Gtid_set_or_null *gsn = (Gtid_set_or_null *)session_var_ptr(thd);
   char *value = var->save_result.string_value.str;
-  if (value == NULL)
+  if (value == nullptr)
     gsn->set_null();
   else {
     Gtid_set *gs = gsn->set_non_null(global_sid_map);
-    if (gs == NULL) {
+    if (gs == nullptr) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // allocation failed
       return true;
     }
@@ -6617,7 +6617,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
     check and fix - if we ever implement this variable.
   */
   if (global_gtid_mode.get() == Gtid_mode::OFF &&
-      var->save_result.string_value.str != NULL)
+      var->save_result.string_value.str != nullptr)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
   return false;
@@ -6625,7 +6625,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
 
 static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type) {
   assert(type == OPT_SESSION);
-  if (thd->get_gtid_next_list() != NULL)
+  if (thd->get_gtid_next_list() != nullptr)
     return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
   return false;
 }

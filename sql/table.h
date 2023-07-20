@@ -797,7 +797,7 @@ struct TABLE_SHARE {
   inline handlerton *db_type() const /* table_type for handler */
   {
     // assert(db_plugin);
-    return db_plugin ? plugin_data<handlerton *>(db_plugin) : NULL;
+    return db_plugin ? plugin_data<handlerton *>(db_plugin) : nullptr;
   }
   /**
     Value of ROW_FORMAT option for the table as provided by user.

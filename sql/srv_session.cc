@@ -355,7 +355,7 @@ class Mutexed_map_thd_srv_session {
     rwlock_scoped_lock lock(&LOCK_collection, false, __FILE__, __LINE__);
 
     std::map<const THD *, map_value_t>::iterator it = collection.find(key);
-    return (it != collection.end()) ? it->second.second : NULL;
+    return (it != collection.end()) ? it->second.second : nullptr;
   }
 
   /**

@@ -34,7 +34,7 @@ extern PSI_memory_key key_memory_KEYRING;
 template <class T>
 T keyring_malloc(size_t size) {
   void *allocated_memory = my_malloc(key_memory_KEYRING, size, MYF(MY_WME));
-  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
+  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : nullptr;
 }
 
 class Keyring_alloc {

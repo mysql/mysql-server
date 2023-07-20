@@ -218,7 +218,7 @@ stdx::expected<SSL_SESSION *, std::error_code> TlsClientContext::get_session() {
     for (auto it = sessions.cbegin(); it != sessions.cend();) {
       const auto sess = it->second.get();
       const auto sess_start = SSL_SESSION_get_time(sess);
-      if (time(NULL) - sess_start > session_cache_timeout_.count()) {
+      if (time(nullptr) - sess_start > session_cache_timeout_.count()) {
         // session expired, remove from cache
         sessions.erase(it++);
         continue;

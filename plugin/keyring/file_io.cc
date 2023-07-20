@@ -175,7 +175,7 @@ bool File_io::truncate(File file, myf myFlags) {
   HANDLE hFile = my_get_osfhandle(file);
 
   if ((hFile == INVALID_HANDLE_VALUE ||
-       !SetFilePointerEx(hFile, length, NULL, FILE_BEGIN) ||
+       !SetFilePointerEx(hFile, length, nullptr, FILE_BEGIN) ||
        !SetEndOfFile(hFile)) &&
       (myFlags & MY_WME)) {
     my_osmaperr(GetLastError());

@@ -173,8 +173,8 @@ static int create_temp_file_uuid(char *to, const std::string &dir,
   full_path_builder << dir_with_separator << reduced_prefix << encoded_uuid;
   strcpy(to, full_path_builder.str().c_str());
 
-  HANDLE hfile = CreateFile(to, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                            CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE hfile = CreateFile(to, GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                            CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (hfile == INVALID_HANDLE_VALUE) {
     my_osmaperr(GetLastError());
     set_my_errno(errno);

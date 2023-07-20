@@ -212,7 +212,7 @@ bool no_defaults = false;
 static const char **default_directories = nullptr;
 
 #ifdef _WIN32
-static const char *f_extensions[] = {".ini", ".cnf", 0};
+static const char *f_extensions[] = {".ini", ".cnf", nullptr};
 #else
 static const char *f_extensions[] = {".cnf", nullptr};
 #endif
@@ -1380,8 +1380,8 @@ void init_variable_default_paths() {
   }
   default_paths["C:\\my.ini"] = enum_variable_source::GLOBAL;
   default_paths["C:\\my.cnf"] = enum_variable_source::GLOBAL;
-  if (GetModuleFileName(NULL, buffer, (DWORD)sizeof(buffer))) {
-    char *end = strend(buffer), *last = NULL;
+  if (GetModuleFileName(nullptr, buffer, (DWORD)sizeof(buffer))) {
+    char *end = strend(buffer), *last = nullptr;
     for (; end > buffer; end--) {
       if (*end == FN_LIBCHAR) {
         if (last) {
@@ -1603,9 +1603,9 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size) {
 }
 
 static const char *my_get_module_parent(char *buf, size_t size) {
-  char *last = NULL;
+  char *last = nullptr;
   char *end;
-  if (!GetModuleFileName(NULL, buf, (DWORD)size)) return NULL;
+  if (!GetModuleFileName(nullptr, buf, (DWORD)size)) return nullptr;
   end = strend(buf);
 
   /*
@@ -1649,7 +1649,7 @@ static const char **init_default_directories(MEM_ROOT *alloc) {
 
     errors += add_directory(alloc, "C:/", dirs);
 
-    if (my_get_module_parent(fname_buffer, sizeof(fname_buffer)) != NULL)
+    if (my_get_module_parent(fname_buffer, sizeof(fname_buffer)) != nullptr)
       errors += add_directory(alloc, fname_buffer, dirs);
   }
 

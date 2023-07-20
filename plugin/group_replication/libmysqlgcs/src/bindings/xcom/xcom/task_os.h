@@ -121,16 +121,16 @@ extern void remove_and_wakeup(int fd);
 #if defined(_WIN32)
 
 static inline void shutdown_socket(int *sock) {
-  static LPFN_DISCONNECTEX DisconnectEx = NULL;
-  if (DisconnectEx == NULL) {
+  static LPFN_DISCONNECTEX DisconnectEx = nullptr;
+  if (DisconnectEx == nullptr) {
     DWORD dwBytesReturned;
     GUID guidDisconnectEx = WSAID_DISCONNECTEX;
     WSAIoctl(*sock, SIO_GET_EXTENSION_FUNCTION_POINTER, &guidDisconnectEx,
              sizeof(GUID), &DisconnectEx, sizeof(DisconnectEx),
-             &dwBytesReturned, NULL, NULL);
+             &dwBytesReturned, nullptr, nullptr);
   }
-  if (DisconnectEx != NULL) {
-    DisconnectEx(*sock, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0);
+  if (DisconnectEx != nullptr) {
+    DisconnectEx(*sock, (LPOVERLAPPED) nullptr, (DWORD)0, (DWORD)0);
   } else {
     shutdown(*sock, SOCK_SHUT_RDWR);
   }

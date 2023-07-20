@@ -121,16 +121,16 @@ constexpr const unsigned long MAX_CONNECTIONS_DEFAULT{151};
       sizeof(X)
 #define SESSION_VAR(X)                             \
   sys_var::SESSION, offsetof(System_variables, X), \
-      sizeof(((System_variables *)0)->X)
+      sizeof(((System_variables *)nullptr)->X)
 #define SESSION_ONLY(X)                                 \
   sys_var::ONLY_SESSION, offsetof(System_variables, X), \
-      sizeof(((System_variables *)0)->X)
+      sizeof(((System_variables *)nullptr)->X)
 #define NO_CMD_LINE CMD_LINE(NO_ARG, -1)
 /*
   the define below means that there's no *second* mutex guard,
   LOCK_global_system_variables always guards all system variables
 */
-#define NO_MUTEX_GUARD ((PolyLock *)0)
+#define NO_MUTEX_GUARD ((PolyLock *)nullptr)
 #define IN_BINLOG sys_var::SESSION_VARIABLE_IN_BINLOG
 #define NOT_IN_BINLOG sys_var::VARIABLE_NOT_IN_BINLOG
 #define ON_READ(X) X
@@ -1292,7 +1292,7 @@ class Sys_var_dbug : public sys_var {
 #endif
 
 #define KEYCACHE_VAR(X) \
-  sys_var::GLOBAL, offsetof(KEY_CACHE, X), sizeof(((KEY_CACHE *)0)->X)
+  sys_var::GLOBAL, offsetof(KEY_CACHE, X), sizeof(((KEY_CACHE *)nullptr)->X)
 #define keycache_var_ptr(KC, OFF) (((uchar *)(KC)) + (OFF))
 #define keycache_var(KC, OFF) (*(ulonglong *)keycache_var_ptr(KC, OFF))
 typedef bool (*keycache_update_function)(THD *, KEY_CACHE *, ptrdiff_t,
@@ -2496,13 +2496,13 @@ class Sys_var_gtid_set : public sys_var {
     DBUG_TRACE;
     String str;
     String *res = var->value->val_str(&str);
-    if (res == NULL) {
-      var->save_result.string_value.str = NULL;
+    if (res == nullptr) {
+      var->save_result.string_value.str = nullptr;
       return false;
     }
-    assert(res->ptr() != NULL);
+    assert(res->ptr() != nullptr);
     var->save_result.string_value.str = thd->strmake(res->ptr(), res->length());
-    if (var->save_result.string_value.str == NULL) {
+    if (var->save_result.string_value.str == nullptr) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->strmake failed
       return 1;
     }
@@ -2516,7 +2516,7 @@ class Sys_var_gtid_set : public sys_var {
     DBUG_TRACE;
     Gtid_set_or_null *gsn = (Gtid_set_or_null *)session_var_ptr(target_thd);
     Gtid_set *gs = gsn->get_gtid_set();
-    if (gs == NULL) return NULL;
+    if (gs == nullptr) return nullptr;
     char *buf;
     global_sid_lock->rdlock();
     buf = (char *)running_thd->alloc(gs->get_string_length() + 1);
@@ -2529,7 +2529,7 @@ class Sys_var_gtid_set : public sys_var {
   }
   uchar *global_value_ptr(THD *thd, const std::string &) override {
     assert(false);
-    return NULL;
+    return nullptr;
   }
 };
 #endif

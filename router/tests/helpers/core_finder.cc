@@ -138,8 +138,8 @@ std::string CoreFinder::core_name() const {
   module_name.resize(MAX_PATH);
 
   _splitpath_s(executable_.c_str(),                     //
-               NULL, 0,                                 // drive
-               NULL, 0,                                 // dir
+               nullptr, 0,                              // drive
+               nullptr, 0,                              // dir
                module_name.data(), module_name.size(),  // name
                nullptr, 0                               // ext
   );

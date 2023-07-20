@@ -30,7 +30,7 @@ namespace connection_control {
 template <class T>
 T Connection_control_malloc(size_t size) {
   void *allocated_memory = my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(MY_WME));
-  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
+  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : nullptr;
 }
 
 class Connection_control_alloc {

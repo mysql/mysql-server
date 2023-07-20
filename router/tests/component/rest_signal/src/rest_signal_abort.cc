@@ -41,7 +41,8 @@ bool RestSignalAbort::on_handle_request(HttpRequest &req,
   if (!ensure_no_params(req)) return true;
 
 #ifdef _WIN32
-  RaiseException(EXCEPTION_ACCESS_VIOLATION, EXCEPTION_NONCONTINUABLE, 0, NULL);
+  RaiseException(EXCEPTION_ACCESS_VIOLATION, EXCEPTION_NONCONTINUABLE, 0,
+                 nullptr);
 #else
   raise(SIGSEGV);
 #endif

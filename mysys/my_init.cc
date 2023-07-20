@@ -347,7 +347,7 @@ static void win_init_registry() {
     DWORD key_data_len = sizeof(key_data) - 1;
 
     while ((ret = RegEnumValue(key_handle, index++, key_name, &key_name_len,
-                               NULL, &type, (LPBYTE)&key_data,
+                               nullptr, &type, (LPBYTE)&key_data,
                                &key_data_len)) != ERROR_NO_MORE_ITEMS) {
       char env_string[sizeof(key_name) + sizeof(key_data) + 2];
 

@@ -162,8 +162,8 @@ static Sys_var_charptr Sys_ssl_crlpath(
     &lock_ssl_ctx);
 
 #define PFS_TRAILING_PROPERTIES                                         \
-  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), NULL, \
-      sys_var::PARSE_EARLY
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), \
+      nullptr, sys_var::PARSE_EARLY
 
 static Sys_var_bool Sys_var_opt_ssl_session_cache_mode(
     "ssl_session_cache_mode", "Is TLS session cache enabled or not",

@@ -46,7 +46,7 @@ Handshake::Handshake(const char *ssp, side_t side)
       m_have_sec_context(false)
 #ifndef NDEBUG
       ,
-      m_ssp_info(NULL)
+      m_ssp_info(nullptr)
 #endif
 {
   SECURITY_STATUS ret;
@@ -54,9 +54,9 @@ Handshake::Handshake(const char *ssp, side_t side)
   // Obtain credentials for the authentication handshake.
 
   ret = AcquireCredentialsHandle(
-      NULL, const_cast<SEC_CHAR *>(ssp),
-      side == SERVER ? SECPKG_CRED_INBOUND : SECPKG_CRED_OUTBOUND, NULL, NULL,
-      NULL, NULL, &m_cred, &m_expire);
+      nullptr, const_cast<SEC_CHAR *>(ssp),
+      side == SERVER ? SECPKG_CRED_INBOUND : SECPKG_CRED_OUTBOUND, nullptr,
+      nullptr, nullptr, nullptr, &m_cred, &m_expire);
 
   if (ret != SEC_E_OK) {
     DBUG_PRINT("error", ("AcqireCredentialsHandle() failed"
@@ -167,7 +167,7 @@ int Handshake::packet_processing_loop() {
   This method should be called only after handshake was completed. It is
   available only in debug builds.
 
-  @return Name of security package or NULL if it can not be obtained.
+  @return Name of security package or nullptr if it can not be obtained.
 */
 
 const char *Handshake::ssp_name() {
@@ -186,7 +186,7 @@ const char *Handshake::ssp_name() {
                   ret));
   }
 
-  return m_ssp_info ? m_ssp_info->Name : NULL;
+  return m_ssp_info ? m_ssp_info->Name : nullptr;
 }
 
 #endif
@@ -257,11 +257,11 @@ Security_buffer::Security_buffer(const Blob &blob) : m_allocated(false) {
   init(blob.ptr(), blob.len());
 }
 
-Security_buffer::Security_buffer() : m_allocated(true) { init(NULL, 0); }
+Security_buffer::Security_buffer() : m_allocated(true) { init(nullptr, 0); }
 
 void Security_buffer::mem_free(void) {
-  if (m_allocated && NULL != ptr()) {
+  if (m_allocated && nullptr != ptr()) {
     FreeContextBuffer(ptr());
-    init(NULL, 0);
+    init(nullptr, 0);
   }
 }

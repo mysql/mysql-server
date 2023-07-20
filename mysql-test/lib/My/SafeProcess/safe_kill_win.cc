@@ -54,7 +54,7 @@ int main(int argc, const char **argv) {
     HANDLE stacktrace_request_event =
         OpenEvent(EVENT_MODIFY_STATE, FALSE, event_name);
 
-    if (stacktrace_request_event == NULL) {
+    if (stacktrace_request_event == nullptr) {
       // Failed to open timeout event
       HANDLE mysqltest_process =
           OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
@@ -86,7 +86,7 @@ int main(int argc, const char **argv) {
   // Open the event to signal
   HANDLE shutdown_event;
   while ((shutdown_event = OpenEvent(EVENT_MODIFY_STATE, FALSE,
-                                     safe_process_name)) == NULL) {
+                                     safe_process_name)) == nullptr) {
     // Check if the process is alive, otherwise there is really
     // no sense to retry the open of the event.
     HANDLE process =

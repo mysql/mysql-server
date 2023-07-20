@@ -61,8 +61,8 @@ class NTService {
 
   // service install / un-install
   BOOL Install(int startType, LPCSTR szInternName, LPCSTR szDisplayName,
-               LPCSTR szFullPath, LPCSTR szAccountName = NULL,
-               LPCSTR szPassword = NULL) noexcept;
+               LPCSTR szFullPath, LPCSTR szAccountName = nullptr,
+               LPCSTR szPassword = nullptr) noexcept;
   BOOL SeekStatus(LPCSTR szInternName, int OperationType);
   BOOL Remove(LPCSTR szInternName);
   BOOL is_super_user();

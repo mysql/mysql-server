@@ -96,9 +96,10 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
   SetConsoleMode(
       console, ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
 
-  if (!ReadConsoleW(console, u16buf, MAX_NUM_OF_CHARS_TO_READ, &nchars, NULL)) {
+  if (!ReadConsoleW(console, u16buf, MAX_NUM_OF_CHARS_TO_READ, &nchars,
+                    nullptr)) {
     SetConsoleMode(console, console_mode);
-    return NULL;
+    return nullptr;
   }
 
   *nread = nchars;
@@ -201,7 +202,7 @@ void my_win_console_write(const CHARSET_INFO *cs, const char *data,
                                      sizeof(u16buf) / sizeof(u16buf[0]));
   DWORD nwritten;
   WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), u16buf, (DWORD)nchars,
-                &nwritten, NULL);
+                &nwritten, nullptr);
 }
 
 /**

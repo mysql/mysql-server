@@ -44,7 +44,7 @@ void to_unix_path(char *to [[maybe_unused]]) {
 #if FN_LIBCHAR != '/'
   {
     to--;
-    while ((to = strchr(to + 1, FN_LIBCHAR)) != 0) *to = '/';
+    while ((to = strchr(to + 1, FN_LIBCHAR)) != nullptr) *to = '/';
   }
 #endif
 }

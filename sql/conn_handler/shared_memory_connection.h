@@ -67,23 +67,23 @@ class Shared_mem_listener {
   */
   Shared_mem_listener(const std::string *shared_memory_base_name)
       : m_shared_mem_name(*shared_memory_base_name),
-        m_connect_file_map(0),
-        m_connect_map(0),
+        m_connect_file_map(nullptr),
+        m_connect_map(nullptr),
         m_connect_named_mutex(nullptr),
-        m_event_connect_request(0),
-        m_event_connect_answer(0),
-        m_sa_event(0),
-        m_sa_mapping(0),
-        m_sa_mutex(0),
+        m_event_connect_request(nullptr),
+        m_event_connect_answer(nullptr),
+        m_sa_event(nullptr),
+        m_sa_mapping(nullptr),
+        m_sa_mutex(nullptr),
         m_connect_number(1),
-        m_temp_buffer(0),
-        m_handle_client_file_map(0),
-        m_handle_client_map(0),
-        m_event_client_wrote(0),
-        m_event_client_read(0),
-        m_event_server_wrote(0),
-        m_event_server_read(0),
-        m_event_conn_closed(0) {}
+        m_temp_buffer(nullptr),
+        m_handle_client_file_map(nullptr),
+        m_handle_client_map(nullptr),
+        m_event_client_wrote(nullptr),
+        m_event_client_read(nullptr),
+        m_event_server_wrote(nullptr),
+        m_event_server_read(nullptr),
+        m_event_conn_closed(nullptr) {}
 
   /**
     Set up a listener.

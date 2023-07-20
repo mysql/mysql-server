@@ -895,7 +895,7 @@ bool hint_key_state(const THD *thd, const Table_ref *table, uint keyno,
   if (table_hints && keyno != MAX_KEY) {
     Opt_hints_key *key_hints = table_hints->keyinfo_array.size() > 0
                                    ? table_hints->keyinfo_array[keyno]
-                                   : NULL;
+                                   : nullptr;
     bool ret_val = false;
     if (get_hint_state(key_hints, table_hints, type_arg, &ret_val))
       return ret_val;
