@@ -42,6 +42,7 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
+innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
