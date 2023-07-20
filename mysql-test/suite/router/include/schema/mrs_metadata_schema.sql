@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_schema` (
   CONSTRAINT `fk_db_schema_service1`
     FOREIGN KEY (`service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_object` (
   CONSTRAINT `fk_db_objects_db_schema1`
     FOREIGN KEY (`db_schema_id`)
     REFERENCES `mysql_rest_service_metadata`.`db_schema` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -151,12 +151,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`auth_app` (
   CONSTRAINT `fk_auth_app_auth_vendor1`
     FOREIGN KEY (`auth_vendor_id`)
     REFERENCES `mysql_rest_service_metadata`.`auth_vendor` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_auth_app_service1`
     FOREIGN KEY (`service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user` (
   CONSTRAINT `fk_auth_user_auth_app1`
     FOREIGN KEY (`auth_app_id`)
     REFERENCES `mysql_rest_service_metadata`.`auth_app` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`url_host_alias` (
   CONSTRAINT `fk_url_host_alias_url_host1`
     FOREIGN KEY (`url_host_id`)
     REFERENCES `mysql_rest_service_metadata`.`url_host` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set` (
   CONSTRAINT `fk_static_content_version_service1`
     FOREIGN KEY (`service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_file` (
   CONSTRAINT `fk_content_content_set1`
     FOREIGN KEY (`content_set_id`)
     REFERENCES `mysql_rest_service_metadata`.`content_set` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -304,12 +304,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_role` (
   CONSTRAINT `fk_priv_role_priv_role1`
     FOREIGN KEY (`derived_from_role_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_auth_role_service1`
     FOREIGN KEY (`specific_to_service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -327,12 +327,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_has_role` (
   CONSTRAINT `fk_auth_user_has_privilege_role_auth_user1`
     FOREIGN KEY (`user_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_auth_user_has_privilege_role_privilege_role1`
     FOREIGN KEY (`role_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -350,7 +350,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_hierarchy_typ
   CONSTRAINT `fk_user_hierarchy_type_service1`
     FOREIGN KEY (`specific_to_service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -368,17 +368,17 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_hierarchy` (
   CONSTRAINT `fk_user_hierarchy_auth_user1`
     FOREIGN KEY (`user_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_user_hierarchy_auth_user2`
     FOREIGN KEY (`reporting_to_user_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_user_hierarchy_hierarchy_type1`
     FOREIGN KEY (`user_hierarchy_type_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -400,22 +400,22 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_privilege` (
   CONSTRAINT `fk_priv_on_schema_auth_role1`
     FOREIGN KEY (`role_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_priv_on_schema_db_schema1`
     FOREIGN KEY (`db_schema_id`)
     REFERENCES `mysql_rest_service_metadata`.`db_schema` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_priv_on_schema_service1`
     FOREIGN KEY (`service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_priv_on_schema_db_object1`
     FOREIGN KEY (`db_object_id`)
     REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -433,7 +433,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group` (
   CONSTRAINT `fk_user_group_service1`
     FOREIGN KEY (`specific_to_service_id`)
     REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -450,12 +450,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group_has_rol
   CONSTRAINT `fk_user_group_has_auth_role_user_group1`
     FOREIGN KEY (`user_group_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_user_group_has_auth_role_auth_role1`
     FOREIGN KEY (`role_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -473,12 +473,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_has_group` (
   CONSTRAINT `fk_auth_user_has_user_group_auth_user1`
     FOREIGN KEY (`user_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_auth_user_has_user_group_user_group1`
     FOREIGN KEY (`user_group_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -509,17 +509,17 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group_hierarc
   CONSTRAINT `fk_user_group_has_user_group_user_group1`
     FOREIGN KEY (`user_group_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_user_group_has_user_group_user_group2`
     FOREIGN KEY (`parent_group_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_user_group_hierarchy_group_hierarchy_type1`
     FOREIGN KEY (`group_hierarchy_type_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -539,12 +539,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_db_object_row_grou
   CONSTRAINT `fk_table1_db_object1`
     FOREIGN KEY (`db_object_id`)
     REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_db_object_row_security_group_hierarchy_type1`
     FOREIGN KEY (`group_hierarchy_type_id`)
     REFERENCES `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -589,7 +589,7 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router_status` (
   CONSTRAINT `fk_router_status_router1`
     FOREIGN KEY (`router_id`)
     REFERENCES `mysql_rest_service_metadata`.`router` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 COMMENT = 'no_audit_log';
@@ -627,12 +627,12 @@ CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router_general_log` (
   CONSTRAINT `fk_router_general_log_router1`
     FOREIGN KEY (`router_id`)
     REFERENCES `mysql_rest_service_metadata`.`router` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_router_general_log_router_session1`
     FOREIGN KEY (`router_session_id`)
     REFERENCES `mysql_rest_service_metadata`.`router_session` (`id`)
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 COMMENT = 'no_audit_log';
@@ -920,7 +920,7 @@ END$$
 USE `mysql_rest_service_metadata`$$
 CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_DELETE` BEFORE DELETE ON `service` FOR EACH ROW
 BEGIN
-    # Since FK CASCADE does not fire the triggers on the related tables, manually trigger the DELETEs
+    # Since FK NO ACTION does not fire the triggers on the related tables, manually trigger the DELETEs
     DELETE FROM `mysql_rest_service_metadata`.`db_schema` WHERE `service_id` = OLD.`id`;
     DELETE FROM `mysql_rest_service_metadata`.`content_set` WHERE `service_id` = OLD.`id`;
     DELETE FROM `mysql_rest_service_metadata`.`auth_app` WHERE `service_id` = OLD.`id`;
