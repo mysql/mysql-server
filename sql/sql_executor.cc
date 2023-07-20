@@ -4663,6 +4663,41 @@ bool MaterializeIsDoingDeduplication(TABLE *table) {
 }
 
 /**
+  For the given access path, set "count_examined_rows" to the value
+  specified. For index merge scans, we set "count_examined_rows"
+  for all the child paths too.
+  @param path     Access path (A range scan)
+  @param count_examined_rows See AccessPath::count_examined_rows.
+*/
+static void set_count_examined_rows(AccessPath *path,
+                                    const bool count_examined_rows) {
+  path->count_examined_rows = count_examined_rows;
+  switch (path->type) {
+    case AccessPath::INDEX_MERGE:
+      for (AccessPath *child : *path->index_merge().children) {
+        set_count_examined_rows(child, count_examined_rows);
+      }
+      break;
+    case AccessPath::ROWID_INTERSECTION:
+      for (AccessPath *child : *path->rowid_intersection().children) {
+        set_count_examined_rows(child, count_examined_rows);
+      }
+      if (path->rowid_intersection().cpk_child != nullptr) {
+        set_count_examined_rows(path->rowid_intersection().cpk_child,
+                                count_examined_rows);
+      }
+      break;
+    case AccessPath::ROWID_UNION:
+      for (AccessPath *child : *path->rowid_union().children) {
+        set_count_examined_rows(child, count_examined_rows);
+      }
+      break;
+    default:
+      return;
+  }
+}
+
+/**
   create_table_access_path is used to scan by using a number of different
   methods. Which method to use is set-up in this call so that you can
   create an iterator from the returned access path and fetch rows through
@@ -4684,7 +4719,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table,
                                      bool count_examined_rows) {
   AccessPath *path;
   if (range_scan != nullptr) {
-    range_scan->count_examined_rows = count_examined_rows;
+    set_count_examined_rows(range_scan, count_examined_rows);
     path = range_scan;
   } else if (table_ref != nullptr && table_ref->is_recursive_reference()) {
     path = NewFollowTailAccessPath(thd, table, count_examined_rows);
