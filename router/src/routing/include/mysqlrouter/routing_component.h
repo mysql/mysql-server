@@ -37,6 +37,7 @@
 #include "connection.h"
 #include "mysql.h"
 #include "mysql/harness/config_parser.h"
+#include "mysqlrouter/destination_nodes_state_notifier.h"
 #include "tcp_address.h"
 
 class MySQLRoutingBase;
@@ -57,6 +58,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   std::string get_destination_cluster_name() const;
   std::string get_destination_replicaset_name() const;
 
+  DestinationNodesStateNotifier *get_destinations_state_notifier() const;
   int get_max_connections() const;
   uint64_t get_max_connect_errors() const;
   std::string get_mode() const;

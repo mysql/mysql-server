@@ -35,6 +35,11 @@
 
 using namespace std::string_literals;
 
+DestinationNodesStateNotifier *
+MySQLRoutingAPI::get_destinations_state_notifier() const {
+  return r_->destinations();
+}
+
 int MySQLRoutingAPI::get_max_connections() const {
   return r_->get_max_connections();
 }
