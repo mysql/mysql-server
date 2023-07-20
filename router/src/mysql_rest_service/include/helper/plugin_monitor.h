@@ -59,7 +59,7 @@ class PluginMonitor {
   }
 
   void wait_for_services(const Services &services) {
-    log_debug("wait_for_services found: %s",
+    log_debug("wait_for_services: %s",
               helper::container::to_string(services).c_str());
     observer_->wait_for_services_.wait([&services](PluginMonitor *state) {
       if (nullptr == state) return true;
@@ -69,9 +69,10 @@ class PluginMonitor {
             return 0 != state->active_services_.count(name);
           });
 
-      log_debug("wait_for_services found: %s", result ? "yes" : "no");
       return result;
     });
+    log_debug("wait_for_services found all: %s",
+              helper::container::to_string(services).c_str());
   }
 
   Services get_active_services() { return active_services_; }

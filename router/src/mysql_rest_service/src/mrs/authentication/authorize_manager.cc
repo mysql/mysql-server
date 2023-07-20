@@ -437,8 +437,8 @@ std::string AuthorizeManager::authorize(const UniversalId service_id,
 
   auto session = session_manager_.new_session(session_id);
 
-  auto instance =
-      cache_manager_->get_instance(collector::kMySQLConnectionMetadata);
+  auto instance = cache_manager_->get_instance(
+      collector::kMySQLConnectionMetadataRW, false);
   if (user_manager_.user_get_by_id(user_id, &session->user, &instance)) {
     log_debug("Found user %s", user_id.to_string().c_str());
     session->state = http::SessionManager::Session::kUserVerified;

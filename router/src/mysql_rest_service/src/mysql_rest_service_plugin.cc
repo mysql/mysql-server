@@ -48,7 +48,7 @@
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/router_observation_entities.h"
-#include "mrs_plugin_config.h"
+#include "mysql_rest_service_plugin_config.h"
 #include "mysqld_error.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -84,7 +84,7 @@ struct MrdsModule {
     using namespace mysqlrouter;
     try {
       auto conn1 = mysql_connection_cache.get_instance(
-          collector::kMySQLConnectionMetadata);
+          collector::kMySQLConnectionMetadataRO, true);
 
       check_version_compatibility(conn1.get());
     } catch (const MySQLSession::Error &e) {
@@ -97,7 +97,7 @@ struct MrdsModule {
 
     try {
       auto conn2 = mysql_connection_cache.get_instance(
-          collector::kMySQLConnectionUserdata);
+          collector::kMySQLConnectionUserdataRO, true);
 
       check_version_compatibility(conn2.get());
     } catch (const MySQLSession::Error &e) {
@@ -167,9 +167,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
           std::string("Found another config-section '") + kSectionName +
           "', only one allowed");
 
-    g_mrs_configuration.reset(
-        new mrs::PluginConfig(sections.front(), routing_instances,
-                              meta_instances, get_router_name(info->config)));
+    g_mrs_configuration.reset(new mrs::PluginConfig(
+        sections.front(), routing_instances, get_router_name(info->config)));
 
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -183,16 +182,15 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 static void run(mysql_harness::PluginFuncEnv *env) {
   try {
     helper::PluginMonitor service_monitor;
-
     std::set<std::string> service_names;
-    for (const auto &el : g_mrs_configuration->routing_names_)
+    auto routing_plugins =
+        g_mrs_configuration->get_waiting_for_routing_plugins();
+
+    for (const auto &el : routing_plugins)
       service_names.insert("routing:" + el);
 
-    for (const auto &el : g_mrs_configuration->metada_names_)
-      service_names.insert("metadata_cache:" + el);
-
     service_monitor.wait_for_services(service_names);
-    g_mrs_configuration->init_runtime_configuration();
+    g_mrs_configuration->init_runtime_configuration(service_monitor);
     g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());

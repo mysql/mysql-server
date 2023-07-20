@@ -251,7 +251,7 @@ class RestRequestHandler : public BaseRequestHandler {
 
   Handler::HttpResult handle_request_impl(RequestContext &ctxt) {
     ctxt.sql_session_cache = auth_manager_->get_cache()->get_empty(
-        collector::kMySQLConnectionMetadata);
+        collector::kMySQLConnectionMetadataRO, false);
 
     const auto service_id = rest_handler_->get_service_id();
     const auto method = ctxt.request->get_method();

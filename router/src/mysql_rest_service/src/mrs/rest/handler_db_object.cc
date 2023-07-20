@@ -129,15 +129,18 @@ namespace mrs {
 namespace rest {
 
 using CachedObject = collector::MysqlCacheManager::CachedObject;
+using MysqlCacheManager = collector::MysqlCacheManager;
+using MySQLConnection = collector::MySQLConnection;
 
-static CachedObject get_session(::mysqlrouter::MySQLSession *,
-                                collector::MysqlCacheManager *cache_manager) {
+static CachedObject get_session(
+    ::mysqlrouter::MySQLSession *, MysqlCacheManager *cache_manager,
+    MySQLConnection type = MySQLConnection::kMySQLConnectionUserdataRO) {
   //  if (session) {
   //    log_debug("Reusing SQL session");
   //    return CachedObject(nullptr, session);
   //  }
 
-  return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
+  return cache_manager->get_instance(type, false);
 }
 
 using HttpResult = Handler::HttpResult;
@@ -312,8 +315,8 @@ HttpResult HandlerDbObject::handle_post(
 
   database::TableUpdater updater(object, row_ownership_info(ctxt, object));
 
-  auto session =
-      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
+                             MySQLConnection::kMySQLConnectionUserdataRW);
   auto pk = updater.handle_post(session.get(), json_doc);
 
   Counter<kEntityCounterRestAffectedItems>::increment();
@@ -350,8 +353,8 @@ HttpResult HandlerDbObject::handle_delete(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto last_path = get_path_after_object_name(requests_uri);
   auto object = route_->get_cached_object();
-  auto session =
-      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
+                             MySQLConnection::kMySQLConnectionUserdataRW);
 
   uint64_t count = 0;
 
@@ -419,8 +422,8 @@ HttpResult HandlerDbObject::handle_put(rest::RequestContext *ctxt) {
   }
 
   auto json_obj = json_doc.GetObject();
-  auto session =
-      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
+                             MySQLConnection::kMySQLConnectionUserdataRW);
 
   pk = updater.handle_put(session.get(), json_doc, pk);
 

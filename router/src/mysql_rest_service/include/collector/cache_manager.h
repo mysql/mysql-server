@@ -47,8 +47,8 @@ class CacheManager {
     }
 
     template <typename... Args>
-    CachedObject(CacheManager *parent, Args &&... args)
-        : parent_{parent}, object_{std::forward<Args>(args)...} {}
+    CachedObject(CacheManager *parent, bool wait, Args &&... args)
+        : parent_{parent}, wait_{wait}, object_{std::forward<Args>(args)...} {}
 
     ~CachedObject() {
       if (parent_ && object_) parent_->return_instance(*this);
@@ -67,7 +67,7 @@ class CacheManager {
 
     Object operator->() { return object_; }
     Object get() {
-      if (object_ == nullptr && parent_) *this = parent_->get_instance();
+      if (object_ == nullptr && parent_) *this = parent_->get_instance(wait_);
 
       return object_;
     }
@@ -94,6 +94,7 @@ class CacheManager {
     // TODO(lkotula): Make those fields private (Shouldn't be in review)
     //   private:
     CacheManager *parent_;
+    bool wait_{false};
     Object object_;
     bool dirty_{false};
   };
@@ -106,7 +107,7 @@ class CacheManager {
     virtual bool object_before_cache(Object) = 0;
     virtual bool object_retrived_from_cache(Object) = 0;
     virtual void object_remove(Object) = 0;
-    virtual Object object_allocate() = 0;
+    virtual Object object_allocate(bool wait) = 0;
   };
 
  public:
@@ -119,10 +120,10 @@ class CacheManager {
     }
   }
 
-  CachedObject get_instance() {
-    auto result = pop();
+  CachedObject get_instance(bool wait) {
+    auto result = pop(wait);
 
-    return CachedObject{this, result};
+    return CachedObject{this, wait, result};
   }
 
   void return_instance(CachedObject &object) {
@@ -149,7 +150,7 @@ class CacheManager {
   Callbacks *get_callbacks() const { return callbacks_; }
 
  private:
-  Object pop() {
+  Object pop(bool wait) {
     {
       std::unique_lock<std::mutex> lock(object_container_mutex_);
       while (objects_.size()) {
@@ -162,7 +163,7 @@ class CacheManager {
         callbacks_->object_remove(result);
       }
     }
-    return callbacks_->object_allocate();
+    return callbacks_->object_allocate(wait);
   }
 
   uint32_t objects_limit_{20};
