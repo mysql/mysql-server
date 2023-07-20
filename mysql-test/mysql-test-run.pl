@@ -7232,7 +7232,8 @@ sub start_servers($) {
 
   # Start routers
   foreach my $router (routers()) {
-    my $extra_opts = get_extra_opts($router, $tinfo);
+    my $extra_opts = ();
+    # get_extra_opts($router, $tinfo);
 
     if ($router->{proc}) {
       # Already started, write start of testcase to log file
