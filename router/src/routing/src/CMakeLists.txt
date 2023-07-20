@@ -120,6 +120,7 @@ ADD_LIBRARY(routing SHARED
   sql_splitting_allowed.cc
   sql_value.cc
   start_transaction_parser.cc
+  implicit_commit_parser.cc
 
   openssl_msg.cc
 )

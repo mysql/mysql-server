@@ -50,6 +50,7 @@
 #include "command_router_set.h"
 #include "harness_assert.h"
 #include "hexify.h"
+#include "implicit_commit_parser.h"
 #include "my_sys.h"  // get_charset_by_name
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -1362,6 +1363,22 @@ stdx::expected<SplittingAllowedParser::Allowed, std::string> splitting_allowed(
   }
 }
 
+stdx::expected<bool, std::string> is_implicitly_committed(
+    std::string_view stmt,
+    std::optional<classic_protocol::session_track::TransactionState>
+        trx_state) {
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  Parser_state parser_state;
+  parser_state.init(&session, stmt.data(), stmt.size());
+  session.m_parser_state = &parser_state;
+  SqlLexer lexer{&session};
+
+  return ImplicitCommitParser(lexer.begin(), lexer.end()).parse(trx_state);
+}
+
 /*
  * fetch the warnings from the server and inject the trace.
  */
@@ -1613,6 +1630,26 @@ class ForwardedShowWarningCountHandler : public QuerySender::Handler {
   ShowWarnings::Verbosity verbosity_;
 };
 
+/*
+ * fetch the warnings from the server and inject the trace.
+ */
+class FailedQueryHandler : public QuerySender::Handler {
+ public:
+  explicit FailedQueryHandler(QueryForwarder &processor)
+      : processor_(processor) {}
+
+  void on_ok(const classic_protocol::message::server::Ok &) override {
+    //
+  }
+
+  void on_error(const classic_protocol::message::server::Error &err) override {
+    processor_.failed(err);
+  }
+
+ private:
+  QueryForwarder &processor_;
+};
+
 bool ends_with(std::string_view haystack, std::string_view needle) {
   if (haystack.size() < needle.size()) return false;
 
@@ -1637,6 +1674,16 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
+    case Stage::ExplicitCommitConnect:
+      return explicit_commit_connect();
+    case Stage::ExplicitCommitConnectDone:
+      return explicit_commit_connect_done();
+    case Stage::ExplicitCommit:
+      return explicit_commit();
+    case Stage::ExplicitCommitDone:
+      return explicit_commit_done();
+    case Stage::ClassifyQuery:
+      return classify_query();
     case Stage::PoolBackend:
       return pool_backend();
     case Stage::SwitchBackend:
@@ -1689,12 +1736,12 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *src_channel = socket_splicer->client_channel();
   auto *src_protocol = connection()->client_protocol();
 
-  bool want_read_only_connection{false};
-
   if (!connection()->connection_sharing_possible()) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("query::command"));
     }
+    stage(Stage::PrepareBackend);
+    return Result::Again;
   } else {
     auto msg_res =
         ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
@@ -1894,6 +1941,179 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           }
           break;
       }
+    }
+
+    if (!connection()->trx_state()) {
+      // no trx state, no trx.
+      stage(Stage::ClassifyQuery);
+    } else {
+      auto is_implictly_committed_res = is_implicitly_committed(
+          msg_res->statement(), connection()->trx_state());
+      if (!is_implictly_committed_res) {
+        // it fails if trx-state() is not set, but it has been set.
+        harness_assert_this_should_not_execute();
+      } else if (*is_implictly_committed_res) {
+        auto &server_conn = connection()->socket_splicer()->server_conn();
+        if (!server_conn.is_open()) {
+          trace_event_connect_and_explicit_commit_ =
+              trace_connect_and_explicit_commit(trace_event_command_);
+          stage(Stage::ExplicitCommitConnect);
+        } else {
+          stage(Stage::ExplicitCommit);
+        }
+      } else {
+        // not implicitly committed.
+        stage(Stage::ClassifyQuery);
+      }
+    }
+
+    return Result::Again;
+  }
+}
+
+TraceEvent *QueryForwarder::trace_connect_and_explicit_commit(
+    TraceEvent *parent_span) {
+  auto *ev = trace_span(parent_span, "mysql/connect_and_explicit_commit");
+  if (ev == nullptr) return nullptr;
+
+  trace_set_connection_attributes(ev);
+
+  return ev;
+}
+
+// connect to the old backend if needed before sending the COMMIT.
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::explicit_commit_connect() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::explicit_commit::connect"));
+  }
+
+  stage(Stage::ExplicitCommitConnectDone);
+  return mysql_reconnect_start(trace_event_connect_and_explicit_commit_);
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::explicit_commit_connect_done() {
+  auto &server_conn = connection()->socket_splicer()->server_conn();
+  if (!server_conn.is_open()) {
+    auto *socket_splicer = connection()->socket_splicer();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
+    discard_current_msg(src_channel, src_protocol);
+
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::explicit_commit::connect::error"));
+    }
+
+    trace_span_end(trace_event_connect_and_explicit_commit_);
+    trace_command_end(trace_event_command_);
+
+    stage(Stage::Done);
+    return reconnect_send_error_msg(src_channel, src_protocol);
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::explicit_commit::connect::done"));
+  }
+
+  stage(Stage::ExplicitCommit);
+
+  return Result::Again;
+}
+
+// explicitly COMMIT the transaction as the current statement would do an
+// implicit COMMIT.
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::explicit_commit() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::explicit_commit::commit"));
+  }
+
+  auto *dst_protocol = connection()->server_protocol();
+
+  // reset the seq-id before the command that's pushed.
+  dst_protocol->seq_id(0xff);
+
+  stage(Stage::ExplicitCommitDone);
+
+  connection()->push_processor(std::make_unique<QuerySender>(
+      connection(), "COMMIT", std::make_unique<FailedQueryHandler>(*this)));
+
+  return Result::Again;
+}
+
+// check if the COMMIT succeeded.
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::explicit_commit_done() {
+  auto *dst_protocol = connection()->server_protocol();
+
+  if (auto err = failed()) {
+    auto *socket_splicer = connection()->socket_splicer();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
+    discard_current_msg(src_channel, src_protocol);
+
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::explicit_commit::error"));
+    }
+
+    auto send_msg = ClassicFrame::send_msg(src_channel, src_protocol, *err);
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    trace_span_end(trace_event_connect_and_explicit_commit_);
+    trace_command_end(trace_event_command_);
+
+    stage(Stage::Done);
+
+    return Result::Again;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::explicit_commit::done"));
+  }
+
+  // back to the current query.
+  stage(Stage::ClassifyQuery);
+
+  // next command with start at 0 again.
+  dst_protocol->seq_id(0xff);
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::classify_query() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
+  bool want_read_only_connection{false};
+
+  if (true) {
+    auto msg_res =
+        ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
+            src_channel, src_protocol);
+    if (!msg_res) {
+      // all codec-errors should result in a Malformed Packet error..
+      if (msg_res.error().category() !=
+          make_error_code(classic_protocol::codec_errc::not_enough_input)
+              .category()) {
+        return recv_client_failed(msg_res.error());
+      }
+
+      discard_current_msg(src_channel, src_protocol);
+
+      auto send_msg =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {ER_MALFORMED_PACKET, "Malformed communication packet", "HY000"});
+      if (!send_msg) send_client_failed(send_msg.error());
+
+      stage(Stage::Done);
+
+      return Result::SendToClient;
     }
 
     // not a SHOW WARNINGS or so, reset the warnings.
