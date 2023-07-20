@@ -227,6 +227,10 @@ void MysqlRoutingClassicConnectionBase::async_send_client(Function next) {
   auto socket_splicer = this->socket_splicer();
   auto dst_channel = socket_splicer->client_channel();
 
+  if (disconnect_requested()) {
+    return send_client_failed(make_error_code(std::errc::operation_canceled));
+  }
+
   ++active_work_;
   socket_splicer->async_send_client(
       [this, next, to_transfer = dst_channel->send_buffer().size()](
@@ -247,6 +251,10 @@ void MysqlRoutingClassicConnectionBase::async_send_client(Function next) {
 }
 
 void MysqlRoutingClassicConnectionBase::async_recv_client(Function next) {
+  if (disconnect_requested()) {
+    return recv_client_failed(make_error_code(std::errc::operation_canceled));
+  }
+
   ++active_work_;
   this->socket_splicer()->async_recv_client([this, next](std::error_code ec,
                                                          size_t transferred) {
@@ -284,6 +292,10 @@ void MysqlRoutingClassicConnectionBase::async_recv_client(Function next) {
 }
 
 void MysqlRoutingClassicConnectionBase::async_send_server(Function next) {
+  if (disconnect_requested()) {
+    return send_server_failed(make_error_code(std::errc::operation_canceled));
+  }
+
   auto socket_splicer = this->socket_splicer();
   auto dst_channel = socket_splicer->server_channel();
 
@@ -307,6 +319,10 @@ void MysqlRoutingClassicConnectionBase::async_send_server(Function next) {
 }
 
 void MysqlRoutingClassicConnectionBase::async_recv_server(Function next) {
+  if (disconnect_requested()) {
+    return recv_server_failed(make_error_code(std::errc::operation_canceled));
+  }
+
   ++active_work_;
   this->socket_splicer()->async_recv_server([this, next](std::error_code ec,
                                                          size_t transferred) {
