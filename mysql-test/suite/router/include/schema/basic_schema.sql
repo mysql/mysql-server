@@ -24,13 +24,13 @@ CREATE TABLE IF NOT EXISTS `basic_schema`.`table2` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE);
 
-INSERT INTO `basic_schema`.`table2` (`name`, `comments`, `date`)
-  VALUES("First row", "First comment", "1977-01-21"),
-  ("Second row", NULL, "1977-01-21"),
-  ("Thrid row", NULL, "1977-02-21"),
-  ("4th row", "This row was inserted as forth row.", "1977-01-21"),
-  ("5th row", "", "2021-03-01"),
-  ("6th row", "...", "2023-01-21");
+INSERT INTO `basic_schema`.`table2` (`id`, `name`, `comments`, `date`)
+  VALUES(1, "First row", "First comment", "1977-01-21"),
+  (2, "Second row", NULL, "1977-01-21"),
+  (3, "Thrid row", NULL, "1977-02-21"),
+  (4, "4th row", "This row was inserted as forth row.", "1977-01-21"),
+  (5, "5th row", "", "2021-03-01"),
+  (6, "6th row", "...", "2023-01-21");
   
 CREATE TABLE IF NOT EXISTS `basic_schema`.`table3` (
   `id` INTEGER NOT NULL AUTO_INCREMENT,
