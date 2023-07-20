@@ -7,7 +7,7 @@
 #
 # --source ../include/predefined_setup/configure_router_mrs_root.inc
 #
-
+--source ../mrs/initialize_schema.inc
 --source ./configure_router_mrs_root_inner.inc
 
 --source ../mysqlrouter_mysql_connection.inc

@@ -85,6 +85,11 @@ if ($extra_mrs_meta_user) {
     
     --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"mysql_read_write_route=$extra_mrs_read_write_route\n");
     
+    if ($extra_mrs_read_only_route)
+    {
+        --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"mysql_read_only_route=$extra_mrs_read_only_route\n");
+    }
+    
     --echo #  * MySQL Rest Service
 }
 
@@ -94,14 +99,16 @@ if ($extra_keyring_master_file)
     --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"master_key_path=$extra_keyring_master_file\n");
 }
 
-
 if ($extra_keyring_file)
 {
     SET @variable_extra_config = CONCAT(@variable_extra_config,"[DEFAULT]\n");
     --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"keyring_path=$extra_keyring_file\n");
 }
 
-let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file;
+
+--let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file
+--source ../include/mysqlrouter_remember_file_for_removal.inc
+
 output $MYSQL_TMP_DIR/$extra_generated_file;
 replace_result @variable_extra_config #@variable_extra_config;
 SELECT @variable_extra_config;
