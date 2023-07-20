@@ -255,7 +255,7 @@ void revoke_dynamic_privileges_from_auth_id(
     const Role_id &id, const std::vector<std::string> &priv_list);
 bool operator==(const Role_id &a, const Auth_id_ref &b);
 bool operator==(const Auth_id_ref &a, const Role_id &b);
-bool operator==(const std::pair<const Role_id, const Role_id> &a,
+bool operator==(const std::pair<const Role_id, Role_id> &a,
                 const Auth_id_ref &b);
 bool operator==(const Role_id &a, const Role_id &b);
 bool operator==(std::pair<const Role_id, std::pair<std::string, bool>> &a,

@@ -7444,7 +7444,7 @@ bool operator==(const Role_id &a, const Auth_id_ref &b) {
 
 bool operator==(const Auth_id_ref &a, const Role_id &b) { return b == a; }
 
-bool operator==(const std::pair<const Role_id, const Role_id> &a,
+bool operator==(const std::pair<const Role_id, Role_id> &a,
                 const Auth_id_ref &b) {
   return ((a.second.user().length() == b.first.length) &&
           (a.second.host().length() == b.second.length) &&
