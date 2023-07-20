@@ -304,7 +304,8 @@ static void mgmd_run()
       con_str.appfmt("host=%s %d", opts.bind_address, port);
     else
       con_str.appfmt("localhost:%d", port);
-    Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
+    Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5, opt_tls_search_path,
+                      CLIENT_TLS_RELAXED);
     while(!g_StopServer){
       if (!read_and_execute(&com, "ndb_mgm> ", 1))
         g_StopServer = true;

@@ -29,6 +29,7 @@
 #include <ndbd_exit_codes.h>
 
 #include <util/BaseString.hpp>
+#include "util/TlsKeyManager.hpp"
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
 #include <kernel/signaldata/DumpStateOrd.hpp>
@@ -51,7 +52,9 @@ public:
   CommandInterpreter(const char* host,
                      const char* default_prompt,
                      int verbose,
-                     int connect_retry_delay);
+                     int connect_retry_delay,
+                     const char * tls_search_path,
+                     int tls_start_type);
   ~CommandInterpreter();
   
   int setDefaultBackupPassword(const char backup_password[]);
@@ -146,12 +149,14 @@ public:
                     int *node_ids, int no_of_nodes);
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
+  int executeStartTls();
   const char* get_current_prompt() const
   {
     // return the current prompt
     return m_prompt;
   }
 public:
+  int test_tls();
   bool connect(bool interactive);
   void disconnect(void);
 
@@ -175,6 +180,7 @@ private:
 		     ExecuteFunction fun,
 		     const char * param);
 
+  TlsKeyManager m_tlsKeyManager;
   NdbMgmHandle m_mgmsrv;
   NdbMgmHandle m_mgmsrv2;
   const char *m_constr;
@@ -192,6 +198,7 @@ private:
   bool m_always_encrypt_backup;
   char m_onetime_backup_password[1024];
   bool m_onetime_backup_password_set;
+  int m_tls_start_type;
 };
 
 NdbMutex* print_mutex;
@@ -203,10 +210,12 @@ NdbMutex* print_mutex;
 #include "ndb_mgmclient.hpp"
 
 Ndb_mgmclient::Ndb_mgmclient(const char *host, const char* default_prompt,
-                             int verbose, int connect_retry_delay)
+                             int verbose, int connect_retry_delay,
+                             const char * tls_search_path, int tls_start_type)
 {
   m_cmd= new CommandInterpreter(host, default_prompt,
-                                verbose, connect_retry_delay);
+                                verbose, connect_retry_delay,
+                                tls_search_path, tls_start_type);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
@@ -232,6 +241,11 @@ int Ndb_mgmclient::set_default_backup_password(
 int Ndb_mgmclient::set_always_encrypt_backup(bool on) const
 {
   return m_cmd->setAlwaysEncryptBackup(on);
+}
+
+int Ndb_mgmclient::test_tls()
+{
+  return m_cmd->test_tls();
 }
 
 /*
@@ -265,6 +279,7 @@ static const char* helpText =
 "SHOW                                   Print information about cluster\n"
 "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
 "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
+"START TLS                              Start TLS on connection\n"
 "START BACKUP [<backup id>] [ENCRYPT [PASSWORD='<password>']] "
   "[SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup "
@@ -722,7 +737,9 @@ convert(const char* s, int& val) {
  */
 CommandInterpreter::CommandInterpreter(const char *host,
                                        const char* default_prompt,
-                                       int verbose, int connect_retry_delay) :
+                                       int verbose, int connect_retry_delay,
+                                       const char * tls_search_path,
+                                       int tls_start_type) :
   m_constr(host),
   m_connected(false),
   m_verbose(verbose),
@@ -734,8 +751,10 @@ CommandInterpreter::CommandInterpreter(const char *host,
   m_prompt(default_prompt),
   m_default_backup_password(nullptr),
   m_always_encrypt_backup(false),
-  m_onetime_backup_password_set(false)
+  m_onetime_backup_password_set(false),
+  m_tls_start_type(tls_start_type)
 {
+  m_tlsKeyManager.init_mgm_client(tls_search_path);
   m_print_mutex= NdbMutex_Create();
 }
 
@@ -996,6 +1015,13 @@ event_thread_run(void* p)
   DBUG_RETURN(NULL);
 }
 
+int
+CommandInterpreter::test_tls()
+{
+  m_try_reconnect = 1;
+  return connect(false) ? 0 : 1;
+}
+
 bool
 CommandInterpreter::connect(bool interactive)
 {
@@ -1007,6 +1033,13 @@ CommandInterpreter::connect(bool interactive)
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
     ndbout_c("Can't create handle to management server.");
+    exit(-1);
+  }
+
+  if((m_tls_start_type == CLIENT_TLS_STRICT) &&
+     (m_tlsKeyManager.ctx() == nullptr))
+  {
+    ndbout_c("No valid certificate.");
     exit(-1);
   }
 
@@ -1045,6 +1078,29 @@ CommandInterpreter::connect(bool interactive)
     DBUG_RETURN(m_connected); // couldn't connect, always false
   }
 
+  ndb_mgm_set_ssl_ctx(m_mgmsrv, m_tlsKeyManager.ctx());
+
+  if(m_tls_start_type != CLIENT_TLS_DEFERRED)
+  {
+    if(ndb_mgm_start_tls(m_mgmsrv) != 0)
+    {
+      if(interactive)
+      {
+        ndbout_c("Connected to server, but failed to start TLS.");
+      }
+
+      if(m_tls_start_type == CLIENT_TLS_STRICT)
+      {
+        printError();
+        ndb_mgm_destroy_handle(&m_mgmsrv);
+        if(interactive)
+        {
+          ndb_mgm_destroy_handle(&m_mgmsrv2);
+        }
+        DBUG_RETURN(m_connected);
+      }
+    }
+  }
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
   unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
@@ -1056,6 +1112,10 @@ CommandInterpreter::connect(bool interactive)
     {
       DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
                          host, port));
+      if(m_tls_start_type != CLIENT_TLS_DEFERRED)
+      {
+        ndb_mgm_start_tls(m_mgmsrv2);
+      }
       assert(m_event_thread == NULL);
       assert(do_event_thread == 0);
       do_event_thread= 0;
@@ -1361,6 +1421,12 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   }
   else if (native_strcasecmp(firstToken, "CLUSTERLOG") == 0){
     executeClusterLog(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(native_strcasecmp(firstToken, "START") == 0 &&
+	  allAfterFirstToken != NULL &&
+	  native_strncasecmp(allAfterFirstToken, "TLS", 3) == 0) {
+    m_error = executeStartTls();
     DBUG_RETURN(true);
   }
   else if(native_strcasecmp(firstToken, "START") == 0 &&
@@ -2055,6 +2121,15 @@ CommandInterpreter::executeConnect(char* parameters, bool interactive)
     delete basestring;
 
   return 0;
+}
+
+int
+CommandInterpreter::executeStartTls()
+{
+  int result = ndb_mgm_start_tls(m_mgmsrv);
+  if(result == 0) ndbout_c("TLS started.");
+  else printError();
+  return result;
 }
 
 //*****************************************************************************

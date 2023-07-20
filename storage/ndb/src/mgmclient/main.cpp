@@ -53,6 +53,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 static char *opt_execute_str= 0;
 static char *opt_prompt= 0;
 static unsigned opt_verbose = 1;
+static bool opt_test_tls = true;
 
 static ndb_password_state opt_backup_password_state("backup", nullptr);
 static ndb_password_option opt_backup_password(opt_backup_password_state);
@@ -60,6 +61,12 @@ static ndb_password_from_stdin_option opt_backup_password_from_stdin(
                                           opt_backup_password_state);
 
 static bool opt_encrypt_backup = false;
+
+/* ndb_mgm uses an extended form of the --ndb-mgm-tls enum, which accepts
+   an extra option, "disabled"
+*/
+static const char * tls_names[] = { "relaxed", "strict", "deferred", nullptr };
+static TYPELIB mgm_tls_typelib = { 3 , "TLS requirement", tls_names, nullptr };
 
 static struct my_option my_long_options[] =
 {
@@ -72,6 +79,7 @@ static struct my_option my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
   NDB_STD_OPT_DEBUG
   { "backup-password", NDB_OPT_NOSHORT, "Encryption password for backup file",
     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG,
@@ -96,6 +104,13 @@ static struct my_option my_long_options[] =
   {"try-reconnect", 't', "Same as --connect-retries",
     &opt_connect_retries, nullptr, nullptr, GET_INT, REQUIRED_ARG,
     12, 0, INT_MAX, nullptr, 0, nullptr},
+  { "ndb-mgm-tls", NDB_OPT_NOSHORT,
+    "MGM client TLS requirement level",
+    &opt_mgm_tls, nullptr, &mgm_tls_typelib, GET_ENUM, REQUIRED_ARG,
+    0, 0, 2, nullptr, 0, nullptr},
+  { "test-tls", NDB_OPT_NOSHORT, "Connect using TLS then exit",
+    &opt_test_tls, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr},
   NdbStdOpt::end_of_options
 };
 
@@ -172,10 +187,19 @@ int main(int argc, char** argv){
     opt_prompt= 0;
   }
 
+  int tls_option = opt_mgm_tls;
+  if(opt_test_tls)
+  {
+    tls_option = CLIENT_TLS_STRICT;
+    opt_verbose = 1;
+  }
+
   Ndb_mgmclient* com = new Ndb_mgmclient(connect_str.c_str(),
                                          "ndb_mgm> ",
                                          opt_verbose,
-                                         opt_connect_retry_delay);
+                                         opt_connect_retry_delay,
+                                         opt_tls_search_path,
+                                         tls_option);
   com->set_always_encrypt_backup(opt_encrypt_backup);
   if (opt_backup_password_state.get_password())
   {
@@ -196,6 +220,12 @@ int main(int argc, char** argv){
     prompt_args.append(opt_prompt);
     com->execute(prompt_args.c_str(), opt_connect_retries, 0);
   }
+
+  if (opt_test_tls)
+  {
+    return com->test_tls();
+  }
+
   int ret= 0;
   BaseString histfile;
   if (!opt_execute_str)

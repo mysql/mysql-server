@@ -393,5 +393,6 @@
 
 #define CLIENT_TLS_RELAXED            0
 #define CLIENT_TLS_STRICT             1
+#define CLIENT_TLS_DEFERRED           2
 
 #endif
