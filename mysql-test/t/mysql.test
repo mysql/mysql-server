@@ -713,20 +713,20 @@ DROP USER bug21464621;
 
 --exec $MYSQL test -e "DROP FUNCTION f;"
 
---error 1064
--exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1
+--error 1
+--exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1
 
---error 1064
--exec $MYSQL test -e "SELECT \$mle\$test\$mle;" 2>&1
+--error 1
+--exec $MYSQL test -e "SELECT \$mle\$test\$mle;" 2>&1
 
---error 1064
--exec $MYSQL test -e "SELECT \$mle\$test\$ml\$;" 2>&1
+--error 1
+--exec $MYSQL test -e "SELECT \$mle\$test\$ml\$;" 2>&1
 
---error 1064
--exec $MYSQL test -e "SELECT \$mle+\$mle;" 2>&1
+--error 1
+--exec $MYSQL test -e "SELECT \$mle+\$mle;" 2>&1
 
---error 1064
--exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1
+--error 1
+--exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1
 
 --echo #
 --echo # Bug#35290350: mysql client has issues determining end of comment
