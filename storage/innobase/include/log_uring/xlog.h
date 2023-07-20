@@ -47,6 +47,9 @@ private:
   void notify_start();
   void wait_start();
 
+  static io_event* new_io_event(size_t size);
+  static void delete_io_event(io_event*);
+
   std::atomic<uint64_t> next_lsn_;
   int num_fd_;
   size_t max_sync_lsn_;

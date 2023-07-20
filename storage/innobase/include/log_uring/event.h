@@ -1,18 +1,15 @@
 #pragma once
 
-
 #include <stdint.h>
 
 #define EVENT_TYPE_WRITE 1
 #define EVENT_TYPE_FSYNC 2
-
 
 typedef struct io_write_event {
   uint64_t lsn_;
   uint64_t size_;
   uint64_t index_;
   uint8_t buffer_[0];
-  
 } io_write_event_t;
 
 typedef struct io_fsync_event {
@@ -32,7 +29,5 @@ public:
   event_union event_;
   io_event();
   ~io_event();
-
 private:
-
 };

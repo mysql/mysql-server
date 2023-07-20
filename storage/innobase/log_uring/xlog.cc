@@ -67,7 +67,7 @@ void xlog::start() {
   
 int xlog::append(void *buf, size_t size) {
   uint64_t lsn = next_lsn_.fetch_add(1);
-  io_event* e = (io_event*)malloc(sizeof(io_event) + size);
+  io_event* e = new_io_event(size);
   e->type_ = EVENT_TYPE_WRITE;
   e->event_.write_event_.index_ = 0;
   e->event_.write_event_.lsn_ = lsn;
@@ -80,7 +80,7 @@ int xlog::append(void *buf, size_t size) {
 }
 
 int xlog::sync(size_t lsn) {
-  io_event* e = (io_event*)malloc(sizeof(io_event));
+  io_event* e = new_io_event(0);
   e->type_ = EVENT_TYPE_FSYNC;
   e->event_.fsync_event_.index_ = 0;
   e->event_.fsync_event_.lsn_ = lsn;
@@ -109,6 +109,8 @@ int xlog::handle_event_list() {
     enqueue_sqe(list[i]);
   }
   
+  list.clear();
+
   enqueue_sqe_fsync_combine();
 #ifdef __URING__
   return io_uring_submit(&iouring_context_.ring);
@@ -130,7 +132,7 @@ int xlog::handle_completion(int submit) {
     if (e) {
       handle_completion_event(e);
       std::cout << "free:" << e << std::endl;
-      free(e);
+      delete_io_event(e);
     }
     io_uring_cqe_seen(&iouring_context_.ring, cqe);
   }
@@ -156,14 +158,14 @@ void xlog::handle_completion_event(io_event *e) {
   case EVENT_TYPE_FSYNC/* constant-expression */:
     /* code */
     {
-      io_fsync_event_t *io_event = &e->event_.fsync_event_;
-      file_[io_event->index_].sync_lsn_ = io_event->lsn_;
+      io_fsync_event_t *fsync_event = &e->event_.fsync_event_;
+      file_[fsync_event->index_].sync_lsn_ = fsync_event->lsn_;
     }
     break;
   case EVENT_TYPE_WRITE:
     {
-      io_write_event_t *io_event = &e->event_.write_event_;
-      file_[io_event->index_].max_lsn_ = io_event->lsn_;
+      io_write_event_t *write_event = &e->event_.write_event_;
+      file_[write_event->index_].max_lsn_ = write_event->lsn_;
     }
     break;
   default:
@@ -208,7 +210,7 @@ void xlog::enqueue_sqe_fsync(io_event *e) {
   if (max_to_sync_lsn_ < lsn) {
     max_to_sync_lsn_ = lsn;
   }
-  free(e);
+  delete_io_event(e);
 #endif
 }
 
@@ -221,7 +223,7 @@ void xlog::enqueue_sqe_fsync_combine() {
       if (max_lsn < file_[i].max_lsn_) {
         max_lsn = file_[i].max_lsn_;
       }
-      io_event *e = (io_event*)malloc(sizeof(io_event));
+      io_event *e = new_io_event(0);
       e->type_ = EVENT_TYPE_FSYNC;
       e->event_.fsync_event_.lsn_ = file_[i].max_lsn_;
       e->event_.fsync_event_.index_ = i;
@@ -263,6 +265,16 @@ void xlog::wait_start() {
     [this] {
       return state_;
     });
+}
+
+
+io_event* xlog::new_io_event(size_t size) {
+  io_event* e = (io_event*)malloc(sizeof(io_event) + size);
+  return e;
+}
+
+void xlog::delete_io_event(io_event* event) {
+  free(event);
 }
 
 xlog __global_xlog;
