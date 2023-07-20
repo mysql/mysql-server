@@ -91,8 +91,10 @@ bool get_if(Container &c, Find_if &&find_if,
 
 template <typename Container, typename Value = typename Container::value_type>
 bool has(const Container &c, Value &&val) {
-  auto it = std::find(c.begin(), c.end(), std::forward<Value>(val));
-  if (c.end() == it) return false;
+  auto b = std::begin(c);
+  auto e = std::end(c);
+  auto it = std::find(b, e, std::forward<Value>(val));
+  if (e == it) return false;
   return true;
 }
 

@@ -43,12 +43,15 @@ using MySQLSession = collector::MysqlCacheManager::Object;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 using Type = mrs::interface::RestHandler::HttpResult::Type;
 using HttpResult = mrs::rest::HandlerFile::HttpResult;
+using MysqlCacheManager = collector::MysqlCacheManager;
+using MySQLConnection = collector::MySQLConnection;
 
-static CachedObject get_session(MySQLSession session,
-                                collector::MysqlCacheManager *cache_manager) {
+static CachedObject get_session(
+    MySQLSession session, MysqlCacheManager *cache_manager,
+    MySQLConnection type = MySQLConnection::kMySQLConnectionMetadataRO) {
   if (session) return CachedObject(nullptr, session);
 
-  return cache_manager->get_instance(collector::kMySQLConnectionMetadata);
+  return cache_manager->get_instance(type, false);
 }
 
 static Type get_result_type_from_extension(const std::string &ext) {
@@ -122,8 +125,8 @@ HttpResult HandlerFile::handle_get(rest::RequestContext *ctxt) {
     throw http::Error(HttpStatusCode::NotModified);
   }
 
-  auto session =
-      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
+                             MySQLConnection::kMySQLConnectionUserdataRO);
   auto result_type = get_result_type_from_extension(
       mysql_harness::make_lower(path.extension()));
 

@@ -1,0 +1,130 @@
+/*  Copyright (c) 2023, Oracle and/or its affiliates.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_WAIT_VARIABLE_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_WAIT_VARIABLE_H_
+
+#include "helper/container/generic.h"
+#include "mysql/harness/stdx/monitor.h"
+
+template <typename ValueType>
+class WaitableVariable {
+ public:
+  WaitableVariable() {}
+  WaitableVariable(const ValueType &value) : monitor_with_value_{value} {}
+
+  class DoNothing {
+   public:
+    void operator()() {}
+  };
+
+  template <typename Callback = DoNothing>
+  void set(const ValueType &v,
+           const Callback &after_set_callback = DoNothing()) {
+    monitor_with_value_.serialize_with_cv(
+        [this, &v, &after_set_callback](auto &value, auto &cv) {
+          value = v;
+          after_set_callback();
+          cv.notify_all();
+        });
+  }
+
+  template <typename Container, typename Callback = DoNothing>
+  bool is(const Container &expected_values,
+          const Callback &after_set_callback = Callback()) {
+    bool result{false};
+    monitor_with_value_.serialize_with_cv(
+        [this, &result, &expected_values, &after_set_callback](
+            auto &current_value, auto &) {
+          result = helper::container::has(expected_values, current_value);
+          if (result) after_set_callback();
+        });
+    return result;
+  }
+
+  template <typename Callback = DoNothing>
+  bool is(const ValueType &expected_value,
+          const Callback &after_set_callback = Callback()) {
+    bool result{false};
+    monitor_with_value_.serialize_with_cv(
+        [this, &result, &expected_value, &after_set_callback](
+            auto &current_value, auto &) {
+          result = (expected_value == current_value);
+          if (result) after_set_callback();
+        });
+    return result;
+  }
+
+  template <typename Callback = DoNothing>
+  void wait(const ValueType &expected_value,
+            const Callback &callback = Callback()) {
+    monitor_with_value_.wait(
+        [this, &expected_value, &callback](const auto &current_value) {
+          if (expected_value == current_value) {
+            callback();
+            return true;
+          }
+          return false;
+        });
+  }
+
+  template <typename Container, typename Callback = DoNothing>
+  void wait(const Container &expected_values,
+            const Callback &callback = Callback()) {
+    monitor_with_value_.wait(
+        [this, &expected_values, &callback](const auto &current_value) {
+          if (helper::container::has(expected_values, current_value)) {
+            callback();
+            return true;
+          }
+          return false;
+        });
+  }
+
+  template <class Rep, class Period, typename Callback = DoNothing>
+  bool wait_for(const std::chrono::duration<Rep, Period> &rel_time,
+                const ValueType &expected_value,
+                const Callback &callback = Callback()) {
+    return monitor_with_value_.wait_for(
+        rel_time, [this, expected_value, &callback](auto &current_value) {
+          if (current_value == expected_value) {
+            callback();
+            return true;
+          }
+          return false;
+        });
+  }
+
+  template <class Rep, class Period, typename Container>
+  bool wait_for(const std::chrono::duration<Rep, Period> &rel_time,
+                const Container &expected_values) {
+    return monitor_with_value_.wait_for(
+        [this, &expected_values](const auto &current_value) {
+          return helper::container::has(expected_values, current_value);
+        });
+  }
+
+ private:
+  WaitableMonitor<ValueType> monitor_with_value_{};
+};
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_WAIT_VARIABLE_H_

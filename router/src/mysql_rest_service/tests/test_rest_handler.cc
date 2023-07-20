@@ -107,7 +107,7 @@ TEST_F(RestHandlerTests, handle_request) {
   EXPECT_CALL(mock_auth_manager_, get_cache())
       .WillRepeatedly(Return(&mock_cache_manager_));
   EXPECT_CALL(mock_cache_manager_,
-              get_empty(collector::kMySQLConnectionMetadata));
+              get_empty(collector::kMySQLConnectionMetadataRO, false));
   EXPECT_CALL(*sut_, get_service_id())
       .WillRepeatedly(Return(mrs::UniversalId{1}));
   EXPECT_CALL(*sut_, requires_authentication())

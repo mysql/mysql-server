@@ -31,10 +31,26 @@
 #include "mrs/configuration.h"
 
 #include "collector/counted_mysql_session.h"
+#include "collector/destination_provider.h"
 
 namespace collector {
 
-enum MySQLConnection { kMySQLConnectionMetadata, kMySQLConnectionUserdata };
+enum MySQLConnection {
+  kMySQLConnectionMetadataRO,
+  kMySQLConnectionUserdataRO,
+  kMySQLConnectionMetadataRW,
+  kMySQLConnectionUserdataRW
+};
+
+inline bool is_rw(const MySQLConnection c) {
+  switch (c) {
+    case kMySQLConnectionMetadataRW:
+    case kMySQLConnectionUserdataRW:
+      return true;
+    default:
+      return false;
+  }
+}
 
 class ConnectionConfiguration {
  public:
@@ -42,23 +58,25 @@ class ConnectionConfiguration {
 
   ConnectionConfiguration(MySQLConnection type,
                           const mrs::Configuration &configuration)
-      : ssl_{configuration.ssl_}, nodes_{configuration.nodes_} {
+      : provider_{is_rw(type) ? configuration.provider_rw_.get()
+                              : configuration.provider_ro_.get()} {
     switch (type) {
-      case kMySQLConnectionMetadata:
+      case kMySQLConnectionMetadataRW:
+      case kMySQLConnectionMetadataRO:
         mysql_user_ = configuration.mysql_user_;
         mysql_password_ = configuration.mysql_user_password_;
         break;
-      case kMySQLConnectionUserdata:
+      case kMySQLConnectionUserdataRW:
+      case kMySQLConnectionUserdataRO:
         mysql_user_ = configuration.mysql_user_data_access_;
         mysql_password_ = configuration.mysql_user_data_access_password_;
         break;
     }
   }
 
+  DestinationProvider *provider_{nullptr};
   std::string mysql_user_;
   std::string mysql_password_;
-  mrs::SslConfiguration ssl_;
-  std::vector<mrs::Node> nodes_;
 };
 
 class MysqlCacheManager {
@@ -75,12 +93,12 @@ class MysqlCacheManager {
     MysqlCacheCallbacks(const ConnectionConfiguration &configuration =
                             ConnectionConfiguration{},
                         const std::string &role = {})
-        : configuration_{configuration}, role_{role} {}
+        : connection_configuration_{configuration}, role_{role} {}
 
     bool object_before_cache(Object) override;
     bool object_retrived_from_cache(Object) override;
     void object_remove(Object) override;
-    Object object_allocate() override;
+    Object object_allocate(bool wait) override;
     bool is_default_user(Object &) const;
 
     const ConnectionConfiguration &get_connection_configuration() const;
@@ -89,47 +107,64 @@ class MysqlCacheManager {
     void object_restore_defaults(Object &);
     bool is_default_server(Object &) const;
 
-    ConnectionParameters new_connection_params();
+    ConnectionParameters new_connection_params(bool wait);
 
    private:
-    ConnectionConfiguration configuration_;
+    ConnectionConfiguration connection_configuration_;
     std::string role_;
     int node_rount_robin_{0};
   };
 
  public:
   MysqlCacheManager(const mrs::Configuration &configuration)
-      : callbacks_metadata_{{collector::kMySQLConnectionMetadata,
-                             configuration},
-                            "mysql_rest_service_meta_provider"},
-        callbacks_userdata_{{
-                                collector::kMySQLConnectionUserdata,
-                                configuration,
-                            },
-                            "mysql_rest_service_data_provider"} {}
+      : callbacks_metadata_ro_{{collector::kMySQLConnectionMetadataRO,
+                                configuration},
+                               "mysql_rest_service_meta_provider"},
+        callbacks_userdata_ro_{{
+                                   collector::kMySQLConnectionUserdataRO,
+                                   configuration,
+                               },
+                               "mysql_rest_service_data_provider"},
+        callbacks_metadata_rw_{
+            {collector::kMySQLConnectionMetadataRW, configuration},
+            "mysql_rest_service_meta_provider"},
+        callbacks_userdata_rw_{{
+                                   collector::kMySQLConnectionUserdataRW,
+                                   configuration,
+                               },
+                               "mysql_rest_service_data_provider"} {}
   MysqlCacheManager(Callbacks *callbacks_meta, Callbacks *callbacks_user)
-      : cache_manager_metadata_{callbacks_meta},
-        cache_manager_userdata_{callbacks_user} {}
+      : cache_manager_metadata_ro_{callbacks_meta},
+        cache_manager_userdata_ro_{callbacks_user} {}
 
   virtual ~MysqlCacheManager() = default;
 
-  virtual CachedObject get_empty(collector::MySQLConnection type) {
+  virtual CachedObject get_empty(collector::MySQLConnection type, bool wait) {
     switch (type) {
-      case collector::kMySQLConnectionMetadata:
-        return {&cache_manager_metadata_};
-      case collector::kMySQLConnectionUserdata:
-        return {&cache_manager_userdata_};
+      case collector::kMySQLConnectionMetadataRO:
+        return {&cache_manager_metadata_ro_, wait};
+      case collector::kMySQLConnectionUserdataRO:
+        return {&cache_manager_userdata_ro_, wait};
+      case collector::kMySQLConnectionMetadataRW:
+        return {&cache_manager_metadata_rw_, wait};
+      case collector::kMySQLConnectionUserdataRW:
+        return {&cache_manager_userdata_rw_, wait};
       default:
         assert(nullptr && "Shouldn't happen");
         return {};
     }
   }
-  virtual CachedObject get_instance(collector::MySQLConnection type) {
+  virtual CachedObject get_instance(collector::MySQLConnection type,
+                                    bool wait) {
     switch (type) {
-      case collector::kMySQLConnectionMetadata:
-        return cache_manager_metadata_.get_instance();
-      case collector::kMySQLConnectionUserdata:
-        return cache_manager_userdata_.get_instance();
+      case collector::kMySQLConnectionMetadataRO:
+        return cache_manager_metadata_ro_.get_instance(wait);
+      case collector::kMySQLConnectionUserdataRO:
+        return cache_manager_userdata_ro_.get_instance(wait);
+      case collector::kMySQLConnectionMetadataRW:
+        return cache_manager_metadata_rw_.get_instance(wait);
+      case collector::kMySQLConnectionUserdataRW:
+        return cache_manager_userdata_rw_.get_instance(wait);
       default:
         assert(nullptr && "Shouldn't happen");
         return {};
@@ -139,11 +174,17 @@ class MysqlCacheManager {
   virtual void change_instance(CachedObject &instance,
                                collector::MySQLConnection type) {
     switch (type) {
-      case collector::kMySQLConnectionMetadata:
-        change_to(instance, &cache_manager_metadata_);
+      case collector::kMySQLConnectionMetadataRO:
+        change_to(instance, &cache_manager_metadata_ro_);
         break;
-      case collector::kMySQLConnectionUserdata:
-        change_to(instance, &cache_manager_userdata_);
+      case collector::kMySQLConnectionUserdataRO:
+        change_to(instance, &cache_manager_userdata_ro_);
+        break;
+      case collector::kMySQLConnectionMetadataRW:
+        change_to(instance, &cache_manager_metadata_rw_);
+        break;
+      case collector::kMySQLConnectionUserdataRW:
+        change_to(instance, &cache_manager_userdata_rw_);
         break;
     }
   }
@@ -153,8 +194,10 @@ class MysqlCacheManager {
   }
 
   virtual void change_cache_object_limit(uint32_t limit) {
-    cache_manager_metadata_.change_cache_object_limit(limit);
-    cache_manager_userdata_.change_cache_object_limit(limit);
+    cache_manager_metadata_ro_.change_cache_object_limit(limit);
+    cache_manager_userdata_ro_.change_cache_object_limit(limit);
+    cache_manager_metadata_rw_.change_cache_object_limit(limit);
+    cache_manager_userdata_rw_.change_cache_object_limit(limit);
   }
 
  private:
@@ -171,10 +214,14 @@ class MysqlCacheManager {
     }
   }
 
-  MysqlCacheCallbacks callbacks_metadata_;
-  MysqlCacheCallbacks callbacks_userdata_;
-  MySqlCacheManager cache_manager_metadata_{&callbacks_metadata_};
-  MySqlCacheManager cache_manager_userdata_{&callbacks_userdata_};
+  MysqlCacheCallbacks callbacks_metadata_ro_;
+  MysqlCacheCallbacks callbacks_userdata_ro_;
+  MysqlCacheCallbacks callbacks_metadata_rw_;
+  MysqlCacheCallbacks callbacks_userdata_rw_;
+  MySqlCacheManager cache_manager_metadata_ro_{&callbacks_metadata_ro_};
+  MySqlCacheManager cache_manager_userdata_ro_{&callbacks_userdata_ro_};
+  MySqlCacheManager cache_manager_metadata_rw_{&callbacks_metadata_rw_};
+  MySqlCacheManager cache_manager_userdata_rw_{&callbacks_userdata_rw_};
 };
 
 }  // namespace collector

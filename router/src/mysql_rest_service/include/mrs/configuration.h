@@ -26,37 +26,18 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_CONFIG_H_
 
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <mysql.h>
+#include "collector/destination_provider.h"
 
 namespace mrs {
 
 enum Authentication { kAuthenticationNone, kAuthenticationBasic2Server };
-
-class Node {
- public:
-  Node() {}
-  Node(const std::string &host, const uint16_t port)
-      : host_{host}, port_{port} {}
-
-  std::string host_;
-  uint16_t port_;
-};
-
-class SslConfiguration {
- public:
-  mysql_ssl_mode ssl_mode_;
-  std::string ssl_ca_file_;
-  std::string ssl_ca_path_;
-  std::string ssl_crl_file_;
-  std::string ssl_crl_path_;
-  std::string ssl_curves_;
-  std::string ssl_ciphers_;
-};
 
 class Configuration {
  public:  // Option fetched from configuration file
@@ -65,20 +46,20 @@ class Configuration {
   std::string mysql_user_data_access_;
   std::string mysql_user_data_access_password_;
 
-  std::set<std::string> routing_names_;
-  std::set<std::string> metada_names_;
-
   std::chrono::seconds metadata_refresh_interval_;
 
+  std::string routing_ro_;
+  std::string routing_rw_;
   std::optional<uint64_t> router_id_;
   std::string router_name_;
 
  public:  // Options fetched from other plugins
   bool is_https_;
-  SslConfiguration ssl_;
-  // TODO(lkotula): Later on it should be diviced on read-only and writable
-  // nodes (Shouldn't be in review)
-  std::vector<Node> nodes_;
+  // todo(lkotula): remove ssl_
+  //  SslConfiguration ssl_;
+
+  std::shared_ptr<collector::DestinationProvider> provider_rw_;
+  std::shared_ptr<collector::DestinationProvider> provider_ro_;
   std::string jwt_secret_;
 };
 

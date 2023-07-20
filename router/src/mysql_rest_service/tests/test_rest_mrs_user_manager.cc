@@ -137,7 +137,7 @@ class UserManagerFixture : public Test {
 
 TEST_F(UserManagerFixture, fetch_user_from_database) {
   const mrs::UniversalId k_app_id{2};
-  SqlSessionCache cache{nullptr, &session_};
+  SqlSessionCache cache{nullptr, false, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
   AuthUser user;
@@ -164,7 +164,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
 
 TEST_F(UserManagerFixture, fetch_user_from_database_once) {
   const mrs::UniversalId k_app_id{2};
-  SqlSessionCache cache{nullptr, &session_};
+  SqlSessionCache cache{nullptr, false, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
   AuthUser user1;
@@ -217,7 +217,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
 TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   using namespace std::string_literals;
   const mrs::UniversalId k_app_id{2};
-  SqlSessionCache cache{nullptr, &session_};
+  SqlSessionCache cache{nullptr, false, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
   // The user has different mail, than in representation in DB.

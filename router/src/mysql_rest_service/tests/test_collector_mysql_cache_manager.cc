@@ -50,17 +50,17 @@ TEST_F(MysqlCacheManagerTest, sut_constructor_does_nothing) {}
 
 TEST_F(MysqlCacheManagerTest, multiple_objects_deallocate_themself) {
   MockMySQLSession session[4];
-  EXPECT_CALL(mock_callbacks_, object_allocate())
+  EXPECT_CALL(mock_callbacks_, object_allocate(false))
       .Times(4)
       .WillOnce(Return(&session[0]))
       .WillOnce(Return(&session[1]))
       .WillOnce(Return(&session[2]))
       .WillOnce(Return(&session[3]));
   {
-    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-    auto obj2 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-    auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-    auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
+    auto obj2 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
+    auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
+    auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
 
     EXPECT_CALL(mock_callbacks_, object_before_cache(_)).Times(4);
     EXPECT_CALL(mock_callbacks_, object_remove(_)).Times(4);
@@ -69,10 +69,10 @@ TEST_F(MysqlCacheManagerTest, multiple_objects_deallocate_themself) {
 }
 
 TEST_F(MysqlCacheManagerTest, object_deallocates_itself) {
-  EXPECT_CALL(mock_callbacks_, object_allocate())
+  EXPECT_CALL(mock_callbacks_, object_allocate(false))
       .WillOnce(Return(&mock_session_));
   {
-    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
     EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
         .WillOnce(Return(false));
@@ -83,10 +83,10 @@ TEST_F(MysqlCacheManagerTest, object_deallocates_itself) {
 
 TEST_F(MysqlCacheManagerTest,
        not_empty_object_deallocates_at_sut_destructor_when_its_cached) {
-  EXPECT_CALL(mock_callbacks_, object_allocate())
+  EXPECT_CALL(mock_callbacks_, object_allocate(false))
       .WillOnce(Return(&mock_session_));
   {
-    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
     EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
         .WillOnce(Return(true));
@@ -99,13 +99,13 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_three_objects) {
   constexpr uint32_t k_number_of_allocated_objects_at_once = 10;
   sut_.change_cache_object_limit(3);
 
-  EXPECT_CALL(mock_callbacks_, object_allocate())
+  EXPECT_CALL(mock_callbacks_, object_allocate(false))
       .Times(k_number_of_allocated_objects_at_once)
       .WillRepeatedly(Return(&mock_session_));
   {
     MysqlCacheManager::CachedObject obj[k_number_of_allocated_objects_at_once];
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)
-      obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadata);
+      obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
     EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
         .Times(3)
@@ -121,13 +121,13 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_one_object_and_reuseit) {
   constexpr uint32_t k_number_of_allocated_objects_at_once = 10;
   sut_.change_cache_object_limit(1);
 
-  EXPECT_CALL(mock_callbacks_, object_allocate())
+  EXPECT_CALL(mock_callbacks_, object_allocate(false))
       .Times(k_number_of_allocated_objects_at_once)
       .WillRepeatedly(Return(&mock_session_));
   {
     MysqlCacheManager::CachedObject obj[k_number_of_allocated_objects_at_once];
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)
-      obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadata);
+      obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
     EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
         .WillOnce(Return(true));

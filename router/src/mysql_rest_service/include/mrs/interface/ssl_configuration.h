@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
-#define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SSL_CONFIGURATION_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SSL_CONFIGURATION_H_
 
-#include "collector/mysql_cache_manager.h"
+#include <string>
 
-class MockMysqlCacheManager : public collector::MysqlCacheManager {
+#include <mysql.h>
+
+namespace mrs {
+class SslConfiguration {
  public:
-  MockMysqlCacheManager() : MysqlCacheManager({}) {}
-  MOCK_METHOD(CachedObject, get_empty,
-              (collector::MySQLConnection type, bool wait), (override));
-  MOCK_METHOD(CachedObject, get_instance,
-              (collector::MySQLConnection type, bool wait), (override));
-
-  MOCK_METHOD(void, return_instance, (CachedObject & object), (override));
-  MOCK_METHOD(void, change_cache_object_limit, (uint32_t limit), (override));
+  mysql_ssl_mode ssl_mode_;
+  std::string ssl_ca_file_;
+  std::string ssl_ca_path_;
+  std::string ssl_crl_file_;
+  std::string ssl_crl_path_;
+  std::string ssl_curves_;
+  std::string ssl_ciphers_;
 };
 
-#endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
+}  // namespace mrs
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_MRS_INTERFACE_SSL_CONFIGURATION_H_

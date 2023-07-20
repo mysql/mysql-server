@@ -85,7 +85,8 @@ static CachedObject get_session(::mysqlrouter::MySQLSession *,
                                 collector::MysqlCacheManager *cache_manager) {
   //  if (session) return CachedObject(nullptr, session);
 
-  return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
+  return cache_manager->get_instance(collector::kMySQLConnectionUserdataRW,
+                                     false);
 }
 
 HttpResult HandlerSP::handle_delete([

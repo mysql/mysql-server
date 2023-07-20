@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,32 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
-#define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_COLLECTOR_DESTINATION_PROVIDER_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_COLLECTOR_DESTINATION_PROVIDER_H_
 
-#include "collector/mysql_cache_manager.h"
+#include <optional>
+#include <vector>
 
-class MockMysqlCacheManager : public collector::MysqlCacheManager {
+#include "mrs/interface/ssl_configuration.h"
+#include "tcp_address.h"
+
+namespace collector {
+
+class DestinationProvider {
  public:
-  MockMysqlCacheManager() : MysqlCacheManager({}) {}
-  MOCK_METHOD(CachedObject, get_empty,
-              (collector::MySQLConnection type, bool wait), (override));
-  MOCK_METHOD(CachedObject, get_instance,
-              (collector::MySQLConnection type, bool wait), (override));
+  using Node = mysql_harness::TCPAddress;
+  using SslConfiguration = mrs::SslConfiguration;
 
-  MOCK_METHOD(void, return_instance, (CachedObject & object), (override));
-  MOCK_METHOD(void, change_cache_object_limit, (uint32_t limit), (override));
+  enum WaitingOp { kNoWait, kWaitUntilAvaiable, kWaitUntilTimeout };
+
+ public:
+  virtual ~DestinationProvider() = default;
+
+  virtual std::optional<Node> get_node(const WaitingOp) = 0;
+  virtual bool is_node_supported(const Node &node) = 0;
+  virtual const SslConfiguration &get_ssl_configuration() = 0;
 };
 
-#endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQLCACHEMANAGER_H_
+}  // namespace collector
+
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_COLLECTOR_DESTINATION_PROVIDER_H_

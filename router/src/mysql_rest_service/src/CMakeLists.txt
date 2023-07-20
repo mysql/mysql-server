@@ -126,7 +126,8 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_unauthorize.cc
   mrs/rest/handler_schema_metadata.cc
   mrs/rest/handler_sp.cc
-  rest_mrs_plugin.cc
+  mysql_rest_service_plugin_config.cc
+  mysql_rest_service_plugin.cc
   REQUIRES io_component;router_lib;routing;http_server;rest_api;http_client;ext::libevent;mysql_rest_service_if;mysql_rest_service_db;
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )

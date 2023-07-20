@@ -85,7 +85,7 @@ class HandlerAuthorizeTests : public Test {
     EXPECT_CALL(mock_auth_, get_cache())
         .WillRepeatedly(Return(&mock_cache_manager_));
     EXPECT_CALL(mock_cache_manager_,
-                get_empty(collector::kMySQLConnectionMetadata));
+                get_empty(collector::kMySQLConnectionMetadataRO, false));
     EXPECT_CALL(mock_request_, get_output_headers())
         .WillRepeatedly(ReturnRef(mock_output_headers_));
     EXPECT_CALL(mock_request_, get_input_headers())

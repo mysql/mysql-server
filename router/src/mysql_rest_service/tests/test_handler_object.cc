@@ -109,7 +109,7 @@ class HandleObjectTests : public Test {
       EXPECT_CALL(parent_.mock_route, get_cache())
           .WillRepeatedly(Return(&parent_.mysql_cache));
       EXPECT_CALL(parent_.mysql_cache,
-                  get_instance(collector::kMySQLConnectionUserdata))
+                  get_instance(collector::kMySQLConnectionUserdataRO, false))
           .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
               nullptr, &parent_.mock_session))));
 
