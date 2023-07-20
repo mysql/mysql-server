@@ -3649,11 +3649,12 @@ end:
 }
 
 static void telemetry_carrier_set(void *carrier_data, const char *key,
-                                  const char *value) {
+                                  size_t key_length, const char *value,
+                                  size_t value_length) {
   client_query_attributes *qa =
       reinterpret_cast<client_query_attributes *>(carrier_data);
   assert(qa != nullptr);
-  qa->push_param(key, value);
+  qa->push_param(key, key_length, value, value_length);
 }
 
 static int com_go(String *buffer, char *line) {

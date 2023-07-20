@@ -48,11 +48,15 @@ typedef telemetry_span_t *(*telemetry_start_span_t)(const char *name);
   an arbitrary carrier.
   @param carrier_data Opaque carrier data to set
   @param key Key to set
+  @param key_length Length of key
   @param value Value to set
+  @param value_length Length of value
 */
 typedef void (*telemetry_text_map_carrier_set_t)(void *carrier_data,
                                                  const char *key,
-                                                 const char *value);
+                                                 size_t key_length,
+                                                 const char *value,
+                                                 size_t value_length);
 
 /**
   Inject an OpenTelemetry trace context into an arbitrary text map carrier.

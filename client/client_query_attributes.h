@@ -31,7 +31,11 @@ class client_query_attributes {
  public:
   client_query_attributes() = default;
   ~client_query_attributes() { clear(); }
+  /* Assumes that name and value are 0 terminated. */
   bool push_param(const char *name, const char *value);
+  /* Does not assumes that name and value are 0 terminated. */
+  bool push_param(const char *name, size_t name_length, const char *value,
+                  size_t value_length);
   int set_params(MYSQL *mysql);
 
   void clear(MYSQL *mysql = nullptr);

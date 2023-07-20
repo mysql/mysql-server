@@ -31,15 +31,37 @@
 client_query_attributes *global_attrs = nullptr;
 
 bool client_query_attributes::push_param(const char *name, const char *value) {
+  return push_param(name, strlen(name), value, strlen(value));
+}
+
+bool client_query_attributes::push_param(const char *name, size_t name_length,
+                                         const char *value,
+                                         size_t value_length) {
   if (count >= max_count) return true;
-  names[count] = my_strdup(PSI_NOT_INSTRUMENTED, name, MYF(0));
+
+  /* Copy name */
+  char *name_copy =
+      (char *)my_malloc(PSI_NOT_INSTRUMENTED, name_length + 1, MYF(0));
+  if (name_length) {
+    memcpy(name_copy, name, name_length);
+  }
+  name_copy[name_length] = 0;
+
+  names[count] = name_copy;
+
+  /* Copy value */
+  char *value_copy =
+      (char *)my_malloc(PSI_NOT_INSTRUMENTED, value_length + 1, MYF(0));
+  if (value_length) {
+    memcpy(value_copy, value, value_length);
+  }
+  value_copy[value_length] = 0;
+
   memset(&values[count], 0, sizeof(MYSQL_BIND));
-  const unsigned val_len = strlen(value);
-  values[count].buffer = my_malloc(PSI_NOT_INSTRUMENTED, val_len + 1, MYF(0));
-  if (val_len) memcpy(values[count].buffer, value, val_len);
-  ((unsigned char *)values[count].buffer)[val_len] = 0;
-  values[count].buffer_length = val_len;
+  values[count].buffer = value_copy;
+  values[count].buffer_length = value_length;
   values[count].buffer_type = MYSQL_TYPE_STRING;
+
   count++;
   return false;
 }
