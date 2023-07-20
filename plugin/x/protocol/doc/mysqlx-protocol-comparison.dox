@@ -32,8 +32,8 @@
 | TLS extension                        | ✓                                                                                       | ✓                                                |
 | max message size >= 1Gb              | ✓                                                                                       | ✓                                                |
 | compression extension                | ✓                                                                                       | ✓ zlib, lz4, zstd                                |
-| resettable sessions                  | [COM_RESET_CONNECTION](http://dev.mysql.com/doc/internals/en/com-reset-connection.html) | @ref Mysqlx::Session::Reset                      |
-| multiple, sequential sessions        | [COM_CHANGE_USER](http://dev.mysql.com/doc/internals/en/com-change-user.html)           | @ref Mysqlx::Session::AuthenticateStart          |
+| resettable sessions                  | [COM_RESET_CONNECTION](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_reset_connection.html) | @ref Mysqlx::Session::Reset                      |
+| multiple, sequential sessions        | [COM_CHANGE_USER](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_change_user.html)           | @ref Mysqlx::Session::AuthenticateStart          |
 | out-of-band notifications            | ✕                                                                                       | @ref Mysqlx::Notice::Frame                       |
 | extensible messages                  | ✕                                                                                       | via protobuf                                     |
 | extensible protocol                  | via capability flags                                                                    | @ref Mysqlx::Connection::CapabilitiesGet         |
@@ -47,28 +47,28 @@
 
 | Command                                                                                       | X %Protocol                                       |
 |-----------------------------------------------------------------------------------------------|---------------------------------------------------|
-| [COM_QUIT](http://dev.mysql.com/doc/internals/en/com-quit.html)                               | @ref Mysqlx::Connection::Close                    |
-| [COM_INIT_DB](http://dev.mysql.com/doc/internals/en/com-init-db.html)                         | ✕                                                 |
-| [COM_QUERY](http://dev.mysql.com/doc/internals/en/com-query.html)                             | @ref Mysqlx::Sql::StmtExecute namespace="sql"     |
-| [COM_FIELD_LIST](http://dev.mysql.com/doc/internals/en/com-field-list.html)                   | ✕, deprecated                                     |
-| [COM_CREATE_DB](http://dev.mysql.com/doc/internals/en/com-create-db.html)                     | ✕, deprecated                                     |
-| [COM_DROP_DB](http://dev.mysql.com/doc/internals/en/com-drop-db.html)                         | ✕, deprecated                                     |
-| [COM_REFRESH](http://dev.mysql.com/doc/internals/en/com-refresh.html)                         | ✕, deprecated                                     |
-| [COM_SHUTDOWN](http://dev.mysql.com/doc/internals/en/com-shutdown.html)                       | ✕, use SQL ``SHUTDOWN``                           |
-| [COM_STATISTICS](http://dev.mysql.com/doc/internals/en/com-statistics.html)                   | ✕, deprecated                                     |
-| [COM_PROCESS_INFO](http://dev.mysql.com/doc/internals/en/com-process-info.html)               | ✕, deprecated                                     |
-| [COM_PROCESS_KILL](http://dev.mysql.com/doc/internals/en/com-process-kill.html)               | ✕, deprecated                                     |
-| [COM_DEBUG](http://dev.mysql.com/doc/internals/en/com-debug.html)                             | ✕, deprecated                                     |
-| [COM_PING](http://dev.mysql.com/doc/internals/en/com-ping.html)                               | @ref Mysqlx::Sql::StmtExecute namespace="mysqlx"  |
-| [COM_CHANGE_USER](http://dev.mysql.com/doc/internals/en/com-change-user.html)                 | @ref Mysqlx::Session::AuthenticateStart           |
-| [COM_RESET_CONNECTION](http://dev.mysql.com/doc/internals/en/com-reset-connection.html)       | @ref Mysqlx::Session::Reset                       |
-| [COM_STMT_PREPARE](http://dev.mysql.com/doc/internals/en/com-stmt-prepare.html)               | @ref Mysqlx::Prepare::Prepare                     |
-| [COM_STMT_SEND_LONG_DATA](http://dev.mysql.com/doc/internals/en/com-stmt-send-long-data.html) | ✕                                                 |
-| [COM_STMT_EXECUTE](http://dev.mysql.com/doc/internals/en/com-stmt-execute.html)               | @ref Mysqlx::Prepare::Execute                     |
-| [COM_STMT_CLOSE](http://dev.mysql.com/doc/internals/en/com-stmt-close.html)                   | @ref Mysqlx::Prepare::Deallocate                  |
-| [COM_STMT_RESET](http://dev.mysql.com/doc/internals/en/com-stmt-reset.html)                   | ✕                                                 |
-| [COM_SET_OPTION](http://dev.mysql.com/doc/internals/en/com-set-option.html)                   | ✕                                                 |
-| [COM_STMT_FETCH](http://dev.mysql.com/doc/internals/en/com-stmt-fetch.html)                   | @ref Mysqlx::Cursor::Fetch                        |
+| [COM_QUIT](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_quit.html)                               | @ref Mysqlx::Connection::Close                    |
+| [COM_INIT_DB](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_init_db.html)                         | ✕                                                 |
+| [COM_QUERY](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html)                             | @ref Mysqlx::Sql::StmtExecute namespace="sql"     |
+| [COM_FIELD_LIST](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_field_list.html)                   | ✕, deprecated                                     |
+| [COM_CREATE_DB](https://dev.mysql.com/doc/dev/mysql-server/latest/my__command_8h.html)                     | ✕, deprecated                                     |
+| [COM_DROP_DB](https://dev.mysql.com/doc/dev/mysql-server/latest/my__command_8h.html)                         | ✕, deprecated                                     |
+| [COM_REFRESH](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_refresh.html)                         | ✕, deprecated                                     |
+| [COM_SHUTDOWN](https://dev.mysql.com/doc/dev/mysql-server/latest/my__command_8h.html)                       | ✕, use SQL ``SHUTDOWN``                           |
+| [COM_STATISTICS](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_statistics.html)                   | ✕, deprecated                                     |
+| [COM_PROCESS_INFO](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_process_info.html)               | ✕, deprecated                                     |
+| [COM_PROCESS_KILL](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_process_kill.html)               | ✕, deprecated                                     |
+| [COM_DEBUG](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_debug.html)                             | ✕, deprecated                                     |
+| [COM_PING](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_ping.html)                               | @ref Mysqlx::Sql::StmtExecute namespace="mysqlx"  |
+| [COM_CHANGE_USER](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_change_user.html)                 | @ref Mysqlx::Session::AuthenticateStart           |
+| [COM_RESET_CONNECTION](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_reset_connection.html)       | @ref Mysqlx::Session::Reset                       |
+| [COM_STMT_PREPARE](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html)               | @ref Mysqlx::Prepare::Prepare                     |
+| [COM_STMT_SEND_LONG_DATA](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_send_long_data.html) | ✕                                                 |
+| [COM_STMT_EXECUTE](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html)               | @ref Mysqlx::Prepare::Execute                     |
+| [COM_STMT_CLOSE](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_close.html)                   | @ref Mysqlx::Prepare::Deallocate                  |
+| [COM_STMT_RESET](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_reset.html)                   | ✕                                                 |
+| [COM_SET_OPTION](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_set_option.html)                   | ✕                                                 |
+| [COM_STMT_FETCH](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_fetch.html)                   | @ref Mysqlx::Cursor::Fetch                        |
 
 
 */

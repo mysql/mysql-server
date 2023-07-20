@@ -1194,9 +1194,9 @@
   PAGE_CODING_GUIDELINES.
 
   Other guidelines may be found in this page, which discusses general
-  principles of test-case writing: MySQL Internals:
-  [How to Create Good Test Cases]
-  (https://dev.mysql.com/doc/internals/en/good-tests.html)
+  principles of test-case writing: MySQL Source Code Documentation:
+  [Writing Test Cases]
+  (https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_WRITING_TESTCASES.html)
 
   The following guidelines are particularly applicable to writing test
   cases:
@@ -2645,8 +2645,8 @@
 
   For a description of the Debug Sync facility and how to use
   synchronization points,
-  see [MySQL Internals: Test Synchronization]
-  (https://dev.mysql.com/doc/internals/en/test-synchronization.html).
+  see [MySQL Source Code Documentation: Thread Synchronization]
+  (https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_THREAD_SYNCHRONIZATION.html).
 */
 
 ###############################################################################

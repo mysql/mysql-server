@@ -940,7 +940,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /*
     Note: The nonce is split into 8 + 12 bytes according to
-    http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10
+    https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
     Native authentication sent 20 bytes + '\0' character = 21 bytes.
     This plugin must do the same to stay consistent with historical behavior
     if it is set to operate as a default plugin.
