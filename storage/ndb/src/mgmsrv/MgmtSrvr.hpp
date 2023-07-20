@@ -49,7 +49,7 @@ class Ndb_mgmd_event_service : public EventLoggerBase
 public:
   struct Event_listener : public EventLoggerBase {
     Event_listener() {}
-    ndb_socket_t m_socket;
+    NdbSocket * m_socket_ptr {nullptr};
     Uint32 m_parsable;
   };
   
@@ -66,7 +66,7 @@ public:
     stop_sessions();
   }
 
-  void add_listener(const Event_listener&);
+  void add_listener(Event_listener&, NdbSocket &);
   void check_listeners();
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);

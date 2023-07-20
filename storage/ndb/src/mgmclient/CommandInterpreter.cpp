@@ -972,6 +972,7 @@ printLogEvent(struct ndb_logevent* event)
 struct event_thread_param {
   NdbMgmHandle *m;
   NdbMutex **p;
+  int tls_req;
 };
 
 static int do_event_thread = 0;
@@ -984,6 +985,7 @@ event_thread_run(void* p)
   struct event_thread_param param= *(struct event_thread_param*)p;
   NdbMgmHandle handle= *(param.m);
   NdbMutex* printmutex= *(param.p);
+  int tls_req = param.tls_req;
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		   1, NDB_MGM_EVENT_CATEGORY_STARTUP,
@@ -992,6 +994,16 @@ event_thread_run(void* p)
 
   NdbLogEventHandle log_handle= NULL;
   struct ndb_logevent log_event;
+
+  if(tls_req != CLIENT_TLS_DEFERRED)
+  {
+    int r = ndb_mgm_start_tls(handle);
+    if(r != 0 && tls_req == CLIENT_TLS_STRICT)
+    {
+      do_event_thread = -1;
+      DBUG_RETURN(NULL);
+    }
+  }
 
   log_handle= ndb_mgm_create_logevent_handle(handle, filter);
   if (log_handle) 
@@ -1037,6 +1049,7 @@ CommandInterpreter::connect(bool interactive)
     ndbout_c("Can't create handle to management server.");
     exit(-1);
   }
+  ndb_mgm_set_ssl_ctx(m_mgmsrv, m_tlsKeyManager.ctx());
 
   if((m_tls_start_type == CLIENT_TLS_STRICT) &&
      (m_tlsKeyManager.ctx() == nullptr))
@@ -1057,6 +1070,7 @@ CommandInterpreter::connect(bool interactive)
       ndb_mgm_destroy_handle(&m_mgmsrv);
       exit(-1);
     }
+    ndb_mgm_set_ssl_ctx(m_mgmsrv2, m_tlsKeyManager.ctx());
   } else {
     m_mgmsrv2 = nullptr;
   }
@@ -1126,6 +1140,7 @@ CommandInterpreter::connect(bool interactive)
       struct event_thread_param p;
       p.m= &m_mgmsrv2;
       p.p= &m_print_mutex;
+      p.tls_req= m_tls_start_type;
       m_event_thread = NdbThread_Create(event_thread_run,
                                         (void**)&p,
                                         0, // default stack size

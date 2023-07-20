@@ -1698,16 +1698,19 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   logevent2str(str, eventType, theData, len, nodeId, 0,
                pretty_text, sizeof(pretty_text));
 
-  Vector<ndb_socket_t> copy;
+  Vector<NdbSocket *> copy;
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--)
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      if(!ndb_socket_valid(m_clients[i].m_socket))
+      if(m_clients[i].m_socket_ptr == nullptr)
         continue;
 
-      SocketOutputStream out(m_clients[i].m_socket);
+      if(!m_clients[i].m_socket_ptr->is_valid())
+        continue;
+
+      SecureSocketOutputStream out(* m_clients[i].m_socket_ptr);
 
       int r;
       if (m_clients[i].m_parsable)
@@ -1728,7 +1731,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
 
       if (r<0)
       {
-        copy.push_back(m_clients[i].m_socket);
+        copy.push_back(m_clients[i].m_socket_ptr);
         m_clients.erase(i, false);
       }
     }
@@ -1737,8 +1740,10 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   
   if ((n= (int)copy.size()))
   {
-    for(i= 0; i < n; i++)
-      ndb_socket_close(copy[i]);
+    for(i= 0; i < n; i++) {
+      copy[i]->close();
+      delete copy[i];
+    }
 
     LogLevel tmp; tmp.clear();
     m_clients.lock();
@@ -1780,18 +1785,18 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    if(!ndb_socket_valid(m_clients[i].m_socket))
+    if(m_clients[i].m_socket_ptr == nullptr)
       continue;
 
-    SocketOutputStream out(m_clients[i].m_socket);
+    if(!(m_clients[i].m_socket_ptr->is_valid()))
+      continue;
 
-    DBUG_PRINT("info",("%d %s",
-                       i,
-                       ndb_socket_to_string(m_clients[i].m_socket).c_str()));
+    SecureSocketOutputStream out(* m_clients[i].m_socket_ptr);
 
     if(out.println("<PING>") < 0)
     {
-      ndb_socket_close(m_clients[i].m_socket);
+      m_clients[i].m_socket_ptr->close();
+      delete m_clients[i].m_socket_ptr;
       m_clients.erase(i, false);
       n=1;
     }
@@ -1808,13 +1813,14 @@ Ndb_mgmd_event_service::check_listeners()
 }
 
 void
-Ndb_mgmd_event_service::add_listener(const Event_listener& client)
+Ndb_mgmd_event_service::add_listener(Event_listener& client, NdbSocket& socket)
 {
   DBUG_ENTER("Ndb_mgmd_event_service::add_listener");
-  DBUG_PRINT("enter",("client.m_socket: %s",
-                      ndb_socket_to_string(client.m_socket).c_str()));
 
   check_listeners();
+
+  client.m_socket_ptr = new NdbSocket();
+  NdbSocket::transfer(* client.m_socket_ptr, socket);
 
   m_clients.push_back(client);
   update_max_log_level(client.m_logLevel);
@@ -1826,9 +1832,9 @@ void
 Ndb_mgmd_event_service::stop_sessions(){
   m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(ndb_socket_valid(m_clients[i].m_socket))
+    if(m_clients[i].m_socket_ptr && m_clients[i].m_socket_ptr->is_valid())
     {
-      ndb_socket_close(m_clients[i].m_socket);
+      m_clients[i].m_socket_ptr->close();
       m_clients.erase(i, false);
     }
   }
@@ -1918,7 +1924,6 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
 
   Ndb_mgmd_event_service::Event_listener le;
   le.m_parsable = parsable;
-  le.m_socket = m_secure_socket.ndb_socket();
 
   Vector<BaseString> list;
   param.trim();
@@ -1982,9 +1987,9 @@ done:
 
   if(result==0)
   {
-    m_mgmsrv.m_event_listner.add_listener(le);
+    m_mgmsrv.m_event_listner.add_listener(le, m_secure_socket);
     m_stop = true;
-    m_secure_socket.invalidate();
+    assert(! m_secure_socket.is_valid()); // it has been transfered to listener
   }
 }
 
