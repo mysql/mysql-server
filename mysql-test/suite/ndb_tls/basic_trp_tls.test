@@ -1,3 +1,4 @@
+--source suite/ndb_tls/include/check_openssl.inc
 --source suite/ndbcluster/basic.test
 
 ## Expect 6 encrypted links

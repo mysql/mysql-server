@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source suite/ndb_tls/include/check_openssl.inc
 
 # Transporter TLS is required, but ndb_desc does not have a certificate
 
