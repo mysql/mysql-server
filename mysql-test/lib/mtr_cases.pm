@@ -1334,6 +1334,17 @@ sub collect_one_test_case {
     }
   }
 
+  if ($tinfo->{'not_asan'} &&
+      ($::opt_sanitize || $::mysql_version_extra =~ /asan/)) {
+    skip_test($tinfo, "Test should not run with ASAN.");
+    return $tinfo;
+  }
+  if ($tinfo->{'not_ubsan'} &&
+      ($::opt_sanitize || $::mysql_version_extra =~ /asan/)) {
+    skip_test($tinfo, "Test should not run with UBSAN.");
+    return $tinfo;
+  }
+
   if ($tinfo->{'need_backup'}) {
     if (!$::mysqlbackup_enabled) {
       skip_test($tinfo, "Test needs mysqlbackup.");
@@ -1513,6 +1524,9 @@ my @tags = (
   # Tests with below .inc file are considered to be group replication tests
   [ "have_group_replication_plugin_base.inc", "grp_rpl_test", 1 ],
   [ "have_group_replication_plugin.inc",      "grp_rpl_test", 1 ],
+
+  [ "include/not_asan.inc", "not_asan", 1 ],
+  [ "include/not_ubsan.inc", "not_ubsan", 1 ],
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
