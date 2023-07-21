@@ -413,12 +413,15 @@ TEST_P(QuorumTest, Verify) {
   const std::string routing_ro = get_metadata_cache_routing_section(
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
-  /*auto &router = */ launch_router(metadata_cache_section,
-                                    routing_rw + routing_ro,
-                                    cluster_classic_ports, EXIT_SUCCESS,
-                                    /*wait_for_notify_ready=*/-1s);
+  const auto wait_ready = (expect_rw_ok || expect_ro_ok) ? 10s : -1s;
 
-  EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 2));
+  /*auto &router = */ launch_router(
+      metadata_cache_section, routing_rw + routing_ro, cluster_classic_ports,
+      EXIT_SUCCESS, wait_ready);
+
+  if (wait_ready == -1s) {
+    EXPECT_TRUE(wait_for_transaction_count_increase(primary_http_port, 2));
+  }
 
   for (int i = 0; i < 2; i++) {
     if (expect_rw_ok) {
