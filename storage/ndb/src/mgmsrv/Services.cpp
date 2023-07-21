@@ -47,6 +47,7 @@
 #include <ndberror.h>
 #include "portlib/NdbTCP.h"
 #include "portlib/ndb_sockaddr.h"
+#include "util/ndb_openssl3_compat.h"
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
