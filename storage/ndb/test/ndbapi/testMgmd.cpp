@@ -1964,6 +1964,44 @@ runTestMgmdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestApiWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_tls"); // temporary working directory
+
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+  Properties config = ConfigFactory::create();
+  CHECK(ConfigFactory::put(config, "ndbd", 2, "RequireTls", "true"));
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  CHECK(sign_tls_keys(wd));
+
+  Mgmd mgmd(1);
+  Ndbd ndbd(2);
+
+  NdbProcess::Args mgmdArgs;
+  mgmd.common_args(mgmdArgs, wd.path());
+
+  CHECK(mgmd.start(wd.path(), mgmdArgs));          // Start management node
+  CHECK(mgmd.connect(config));                     // Connect to management node
+  CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
+
+  ndbd.args().add("--ndb-tls-search-path=", wd.path());
+  ndbd.start(wd.path(), mgmd.connectstring(config)); // Start data node
+  NdbMgmHandle handle = mgmd.handle() ;
+  CHECK(ndbd.wait_started(handle));
+
+  /* API has no TLS context and should fail to connect */
+  Ndb_cluster_connection con(mgmd.connectstring(config).c_str());
+  con.set_name("api_without_cert");
+  int r = con.connect(0,0,1);
+  CHECK(r == -1);
+  printf("ERROR %d: %s\n", con.get_latest_error(), con.get_latest_error_msg());
+
+  ndbd.stop();
+  mgmd.stop();
+  return NDBT_OK;
+}
+
 int
 runTestNdbdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -2290,6 +2328,12 @@ TESTCASE("NdbdWithoutCertificate",
          "Test data node startup with TLS required but no certificate")
 {
   INITIALIZER(runTestNdbdWithoutCert)
+}
+
+TESTCASE("ApiWithoutCertificate",
+         "Test API node without certificate where TRP TLS is required")
+{
+  INITIALIZER(runTestApiWithoutCert)
 }
 
 TESTCASE("NdbdWithExpiredCertificate",

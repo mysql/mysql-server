@@ -499,7 +499,8 @@ void copy(Uint32*& /*insertPtr*/, class SectionSegmentPool& /*thePool*/,
 
 int
 TransporterFacade::start_instance(NodeId nodeId,
-                                  const ndb_mgm_configuration* conf)
+                                  const ndb_mgm_configuration* conf,
+                                  bool tls_required)
 {
   DBUG_ENTER("TransporterFacade::start_instance");
 
@@ -526,6 +527,13 @@ TransporterFacade::start_instance(NodeId nodeId,
                                    m_tls_node_type,
                                    m_tls_primary_api,
                                    m_mgm_tls_level);
+
+  if(tls_required && ! theTransporterRegistry->getTlsKeyManager()->ctx())
+  {
+    delete theTransporterRegistry;
+    theTransporterRegistry = nullptr;
+    DBUG_RETURN(-2);
+  }
 
   if (theClusterMgr == nullptr)
   {

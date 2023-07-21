@@ -116,17 +116,21 @@ public:
    * may contain absolute directories, relative directories, and environment
    * variables which will be expanded.
    *
-   * The second (int) parameter will be introduced in WL#15524.
+   * mgm_tls_level is a value 0 or 1 specifying the requirement for TLS
+   * to secure the MGM protocol connection between this node and the NDB
+   * Management server.
+   *   0 = Relaxed TLS (attempt to use TLS, but failure is OK)
+   *   1 = Strict TLS (failure to establish TLS is treated as an error)
    *
    * If the node finds active NDB TLS node keys and certificates in the seach
    * path, it will be able to connect securely to other nodes. These keys and
    * certificates can be created using the ndb_sign_keys tool.
    *
-   * If configure_tls() is not called for a connection, the search path used
-   * will be the compile-time default NDB_TLS_SEARCH_PATH.
-
+   * If configure_tls() is not called for a connection, the search path
+   * used will be the compile-time default NDB_TLS_SEARCH_PATH, and the
+   * mgm_tls_level will be 0 (relaxed).
    */
-   void configure_tls(const char * tls_search_path, int);
+   void configure_tls(const char * tls_search_path, int mgm_tls_level);
 
   /**
    * For each Ndb_cluster_connection, NDB publishes a URI in the ndbinfo

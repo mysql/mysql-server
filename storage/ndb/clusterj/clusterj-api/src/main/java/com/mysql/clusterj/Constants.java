@@ -46,6 +46,12 @@ public interface Constants {
     /** The default value of the TLS Search Path property. */
     static final String DEFAULT_PROPERTY_TLS_SEARCH_PATH = "$HOME/ndb-tls";
 
+    /*** The name of the boolean strict MGM TLS property. */
+    static final String PROPERTY_MGM_STRICT_TLS = "com.mysql.clusterj.tls.strict";
+
+    /*** The default value of the MGM TLS level property */
+    static final int DEFAULT_PROPERTY_MGM_STRICT_TLS = 0;
+
     /** The name of the initial timeout for cluster connection to connect to MGM before connecting to data nodes
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-set-timeout">Ndb_cluster_connection::set_timeout()</a>
      */

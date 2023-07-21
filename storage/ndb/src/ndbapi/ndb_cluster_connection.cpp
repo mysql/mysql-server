@@ -942,13 +942,11 @@ Ndb_cluster_connection_impl::set_data_node_neighbour(Uint32 node)
 }
 
 void
-Ndb_cluster_connection_impl::configure_tls(const char * searchPath)
+Ndb_cluster_connection_impl::configure_tls(const char * searchPath,
+                                           int mgm_level)
 {
   bool isPrimary = ! (bool) m_main_connection;
   m_tls_search_path = strdup(searchPath);
-
-  /* A later patch will make mgm_level configurable */
-  static constexpr int mgm_level = CLIENT_TLS_RELAXED;
 
   m_config_retriever->init_mgm_tls(m_tls_search_path, ::Node::Type::Client,
                                    mgm_level);
@@ -1008,7 +1006,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   
   for(iter.first(); iter.valid(); iter.next())
   {
-    Uint32 nodeid1, nodeid2, remoteNodeId, group= 5;
+    Uint32 nodeid1, nodeid2, tlsReq, remoteNodeId, group= 5;
     const char *remoteHostName = nullptr;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeid1)) continue;
     if(iter.get(CFG_CONNECTION_NODE_2, &nodeid2)) continue;
@@ -1042,6 +1040,10 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
        * decrease it by 1.
        */
     case CONNECTION_TYPE_TCP:{
+      // check for TLS requirement
+      iter.get(CFG_TCP_REQUIRE_TLS, &tlsReq);
+      if(tlsReq) m_tls_requirement = true;
+
       // connecting through localhost
       // check if config_hostname is local
       // check if in same location domain
@@ -1408,9 +1410,10 @@ Ndb_cluster_connection_impl::do_test()
   delete[] nodes;
 }
 
-void Ndb_cluster_connection::configure_tls(const char * searchPath, int)
+void Ndb_cluster_connection::configure_tls(const char * searchPath,
+                                           int mgmTlsLevel)
 {
-  m_impl.configure_tls(searchPath);
+  m_impl.configure_tls(searchPath, mgmTlsLevel);
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
@@ -1494,10 +1497,21 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       DBUG_RETURN(-1);
     }
 
-    if (m_transporter_facade->start_instance(nodeId, config.get()) < 0)
+    int r_start = m_transporter_facade->start_instance(nodeId,
+                                                       config.get(),
+                                                       m_tls_requirement);
+    if (r_start == -2)
+    {
+      m_latest_error = 2;
+      m_latest_error_msg.assign(
+        "TLS is required but this node does not have a valid certificate");
+    }
+
+    if (r_start < 0)
     {
       DBUG_RETURN(-1);
     }
+
     // NOTE! The config generation used by this API node could also be sent to
     // the cluster in same way as other properties with setProcessInfoUri()
     m_transporter_facade->theClusterMgr->setProcessInfoUri(m_uri_scheme.c_str(),

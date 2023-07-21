@@ -146,6 +146,7 @@ static bool opt_ndb_fully_replicated;
 static ulong opt_ndb_row_checksum;
 
 char *opt_ndb_tls_search_path;
+ulong opt_ndb_mgm_tls_level;
 
 // The version where ndbcluster uses DYNAMIC by default when creating columns
 static const ulong NDB_VERSION_DYNAMIC_IS_DEFAULT = 50711;
@@ -17614,6 +17615,16 @@ static MYSQL_SYSVAR_STR(tls_search_path,         /* name */
                         "Directory containing NDB Cluster TLS Private Keys",
                         NULL, NULL, NDB_TLS_SEARCH_PATH);
 
+static const char *tls_req_levels[] = {"relaxed", "strict", NullS};
+
+static TYPELIB mgm_tls_typelib = {array_elements(tls_req_levels) - 1, "",
+                                  tls_req_levels, nullptr};
+
+static MYSQL_SYSVAR_ENUM(mgm_tls, opt_ndb_mgm_tls_level,
+                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                         "MGM TLS Requirement level", nullptr, nullptr, 0,
+                         &mgm_tls_typelib);
+
 static const int MIN_ACTIVATION_THRESHOLD = 0;
 static const int MAX_ACTIVATION_THRESHOLD = 16;
 
@@ -18451,6 +18462,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(index_stat_enable),
     MYSQL_SYSVAR(index_stat_option),
     MYSQL_SYSVAR(tls_search_path),
+    MYSQL_SYSVAR(mgm_tls),
     MYSQL_SYSVAR(table_no_logging),
     MYSQL_SYSVAR(table_temporary),
     MYSQL_SYSVAR(log_bin),

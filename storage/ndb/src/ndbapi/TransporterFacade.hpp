@@ -70,7 +70,7 @@ public:
   TransporterFacade(GlobalDictCache *cache);
   ~TransporterFacade() override;
 
-  int start_instance(NodeId, const ndb_mgm_configuration*);
+  int start_instance(NodeId, const ndb_mgm_configuration*, bool tls_req=false);
   void stop_instance();
 
   void configure_tls(const char *, int type, bool primary, int mgmLevel);
