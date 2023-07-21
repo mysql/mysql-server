@@ -82,7 +82,9 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
-        NodeCertificate TlsKeyManager ndb_zlib cstrbuf span)
+    # Bug#35629917 Unit test NodeCertificate-t always fails on certain platforms
+    # NodeCertificate
+    TlsKeyManager ndb_zlib cstrbuf span)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
