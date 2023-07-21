@@ -313,11 +313,6 @@ MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 # We have a limited set of patches/bugfixes here:
 SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_77_0/patches")
 
-# Bug in sqrt(NaN) on 32bit platforms
-IF(SIZEOF_VOIDP EQUAL 4)
-  ADD_DEFINITIONS(-DBOOST_GEOMETRY_SQRT_CHECK_FINITENESS)
-ENDIF()
-
 # Boost gets confused about language support with Clang 7 + MSVC 15.9
 IF(WIN32_CLANG)
   ADD_DEFINITIONS(-DBOOST_NO_CXX17_HDR_STRING_VIEW)

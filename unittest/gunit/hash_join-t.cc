@@ -808,11 +808,7 @@ TEST(HashJoinTest, HashJoinChunkFiles) {
   initializer.SetUp();
 
   vector<optional<int>> left_dataset;
-  int dataset_sz = 1000;
-  if (SIZEOF_VOIDP == 4) {
-    // 32-bit arch, modify #rows to get same numbers for chunk calculations
-    dataset_sz *= 2;
-  }
+  constexpr int dataset_sz = 1000;
   for (int i = 0; i < dataset_sz; ++i) {
     left_dataset.emplace_back(i);
   }

@@ -34,42 +34,6 @@ Lock-free type (selection) implementation. */
 
 namespace temptable {
 
-/** Clang has a bug which causes ATOMIC_LLONG_LOCK_FREE to be defined as 1
- * (or "sometimes lock-free") in 32-bit builds even though
- * __atomic_always_lock_free returns true for the same type on the same
- * platform. This is an inconsistency which can be easily verified by:
- *
- *   % clang -dM -E -x c /dev/null | grep LLONG_LOCK
- *   #define __CLANG_ATOMIC_LLONG_LOCK_FREE 2
- *   #define __GCC_ATOMIC_LLONG_LOCK_FREE 2
- *
- *   % clang -m32 -dM -E -x c /dev/null | grep LLONG_LOCK
- *   #define __CLANG_ATOMIC_LLONG_LOCK_FREE 1
- *   #define __GCC_ATOMIC_LLONG_LOCK_FREE 1
- *
- *   % gcc -dM -E -x c /dev/null | grep LLONG_LOCK
- *   #define __GCC_ATOMIC_LLONG_LOCK_FREE 2
- *
- *   % gcc -m32 -dM -E -x c /dev/null | grep LLONG_LOCK
- *   #define __GCC_ATOMIC_LLONG_LOCK_FREE 2
- *
- * There has been some work towards fixing this issue:
- *  * https://bugs.llvm.org/show_bug.cgi?id=30581
- *      * Introduces the fix for the aforementioned problem but ...
- *  * https://bugs.llvm.org/show_bug.cgi?id=31864
- *      * ... reverts the fix because it breaks some other targets, e.g.
- *        32-bit FreeBSD
- *
- * Some more links:
- *  * https://reviews.llvm.org/D28213
- *  * https://reviews.llvm.org/D29542
- */
-#if defined(__clang__) && (SIZEOF_VOIDP == 4) && (ATOMIC_LLONG_LOCK_FREE == 1)
-#define WORKAROUND_PR31864_CLANG_BUG (1)
-#else
-#define WORKAROUND_PR31864_CLANG_BUG (0)
-#endif
-
 /** Enum class describing alignment-requirements. */
 enum class Alignment { NATURAL, L1_DCACHE_SIZE };
 
@@ -147,7 +111,7 @@ struct Lock_free_type_selector<
     T,
     typename std::enable_if<std::is_same<T, long long>::value or
                             std::is_same<T, unsigned long long>::value>::type> {
-#if (ATOMIC_LLONG_LOCK_FREE == 2) || (WORKAROUND_PR31864_CLANG_BUG == 1)
+#if (ATOMIC_LLONG_LOCK_FREE == 2)
   using Type = T;
 #else
   static_assert(false,
@@ -259,7 +223,7 @@ struct Largest_lock_free_type_selector<
 template <typename T>
 struct Largest_lock_free_type_selector<
     T, typename std::enable_if<std::is_integral<T>::value>::type> {
-#if (ATOMIC_LLONG_LOCK_FREE == 2) || (WORKAROUND_PR31864_CLANG_BUG == 1)
+#if (ATOMIC_LLONG_LOCK_FREE == 2)
   using Type = std::conditional_t<std::is_unsigned<T>::value,
                                   unsigned long long, long long>;
 #elif (ATOMIC_LONG_LOCK_FREE == 2)

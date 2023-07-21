@@ -212,20 +212,12 @@ static inline uint64 base64_needed_encoded_length(uint64 length_of_data) {
 /*
   Maximum length base64_encode_needed_length() can accept with no overflow.
 */
-static inline uint64 base64_encode_max_arg_length() {
-#if (SIZEOF_VOIDP == 8)
+constexpr inline uint64 base64_encode_max_arg_length() {
   /*
     6827690988321067803 ->   9223372036854775805
     6827690988321067804 ->  -9223372036854775807
   */
   return 0x5EC0D4C77B03531BLL;
-#else
-  /*
-    1589695686 ->  2147483646
-    1589695687 -> -2147483645
-  */
-  return 0x5EC0D4C6;
-#endif
 }
 
 /*
@@ -240,12 +232,8 @@ static inline uint64 base64_needed_decoded_length(
 /*
   Maximum length base64_decode_needed_length() can accept with no overflow.
 */
-static inline uint64 base64_decode_max_arg_length() {
-#if (SIZEOF_VOIDP == 8)
+constexpr inline uint64 base64_decode_max_arg_length() {
   return 0x2AAAAAAAAAAAAAAALL;
-#else
-  return 0x2AAAAAAA;
-#endif
 }
 
 /*

@@ -40,12 +40,7 @@ ENDMACRO()
 
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS
-    "-Wall -Wextra -Wformat-security -Wvla -Wundef")
-
-# Gives spurious warnings on 32-bit; see GCC bug 81890.
-IF(SIZEOF_VOIDP EQUAL 8)
-  STRING_APPEND(MY_WARNING_FLAGS " -Wmissing-format-attribute")
-ENDIF()
+  "-Wall -Wextra -Wformat-security -Wvla -Wundef -Wmissing-format-attribute")
 
 # Clang 6.0 and newer on Windows treat -Wall as -Weverything; use /W4 instead
 IF(WIN32_CLANG)

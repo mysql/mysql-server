@@ -98,11 +98,7 @@ ADD_CUSTOM_COMMAND(OUTPUT "${WXS_BASENAME}.wxs"
 	COMMENT "ndb_create_wxs.cmake( ${WXS_BASENAME}.wxs.in ) -> ${WXS_BASENAME}.wxs"
 	VERBATIM)
 
-IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(WIX_ARCH x64)
-ELSE()
-  SET(WIX_ARCH x86)
-ENDIF()
+SET(WIX_ARCH x64)
 
 # Run WiX-tool candle.exe on .wxs to produce WiX "object code"
 ADD_CUSTOM_COMMAND(OUTPUT "${WXS_BASENAME}.wixobj"

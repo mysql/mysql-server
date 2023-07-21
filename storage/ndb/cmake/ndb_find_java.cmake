@@ -47,10 +47,7 @@ IF(NOT JAVA_FOUND)
   #
 
   # Prefer Java with same bit size as current build
-  SET(_bit_suffix)
-  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    SET(_bit_suffix "-64")
-  ENDIF()
+  SET(_bit_suffix "-64")
 
   # Use well known standard base
   SET(_base_path /usr/local/java/)

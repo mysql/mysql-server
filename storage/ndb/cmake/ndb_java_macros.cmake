@@ -97,11 +97,7 @@ MACRO(CREATE_JAR TARGET_ARG)
 
   # Limit memory of javac, otherwise build might fail for parallel builds.
   # (out-of-memory/timeout if garbage collector kicks in too late)
-  IF(SIZEOF_VOIDP EQUAL 8)
-    SET(JAVA_ARGS "-J-Xmx3G")
-  ELSE()
-    SET(JAVA_ARGS "-J-Xmx1G")
-  ENDIF()
+  SET(JAVA_ARGS "-J-Xmx3G")
 
   # Treat all deprecation warnings as errors
   SET(JAVA_ARGS ${JAVA_ARGS} -Xlint:deprecation -Xlint:-options -Werror)

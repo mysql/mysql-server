@@ -176,7 +176,6 @@ SET(COMPILE_DEFINITIONS_WHITELIST
 
 # In practice: only in use on Solaris
 SET(CMAKE_C_FLAGS_WHITELIST
-  "-m32"
   "-m64"
 )
 

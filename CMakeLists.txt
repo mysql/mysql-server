@@ -735,7 +735,9 @@ MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
 # On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
 # even if we have configured for 64bit build....
 SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
-
+IF(NOT SIZEOF_VOIDP EQUAL 8)
+  MESSAGE(FATAL_ERROR "MySQL supports only 64-bit platforms.")
+ENDIF()
 
 INCLUDE(compile_flags)
 INCLUDE(install_layout)
