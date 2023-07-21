@@ -21,6 +21,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 select @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 # 2. ndb_binlog transaction dependencies turned on
 select @@ndb_log_transaction_dependency;
 @@ndb_log_transaction_dependency

@@ -4,13 +4,19 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @binlog_transaction_dependency_tracking_save = @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 1. WRITESET ########
 SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
 WRITESET	3
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -38,11 +44,15 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;1 5;5 6;5 7;7 8;7
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 2. WRITESET_SESSION ########
 SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
 WRITESET_SESSION	3
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -70,11 +80,15 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;1 5;5 6;5 7;7 8;7
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 3. COMMIT_ORDER ########
 SELECT @@binlog_transaction_dependency_tracking,
 @@binlog_transaction_dependency_history_size;
 @@binlog_transaction_dependency_tracking	@@binlog_transaction_dependency_history_size
 COMMIT_ORDER	3
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE test.tab1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
 CREATE TABLE test.tab2 (a INT);
 FLUSH LOGS;
@@ -101,4 +115,6 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8
 # Verify that replication is correct
 include/sync_slave_sql_with_master.inc
 SET GLOBAL binlog_transaction_dependency_tracking = @binlog_transaction_dependency_tracking_save;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/rpl_end.inc

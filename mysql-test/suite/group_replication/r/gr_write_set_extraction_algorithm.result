@@ -5,13 +5,21 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 [connection server2]
 SET @binlog_transaction_dependency_tracking_save= @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @transaction_write_set_extraction_save= @@GLOBAL.transaction_write_set_extraction;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 [connection server1]
 SET @binlog_transaction_dependency_tracking_save= @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @transaction_write_set_extraction_save= @@GLOBAL.transaction_write_set_extraction;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
@@ -51,9 +59,13 @@ SET GLOBAL transaction_write_set_extraction= @transaction_write_set_extraction_s
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= @binlog_transaction_dependency_tracking_save;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 [connection server2]
 SET GLOBAL transaction_write_set_extraction= @transaction_write_set_extraction_save;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= @binlog_transaction_dependency_tracking_save;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

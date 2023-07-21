@@ -13,6 +13,8 @@ select @@global.ndb_log_transaction_dependency;
 select @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 COMMIT_ORDER
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
 a INT PRIMARY KEY
 ) engine=ndb;

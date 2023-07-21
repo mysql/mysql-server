@@ -5,7 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 SET @saved_binlog_transaction_dependency_tracking =
 @@global.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE t (a INT NOT NULL,
 b INT NOT NULL INVISIBLE,
 UNIQUE KEY(b));
@@ -20,4 +24,6 @@ FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
 DROP TABLE t;
 SET @@global.binlog_transaction_dependency_tracking = @saved_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/rpl_end.inc

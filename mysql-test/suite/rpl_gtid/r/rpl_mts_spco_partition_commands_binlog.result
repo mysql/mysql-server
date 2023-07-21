@@ -19,7 +19,11 @@ SET GLOBAL replica_preserve_commit_order= ON;
 include/start_slave.inc
 [connection master1]
 SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE t_part (i INTEGER) PARTITION BY RANGE(i)
 PARTITIONS 2 SUBPARTITION BY KEY(i) (
 PARTITION p0 VALUES LESS THAN(100) (
@@ -596,6 +600,8 @@ include/sync_slave_sql_with_master.inc
 
 [connection master1]
 SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL replica_parallel_type=@save_replica_parallel_type;

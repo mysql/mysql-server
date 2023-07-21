@@ -42,6 +42,8 @@ SCAN_METHOD,SCAN_METHOD
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@global.transaction_write_set_extraction='XXHASH64';
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
@@ -64,6 +66,15 @@ SET GLOBAL replica_parallel_workers=0;
 Warnings:
 Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 SET GLOBAL replica_parallel_workers=1;
+SET GLOBAL binlog_transaction_dependency_tracking=COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_transaction_dependency_tracking=WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET GLOBAL binlog_transaction_dependency_tracking=WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/suppress_messages.inc
 # Connection 1 un-suppresses message <.* is deprecated and will be removed in a future release.*>.
 # Connection 2 un-suppresses message <.* is deprecated and will be removed in a future release.*>.
@@ -91,6 +102,7 @@ The syntax '--disconnect-slave-event-count' is deprecated and will be removed in
 The syntax '--abort-slave-event-count' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-type' is deprecated and will be removed in a future release.
 The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a future release. Please use '--replica-parallel-workers=1' instead.
+The syntax '--binlog-transaction-dependency-tracking' is deprecated and will be removed in a future release.
 ]
 SET PERSIST_ONLY relay_log_info_repository='FILE';
 Warnings:
@@ -110,6 +122,15 @@ Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a fu
 SET PERSIST_ONLY replica_parallel_type='LOGICAL_CLOCK';
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY binlog_transaction_dependency_tracking=WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY binlog_transaction_dependency_tracking=COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY binlog_transaction_dependency_tracking=WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY replica_parallel_workers=0;
 SET PERSIST relay_log_info_repository='FILE';
 Warnings:
@@ -121,6 +142,8 @@ SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET PERSIST transaction_write_set_extraction='MURMUR32';
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
@@ -142,6 +165,15 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 SET PERSIST sync_relay_log_info=10005;
 Warnings:
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
+SET PERSIST binlog_transaction_dependency_tracking=WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET PERSIST binlog_transaction_dependency_tracking=WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+SET PERSIST binlog_transaction_dependency_tracking=COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY relay_log_info_file = "RLI_FILE";
@@ -159,6 +191,7 @@ The syntax '--replica-parallel-workers=0' is deprecated and will be removed in a
 '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 '@@binlog_format' is deprecated and will be removed in a future release.
 '@@sync_relay_log_info' is deprecated and will be removed in a future release.
+'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ]
 include/suppress_messages.inc
 # Connection 1 suppresses message <'binlog_format' is deprecated and will be removed in a future release.>.

@@ -11,6 +11,8 @@ SET GLOBAL binlog_format= "ROW";
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL transaction_write_set_extraction=OFF;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
@@ -20,6 +22,8 @@ SET GLOBAL transaction_write_set_extraction= WRITE_SET_EXTRACTION_ALGORITHM;
 Warnings:
 Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= BINLOG_TRANSACTION_DEPENDENCY_TRACKING;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 #
 # Test if parallel applier is enabled and that start
 # Group Replication will fail.

@@ -5,18 +5,26 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 [connection slave]
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 REPLICATE_IGNORE_DB=(nodb);
 include/start_slave.inc
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET GLOBAL replica_parallel_workers = 0;
 Warnings:
 Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 [connection master]
 #
 # 1. Add transactions with different dependency tracking and empty transaction
@@ -35,18 +43,24 @@ USE db1;
 INSERT INTO db1t1 VALUES (NULL);
 INSERT INTO db1t1 VALUES (NULL);
 SET GLOBAL binlog_transaction_dependency_tracking= WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 INSERT INTO db1t1 VALUES (NULL);
 INSERT INTO db1t1 VALUES (NULL);
 USE nodb;
 INSERT INTO nodbt1 VALUES (NULL);
 INSERT INTO nodbt1 VALUES (NULL);
 SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 INSERT INTO nodbt1 VALUES (NULL);
 INSERT INTO nodbt1 VALUES (NULL);
 USE test;
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (NULL);
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (NULL);
 DROP DATABASE nodb;
@@ -56,6 +70,8 @@ DROP TABLE test.t1;
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 COMMIT_ORDER
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 #
 # 2. Test timestamps order with filtered and non-filtered transactions on Slave.
@@ -66,6 +82,8 @@ include/sync_slave_sql_with_master.inc
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 COMMIT_ORDER
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
 RESET SLAVE;
@@ -75,11 +93,15 @@ RESET MASTER;
 
 ######## 2.2. WRITESET with SLAVE ########
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 include/stop_slave.inc
 RESET SLAVE;
@@ -89,20 +111,30 @@ RESET MASTER;
 
 ######## 2.3. WRITESET_SESSION with SLAVE ########
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET_SESSION
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/include/assert_logical_timestamps.inc
 
 # 3. Clean up.
 [connection master]
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 [On Slave]
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
 Warnings:
 Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
