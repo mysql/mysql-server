@@ -27,7 +27,11 @@ include/start_slave.inc
 
 [connection master]
 SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 
 # 3. On master create table t1 and t2 and sync it to slave.
 
@@ -133,6 +137,8 @@ SET DEBUG_SYNC= "now SIGNAL continue_before_commit_order_leader_waits_for_binlog
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL replica_parallel_type = @save_replica_parallel_type;

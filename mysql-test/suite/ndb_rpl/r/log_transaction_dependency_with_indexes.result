@@ -11,8 +11,14 @@ SET @@GLOBAL.replica_parallel_workers= 4;
 include/start_slave.inc
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 
 #### 0.0.0.0: WITHOUT PK, NULLABLE, NOT UNIQUE, NO INDEX ####
 
@@ -1065,7 +1071,11 @@ DROP TABLE t1;
 DROP TABLE t2;
 #### CLEAN UP ####
 SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 include/rpl_end.inc

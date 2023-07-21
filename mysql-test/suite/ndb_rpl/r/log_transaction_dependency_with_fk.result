@@ -4,12 +4,18 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 1. Test referential action RESTRICT with WRITESET. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -78,10 +84,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 2. Test referential action RESTRICT with WRITESET_SESSION. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET_SESSION
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -150,10 +160,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 3. Test referential action NO ACTION with WRITESET. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -222,10 +236,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 4. Test referential action NO ACTION with WRITESET_SESSION. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET_SESSION
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -294,10 +312,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 5. Test referential action CASCADE with WRITESET. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -364,10 +386,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 6. Test referential action CASCADE with WRITESET_SESSION. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET_SESSION
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -434,10 +460,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 7. Test referential action SET NULL with WRITESET. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -504,10 +534,14 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8
 include/sync_slave_sql_with_master.inc
 
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 ######## 8. Test referential action SET NULL with WRITESET_SESSION. ########
 SELECT @@binlog_transaction_dependency_tracking;
 @@binlog_transaction_dependency_tracking
 WRITESET_SESSION
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
 CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
 CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
@@ -575,4 +609,6 @@ include/sync_slave_sql_with_master.inc
 
 # Clean up
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/rpl_end.inc

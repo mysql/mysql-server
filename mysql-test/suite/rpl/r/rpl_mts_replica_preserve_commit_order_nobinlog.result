@@ -21,7 +21,11 @@ SET GLOBAL replica_preserve_commit_order= ON;
 include/start_slave.inc
 [connection master]
 SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
 include/sync_slave_sql_with_master.inc
@@ -58,6 +62,8 @@ include/sync_slave_sql_with_master.inc
 
 [connection master]
 SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL replica_parallel_type=@save_replica_parallel_type;
