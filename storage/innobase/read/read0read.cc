@@ -493,34 +493,6 @@ ReadView *MVCC::get_view() {
   return (view);
 }
 
-/**
-Release a view that is inactive but not closed. Caller must own
-the trx_sys_t::mutex.
-@param view             View to release */
-void MVCC::view_release(ReadView *&view) {
-  ut_ad(!srv_read_only_mode);
-  ut_ad(trx_sys_mutex_own());
-
-  uintptr_t p = reinterpret_cast<uintptr_t>(view);
-
-  ut_a(p & 0x1);
-
-  view = reinterpret_cast<ReadView *>(p & ~1);
-
-  ut_ad(view->m_closed);
-
-  /** RW transactions should not free their views here. Their views
-  should freed using view_close_view() */
-
-  ut_ad(view->m_creator_trx_id == 0);
-
-  UT_LIST_REMOVE(m_views, view);
-
-  UT_LIST_ADD_LAST(m_free, view);
-
-  view = nullptr;
-}
-
 /** Allocate and create a view.
 @param view     View owned by this class created for the caller. Must be
 freed by calling view_close()
@@ -576,25 +548,6 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
   }
 
   trx_sys_mutex_exit();
-}
-
-ReadView *MVCC::get_view_created_by_trx_id(trx_id_t trx_id) const {
-  ReadView *view;
-
-  ut_ad(trx_sys_mutex_own());
-
-  for (view = UT_LIST_GET_LAST(m_views); view != nullptr;
-       view = UT_LIST_GET_PREV(m_view_list, view)) {
-    if (view->is_closed()) {
-      continue;
-    }
-
-    if (view->m_creator_trx_id == trx_id) {
-      break;
-    }
-  }
-
-  return (view);
 }
 
 /**
