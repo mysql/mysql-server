@@ -11,10 +11,10 @@
 #include <iostream>
 
 #define EVENT_CAPACITY 40960
-#define MAX_FILE_FD 1
+#define MAX_FILE_FD 16
 #define SQ_THD_IDLE 2000
 #define NUM_ENTRIES 32000
-
+#define MAX_QUEUE_IO_EVENT_SIZE 30000
 
 
 xlog::xlog():
@@ -74,6 +74,13 @@ int xlog::append(void *buf, size_t size) {
   memcpy(e->event_.buffer_.data(), buf, size);
   
   std::unique_lock l(mutex_queue_);
+  size_t n = sequence_ % 2;
+  if (list_[n].size() >= MAX_QUEUE_IO_EVENT_SIZE) {
+    condition_queue_.wait(l,
+      [this, n] {
+        return list_[n].size() < MAX_QUEUE_IO_EVENT_SIZE;
+      });
+  }
   add_event(e);
   return 0;
 }
@@ -84,12 +91,15 @@ int xlog::sync(size_t lsn) {
   e->event_.index_ = 0;
   e->event_.lsn_ = lsn;
   
-  std::unique_lock l(mutex_cond_);
+  std::unique_lock<std::mutex> l(mutex_cond_);
   add_event(e);
-  condition_.wait(l,
-    [this, lsn] {
-      return this->max_sync_lsn_ >= lsn;
-    });
+  if (max_to_sync_lsn_ < lsn) {
+    condition_.wait(l,
+      [this, lsn] {
+        return this->max_sync_lsn_ >= lsn;
+      });
+  }
+
   return 0;
 }
 
@@ -104,6 +114,9 @@ int xlog::handle_event_list() {
     list.swap(list_[list_index]);
     assert(list_[list_index].empty());
     sequence_ ++ ;
+    if (list_[sequence_ % 2].size() < MAX_QUEUE_IO_EVENT_SIZE) {
+      condition_queue_.notify_all();
+    }
   }
   if (!prev_list.empty()) {
     list.insert(list.begin(), prev_list.begin(), prev_list.end());
@@ -150,7 +163,7 @@ int xlog::handle_completion(int submit) {
 
   bool notify = false;
   {
-    std::scoped_lock l(mutex_cond_);
+    std::unique_lock<std::mutex> l(mutex_cond_);
     if (max_sync_lsn_ < max_to_sync_lsn_) {
       max_sync_lsn_ = max_to_sync_lsn_;
       notify = true;
@@ -205,7 +218,7 @@ bool xlog::enqueue_sqe_write(io_event *e) {
 #ifdef __URING__
   iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
   if (sqe == NULL) {
-    std::cerr << "io_uring_get_sqe failed...";
+    std::cerr << "write, io_uring_get_sqe failed..." << std::endl;
     return false;
   }
   io_write_event_t *io_event = &e->event_;
@@ -241,7 +254,7 @@ bool xlog::enqueue_sqe_fsync_combine() {
       }
       iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
       if (sqe == NULL) {
-        std::cerr << "fsync io_uring_get_sqe failed...";
+        std::cerr << "fsync io_uring_get_sqe failed..." << std::endl;
         return false;
       }
 
@@ -281,10 +294,12 @@ void xlog::notify_start() {
 
 void xlog::wait_start() {
   std::unique_lock l(mutex_state_);
-  condition_state_.wait(l,
-    [this] {
-      return state_;
-    });
+  if (!state_) {
+    condition_state_.wait(l,
+      [this] {
+        return state_;
+      });
+  }
 }
 
 

@@ -7,7 +7,7 @@
 #include "log_uring/xlog.h"
 
 const int NUM_WORKER_THREADS = 1;
-const size_t BUFFER_SIZE = 512;
+const size_t BUFFER_SIZE = 51200;
 const size_t NUM_APPEND_LOGS = 0;
 class log_thread_handler {
 public:
@@ -23,6 +23,7 @@ public:
   }
   
   void operator()() {
+    log_->wait_start();
     for (size_t i = 0; i < NUM_APPEND_LOGS || NUM_APPEND_LOGS == 0; i++) {
       uint64_t lsn = log_->append(buffer_, sizeof(buffer_));
       if (i % 10 == 9) {

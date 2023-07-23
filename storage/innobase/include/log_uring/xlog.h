@@ -31,7 +31,8 @@ public:
   int append(void *buf, size_t size);
 
   int sync(size_t lsn);
-
+  
+  void wait_start();
 
 private:
   void main_loop();
@@ -45,7 +46,7 @@ private:
   bool enqueue_sqe_fsync_combine();
   
   void notify_start();
-  void wait_start();
+
 
   static io_event* new_io_event(size_t size);
   static void delete_io_event(io_event*);
@@ -55,12 +56,16 @@ private:
   size_t max_sync_lsn_;
   uint64_t max_to_sync_lsn_;
   std::mutex mutex_cond_;
+  // condition variable to wait LSN
   std::condition_variable condition_;
 
   iouring_ctx_t iouring_context_;
   std::mutex mutex_queue_;
+  // condition variable to wait queue size
+  std::condition_variable condition_queue_;
   std::vector<io_event *> list_[2];
   std::vector<file_ctrl> file_;
+  // only access by uring main loop, need not to lock
   std::vector<io_event *> prev_list;
   std::vector<int> fd_;
   uint32_t sequence_;
