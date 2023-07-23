@@ -39,10 +39,10 @@ private:
   int handle_event_list();
   int handle_completion(int submit);
   void handle_completion_event(io_event *e);
-  void enqueue_sqe(io_event *e);
-  void enqueue_sqe_write(io_event *e);
-  void enqueue_sqe_fsync(io_event *e);
-  void enqueue_sqe_fsync_combine();
+  bool enqueue_sqe(io_event *e);
+  bool enqueue_sqe_write(io_event *e);
+  bool enqueue_sqe_fsync(io_event *e);
+  bool enqueue_sqe_fsync_combine();
   
   void notify_start();
   void wait_start();
@@ -61,6 +61,7 @@ private:
   std::mutex mutex_queue_;
   std::vector<io_event *> list_[2];
   std::vector<file_ctrl> file_;
+  std::vector<io_event *> prev_list;
   std::vector<int> fd_;
   uint32_t sequence_;
 

@@ -11,7 +11,7 @@
 #include <iostream>
 
 #define EVENT_CAPACITY 40960
-#define MAX_FILE_FD 32
+#define MAX_FILE_FD 1
 #define SQ_THD_IDLE 2000
 #define NUM_ENTRIES 32000
 
@@ -23,7 +23,7 @@ max_sync_lsn_(0),
 max_to_sync_lsn_(0),
 sequence_(0)
 {
-    std::cout << "xlog..." << std::endl;
+
 }
 
 xlog::~xlog() {
@@ -40,7 +40,6 @@ void xlog::start() {
     ctrl.fd_ = open(ssm.str().c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     ctrl.max_lsn_ = 0;
     ctrl.sync_lsn_ = 0;
-    std::cout << ssm.str() << std::endl;
     file_.push_back(ctrl);
     fd_.push_back(ctrl.fd_);
   }
@@ -69,10 +68,10 @@ int xlog::append(void *buf, size_t size) {
   uint64_t lsn = next_lsn_.fetch_add(1);
   io_event* e = new_io_event(size);
   e->type_ = EVENT_TYPE_WRITE;
-  e->event_.write_event_.index_ = 0;
-  e->event_.write_event_.lsn_ = lsn;
-  e->event_.write_event_.size_ = size;
-  memcpy(e->event_.write_event_.buffer_, buf, size);
+  e->event_.index_ = 0;
+  e->event_.lsn_ = lsn;
+  e->event_.buffer_.resize(size, 0);
+  memcpy(e->event_.buffer_.data(), buf, size);
   
   std::unique_lock l(mutex_queue_);
   add_event(e);
@@ -82,8 +81,8 @@ int xlog::append(void *buf, size_t size) {
 int xlog::sync(size_t lsn) {
   io_event* e = new_io_event(0);
   e->type_ = EVENT_TYPE_FSYNC;
-  e->event_.fsync_event_.index_ = 0;
-  e->event_.fsync_event_.lsn_ = lsn;
+  e->event_.index_ = 0;
+  e->event_.lsn_ = lsn;
   
   std::unique_lock l(mutex_cond_);
   add_event(e);
@@ -96,20 +95,33 @@ int xlog::sync(size_t lsn) {
 
 
 int xlog::handle_event_list() {
-
-  std::scoped_lock l(mutex_queue_);
+  size_t list_index = sequence_ % 2;
   std::vector<io_event*> list;
-  max_to_sync_lsn_ = 0;
-  list.reserve(EVENT_CAPACITY);
-  sequence_ ++ ;
-  list.swap(list_[sequence_ % 2]);
-
-  size_t size = list.size();
-  for (size_t i = 0; i < size; i++) {
-    enqueue_sqe(list[i]);
+  {
+    std::scoped_lock l(mutex_queue_);
+    max_to_sync_lsn_ = 0;
+    list.reserve(EVENT_CAPACITY);
+    list.swap(list_[list_index]);
+    assert(list_[list_index].empty());
+    sequence_ ++ ;
   }
-  
-  list.clear();
+  if (!prev_list.empty()) {
+    list.insert(list.begin(), prev_list.begin(), prev_list.end());
+    prev_list.clear();
+  }
+  size_t size = list.size();
+  size_t i = 0;
+  for (; i < size; i++) {
+    if (!enqueue_sqe(list[i])) {
+      break;
+    }
+  }
+  if (i != size) {
+    list.erase(list.begin(), list.begin() + i);
+    prev_list = list;
+  } else {
+    list.clear();
+  }
 
   enqueue_sqe_fsync_combine();
 #ifdef __URING__
@@ -131,7 +143,6 @@ int xlog::handle_completion(int submit) {
     io_event * e = (io_event*)io_uring_cqe_get_data(cqe);
     if (e) {
       handle_completion_event(e);
-      std::cout << "free:" << e << std::endl;
       delete_io_event(e);
     }
     io_uring_cqe_seen(&iouring_context_.ring, cqe);
@@ -158,13 +169,13 @@ void xlog::handle_completion_event(io_event *e) {
   case EVENT_TYPE_FSYNC/* constant-expression */:
     /* code */
     {
-      io_fsync_event_t *fsync_event = &e->event_.fsync_event_;
+      io_write_event_t *fsync_event = &e->event_;
       file_[fsync_event->index_].sync_lsn_ = fsync_event->lsn_;
     }
     break;
   case EVENT_TYPE_WRITE:
     {
-      io_write_event_t *write_event = &e->event_.write_event_;
+      io_write_event_t *write_event = &e->event_;
       file_[write_event->index_].max_lsn_ = write_event->lsn_;
     }
     break;
@@ -174,7 +185,6 @@ void xlog::handle_completion_event(io_event *e) {
 }
 
 void xlog::main_loop() {
-  std::cout << "begin xlog main loop ..." << std::endl;
   while (true) {
     int submit = handle_event_list();
     if (submit < 0) {
@@ -191,30 +201,36 @@ void xlog::add_event(io_event *e) {
   list_[sequence_ % 2].push_back(e);
 }
 
-void xlog::enqueue_sqe_write(io_event *e) {
+bool xlog::enqueue_sqe_write(io_event *e) {
 #ifdef __URING__
   iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
-  io_write_event_t *io_event = &e->event_.write_event_;
+  if (sqe == NULL) {
+    std::cerr << "io_uring_get_sqe failed...";
+    return false;
+  }
+  io_write_event_t *io_event = &e->event_;
   size_t index = io_event->lsn_ % file_.size();
   int fd = file_[index].fd_;
   io_event->index_ = index;
-  io_uring_prep_write(sqe, fd, io_event->buffer_, io_event->size_, -1);
+  io_uring_prep_write(sqe, fd, io_event->buffer_.data(), io_event->buffer_.size(), -1);
   io_uring_sqe_set_data(sqe, e);
 #endif
+  return true;
 }
 
-void xlog::enqueue_sqe_fsync(io_event *e) {
+bool xlog::enqueue_sqe_fsync(io_event *e) {
 #ifdef __URING__
-  io_fsync_event_t *io_event = &e->event_.fsync_event_;
+  io_write_event_t *io_event = &e->event_;
   uint64_t lsn = io_event->lsn_;
   if (max_to_sync_lsn_ < lsn) {
     max_to_sync_lsn_ = lsn;
   }
   delete_io_event(e);
 #endif
+  return true;
 }
 
-void xlog::enqueue_sqe_fsync_combine() {
+bool xlog::enqueue_sqe_fsync_combine() {
 #ifdef __URING__
   uint64_t max_lsn = 0;
   size_t size = file_.size();
@@ -223,11 +239,16 @@ void xlog::enqueue_sqe_fsync_combine() {
       if (max_lsn < file_[i].max_lsn_) {
         max_lsn = file_[i].max_lsn_;
       }
+      iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
+      if (sqe == NULL) {
+        std::cerr << "fsync io_uring_get_sqe failed...";
+        return false;
+      }
+
       io_event *e = new_io_event(0);
       e->type_ = EVENT_TYPE_FSYNC;
-      e->event_.fsync_event_.lsn_ = file_[i].max_lsn_;
-      e->event_.fsync_event_.index_ = i;
-      iouring_sqe_t *sqe =  io_uring_get_sqe(&iouring_context_.ring);
+      e->event_.lsn_ = file_[i].max_lsn_;
+      e->event_.index_ = i;
       io_uring_prep_fsync(sqe, file_[i].fd_, 0);
       io_uring_sqe_set_data(sqe, e);
     }
@@ -236,19 +257,18 @@ void xlog::enqueue_sqe_fsync_combine() {
     max_to_sync_lsn_ = max_lsn;
   }
 #endif
+  return true;
 }
 
-void xlog::enqueue_sqe(io_event *e) {
-  std::cout << "enqueue:" << e << std::endl;
+bool xlog::enqueue_sqe(io_event *e) {
   switch (e->type_) {
     case EVENT_TYPE_WRITE:
-      enqueue_sqe_write(e);
-      break;
+      return enqueue_sqe_write(e);
     case EVENT_TYPE_FSYNC:
-      enqueue_sqe_fsync(e);
-      break;
+      return enqueue_sqe_fsync(e);
     default:
-      break;
+      panic("unknown io event type");
+      return false;
   }
 }
 
@@ -269,12 +289,12 @@ void xlog::wait_start() {
 
 
 io_event* xlog::new_io_event(size_t size) {
-  io_event* e = (io_event*)malloc(sizeof(io_event) + size);
+  io_event* e = new io_event;
   return e;
 }
 
 void xlog::delete_io_event(io_event* event) {
-  free(event);
+  delete event;
 }
 
 xlog __global_xlog;
