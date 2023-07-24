@@ -47,6 +47,12 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
+
+)
+
+INCLUDE_DIRECTORIES(
+  SYSTEM ${BOOST_PATCHES_DIR} 
+  ${BOOST_INCLUDE_DIR}
 )
 
 # Conflicting YYSTYPE, because we have multiple Bison grammars.
@@ -398,9 +404,11 @@ ADD_EXECUTABLE(
 TARGET_LINK_LIBRARIES(
   TestLogUring
   uring
+  program_options
 )
 
 TARGET_COMPILE_DEFINITIONS(
   TestLogUring
   PUBLIC __URING__
 )
+

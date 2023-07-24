@@ -1,10 +1,15 @@
 
 #define USE_IO_URING
-#include <stdlib.h>
-#include <thread>
 #include "log_uring/ptr.hpp"
 #include "log_uring/log_uring.h"
 #include "log_uring/xlog.h"
+#include <stdlib.h>
+#include <thread>
+#include <iostream>
+#include <boost/program_options.hpp>
+
+
+namespace po = boost::program_options;
 
 const int NUM_WORKER_THREADS = 1;
 const size_t BUFFER_SIZE = 51200;
@@ -47,7 +52,32 @@ ptr<std::thread> create_worker_thread(xlog*log) {
   return thd;
 }
 
-int main() {
+int main(int argc, const char*argv[]) {
+
+  po::options_description desc("Allowed options");
+  desc.add_options()
+      ("help", "produce help message")
+      ("compression", po::value<int>(), "set compression level")
+  ;
+
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);    
+
+  if (vm.count("help")) {
+      std::cout << desc << "\n";
+      return 1;
+  }
+
+  if (vm.count("compression")) {
+      std::cout << "Compression level was set to " 
+  << vm["compression"].as<int>() << ".\n";
+  } else {
+      std::cout << "Compression level was not set.\n";
+  }
+
+  log_iouring_create(32, 32000);
+
   std::vector<ptr<std::thread>> threads;
   ptr<std::thread> t = create_log_thread();
   threads.push_back(t);

@@ -10,14 +10,17 @@
 #include <sstream>
 #include <iostream>
 
-#define EVENT_CAPACITY 40960
-#define MAX_FILE_FD 16
+
+
 #define SQ_THD_IDLE 2000
-#define NUM_ENTRIES 32000
-#define MAX_QUEUE_IO_EVENT_SIZE 30000
 
 
-xlog::xlog():
+xlog::xlog(
+  int num_log_file, 
+  int num_uring_entries
+):
+num_log_files_(num_log_file),
+num_uring_entries_(num_uring_entries),
 next_lsn_(0),
 max_sync_lsn_(0),
 max_to_sync_lsn_(0),
@@ -32,8 +35,7 @@ xlog::~xlog() {
 
 void xlog::start() {
 #ifdef __URING__
-  num_fd_ = MAX_FILE_FD;
-  for (int i = 0; i < MAX_FILE_FD; i++) {
+  for (size_t i = 0; i < num_log_files_; i++) {
     file_ctrl ctrl;
     std::stringstream ssm;
     ssm << "wal." << i + 1 << ".redo";
@@ -48,13 +50,13 @@ void xlog::start() {
   iouring_context_.params.flags |= IORING_SETUP_SQPOLL;
   iouring_context_.params.sq_thread_idle = SQ_THD_IDLE;
   
-  int ret = io_uring_queue_init_params(NUM_ENTRIES, &iouring_context_.ring, &iouring_context_.params);
+  int ret = io_uring_queue_init_params(num_uring_entries_, &iouring_context_.ring, &iouring_context_.params);
   if (ret < 0) {
     panic("io_uring initialize parameter fail");
     return;
   }
   
-  ret = io_uring_register_files(&iouring_context_.ring, fd_.data(), num_fd_);
+  ret = io_uring_register_files(&iouring_context_.ring, fd_.data(), num_log_files_);
   if (ret < 0) {
     panic("io_uring register files fail");
     return;
@@ -75,10 +77,10 @@ int xlog::append(void *buf, size_t size) {
   
   std::unique_lock l(mutex_queue_);
   size_t n = sequence_ % 2;
-  if (list_[n].size() >= MAX_QUEUE_IO_EVENT_SIZE) {
+  if (list_[n].size() >= num_uring_entries_) {
     condition_queue_.wait(l,
       [this, n] {
-        return list_[n].size() < MAX_QUEUE_IO_EVENT_SIZE;
+        return list_[n].size() < num_uring_entries_;
       });
   }
   add_event(e);
@@ -110,11 +112,11 @@ int xlog::handle_event_list() {
   {
     std::scoped_lock l(mutex_queue_);
     max_to_sync_lsn_ = 0;
-    list.reserve(EVENT_CAPACITY);
+    list.reserve(num_uring_entries_ * 2);
     list.swap(list_[list_index]);
     assert(list_[list_index].empty());
     sequence_ ++ ;
-    if (list_[sequence_ % 2].size() < MAX_QUEUE_IO_EVENT_SIZE) {
+    if (list_[sequence_ % 2].size() < num_uring_entries_) {
       condition_queue_.notify_all();
     }
   }
@@ -312,12 +314,21 @@ void xlog::delete_io_event(io_event* event) {
   delete event;
 }
 
-xlog __global_xlog;
+xlog *__global_xlog;
 
 void log_iouring_thread() {
-  __global_xlog.start();
+  __global_xlog->start();
+}
+
+void log_iouring_create(  
+  int num_log_file, 
+  int num_uring_entries) {
+  __global_xlog = new xlog(
+      num_log_file, 
+      num_uring_entries
+  );
 }
 
 xlog *get_xlog() {
-  return &__global_xlog;
+  return __global_xlog;
 }

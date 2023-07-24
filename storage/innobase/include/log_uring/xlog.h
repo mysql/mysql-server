@@ -11,8 +11,6 @@
 #include <vector>
 #include <condition_variable>
 
-#define MAX_FD_NUM 200
-
 
 struct file_ctrl {
   int fd_;
@@ -22,7 +20,10 @@ struct file_ctrl {
 
 class xlog {
 public:
-  xlog();
+  xlog(  
+    int num_log_file, 
+    int num_uring_entries
+  );
 
   virtual ~xlog();
   
@@ -50,9 +51,12 @@ private:
 
   static io_event* new_io_event(size_t size);
   static void delete_io_event(io_event*);
+  size_t num_log_files_;
+  size_t num_uring_entries_;
+
 
   std::atomic<uint64_t> next_lsn_;
-  int num_fd_;
+
   size_t max_sync_lsn_;
   uint64_t max_to_sync_lsn_;
   std::mutex mutex_cond_;
@@ -79,4 +83,7 @@ private:
 
 
 void log_iouring_thread();
+void log_iouring_create(  
+  int num_log_file, 
+  int num_uring_entries);
 xlog *get_xlog();
