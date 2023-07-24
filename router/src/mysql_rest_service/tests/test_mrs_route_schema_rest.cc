@@ -43,8 +43,6 @@
 
 using namespace helper::json;
 
-using CachedObject = collector::MysqlCacheManager::CachedObject;
-
 using helper::MakeSharedPtr;
 using mrs::ObjectSchema;
 using mrs::interface::Object;

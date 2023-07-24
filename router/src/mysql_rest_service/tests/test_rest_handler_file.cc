@@ -186,8 +186,8 @@ TEST_P(RestHandlerDifferentFilesTests, fetch_file) {
   make_sut(param.file_id, param.path, k_tag);
   EXPECT_CALL(mock_cache_manager_,
               get_instance(collector::kMySQLConnectionMetadataRO, false))
-      .WillOnce(Return(ByMove(
-          collector::MysqlCacheManager::CachedObject(nullptr, &mock_session))));
+      .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
+          nullptr, false, &mock_session))));
   EXPECT_CALL(mock_input_headers, get(StrEq("If-None-Match")))
       .WillOnce(Return(param.tag));
   EXPECT_CALL(*mock_query_file_, query_file(&mock_session, param.file_id));

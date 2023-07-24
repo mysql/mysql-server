@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_PLUGIN_MONITOR_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_PLUGIN_MONITOR_H_
 
+#include <algorithm>
 #include <set>
 #include <string>
 
