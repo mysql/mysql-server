@@ -122,7 +122,6 @@ select 'Glazgo' sounds like 'Liverpool';
 select null sounds like 'null';
 select 'null' sounds like null;
 select null sounds like null;
-select md5('hello');
 select crc32("123");
 select sha('abc');
 select sha1('abc');
@@ -154,7 +153,6 @@ select length(quote(concat(char(0),"test")));
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678"), unhex(NULL);
 select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
-select length(unhex(md5("abrakadabra")));
 
 #
 # Bug #6564: QUOTE(NULL
@@ -437,7 +435,6 @@ drop table t7;
 
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
-explain select md5('hello');
 explain select sha('abc');
 explain select sha1('abc');
 explain select soundex('');
@@ -680,18 +677,6 @@ drop table t1;
 
 select load_file("lkjlkj");
 select ifnull(load_file("lkjlkj"),"it is null");
-
-#
-# Bug#15351: Wrong collation used for comparison of md5() and sha()
-# parameter can lead to a wrong result.
-#
-create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
-insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
-select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
-select * from t1 where f1='test' and (f2= md5("TEST") or f2= md5("test"));
-select * from t1 where f1='test' and (f2= sha("test") or f2= sha("TEST"));
-select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
-drop table t1;
 
 #
 # Bug#18243: REVERSE changes its argument
@@ -1590,7 +1575,6 @@ DROP TABLE t;
 --echo #
 SET NAMES utf8;
 CREATE TABLE t1 (a varchar(1));
-SELECT * FROM t1 WHERE a=md5('a');
 SELECT * FROM t1 WHERE a=hex('a');
 SELECT * FROM t1 WHERE a=to_base64('a');
 DROP TABLE t1;
@@ -2066,7 +2050,7 @@ SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
 --error ER_CANNOT_CONVERT_STRING
 SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
 
-SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
+SELECT LPAD('', 42, REPLACE(SHA2(c1, 0),c1,'')) FROM t1;
 --error ER_CANNOT_CONVERT_STRING
 SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
 --error ER_CANNOT_CONVERT_STRING

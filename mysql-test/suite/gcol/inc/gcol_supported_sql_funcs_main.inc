@@ -1225,12 +1225,6 @@ let $values1 = '127.0.0.1',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
---echo # MD5()
-let $cols = a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual;
-let $values1 = 'testing',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
 --echo # SHA1()
 let $cols = a varchar(1024), b varchar(1024) generated always as (sha1(a)) virtual;
 let $values1 = 'abc',default;

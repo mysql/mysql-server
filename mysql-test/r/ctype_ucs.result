@@ -1056,10 +1056,6 @@ varchar(255) character set ucs2 not null);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into `bug20536` (`id`,`name`) values (1, _latin1 x'7465737431'), (2, "'test\\_2'");
-select md5(name) from bug20536;
-md5(name)
-f4b7ce8b45a20e3c4e84bef515d1525c
-48d95db0d8305c2fe11548a3635c9385
 select sha1(name) from bug20536;
 sha1(name)
 e0b52f38deddb9f9e8d5336b153592794cb49baf
@@ -1890,16 +1886,6 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-drop table t1;
-select md5('a'), hex(md5('a'));
-md5('a')	hex(md5('a'))
-760f753576f2955b0074758acb4d5fa6	00370036003000660037003500330035003700360066003200390035003500620030003000370034003700350038006100630062003400640035006600610036
-create table t1 as select md5('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(32) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select sha('a'), hex(sha('a'));
@@ -4039,10 +4025,6 @@ drop function f1;
 #
 # Bug#54668 User variable assignments get wrong type
 #
-SET @ST_X=md5('a');
-SELECT charset(@ST_X), collation(@ST_X);
-charset(@ST_X)	collation(@ST_X)
-ucs2	ucs2_general_ci
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)

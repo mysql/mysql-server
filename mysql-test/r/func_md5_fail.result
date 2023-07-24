@@ -1,0 +1,10 @@
+select md5('hello');
+md5('hello')
+00000000000000000000000000000000
+Warnings:
+Warning	4073	SSL fips mode error: FIPS mode ON/STRICT: MD5 digest is not supported.
+explain select md5('hello');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`

@@ -59,6 +59,10 @@
 %{?with_openssl11: %global ssl_option -DWITH_SSL=openssl11}
 %{?with_openssl11: %global ssl_default 0}
 
+# Use OpenSSL 3.0 FIPS
+%{?with_openssl3_fips: %global ssl_option -DWITH_SSL=openssl3-fips}
+%{?with_openssl3_fips: %global ssl_default 0}
+
 # Tell build not to use minimal debug
 %{?full_debug: %global no_mini_debug 1}
 
@@ -242,6 +246,9 @@ BuildRequires:  zlib-devel
 %if 0%{?with_openssl11}
 BuildRequires:  openssl11-devel
 %endif
+%if 0%{?with_openssl3_fips}
+BuildRequires:  openssl3-fips-devel
+%endif
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -288,6 +295,9 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+%if 0%{?with_openssl3_fips}
+Requires:       openssl3-fips
+%endif
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 Requires:       %{name}-icu-data-files = %{version}-%{release}
@@ -1582,6 +1592,9 @@ fi
 %if 0%{?ssl_bundled}
 %attr(755, root, root) %{_bindir}/my_openssl
 %endif # ssl_bundled
+%if 0%{?with_openssl3_fips}
+%attr(755, root, root) %{_bindir}/my_openssl
+%endif # with_openssl3_fips
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test

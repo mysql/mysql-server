@@ -1,5 +1,7 @@
 --source include/have_fips.inc
 --source include/xplugin_preamble.inc
+# This test requires the ability to turn FIPS mode on/off to test weak ciphers.
+--source include/not_fips_active.inc
 
 --disable_query_log
 call mtr.add_suppression("Error during SSL handshake");

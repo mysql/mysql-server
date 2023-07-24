@@ -436,17 +436,17 @@ json_extract(trace,"$.steps[*].statement_parameters")
 create table t3 (a mediumblob);
 set @a=repeat("x",1000000);
 set @b=repeat("y",1000000);
-select length(@a),md5(@a);
-length(@a)	md5(@a)
-1000000	ec78dbd963d2fc01e51176ed4dec299e
+select length(@a),sha2(@a, 0);
+length(@a)	sha2(@a, 0)
+1000000	1b977e9f84f1b26b6ed7f68b0498faee2385ea4125bd29adce4a7d9106ba3134
 flush status;
-prepare s from 'select length(?), md5(?)';
+prepare s from 'select length(?), sha2(?, 0)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "VARCHAR"]]
 execute s using @a,@a;
-length(?)	md5(?)
-1000000	ec78dbd963d2fc01e51176ed4dec299e
+length(?)	sha2(?, 0)
+1000000	1b977e9f84f1b26b6ed7f68b0498faee2385ea4125bd29adce4a7d9106ba3134
 prepare s from 'insert into t3 values(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

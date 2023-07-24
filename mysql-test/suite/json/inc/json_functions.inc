@@ -1934,7 +1934,7 @@ update t set j=json_set(j, '$.user', rtrim('foo    '))  where id=8;
 select j from t order by j;
 update t set j=json_set(j, '$.user', hex('abc'))  where id=8;
 select j from t order by j;
-update t set j=json_set(j, '$.user', md5('bingle'))  where id=8;
+update t set j=json_set(j, '$.user', sha2('bingle',0))  where id=8;
 select j from t order by j;
 update t set j=json_set(j, '$.user', database())  where id=8;
 select j from t order by j;

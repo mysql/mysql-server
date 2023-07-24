@@ -21,14 +21,14 @@ DROP TABLE t1;
 #
 # CREATE TABLE - column with INDEX and func as DEFAULT
 #
-CREATE TABLE t1 (i int, b char(255) DEFAULT (md5(i)), INDEX (b(10)));
+CREATE TABLE t1 (i int, b char(255) DEFAULT (sha2(i, 0)), INDEX (b(10)));
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
 INSERT INTO t1(i, b) VALUES (3, "some string");
 SELECT * FROM t1;
 i	b
-1	c4ca4238a0b923820dcc509a6f75849b
-2	c81e728d9d4c2f636f067f89cc14862c
+1	6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+2	d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35
 3	some string
 DROP TABLE t1;
 #
@@ -585,27 +585,27 @@ DROP TABLE t1;
 #
 # Check default expressions together with Generated Columns
 #
-CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)));
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (sha2(i, 0)));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 i	int	YES		NULL	
-b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
+b	char(255)	YES		sha2(`i`,0)	DEFAULT_GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
 INSERT INTO t1(i, b) VALUES (3, "some string");
 INSERT INTO t1(i, b) VALUES (NULL, DEFAULT);
 SELECT * FROM t1;
 i	b
-1	c4ca4238a0b923820dcc509a6f75849b
-2	c81e728d9d4c2f636f067f89cc14862c
+1	6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+2	d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35
 3	some string
 NULL	NULL
 DROP TABLE t1;
-CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)), j INT GENERATED ALWAYS AS (i*2));
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (sha2(i, 0)), j INT GENERATED ALWAYS AS (i*2));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 i	int	YES		NULL	
-b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
+b	char(255)	YES		sha2(`i`,0)	DEFAULT_GENERATED
 j	int	YES		NULL	VIRTUAL GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
@@ -613,8 +613,8 @@ INSERT INTO t1(i, b) VALUES (3, "some string");
 INSERT INTO t1(i, b) VALUES (NULL, DEFAULT);
 SELECT * FROM t1;
 i	b	j
-1	c4ca4238a0b923820dcc509a6f75849b	2
-2	c81e728d9d4c2f636f067f89cc14862c	4
+1	6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b	2
+2	d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35	4
 3	some string	6
 NULL	NULL	NULL
 DROP TABLE t1;

@@ -1,0 +1,51 @@
+select md5('a'), hex(md5('a'));
+md5('a')	hex(md5('a'))
+0cc175b9c0f1b6a831c399e269772661	3063633137356239633066316236613833316333393965323639373732363631
+create table t1 as select md5('a') as c1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(32) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+select md5('hello');
+md5('hello')
+5d41402abc4b2a76b9719d911017c592
+explain select md5('hello');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`
+select length(unhex(md5("abrakadabra")));
+length(unhex(md5("abrakadabra")))
+16
+create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
+insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
+select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
+f1	f2
+test	098f6bcd4621d373cade4e832627b4f6
+select * from t1 where f1='test' and (f2= md5("TEST") or f2= md5("test"));
+f1	f2
+test	098f6bcd4621d373cade4e832627b4f6
+select * from t1 where f1='test' and (f2= sha("test") or f2= sha("TEST"));
+f1	f2
+test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
+select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
+f1	f2
+test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
+drop table t1;
+# MD5()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual) charset latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varbinary(32) GENERATED ALWAYS AS (md5(`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('testing',default);
+select * from t1;
+a	b
+testing	ae2b1fca515949e5d54fb22b8ed95575
+drop table t1;
+set sql_warnings = 0;

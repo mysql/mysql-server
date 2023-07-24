@@ -1,4 +1,6 @@
 --source include/have_tlsv13.inc
+# This test uses certain ciphers that are disallowed in FIPS mode
+--source include/not_fips_active.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

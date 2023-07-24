@@ -6,17 +6,18 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @id:=0;
 insert into t1 values
-(@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000));
+(@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0));
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 insert into `t1`(`id`,`name1`,`name2`,`name3`,`name4`)
-select  @id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000)  from
+select  @id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0)
+from
 `t1` k1, `t1` k2, `t1` k3, `t1` k4,`t1` k5,`t1` k6;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.

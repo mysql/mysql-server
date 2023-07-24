@@ -9,12 +9,13 @@ CREATE TABLE `t1`(`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT, `name1` varc
 
 ### populate random data
  insert into t1 values
-  (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
-, (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000));
+  (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0))
+, (@id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0));
 insert into `t1`(`id`,`name1`,`name2`,`name3`,`name4`)
-select  @id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000)  from
+select  @id:=@id+1,sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0),sha2(rand()*1000000,0)
+from
 `t1` k1, `t1` k2, `t1` k3, `t1` k4,`t1` k5,`t1` k6;
 
 #create inplace index and check if data is mention in events_waits_h

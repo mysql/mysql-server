@@ -33,6 +33,9 @@
 #include "my_md5.h"
 
 #include <openssl/crypto.h>
+#include <openssl/err.h>
+
+#include "template_utils.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/evp.h>
@@ -41,19 +44,20 @@
 #include <openssl/md5.h>
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
-static void my_md5_hash(unsigned char *digest, unsigned const char *buf,
-                        int len) {
+// returns 1 for success and 0 for failure
+[[nodiscard]] int my_md5_hash(unsigned char *digest, unsigned const char *buf,
+                              int len) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   /*
     EVP_Digest() is a wrapper around the EVP_DigestInit_ex(),
     EVP_Update() and EVP_Final_ex() functions.
   */
-  EVP_Digest(buf, len, digest, nullptr, EVP_md5(), nullptr);
+  return EVP_Digest(buf, len, digest, nullptr, EVP_md5(), nullptr);
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   MD5_CTX ctx;
   MD5_Init(&ctx);
   MD5_Update(&ctx, buf, len);
-  MD5_Final(digest, &ctx);
+  return MD5_Final(digest, &ctx);
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 }
 
@@ -80,9 +84,12 @@ int compute_md5_hash(char *digest, const char *buf, int len) {
   /* If fips mode is ON/STRICT restricted method calls will result into abort,
    * skipping call. */
   if (fips_mode == 0) {
-    my_md5_hash((unsigned char *)digest, (unsigned const char *)buf, len);
+    retval = (0 == my_md5_hash(pointer_cast<unsigned char *>(digest),
+                               pointer_cast<unsigned const char *>(buf), len));
   } else {
     retval = 1;
   }
+
+  ERR_clear_error();
   return retval;
 }

@@ -1,0 +1,4 @@
+--source include/fips_active.inc
+
+select md5('hello');
+explain select md5('hello');

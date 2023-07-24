@@ -267,9 +267,6 @@ NULL
 select null sounds like null;
 null sounds like null
 NULL
-select md5('hello');
-md5('hello')
-5d41402abc4b2a76b9719d911017c592
 select crc32("123");
 crc32("123")
 2286445522
@@ -359,9 +356,6 @@ foobar	1234567890ABCDEF	4Vx	NULL
 select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
 hex(unhex("1"))	hex(unhex("12"))	hex(unhex("123"))	hex(unhex("1234"))	hex(unhex("12345"))	hex(unhex("123456"))
 01	12	0123	1234	012345	123456
-select length(unhex(md5("abrakadabra")));
-length(unhex(md5("abrakadabra")))
-16
 select concat('a', quote(NULL));
 concat('a', quote(NULL))
 aNULL
@@ -809,11 +803,6 @@ drop table t7;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)	substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2)
 1abcd;2abcd	3abcd;4abcd
-explain select md5('hello');
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`
 explain select sha('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1260,21 +1249,6 @@ NULL
 select ifnull(load_file("lkjlkj"),"it is null");
 ifnull(load_file("lkjlkj"),"it is null")
 it is null
-create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
-insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
-select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
-f1	f2
-test	098f6bcd4621d373cade4e832627b4f6
-select * from t1 where f1='test' and (f2= md5("TEST") or f2= md5("test"));
-f1	f2
-test	098f6bcd4621d373cade4e832627b4f6
-select * from t1 where f1='test' and (f2= sha("test") or f2= sha("TEST"));
-f1	f2
-test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
-select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
-f1	f2
-test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
-drop table t1;
 CREATE TABLE t1 (a varchar(10));
 INSERT INTO t1 VALUES ('abc'), ('xyz');
 SELECT a, CONCAT(a,' ',a) AS c FROM t1
@@ -4419,8 +4393,6 @@ SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a varchar(1));
-SELECT * FROM t1 WHERE a=md5('a');
-a
 SELECT * FROM t1 WHERE a=hex('a');
 a
 SELECT * FROM t1 WHERE a=to_base64('a');
@@ -5181,9 +5153,9 @@ SELECT HEX(LPAD('', 42, SUBSTRING_INDEX(COMPRESS(42),c1,1))) FROM t1;
 ERROR HY000: Cannot convert string '\x02\x00\x00\x00x\x9C...' from binary to utf8mb4
 SELECT LPAD('', 42, REPLACE(AES_ENCRYPT(c1, 'key'),c1,'')) FROM t1;
 ERROR HY000: Cannot convert string 'F[\xC6F>B...' from binary to utf8mb4
-SELECT LPAD('', 42, REPLACE(MD5(c1),c1,'')) FROM t1;
-LPAD('', 42, REPLACE(MD5(c1),c1,''))
-e15997c74a71c5d9263df6f7a21bc191e15997c74a
+SELECT LPAD('', 42, REPLACE(SHA2(c1, 0),c1,'')) FROM t1;
+LPAD('', 42, REPLACE(SHA2(c1, 0),c1,''))
+c17ac113230f5f31c4a53f58d0f24e8199dce328ae
 SELECT HEX(LPAD('', 42, TRIM(BOTH c1 FROM x'ff'))) FROM t1;
 ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
 SELECT HEX(LPAD('', 42, REPLACE(x'ffff',c1,''))) FROM t1;

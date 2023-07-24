@@ -371,7 +371,7 @@ SET sql_mode= default;
 # Note: The AND TRUE is to work around Bug #24457368.
 #
 CREATE FUNCTION crc(_text TEXT) RETURNS BIGINT(20) UNSIGNED DETERMINISTIC
-RETURN CONV(LEFT(MD5(_text),16),16,10);
+RETURN CONV(LEFT(SHA2(_text, 0),16),16,10);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
@@ -384,10 +384,10 @@ INSERT INTO t1 (id) VALUES (crc('photos1'));
 ALTER TABLE t1 ADD INDEX idx (id);
 SELECT * FROM t1 FORCE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
 id
-15460588431078774149
+9558567934560847890
 SELECT * FROM t1 IGNORE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
 id
-15460588431078774149
+9558567934560847890
 DROP FUNCTION crc;
 DROP TABLE t1;
 # Bug#25398451: Segmentation fault in prepare_inner() at sql_call.cc

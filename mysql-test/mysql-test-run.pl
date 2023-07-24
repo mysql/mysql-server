@@ -2341,7 +2341,56 @@ sub command_line_setup {
   check_fips_support();
 }
 
+# For OpenSSL 3 we need to parse this output:
+# openssl list -providers
+# Providers:
+#   base
+#     name: OpenSSL Base Provider
+#     version: 3.0.9
+#     status: active
+#   fips
+#     name: OpenSSL FIPS Provider
+#     version: 3.0.9
+#     status: active
 sub check_fips_support() {
+  # For OpenSSL 3, ask openssl about providers.
+  my $openssl_args;
+  mtr_init_args(\$openssl_args);
+  mtr_add_arg($openssl_args, "version");
+  my $openssl_cmd = join(" ", $exe_openssl, @$openssl_args);
+  my $openssl_result = `$openssl_cmd`;
+  if($openssl_result =~ /^OpenSSL 3./) {
+    mtr_init_args(\$openssl_args);
+    mtr_add_arg($openssl_args, "list");
+    mtr_add_arg($openssl_args, "-providers");
+    $openssl_cmd = join(" ", $exe_openssl, @$openssl_args);
+    $openssl_result = `$openssl_cmd`;
+    my $fips_active = 0;
+    my $fips_seen = 0;
+    foreach my $line (split('\n', $openssl_result)) {
+      # printf "line $line\n";
+      if ($line =~ "name:") {
+	if ($line =~ "FIPS") {
+	  $fips_seen = 1;
+	} else {
+	  $fips_seen = 0;
+	}
+      } elsif ($line =~ "status:") {
+	if ($fips_seen and $line =~ "active") {
+	  $fips_active = 1;
+	}
+      }
+    }
+    # printf "fips_active $fips_active\n";
+    if ($fips_active) {
+      $ENV{'OPENSSL3_FIPS_ACTIVE'} = 1;
+    } else {
+      $ENV{'OPENSSL3_FIPS_ACTIVE'} = 0;
+    }
+  } else {
+    $ENV{'OPENSSL3_FIPS_ACTIVE'} = 0;
+  }
+
   # Run $exe_mysqltest to see if FIPS mode is supported.
   my $args;
   mtr_init_args(\$args);

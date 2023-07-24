@@ -9,7 +9,7 @@ let $str = `SELECT REPEAT('X', 33554432)`;
 let $str = zzzzzzzzzzzzzzzz$str;
 
 --disable_query_log
---eval SELECT MD5("$str")
+--eval SELECT SHA2("$str", 0)
 --eval SELECT LENGTH("$str")
 --replace_column 1 verylongstring
 --eval SELECT "Q $str END"

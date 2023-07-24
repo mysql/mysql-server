@@ -6,6 +6,8 @@
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 --source include/have_fips.inc
+# This test requires the ability to turn FIPS mode on/off to test weak ciphers.
+--source include/not_fips_active.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

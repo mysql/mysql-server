@@ -6403,7 +6403,7 @@ drop function pi;
 --disable_warnings
 drop function if exists test.database;
 drop function if exists test.current_user;
-drop function if exists test.md5;
+drop function if exists test.sha2;
 --enable_warnings
 
 create database nowhere;
@@ -6416,13 +6416,13 @@ SET SQL_MODE='IGNORE_SPACE';
 
 select database(), database ();
 select current_user(), current_user ();
-select md5("aaa"), md5 ("aaa");
+select sha2("aaa", 0), sha2 ("aaa", 0);
 
 SET SQL_MODE='';
 
 select database(), database ();
 select current_user(), current_user ();
-select md5("aaa"), md5 ("aaa");
+select sha2("aaa", 0), sha2 ("aaa", 0);
 
 use test;
 
@@ -6432,40 +6432,40 @@ return "Stored function database";
 create function `current_user`() returns varchar(50)
 return "Stored function current_user";
 
-create function md5(x varchar(50)) returns varchar(50)
-return "Stored function md5";
+create function sha2(x varchar(50), y integer) returns varchar(50)
+return "Stored function sha2";
 
 SET SQL_MODE='IGNORE_SPACE';
 
 select database(), database ();
 select current_user(), current_user ();
-select md5("aaa"), md5 ("aaa");
+select sha2("aaa", 0), sha2 ("aaa", 0);
 
 # Non deterministic warnings from db_load_routine
 --disable_warnings
 select test.database(), test.database ();
 select test.current_user(), test.current_user ();
-select test.md5("aaa"), test.md5 ("aaa");
+select test.sha2("aaa", 0), test.sha2 ("aaa", 0);
 --enable_warnings
 
 SET SQL_MODE='';
 
 select database(), database ();
 select current_user(), current_user ();
-select md5("aaa"), md5 ("aaa");
+select sha2("aaa", 0), sha2 ("aaa", 0);
 
 # Non deterministic warnings from db_load_routine
 --disable_warnings
 select test.database(), test.database ();
 select test.current_user(), test.current_user ();
-select test.md5("aaa"), test.md5 ("aaa");
+select test.sha2("aaa", 0), test.sha2 ("aaa", 0);
 --enable_warnings
 
 SET @@sql_mode=@save_sql_mode;
 
 drop function test.database;
 drop function test.current_user;
-drop function md5;
+drop function sha2;
 
 use test;
 delimiter |;

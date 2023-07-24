@@ -258,10 +258,13 @@ require_icu_version.inc
 not_have_zstd_proper_ver.inc
 have_zstd_proper_ver.inc
 
-#21.0 fips realted test will be run only on system where opensssl fips module is installed
+#21.0 fips related test will be run only on system where OpenSSL fips module is installed
 # currently we are checking via this env $OPENSSL_FIPS_INSTALLED
 not_have_fips.inc
 have_fips.inc
+# Checking via env $OPENSSL3_FIPS_ACTIVE
+fips_active.inc
+not_fips_active.inc
 
 # 22.0 Tests for "disk full" conditions. Need special environment.
 # Shall not run on PB2.
