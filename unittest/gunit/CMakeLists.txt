@@ -365,7 +365,7 @@ LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ADD_TEST merge_large_tests
   ENABLE_EXPORTS
-  LINK_LIBRARIES gunit_large server_unittest_library
+  LINK_LIBRARIES gunit_large server_unittest_library 
   )
 
 FOREACH(test ${TESTS})

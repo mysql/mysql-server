@@ -74,6 +74,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* log_checkpointer_mutex */
 #include "log0chkp.h"
 
+#include "log_uring/log_uring.h"
+
 /* log_calc_max_ages, ... */
 #include "log0files_capacity.h"
 
@@ -444,6 +446,9 @@ mysql_pfs_key_t log_files_governor_thread_key;
 
 /** PFS key for the log writer thread. */
 mysql_pfs_key_t log_writer_thread_key;
+
+/** PFS key for the log iouring thread. */
+mysql_pfs_key_t log_iouring_thread_key;
 
 /** PFS key for the log checkpointer thread. */
 mysql_pfs_key_t log_checkpointer_thread_key;
@@ -905,6 +910,9 @@ void log_start_background_threads(log_t &log) {
 
   log.should_stop_threads.store(false);
   log.writer_threads_paused.store(false);
+
+  srv_threads.m_log_iouring =
+      os_thread_create(log_iouring_thread_key, 0, log_iouring, &log);
 
   srv_threads.m_log_checkpointer =
       os_thread_create(log_checkpointer_thread_key, 0, log_checkpointer, &log);

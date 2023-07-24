@@ -170,6 +170,9 @@ struct Srv_threads {
   /** Redo files governor thread. */
   IB_thread m_log_files_governor;
 
+  /** Iouring log */
+  IB_thread m_log_iouring;
+  
   /** Redo checkpointer thread. */
   IB_thread m_log_checkpointer;
 

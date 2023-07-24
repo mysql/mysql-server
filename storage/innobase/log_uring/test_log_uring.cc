@@ -1,0 +1,92 @@
+
+#define USE_IO_URING
+#include "log_uring/ptr.hpp"
+#include "log_uring/log_uring.h"
+#include "log_uring/xlog.h"
+#include <stdlib.h>
+#include <thread>
+#include <iostream>
+#include <boost/program_options.hpp>
+
+
+namespace po = boost::program_options;
+
+const int NUM_WORKER_THREADS = 1;
+const size_t BUFFER_SIZE = 51200;
+const size_t NUM_APPEND_LOGS = 0;
+class log_thread_handler {
+public:
+    void operator()() {
+        log_iouring(NULL);
+    }
+};
+
+class worker_thread_handler {
+public:
+  worker_thread_handler(xlog* log): log_(log) {
+
+  }
+  
+  void operator()() {
+    log_->wait_start();
+    for (size_t i = 0; i < NUM_APPEND_LOGS || NUM_APPEND_LOGS == 0; i++) {
+      uint64_t lsn = log_->append(buffer_, sizeof(buffer_));
+      if (i % 10 == 9) {
+        log_->sync(lsn);
+      }
+    }
+  }
+private:
+  xlog* log_;
+  uint8_t buffer_[BUFFER_SIZE];
+};
+
+ptr<std::thread> create_log_thread() {
+  ptr<std::thread> thd(new std::thread(log_thread_handler()));
+  return thd;
+}
+
+
+ptr<std::thread> create_worker_thread(xlog*log) {
+  ptr<std::thread> thd(new std::thread(worker_thread_handler(log)));
+  return thd;
+}
+
+int main(int argc, const char*argv[]) {
+
+  po::options_description desc("Allowed options");
+  desc.add_options()
+      ("help", "produce help message")
+      ("compression", po::value<int>(), "set compression level")
+  ;
+
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);    
+
+  if (vm.count("help")) {
+      std::cout << desc << "\n";
+      return 1;
+  }
+
+  if (vm.count("compression")) {
+      std::cout << "Compression level was set to " 
+  << vm["compression"].as<int>() << ".\n";
+  } else {
+      std::cout << "Compression level was not set.\n";
+  }
+
+  log_iouring_create(32, 32000);
+
+  std::vector<ptr<std::thread>> threads;
+  ptr<std::thread> t = create_log_thread();
+  threads.push_back(t);
+  xlog *log = get_xlog();
+  for (int i = 0; i < NUM_WORKER_THREADS; i++) {
+    ptr<std::thread> thd = create_worker_thread(log);
+    threads.push_back(thd);
+  }
+  for (size_t i = 0; i < threads.size(); i++) {
+    threads[i]->join();
+  }
+}

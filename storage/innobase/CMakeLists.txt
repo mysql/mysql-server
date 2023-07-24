@@ -47,6 +47,12 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
+
+)
+
+INCLUDE_DIRECTORIES(
+  SYSTEM ${BOOST_PATCHES_DIR} 
+  ${BOOST_INCLUDE_DIR}
 )
 
 # Conflicting YYSTYPE, because we have multiple Bison grammars.
@@ -254,7 +260,11 @@ SET(INNOBASE_SOURCES
   ut/ut0test.cc
   ut/ut0ut.cc
   ut/ut0vec.cc
-  ut/ut0wqueue.cc)
+  ut/ut0wqueue.cc
+  log_uring/utils.cc
+  log_uring/xlog.cc
+  log_uring/log_uring.cc
+)
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
@@ -381,3 +391,24 @@ IF(MSVC AND NOT WIN32_CLANG)
   ENDFOREACH()
   TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE "/wd4100")
 ENDIF()
+
+
+ADD_EXECUTABLE(
+  TestLogUring
+  log_uring/test_log_uring.cc
+  log_uring/xlog.cc
+  log_uring/utils.cc
+  log_uring/log_uring.cc
+)
+
+TARGET_LINK_LIBRARIES(
+  TestLogUring
+  uring
+  program_options
+)
+
+TARGET_COMPILE_DEFINITIONS(
+  TestLogUring
+  PUBLIC __URING__
+)
+
