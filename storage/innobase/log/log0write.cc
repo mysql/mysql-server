@@ -99,6 +99,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ut_uint64_align_down */
 #include "ut0byte.h"
 
+#include "log_uring/log_uring.h"
 // clang-format off
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_THREADS Background redo log threads

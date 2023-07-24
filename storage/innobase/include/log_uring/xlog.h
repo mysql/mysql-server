@@ -18,15 +18,44 @@ struct file_ctrl {
   uint64_t max_lsn_;
 };
 
+
+class op_duration {
+  std::chrono::duration<double> duration_;
+  int count;
+public:
+  void add(std::chrono::duration<double> duration) {
+    duration_ += duration;
+    count += 1;
+  }
+};
+
+
+class xlog_op_duration {
+  op_duration append_;
+  op_duration sync_;
+
+  void sync_add(std::chrono::duration<double> duration) {
+    sync_.add(duration);
+  }
+
+  void append_add(std::chrono::duration<double> duration) {
+    append_.add(duration);
+  }
+};
+
 class xlog {
 public:
-  xlog(  
-    int num_log_file, 
-    int num_uring_entries
-  );
+  xlog();
 
   virtual ~xlog();
   
+
+  void init(
+    int num_log_file, 
+    int num_uring_entries,
+    bool use_iouring
+  );
+
   void start();
   
   int append(void *buf, size_t size);
@@ -51,9 +80,14 @@ private:
 
   static io_event* new_io_event(size_t size);
   static void delete_io_event(io_event*);
+
+
   size_t num_log_files_;
   size_t num_uring_entries_;
-
+  bool use_uring_;
+  bool init_;
+  std::mutex mutex_init_;
+  std::condition_variable cond_init_;
 
   std::atomic<uint64_t> next_lsn_;
 
@@ -79,11 +113,20 @@ private:
   bool state_;
 
 
+  int sync_log_fd_;
+  std::mutex sync_log_mutex_;
+  std::vector<int8_t> sync_log_buf_;
+
+  std::condition_variable sync_log_cond_;
+  bool sync_log_write_;
+
 };
 
 
-void log_iouring_thread();
-void log_iouring_create(  
+void log_uring_thread();
+void log_uring_create(  
   int num_log_file, 
-  int num_uring_entries);
+  int num_uring_entries,
+  bool use_iouring
+);
 xlog *get_xlog();

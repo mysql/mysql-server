@@ -839,6 +839,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_writer_thread, "ib_log_writer", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_uring_thread, "ib_log_uring", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_checkpointer_thread, "ib_log_checkpt",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_flusher_thread, "ib_log_flush", PSI_FLAG_SINGLETON, 0,

@@ -174,6 +174,12 @@ inline bool log_writer_is_active() {
   return srv_thread_is_active(srv_threads.m_log_writer);
 }
 
+/** Checks if log uring thread is active.
+@return true if and only if the log uring thread is active */
+inline bool log_uring_is_active() {
+  return srv_thread_is_active(srv_threads.m_log_uring);
+}
+
 /** Checks if log write notifier thread is active.
 @return true if and only if the log write notifier thread is active */
 inline bool log_write_notifier_is_active() {

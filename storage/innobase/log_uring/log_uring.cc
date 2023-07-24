@@ -2,6 +2,6 @@
 #include "log_uring/xlog.h"
 #include "log_uring/iouring.h"
 
-void log_iouring(void *) {
-  log_iouring_thread();
+void log_uring(void *) {
+  log_uring_thread();
 }

@@ -19,7 +19,6 @@ source_downloads
 # Configuration files for Visual Studio Code
 .vscode/
 
-build/
 datatool/
 datatools/
 __pycache__/
@@ -31,6 +30,7 @@ scalability_jobs_*
 .cproject
 .project
 .settings/
-
+.idea
+*build*
 boost/
 
