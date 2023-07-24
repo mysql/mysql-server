@@ -404,7 +404,7 @@ ADD_EXECUTABLE(
 TARGET_LINK_LIBRARIES(
   TestLogUring
   uring
-  program_options
+  boost_program_options
 )
 
 TARGET_COMPILE_DEFINITIONS(

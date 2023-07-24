@@ -14,6 +14,7 @@ namespace po = boost::program_options;
 const int NUM_WORKER_THREADS = 1;
 const size_t BUFFER_SIZE = 51200;
 const size_t NUM_APPEND_LOGS = 0;
+
 class log_thread_handler {
 public:
     void operator()() {
@@ -53,11 +54,16 @@ ptr<std::thread> create_worker_thread(xlog*log) {
 }
 
 int main(int argc, const char*argv[]) {
+  int num_log_files = 32;
+  int num_uring_sqes = 32000;
+  int num_worker_threads = NUM_WORKER_THREADS;
 
   po::options_description desc("Allowed options");
   desc.add_options()
       ("help", "produce help message")
-      ("compression", po::value<int>(), "set compression level")
+      ("num_log_files", po::value<int>(), "number of log files")
+      ("num_uring_sqes", po::value<int>(), "number of iouring SQEs")
+      ("num_worker_threads", po::value<int>(), "number of worker threads issue append log request")
   ;
 
   po::variables_map vm;
@@ -69,20 +75,25 @@ int main(int argc, const char*argv[]) {
       return 1;
   }
 
-  if (vm.count("compression")) {
-      std::cout << "Compression level was set to " 
-  << vm["compression"].as<int>() << ".\n";
-  } else {
-      std::cout << "Compression level was not set.\n";
+  if (vm.count("num_log_files")) {
+      num_log_files = vm["num_log_files"].as<int>();
+  } 
+
+  if (vm.count("num_uring_sqes")) {
+      num_log_files = vm["num_uring_sqes"].as<int>();
   }
 
-  log_iouring_create(32, 32000);
+  if (vm.count("num_worker_threads")) {
+      num_worker_threads = vm["num_worker_threads"].as<int>();
+  }
+
+  log_iouring_create(num_log_files, num_uring_sqes);
 
   std::vector<ptr<std::thread>> threads;
   ptr<std::thread> t = create_log_thread();
   threads.push_back(t);
   xlog *log = get_xlog();
-  for (int i = 0; i < NUM_WORKER_THREADS; i++) {
+  for (int i = 0; i < num_worker_threads; i++) {
     ptr<std::thread> thd = create_worker_thread(log);
     threads.push_back(thd);
   }
