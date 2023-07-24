@@ -12337,6 +12337,9 @@ ER_NUM_THREADS_STILL_ALIVE
 ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR
    eng "Failed to accept a MySQL connection for Group Replication. %s. Please retry."
 
+ER_COMPONENT_KEYRING_OCI_INVALID_CONFIG_VAR
+   eng "Invalid value of argument %s (%s)."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
