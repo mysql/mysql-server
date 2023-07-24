@@ -36,7 +36,7 @@ void xlog::start() {
   for (int i = 0; i < MAX_FILE_FD; i++) {
     file_ctrl ctrl;
     std::stringstream ssm;
-    ssm << "log_" << i + 1 << ".redo";
+    ssm << "wal." << i + 1 << ".redo";
     ctrl.fd_ = open(ssm.str().c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     ctrl.max_lsn_ = 0;
     ctrl.sync_lsn_ = 0;
