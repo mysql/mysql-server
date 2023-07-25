@@ -405,6 +405,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   }
 #endif
   (*handle)->cfg.~LocalConfig();
+  (*handle)->socket.~NdbSocket();
   free((*handle)->m_name);
   free((*handle)->m_bindaddress);
   free(*handle);
