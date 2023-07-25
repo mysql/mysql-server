@@ -45,7 +45,7 @@ class Acl_change_notification {
                           const List<LEX_USER> *users,
                           std::set<LEX_USER *> *rewrite_params,
                           const List<LEX_CSTRING> *dynamic_privs);
-
+// test123
  private:
   const std::string db;
   const enum_sql_command operation;
