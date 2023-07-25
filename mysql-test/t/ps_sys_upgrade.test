@@ -63,8 +63,8 @@ DROP TRIGGER sys.sys_config_update_set_user;
 # without ndb.
 --let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
---sorted_result
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 
 --echo # Now drop the sys_config table and make sure re-install is done
