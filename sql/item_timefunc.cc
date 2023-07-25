@@ -1515,6 +1515,13 @@ bool Item_typecast_year::resolve_type(THD *thd) {
   return false;
 }
 
+void Item_typecast_year::print(const THD *thd, String *str,
+                               enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as year)"));
+}
+
 longlong Item_typecast_year::val_int() {
   assert(fixed == 1);
   longlong value{0};

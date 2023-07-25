@@ -445,3 +445,21 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '2085'
 DROP TABLE t1;
+#
+# Bug#35244286 Missing year function?
+#
+CREATE VIEW v1(c0) AS (SELECT CAST(2048 as year));
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`c0`) AS select cast(2048 as year) AS `CAST(2048 as year)`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT c0 FROM v1;
+c0
+2048
+DROP VIEW v1;
+CREATE TABLE t5 (c1 YEAR AS (CAST(1985 AS YEAR)));
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` year GENERATED ALWAYS AS (cast(1985 as year)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t5;

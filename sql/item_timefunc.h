@@ -303,6 +303,8 @@ class Item_typecast_year final : public Item_int_func {
   const char *func_name() const override { return "cast_as_year"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool resolve_type(THD *thd) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 /**
