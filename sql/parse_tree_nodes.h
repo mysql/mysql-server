@@ -68,6 +68,7 @@
 #include "sql/sql_tablespace.h"      // Tablespace_options
 #include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
 #include "sql/table.h"               // Common_table_expr
+#include "sql/tablesample.h"
 #include "sql/window_lex.h"
 #include "string_with_len.h"
 #include "thr_lock.h"
@@ -473,17 +474,20 @@ class PT_table_factor_table_ident : public PT_table_reference {
   List<String> *opt_use_partition;
   const char *const opt_table_alias;
   List<Index_hint> *opt_key_definition;
+  PT_tablesample *opt_tablesample{nullptr};
 
  public:
   PT_table_factor_table_ident(const POS &pos, Table_ident *table_ident_arg,
                               List<String> *opt_use_partition_arg,
                               const LEX_CSTRING &opt_table_alias_arg,
-                              List<Index_hint> *opt_key_definition_arg)
+                              List<Index_hint> *opt_key_definition_arg,
+                              PT_tablesample *opt_tablesample_arg)
       : super(pos),
         table_ident(table_ident_arg),
         opt_use_partition(opt_use_partition_arg),
         opt_table_alias(opt_table_alias_arg.str),
-        opt_key_definition(opt_key_definition_arg) {}
+        opt_key_definition(opt_key_definition_arg),
+        opt_tablesample(opt_tablesample_arg) {}
 
  protected:
   bool do_contextualize(Parse_context *pc) override;
@@ -677,6 +681,25 @@ class PT_joined_table_using : public PT_joined_table {
 
  protected:
   void add_json_info(Json_object *obj) override;
+};
+
+/*
+  PT_tablesample - parse tree node
+
+  Information contained in TABLESAMPLE clause is here.
+*/
+class PT_tablesample : public Parse_tree_node {
+  typedef Parse_tree_node super;
+
+ public:
+  tablesample_type m_sampling_type;
+  Item *m_sample_percentage{nullptr};
+
+  PT_tablesample(const POS &pos, tablesample_type tablesample_type_arg,
+                 Item *sample_percentage)
+      : super(pos),
+        m_sampling_type(tablesample_type_arg),
+        m_sample_percentage(sample_percentage) {}
 };
 
 class PT_group : public Parse_tree_node {

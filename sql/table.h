@@ -60,6 +60,7 @@
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_sort.h"  // Sort_result
+#include "sql/tablesample.h"
 #include "thr_lock.h"
 #include "typelib.h"
 
@@ -3657,8 +3658,15 @@ class Table_ref {
     for a new (identical) one.
    */
   AccessPath *access_path_for_derived{nullptr};
+  Item *sampling_percentage{nullptr};
 
  private:
+  /// Sampling information.
+  tablesample_type sampling_type{
+      tablesample_type::UNSPECIFIED_TABLESAMPLE_TYPE};
+
+  double sampling_percentage_val{0};
+
   /**
      This field is set to non-null for derived tables and views. It points
      to the Query_expression representing the derived table/view.
@@ -3745,6 +3753,24 @@ class Table_ref {
   LEX_STRING source{nullptr, 0};       ///< source of CREATE VIEW
   LEX_STRING timestamp{nullptr, 0};    ///< GMT time stamp of last operation
   LEX_USER definer;                    ///< definer of view
+  void set_tablesample(tablesample_type sampling_type_arg,
+                       Item *sampling_percentage_arg) {
+    sampling_type = sampling_type_arg;
+    sampling_percentage = sampling_percentage_arg;
+  }
+
+  bool has_tablesample() const {
+    return sampling_type != tablesample_type::UNSPECIFIED_TABLESAMPLE_TYPE;
+  }
+
+  bool update_sampling_percentage();
+
+  double get_sampling_percentage() const;
+
+  bool validate_tablesample_clause(THD *thd);
+
+  tablesample_type get_sampling_type() const { return sampling_type; }
+
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,

@@ -1637,6 +1637,9 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   old_lex->set_execute_only_in_hypergraph_optimizer(
       view_lex->can_execute_only_in_hypergraph_optimizer(),
       view_lex->get_only_supported_in_hypergraph_reason());
+  old_lex->set_execute_only_in_secondary_engine(
+      view_lex->can_execute_only_in_secondary_engine(),
+      view_lex->get_not_supported_in_primary_reason());
 
   thd->lex = old_lex;  // Needed for prepare_security
 

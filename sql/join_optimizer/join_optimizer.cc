@@ -2923,7 +2923,16 @@ bool CostingReceiver::ProposeTableScan(
     TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
   Table_ref *tl = table->pos_in_table_list;
   AccessPath path;
-  if (tl->is_recursive_reference()) {
+  if (tl->has_tablesample()) {
+    path.type = AccessPath::SAMPLE_SCAN;
+    path.sample_scan().table = table;
+    if (!tl->sampling_percentage->const_item() &&
+        tl->update_sampling_percentage()) {
+      return true;
+    }
+    path.sample_scan().sampling_percentage = tl->get_sampling_percentage();
+    path.sample_scan().sampling_type = tl->get_sampling_type();
+  } else if (tl->is_recursive_reference()) {
     path.type = AccessPath::FOLLOW_TAIL;
     path.follow_tail().table = table;
     assert(forced_leftmost_table == 0);  // There can only be one, naturally.
@@ -5133,6 +5142,9 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
   switch (path.type) {
     case AccessPath::TABLE_SCAN:
       str += "TABLE_SCAN";
+      break;
+    case AccessPath::SAMPLE_SCAN:
+      str += "SAMPLE_SCAN";
       break;
     case AccessPath::INDEX_SCAN:
       str += "INDEX_SCAN";

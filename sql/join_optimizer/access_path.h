@@ -230,6 +230,7 @@ struct AccessPath {
     // NOTE: When adding more paths to this section, also update GetBasicTable()
     // to handle them.
     TABLE_SCAN,
+    SAMPLE_SCAN,
     INDEX_SCAN,
     INDEX_DISTANCE_SCAN,
     REF,
@@ -524,6 +525,14 @@ struct AccessPath {
   const auto &table_scan() const {
     assert(type == TABLE_SCAN);
     return u.table_scan;
+  }
+  auto &sample_scan() {
+    assert(type == SAMPLE_SCAN);
+    return u.sample_scan;
+  }
+  const auto &sample_scan() const {
+    assert(type == SAMPLE_SCAN);
+    return u.sample_scan;
   }
   auto &index_scan() {
     assert(type == INDEX_SCAN);
@@ -926,6 +935,11 @@ struct AccessPath {
     } table_scan;
     struct {
       TABLE *table;
+      double sampling_percentage;
+      enum tablesample_type sampling_type;
+    } sample_scan;
+    struct {
+      TABLE *table;
       int idx;
       bool use_order;
       bool reverse;
@@ -1311,6 +1325,17 @@ inline AccessPath *NewTableScanAccessPath(THD *thd, TABLE *table,
   path->type = AccessPath::TABLE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->table_scan().table = table;
+  return path;
+}
+
+inline AccessPath *NewSampleScanAccessPath(THD *thd, TABLE *table,
+                                           double sampling_percentage,
+                                           bool count_examined_rows) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::SAMPLE_SCAN;
+  path->count_examined_rows = count_examined_rows;
+  path->sample_scan().table = table;
+  path->sample_scan().sampling_percentage = sampling_percentage;
   return path;
 }
 

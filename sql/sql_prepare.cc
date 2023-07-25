@@ -797,29 +797,59 @@ bool Prepared_statement::insert_parameters(THD *thd, String *query,
         return true;
       }
 
-      // Pinning of data types only implemented for integers
-      assert(!param->is_type_pinned() || param->result_type() == INT_RESULT);
+      /*
+        Pinning of data types is only implemented for numeric types
+        (integers, decimal values and float values). String values with numeric
+        data is also accepted as parameter values.
+      */
+      assert(!param->is_type_pinned() || param->result_type() == INT_RESULT ||
+             param->result_type() == DECIMAL_RESULT ||
+             param->result_type() == REAL_RESULT);
 
       if (param->is_type_pinned()) {
         // Accept string values from client
-        // @todo Validate string values, do not accept garbage in string
-        if (param->data_type_actual() == MYSQL_TYPE_VARCHAR) {
-          const longlong val = param->val_int();
-          if (param->unsigned_flag)
-            param->set_int((ulonglong)val);
-          else
-            param->set_int(val);
-        } else if (param->data_type_actual() != MYSQL_TYPE_LONGLONG) {
-          my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysqld_stmt_execute");
-          return true;
-        }
-        if ((param->unsigned_flag && !param->is_unsigned_actual() &&
-             param->value.integer < 0) ||
-            (!param->unsigned_flag && param->is_unsigned_actual() &&
-             param->value.integer < 0)) {
-          my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "signed integer",
-                   "mysqld_stmt_execute");
-          return true;
+        if (param->data_type() == MYSQL_TYPE_LONGLONG) {
+          if (param->data_type_actual() == MYSQL_TYPE_VARCHAR) {
+            const longlong val = param->val_int();
+            if (thd->is_error()) return true;
+            if (param->unsigned_flag)
+              param->set_int((ulonglong)val);
+            else
+              param->set_int(val);
+          } else if (param->data_type_actual() != MYSQL_TYPE_LONGLONG) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysqld_stmt_execute");
+            return true;
+          }
+          if ((param->unsigned_flag && !param->is_unsigned_actual() &&
+               param->value.integer < 0) ||
+              (!param->unsigned_flag && param->is_unsigned_actual() &&
+               param->value.integer < 0)) {
+            my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "signed integer",
+                     "mysqld_stmt_execute");
+            return true;
+          }
+        } else if (param->data_type() == MYSQL_TYPE_NEWDECIMAL) {
+          if (param->data_type_actual() == MYSQL_TYPE_VARCHAR ||
+              param->data_type_actual() == MYSQL_TYPE_LONGLONG) {
+            my_decimal val;
+            my_decimal *v = param->val_decimal(&val);
+            if (thd->is_error()) return true;
+            param->set_decimal(v);
+          } else if (param->data_type_actual() != MYSQL_TYPE_NEWDECIMAL) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysqld_stmt_execute");
+            return true;
+          }
+        } else if (param->data_type() == MYSQL_TYPE_DOUBLE) {
+          if (param->data_type_actual() == MYSQL_TYPE_VARCHAR ||
+              param->data_type_actual() == MYSQL_TYPE_LONGLONG ||
+              param->data_type_actual() == MYSQL_TYPE_NEWDECIMAL) {
+            const double val = param->val_real();
+            if (thd->is_error()) return true;
+            param->set_double(val);
+          } else if (param->data_type_actual() != MYSQL_TYPE_DOUBLE) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysqld_stmt_execute");
+            return true;
+          }
         }
       }
     }

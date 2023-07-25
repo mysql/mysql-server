@@ -2972,6 +2972,15 @@ void Table_ref::print(const THD *thd, String *str,
         }
         str->append(')');
       }
+      if (has_tablesample()) {
+        str->append(" TABLESAMPLE ");
+        str->append(SamplingTypeToString(get_sampling_type()));
+        str->append('(');
+        auto *item_decimal =
+            new (thd->mem_root) Item_decimal(get_sampling_percentage());
+        item_decimal->print(thd, str, QT_ORDINARY);
+        str->append(") ");
+      }
     }
     if (my_strcasecmp(table_alias_charset, cmp_name, alias)) {
       char t_alias_buff[MAX_ALIAS_NAME];

@@ -1269,6 +1269,10 @@ bool Query_block::setup_tables(THD *thd, Table_ref *tables,
       tr->opt_hints_table = opt_hints_qb->adjust_table_hints(tr);
     }
 
+    if (tr->has_tablesample() && tr->validate_tablesample_clause(thd)) {
+      return true;
+    }
+
     if (table == nullptr) continue;
     assert(table->pos_in_table_list == tr);
     if (!tr->opt_hints_table ||

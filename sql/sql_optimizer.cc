@@ -11599,8 +11599,14 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
           // have num_output_rows set to zero. Get the handler's estimate
           // instead.
           if (num_output_rows == 0 && table->s->is_secondary_engine()) {
-            assert(subpath->type == AccessPath::TABLE_SCAN);
+            assert(subpath->type == AccessPath::TABLE_SCAN ||
+                   subpath->type == AccessPath::SAMPLE_SCAN);
             num_output_rows = table->file->stats.records;
+            if (table->pos_in_table_list->has_tablesample()) {
+              num_output_rows =
+                  num_output_rows *
+                  (table->pos_in_table_list->get_sampling_percentage() / 100);
+            }
           }
 
           assert(num_output_rows >= 0);

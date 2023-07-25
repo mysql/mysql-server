@@ -1484,6 +1484,7 @@ class Item_func_rand final : public Item_real_func {
   rand_struct *m_rand{nullptr};
   bool first_eval{true};  // true if val_real() is called 1st time
  public:
+  Item_func_rand() : Item_real_func() {}
   Item_func_rand(const POS &pos, Item *a) : Item_real_func(pos, a) {}
   explicit Item_func_rand(const POS &pos) : Item_real_func(pos) {}
 

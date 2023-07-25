@@ -170,6 +170,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "strxnmov.h"
 #include "thr_lock.h"
 #include "violite.h"
+#include "sql/tablesample.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -1450,6 +1451,8 @@ void warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> AUTO_SYM                   1211   /* MYSQL */
 %token<lexer.keyword> MANUAL_SYM                 1212   /* MYSQL */
+%token<lexer.keyword> BERNOULLI_SYM              1213  /* SQL-2016-N */
+%token<lexer.keyword> TABLESAMPLE_SYM            1214  /* SQL-2016-R */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -1642,6 +1645,7 @@ void warn_on_deprecated_user_defined_collation(
         in_expression_user_variable_assignment
         rvalue_system_or_user_variable
         install_set_rvalue
+        sampling_percentage
 
 %type <item_string> window_name opt_existing_window_name
 
@@ -1815,6 +1819,8 @@ void warn_on_deprecated_user_defined_collation(
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
       alter_order_list opt_partition_clause opt_window_order_by_clause
 
+%type<tablesample> opt_tablesample_clause
+
 %type <c_str> field_length opt_field_length type_datetime_precision
         opt_place
 
@@ -1839,6 +1845,7 @@ void warn_on_deprecated_user_defined_collation(
         table_reference_list table_reference_list_parens explicit_table
 
 %type <olap_type> olap_opt
+%type <tablesample_type> sampling_method
 
 %type <group> opt_group_clause
 
@@ -10191,7 +10198,7 @@ explicit_table:
           {
             $$.init(YYMEM_ROOT);
             auto table= NEW_PTN
-                PT_table_factor_table_ident(@$, $2, nullptr, NULL_CSTR, nullptr);
+                PT_table_factor_table_ident(@$, $2, nullptr, NULL_CSTR, nullptr, nullptr);
             if ($$.push_back(table))
               MYSQL_YYABORT; // OOM
           }
@@ -11331,6 +11338,28 @@ sum_expr:
           }
         ;
 
+sampling_method:
+          SYSTEM_SYM     { $$= tablesample_type::SYSTEM_TABLESAMPLE_TYPE;    }
+        | BERNOULLI_SYM  { $$= tablesample_type::BERNOULLI_TABLESAMPLE_TYPE; }
+        ;
+
+sampling_percentage:
+           NUM_literal        { $$ = $1; }
+        | '@' ident_or_text   { $$ = NEW_PTN PTI_user_variable(@$, $2); }
+        | param_marker        { $$ = $1; }
+        ;
+
+opt_tablesample_clause:
+          %empty
+          {
+            /* empty */ { $$= nullptr; }
+          }
+        | TABLESAMPLE_SYM sampling_method '(' sampling_percentage ')'
+          {
+            $$= NEW_PTN PT_tablesample(@$,$2,$4);
+          }
+        ;
+
 window_func_call:       // Window functions which do not exist as set functions
           ROW_NUMBER_SYM '(' ')' windowing_clause
           {
@@ -12211,9 +12240,9 @@ single_table_parens:
         ;
 
 single_table:
-          table_ident opt_use_partition opt_table_alias opt_key_definition
+          table_ident opt_use_partition opt_table_alias opt_key_definition opt_tablesample_clause
           {
-            $$= NEW_PTN PT_table_factor_table_ident(@$, $1, $2, $3, $4);
+            $$= NEW_PTN PT_table_factor_table_ident(@$, $1, $2, $3, $4, $5);
           }
         ;
 
@@ -15596,6 +15625,7 @@ ident_keywords_unambiguous:
         | AVG_ROW_LENGTH
         | AVG_SYM
         | BACKUP_SYM
+        | BERNOULLI_SYM
         | BINLOG_SYM
         | BIT_SYM %prec KEYWORD_USED_AS_IDENT
         | BLOCK_SYM

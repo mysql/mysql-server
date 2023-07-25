@@ -10327,6 +10327,12 @@ ER_LH_TOO_LARGE_VALUE_ERR
 ER_LH_TOO_LARGE_ROW_ERR
    eng "File %.*s: %s"
 
+ER_TABLESAMPLE_PERCENTAGE 2202H
+  eng "Tablesample percentage should range between 0 and 100."
+
+ER_TABLESAMPLE_ONLY_ON_BASE_TABLES
+  eng "Tablesample can be applied only on base tables."
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

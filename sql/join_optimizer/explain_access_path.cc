@@ -1085,6 +1085,30 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
+    case AccessPath::SAMPLE_SCAN: {
+      const TABLE &table = *path->sample_scan().table;
+      description += string("Sample scan on ") + table.alias;
+      if (table.s->is_secondary_engine()) {
+        error |= AddMemberToObject<Json_string>(obj, "secondary_engine",
+                                                table.file->table_type());
+        description +=
+            string(" in secondary engine ") + table.file->table_type();
+      }
+      description += table.file->explain_extra();
+
+      error |= AddMemberToObject<Json_string>(obj, "table_name", table.alias);
+      error |= AddMemberToObject<Json_string>(obj, "access_type", "table");
+      error |= AddChildrenFromPushedCondition(table, children);
+
+      error |= AddMemberToObject<Json_string>(
+          obj, "sampling_type",
+          SamplingTypeToString(table.pos_in_table_list->get_sampling_type()));
+      error |= AddMemberToObject<Json_double>(
+          obj, "percentage",
+          table.pos_in_table_list->get_sampling_percentage());
+
+      break;
+    }
     case AccessPath::INDEX_SCAN: {
       const TABLE &table = *path->index_scan().table;
       assert(table.file->pushed_idx_cond == nullptr);

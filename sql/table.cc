@@ -108,6 +108,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_parse.h"       // check_stack_overrun
 #include "sql/sql_partition.h"   // mysql_unpack_partition
 #include "sql/sql_plugin.h"      // plugin_unlock
@@ -7335,6 +7336,58 @@ bool Table_ref::is_external() const {
            primary_handler->get_table_share()->has_secondary_engine();
   }
   return false;
+}
+
+bool Table_ref::validate_tablesample_clause(THD *thd) {
+  if (is_view_or_derived()) {
+    my_error(ER_TABLESAMPLE_ONLY_ON_BASE_TABLES, MYF(0));
+    return true;
+  }
+
+  if (!sampling_percentage->fixed &&
+      sampling_percentage->fix_fields(thd, &sampling_percentage)) {
+    return true;
+  }
+
+  if (sampling_percentage->data_type() == MYSQL_TYPE_INVALID) {
+    if (sampling_percentage->propagate_type(
+            thd, Type_properties(MYSQL_TYPE_DOUBLE, true)))
+      return true;
+    sampling_percentage->pin_data_type();
+    return false;
+  }
+
+  if (sampling_percentage->result_type() != REAL_RESULT &&
+      sampling_percentage->result_type() != INT_RESULT &&
+      sampling_percentage->result_type() != DECIMAL_RESULT) {
+    my_error(ER_TABLESAMPLE_PERCENTAGE, MYF(0));
+    return true;
+  }
+
+  if (sampling_percentage->const_item() && update_sampling_percentage()) {
+    return true;
+  }
+  return thd->is_error();
+}
+
+bool Table_ref::update_sampling_percentage() {
+  assert(has_tablesample() && sampling_percentage->fixed);
+  if (sampling_percentage->null_value) {
+    my_error(ER_TABLESAMPLE_PERCENTAGE, MYF(0));
+    return true;
+  }
+
+  sampling_percentage_val = sampling_percentage->val_real();
+
+  if (sampling_percentage_val < 0 || sampling_percentage_val > 100) {
+    my_error(ER_TABLESAMPLE_PERCENTAGE, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+double Table_ref::get_sampling_percentage() const {
+  return sampling_percentage_val;
 }
 
 void LEX_MFA::copy(LEX_MFA *m, MEM_ROOT *alloc) {

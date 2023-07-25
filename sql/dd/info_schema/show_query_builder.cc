@@ -149,7 +149,7 @@ bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
   /* ... FROM schame_name.<table_name> ... */
   PT_table_factor_table_ident *table_factor =
       new (m_thd->mem_root) PT_table_factor_table_ident(
-          *m_pos, table_ident, nullptr, NULL_CSTR, nullptr);
+          *m_pos, table_ident, nullptr, NULL_CSTR, nullptr, nullptr);
   if (table_factor == nullptr) return true;
 
   if (m_table_reference_list.push_back(table_factor)) return true;

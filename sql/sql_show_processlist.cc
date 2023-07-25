@@ -183,7 +183,7 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
 
   PT_table_factor_table_ident *table_factor_processlist =
       new (thd->mem_root) PT_table_factor_table_ident(
-          pos, table_ident_processlist, nullptr, NULL_CSTR, nullptr);
+          pos, table_ident_processlist, nullptr, NULL_CSTR, nullptr, nullptr);
   if (table_factor_processlist == nullptr) return true;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list;

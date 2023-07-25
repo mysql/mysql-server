@@ -80,6 +80,7 @@ void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
   }
   switch (path->type) {
     case AccessPath::TABLE_SCAN:
+    case AccessPath::SAMPLE_SCAN:
     case AccessPath::INDEX_SCAN:
     case AccessPath::INDEX_DISTANCE_SCAN:
     case AccessPath::REF:
@@ -266,6 +267,9 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
         switch (path->type) {
           case AccessPath::TABLE_SCAN:
             return func(path->table_scan().table);
+          case AccessPath::SAMPLE_SCAN:
+            // SampleScan can be executed only in the secondary engine.
+            return false; /* LCOV_EXCL_LINE */
           case AccessPath::INDEX_SCAN:
             return func(path->index_scan().table);
           case AccessPath::INDEX_DISTANCE_SCAN:

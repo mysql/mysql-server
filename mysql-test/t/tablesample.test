@@ -1,0 +1,18 @@
+--echo #
+--echo # Check with Non - Innodb tables
+--echo #
+
+CREATE TABLE t3 (i INT) ENGINE = MYISAM;
+
+--error ER_SECONDARY_ENGINE
+SELECT * FROM t3 TABLESAMPLE SYSTEM (100);
+
+--error ER_TABLESAMPLE_PERCENTAGE
+SELECT * FROM t3 TABLESAMPLE SYSTEM (101);
+
+PREPARE stmt from 'SELECT 1 from t3 TABLESAMPLE SYSTEM(?)';
+SET @a=0.00001;
+--error ER_SECONDARY_ENGINE
+execute stmt using @a;
+
+DROP TABLE t3;

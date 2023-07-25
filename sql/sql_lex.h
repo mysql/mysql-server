@@ -3755,7 +3755,11 @@ class LEX_GRANT_AS {
   "execute_only_in_secondary_reasons" retains the explanations for queries that
   cannot be executed using the primary engine.
 */
-enum execute_only_in_secondary_reasons { SUPPORTED_IN_PRIMARY, CUBE };
+enum execute_only_in_secondary_reasons {
+  SUPPORTED_IN_PRIMARY,
+  CUBE,
+  TABLESAMPLE
+};
 
 /*
   Some queries can be executed only in using the hypergraph optimizer. The enum
@@ -3994,11 +3998,18 @@ struct LEX : public Query_tables_list {
            reason == SUPPORTED_IN_PRIMARY);
   }
 
-  const char *get_not_supported_in_primary_reason() {
+  execute_only_in_secondary_reasons get_not_supported_in_primary_reason()
+      const {
+    return m_execute_only_in_secondary_engine_reason;
+  }
+
+  const char *get_not_supported_in_primary_reason_str() {
     assert(can_execute_only_in_secondary_engine());
     switch (m_execute_only_in_secondary_engine_reason) {
       case CUBE:
         return "CUBE";
+      case TABLESAMPLE:
+        return "TABLESAMPLE";
       default:
         return "UNDEFINED";
     }

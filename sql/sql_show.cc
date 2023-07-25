@@ -1190,9 +1190,9 @@ bool mysqld_show_create(THD *thd, Table_ref *table_list) {
 
   buffer.length(0);
 
-  if (table_list->is_view())
+  if (table_list->is_view()) {
     buffer.set_charset(table_list->view_creation_ctx->get_client_cs());
-
+  }
   if (table_list->is_view())
     view_store_create_info(thd, table_list, &buffer);
   else if (store_create_info(thd, table_list, &buffer, nullptr,

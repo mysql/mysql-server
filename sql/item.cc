@@ -4179,14 +4179,42 @@ bool Item_param::set_longdata(const char *str, ulong length) {
 bool Item_param::set_from_user_var(THD *thd [[maybe_unused]],
                                    const user_var_entry *entry) {
   DBUG_TRACE;
-  if (entry && entry->ptr()) {
+  if (entry != nullptr && entry->ptr() != nullptr) {
     // An existing user variable that is not NULL
 
-    // Pinning of data types only implemented for integers
-    assert(!is_type_pinned() || result_type() == INT_RESULT);
-    if (is_type_pinned() && entry->type() != INT_RESULT) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
-      return true;
+    /*
+      Pinning of data types is only implemented for numeric types
+      (integers, decimal values and float values). A pinned integer type will
+      only accept integer values. A pinned decimal type accepts integer and
+      decimal values. A pinned float type accept all numeric values.
+    */
+    assert(!is_type_pinned() || result_type() == INT_RESULT ||
+           result_type() == DECIMAL_RESULT || result_type() == REAL_RESULT);
+    if (is_type_pinned()) {
+      switch (data_type()) {
+        case MYSQL_TYPE_LONGLONG:
+          if (entry->type() != INT_RESULT) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
+            return true;
+          }
+          break;
+        case MYSQL_TYPE_NEWDECIMAL:
+          if (entry->type() != INT_RESULT && entry->type() != DECIMAL_RESULT) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
+            return true;
+          }
+          break;
+        case MYSQL_TYPE_DOUBLE:
+          if (entry->type() != INT_RESULT && entry->type() != DECIMAL_RESULT &&
+              entry->type() != REAL_RESULT) {
+            my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
+            return true;
+          }
+          break;
+        default:
+          my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
+          return true;
+      }
     }
     switch (entry->type()) {
       case REAL_RESULT:
@@ -4195,14 +4223,16 @@ bool Item_param::set_from_user_var(THD *thd [[maybe_unused]],
       case INT_RESULT:
         if (entry->unsigned_flag) {
           ulonglong val = *pointer_cast<const ulonglong *>(entry->ptr());
-          if (is_type_pinned() && !unsigned_flag && val > INT_MAX64) {
+          if (is_type_pinned() && data_type() == MYSQL_TYPE_LONGLONG &&
+              !unsigned_flag && val > INT_MAX64) {
             my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "signed integer", "EXECUTE");
             return true;
           }
           set_int(val);
         } else {
           longlong val = *pointer_cast<const longlong *>(entry->ptr());
-          if (is_type_pinned() && unsigned_flag && val < 0) {
+          if (is_type_pinned() && data_type() == MYSQL_TYPE_LONGLONG &&
+              unsigned_flag && val < 0) {
             my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "unsigned integer",
                      "EXECUTE");
             return true;

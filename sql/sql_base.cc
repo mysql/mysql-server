@@ -6755,7 +6755,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     // Check if properties of query conflicts with engine mode:
     if (lex->can_execute_only_in_secondary_engine()) {
       my_error(ER_CANNOT_EXECUTE_IN_PRIMARY, MYF(0),
-               lex->get_not_supported_in_primary_reason());
+               lex->get_not_supported_in_primary_reason_str());
       return true;
     }
 
@@ -6806,7 +6806,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       // Table-less queries cannot be executed in secondary engine
       if (lex->can_execute_only_in_secondary_engine()) {
         my_error(ER_CANNOT_EXECUTE_IN_PRIMARY, MYF(0),
-                 lex->get_not_supported_in_primary_reason());
+                 lex->get_not_supported_in_primary_reason_str());
         return true;
       }
       thd->set_secondary_engine_optimization(

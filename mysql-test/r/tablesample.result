@@ -1,0 +1,13 @@
+#
+# Check with Non - Innodb tables
+#
+CREATE TABLE t3 (i INT) ENGINE = MYISAM;
+SELECT * FROM t3 TABLESAMPLE SYSTEM (100);
+ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+SELECT * FROM t3 TABLESAMPLE SYSTEM (101);
+ERROR 2202H: Tablesample percentage should range between 0 and 100.
+PREPARE stmt from 'SELECT 1 from t3 TABLESAMPLE SYSTEM(?)';
+SET @a=0.00001;
+execute stmt using @a;
+ERROR HY000: Secondary engine operation failed. Reason: "No secondary engine defined for at least one of the query tables".
+DROP TABLE t3;

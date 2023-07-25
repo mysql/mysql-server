@@ -55,6 +55,7 @@
 #include "sql/sql_get_diagnostics.h"  // Diagnostics_information::Which_area
 #include "sql/sql_signal.h"           // enum_condition_item_name
 #include "sql/table.h"                // index_hint_type
+#include "sql/tablesample.h"          // enum for sampling methods
 #include "sql/trigger_def.h"          // enum_trigger_order_type
 #include "sql/window_lex.h"           // enum_window_frame_unit
 #include "sql/xa.h"                   // xa_option_words
@@ -86,6 +87,7 @@ class PT_exclusion;
 class PT_field_def_base;
 class PT_frame;
 class PT_group;
+class PT_tablesample;
 class PT_insert_values_list;
 class PT_into_destination;
 class PT_isolation_level;
@@ -432,7 +434,9 @@ union MY_SQL_PARSER_STYPE {
   PT_limit_clause *limit_clause;
   Parse_tree_node *node;
   enum olap_type olap_type;
+  enum tablesample_type tablesample_type;
   PT_group *group;
+  PT_tablesample *tablesample;
   PT_window_list *windows;
   PT_window *window;
   PT_frame *window_frame;

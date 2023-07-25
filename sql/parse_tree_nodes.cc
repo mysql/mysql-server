@@ -3853,6 +3853,18 @@ bool PT_table_factor_table_ident::do_contextualize(Parse_context *pc) {
       thd, table_ident, opt_table_alias, 0, yyps->m_lock_type, yyps->m_mdl_type,
       opt_key_definition, opt_use_partition, nullptr, pc);
   if (m_table_ref == nullptr) return true;
+
+  if (opt_tablesample != nullptr) {
+    /* Check if the input sampling percentage is a valid argument*/
+    if (opt_tablesample->m_sample_percentage->itemize(
+            pc, &opt_tablesample->m_sample_percentage))
+      return true;
+
+    thd->lex->set_execute_only_in_secondary_engine(true, TABLESAMPLE);
+    m_table_ref->set_tablesample(opt_tablesample->m_sampling_type,
+                                 opt_tablesample->m_sample_percentage);
+  }
+
   if (pc->select->add_joined_table(m_table_ref)) return true;
 
   return false;

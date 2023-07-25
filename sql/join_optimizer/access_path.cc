@@ -216,6 +216,8 @@ TABLE *GetBasicTable(const AccessPath *path) {
     // Basic access paths (those with no children, at least nominally).
     case AccessPath::TABLE_SCAN:
       return path->table_scan().table;
+    case AccessPath::SAMPLE_SCAN:
+      return path->sample_scan().table;
     case AccessPath::INDEX_SCAN:
       return path->index_scan().table;
     case AccessPath::INDEX_DISTANCE_SCAN:
@@ -1318,6 +1320,10 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = CreateUpdateRowsIterator(thd, mem_root, join,
                                             std::move(job.children[0]));
         break;
+      }
+      case AccessPath::SAMPLE_SCAN: { /* LCOV_EXCL_LINE */
+        // SampleScan can be executed only in the secondary engine.
+        assert(false); /* LCOV_EXCL_LINE */
       }
     }
 

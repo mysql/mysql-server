@@ -1562,6 +1562,9 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
           EstimateMaterializeCost(current_thd, path);
         }
         return true;
+      case AccessPath::SAMPLE_SCAN: /* LCOV_EXCL_LINE */
+        // SampleScan can be executed only in the secondary engine.
+        assert(false); /* LCOV_EXCL_LINE */
       default:
         // New possible bottom, so keep going.
         bottom_of_table_path = sub_path;
