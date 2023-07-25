@@ -23,6 +23,7 @@
 */
 #include <time.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 
 #include <openssl/err.h>
@@ -1642,6 +1643,8 @@ inline bool test_expansion(const char * path, const char * expansion) {
 }
 
 static int search_path_test() {
+  static char tmpdir_string[] = "TMPDIR=/tmp/foo";
+  putenv(tmpdir_string);
   BaseString pathStr("$TMPDIR");
   pathStr.append(TlsSearchPath::Separator);
   pathStr.append(MYSQL_DATADIR);
