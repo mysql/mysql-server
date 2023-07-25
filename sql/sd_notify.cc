@@ -128,9 +128,13 @@ void notify() {
            "Invalid systemd notify socket, cannot send: ", note.c_str());
     return;
   }
-  LogErr(INFORMATION_LEVEL, ER_SYSTEMD_NOTIFY_DEBUG,
-         "Send to systemd notify socket: ", note.c_str());
 #endif /* WITH_SYSTEMD_DEBUG */
+
+  // when systemd is enabled, irrespective of whether it's compiled with or
+  // without WITH_SYSTEMD_DEBUG, we want to log every systemd message to
+  // error-logs.
+  LogErr(INFORMATION_LEVEL, ER_SYSTEMD_NOTIFY_DEBUG,
+         "systemd notify: ", note.c_str());
 
   while (true) {
     size_t remaining = end - src;

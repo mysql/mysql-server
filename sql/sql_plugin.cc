@@ -91,6 +91,7 @@
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
+#include "sql/sd_notify.h"  // sysd::notify(..) calls
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"        // mysql_audit_acquire_plugins
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
@@ -2090,7 +2091,10 @@ void plugin_shutdown() {
 
     reap_needed = true;
 
-    if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_START);
+    if (!opt_initialize) {
+      LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_START);
+      sysd::notify("STATUS=Shutdown of plugins in progress\n");
+    }
 
     /*
       We want to shut down plugins in a reasonable order, this will
@@ -2134,7 +2138,10 @@ void plugin_shutdown() {
         plugins[i]->state = PLUGIN_IS_DYING;
     }
 
-    if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_END);
+    if (!opt_initialize) {
+      LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_END);
+      sysd::notify("STATUS=Shutdown of plugins complete\n");
+    }
 
     mysql_mutex_unlock(&LOCK_plugin);
 

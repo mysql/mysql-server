@@ -51,6 +51,7 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
+#include "sql/sd_notify.h"  // for sysd::notify(..) calls
 #include "sql/set_var.h"
 #include "sql/sql_bootstrap.h"
 #include "sql/sql_class.h"    // THD
@@ -140,6 +141,8 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
     */
     assert(thd->system_thread == SYSTEM_THREAD_SERVER_INITIALIZE);
 
+    sysd::notify("STATUS=Initialization of MySQL system tables in progress\n");
+
     /*
       The server must avoid logging compiled statements into the binary log
       (and generating GTIDs for them when GTID_MODE is ON) during bootstrap/
@@ -155,6 +158,9 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
 
     thd->system_thread = SYSTEM_THREAD_INIT_FILE;
 
+    sysd::notify("STATUS=Initialization of MySQL system tables ",
+                 rc ? "unsuccessful" : "successful", "\n");
+
     if (rc != 0) {
       return true;
     }
@@ -169,9 +175,15 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
     */
     assert(thd->system_thread == SYSTEM_THREAD_INIT_FILE);
 
+    sysd::notify(
+        "STATUS=Execution of SQL Commands from Init-file in progress\n");
+
     File_command_iterator file_iter(args->m_file_name, args->m_file,
                                     mysql_file_fgets_fn);
     rc = process_iterator(thd, &file_iter, false);
+
+    sysd::notify("STATUS=Execution of SQL Commands from Init-file ",
+                 rc ? "unsuccessful" : "successful", "\n");
     if (rc != 0) {
       return true;
     }

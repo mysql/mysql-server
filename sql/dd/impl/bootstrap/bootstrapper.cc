@@ -81,10 +81,15 @@ namespace {
 // Initialize recovery in the DDSE.
 bool DDSE_dict_recover(THD *thd, dict_recovery_mode_t dict_recovery_mode,
                        uint version) {
+  if (!opt_initialize)
+    sysd::notify("STATUS=InnoDB crash recovery in progress\n");
   handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->dict_recover == nullptr) return true;
 
   bool error = ddse->dict_recover(dict_recovery_mode, version);
+  if (!opt_initialize)
+    sysd::notify("STATUS=InnoDB crash recovery ",
+                 error ? "unsuccessful" : "successful", "\n");
 
   /*
     Commit when tablespaces have been initialized, since in that
@@ -733,10 +738,14 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
   */
   List<const Object_table> ddse_tables;
   List<const Plugin_tablespace> ddse_tablespaces;
-  if (ddse->ddse_dict_init == nullptr ||
-      ddse->ddse_dict_init(dict_init_mode, version, &ddse_tables,
-                           &ddse_tablespaces))
-    return true;
+  sysd::notify("STATUS=InnoDB initialization in progress\n");
+  bool innodb_init_failed =
+      (ddse->ddse_dict_init == nullptr ||
+       ddse->ddse_dict_init(dict_init_mode, version, &ddse_tables,
+                            &ddse_tablespaces));
+  sysd::notify("STATUS=InnoDB initialization ",
+               innodb_init_failed ? "unsuccessful" : "successful", "\n");
+  if (innodb_init_failed) return true;
 
   /*
     Iterate over the table definitions and add them to the System_tables

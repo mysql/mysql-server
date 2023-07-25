@@ -2117,6 +2117,7 @@ static void server_component_deinit() { deinit_thd_store_service(); }
 */
 
 static bool mysql_component_infrastructure_init() {
+  sysd::notify("STATUS=Components initialization in progress\n");
   server_component_init();
   /* We need a temporary THD during boot */
   const Auto_THD thd;
@@ -2131,9 +2132,13 @@ static bool mysql_component_infrastructure_init() {
     trans_rollback_stmt(thd.thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd.thd);
+    sysd::notify("STATUS=Components initialization unsuccessful\n");
     return true;
   }
-  return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
+  bool ret = trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
+  sysd::notify("STATUS=Components initialization ",
+               ret ? "unsuccessful" : "successful", "\n");
+  return ret;
 }
 
 /**
@@ -2146,9 +2151,10 @@ static bool mysql_component_infrastructure_init() {
   @retval true failure
 */
 static bool component_infrastructure_deinit() {
-  if (!opt_initialize)
+  if (!opt_initialize) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START);
-
+    sysd::notify("Shutdown of components in progress\n");
+  }
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -2168,9 +2174,12 @@ static bool component_infrastructure_deinit() {
     retval = true;
   }
 
-  if (!opt_initialize)
+  if (!opt_initialize) {
     LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_END,
            retval);
+    sysd::notify("Shutdown of components ",
+                 retval ? "unsuccessful" : "successful", "\n");
+  }
 
   /*
     It's the deinitialize_minimal_chassis() that actually unloads all
@@ -2355,7 +2364,10 @@ void log_alive_threads_info(Global_THD_manager *thd_manager, uint n) {
 static void close_connections(void) {
   DBUG_TRACE;
 
-  if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_START);
+  if (!opt_initialize) {
+    LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_START);
+    sysd::notify("STATUS=Graceful shutdown of connections in progress\n");
+  }
 
   (void)RUN_HOOK(server_state, before_server_shutdown, (nullptr));
 
@@ -2385,7 +2397,10 @@ static void close_connections(void) {
 
   Set_kill_conn set_kill_conn;
   thd_manager->do_for_all_thd(&set_kill_conn);
-  LogErr(INFORMATION_LEVEL, ER_SHUTTING_DOWN_REPLICA_THREADS);
+  if (!opt_initialize) {
+    LogErr(INFORMATION_LEVEL, ER_SHUTTING_DOWN_REPLICA_THREADS);
+    sysd::notify("STATUS=Shutdown of replica threads in progress\n");
+  }
   end_slave();
 
   if ((dump_thread_count = set_kill_conn.get_dump_thread_count())) {
@@ -2412,10 +2427,11 @@ static void close_connections(void) {
     This will ensure that threads that are waiting for a command from the
     client on a blocking read call are aborted.
   */
-
-  LogErr(INFORMATION_LEVEL, ER_DISCONNECTING_REMAINING_CLIENTS,
-         static_cast<int>(thd_manager->get_thd_count()));
-
+  if (!opt_initialize) {
+    LogErr(INFORMATION_LEVEL, ER_DISCONNECTING_REMAINING_CLIENTS,
+           static_cast<int>(thd_manager->get_thd_count()));
+    sysd::notify("STATUS=Forceful shutdown of connections in progress\n");
+  }
   Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
 
@@ -2445,7 +2461,10 @@ static void close_connections(void) {
 
   delete_slave_info_objects();
 
-  if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_END);
+  if (!opt_initialize) {
+    LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_END);
+    sysd::notify("STATUS=Connection shutdown complete\n");
+  }
 
   DBUG_PRINT("quit", ("close_connections thread"));
 }
@@ -2565,8 +2584,18 @@ static void mysqld_exit(int exit_code) {
   // this is to prevent mtr from accidentally printing this log when it runs
   // mysqld with --verbose --help to extract version info and variable values
   // and when mysqld is run with --validate-config option
-  if (!is_help_or_validate_option())
-    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_END : ER_SRV_END);
+  if (!is_help_or_validate_option()) {
+    if (opt_initialize) {
+      sysd::notify(
+          "STATUS=Server initialization complete (with return value = ",
+          exit_code, ")");
+      LogErr(SYSTEM_LEVEL, ER_SRV_INIT_END);
+    } else {
+      sysd::notify("STATUS=Server shutdown complete (with return value = ",
+                   exit_code, ")");
+      LogErr(SYSTEM_LEVEL, ER_SRV_END);
+    }
+  }
 
   mysql_audit_finalize();
   Srv_session::module_deinit();
@@ -2744,9 +2773,6 @@ static void clean_up(bool print_message) {
     LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
            server_version, MYSQL_COMPILATION_COMMENT_SERVER);
   cleanup_errmsgs();
-
-  sysd::notify("STATUS=Server shutdown complete");
-
   free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 
@@ -8372,8 +8398,13 @@ static int init_server_components() {
         my_message_stderr(c, s, f);
       }
     };
+
+    if (!opt_initialize)
+      sysd::notify("STATUS=Initialization of dynamic plugins in progress\n");
     if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
                                              flags)) {
+      if (!opt_initialize)
+        sysd::notify("STATUS=Initialization of dynamic plugins unsuccessful\n");
       delete_optimizer_cost_module();
       // Delete all DD tables in case of error in initializing plugins.
       if (dd::upgrade_57::in_progress())
@@ -8383,6 +8414,8 @@ static int init_server_components() {
         LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
+    if (!opt_initialize)
+      sysd::notify("STATUS=Initialization of dynamic plugins successful\n");
   }  // End of extra scope where missing server_cost errors are not logged
   assert(error_handler_hook == my_message_stderr);
   dynamic_plugins_are_initialized =
@@ -9121,9 +9154,14 @@ int mysqld_main(int argc, char **argv)
   // this is to prevent mtr from accidentally printing this log when it runs
   // mysqld with --verbose --help to extract version info and variable values
   // and when mysqld is run with --validate-config option
-  if (!is_help_or_validate_option())
-    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_START : ER_SRV_START);
-
+  if (!is_help_or_validate_option()) {
+    if (opt_initialize) {
+      LogErr(SYSTEM_LEVEL, ER_SRV_INIT_START);
+      sysd::notify("STATUS=Server initialization in progress\n");
+    } else {
+      LogErr(SYSTEM_LEVEL, ER_SRV_START);
+    }
+  }
   init_sql_statement_names();
   ulong requested_open_files = 0;
 
