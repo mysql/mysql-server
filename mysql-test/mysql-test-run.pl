@@ -6136,7 +6136,7 @@ sub clean_datadir {
     mtr_error("Trying to clean datadir before all servers stopped");
   }
 
-  foreach my $cluster (clusters()) {
+  foreach my $cluster (clusters(), routers()) {
     my $cluster_dir = "$opt_vardir/" . $cluster->{name};
     mtr_verbose(" - removing '$cluster_dir'");
     rmtree($cluster_dir);
@@ -6738,6 +6738,9 @@ sub router_start ($$$) {
     mtr_add_arg($args, "%s", $opt);
   }
 
+  # Remove the old pidfile if any
+  unlink($pid_file) if -e $pid_file;
+
   # Remember this log file for valgrind/shutdown error report search.
   $logs{$output} = 1;
 
@@ -6974,7 +6977,7 @@ sub servers_need_restart($) {
   }
 
   # Check if any remaining servers need restart
-  foreach my $server (ndb_mgmds(), ndbds()) {
+  foreach my $server (ndb_mgmds(), ndbds(), routers()) {
     if (server_need_restart($tinfo, $server, $master_restarted)) {
       push(@restart_servers, $server);
     }
@@ -7061,7 +7064,7 @@ sub stop_servers($$) {
 
     # cluster processes
     My::SafeProcess::shutdown($opt_shutdown_timeout,
-                              started(ndbds(), ndb_mgmds()));
+                              started(ndbds(), ndb_mgmds(), routers()));
   } else {
     mtr_report("Restarting ", started(@servers));
 
