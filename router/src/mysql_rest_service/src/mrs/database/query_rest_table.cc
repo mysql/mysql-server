@@ -30,6 +30,7 @@
 
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/text_to.h"
+#include "helper/json/to_string.h"
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
@@ -39,6 +40,19 @@
 #include "mysql/harness/utility/string.h"
 
 IMPORT_LOG_FUNCTIONS()
+
+static void json_object_fast_append(std::string &jo, const std::string &key,
+                                    const std::string &value) {
+  // remove closing }
+  jo.pop_back();
+  // add metadata sub-object
+
+  jo.append(", \"");
+  jo.append(key);
+  jo.append("\":");
+  jo.append(value);
+  jo.push_back('}');
+}
 
 namespace mrs {
 namespace database {
@@ -90,7 +104,10 @@ void QueryRestTable::on_row(const ResultRow &r) {
 
   if (compute_etag_) {
     std::string doc = r[0];
-    compute_and_embed_etag(object_, &doc);
+    std::map<std::string, std::string> metadata{
+        {"etag", compute_checksum(object_, doc)}};
+    json_object_fast_append(doc, "_metadata",
+                            helper::json::to_string(metadata));
     serializer_->push_json_document(doc.c_str());
   } else {
     serializer_->push_json_document(r[0]);

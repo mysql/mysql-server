@@ -36,15 +36,12 @@ namespace collector {
 using Object = MysqlCacheManager::Object;
 
 Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate(bool wait) {
-  using namespace std::literals::string_literals;
   std::unique_ptr<CountedMySQLSession> obj{new CountedMySQLSession()};
 
   obj->connect_and_set_opts(new_connection_params(wait));
   mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
 
-  if (!role_.empty()) {
-    obj->execute("SET ROLE "s + role_);
-  }
+  initalize(obj.get());
   return obj.release();
 }
 
@@ -86,6 +83,7 @@ void MysqlCacheManager::MysqlCacheCallbacks::object_restore_defaults(
   }
 
   obj->reset();
+  initalize(obj);
 }
 
 bool MysqlCacheManager::MysqlCacheCallbacks::is_default_server(
@@ -100,6 +98,15 @@ bool MysqlCacheManager::MysqlCacheCallbacks::is_default_server(
   return connection_configuration_.provider_->is_node_supported(
       {active_params.conn_opts.host,
        static_cast<uint16_t>(active_params.conn_opts.port)});
+}
+
+void MysqlCacheManager::MysqlCacheCallbacks::initalize(Object obj) {
+  using namespace std::literals::string_literals;
+  if (!role_.empty()) {
+    obj->execute("SET ROLE "s + role_);
+  }
+
+  obj->execute("SET @@SESSION.session_track_gtids=\"ALL_GTIDS\";");
 }
 
 bool MysqlCacheManager::MysqlCacheCallbacks::is_default_user(

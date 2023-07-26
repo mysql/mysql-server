@@ -650,6 +650,8 @@ class ParseOptions
       result_.debug.http.response.body_ = to_bool(vt);
     } else if (key == "returnInternalErrorDetails") {
       result_.debug.http.response.detailed_errors_ = to_bool(vt);
+    } else if (key == "metadata.gtid") {
+      result_.metadata.gtid = to_bool(vt);
     } else if (key == "http.allowedOrigin") {
       if (mysql_harness::make_lower(cvt::to_string(vt)) == "auto")
         result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;

@@ -1523,9 +1523,14 @@ void process_post_object(std::shared_ptr<entry::Object> object,
 
 void safe_run(MySQLSession *session,
               const std::shared_ptr<TableUpdater::Operation> &op,
-              bool transaction_started = false) {
-  if (!transaction_started)
-    session->execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+              MySQLSession::Transaction *transaction_started = nullptr) {
+  MySQLSession::Transaction safe_transaction;
+  if (!transaction_started) {
+    const bool is_consisten_snapshot = true;
+    safe_transaction =
+        MySQLSession::Transaction(session, is_consisten_snapshot);
+    transaction_started = &safe_transaction;
+  }
 
   try {
     op->will_run(session);
@@ -1534,9 +1539,8 @@ void safe_run(MySQLSession *session,
 
     op->did_run(session);
 
-    session->execute("COMMIT");
+    transaction_started->commit();
   } catch (...) {
-    session->execute("ROLLBACK");
     throw;
   }
 }
@@ -1685,11 +1689,12 @@ void process_put_object(std::shared_ptr<entry::Object> object,
 PrimaryKeyColumnValues TableUpdater::handle_put(
     MySQLSession *session, const rapidjson::Document &doc,
     const PrimaryKeyColumnValues &pk_values) {
+  const bool is_consisten_snapshot = true;
   assert(doc.IsObject());
 
   check_primary_key(pk_values);
 
-  session->execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+  MySQLSession::Transaction transaction{session, is_consisten_snapshot};
 
   std::shared_ptr<RowUpdate> root_update;
   try {
@@ -1701,11 +1706,11 @@ PrimaryKeyColumnValues TableUpdater::handle_put(
 
     process_put_object(m_object, m_row_ownership_info, doc, root_update, "/");
   } catch (...) {
-    session->execute("ROLLBACK");
     throw;
   }
 
-  safe_run(session, root_update, true);
+  // On success it commits.
+  safe_run(session, root_update, &transaction);
 
   m_affected += root_update->affected();
 

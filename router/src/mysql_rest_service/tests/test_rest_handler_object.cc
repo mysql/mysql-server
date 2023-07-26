@@ -27,7 +27,7 @@
 #include <memory>
 
 #include "helper/set_http_component.h"
-#include "mrs/rest/handler_db_object.h"
+#include "mrs/rest/handler_table.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_http_request.h"
@@ -37,7 +37,7 @@
 #include "mock/mock_route_schema.h"
 
 using helper::SetHttpComponent;
-using mrs::rest::HandlerDbObject;
+using mrs::rest::HandlerTable;
 using testing::_;
 using testing::Invoke;
 using testing::Mock;
@@ -68,7 +68,7 @@ class RestHandlerObjectTests : public Test {
               request_handler_ = std::move(handler);
               return request_handler_.get();
             }));
-    sut_ = std::make_shared<HandlerDbObject>(&mock_route_, &mock_auth_manager_);
+    sut_ = std::make_shared<HandlerTable>(&mock_route_, &mock_auth_manager_);
   }
 
   void delete_sut() {
@@ -83,7 +83,7 @@ class RestHandlerObjectTests : public Test {
   StrictMock<MockRoute> mock_route_;
   StrictMock<MockRouteSchema> mock_route_schema_;
   StrictMock<MockAuthManager> mock_auth_manager_;
-  std::shared_ptr<HandlerDbObject> sut_;
+  std::shared_ptr<HandlerTable> sut_;
 };
 
 TEST_F(RestHandlerObjectTests, forwards_get_service_id) {

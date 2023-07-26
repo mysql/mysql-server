@@ -50,7 +50,8 @@ class QueryRestTableSingleRow : private QueryLog {
                              const ObjectFieldFilter &field_filter,
                              const PrimaryKeyColumnValues &pk,
                              const std::string &url_route,
-                             bool compute_etag = false);
+                             bool compute_etag = false,
+                             const std::string &metadata_gtid = {});
 
   std::string response;
   uint64_t items;
@@ -58,6 +59,7 @@ class QueryRestTableSingleRow : private QueryLog {
  private:
   std::shared_ptr<database::entry::Object> object_;
   bool compute_etag_ = false;
+  std::string metadata_gtid_{};
 
   void on_row(const ResultRow &r) override;
   void build_query(std::shared_ptr<database::entry::Object> object,

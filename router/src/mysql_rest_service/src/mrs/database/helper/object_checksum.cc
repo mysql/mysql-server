@@ -203,22 +203,5 @@ std::string compute_checksum(std::shared_ptr<entry::Object> object,
   return string_to_hex(handler.finalize());
 }
 
-void compute_and_embed_etag(std::shared_ptr<entry::Object> object,
-                            std::string *doc) {
-  std::string etag = compute_checksum(object, *doc);
-  if (etag.empty()) return;
-
-  // NOTE: we assume there's no _metadata field in the object yet
-
-  // remove closing }
-  doc->pop_back();
-  // add metadata sub-object
-  doc->append(", \"_metadata\": {\"etag\": \"");
-  doc->append(etag);
-  doc->append("\"}");
-  // add closing }
-  doc->push_back('}');
-}
-
 }  // namespace database
 }  // namespace mrs
