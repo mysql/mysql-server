@@ -44,10 +44,17 @@ OK
 
 #
 # I.2
+SELECT @object_changes;;
+@object_changes
+1
+SELECT @object_changes;;
+@object_changes
+2
 GET /svc/basic/t/1
 {
     "id": 1,
     "date": "1977-01-21 00:00:00.000000",
+    "name": "First row",
     "links": [
         {
             "rel": "self",
@@ -56,10 +63,19 @@ GET /svc/basic/t/1
     ],
     "comments": "First comment",
     "_metadata": {
-        "etag": "9A18F70BA3F048B29D5BA1860D0A0C99A394A023DCF8D960C6B88E71634EA0DA"
+        "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
     }
 }
 OK
+SELECT @object_changes;;
+@object_changes
+2
+SELECT sleep(3);
+sleep(3)
+0
+SELECT @object_changes;;
+@object_changes
+2
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_rest_service_metadata;
 DROP ROLE mysql_rest_service_admin;

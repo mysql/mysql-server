@@ -17,7 +17,10 @@ if (!$mrs_changes_current_is)
 --enable_query_log
 --enable_result_log
 
---source ./fetch_object.inc
+if ($_mrs_not_first_object_fetch)
+{
+  --source ./fetch_object.inc
+}
 
 --let $mrs_changes_current_is=
 --let $mrs_schema_id_sql_variable=
