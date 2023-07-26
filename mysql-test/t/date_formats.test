@@ -321,3 +321,20 @@ SELECT b, b = '121314',
 SELECT b, b in ('121314'), b in ('121314', 0) FROM t3;
 
 DROP TABLE t1, t2, t3;
+
+--echo # Bug#35591118: Assertion 'data_type() != MYSQL_TYPE_INVALID' failed
+
+PREPARE ps FROM "SELECT GET_FORMAT(DATE, ?) AS val";
+
+SET @null = NULL;
+
+EXECUTE ps USING @null;
+
+SET @iso = 'ISO';
+
+EXECUTE ps USING @iso;
+
+DEALLOCATE PREPARE ps;
+
+--error ER_PARSE_ERROR
+PREPARE ps FROM "SELECT GET_FORMAT(?, 'ISO')";

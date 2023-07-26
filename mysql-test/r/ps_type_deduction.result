@@ -1232,6 +1232,10 @@ prepare s from 'select GeomCollection(?, ?, ?, ?, ?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"]]
+prepare s from 'select GET_FORMAT(DATE, ?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
 prepare s from 'select GET_LOCK(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

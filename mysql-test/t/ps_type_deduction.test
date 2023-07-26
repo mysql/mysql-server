@@ -1200,6 +1200,8 @@ eval $show_trace;
 
 # GET_FORMAT
 
+prepare s from 'select GET_FORMAT(DATE, ?)';
+eval $show_trace;
 
 # GET_LOCK
 

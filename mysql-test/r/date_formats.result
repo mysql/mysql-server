@@ -662,3 +662,16 @@ b	b in ('121314')	b in ('121314', 0)
 11:13:14	0	0
 12:13:14	1	1
 DROP TABLE t1, t2, t3;
+# Bug#35591118: Assertion 'data_type() != MYSQL_TYPE_INVALID' failed
+PREPARE ps FROM "SELECT GET_FORMAT(DATE, ?) AS val";
+SET @null = NULL;
+EXECUTE ps USING @null;
+val
+NULL
+SET @iso = 'ISO';
+EXECUTE ps USING @iso;
+val
+%Y-%m-%d
+DEALLOCATE PREPARE ps;
+PREPARE ps FROM "SELECT GET_FORMAT(?, 'ISO')";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?, 'ISO')' at line 1

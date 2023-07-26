@@ -1666,7 +1666,8 @@ class Item_func_get_format final : public Item_str_ascii_func {
   String *val_str_ascii(String *str) override;
   const char *func_name() const override { return "get_format"; }
   enum Functype functype() const override { return GET_FORMAT_FUNC; }
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     set_nullable(true);
     set_data_type_string(17, default_charset());
     return false;
