@@ -62,39 +62,28 @@ const char *const Path::root_directory = "/";
 
 Path::FileType Path::type(bool refresh) const {
   validate_non_empty_path();
-  if (type_ == FileType::TYPE_UNKNOWN || refresh) {
-    struct _stat stat_buf;
-    if (_stat(c_str(), &stat_buf) == -1) {
-      if (errno == ENOENT) {
-        // Special case, a drive name like "C:"
-        if (path_[path_.size() - 1] == ':') {
-          DWORD flags = GetFileAttributesA(path_.c_str());
-          // API reports it as directory if it exist
-          if (flags & FILE_ATTRIBUTE_DIRECTORY) {
-            type_ = FileType::DIRECTORY_FILE;
-            return type_;
-          }
-        }
-        type_ = FileType::FILE_NOT_FOUND;
-      } else if (errno == EINVAL)
-        type_ = FileType::STATUS_ERROR;
-    } else {
-      switch (stat_buf.st_mode & S_IFMT) {
-        case S_IFDIR:
-          type_ = FileType::DIRECTORY_FILE;
-          break;
-        case S_IFCHR:
-          type_ = FileType::CHARACTER_FILE;
-          break;
-        case S_IFREG:
-          type_ = FileType::REGULAR_FILE;
-          break;
-        default:
-          type_ = FileType::TYPE_UNKNOWN;
-          break;
-      }
-    }
+  if (!(type_ == FileType::TYPE_UNKNOWN || refresh)) {
+    return type_;
   }
+
+  DWORD flags = GetFileAttributesA(path_.c_str());
+  if (flags == INVALID_FILE_ATTRIBUTES) {
+    std::error_code ec(GetLastError(), std::system_category());
+
+    if (ec == make_error_condition(std::errc::no_such_file_or_directory)) {
+      type_ = FileType::FILE_NOT_FOUND;
+    } else {
+      type_ = FileType::STATUS_ERROR;
+    }
+    return type_;
+  }
+
+  if (flags & FILE_ATTRIBUTE_DIRECTORY) {
+    type_ = FileType::DIRECTORY_FILE;
+    return type_;
+  }
+
+  type_ = FileType::REGULAR_FILE;
   return type_;
 }
 

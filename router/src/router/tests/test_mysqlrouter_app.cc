@@ -21,6 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#define UNIT_TESTS  // used in router_app.h
+#include "router_app.h"
 
 #ifndef _WIN32
 #include <pwd.h>
@@ -34,7 +36,6 @@
 
 #include <gmock/gmock.h>
 
-#define UNIT_TESTS  // used in router_app.h
 #include "dim.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
@@ -43,21 +44,19 @@
 #include "mysql/harness/vt100_filter.h"
 #include "mysqlrouter/config_files.h"
 #include "mysqlrouter/utils.h"  // substitute_envvar
-#include "router_app.h"
-#include "router_config.h"  // MYSQL_ROUTER_VERSION
+#include "router_config.h"      // MYSQL_ROUTER_VERSION
 #include "router_test_helpers.h"
+#include "scope_guard.h"
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 static const std::string kPluginNameMagic("routertestplugin_magic");
 static const std::string kPluginNameLifecycle("routertestplugin_lifecycle");
 static const std::string kPluginNameLifecycle3("routertestplugin_lifecycle3");
 
-using ::testing::_;
 using ::testing::EndsWith;
-using ::testing::Ge;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
-using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SizeIs;
 using ::testing::StartsWith;
@@ -140,7 +139,7 @@ TEST_F(AppTest, CmdLineConfig) {
   ASSERT_THAT(r.get_extra_config_files(), IsEmpty());
 }
 
-TEST_F(AppTest, CmdLineConfigFailRead) {
+TEST_F(AppTest, CmdLineConfigFailNotExists) {
   std::string not_existing = "foobar.conf";
   std::vector<std::string> argv = {
       "--config",
@@ -156,6 +155,33 @@ TEST_F(AppTest, CmdLineConfigFailRead) {
     EXPECT_THAT(exc.what(), HasSubstr("does not exist"));
   }
 }
+
+#ifndef _WIN32
+TEST_F(AppTest, CmdLineConfigFailNoAccess) {
+  TempDirectory tmpdir;
+
+  auto pathname = tmpdir.file("foobar.conf");
+
+  // create a file that has no read-permissions.
+  auto fd = open(pathname.c_str(), O_EXCL | O_WRONLY | O_TRUNC | O_CREAT, 0);
+  ASSERT_NE(fd, -1);
+  Scope_guard guard{[fd]() { close(fd); }};
+
+  std::vector<std::string> argv = {
+      "--config",
+      pathname,
+  };
+  ASSERT_THROW({ MySQLRouter r(g_program_name, argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(g_program_name, argv);
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr(pathname));
+    EXPECT_THAT(exc.what(), HasSubstr("is not readable"));
+  }
+}
+#endif
 
 TEST_F(AppTest, CmdLineMultipleConfig) {
   std::vector<std::string> argv = {

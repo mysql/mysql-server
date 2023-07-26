@@ -95,8 +95,6 @@ using mysql_harness::DIM;
 using mysql_harness::truncate_string;
 using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
-using mysqlrouter::substitute_envvar;
-using mysqlrouter::SysUserOperations;
 using mysqlrouter::SysUserOperationsBase;
 
 static const char *kDefaultKeyringFileName = "keyring";
@@ -118,7 +116,8 @@ void check_and_add_conf(std::vector<std::string> &configs,
 
   if (cfg_file_path.is_regular()) {
     configs.push_back(cfg_file_path.real_path().str());
-  } else if (!cfg_file_path.exists()) {
+  } else if (cfg_file_path.type() ==
+             mysql_harness::Path::FileType::FILE_NOT_FOUND) {
     throw std::runtime_error(string_format(
         "The configuration file '%s' does not exist.", value.c_str()));
   } else {
