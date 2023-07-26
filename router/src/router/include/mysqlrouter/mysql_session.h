@@ -240,32 +240,47 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   class Transaction {
    public:
-    Transaction(MySQLSession *session) : session_(session) {
-      session_->execute("START TRANSACTION");
+    Transaction() {}
+    Transaction(Transaction &&other) : session_{other.session_} {
+      other.session_ = nullptr;
+    }
+
+    Transaction(MySQLSession *session, const bool consisten_snapshot = false)
+        : session_(session) {
+      session_->execute(consisten_snapshot
+                            ? "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                            : "START TRANSACTION");
     }
 
     ~Transaction() {
-      if (session_) {
-        try {
-          session_->execute("ROLLBACK");
-        } catch (...) {
-          // ignore errors during rollback on d-tor
-        }
+      try {
+        rollback();
+      } catch (...) {
+        // ignore errors during rollback on d-tor
       }
     }
 
     void commit() {
-      session_->execute("COMMIT");
-      session_ = nullptr;
+      if (session_) {
+        session_->execute("COMMIT");
+        session_ = nullptr;
+      }
     }
 
     void rollback() {
-      session_->execute("ROLLBACK");
-      session_ = nullptr;
+      if (session_) {
+        session_->execute("ROLLBACK");
+        session_ = nullptr;
+      }
+    }
+
+    Transaction &operator=(Transaction &&other) {
+      std::swap(session_, other.session_);
+      return *this;
     }
 
    private:
-    MySQLSession *session_;
+    MySQLSession *session_{nullptr};
   };
 
   class Error : public std::runtime_error {
@@ -489,6 +504,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   virtual const char *ssl_cipher();
   virtual bool ping();
+  virtual std::vector<std::string> get_session_tracker_data(
+      enum enum_session_state_type type);
 
   virtual bool is_ssl_session_reused();
 

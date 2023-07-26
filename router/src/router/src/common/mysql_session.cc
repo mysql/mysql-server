@@ -118,6 +118,10 @@ class SSLSessionsCache {
   static constexpr size_t kMaxEntriesPerEndpoint{2};
 };
 
+using MysqlSessionTrackGet = int (*)(MYSQL *mysql,
+                                     enum enum_session_state_type type,
+                                     const char **data, size_t *length);
+
 }  // namespace
 
 MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy)
@@ -828,6 +832,22 @@ uint64_t MySQLSession::affected_rows() noexcept {
 }
 
 bool MySQLSession::ping() { return 0 == mysql_ping(connection_); }
+
+std::vector<std::string> MySQLSession::get_session_tracker_data(
+    enum enum_session_state_type type) {
+  std::vector<std::string> result;
+  const char *data;
+  size_t data_length;
+
+  MysqlSessionTrackGet st_get = mysql_session_track_get_first;
+
+  while (!st_get(connection_, type, &data, &data_length)) {
+    result.emplace_back(data, data_length);
+    st_get = mysql_session_track_get_next;
+  }
+
+  return result;
+}
 
 unsigned MySQLSession::warning_count() noexcept {
   return mysql_warning_count(connection_);
