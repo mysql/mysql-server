@@ -33,7 +33,9 @@
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/2 --expected-status 404
---exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20 --request-type delete
+exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
+  --request-type delete
+  --exclude-json-pointer /_metadata/gtid;
 --source include/rpl_sync.inc
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20 --expected-status 404
 
