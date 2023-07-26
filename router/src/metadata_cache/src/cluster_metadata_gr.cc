@@ -310,10 +310,10 @@ GRClusterMetadata::GRClusterMetadata(
   }
 }
 
+// throws metadata_cache::metadata_error
 void GRClusterMetadata::update_cluster_status_from_gr(
-    metadata_cache::ManagedCluster
-        &cluster) {  // throws metadata_cache::metadata_error
-
+    const bool unreachable_quorum_allowed_traffic,
+    metadata_cache::ManagedCluster &cluster) {
   log_debug("Updating cluster status from GR for '%s'", cluster.name.c_str());
 
   // filter only GR nodes from all the cluster nodes
@@ -328,8 +328,10 @@ void GRClusterMetadata::update_cluster_status_from_gr(
 
   // iterate over all candidate nodes until we find the node that is part of
   // quorum
-  bool found_quorum = false;
+  GRClusterStatus status{GRClusterStatus::Unavailable};
   std::shared_ptr<MySQLSession> gr_member_connection;
+  bool single_primary_mode = true, metadata_gr_discrepancy = false;
+  bool found_quorum = false;
   for (const metadata_cache::ManagedInstance *mi : gr_members) {
     const std::string mi_addr = mi->host + ":" + std::to_string(mi->port);
 
@@ -374,43 +376,36 @@ void GRClusterMetadata::update_cluster_status_from_gr(
               mi_addr.c_str());
 
     try {
-      bool single_primary_mode = true;
-
       // this node's perspective: give status of all nodes you see
-      std::map<std::string, GroupReplicationMember> member_status =
-          fetch_group_replication_members(
-              *gr_member_connection,
-              single_primary_mode);  // throws metadata_cache::metadata_error
+      const auto member_status = fetch_group_replication_members(
+          *gr_member_connection,
+          single_primary_mode);  // throws metadata_cache::metadata_error
       log_debug(
           "Cluster '%s' has %zu GR members in metadata, %zu in status table",
           cluster.name.c_str(), gr_members.size(), member_status.size());
 
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
-      bool metadata_gr_discrepancy{false};
-      const auto status = check_cluster_status_in_gr(gr_members, member_status,
-                                                     metadata_gr_discrepancy);
+      status = check_cluster_status_in_gr(gr_members, member_status,
+                                          metadata_gr_discrepancy);
       switch (status) {
-        case GRClusterStatus::AvailableWritable:  // we have
-                                                  // quorum,
-                                                  // good!
-          found_quorum = true;
-          break;
-        case GRClusterStatus::AvailableReadOnly:  // have
-                                                  // quorum,
-                                                  // but only
-                                                  // RO
-          found_quorum = true;
-          break;
+        case GRClusterStatus::Available:
         case GRClusterStatus::UnavailableRecovering:  // have quorum, but only
                                                       // with recovering nodes
                                                       // (cornercase)
-          log_warning(
-              "quorum for cluster '%s' consists only of recovering nodes or "
-              "nodes that are not defined in the metadata!",
-              cluster.name.c_str());
-          found_quorum = true;  // no point in futher search
+          found_quorum = true;
           break;
+        case GRClusterStatus::AvailableNoQuorum:
+          if (unreachable_quorum_allowed_traffic) {
+            // this node has no quorum, we have
+            // unreachable_quorum_allowed_traffic configured so potentially we
+            // will use the status it reports, but for now let's check other
+            // nodes, maybe we will reach the group that has a quorum
+            cluster.single_primary_mode = single_primary_mode;
+            cluster.md_discrepancy = metadata_gr_discrepancy;
+            continue;
+          }
+          [[fallthrough]];
         case GRClusterStatus::Unavailable:  // we have nothing
           log_warning("%s is not part of quorum for cluster '%s'",
                       mi_addr.c_str(), cluster.name.c_str());
@@ -418,8 +413,6 @@ void GRClusterMetadata::update_cluster_status_from_gr(
       }
 
       if (found_quorum) {
-        cluster.single_primary_mode = single_primary_mode;
-        cluster.md_discrepancy = metadata_gr_discrepancy;
         break;  // break out of the member iteration loop
       }
 
@@ -439,17 +432,50 @@ void GRClusterMetadata::update_cluster_status_from_gr(
 
   }  // for (const metadata_cache::ManagedInstance& mi : instances)
   log_debug("End updating cluster for '%s'", cluster.name.c_str());
+  cluster.has_quorum = found_quorum;
 
-  if (!found_quorum) {
-    std::string msg(
-        "Unable to fetch live group_replication member data from any server in "
-        "cluster '");
-    msg += cluster.name + "'";
-    log_error("%s", msg.c_str());
+  // we are done iterating over the nodes here, act accordingly depending on the
+  // GR status we got
+  switch (status) {
+    case GRClusterStatus::Available:
+      cluster.single_primary_mode = single_primary_mode;
+      cluster.md_discrepancy = metadata_gr_discrepancy;
+      break;
+    case GRClusterStatus::UnavailableRecovering:  // have quorum, but only
+                                                  // with recovering nodes
+                                                  // (cornercase)
+      log_warning(
+          "quorum for cluster '%s' consists only of recovering nodes or "
+          "nodes that are not defined in the metadata!",
+          cluster.name.c_str());
+      cluster.members.clear();
+      break;
+    case GRClusterStatus::AvailableNoQuorum:
+      if (unreachable_quorum_allowed_traffic) {
+        const bool available_no_quorum_changed =
+            EventStateTracker::instance().state_changed(
+                true, EventStateTracker::EventId::NoGRQuorum);
+        const auto log_level =
+            available_no_quorum_changed ? LogLevel::kWarning : LogLevel::kDebug;
 
-    // if we don't have a quorum, we want to give "nothing" to the Routing
-    // plugin, so it doesn't route anything.
-    cluster.members.clear();
+        log_custom(
+            log_level,
+            "no quorum for cluster '%s', unreachable_quorum_allowed_traffic "
+            "configured, using partition with no quorum",
+            cluster.name.c_str());
+
+        cluster.single_primary_mode = single_primary_mode;
+        cluster.md_discrepancy = metadata_gr_discrepancy;
+        break;
+      }
+      [[fallthrough]];
+    case GRClusterStatus::Unavailable:  // we have nothing
+      cluster.members.clear();
+      std::string msg(
+          "Unable to fetch live group_replication member data from any server "
+          "in cluster '");
+      msg += cluster.name + "'";
+      log_error("%s", msg.c_str());
   }
 }
 
@@ -507,8 +533,6 @@ GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
 
   // for all `instances`, set .mode according to corresponding .status found
   // in `member_status`
-  bool have_primary_instance = false;
-  bool have_secondary_instance = false;
   for (auto &member : instances) {
     auto status = member_status.find(member->mysql_server_uuid);
     const bool node_in_gr = status != member_status.end();
@@ -521,12 +545,10 @@ GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
         case GR_State::Online:
           switch (status->second.role) {
             case GR_Role::Primary:
-              have_primary_instance = true;
               member->role = ServerRole::Primary;
               member->mode = ServerMode::ReadWrite;
               break;
             case GR_Role::Secondary:
-              have_secondary_instance = true;
               member->role = ServerRole::Secondary;
               member->mode = ServerMode::ReadOnly;
               break;
@@ -560,24 +582,21 @@ GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
   // 2 nodes: [ 1 ONL, 1 REC ] -> OK
   // 2 nodes: [ 1 ONL, 1 OFF ] -> NOT OK
   // 3 nodes: [ 1 ONL, 1 REC, 1 OFF ] -> OK
-  bool have_quorum = (number_of_online_members + number_of_recovering_members) >
-                     number_of_all_members / 2;
+  const bool have_quorum =
+      (number_of_online_members + number_of_recovering_members) >
+      number_of_all_members / 2;
 
-  // if we don't have quorum, we don't allow any access. Some configurations
-  // might allow RO access in this case, but we don't support it at the momemnt
-  if (!have_quorum) return GRClusterStatus::Unavailable;
+  if (have_quorum) {
+    // if we have quorum but no ONLINE instances, it means the quorum is
+    // composed purely of recovering nodes (this is an unlikely cornercase)
+    return (number_of_online_members == 0)
+               ? GRClusterStatus::UnavailableRecovering
+               : GRClusterStatus::Available;
+  }
 
-  // if we have quorum but no primary/secondary instances, it means the quorum
-  // is composed purely of recovering nodes (this is an unlikely cornercase)
-  if (!(have_primary_instance || have_secondary_instance))
-    return GRClusterStatus::UnavailableRecovering;
-
-  // if primary node was not elected yet, we can only allow reads (typically
-  // this is a temporary state shortly after a node failure, but could also be
-  // more permanent)
-  return have_primary_instance
-             ? GRClusterStatus::AvailableWritable   // typical case
-             : GRClusterStatus::AvailableReadOnly;  // primary not elected yet
+  // no quorum:
+  return (number_of_online_members == 0) ? GRClusterStatus::Unavailable
+                                         : GRClusterStatus::AvailableNoQuorum;
 }
 
 void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
@@ -766,9 +785,27 @@ GRMetadataBackend::fetch_cluster_topology(
 
   // now connect to the cluster and query it for the list and status of its
   // members. (more precisely: search and connect to a
-  // member which is part of quorum to retrieve this data)
+  // member which is part of quorum to retrieve this data, if no member with
+  // quorum found use the status reported by the one with no quorum if
+  // unreachable_quorum_allowed_traffic option is configured for the Router)
+  const auto unreachable_quorum_allowed_traffic =
+      router_options.get_unreachable_quorum_allowed_traffic();
   metadata_->update_cluster_status_from_gr(
+      unreachable_quorum_allowed_traffic !=
+          QuorumConnectionLostAllowTraffic::none,
       cluster);  // throws metadata_cache::metadata_error
+
+  // we are using status reported by the node with no quorum, since the
+  // unreachable_quorum_allowed_traffic configured is "read" we demote potential
+  // "rw" members to the "ro" role
+  if (!cluster.has_quorum && unreachable_quorum_allowed_traffic ==
+                                 QuorumConnectionLostAllowTraffic::read) {
+    for (auto &member : cluster.members) {
+      if (member.mode == metadata_cache::ServerMode::ReadWrite) {
+        member.mode = metadata_cache::ServerMode::ReadOnly;
+      }
+    }
+  }
 
   // once we know the current status (PRIMARY, SECONDARY) of the nodes, we can
   // make a list of metadata-servers with desired order (PRIMARY(s) first)
@@ -790,7 +827,7 @@ GRMetadataBackend::fetch_cluster_topology(
     apply_read_only_targets_option(cluster.members, read_only_targets);
   }
 
-  if (needs_writable_node) {
+  if (needs_writable_node && cluster.has_quorum) {
     result.writable_server = metadata_->find_rw_server(cluster.members);
   } else {
     result.writable_server = std::nullopt;
@@ -869,7 +906,16 @@ GRClusterMetadata::fetch_cluster_topology(
           continue;
         }
 
-        if (!mysqlrouter::check_group_has_quorum(metadata_connection_.get())) {
+        RouterOptions router_options = router_options_;
+        router_options.read_from_metadata(
+            *metadata_connection_.get(), router_id, version,
+            metadata_backend_->get_cluster_type());
+        const auto unreachable_quorum_allowed_traffic =
+            router_options.get_unreachable_quorum_allowed_traffic();
+
+        if (unreachable_quorum_allowed_traffic ==
+                QuorumConnectionLostAllowTraffic::none &&
+            !mysqlrouter::check_group_has_quorum(metadata_connection_.get())) {
           log_warning(
               "Metadata server %s:%d is not a member of quorum group - "
               "skipping.",
@@ -877,9 +923,7 @@ GRClusterMetadata::fetch_cluster_topology(
           continue;
         }
 
-        router_options_.read_from_metadata(
-            *metadata_connection_.get(), router_id, version,
-            metadata_backend_->get_cluster_type());
+        router_options_ = std::move(router_options);
 
         result_tmp = metadata_backend_->fetch_cluster_topology(
             transaction, target_cluster, metadata_server, metadata_servers,
@@ -1359,7 +1403,7 @@ GRClusterSetMetadataBackend::find_rw_server() {
 
     // we need to connect to the Primary Cluster and query its GR status to
     // figure out the current Primary node
-    metadata_->update_cluster_status_from_gr(cluster);
+    metadata_->update_cluster_status_from_gr(false, cluster);
 
     return metadata_->find_rw_server(cluster.members);
   }
@@ -1536,15 +1580,30 @@ void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
     // members. (more precisely: search and connect to a
     // member which is part of quorum to retrieve this data)
     metadata_->update_cluster_status_from_gr(
+        router_options.get_unreachable_quorum_allowed_traffic() !=
+            QuorumConnectionLostAllowTraffic::none,
         cluster);  // throws metadata_cache::metadata_error
 
-    // change the mode of RW node(s) reported by the GR to RO if the
-    // Cluster is Replica (and 'use_replica_primary_as_rw' option is not set)
-    // or if our target cluster is invalidated
+    // change the mode of RW node(s) reported by the GR to RO if
+    //
+    // 1) the Cluster is Replica and 'use_replica_primary_as_rw' option is not
+    // set
+    //
+    // 2) target cluster is invalidated in the metadata
+    //
+    // 3) group has no quorum and unreachable_quorum_allowed_traffic is
+    // configured as "read"
     if (!whole_topology) {
-      if ((!cluster.is_primary &&
-           !router_options.get_use_replica_primary_as_rw()) ||
-          cluster.is_invalidated) {
+      const bool no_rw_replica =
+          !cluster.is_primary &&
+          !router_options.get_use_replica_primary_as_rw();
+
+      const bool no_quorum_only_reads =
+          !cluster.has_quorum &&
+          router_options.get_unreachable_quorum_allowed_traffic() ==
+              QuorumConnectionLostAllowTraffic::read;
+
+      if (no_rw_replica || cluster.is_invalidated || no_quorum_only_reads) {
         for (auto &member : cluster.members) {
           if (member.mode == metadata_cache::ServerMode::ReadWrite) {
             member.mode = metadata_cache::ServerMode::ReadOnly;

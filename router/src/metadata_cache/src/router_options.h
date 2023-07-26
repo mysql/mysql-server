@@ -37,6 +37,13 @@ static const ReadOnlyTargets kDefaultReadOnlyTargets =
 
 std::string to_string(const ReadOnlyTargets mode);
 
+enum class QuorumConnectionLostAllowTraffic { none, read, all };
+static const QuorumConnectionLostAllowTraffic
+    kDefaultQuorumConnectionLostAllowTraffic =
+        QuorumConnectionLostAllowTraffic::none;
+
+std::string to_string(const QuorumConnectionLostAllowTraffic allow);
+
 /** @class RouterOptions
  *
  * @brief Represents the Router options in v2_routers view in the metadata
@@ -79,6 +86,12 @@ class RouterOptions {
    * given Router in the metadata
    */
   bool get_use_replica_primary_as_rw() const;
+
+  /** @brief Get the unreachable_quorum_allowed_traffic value assigned for a
+   * given Router in the metadata
+   */
+  QuorumConnectionLostAllowTraffic get_unreachable_quorum_allowed_traffic()
+      const;
 
   /** @brief Get the target_cluster assigned for a given Router in the metadata
    *

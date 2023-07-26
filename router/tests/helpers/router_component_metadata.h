@@ -45,7 +45,9 @@ class RouterComponentMetadataTest : public RouterComponentClusterSetTest {
       uint16_t router_port, const std::string &role,
       const std::string &strategy, const std::string &mode = "",
       const std::string &section_name = "default",
-      const std::string &protocol = "classic");
+      const std::string &protocol = "classic",
+      const std::vector<std::pair<std::string, std::string>>
+          &additional_options = {});
 
   std::vector<std::string> get_array_field_value(const std::string &json_string,
                                                  const std::string &field_name);

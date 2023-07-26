@@ -164,6 +164,8 @@ class METADATA_CACHE_EXPORT ManagedCluster {
    * cluster metadata)*/
   bool md_discrepancy{false};
 
+  bool has_quorum{true};
+
   /** @brief Is this a PRIMARY Cluster in case of ClusterSet */
   bool is_primary{true};
   /** @brief Is the Cluster marked as invalid in the metadata */

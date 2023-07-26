@@ -39,6 +39,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
+#include "router_component_clusterset.h"
 #include "router_component_metadata.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
@@ -54,7 +55,38 @@ using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
-class GRStateTest : public RouterComponentMetadataTest {};
+class GRStateTest : public RouterComponentMetadataTest {
+ protected:
+  std::string get_router_options_as_json_str(
+      const std::optional<std::string> &target_cluster,
+      const std::optional<std::string> &unreachable_quorum_allowed_traffic) {
+    JsonValue json_val(rapidjson::kObjectType);
+    JsonAllocator allocator;
+
+    if (target_cluster) {
+      json_val.AddMember("target_cluster",
+                         JsonValue((*target_cluster).c_str(),
+                                   (*target_cluster).length(), allocator),
+                         allocator);
+    }
+
+    if (unreachable_quorum_allowed_traffic) {
+      json_val.AddMember(
+          "unreachable_quorum_allowed_traffic",
+          JsonValue((*unreachable_quorum_allowed_traffic).c_str(),
+                    (*unreachable_quorum_allowed_traffic).length(), allocator),
+          allocator);
+    }
+
+    return json_to_string(json_val);
+  }
+
+  std::string get_rw_split_routing_section(uint16_t accepting_port) {
+    return get_metadata_cache_routing_section(
+        accepting_port, "PRIMARY_AND_SECONDARY", "round-robin", "", "rwsplit",
+        "classic", {{"connection_sharing", "1"}, {"access_mode", "auto"}});
+  }
+};
 
 struct GRStateTestParams {
   // mock_server trace file
@@ -508,6 +540,562 @@ INSTANTIATE_TEST_SUITE_P(
             {},
         }),
     [](const ::testing::TestParamInfo<QuorumTestParam> &info) {
+      return info.param.test_name;
+    });
+
+class QuorumConnectionLostStandaloneClusterTest : public GRStateTest {
+ public:
+  void SetUp() override {
+    GRStateTest::SetUp();
+    for (size_t i = 0; i < kMaxNodes; ++i) {
+      classic_ports.push_back(port_pool_.get_next_available());
+      http_ports.push_back(port_pool_.get_next_available());
+    }
+  }
+
+ protected:
+  static constexpr size_t kMaxNodes{3};
+  std::vector<uint16_t> classic_ports, http_ports;
+};
+
+struct AccessToPartitionWithNoQuorumTestParam {
+  std::string test_name;
+  std::string test_requirements;
+  std::string test_description;
+
+  std::optional<std::string> unreachable_quorum_allowed_traffic;
+
+  bool expect_rw_connection_ok;
+  bool expect_ro_connection_ok;
+  bool expect_rw_split_connection_ok;
+};
+
+class AccessToPartitionWithNoQuorum
+    : public QuorumConnectionLostStandaloneClusterTest,
+      public ::testing::WithParamInterface<
+          AccessToPartitionWithNoQuorumTestParam> {};
+
+// unreachable_quorum_allowed_traffic
+TEST_P(AccessToPartitionWithNoQuorum, Spec) {
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  RecordProperty("Worklog", "15841");
+  RecordProperty("RequirementId", GetParam().test_requirements);
+  RecordProperty("Description", GetParam().test_description);
+
+  // The GR is split into 2 partitions, the Router only has access to the one
+  // with no quorum.
+  // First partition is: [ONLINE, ONLINE, UNREACHABLE].
+  // The second partition is: [UNREACHABLE, UNREACHABLE, ONLINE ].
+  // We only create the second partition as the Router only has accsess only
+  // to this one anyway
+
+  std::vector<GRNode> gr_nodes{{classic_ports[0], "uuid-1", "UNREACHABLE"},
+                               {classic_ports[1], "uuid-2", "UNREACHABLE"},
+                               {classic_ports[2], "uuid-3", "ONLINE"}};
+  std::vector<::ClusterNode> cluster_nodes{{classic_ports[0], "uuid-1"},
+                                           {classic_ports[1], "uuid-2"},
+                                           {classic_ports[2], "uuid-3"}};
+
+  launch_mysql_server_mock(json_metadata, classic_ports[2], EXIT_SUCCESS, false,
+                           http_ports[2]);
+  const std::string router_options = get_router_options_as_json_str(
+      std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
+
+  ::set_mock_metadata(http_ports[2], "uuid", gr_nodes, 2, cluster_nodes, 2, 0,
+                      false, "127.0.0.1", router_options);
+
+  const auto router_ro_port = port_pool_.get_next_available();
+  const auto router_rw_port = port_pool_.get_next_available();
+  const auto router_rw_split_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(ClusterType::GR_V2, "0.2");
+  const std::string routing_rw = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const std::string routing_ro = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+  const std::string routing_rw_split =
+      get_rw_split_routing_section(router_rw_split_port);
+
+  std::vector<uint16_t> metadata_server_ports{
+      classic_ports[0], classic_ports[1], classic_ports[2]};
+
+  const auto wait_ready = (GetParam().expect_rw_connection_ok ||
+                           GetParam().expect_ro_connection_ok ||
+                           GetParam().expect_rw_split_connection_ok)
+                              ? 10s
+                              : -1s;
+
+  /*auto &router = */ launch_router(
+      metadata_cache_section, routing_rw + routing_ro + routing_rw_split,
+      metadata_server_ports, EXIT_SUCCESS, wait_ready);
+
+  if (wait_ready == -1s) {
+    EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[2], 2));
+  }
+
+  if (GetParam().expect_rw_connection_ok) {
+    make_new_connection_ok(router_rw_port, classic_ports[2]);
+  } else {
+    verify_new_connection_fails(router_rw_port);
+  }
+
+  if (GetParam().expect_ro_connection_ok) {
+    make_new_connection_ok(router_ro_port, classic_ports[2]);
+
+  } else {
+    verify_new_connection_fails(router_ro_port);
+  }
+
+  if (GetParam().expect_rw_split_connection_ok) {
+    make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+  } else {
+    verify_new_connection_fails(router_rw_split_port);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, AccessToPartitionWithNoQuorum,
+    ::testing::Values(
+        AccessToPartitionWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_default", "FR1.3,FR3",
+            "by default Router shuts down accepting ports when it only has an "
+            "access to node(s) with no quorum",
+            /*unreachable_quorum_allowed_traffic*/ std::nullopt,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        AccessToPartitionWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_none", "FR1.3,FR3",
+            "Router shuts down accepting ports when it only has an "
+            "access to node(s) with no quorum when configured "
+            "unreachable_quorum_allowed_traffic=none",
+            /*unreachable_quorum_allowed_traffic*/ "none",
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        AccessToPartitionWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_invalid", "FR1.3,FR3",
+            "Router shuts down accepting ports when it only has an "
+            "access to node(s) with no quorum when configured "
+            "unreachable_quorum_allowed_traffic has unsupported value",
+            /*unreachable_quorum_allowed_traffic*/ "invalid",
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        AccessToPartitionWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_read", "FR1.1,FR3",
+            "Router keeps the RO and RWsplit accepting ports open when it only "
+            "has an access to node(s) with no quorum and  "
+            "unreachable_quorum_allowed_traffic=read",
+            /*unreachable_quorum_allowed_traffic*/ "read",
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true},
+        AccessToPartitionWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_all", "FR1.2,FR3",
+            "Router keeps all the accepting ports open when it only "
+            "has an access to node(s) with no quorum and  "
+            "unreachable_quorum_allowed_traffic=all",
+            /*unreachable_quorum_allowed_traffic*/ "all",
+            /*expect_rw_connection_ok*/ true,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true}),
+    [](const ::testing::TestParamInfo<AccessToPartitionWithNoQuorumTestParam>
+           &info) { return info.param.test_name; });
+
+struct AccessToBothPartitionsTestParam {
+  std::string test_name;
+
+  std::optional<std::string> unreachable_quorum_allowed_traffic;
+};
+class AccessToBothPartitions
+    : public QuorumConnectionLostStandaloneClusterTest,
+      public ::testing::WithParamInterface<AccessToBothPartitionsTestParam> {};
+
+/* @test Check that unreachable_quorum_allowed_traffic does not matter when
+ * there is a group with no quorum and group with a quorum and the Router has an
+ * access to both. */
+TEST_P(AccessToBothPartitions, Spec) {
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // The GR is split into 2 Groups, the second has quorum.
+  // The Router has access to both.
+  // Regardless of  unreachable_quorum_allowed_traffic it should always use
+  // the second one (the one with quorum).
+
+  // First partition sees:
+  // [ONLINE, UNREACHABLE, UNREACHABLE ]
+  // The second parition sees:
+  // [UNREACHABLE, ONLINE, ONLINE ]
+
+  std::vector<GRNode> gr_nodes_partition1{
+      {classic_ports[0], "uuid-1", "ONLINE"},
+      {classic_ports[1], "uuid-2", "UNREACHABLE"},
+      {classic_ports[2], "uuid-3", "UNREACHABLE"}};
+
+  std::vector<GRNode> gr_nodes_partition2{
+      {classic_ports[0], "uuid-1", "UNREACHABLE"},
+      {classic_ports[1], "uuid-2", "ONLINE"},
+      {classic_ports[2], "uuid-3", "ONLINE"}};
+
+  std::vector<::ClusterNode> cluster_nodes{{classic_ports[0], "uuid-1"},
+                                           {classic_ports[1], "uuid-2"},
+                                           {classic_ports[2], "uuid-3"}};
+
+  const std::string router_options = get_router_options_as_json_str(
+      std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
+
+  // launch first partition - 1 node
+  launch_mysql_server_mock(json_metadata, classic_ports[0], EXIT_SUCCESS, false,
+                           http_ports[0]);
+
+  ::set_mock_metadata(http_ports[0], "uuid", gr_nodes_partition1, 0,
+                      cluster_nodes, 2, 0, false, "127.0.0.1", router_options);
+
+  // launch second partition - 2 nodes
+  for (size_t i = 1; i <= 2; ++i) {
+    launch_mysql_server_mock(json_metadata, classic_ports[i], EXIT_SUCCESS,
+                             false, http_ports[i]);
+
+    ::set_mock_metadata(http_ports[i], "uuid", gr_nodes_partition2, i,
+                        cluster_nodes, 1, 0, false, "127.0.0.1",
+                        router_options);
+  }
+
+  const auto router_ro_port = port_pool_.get_next_available();
+  const auto router_rw_port = port_pool_.get_next_available();
+  const auto router_rw_split_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(ClusterType::GR_V2, "0.2");
+  const std::string routing_rw = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const std::string routing_ro = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+  const std::string routing_rw_split =
+      get_rw_split_routing_section(router_rw_split_port);
+
+  std::vector<uint16_t> metadata_server_ports{
+      classic_ports[0], classic_ports[1], classic_ports[2]};
+
+  /*auto &router = */ launch_router(metadata_cache_section,
+                                    routing_rw + routing_ro + routing_rw_split,
+                                    metadata_server_ports, EXIT_SUCCESS,
+                                    /*wait_for_notify_ready=*/10s);
+
+  // Regardless of the unreachable_quorum_allowed_traffic option setting, the
+  // Router should always use the partition with the quorum for the traffic as
+  // it has an access to it
+  make_new_connection_ok(router_rw_port, classic_ports[1]);
+  make_new_connection_ok(router_ro_port, classic_ports[2]);
+  make_new_connection_ok(router_rw_split_port, classic_ports[1]);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, AccessToBothPartitions,
+    ::testing::Values(
+        AccessToBothPartitionsTestParam{
+            "unreachable_quorum_allowed_traffic_default",
+            /*unreachable_quorum_allowed_traffic*/ std::nullopt},
+        AccessToBothPartitionsTestParam{
+            "unreachable_quorum_allowed_traffic_none",
+            /*unreachable_quorum_allowed_traffic*/ "none"},
+        AccessToBothPartitionsTestParam{
+            "unreachable_quorum_allowed_traffic_read",
+            /*unreachable_quorum_allowed_traffic*/ "read"},
+        AccessToBothPartitionsTestParam{
+            "unreachable_quorum_allowed_traffic_all",
+            /*unreachable_quorum_allowed_traffic*/ "all"}),
+    [](const ::testing::TestParamInfo<AccessToBothPartitionsTestParam> &info) {
+      return info.param.test_name;
+    });
+
+struct BootstrapWithNoQuorumTestParam {
+  std::string test_name;
+
+  std::optional<std::string> unreachable_quorum_allowed_traffic;
+};
+
+class BootstrapWithNoQuorum
+    : public QuorumConnectionLostStandaloneClusterTest,
+      public ::testing::WithParamInterface<BootstrapWithNoQuorumTestParam> {};
+
+// @test Check that the bootstrap always fails regardless of
+// unreachable_quorum_allowed_traffic option value
+TEST_P(BootstrapWithNoQuorum, Spec) {
+  RecordProperty("Worklog", "15841");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty(
+      "Description",
+      "Checks that the Router fails to bootstrap if it only has an access to "
+      "the subgroup of the Cluster members with no quorum");
+
+  const std::string json_metadata =
+      get_data_dir().join("bootstrap_gr.js").str();
+
+  // The GR is plit into 2 partitions, the one with no quorum is used for
+  // bootstrap. First partition is: [ONLINE, ONLINE, UNREACHABLE]. The second
+  // partition is: [UNREACHABLE, UNREACHABLE, ONLINE ]. We only create the
+  // second partition as the Router only has accsess only to this one anyway
+
+  std::vector<GRNode> gr_nodes{{classic_ports[0], "uuid-1", "ONLINE"},
+                               {classic_ports[1], "uuid-2", "UNREACHABLE"},
+                               {classic_ports[2], "uuid-3", "UNREACHABLE"}};
+  std::vector<::ClusterNode> cluster_nodes{{classic_ports[0], "uuid-1"},
+                                           {classic_ports[1], "uuid-2"},
+                                           {classic_ports[2], "uuid-3"}};
+
+  launch_mysql_server_mock(json_metadata, classic_ports[0], EXIT_SUCCESS, false,
+                           http_ports[0]);
+  const std::string router_options = get_router_options_as_json_str(
+      std::nullopt, GetParam().unreachable_quorum_allowed_traffic);
+
+  ::set_mock_metadata(http_ports[0], "uuid", gr_nodes, 2, cluster_nodes, 2, 0,
+                      false, "127.0.0.1", router_options);
+
+  auto &router = launch_router_for_bootstrap(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(classic_ports[0]),
+          "--connect-timeout=1",
+      },
+      EXIT_FAILURE);
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: The provided server is currently not in a "
+                           "InnoDB cluster group with quorum and thus may "
+                           "contain inaccurate or outdated data."));
+  check_exit_code(router, EXIT_FAILURE);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, BootstrapWithNoQuorum,
+    ::testing::Values(
+        BootstrapWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_default",
+            /*unreachable_quorum_allowed_traffic*/ std::nullopt},
+        BootstrapWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_none",
+            /*unreachable_quorum_allowed_traffic*/ "none"},
+        BootstrapWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_read",
+            /*unreachable_quorum_allowed_traffic*/ "read"},
+        BootstrapWithNoQuorumTestParam{
+            "unreachable_quorum_allowed_traffic_all",
+            /*unreachable_quorum_allowed_traffic*/ "all"}),
+    [](const ::testing::TestParamInfo<BootstrapWithNoQuorumTestParam> &info) {
+      return info.param.test_name;
+    });
+
+class GRStateClusterSetTest : public GRStateTest {};
+
+struct NoQuorumClusterSetTestParam {
+  std::string test_name;
+  std::string test_requirements;
+  std::string test_description;
+
+  std::optional<std::string> unreachable_quorum_allowed_traffic;
+
+  unsigned target_cluster_id;
+
+  bool expect_rw_connection_ok;
+  bool expect_ro_connection_ok;
+  bool expect_rw_split_connection_ok;
+};
+
+class ClusterSetAccessToPartitionWithNoQuorum
+    : public GRStateClusterSetTest,
+      public ::testing::WithParamInterface<NoQuorumClusterSetTestParam> {};
+
+TEST_P(ClusterSetAccessToPartitionWithNoQuorum, Spec) {
+  const unsigned target_cluster_id = GetParam().target_cluster_id;
+  const std::string target_cluster = "00000000-0000-0000-0000-0000000000g" +
+                                     std::to_string(target_cluster_id + 1);
+  const std::string router_options = get_router_options_as_json_str(
+      target_cluster, GetParam().unreachable_quorum_allowed_traffic);
+
+  RecordProperty("Worklog", "15841");
+  RecordProperty("RequirementId", GetParam().test_requirements);
+  RecordProperty("Description", GetParam().test_description);
+
+  const std::vector<size_t> gr_nodes_per_cluster{3, 3};
+  create_clusterset(/*view_id*/ 0, target_cluster_id, /*primary_cluster_id*/ 0,
+                    "metadata_clusterset.js", router_options, ".*", false,
+                    false, gr_nodes_per_cluster);
+
+  for (size_t i = 1; i <= 2; ++i) {
+    clusterset_data_.clusters[target_cluster_id].gr_nodes[i].member_status =
+        "UNREACHABLE";
+    clusterset_data_.clusters[target_cluster_id].nodes[i].process->kill();
+  }
+
+  for (size_t i = 1; i <= 2; ++i) {
+    clusterset_data_.clusters[target_cluster_id]
+        .nodes[i]
+        .process->wait_for_exit();
+  }
+
+  const auto http_port =
+      clusterset_data_.clusters[target_cluster_id].nodes[0].http_port;
+  set_mock_metadata(/*view_id*/ 0, /* this_cluster_id*/ target_cluster_id,
+                    /*this_node_id*/ 0,
+                    /*target_cluster_id*/ target_cluster_id, http_port,
+                    clusterset_data_, router_options);
+
+  const auto router_ro_port = port_pool_.get_next_available();
+  const auto router_rw_port = port_pool_.get_next_available();
+  const auto router_rw_split_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(ClusterType::GR_V2, "0.2");
+  const std::string routing_rw = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const std::string routing_ro = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+  const std::string routing_rw_split =
+      get_rw_split_routing_section(router_rw_split_port);
+
+  const auto metadata_server_ports =
+      clusterset_data_.get_md_servers_classic_ports();
+
+  const auto wait_ready = (GetParam().expect_rw_connection_ok ||
+                           GetParam().expect_ro_connection_ok ||
+                           GetParam().expect_rw_split_connection_ok)
+                              ? 10s
+                              : -1s;
+
+  /*auto &router = */ launch_router(
+      metadata_cache_section, routing_rw + routing_ro + routing_rw_split,
+      metadata_server_ports, EXIT_SUCCESS, wait_ready);
+
+  if (wait_ready == -1s) {
+    EXPECT_TRUE(wait_for_transaction_count_increase(http_port, 1));
+  }
+
+  if (GetParam().expect_rw_connection_ok) {
+    make_new_connection_ok(
+        router_rw_port,
+        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+  } else {
+    verify_new_connection_fails(router_rw_port);
+  }
+
+  if (GetParam().expect_ro_connection_ok) {
+    make_new_connection_ok(
+        router_ro_port,
+        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+
+  } else {
+    verify_new_connection_fails(router_ro_port);
+  }
+
+  if (GetParam().expect_rw_split_connection_ok) {
+    make_new_connection_ok(
+        router_rw_split_port,
+        clusterset_data_.clusters[target_cluster_id].nodes[0].classic_port);
+
+  } else {
+    verify_new_connection_fails(router_rw_split_port);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ClusterSetAccessToPartitionWithNoQuorum,
+    ::testing::Values(
+        NoQuorumClusterSetTestParam{
+            "unreachable_quorum_allowed_traffic_default", "FR1.3,FR3",
+            "Checks that when the target cluster is Primary cluster of the "
+            "ClusterSet by default Router shuts down accepting ports when it "
+            "only has an access to node(s) with no quorum",
+            /*unreachable_quorum_allowed_traffic*/ std::nullopt,
+            /*target_cluster_id*/ 0,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        NoQuorumClusterSetTestParam{
+            "unreachable_quorum_allowed_traffic_none", "FR1.3,FR3",
+            "Checks that when the target cluster is Primary cluster of the "
+            "ClusterSet the Router shuts down accepting ports when it "
+            "only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=none",
+            /*unreachable_quorum_allowed_traffic*/ "none",
+            /*target_cluster_id*/ 0,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        NoQuorumClusterSetTestParam{
+            "unreachable_quorum_allowed_traffic_read", "FR1.1,FR3",
+            "Checks that when the target cluster is Primary cluster of the "
+            "ClusterSet the Router keeps RO and RWsplit ports open when it "
+            "only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=read",
+            /*unreachable_quorum_allowed_traffic*/ "read",
+            /*target_cluster_id*/ 0,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true},
+        NoQuorumClusterSetTestParam{
+            "unreachable_quorum_allowed_traffic_all", "FR1.2,FR3",
+            "Checks that when the target cluster is Primary cluster of the "
+            "ClusterSet the Router keeps all the accepting ports open when it "
+            "only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=all",
+            /*unreachable_quorum_allowed_traffic*/ "all",
+            /*target_cluster_id*/ 0,
+            /*expect_rw_connection_ok*/ true,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true},
+        NoQuorumClusterSetTestParam{
+            "target_replica_unreachable_quorum_allowed_traffic_default",
+            "FR1.3,FR3",
+            "Checks that when the target cluster is Replica cluster of the "
+            "ClusterSet by default Router shuts down accepting ports when it "
+            "only has an access to node(s) with no quorum",
+            /*unreachable_quorum_allowed_traffic*/ std::nullopt,
+            /*target_cluster_id*/ 1,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        NoQuorumClusterSetTestParam{
+            "target_replica_unreachable_quorum_allowed_traffic_none",
+            "FR1.3,FR3",
+            "Checks that when the target cluster is Replica cluster of the "
+            "ClusterSet the Router shuts down accepting ports when it "
+            "only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=none",
+            /*unreachable_quorum_allowed_traffic*/ "none",
+            /*target_cluster_id*/ 1,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ false,
+            /*expect_rw_split_connection_ok*/ false},
+        NoQuorumClusterSetTestParam{
+            "target_replica_unreachable_quorum_allowed_traffic_read",
+            "FR1.1,FR3",
+            "Checks that when the target cluster is Replica cluster of the "
+            "ClusterSet the Router keeps RO and RWsplit ports open when it "
+            "only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=read",
+            /*unreachable_quorum_allowed_traffic*/ "read",
+            /*target_cluster_id*/ 1,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true},
+        // our target is replica so we never expect RW port open
+        NoQuorumClusterSetTestParam{
+            "target_replica_unreachable_quorum_allowed_traffic_all",
+            "FR1.2,FR3",
+            "Checks that when the target cluster is Replica cluster of the "
+            "ClusterSet the Router keeps RO and RW split accepting ports open "
+            "when it only has an access to node(s) with no quorum and "
+            "unreachable_quorum_allowed_traffic=all",
+            /*unreachable_quorum_allowed_traffic*/ "all",
+            /*target_cluster_id*/ 1,
+            /*expect_rw_connection_ok*/ false,
+            /*expect_ro_connection_ok*/ true,
+            /*expect_rw_split_connection_ok*/ true}),
+    [](const ::testing::TestParamInfo<NoQuorumClusterSetTestParam> &info) {
       return info.param.test_name;
     });
 

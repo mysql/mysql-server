@@ -1423,9 +1423,10 @@ function get_response(stmt_key, options) {
           ],
           rows: options.clusterset_data
                     .clusters[options.clusterset_data.this_cluster_id]
-                    .nodes.map(function(node) {
+                    .gr_nodes.map(function(node) {
                       return [
-                        node.uuid, node.host, node.classic_port, "ONLINE", 1
+                        node.uuid, "127.0.0.1", node.classic_port, node.status,
+                        1
                       ];
                     }),
         }

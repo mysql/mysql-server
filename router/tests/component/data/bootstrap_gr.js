@@ -10,6 +10,13 @@ if (mysqld.global.cluster_nodes === undefined) {
       [["uuid-1", 5500], ["uuid-2", 5510], ["uuid-3", 5520]];
 }
 
+if (mysqld.global.gr_nodes === undefined) {
+  mysqld.global.gr_nodes = [
+    ["uuid-1", 5500, "ONLINE"], ["uuid-2", 5510, "ONLINE"],
+    ["uuid-3", 5520, "ONLINE"]
+  ];
+}
+
 if (mysqld.global.cluster_name == undefined) {
   mysqld.global.cluster_name = "mycluster";
 }
@@ -22,6 +29,21 @@ if (mysqld.global.gr_id === undefined) {
   mysqld.global.gr_id = "cluster-specific-id";
 }
 
+var members = gr_memberships.gr_members(
+    mysqld.global.gr_node_host, mysqld.global.gr_nodes);
+
+const online_gr_nodes = members
+                            .filter(function(memb, indx) {
+                              return (memb[3] === "ONLINE");
+                            })
+                            .length;
+
+const recovering_gr_nodes = members
+                                .filter(function(memb, indx) {
+                                  return (memb[3] === "RECOVERING");
+                                })
+                                .length;
+
 var options = {
   metadata_schema_version: mysqld.global.metadata_schema_version,
   cluster_type: "gr",
@@ -30,6 +52,9 @@ var options = {
   innodb_cluster_name: mysqld.global.cluster_name,
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
+  gr_members_all: members.length,
+  gr_members_online: online_gr_nodes,
+  gr_members_recovering: recovering_gr_nodes,
 };
 
 var common_responses = common_stmts.prepare_statement_responses(

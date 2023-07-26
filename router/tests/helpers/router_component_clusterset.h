@@ -41,6 +41,7 @@
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
 
+#include "mock_server_testutils.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -83,6 +84,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
     bool invalid{false};
 
     std::vector<ClusterNode> nodes;
+    std::vector<GRNode> gr_nodes;
     unsigned primary_node_id;
   };
 
@@ -138,6 +140,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
       const std::string &expected_target_cluster = ".*",
       bool simulate_cluster_not_found = false,
       bool use_gr_notifications = false,
+      const std::vector<size_t> &gr_nodes_number = {3, 3, 3},
       const std::vector<size_t> &read_replicas_number = {},
       const mysqlrouter::MetadataSchemaVersion &metadata_version =
           mysqlrouter::MetadataSchemaVersion{2, 2, 0});

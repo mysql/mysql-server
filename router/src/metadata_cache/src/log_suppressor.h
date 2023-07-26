@@ -51,7 +51,10 @@ class LogSuppressor {
     kInstanceType,
 
     /* incorrect JSON or value for read_only_targets */
-    kReadOnlyTargets
+    kReadOnlyTargets,
+
+    /* incorrect JSON or value for unreachable_quorum_allowed_traffic */
+    kUnreachableQuorumAllowedTraffic
   };
 
   static LogSuppressor &instance() {

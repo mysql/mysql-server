@@ -338,3 +338,64 @@ std::string to_string(const ReadOnlyTargets mode) {
       return "secondaries";
   }
 }
+
+QuorumConnectionLostAllowTraffic
+RouterOptions::get_unreachable_quorum_allowed_traffic() const {
+  QuorumConnectionLostAllowTraffic result =
+      kDefaultQuorumConnectionLostAllowTraffic;
+  auto &log_suppressor = LogSuppressor::instance();
+  std::string warning;
+  const auto mode_op = MetadataJsonOptions::get_router_option_str(
+      options_str_, "unreachable_quorum_allowed_traffic");
+
+  if (!mode_op) {
+    warning =
+        "Error reading unreachable_quorum_allowed_traffic from the "
+        "router_options: " +
+        mode_op.error() + ". Using default value.";
+  } else {
+    if (!mode_op.value()) {
+      // value not in options, use default
+    } else if (*mode_op.value() == "none") {
+      result = QuorumConnectionLostAllowTraffic::none;
+    } else if (*mode_op.value() == "read") {
+      result = QuorumConnectionLostAllowTraffic::read;
+    } else if (*mode_op.value() == "all") {
+      result = QuorumConnectionLostAllowTraffic::all;
+    } else {
+      warning =
+          "Unknown unreachable_quorum_allowed_traffic read from the "
+          "metadata: '" +
+          *mode_op.value() + "'. Using default value. (" + options_str_ + ")";
+    }
+  }
+
+  // we want to log the warning only when it's changing
+  std::string message;
+  if (!warning.empty()) {
+    message =
+        "Error parsing unreachable_quorum_allowed_traffic from options JSON "
+        "string: " +
+        warning + "; Using '" + to_string(result) + "' value";
+  } else {
+    message =
+        "Using unreachable_quorum_allowed_traffic='" + to_string(result) + "'";
+  }
+
+  log_suppressor.log_message(
+      LogSuppressor::MessageId::kUnreachableQuorumAllowedTraffic, "", message,
+      !warning.empty(), mysql_harness::logging::LogLevel::kWarning,
+      mysql_harness::logging::LogLevel::kInfo, true);
+  return result;
+}
+
+std::string to_string(const QuorumConnectionLostAllowTraffic allow) {
+  switch (allow) {
+    case QuorumConnectionLostAllowTraffic::read:
+      return "read";
+    case QuorumConnectionLostAllowTraffic::all:
+      return "all";
+    default:
+      return "none";
+  }
+}

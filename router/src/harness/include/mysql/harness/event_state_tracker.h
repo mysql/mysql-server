@@ -54,7 +54,8 @@ class HARNESS_EXPORT EventStateTracker {
     TargetClusterPresentInOptions,
     ClusterInvalidatedInMetadata,
     ClusterWasBootstrappedAgainstClusterset,
-    NoRightsToUpdateRouterAttributes
+    NoRightsToUpdateRouterAttributes,
+    NoGRQuorum,
   };
 
   /**

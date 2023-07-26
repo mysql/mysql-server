@@ -52,7 +52,9 @@ std::string RouterComponentMetadataTest::get_metadata_cache_section(
 std::string RouterComponentMetadataTest::get_metadata_cache_routing_section(
     uint16_t router_port, const std::string &role, const std::string &strategy,
     const std::string &mode, const std::string &section_name,
-    const std::string &protocol) {
+    const std::string &protocol,
+    const std::vector<std::pair<std::string, std::string>>
+        &additional_options) {
   std::map<std::string, std::string> options{
       {"bind_port", std::to_string(router_port)},
       {"destinations", "metadata-cache://test/default?role=" + role},
@@ -64,6 +66,10 @@ std::string RouterComponentMetadataTest::get_metadata_cache_routing_section(
 
   if (!mode.empty()) {
     options["mode"] = mode;
+  }
+
+  for (const auto &op : additional_options) {
+    options[op.first] = op.second;
   }
 
   return mysql_harness::ConfigBuilder::build_section("routing:" + section_name,

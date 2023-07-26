@@ -31,7 +31,8 @@ void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,
     const std::string &tracefile, const std::string &router_options,
     const std::string &expected_target_cluster, bool simulate_cluster_not_found,
-    bool use_gr_notifications, const std::vector<size_t> &read_replicas_number,
+    bool use_gr_notifications, const std::vector<size_t> &gr_nodes_number,
+    const std::vector<size_t> &read_replicas_number,
     const mysqlrouter::MetadataSchemaVersion &metadata_version) {
   const std::string tracefile_path = get_data_dir().str() + "/" + tracefile;
 
@@ -40,7 +41,8 @@ void RouterComponentClusterSetTest::create_clusterset(
   clusterset_data.primary_cluster_id = primary_cluster_id;
 
   // first create a ClusterSet topology
-  for (unsigned cluster_id = 0; cluster_id < kClustersNumber; ++cluster_id) {
+  for (unsigned cluster_id = 0; cluster_id < gr_nodes_number.size();
+       ++cluster_id) {
     ClusterData cluster_data;
     cluster_data.id = cluster_id;
     cluster_data.primary_node_id = 0;
@@ -51,14 +53,15 @@ void RouterComponentClusterSetTest::create_clusterset(
     cluster_data.name = "cluster-name-" + id;
     cluster_data.gr_uuid = "00000000-0000-0000-0000-0000000000g" + id;
 
+    const size_t gr_nodes_num = gr_nodes_number[cluster_id];
     const size_t read_replicas_num = cluster_id < read_replicas_number.size()
                                          ? read_replicas_number[cluster_id]
                                          : 0;
 
-    for (unsigned node_id = 0;
-         node_id < kGRNodesPerClusterNumber + read_replicas_num; ++node_id) {
+    for (unsigned node_id = 0; node_id < gr_nodes_num + read_replicas_num;
+         ++node_id) {
       ClusterNode cluster_node;
-      cluster_node.is_read_replica = node_id >= kGRNodesPerClusterNumber;
+      cluster_node.is_read_replica = node_id >= gr_nodes_num;
       cluster_node.uuid = "00000000-0000-0000-0000-0000000000" +
                           std::to_string(cluster_id + 1) +
                           std::to_string(node_id + 1);
@@ -71,6 +74,17 @@ void RouterComponentClusterSetTest::create_clusterset(
 
       cluster_data.nodes.push_back(cluster_node);
     }
+
+    for (unsigned node_id = 0; node_id < gr_nodes_num; ++node_id) {
+      GRNode gr_node{cluster_data.nodes[node_id].classic_port,
+                     "00000000-0000-0000-0000-0000000000" +
+                         std::to_string(cluster_id + 1) +
+                         std::to_string(node_id + 1),
+                     "ONLINE"};
+
+      cluster_data.gr_nodes.push_back(gr_node);
+    }
+
     clusterset_data.clusters.push_back(cluster_data);
   }
 
@@ -163,8 +177,20 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
 
       cluster_nodes_array.PushBack(node_obj, json_allocator);
     }
-
     cluster_obj.AddMember("nodes", cluster_nodes_array, json_allocator);
+
+    JsonValue gr_nodes_array(rapidjson::kArrayType);
+    for (auto &node_data : cluster_data.gr_nodes) {
+      JsonValue node_obj(rapidjson::kObjectType);
+
+      add_json_str_field(node_obj, "uuid", node_data.server_uuid);
+      add_json_int_field(node_obj, "classic_port", node_data.classic_port);
+      add_json_str_field(node_obj, "status", node_data.member_status);
+
+      gr_nodes_array.PushBack(node_obj, json_allocator);
+    }
+    cluster_obj.AddMember("gr_nodes", gr_nodes_array, json_allocator);
+
     add_json_int_field(cluster_obj, "primary_node_id",
                        cluster_data.primary_node_id);
 
@@ -224,8 +250,6 @@ void RouterComponentClusterSetTest::set_mock_metadata(
                      simulate_cluster_not_found);
 
   const auto json_str = json_to_string(json_doc);
-
-  //  if (clusterset_data.primary_cluster_id > 0) FAIL() << json_str;
 
   EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
 }

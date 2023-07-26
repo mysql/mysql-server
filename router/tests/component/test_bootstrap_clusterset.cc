@@ -1001,10 +1001,12 @@ TEST_F(RouterClusterSetBootstrapTest, PrimaryClusterQueriedFirst) {
  * error message is printed
  */
 TEST_F(RouterClusterSetBootstrapTest, FailToBootstrapFromReadReplica) {
-  const std::vector<size_t> read_replicas_per_cluster{1, 0, 0};
+  const std::vector<size_t> gr_nodes_per_cluster{2, 2};
+  const std::vector<size_t> read_replicas_per_cluster{1, 0};
   create_clusterset(view_id, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "bootstrap_clusterset.js", "",
-                    ".*", false, false, read_replicas_per_cluster);
+                    ".*", false, false, gr_nodes_per_cluster,
+                    read_replicas_per_cluster);
 
   const auto &read_replica_node =
       clusterset_data_.clusters[0]

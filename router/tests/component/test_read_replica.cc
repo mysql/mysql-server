@@ -1186,11 +1186,12 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   std::string router_options =
       get_router_options_as_json_str("primary", std::nullopt, "all");
 
+  const std::vector<size_t> gr_nodes_per_cluster{3, 3, 3};
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
   create_clusterset(view_id_, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_options, ".*", false, false,
+                    router_options, ".*", false, false, gr_nodes_per_cluster,
                     read_replicas_per_cluster);
   is_target_clusterset(true);
 
@@ -1274,11 +1275,12 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
   const std::string router_options = get_router_options_as_json_str(
       "primary", GetParam().invalidated_cluster_policy, "all");
 
+  const std::vector<size_t> gr_nodes_per_cluster{3, 3, 3};
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
   create_clusterset(view_id_, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_options, ".*", false, false,
+                    router_options, ".*", false, false, gr_nodes_per_cluster,
                     read_replicas_per_cluster);
   is_target_clusterset(true);
 

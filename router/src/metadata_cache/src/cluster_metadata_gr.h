@@ -34,8 +34,8 @@ struct GroupReplicationMember;
 class GRMetadataBackend;
 
 enum class GRClusterStatus {
-  AvailableWritable,
-  AvailableReadOnly,
+  Available,
+  AvailableNoQuorum,
   UnavailableRecovering,
   Unavailable
 };
@@ -153,7 +153,9 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
    *
    * The information is pulled from GR maintained performance_schema tables.
    */
-  void update_cluster_status_from_gr(metadata_cache::ManagedCluster &cluster);
+  void update_cluster_status_from_gr(
+      const bool unreachable_quorum_allowed_traffic,
+      metadata_cache::ManagedCluster &cluster);
 
   GRClusterStatus check_cluster_status_in_gr(
       std::vector<metadata_cache::ManagedInstance *> &instances,
