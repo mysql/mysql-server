@@ -298,13 +298,13 @@ class TestTlsKeyManager : public TlsKeyManager {
 
 public:
   TestTlsKeyManager(Test::Cluster * ndb, int server_node_id, bool start=true) :
-    m_ndb(ndb), m_addr(opt_port)
+    m_ndb(ndb), m_addr(opt_port + server_node_id)
   {
     init(server_node_id, m_ndb->nc[server_node_id]);
     if(start && ctx())
     {
       Test::Service * service = new Test::Service(* this);
-      m_server.setup(service, & m_addr);
+      require(m_server.setup(service, & m_addr));
       m_server_thd = m_server.startServer();
       printf("TestTlsKeyManager listening on port %d\n", m_addr.get_port());
     }
@@ -314,7 +314,6 @@ public:
     if(m_server_thd) {
       m_server.stopServer();
       m_server.stopSessions(true, 100);
-      NdbThread_WaitFor(m_server_thd, nullptr);
     }
   }
 
