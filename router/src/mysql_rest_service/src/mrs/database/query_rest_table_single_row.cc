@@ -24,28 +24,22 @@
 
 #include "mrs/database/query_rest_table_single_row.h"
 #include <stdexcept>
+#include "helper/json/to_string.h"
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
 
-namespace helper {
+static void json_object_fast_append(std::string &jo, const std::string &key,
+                                    const std::string &value) {
+  // remove closing }
+  jo.pop_back();
+  // add metadata sub-object
 
-/**
- * Convert custom type to string.
- *
- * This function was create for `sqlstring`, which uses `std::to_string`
- * function for conversion, still when no function is found then it uses
- * ADL to lookup for custom/application types.
- *
- * Additionally the function is marked as static, in case when other
- * compilation unit would like to define its own conversion `way`.
- */
-/*static std::string to_string(const Column &cd) {
-  mysqlrouter::sqlstring fmt{"?, !"};
-  fmt << cd.name << cd.name;
-  return fmt.str();
-}*/
-
-}  // namespace helper
+  jo.append(", \"");
+  jo.append(key);
+  jo.append("\":");
+  jo.append(value);
+  jo.push_back('}');
+}
 
 namespace mrs {
 namespace database {
@@ -53,9 +47,11 @@ namespace database {
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
-    const std::string &url_route, bool compute_etag) {
+    const std::string &url_route, bool compute_etag,
+    const std::string &metadata_gtid) {
   object_ = object;
   compute_etag_ = compute_etag;
+  metadata_gtid_ = metadata_gtid;
 
   response = "";
   items = 0;
@@ -65,17 +61,25 @@ void QueryRestTableSingleRow::query_entries(
 }
 
 void QueryRestTableSingleRow::on_row(const ResultRow &r) {
+  std::map<std::string, std::string> metadata_;
   if (!response.empty())
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
 
+  response = r[0];
   if (compute_etag_) {
-    std::string doc = r[0];
-    compute_and_embed_etag(object_, &doc);
-    response.append(doc);
-  } else {
-    response.append(r[0]);
+    metadata_.insert({"etag", compute_checksum(object_, response)});
   }
+
+  if (!metadata_gtid_.empty()) {
+    metadata_.insert({"gtid", metadata_gtid_});
+  }
+
+  if (!metadata_.empty()) {
+    auto metadata_json = helper::json::to_string(metadata_);
+    json_object_fast_append(response, "_metadata", metadata_json);
+  }
+
   ++items;
 }
 

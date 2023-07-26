@@ -32,8 +32,5 @@ namespace database {
 std::string compute_checksum(std::shared_ptr<entry::Object> object,
                              std::string_view doc);
 
-void compute_and_embed_etag(std::shared_ptr<entry::Object> object,
-                            std::string *doc);
-
 }  // namespace database
 }  // namespace mrs

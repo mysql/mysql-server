@@ -104,6 +104,7 @@ class MysqlCacheManager {
     const ConnectionConfiguration &get_connection_configuration() const;
 
    private:
+    void initalize(Object);
     void object_restore_defaults(Object &);
     bool is_default_server(Object &) const;
 

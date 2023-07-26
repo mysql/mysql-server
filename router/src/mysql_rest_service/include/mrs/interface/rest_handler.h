@@ -97,6 +97,13 @@ class Options {
     } http;
     bool log_exceptions{false};
   } debug;
+
+  class Metadata {
+   public:
+    Metadata() {}
+
+    bool gtid{true};
+  } metadata;
 };
 
 class RestHandler {

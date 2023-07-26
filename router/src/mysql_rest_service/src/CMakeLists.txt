@@ -120,7 +120,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_factory.cc
   mrs/rest/handler_file.cc
   mrs/rest/handler_user.cc
-  mrs/rest/handler_db_object.cc
+  mrs/rest/handler_table.cc
   mrs/rest/handler_object_metadata.cc
   mrs/rest/handler_is_authorized.cc
   mrs/rest/handler_unauthorize.cc
