@@ -103,8 +103,6 @@ bool Role_activation::activate_role_none() {
   m_sctx->clear_active_roles();
   m_sctx->clear_db_restrictions();
   m_sctx->checkout_access_maps();
-  const ulong new_db_access = m_sctx->db_acl(m_thd->db());
-  m_sctx->cache_current_db_access(new_db_access);
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(m_raise_error)) return true;
   ACL_USER *user =
@@ -113,6 +111,15 @@ bool Role_activation::activate_role_none() {
     m_sctx->set_master_access(user->access,
                               acl_restrictions->find_restrictions(user));
   }
+  acl_cache_lock.unlock();
+  /**
+    No roles are active now,
+    checking if user is granted access to current db directly
+  */
+  const ulong new_db_access =
+      acl_get(m_thd, m_sctx->host().str, m_sctx->ip().str,
+              m_sctx->priv_user().str, m_thd->db().str, false);
+  m_sctx->cache_current_db_access(new_db_access);
   return false;
 }
 
@@ -126,6 +133,7 @@ bool Role_activation::activate_role_none() {
 bool Role_activation::activate_role_default() {
   DBUG_TRACE;
   bool ret = false;
+  ulong new_db_access;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock(m_raise_error)) return true;
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
@@ -159,28 +167,34 @@ bool Role_activation::activate_role_default() {
                  current_user_authid.first.str, current_user_authid.second.str);
       }
     }
-  }
-  if (ret == 0) {
-    m_sctx->checkout_access_maps();
-    const ulong new_db_access = m_sctx->db_acl(m_thd->db());
-    m_sctx->cache_current_db_access(new_db_access);
-    /* Old memory in the backup list must now be freed. */
-    for (auto &&role : backup_active_list) {
-      my_free(const_cast<char *>(role.first.str));
-      my_free(const_cast<char *>(role.second.str));
+    if (ret == 0) {
+      m_sctx->checkout_access_maps();
+      new_db_access = m_sctx->db_acl(m_thd->db(), false);
+    } else {
+      /*
+        Failing to activate all roles will rollback the statement and reset
+        the previous roles.
+        1. Remove any newly activated roles and deallocate memory
+        2. Copy the backup elements to the active_list (shallow copy)
+      */
+      m_sctx->clear_active_roles();
+      std::copy(backup_active_list.begin(), backup_active_list.end(),
+                std::back_inserter(*active_list));
+      return true;
     }
   } else {
-    /*
-      Failing to activate all roles will rollback the statement and reset
-      the previous roles.
-      1. Remove any newly activated roles and deallocate memory
-      2. Copy the backup elements to the active_list (shallow copy)
-    */
-    m_sctx->clear_active_roles();
-    std::copy(backup_active_list.begin(), backup_active_list.end(),
-              std::back_inserter(*active_list));
+    m_sctx->checkout_access_maps();
+    acl_cache_lock.unlock();
+    new_db_access = acl_get(m_thd, m_sctx->host().str, m_sctx->ip().str,
+                            m_sctx->priv_user().str, m_thd->db().str, false);
   }
-  return ret;
+  m_sctx->cache_current_db_access(new_db_access);
+  /* Old memory in the backup list must now be freed. */
+  for (auto &&role : backup_active_list) {
+    my_free(const_cast<char *>(role.first.str));
+    my_free(const_cast<char *>(role.second.str));
+  }
+  return false;
 }
 
 /**
@@ -218,57 +232,60 @@ bool Role_activation::activate_role_all() {
       granted_roles.push_back(std::make_pair(rid, false));
     }
     List_of_granted_roles::iterator role_it = granted_roles.begin();
-    for (; role_it != granted_roles.end(); ++role_it) {
-      bool found_except_role = false;
-      if (m_role_list && m_role_list->elements > 0) {
-        for (const LEX_USER &except_role : *m_role_list) {
-          if ((except_role.user.length == role_it->first.user().length()) &&
-              (except_role.host.length == role_it->first.host().length()) &&
-              strncmp(except_role.user.str, role_it->first.user().c_str(),
-                      except_role.user.length) == 0 &&
-              native_strncasecmp(except_role.host.str,
-                                 role_it->first.host().c_str(),
-                                 except_role.host.length) == 0) {
-            found_except_role = true;
+    if (granted_roles.size()) {
+      for (; role_it != granted_roles.end(); ++role_it) {
+        bool found_except_role = false;
+        if (m_role_list && m_role_list->elements > 0) {
+          for (const LEX_USER &except_role : *m_role_list) {
+            if ((except_role.user.length == role_it->first.user().length()) &&
+                (except_role.host.length == role_it->first.host().length()) &&
+                strncmp(except_role.user.str, role_it->first.user().c_str(),
+                        except_role.user.length) == 0 &&
+                native_strncasecmp(except_role.host.str,
+                                   role_it->first.host().c_str(),
+                                   except_role.host.length) == 0) {
+              found_except_role = true;
+              break;
+            }
+          }
+        }
+        if (!found_except_role) {
+          ret = m_sctx->activate_role(
+              {role_it->first.user().c_str(), role_it->first.user().length()},
+              {role_it->first.host().c_str(), role_it->first.host().length()},
+              true);
+          if (ret != 0 && m_raise_error) {
+            my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_it->first.user().c_str(),
+                     role_it->first.host().c_str(), current_user->user.str,
+                     current_user->host.str);
             break;
           }
         }
       }
-      if (!found_except_role) {
-        ret = m_sctx->activate_role(
-            {role_it->first.user().c_str(), role_it->first.user().length()},
-            {role_it->first.host().c_str(), role_it->first.host().length()},
-            true);
-        if (ret != 0 && m_raise_error) {
-          my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_it->first.user().c_str(),
-                   role_it->first.host().c_str(), current_user->user.str,
-                   current_user->host.str);
-          break;
+      if (ret == 0) {
+        m_sctx->checkout_access_maps();
+        const ulong new_db_access = m_sctx->db_acl(m_thd->db(), false);
+        m_sctx->cache_current_db_access(new_db_access);
+        /* Drop backup */
+        for (auto &&ref : backup_active_list) {
+          my_free(const_cast<char *>(ref.first.str));
+          my_free(const_cast<char *>(ref.second.str));
         }
+      } else {
+        /*
+          Failing to activate all roles will rollback the statement and reset
+          the previous roles.
+          1. Remove any newly activated roles and deallocate memory
+          2. Copy the backup elements to the active_list (shallow copy)
+        */
+        m_sctx->clear_active_roles();
+        std::copy(backup_active_list.begin(), backup_active_list.end(),
+                  std::back_inserter(*active_list));
+        return true;
       }
-    }  // end for
-  }
-  if (ret == 0) {
-    m_sctx->checkout_access_maps();
-    const ulong new_db_access = m_sctx->db_acl(m_thd->db());
-    m_sctx->cache_current_db_access(new_db_access);
-    /* Drop backup */
-    for (auto &&ref : backup_active_list) {
-      my_free(const_cast<char *>(ref.first.str));
-      my_free(const_cast<char *>(ref.second.str));
     }
-  } else {
-    /*
-      Failing to activate all roles will rollback the statement and reset
-      the previous roles.
-      1. Remove any newly activated roles and deallocate memory
-      2. Copy the backup elements to the active_list (shallow copy)
-    */
-    m_sctx->clear_active_roles();
-    std::copy(backup_active_list.begin(), backup_active_list.end(),
-              std::back_inserter(*active_list));
   }
-  return ret;
+  return false;
 }
 
 /**
@@ -298,7 +315,7 @@ bool Role_activation::activate_role_name() {
 
   if (ret == 0) {
     m_sctx->checkout_access_maps();
-    const ulong new_db_access = m_sctx->db_acl(m_thd->db());
+    const ulong new_db_access = m_sctx->db_acl(m_thd->db(), false);
     m_sctx->cache_current_db_access(new_db_access);
     /* Drop backup */
     for (auto &&ref : backup_active_list) {
@@ -319,8 +336,9 @@ bool Role_activation::activate_role_name() {
     m_sctx->clear_active_roles();
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
+    return true;
   }
-  return ret;
+  return false;
 }
 
 }  // namespace Roles

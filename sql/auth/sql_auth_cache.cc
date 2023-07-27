@@ -1363,7 +1363,8 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
   if (!acl_cache_lock.lock(false)) return db_access;
 
   end = my_stpcpy(
-      (tmp_db = my_stpcpy(my_stpcpy(key, ip ? ip : "") + 1, user) + 1), db);
+      (tmp_db = my_stpcpy(my_stpcpy(key, ip ? ip : "") + 1, user) + 1),
+      db ? db : "");
   if (lower_case_table_names) {
     my_casedn_str(files_charset_info, tmp_db);
     db = tmp_db;

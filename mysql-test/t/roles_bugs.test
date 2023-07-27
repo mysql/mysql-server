@@ -250,6 +250,66 @@ DROP ROLE test_role;
 DROP USER test_user;
 disconnect con1;
 
+
+--echo #
+--echo # Bug#35386565: Any "SET ROLE" operation results in loss of permission
+--echo #
+
+CREATE DATABASE testdb1;
+CREATE TABLE testdb1.t1(c1 int);
+CREATE USER testuser;
+GRANT ALL PRIVILEGES ON testdb1.* TO testuser;
+
+--echo # Connect with testuser
+connect(con1,localhost,testuser,,);
+SELECT CURRENT_USER();
+
+--echo # No active roles
+USE testdb1;
+SHOW TABLES;
+SET ROLE DEFAULT;
+SHOW TABLES;
+SET ROLE ALL;
+SHOW TABLES;
+SET ROLE NONE;
+SHOW TABLES;
+
+--echo # Switch to root user
+connection default;
+SELECT CURRENT_USER();
+
+CREATE DATABASE testdb2;
+CREATE TABLE testdb2.t2(c2 int);
+CREATE ROLE testrole;
+GRANT ALL PRIVILEGES ON testdb2.* TO testrole;
+GRANT testrole TO testuser;
+
+--echo # Switch to testuser
+connection con1;
+SELECT CURRENT_USER();
+
+--echo # With active roles
+SET ROLE testrole;
+USE testdb2;
+SHOW TABLES;
+SET ROLE DEFAULT;
+--error 1044
+SHOW TABLES;
+SET ROLE testrole;
+USE testdb2;
+SHOW TABLES;
+SET ROLE ALL EXCEPT testrole;
+--error 1044
+SHOW TABLES;
+
+--echo # Cleanup
+connection default;
+DROP DATABASE testdb1;
+DROP DATABASE testdb2;
+DROP ROLE testrole;
+DROP USER testuser;
+disconnect con1;
+
 --echo
 --echo # End of 8.0 tests
 --echo

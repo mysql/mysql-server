@@ -225,6 +225,69 @@ mysql	CREATE DATABASE `mysql` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf
 # Cleanup
 DROP ROLE test_role;
 DROP USER test_user;
+#
+# Bug#35386565: Any "SET ROLE" operation results in loss of permission
+#
+CREATE DATABASE testdb1;
+CREATE TABLE testdb1.t1(c1 int);
+CREATE USER testuser;
+GRANT ALL PRIVILEGES ON testdb1.* TO testuser;
+# Connect with testuser
+SELECT CURRENT_USER();
+CURRENT_USER()
+testuser@%
+# No active roles
+USE testdb1;
+SHOW TABLES;
+Tables_in_testdb1
+t1
+SET ROLE DEFAULT;
+SHOW TABLES;
+Tables_in_testdb1
+t1
+SET ROLE ALL;
+SHOW TABLES;
+Tables_in_testdb1
+t1
+SET ROLE NONE;
+SHOW TABLES;
+Tables_in_testdb1
+t1
+# Switch to root user
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+CREATE DATABASE testdb2;
+CREATE TABLE testdb2.t2(c2 int);
+CREATE ROLE testrole;
+GRANT ALL PRIVILEGES ON testdb2.* TO testrole;
+GRANT testrole TO testuser;
+# Switch to testuser
+SELECT CURRENT_USER();
+CURRENT_USER()
+testuser@%
+# With active roles
+SET ROLE testrole;
+USE testdb2;
+SHOW TABLES;
+Tables_in_testdb2
+t2
+SET ROLE DEFAULT;
+SHOW TABLES;
+ERROR 42000: Access denied for user 'testuser'@'%' to database 'testdb2'
+SET ROLE testrole;
+USE testdb2;
+SHOW TABLES;
+Tables_in_testdb2
+t2
+SET ROLE ALL EXCEPT testrole;
+SHOW TABLES;
+ERROR 42000: Access denied for user 'testuser'@'%' to database 'testdb2'
+# Cleanup
+DROP DATABASE testdb1;
+DROP DATABASE testdb2;
+DROP ROLE testrole;
+DROP USER testuser;
 
 # End of 8.0 tests
 
