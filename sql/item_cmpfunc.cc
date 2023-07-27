@@ -4203,6 +4203,7 @@ bool in_vector::fill(Item **items, uint item_count) {
   m_used_size = 0;
   for (uint i = 0; i < item_count; i++) {
     set(m_used_size, items[i]);
+    if (current_thd->is_error()) return true;
     /*
       We don't put NULL values in array, to avoid erroneous matches in
       bisection.
@@ -4424,6 +4425,7 @@ bool in_string::find_item(Item *item) {
   if (m_used_size == 0) return false;
   const String *str = eval_string_arg(collation, item, &tmp);
   if (str == nullptr) return false;
+  if (current_thd->is_error()) return false;
   return std::binary_search(base_pointers.begin(),
                             base_pointers.begin() + m_used_size, str,
                             Cmp_string(collation));
@@ -5310,6 +5312,7 @@ longlong Item_func_in::val_int() {
   if (m_const_array != nullptr) {
     if (!m_populated) {
       have_null = m_const_array->fill(args + 1, arg_count - 1);
+      if (current_thd->is_error()) return error_int();
       m_populated = true;
     }
 

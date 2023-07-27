@@ -826,9 +826,10 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
 }
 
 String *Item_real_func::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   double nr = val_real();
   if (null_value) return nullptr; /* purecov: inspected */
+  if (current_thd->is_error()) return error_str();
   str->set_real(nr, decimals, collation.collation);
   return str;
 }

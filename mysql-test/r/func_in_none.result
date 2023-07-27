@@ -1380,3 +1380,10 @@ i8
 5
 DEALLOCATE PREPARE ps;
 DROP TABLE t1;
+#
+# Bug#35512282 Assertion failed: (slen % 4) == 0,
+#              file .\strings\ctype-ucs2.cc
+#
+SET @e:=1;
+DO ( 'x' IN (CONVERT(EXP(0xbf40f8f5) USING  utf32), UNHEX(@e)) );
+ERROR 22003: DOUBLE value is out of range in 'exp(0xbf40f8f5)'

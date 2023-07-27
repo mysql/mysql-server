@@ -214,3 +214,12 @@ EXECUTE ps USING @int_one, @dec_one, @str_one, @int_two, @dec_two, @str_two,
 DEALLOCATE PREPARE ps;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35512282 Assertion failed: (slen % 4) == 0,
+--echo #              file .\strings\ctype-ucs2.cc
+--echo #
+
+SET @e:=1;
+--error ER_DATA_OUT_OF_RANGE
+DO ( 'x' IN (CONVERT(EXP(0xbf40f8f5) USING  utf32), UNHEX(@e)) );
