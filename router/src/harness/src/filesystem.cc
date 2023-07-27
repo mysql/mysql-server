@@ -107,10 +107,12 @@ bool Path::is_regular() const {
 
 bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
-  // First type() needs to be force refreshed as the type of the file could have
+  // type() needs to be force refreshed as the type of the file could have
   // been changed in the meantime (e.g. file was created)
-  return type(true) != FileType::FILE_NOT_FOUND &&
-         type() != FileType::STATUS_ERROR;
+
+  auto ft = type(true);
+
+  return ft != FileType::FILE_NOT_FOUND && ft != FileType::STATUS_ERROR;
 }
 
 void Path::append(const Path &other) {
