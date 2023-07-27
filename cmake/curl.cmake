@@ -20,10 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# cmake -DWITH_CURL=system|<path/to/custom/installation>|no
-# system is the default for unix builds.
-# bundled is also supported on el7, for -DWITH_SSL=openssl11.
-# no will disable build of binaries that use curl.
+# cmake -DWITH_CURL=system|bundled|<path/to/custom/installation>|no
+# 'system' is the default for unix builds.
+# 'bundled' will use bundled code in extra/curl.
+# 'no' will disable build of binaries that use curl.
 
 # We create an INTERFACE library called curl_interface,
 # and an alias ext::curl
@@ -31,10 +31,9 @@
 # so just link with it, no need to do INCLUDE_DIRECTORIES.
 
 SET(WITH_CURL_DOC "\nsystem (use the OS curl library)")
+STRING_APPEND(WITH_CURL_DOC ", \nbundled (code in extra/curl)")
 STRING_APPEND(WITH_CURL_DOC ", \n</path/to/custom/installation>")
-STRING_APPEND(WITH_CURL_DOC ", \n 0 | no | off | none (skip curl)")
-STRING_APPEND(WITH_CURL_DOC
-  ", \n bundled (only supported for WITH_SSL=openssl11 on el7")
+STRING_APPEND(WITH_CURL_DOC ", \n0 | no | off | none (skip curl)")
 STRING_APPEND(WITH_CURL_DOC "\n")
 
 STRING(REPLACE "\n" "| " WITH_CURL_DOC_STRING "${WITH_CURL_DOC}")
@@ -169,6 +168,7 @@ FUNCTION(FIND_CUSTOM_CURL_INCLUDE WITH_CURL CURL_INCLUDE_DIR)
     NO_SYSTEM_ENVIRONMENT_PATH
     )
   IF(NOT INTERNAL_CURL_INCLUDE_DIR)
+    MESSAGE(WARNING "${WITH_CURL_DOC}")
     MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
   ENDIF()
   SET(CURL_INCLUDE_DIR ${INTERNAL_CURL_INCLUDE_DIR} PARENT_SCOPE)
@@ -233,12 +233,7 @@ FUNCTION(MYSQL_CHECK_CURL)
   IF(WITH_CURL STREQUAL "system")
     FIND_SYSTEM_CURL(CURL_INCLUDE_DIR)
   ELSEIF(WITH_CURL STREQUAL "bundled")
-    IF(ALTERNATIVE_SYSTEM_SSL)
-      MYSQL_USE_BUNDLED_CURL(CURL_INCLUDE_DIR)
-    ELSE()
-      MESSAGE(WARNING "WITH_CURL options: ${WITH_CURL_DOC}")
-      MESSAGE(FATAL_ERROR "Bundled CURL library is not supported.")
-    ENDIF()
+    MYSQL_USE_BUNDLED_CURL(CURL_INCLUDE_DIR)
   ELSEIF(WITH_CURL)
     FIND_CUSTOM_CURL(CURL_INCLUDE_DIR)
   ENDIF()

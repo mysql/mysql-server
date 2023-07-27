@@ -1344,7 +1344,7 @@ if(MSVC)
   endif()
 
   # Use multithreaded compilation on VS 2008+
-  if(MSVC_VERSION GREATER_EQUAL 1500)
+  if(MSVC_VERSION GREATER_EQUAL 1500 AND NOT WIN32_CLANG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
   endif()
 endif()
