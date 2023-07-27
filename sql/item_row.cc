@@ -91,7 +91,7 @@ void Item_row::illegal_method_call(const char *method [[maybe_unused]]) const {
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {
-  assert(fixed == 0);
+  assert(!fixed);
   null_value = false;
   set_nullable(false);
   bool types_assigned = true;

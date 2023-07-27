@@ -728,7 +728,7 @@ class Item_func_make_set final : public Item_str_func {
   bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
   bool fix_fields(THD *thd, Item **ref) override {
-    assert(fixed == 0);
+    assert(!fixed);
     bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
                 item->check_cols(1) || Item_func::fix_fields(thd, ref));
     set_nullable(is_nullable() || item->is_nullable());

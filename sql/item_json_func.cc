@@ -525,7 +525,7 @@ void Item_json_func::cleanup() {
 }
 
 longlong Item_func_json_valid::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   try {
     bool ok;
     if (json_is_valid(args, 0, &m_value, func_name(), nullptr, false, &ok)) {
@@ -988,7 +988,7 @@ void Item_func_json_contains_path::cleanup() {
 }
 
 longlong Item_func_json_contains_path::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   longlong result = 0;
   null_value = false;
 
@@ -1229,7 +1229,7 @@ static uint opaque_index(enum_field_types field_type) {
 }
 
 String *Item_func_json_type::val_str(String *) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_wrapper wr;
@@ -1651,7 +1651,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 }
 
 bool Item_typecast_json::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   Json_dom_ptr dom;  //@< if non-null we want a DOM from parse
 
@@ -1707,7 +1707,7 @@ void Item_typecast_json::print(const THD *thd, String *str,
 }
 
 longlong Item_func_json_length::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   longlong result = 0;
 
   Json_wrapper wrapper;
@@ -1752,7 +1752,7 @@ longlong Item_func_json_depth::val_int() {
 }
 
 bool Item_func_json_keys::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   Json_wrapper wrapper;
 
@@ -1813,7 +1813,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_extract::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_wrapper w;
@@ -1957,7 +1957,7 @@ static bool possible_root_path(const Json_path_iterator &begin,
 #endif  // NDEBUG
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_wrapper docw;
@@ -2042,7 +2042,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_insert::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_wrapper docw;
@@ -2166,7 +2166,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_wrapper docw;
@@ -2587,7 +2587,7 @@ return_null:
 }
 
 bool Item_func_json_array::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_array *arr = new (std::nothrow) Json_array();
@@ -2622,7 +2622,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     Json_object *object = new (std::nothrow) Json_object();
@@ -2823,7 +2823,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 }
 
 bool Item_func_json_search::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   Json_dom_vector matches(key_memory_JSON);
 
@@ -2983,7 +2983,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_remove::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   Json_wrapper wrapper;
   const uint32 path_count = arg_count - 1;
@@ -3123,7 +3123,7 @@ Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
 }
 
 bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
 
   Json_dom_ptr result_dom;
 
@@ -3166,7 +3166,7 @@ bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
 }
 
 String *Item_func_json_quote::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
   String *res = args[0]->val_str(str);
   if (!res) {
@@ -3236,7 +3236,7 @@ String *Item_func_json_quote::val_str(String *str) {
 }
 
 String *Item_func_json_unquote::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
   try {
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {

@@ -349,7 +349,7 @@ float Item_func_not::get_filtering_effect(THD *thd, table_map filter_for_table,
 */
 
 longlong Item_func_not::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const bool value = args[0]->val_bool();
   null_value = args[0]->null_value;
   /*
@@ -381,7 +381,7 @@ void Item_func_not::print(const THD *thd, String *str,
 */
 
 longlong Item_func_not_all::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const bool value = args[0]->val_bool();
 
   /*
@@ -433,7 +433,7 @@ void Item_func_not_all::print(const THD *thd, String *str,
 */
 
 longlong Item_func_nop_all::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const longlong value = args[0]->val_int();
 
   /*
@@ -2432,7 +2432,7 @@ void Item_in_optimizer::update_used_tables() {
 }
 
 longlong Item_func_eq::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value == 0 ? 1 : 0;
 }
@@ -2447,7 +2447,7 @@ bool Item_func_equal::resolve_type(THD *thd) {
 }
 
 longlong Item_func_equal::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   // Perform regular equality check first:
   const int value = cmp.compare();
   // If comparison is not NULL, we have a result:
@@ -2476,7 +2476,7 @@ float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
 }
 
 longlong Item_func_ne::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value != 0 && !null_value ? 1 : 0;
 }
@@ -2625,19 +2625,19 @@ float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
 }
 
 longlong Item_func_ge::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value >= 0 ? 1 : 0;
 }
 
 longlong Item_func_gt::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value > 0 ? 1 : 0;
 }
 
 longlong Item_func_le::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value <= 0 && !null_value ? 1 : 0;
 }
@@ -2657,7 +2657,7 @@ float Item_func_reject_if::get_filtering_effect(
 }
 
 longlong Item_func_lt::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   const int value = cmp.compare();
   return value < 0 && !null_value ? 1 : 0;
 }
@@ -2814,7 +2814,7 @@ void Item_func_interval::print(const THD *thd, String *str,
 */
 
 longlong Item_func_interval::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   double value;
   my_decimal dec_buf, *dec = nullptr;
   uint i;
@@ -3280,7 +3280,7 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table) {
 }
 
 double Item_func_ifnull::real_op() {
-  assert(fixed == 1);
+  assert(fixed);
   double value = args[0]->val_real();
   if (!args[0]->null_value) {
     null_value = false;
@@ -3292,7 +3292,7 @@ double Item_func_ifnull::real_op() {
 }
 
 longlong Item_func_ifnull::int_op() {
-  assert(fixed == 1);
+  assert(fixed);
   longlong value = args[0]->val_int();
   if (!args[0]->null_value) {
     null_value = false;
@@ -3304,7 +3304,7 @@ longlong Item_func_ifnull::int_op() {
 }
 
 my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   my_decimal *value = args[0]->val_decimal(decimal_value);
   if (!args[0]->null_value) {
     null_value = false;
@@ -3331,19 +3331,19 @@ bool Item_func_ifnull::val_json(Json_wrapper *result) {
 }
 
 bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!args[0]->get_date(ltime, fuzzydate)) return (null_value = false);
   return (null_value = args[1]->get_date(ltime, fuzzydate));
 }
 
 bool Item_func_ifnull::time_op(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!args[0]->get_time(ltime)) return (null_value = false);
   return (null_value = args[1]->get_time(ltime));
 }
 
 String *Item_func_ifnull::str_op(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   if (!args[0]->null_value) {
     null_value = false;
@@ -3383,7 +3383,7 @@ String *Item_func_ifnull::str_op(String *str) {
 */
 
 bool Item_func_if::fix_fields(THD *thd, Item **ref) {
-  assert(fixed == 0);
+  assert(!fixed);
   args[0]->apply_is_true();
 
   if (Item_func::fix_fields(thd, ref)) return true;
@@ -3441,7 +3441,7 @@ TYPELIB *Item_func_if::get_typelib() const {
 }
 
 double Item_func_if::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (current_thd->is_error()) return error_real();
   const double value = arg->val_real();
@@ -3450,7 +3450,7 @@ double Item_func_if::val_real() {
 }
 
 longlong Item_func_if::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (current_thd->is_error()) return error_int();
   const longlong value = arg->val_int();
@@ -3459,7 +3459,7 @@ longlong Item_func_if::val_int() {
 }
 
 String *Item_func_if::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
   switch (data_type()) {
     case MYSQL_TYPE_DATETIME:
@@ -3485,7 +3485,7 @@ String *Item_func_if::val_str(String *str) {
 }
 
 my_decimal *Item_func_if::val_decimal(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (current_thd->is_error()) return error_decimal(decimal_value);
   my_decimal *value = arg->val_decimal(decimal_value);
@@ -3494,7 +3494,7 @@ my_decimal *Item_func_if::val_decimal(my_decimal *decimal_value) {
 }
 
 bool Item_func_if::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (current_thd->is_error()) return error_json();
   bool has_value;
@@ -3505,7 +3505,7 @@ bool Item_func_if::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_if::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (arg->get_date(ltime, fuzzydate)) return error_date();
   null_value = arg->null_value;
@@ -3513,7 +3513,7 @@ bool Item_func_if::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
 }
 
 bool Item_func_if::get_time(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
   if (arg->get_time(ltime)) return error_time();
   null_value = arg->null_value;
@@ -3689,7 +3689,7 @@ Item *Item_func_case::find_item(String *) {
 }
 
 String *Item_func_case::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   switch (data_type()) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
@@ -3718,7 +3718,7 @@ String *Item_func_case::val_str(String *str) {
 }
 
 longlong Item_func_case::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
 
@@ -3737,7 +3737,7 @@ longlong Item_func_case::val_int() {
 }
 
 double Item_func_case::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
 
@@ -3756,7 +3756,7 @@ double Item_func_case::val_real() {
 }
 
 my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
 
@@ -3796,7 +3796,7 @@ bool Item_func_case::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
-  assert(fixed == 1);
+  assert(fixed);
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
@@ -3810,7 +3810,7 @@ bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
 }
 
 bool Item_func_case::get_time(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
@@ -4085,7 +4085,7 @@ Item_func_case::~Item_func_case() {
 */
 
 String *Item_func_coalesce::str_op(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     String *res;
@@ -4096,7 +4096,7 @@ String *Item_func_coalesce::str_op(String *str) {
 }
 
 bool Item_func_coalesce::val_json(Json_wrapper *wr) {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     bool has_value;
@@ -4110,7 +4110,7 @@ bool Item_func_coalesce::val_json(Json_wrapper *wr) {
 }
 
 longlong Item_func_coalesce::int_op() {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     const longlong res = args[i]->val_int();
@@ -4121,7 +4121,7 @@ longlong Item_func_coalesce::int_op() {
 }
 
 double Item_func_coalesce::real_op() {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     const double res = args[i]->val_real();
@@ -4132,7 +4132,7 @@ double Item_func_coalesce::real_op() {
 }
 
 my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {
     my_decimal *res = args[i]->val_decimal(decimal_value);
@@ -4143,7 +4143,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value) {
 }
 
 bool Item_func_coalesce::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
-  assert(fixed == 1);
+  assert(fixed);
   for (uint i = 0; i < arg_count; i++) {
     if (!args[i]->get_date(ltime, fuzzydate)) return (null_value = false);
   }
@@ -4151,7 +4151,7 @@ bool Item_func_coalesce::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
 }
 
 bool Item_func_coalesce::time_op(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   for (uint i = 0; i < arg_count; i++) {
     if (!args[i]->get_time(ltime)) return (null_value = false);
   }
@@ -5469,7 +5469,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item) {
 }
 
 bool Item_cond::fix_fields(THD *thd, Item **ref) {
-  assert(fixed == 0);
+  assert(!fixed);
   List_iterator<Item> li(list);
   Item *item;
   Query_block *select = thd->lex->current_query_block();
@@ -5932,7 +5932,7 @@ float Item_cond_and::get_filtering_effect(THD *thd, table_map filter_for_table,
 */
 
 longlong Item_cond_and::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   List_iterator_fast<Item> li(list);
   Item *item;
   null_value = false;
@@ -5976,7 +5976,7 @@ float Item_cond_or::get_filtering_effect(THD *thd, table_map filter_for_table,
 }
 
 longlong Item_cond_or::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   List_iterator_fast<Item> li(list);
   Item *item;
   null_value = false;
@@ -6142,7 +6142,7 @@ bool Item_func_isnull::resolve_type(THD *thd) {
 }
 
 longlong Item_func_isnull::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if (cache_used) return cached_value;
   return args[0]->is_null() ? 1 : 0;
 }
@@ -6203,7 +6203,7 @@ float Item_func_isnotnull::get_filtering_effect(
 }
 
 longlong Item_func_isnotnull::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   return args[0]->is_null() ? 0 : 1;
 }
 
@@ -6499,7 +6499,7 @@ float Item_func_xor::get_filtering_effect(THD *thd, table_map filter_for_table,
 */
 
 longlong Item_func_xor::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   int result = 0;
   null_value = false;
   for (uint i = 0; i < arg_count; i++) {

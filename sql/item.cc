@@ -315,7 +315,7 @@ String *Item::val_string_from_decimal(String *str) {
 }
 
 String *Item::val_string_from_datetime(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
@@ -325,7 +325,7 @@ String *Item::val_string_from_datetime(String *str) {
 }
 
 String *Item::val_string_from_date(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
@@ -335,7 +335,7 @@ String *Item::val_string_from_date(String *str) {
 }
 
 String *Item::val_string_from_time(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_time(&ltime) || (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return error_str();
@@ -378,7 +378,7 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value) {
 }
 
 my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE)) {
     return error_decimal(decimal_value);
@@ -387,7 +387,7 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value) {
 }
 
 my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_time(&ltime)) {
     return error_decimal(decimal_value);
@@ -480,7 +480,7 @@ longlong Item::val_int_from_decimal() {
 }
 
 longlong Item::val_int_from_time() {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   ulonglong value = 0;
   if (get_time(&ltime)) return 0LL;
@@ -494,7 +494,7 @@ longlong Item::val_int_from_time() {
 }
 
 longlong Item::val_int_from_date() {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   return get_date(&ltime, TIME_FUZZY_DATE)
              ? 0LL
@@ -502,7 +502,7 @@ longlong Item::val_int_from_date() {
 }
 
 longlong Item::val_int_from_datetime() {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE)) return 0LL;
 
@@ -1704,7 +1704,7 @@ bool Item::get_time_from_int(MYSQL_TIME *ltime) {
 }
 
 bool Item::get_time_from_date(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   if (get_date(ltime, TIME_FUZZY_DATE))  // Need this check if NULL value
     return true;
   set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
@@ -1712,7 +1712,7 @@ bool Item::get_time_from_date(MYSQL_TIME *ltime) {
 }
 
 bool Item::get_time_from_datetime(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   if (get_date(ltime, TIME_FUZZY_DATE)) return true;
   datetime_to_time(ltime);
   return false;
@@ -3139,7 +3139,7 @@ TYPELIB *Item_field::get_typelib() const {
 }
 
 String *Item_field::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return nullptr;
   str->set_charset(str_value.charset());
   return field->val_str(str, &str_value);
@@ -3154,37 +3154,37 @@ bool Item_field::val_json(Json_wrapper *result) {
 }
 
 double Item_field::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0.0;
   return field->val_real();
 }
 
 longlong Item_field::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0;
   return field->val_int();
 }
 
 longlong Item_field::val_time_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0;
   return field->val_time_temporal();
 }
 
 longlong Item_field::val_date_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0;
   return field->val_date_temporal();
 }
 
 longlong Item_field::val_time_temporal_at_utc() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0;
   return field->val_time_temporal_at_utc();
 }
 
 longlong Item_field::val_date_temporal_at_utc() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((null_value = field->is_null())) return 0;
   return field->val_date_temporal_at_utc();
 }
@@ -3381,7 +3381,7 @@ my_decimal *Item_int::val_decimal(my_decimal *decimal_value) {
 
 String *Item_int::val_str(String *str) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   str->set_int(value, unsigned_flag, collation.collation);
   return str;
 }
@@ -3410,7 +3410,7 @@ void Item_int::print(const THD *, String *str,
 
 String *Item_uint::val_str(String *str) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   str->set((ulonglong)value, collation.collation);
   return str;
 }
@@ -3537,14 +3537,14 @@ void Item_decimal::set_decimal_value(const my_decimal *value_par) {
 
 String *Item_float::val_str(String *str) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   str->set_real(value, decimals, &my_charset_bin);
   return str;
 }
 
 my_decimal *Item_float::val_decimal(my_decimal *decimal_value) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   double2my_decimal(E_DEC_FATAL_ERROR, value, decimal_value);
   return (decimal_value);
 }
@@ -3645,7 +3645,7 @@ double double_from_string_with_check(const CHARSET_INFO *cs, const char *cptr,
 }
 
 double Item_string::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   return double_from_string_with_check(str_value.charset(), str_value.ptr(),
                                        str_value.ptr() + str_value.length());
 }
@@ -3710,20 +3710,20 @@ bool Item_null::eq(const Item *item, bool) const {
 
 double Item_null::val_real() {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   null_value = true;
   return 0.0;
 }
 longlong Item_null::val_int() {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   null_value = true;
   return 0;
 }
 
 String *Item_null::val_str(String *) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   null_value = true;
   return nullptr;
 }
@@ -5021,7 +5021,7 @@ bool Item::fix_fields(THD *, Item **) {
   assert(is_contextualized());
 
   // We do not check fields which are fixed during construction
-  assert(fixed == 0 || basic_const_item());
+  assert(!fixed || basic_const_item());
   fixed = true;
   return false;
 }
@@ -7218,7 +7218,7 @@ void Item_hex_string::hex_string_init(const char *str, uint str_length) {
 
 longlong Item_hex_string::val_int() {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   const char *end = str_value.ptr() + str_value.length();
   const char *ptr;
 
@@ -7257,7 +7257,7 @@ longlong Item_hex_string::val_int() {
 
 my_decimal *Item_hex_string::val_decimal(my_decimal *decimal_value) {
   // following assert is redundant, because fixed=1 assigned in constructor
-  assert(fixed == 1);
+  assert(fixed);
   const ulonglong value = (ulonglong)val_int();
   int2my_decimal(E_DEC_FATAL_ERROR, value, true, decimal_value);
   return (decimal_value);
@@ -9316,7 +9316,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **) {
     parsing! So we have little to do in fix_fields. :)
   */
 
-  assert(fixed == 0);
+  assert(!fixed);
 
   /* Set field. */
 
@@ -9736,28 +9736,28 @@ void Item_cache_int::store_value(Item *item, longlong val_arg) {
 }
 
 String *Item_cache_int::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 
 my_decimal *Item_cache_int::val_decimal(my_decimal *decimal_val) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_val);
   return decimal_val;
 }
 
 double Item_cache_int::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return 0.0;
   if (unsigned_flag) return static_cast<unsigned long long>(value);
   return value;
 }
 
 longlong Item_cache_int::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return 0;
   return value;
 }
@@ -9823,7 +9823,7 @@ void Item_cache_datetime::store(Item *item) {
 }
 
 String *Item_cache_datetime::val_str(String *) {
-  assert(fixed == 1);
+  assert(fixed);
 
   if ((value_cached || str_value_cached) && null_value) return nullptr;
 
@@ -9851,7 +9851,7 @@ String *Item_cache_datetime::val_str(String *) {
 }
 
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val) {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (str_value_cached) {
     switch (data_type()) {
@@ -9934,7 +9934,7 @@ bool Item_cache_datetime::get_time(MYSQL_TIME *ltime) {
 double Item_cache_datetime::val_real() { return val_real_from_decimal(); }
 
 longlong Item_cache_datetime::val_time_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((!value_cached && !cache_value_int()) || null_value) return 0;
   if (is_temporal_with_date()) {
     /* Convert packed date to packed time */
@@ -9947,7 +9947,7 @@ longlong Item_cache_datetime::val_time_temporal() {
 }
 
 longlong Item_cache_datetime::val_date_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if ((!value_cached && !cache_value_int()) || null_value) return 0;
   if (data_type() == MYSQL_TYPE_TIME) {
     /* Convert packed time to packed date */
@@ -10096,26 +10096,26 @@ void Item_cache_real::store_value(Item *expr, double d) {
 }
 
 double Item_cache_real::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return 0.0;
   return value;
 }
 
 longlong Item_cache_real::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return 0;
   return (longlong)rint(value);
 }
 
 String *Item_cache_real::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   str->set_real(value, decimals, default_charset());
   return str;
 }
 
 my_decimal *Item_cache_real::val_decimal(my_decimal *decimal_val) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   double2my_decimal(E_DEC_FATAL_ERROR, value, decimal_val);
   return decimal_val;
@@ -10201,7 +10201,7 @@ void Item_cache_str::store_value(Item *expr, String &s) {
 }
 
 double Item_cache_str::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   int err_not_used;
   const char *end_not_used;
   if (!has_value()) return 0.0;
@@ -10212,7 +10212,7 @@ double Item_cache_str::val_real() {
 }
 
 longlong Item_cache_str::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   int err;
   if (!has_value()) return 0;
   if (value)
@@ -10223,13 +10223,13 @@ longlong Item_cache_str::val_int() {
 }
 
 String *Item_cache_str::val_str(String *) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   return value;
 }
 
 my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val) {
-  assert(fixed == 1);
+  assert(fixed);
   if (!has_value()) return nullptr;
   if (value)
     str2my_decimal(E_DEC_FATAL_ERROR, value->ptr(), value->length(),

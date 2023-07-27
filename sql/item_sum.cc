@@ -874,7 +874,7 @@ void Item_sum::cleanup() {
 }
 
 bool Item_sum::fix_fields(THD *thd, Item **ref [[maybe_unused]]) {
-  assert(fixed == 0);
+  assert(!fixed);
   if (m_window != nullptr) {
     if (m_window_resolved) return false;
 
@@ -1278,7 +1278,7 @@ bool Aggregator_distinct::add() {
     int error;
 
     if (const_distinct == CONST_NOT_NULL) {
-      assert(item_sum->fixed == 1);
+      assert(item_sum->fixed);
       Item_sum_count *sum = (Item_sum_count *)item_sum;
       sum->count = 1;
       return false;
@@ -1355,7 +1355,7 @@ void Aggregator_distinct::endup() {
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
-    assert(item_sum->fixed == 1);
+    assert(item_sum->fixed);
     Item_sum_count *sum = (Item_sum_count *)item_sum;
 
     if (tree && tree->is_in_memory()) {
@@ -1969,7 +1969,7 @@ bool Item_sum_sum::add() {
 }
 
 longlong Item_sum_sum::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_window != nullptr) {
     if (hybrid_type == REAL_RESULT) {
       return llrint_with_overflow_check(val_real());
@@ -1994,7 +1994,7 @@ longlong Item_sum_sum::val_int() {
 
 double Item_sum_sum::val_real() {
   DBUG_TRACE;
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0.0;
 
@@ -2191,7 +2191,7 @@ bool Item_sum_count::add() {
 
 longlong Item_sum_count::val_int() {
   DBUG_TRACE;
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0;
 
@@ -2292,7 +2292,7 @@ bool Item_sum_avg::add() {
 }
 
 double Item_sum_avg::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0.0;
 
@@ -2318,7 +2318,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
   DBUG_TRACE;
   my_decimal cnt;
   const my_decimal *sum_dec;
-  assert(fixed == 1);
+  assert(fixed);
 
   if (m_is_window_function) {
     if (hybrid_type != DECIMAL_RESULT) {
@@ -2408,7 +2408,7 @@ String *Item_sum_avg::val_str(String *str) {
 */
 
 double Item_sum_std::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   double nr = Item_sum_variance::val_real();
 
   assert(nr >= 0.0);
@@ -2693,7 +2693,7 @@ bool Item_sum_variance::add() {
 }
 
 double Item_sum_variance::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
 
   /*
     'sample' is a 1/0 boolean value.  If it is 1/true, id est this is a sample
@@ -2723,7 +2723,7 @@ double Item_sum_variance::val_real() {
 }
 
 my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf) {
-  assert(fixed == 1);
+  assert(fixed);
   return val_decimal_from_real(dec_buf);
 }
 
@@ -2942,7 +2942,7 @@ bool Item_sum_hybrid::compute() {
 }
 
 double Item_sum_hybrid::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0.0;
     bool ret = false;
@@ -2956,7 +2956,7 @@ double Item_sum_hybrid::val_real() {
 }
 
 longlong Item_sum_hybrid::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0;
     bool ret = false;
@@ -2970,7 +2970,7 @@ longlong Item_sum_hybrid::val_int() {
 }
 
 longlong Item_sum_hybrid::val_time_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0;
     if (m_optimize ? compute() : add()) return 0;
@@ -2982,7 +2982,7 @@ longlong Item_sum_hybrid::val_time_temporal() {
 }
 
 longlong Item_sum_hybrid::val_date_temporal() {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return 0;
     if (m_optimize ? compute() : add()) return 0;
@@ -2994,7 +2994,7 @@ longlong Item_sum_hybrid::val_date_temporal() {
 }
 
 my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val) {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) {
       return error_decimal(val);
@@ -3011,7 +3011,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val) {
 }
 
 bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return true;
     if (m_optimize ? compute() : add()) return true;
@@ -3021,7 +3021,7 @@ bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
 }
 
 bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime) {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return true;
     if (m_optimize ? compute() : add()) return true;
@@ -3031,7 +3031,7 @@ bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime) {
 }
 
 String *Item_sum_hybrid::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return error_str();
     if (m_optimize ? compute() : add()) return error_str();
@@ -3939,7 +3939,7 @@ double Item_sum_udf_decimal::val_real() { return val_real_from_decimal(); }
 longlong Item_sum_udf_decimal::val_int() { return val_int_from_decimal(); }
 
 my_decimal *Item_sum_udf_decimal::val_decimal(my_decimal *dec_buf) {
-  assert(fixed == 1);
+  assert(fixed);
   DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
@@ -3956,7 +3956,7 @@ Item *Item_sum_udf_int::copy_or_same(THD *thd) {
 }
 
 longlong Item_sum_udf_int::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
@@ -3990,7 +3990,7 @@ my_decimal *Item_sum_udf_str::val_decimal(my_decimal *dec) {
 }
 
 String *Item_sum_udf_str::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   DBUG_TRACE;
   String *res = udf.val_str(str, &str_value);
   null_value = !res;
@@ -4649,7 +4649,7 @@ double Item_func_group_concat::val_real() {
 }
 
 String *Item_func_group_concat::val_str(String *) {
-  assert(fixed == 1);
+  assert(fixed);
   if (null_value) return nullptr;
 
   if (!m_result_finalized)  // Result yet to be written.
@@ -5762,7 +5762,7 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
 }
 
 String *Item_sum_json::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   if (m_is_window_function) {
     if (wf_common_init()) return str;
     /*
@@ -5976,7 +5976,7 @@ bool Item_sum_json_object::check_wf_semantics1(
 }
 
 bool Item_sum_json_array::add() {
-  assert(fixed == 1);
+  assert(fixed);
   assert(arg_count == 1);
 
   const THD *thd = base_query_block->parent_lex->thd;
@@ -6038,7 +6038,7 @@ Item *Item_sum_json_array::copy_or_same(THD *thd) {
 }
 
 bool Item_sum_json_object::add() {
-  assert(fixed == 1);
+  assert(fixed);
   assert(arg_count == 2);
 
   const THD *thd = base_query_block->parent_lex->thd;
@@ -6470,7 +6470,7 @@ void Item_sum_collect::clear() {
 }
 
 bool Item_sum_collect::add() {
-  assert(fixed == 1);
+  assert(fixed);
   assert(arg_count == 1);
 
   THD *thd = base_query_block->parent_lex->thd;
@@ -6670,7 +6670,7 @@ void Item_sum_collect::store_result_field() {
 }
 
 my_decimal *Item_sum_collect::val_decimal(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   double2my_decimal(E_DEC_FATAL_ERROR, 0.0, decimal_value);
   return decimal_value;
 }

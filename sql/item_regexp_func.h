@@ -166,7 +166,7 @@ class Item_func_regexp : public Item_func {
 
  protected:
   String *convert_int_to_str(String *str) {
-    assert(fixed == 1);
+    assert(fixed);
     longlong nr = val_int();
     if (null_value) return nullptr;
     str->set_int(nr, unsigned_flag, collation.collation);
@@ -174,7 +174,7 @@ class Item_func_regexp : public Item_func {
   }
 
   my_decimal *convert_int_to_decimal(my_decimal *value) {
-    assert(fixed == 1);
+    assert(fixed);
     longlong nr = val_int();
     if (null_value) return nullptr; /* purecov: inspected */
     int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, value);
@@ -182,12 +182,12 @@ class Item_func_regexp : public Item_func {
   }
 
   double convert_int_to_real() {
-    assert(fixed == 1);
+    assert(fixed);
     return val_int();
   }
 
   double convert_str_to_real() {
-    assert(fixed == 1);
+    assert(fixed);
     int err_not_used;
     const char *end_not_used;
     String *res = val_str(&str_value);
@@ -197,7 +197,7 @@ class Item_func_regexp : public Item_func {
   }
 
   longlong convert_str_to_int() {
-    assert(fixed == 1);
+    assert(fixed);
     int err;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0;

@@ -145,7 +145,7 @@ using std::vector;
   returned instead.
 */
 String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2) {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (my_charset_is_ascii_based(collation.collation)) {
     String *res = val_str_ascii(str);
@@ -177,7 +177,7 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref) {
 }
 
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
-  assert(fixed == 1);
+  assert(fixed);
   char buff[64];
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
@@ -188,7 +188,7 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
 }
 
 String *Item_func_md5::val_str_ascii(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *sptr = args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
   if (sptr) {
@@ -239,7 +239,7 @@ bool Item_func_md5::resolve_type(THD *thd) {
 }
 
 String *Item_func_sha::val_str_ascii(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *sptr = args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
   if (sptr) /* If we got value different from NULL */
@@ -275,7 +275,7 @@ bool Item_func_sha::resolve_type(THD *thd) {
   (which is equivalent to 256).
 */
 String *Item_func_sha2::val_str_ascii(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length = 0;
 
@@ -583,7 +583,7 @@ bool Item_func_aes_encrypt::do_itemize(Parse_context *pc, Item **res) {
 }
 
 String *Item_func_aes_encrypt::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   char key_buff[80]{'\0'};
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   THD *thd = current_thd;
@@ -657,7 +657,7 @@ bool Item_func_aes_decrypt::do_itemize(Parse_context *pc, Item **res) {
 }
 
 String *Item_func_aes_decrypt::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   THD *thd = current_thd;
@@ -734,7 +734,7 @@ bool Item_func_random_bytes::resolve_type(THD *thd) {
 }
 
 String *Item_func_random_bytes::val_str(String *) {
-  assert(fixed == 1);
+  assert(fixed);
   const ulonglong n_bytes = args[0]->val_uint();
   null_value = args[0]->null_value;
 
@@ -1189,7 +1189,7 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
 }
 
 String *Item_func_reverse::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   const char *ptr, *end;
   char *tmp;
@@ -1388,7 +1388,7 @@ bool Item_func_insert::resolve_type(THD *thd) {
 }
 
 String *Item_str_conv::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res;
   if (!(res = args[0]->val_str(str))) {
     null_value = true; /* purecov: inspected */
@@ -1442,7 +1442,7 @@ bool Item_func_upper::resolve_type(THD *thd) {
 }
 
 String *Item_func_left::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return error_str();
 
@@ -1498,7 +1498,7 @@ bool Item_func_left::resolve_type(THD *thd) {
 }
 
 String *Item_func_right::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return error_str();
 
@@ -1936,7 +1936,7 @@ bool Item_func_database::do_itemize(Parse_context *pc, Item **res) {
 }
 
 String *Item_func_database::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   THD *thd = current_thd;
   if (thd->db().str == nullptr) {
     null_value = true;
@@ -2073,7 +2073,7 @@ static bool my_uni_isalpha(int wc) {
 }
 
 String *Item_func_soundex::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   char last_ch, ch;
   const CHARSET_INFO *cs = collation.collation;
@@ -2220,7 +2220,7 @@ String *Item_func_format::val_str_ascii(String *str) {
   /* Number of characters used to represent the decimals, including '.' */
   uint32 dec_length;
   MY_LOCALE *lc;
-  assert(fixed == 1);
+  assert(fixed);
 
   dec = (int)args[1]->val_int();
   if (args[1]->null_value) {
@@ -2336,7 +2336,7 @@ bool Item_func_elt::resolve_type(THD *thd) {
 }
 
 double Item_func_elt::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
   uint tmp;
   null_value = true;
   if ((tmp = (uint)args[0]->val_int()) == 0 || args[0]->null_value ||
@@ -2348,7 +2348,7 @@ double Item_func_elt::val_real() {
 }
 
 longlong Item_func_elt::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   uint tmp;
   null_value = true;
   if ((tmp = (uint)args[0]->val_int()) == 0 || args[0]->null_value ||
@@ -2478,7 +2478,7 @@ void Item_func_make_set::print(const THD *thd, String *str,
 }
 
 String *Item_func_char::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   null_value = false;
   str->length(0);
   str->set_charset(collation.collation);
@@ -2561,7 +2561,7 @@ end:
 */
 
 String *Item_func_repeat::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
@@ -2972,7 +2972,7 @@ bool Item_func_conv::resolve_type(THD *thd) {
 }
 
 String *Item_func_conv::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return error_str();
 
@@ -3062,7 +3062,7 @@ bool Item_func_set_collation::do_itemize(Parse_context *pc, Item **res) {
 }
 
 String *Item_func_set_collation::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   str = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return nullptr;
   str->set_charset(collation.collation);
@@ -3136,7 +3136,7 @@ void Item_func_set_collation::print(const THD *thd, String *str,
 }
 
 String *Item_func_charset::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   uint dummy_errors;
 
   const CHARSET_INFO *cs = args[0]->charset_for_protocol();
@@ -3150,7 +3150,7 @@ String *Item_func_charset::val_str(String *str) {
 }
 
 String *Item_func_collation::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   uint dummy_errors;
   const CHARSET_INFO *cs = args[0]->charset_for_protocol();
 
@@ -3241,7 +3241,7 @@ String *Item_func_weight_string::val_str(String *str) {
   const CHARSET_INFO *cs = args[0]->collation.collation;
   size_t output_buf_size, output_length;
   bool rounded_up = false;
-  assert(fixed == 1);
+  assert(fixed);
 
   // Ask filesort what type it would sort this as. Currently, we support strings
   // and integers (the latter include temporal types).
@@ -3340,7 +3340,7 @@ bool Item_func_hex::resolve_type(THD *thd) {
 
 String *Item_func_hex::val_str_ascii(String *str) {
   String *res;
-  assert(fixed == 1);
+  assert(fixed);
   if (args[0]->result_type() != STRING_RESULT) {
     /* Return hex of signed longlong value */
     const longlong dec = args[0]->val_int();
@@ -3384,7 +3384,7 @@ String *Item_func_unhex::val_str(String *str) {
   String *res;
   size_t length;
   null_value = true;
-  assert(fixed == 1);
+  assert(fixed);
 
   res = args[0]->val_str(str);
   // For a NULL input value return NULL without any warning
@@ -3413,7 +3413,7 @@ err:
 
 #ifndef NDEBUG
 String *Item_func_like_range::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   const longlong nbytes = args[1]->val_int();
   String *res = args[0]->val_str(str);
   size_t min_len, max_len;
@@ -3644,7 +3644,7 @@ bool Item_load_file::do_itemize(Parse_context *pc, Item **res) {
 }
 
 String *Item_load_file::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *file_name;
   File file;
   MY_STAT stat_info;
@@ -3837,7 +3837,7 @@ bool Item_func_quote::resolve_type(THD *thd) {
 */
 
 String *Item_func_quote::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   /*
     Bit mask that has 1 for set for the position of the following characters:
     0, \, ' and ^Z
@@ -4013,7 +4013,7 @@ ret:
   Item_func_compress::val_str, we issue a warning and return 0.
  */
 longlong Item_func_uncompressed_length::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(&value);
 
   if ((null_value = args[0]->null_value)) return 0;
@@ -4042,7 +4042,7 @@ longlong Item_func_uncompressed_length::val_int() {
 }
 
 longlong Item_func_crc32::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(&value);
   if (!res) {
     null_value = true;
@@ -4066,7 +4066,7 @@ String *Item_func_compress::val_str(String *str) {
   String *res;
   Byte *body;
   char *last_char;
-  assert(fixed == 1);
+  assert(fixed);
 
   if (!(res = args[0]->val_str(str))) {
     null_value = true;
@@ -4111,7 +4111,7 @@ String *Item_func_compress::val_str(String *str) {
 }
 
 String *Item_func_uncompress::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String *res = args[0]->val_str(str);
   ulong new_size;
   int err;
@@ -4319,7 +4319,7 @@ String *mysql_generate_uuid(String *str) {
 }
 
 String *Item_func_uuid::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   return mysql_generate_uuid(str);
 }
 

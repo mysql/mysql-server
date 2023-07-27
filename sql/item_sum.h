@@ -960,7 +960,7 @@ class Item_sum_num : public Item_sum {
 
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
-    assert(fixed == 1);
+    assert(fixed);
     return llrint_with_overflow_check(val_real()); /* Real as default */
   }
   String *val_str(String *str) override;
@@ -1951,7 +1951,7 @@ class Item_udf_sum : public Item_sum {
   bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref) override {
-    assert(fixed == 0);
+    assert(!fixed);
 
     if (init_sum_func_check(thd)) return true;
 
@@ -1978,7 +1978,7 @@ class Item_sum_udf_float final : public Item_udf_sum {
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
       : Item_udf_sum(thd, item) {}
   longlong val_int() override {
-    assert(fixed == 1);
+    assert(fixed);
     return (longlong)rint(Item_sum_udf_float::val_real());
   }
   double val_real() override;
@@ -2006,7 +2006,7 @@ class Item_sum_udf_int final : public Item_udf_sum {
       : Item_udf_sum(thd, item) {}
   longlong val_int() override;
   double val_real() override {
-    assert(fixed == 1);
+    assert(fixed);
     return (double)Item_sum_udf_int::val_int();
   }
   String *val_str(String *str) override;

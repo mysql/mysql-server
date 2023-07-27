@@ -5371,7 +5371,7 @@ class Item_float : public Item_num {
     return value;
   }
   longlong val_int() override {
-    assert(fixed == 1);
+    assert(fixed);
     if (value <= LLONG_MIN) {
       return LLONG_MIN;
     } else if (value > LLONG_MAX_DOUBLE) {
@@ -5538,7 +5538,7 @@ class Item_string : public Item_basic_constant {
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override {
-    assert(fixed == 1);
+    assert(fixed);
     return &str_value;
   }
   my_decimal *val_decimal(my_decimal *) override;
