@@ -123,6 +123,22 @@ static bool session_type_convert(std::string value,
 }
 
 static bool authentication_type_convert(
+    std::string value, http_client::WriteFileFormat *out_at = nullptr) {
+  using namespace http_client;
+  const static std::map<std::string, WriteFileFormat> map{
+      {"raw", WriteFileFormat::kRaw}, {"mtr", WriteFileFormat::kMTR}};
+
+  mysql_harness::lower(value);
+  auto it = map.find(value);
+
+  if (map.end() == it) return false;
+
+  if (out_at) *out_at = it->second;
+
+  return true;
+}
+
+static bool authentication_type_convert(
     std::string value, http_client::AuthenticationType *out_at = nullptr) {
   using namespace http_client;
   const static std::map<std::string, AuthenticationType> map{
@@ -330,6 +346,22 @@ std::vector<CmdOption> g_options{
        }
      }},
 
+    {{"--write-format", "-f"},
+     "Write format.",
+     CmdOptionValueReq::required,
+     "write_format",
+     [](const std::string &value) {
+       if (!authentication_type_convert(value, &g_configuration.write_format))
+         throw std::invalid_argument("Invalid parameter for output format.");
+     },
+     [](const std::string &) {}},
+    {{"--write-to-file", "-w"},
+     "Write output to file.",
+     CmdOptionValueReq::required,
+     "write_to_file",
+     [](const std::string &value) { g_configuration.write_to_file = value; },
+     [](const std::string &) {}},
+
     {{"--wait-until-found"},
      "In case when the request fails with code 'NOT-FOUND', this means that"
      "mysqlrouter might not fetch the data. The refresh timeout is configurable"
@@ -446,7 +478,7 @@ std::vector<CmdOption> g_options{
      "What should be presented as output: VALUES=(none|all|VALUE[,VALUE[....]])"
      "where VALUE can be: REQUEST, TITLE, BODY, HEADER, STATUS, RESULT. By "
      "default its "
-     "set to BODY,RESULT.",
+     "set to REQUEST,BODY,RESULT.",
      CmdOptionValueReq::required,
      "meta_display",
      [](const std::string &value) {
@@ -675,6 +707,27 @@ int main(int argc, char *argv[]) {
     validate_result(result);
 
     print_results(result, result.ok ? display : Display::display_all());
+
+    if (!g_configuration.write_to_file.empty() && result.ok) {
+      std::ofstream out{g_configuration.write_to_file};
+      switch (g_configuration.write_format) {
+        case http_client::WriteFileFormat::kRaw:
+          out << result.body;
+          break;
+        case http_client::WriteFileFormat::kMTR: {
+          auto r = result.body;
+          // TODO(lkotula): result.body escaping ? (Shouldn't be in review)
+          if (g_configuration.json_pointer.size() == 1) {
+            rapidjson::Document doc = helper::json::text_to_document(r);
+            rapidjson::Pointer p{g_configuration.json_pointer[0].c_str()};
+            auto *v = rapidjson::GetValueByPointer(doc, p);
+            r = helper::json::to_string(v);
+          }
+          out << "let $mrs_result=" << r << ";" << std::endl;
+          break;
+        }
+      }
+    }
 
     return result.ok ? EXIT_SUCCESS : EXIT_FAILURE;
   } catch (const std::exception &e) {

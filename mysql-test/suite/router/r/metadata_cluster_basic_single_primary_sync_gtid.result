@@ -1,0 +1,337 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+# MySQL Rest Service schema created.
+# MySQL InnoDB Cluster schema created.
+# * insert three RW and RO nodes into MySQL InnoDB Cluster.
+include/rpl_sync.inc
+# Generating config into generated_router_1.cnf
+#  * router: inno_rw
+#  * router: inno_ro
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_2.cnf
+#  * https
+#  * MySQL Rest Service
+include/rpl_sync.inc
+# Connection "router.1" active
+# restart:generated_router_2.cnf
+# DB `basic_schema` - created 
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/basic
+# Registred DB_OBJECT at path: /svc/basic/t1
+# Registred DB_OBJECT at path: /svc/basic/t2
+GET /svc/basic/t1
+{
+    "items": [
+        {
+            "id": 1,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/1"
+                }
+            ],
+            "_metadata": {
+                "etag": "D6132AC057950FB3305B3B1DB876B6B31B92F837E93F57CE3734B6A935FDA9E7"
+            }
+        },
+        {
+            "id": 20,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/20"
+                }
+            ],
+            "_metadata": {
+                "etag": "1285DED74638BAE29A61F8B5030DEF9E3E75BF4717CCC9A5CC2DB2907344C8CE"
+            }
+        },
+        {
+            "id": 30,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/30"
+                }
+            ],
+            "_metadata": {
+                "etag": "218CB707EB11E75A9615607F560064F3B01E36CAEBBA7694ADD8D352877CF734"
+            }
+        },
+        {
+            "id": 31,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/31"
+                }
+            ],
+            "_metadata": {
+                "etag": "0A1FA06FE1E35C4FBED5E53DCF8A354953C1AD135E48B70C68E5B086DAF97D30"
+            }
+        },
+        {
+            "id": 50,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/50"
+                }
+            ],
+            "_metadata": {
+                "etag": "DE9E4B1FFF95DBC788C5E74D02269EF68E713623266DC5B6240E744DB4D704A9"
+            }
+        },
+        {
+            "id": 100,
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t1/100"
+                }
+            ],
+            "_metadata": {
+                "etag": "F8EAB721BAFC0569FE7C616A7495DD7FFBA42B04DAE700367DA144AC1F6974C1"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 6,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/"
+        }
+    ]
+}
+OK
+GET /svc/basic/t1/1
+{
+    "id": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/1"
+        }
+    ],
+    "_metadata": {
+        "etag": "D6132AC057950FB3305B3B1DB876B6B31B92F837E93F57CE3734B6A935FDA9E7"
+    }
+}
+OK
+GET /svc/basic/t1/20
+{
+    "id": 20,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t1/20"
+        }
+    ],
+    "_metadata": {
+        "etag": "1285DED74638BAE29A61F8B5030DEF9E3E75BF4717CCC9A5CC2DB2907344C8CE"
+    }
+}
+OK
+GET /svc/basic/t1/2
+{
+    "message": "Not Found",
+    "status": 404
+}
+OK
+DELETE /svc/basic/t1/20
+{
+    "_metadata": {
+        "gtid": "f9865d1d-2c73-11ee-b326-04ed333fde50:1-335"
+    }
+}
+OK
+{
+    "count": 0
+}
+OK
+GET /svc/basic/t2
+{
+    "items": [
+        {
+            "id": 1,
+            "date": "1977-01-21 00:00:00.000000",
+            "name": "First row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/1"
+                }
+            ],
+            "comments": "First comment",
+            "_metadata": {
+                "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
+            }
+        },
+        {
+            "id": 2,
+            "date": "1977-01-21 00:00:00.000000",
+            "name": "Second row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/2"
+                }
+            ],
+            "comments": null,
+            "_metadata": {
+                "etag": "963D6D69847F195E3A9A70450E4EDDB775836C22A32F651BE10E45E5B62719FD"
+            }
+        },
+        {
+            "id": 3,
+            "date": "1977-02-21 00:00:00.000000",
+            "name": "Thrid row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/3"
+                }
+            ],
+            "comments": null,
+            "_metadata": {
+                "etag": "D2AC854D461B0B21EC40034BB00F9A8D5FC614D6C588AAE507F86FE70DEE56BE"
+            }
+        },
+        {
+            "id": 4,
+            "date": "1977-01-21 00:00:00.000000",
+            "name": "4th row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/4"
+                }
+            ],
+            "comments": "This row was inserted as forth row.",
+            "_metadata": {
+                "etag": "B72A7C650645FA00389E5603757735846A41E21C86B68C1CB6C4743309883B34"
+            }
+        },
+        {
+            "id": 5,
+            "date": "2021-03-01 00:00:00.000000",
+            "name": "5th row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/5"
+                }
+            ],
+            "comments": "",
+            "_metadata": {
+                "etag": "2C97EB5816330107CBE4EAE7DE33C21A89B335541A6A5442A50289CF7B6957AA"
+            }
+        },
+        {
+            "id": 6,
+            "date": "2023-01-21 00:00:00.000000",
+            "name": "6th row",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/6"
+                }
+            ],
+            "comments": "...",
+            "_metadata": {
+                "etag": "57C05B67BB0648B378F365568F54812D544517008B49C08F5442BD744E30B259"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 6,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/"
+        }
+    ]
+}
+OK
+GET /svc/basic/t2/1
+{
+    "id": 1,
+    "date": "1977-01-21 00:00:00.000000",
+    "name": "First row",
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/1"
+        }
+    ],
+    "comments": "First comment",
+    "_metadata": {
+        "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
+    }
+}
+OK
+GET /svc/basic/t2/200
+{
+    "message": "Not Found",
+    "status": 404
+}
+OK
+OK
+{
+    "items": [
+        {
+            "id": 3000,
+            "date": "1920-12-01 00:00:00.000000",
+            "name": "PUT item",
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "/svc/basic/t2/3000"
+                }
+            ],
+            "comments": null,
+            "_metadata": {
+                "etag": "81FDBCC74A42BB1F336BD83A193090293752F9F9E675974D1A8074BEC9B33B2B"
+            }
+        }
+    ],
+    "limit": 25,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "/svc/basic/t2/"
+        }
+    ]
+}
+OK
+DROP SCHEMA basic_schema;
+DROP SCHEMA mysql_innodb_cluster_metadata;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;
+include/rpl_sync.inc
+include/group_replication_end.inc

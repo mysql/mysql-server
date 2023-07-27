@@ -39,6 +39,7 @@ namespace http_client {
 using namespace mrs_client;
 enum class AuthenticationType { kNone, kBasic, kScramGet, kOauth2 };
 enum class ResponseType { kJson, kRaw };
+enum class WriteFileFormat { kRaw, kMTR };
 
 struct ApplicationDisplay {
   bool request{true};
@@ -68,6 +69,8 @@ struct ApplicationConfiguration {
   std::string session_file;
   std::string json_schema_file;
   std::string payload;
+  std::string write_to_file;
+  WriteFileFormat write_format{WriteFileFormat::kRaw};
   bool help{false};
   ApplicationDisplay display;
   SessionType session_type{SessionType::kCookie};
