@@ -607,10 +607,11 @@ void BootstrapConfigurator::check_mrs_metadata(
     mysqlrouter::MySQLSession *session) const {
   try {
     mrs::database::QueryVersion q;
+    const int k_current_major{2}, k_current_minor{0};
 
     auto version = q.query_version(session);
 
-    if (version.major != 2 || (version.minor == 0 && version.patch < 2)) {
+    if (version.major != k_current_major || version.minor > k_current_minor) {
       std::stringstream ss;
       ss << "Unsupported MRS metadata version (" << version.major << "."
          << version.minor << "." << version.patch << ")";
