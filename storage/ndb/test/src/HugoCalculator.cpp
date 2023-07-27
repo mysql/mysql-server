@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -555,6 +555,31 @@ HugoCalculator::setValues(Uint8 * pRow,
       }
     }
   }
+
+  return NDBT_OK;
+}
+
+int
+HugoCalculator::setKeyParts(HugoCalculator::KeyParts* keyParts, int rowid)
+{
+  char* pos = keyParts->buffer;
+
+  int k = 0;
+
+  for(int j = 0; j< m_tab.getNoOfColumns(); j++)
+  {
+    if(m_tab.getColumn(j)->getPartitionKey())
+    {
+      int sz = m_tab.getColumn(j)->getSizeInBytes();
+      Uint32 real_size;
+      /* Updates always == 0, as it is never part of PK */
+      calcValue(rowid, j, 0, pos, sz, &real_size);
+      keyParts->ptrs[k].ptr = pos;
+      keyParts->ptrs[k++].len = real_size;
+      pos += (real_size + 3) & ~3;
+    }
+  }
+  keyParts->ptrs[k].ptr = 0;
 
   return NDBT_OK;
 }

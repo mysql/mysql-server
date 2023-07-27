@@ -99,7 +99,7 @@ max-time : 180
 
 cmd: testNdbApi
 args: -n CheckSlowCommit T1
-max-time : 180
+max-time : 720
 
 cmd: testNodeRestart
 args: -n StartDuringNodeRestart T1
@@ -252,4 +252,12 @@ max-time: 520
 cmd: testNdbApi
 args: -n TestSlowConnectEnable T1
 max-time: 600
+
+cmd: testNodeRestart
+args: -n TransStallTimeout T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n TransStallTimeoutNF T1
+max-time: 180
 

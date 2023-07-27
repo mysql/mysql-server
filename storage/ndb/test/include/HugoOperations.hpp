@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ public:
   int startTransaction(Ndb*, const NdbDictionary::Table *table= 0,
                        const char  *keyData= 0, Uint32 keyLen= 0);
   int startTransaction(Ndb*, Uint32 node_id, Uint32 instance_id);
+  int startTransaction(Ndb*, int recordNo);
   int setTransaction(NdbTransaction*,bool not_null_ok= false);
   int closeTransaction(Ndb*);
   NdbTransaction* getTransaction();

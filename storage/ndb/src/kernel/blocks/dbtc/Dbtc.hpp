@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,6 +240,8 @@ public:
     OS_WAIT_COMPLETE_CONF = 17,
 
     OS_FIRE_TRIG_REQ = 19,
+
+    OS_MAX_STATE_VAL = 19
   };
 
   enum AbortState {
@@ -2100,6 +2102,7 @@ private:
   void wrongSchemaVersionErrorLab(Signal* signal);
   void noFreeConnectionErrorLab(Signal* signal);
   void tckeyreq050Lab(Signal* signal);
+  void periodicLogOddTimeoutAndResetTimer(ApiConnectRecordPtr apiPtr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);

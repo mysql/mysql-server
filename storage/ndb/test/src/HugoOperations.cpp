@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,26 @@ int HugoOperations::startTransaction(Ndb* pNdb,
     return NDBT_FAILED;
   }
   pTrans = pNdb->startTransaction(node_id, instance_id);
+  if (pTrans == NULL) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    setNdbError(err);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int HugoOperations::startTransaction(Ndb* pNdb,
+                                     int recordNo)
+{
+  if (pTrans != NULL)
+  {
+    ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
+    return NDBT_FAILED;
+  }
+  HugoCalculator::KeyParts kp;
+  calc.setKeyParts(&kp, recordNo);
+  pTrans = pNdb->startTransaction(&tab, kp.ptrs);
   if (pTrans == NULL) {
     const NdbError err = pNdb->getNdbError();
     NDB_ERR(err);

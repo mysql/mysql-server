@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,22 @@ public:
 
   int equalForRow(Uint8 *, const NdbRecord*, int rowid);
   int setValues(Uint8*, const NdbRecord*, int rowid, int updateval);
+
+  class KeyParts
+  {
+  public:
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
+    char buffer[NDB_MAX_TUPLE_SIZE];
+
+    KeyParts()
+    {
+      ptrs[0].ptr = 0;
+    }
+  };
+
+  /* Init buffer and ptrs in KeyParts object for row */
+  int setKeyParts(KeyParts* keyParts, int rowid);
+
 private:
   const NdbDictionary::Table& m_tab;
   int m_idCol;
