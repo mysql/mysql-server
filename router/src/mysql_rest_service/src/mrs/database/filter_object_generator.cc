@@ -158,6 +158,8 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
   static std::string k_asof{"$asof"};
   for (auto member : helper::json::member_iterator(object)) {
     if (k_asof == member.first) {
+      if (!where_.is_empty()) where_.append_preformatted(" AND");
+
       parse_asof(member.second);
     } else if (k_order == member.first) {
       if (!member.second->IsObject())
@@ -398,9 +400,14 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   argument_.pop_back();
 }
 
-void FilterObjectGenerator::parse_asof(Value * /*value*/) {
+void FilterObjectGenerator::parse_asof(Value *value) {
   log_debug("Parser asof");
-  throw RestError("`asof` attribute not supported.");
+  if (!value->IsString())
+    throw RestError("Wrong value for `asof`, requires string with GTID.");
+  mysqlrouter::sqlstring wait{" 0=WAIT_FOR_EXECUTED_GTID_SET(?,?) "};
+  wait << value->GetString();
+  wait << 0;
+  where_.append_preformatted(wait);
 }
 
 void FilterObjectGenerator::parse_order(Object object) {
@@ -413,7 +420,7 @@ void FilterObjectGenerator::parse_order(Object object) {
   bool first = order_.is_empty();
 
   if (0 == object.MemberCount())
-    throw RestError("Wrong falue for `orderby`, requires object with fields.");
+    throw RestError("Wrong value for `orderby`, requires object with fields.");
 
   for (auto member : helper::json::member_iterator(object)) {
     order_.append_preformatted(first ? " ORDER BY " : ", ");
