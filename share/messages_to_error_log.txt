@@ -12243,6 +12243,9 @@ ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
 ER_CONVERT_MULTI_VALUE
    eng "Multi-values cannot be converted to MySQL format: %s"
 
+ER_IB_DDL_CONVERT_HEAP_NOT_FOUND
+  eng "Heap required to convert columns is not present."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
