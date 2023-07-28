@@ -1,0 +1,44 @@
+--source include/no_ps_protocol.inc
+
+--echo #
+--echo # Bug#35616015: SUM_ROWS_EXAMINED does not count rows correctly
+--echo #               for Index Merge (PS.events_statements_summary_by_digest)
+--echo #
+
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, key(f1), key(f2, f3), key(f2));
+
+INSERT INTO t1 VALUES (0,1,2),(1,2,3),(2,3,4);
+INSERT INTO t1 SELECT f1,f2+1,f3+2 FROM t1;
+INSERT INTO t1 SELECT f1,f2+1,f3+2 FROM t1;
+INSERT INTO t1 SELECT f1,f2+1,f3+2 FROM t1;
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t1 WHERE f1 = 0 OR f2 = 2;
+# Hypergraph does not count examined rows.
+--skip_if_hypergraph
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
+
+EXPLAIN SELECT * FROM t1 WHERE f1 > 1 OR f2 < 0;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t1 WHERE f1 > 1 OR f2 < 0;
+# Hypergraph does not count examined rows.
+--skip_if_hypergraph
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
+
+EXPLAIN SELECT * FROM t1 WHERE f1 = 1 AND f2 = 3;
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT * FROM t1 WHERE f1 = 0 AND f2 = 2;
+# Hypergraph does not count examined rows.
+--skip_if_hypergraph
+SELECT SUM_ROWS_EXAMINED, SUM_ROWS_SENT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE schema_name = 'test' AND NOT DIGEST_TEXT LIKE '%TRUNCATE%';
+
+DROP TABLE t1;
