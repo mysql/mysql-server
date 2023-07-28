@@ -12339,6 +12339,15 @@ void Dblqh::execCOMMIT(Signal* signal)
     }
     return;
   }
+  if (ERROR_INSERTED(5110))
+  {
+    jam();
+    g_eventLogger->info("LQH %u delaying commit",
+                        instance());
+    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 200, signal->getLength());
+    return;
+  }
+
   ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   if (likely((tcConnectptr.p->transid[0] == transid1) &&
              (tcConnectptr.p->transid[1] == transid2)))
@@ -12513,6 +12522,14 @@ void Dblqh::execCOMPLETE(Signal* signal)
       sendSignal(numberToRef(CMVMI, refToNode(save)),
                  GSN_NDB_TAMPER, signal, 1, JBB);
     }
+    return;
+  }
+  if (ERROR_INSERTED(5111))
+  {
+    jam();
+    g_eventLogger->info("LQH %u delaying complete",
+                        instance());
+    sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 200, signal->getLength());
     return;
   }
   ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);

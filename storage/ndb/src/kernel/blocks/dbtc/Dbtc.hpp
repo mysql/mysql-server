@@ -248,6 +248,8 @@ public:
     OS_WAIT_COMPLETE_CONF = 17,
 
     OS_FIRE_TRIG_REQ = 19,
+
+    OS_MAX_STATE_VAL = 19
   };
 
   enum AbortState {
@@ -2452,6 +2454,7 @@ private:
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void logAbortingOperation(Signal* signal, ApiConnectRecordPtr apiPtr, TcConnectRecordPtr tcPtr, Uint32 error);
   void logTransactionTimeout(Signal* signal, Uint32 apiConn, Uint32 errCode, bool force = false);
+  void periodicLogOddTimeoutAndResetTimer(ApiConnectRecordPtr apiPtr);
   void logScanTimeout(Signal* signal, ScanFragRecPtr scanFragPtr, ScanRecordPtr scanPtr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);

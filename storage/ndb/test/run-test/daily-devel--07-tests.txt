@@ -106,7 +106,7 @@ max-time : 180
 
 cmd: testNdbApi
 args: -n CheckSlowCommit T1
-max-time : 180
+max-time : 720
 
 cmd: testNodeRestart
 args: -n StartDuringNodeRestart T1
@@ -303,3 +303,12 @@ max-time: 600
 cmd: testDict
 args : -r 2500 -l 200 -n TableAddAttrsUpdateMaxRecSzForLCP T1
 max-time: 600
+
+cmd: testNodeRestart
+args: -n TransStallTimeout T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n TransStallTimeoutNF T1
+max-time: 180
+

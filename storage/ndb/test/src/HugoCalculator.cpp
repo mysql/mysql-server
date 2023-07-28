@@ -560,3 +560,28 @@ HugoCalculator::setValues(Uint8 * pRow,
 
   return NDBT_OK;
 }
+
+int
+HugoCalculator::setKeyParts(HugoCalculator::KeyParts* keyParts, int rowid)
+{
+  char* pos = keyParts->buffer;
+
+  int k = 0;
+
+  for(int j = 0; j< m_tab.getNoOfColumns(); j++)
+  {
+    if(m_tab.getColumn(j)->getPartitionKey())
+    {
+      int sz = m_tab.getColumn(j)->getSizeInBytes();
+      Uint32 real_size;
+      /* Updates always == 0, as it is never part of PK */
+      calcValue(rowid, j, 0, pos, sz, &real_size);
+      keyParts->ptrs[k].ptr = pos;
+      keyParts->ptrs[k++].len = real_size;
+      pos += (real_size + 3) & ~3;
+    }
+  }
+  keyParts->ptrs[k].ptr = 0;
+
+  return NDBT_OK;
+}

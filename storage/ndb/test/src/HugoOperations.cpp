@@ -70,6 +70,26 @@ int HugoOperations::startTransaction(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int HugoOperations::startTransaction(Ndb* pNdb,
+                                     int recordNo)
+{
+  if (pTrans != NULL)
+  {
+    ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
+    return NDBT_FAILED;
+  }
+  HugoCalculator::KeyParts kp;
+  calc.setKeyParts(&kp, recordNo);
+  pTrans = pNdb->startTransaction(&tab, kp.ptrs);
+  if (pTrans == NULL) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    setNdbError(err);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::setTransaction(NdbTransaction* new_trans, bool not_null_ok){
   
   if (pTrans != NULL && !not_null_ok){

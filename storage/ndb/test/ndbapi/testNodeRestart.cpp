@@ -10878,6 +10878,418 @@ int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/* Basic callback data + function */
+struct CallbackData
+{
+  int ready;
+  int result;
+};
+
+void
+asyncCallbackFn(int res, NdbTransaction* pCon, void* data)
+{
+  CallbackData* cbd = (CallbackData*) data;
+
+  if (res)
+  {
+    cbd->result = pCon->getNdbError().code;
+  }
+  else
+  {
+    cbd->result = 0;
+  }
+
+  /* todo : sync */
+  cbd->ready=1;
+}
+
+int runTestStallTimeout(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Testing for fix of bug#22602898
+   *   NDB : CURIOUS STATE OF TC COMMIT_SENT / COMPLETE_SENT TIMEOUT HANDLING
+   *
+   * This fix removed the 'switch to serial commit/complete
+   * protocol due to transaction timeout behaviour.
+   * This is done as the serial commit/complete protocol further
+   * slows the system when a timeout is detected.
+   *
+   * This means that if we stall the normal parallel commit/complete
+   * signal handlers then commit/complete is stalled indefinitely,
+   * whereas before it would switch protocol and complete.
+   *
+   * This behavioural change is tested here.
+   */
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  struct TestCase
+  {
+    const char* type;
+    NdbTransaction::ExecType execType;
+    int errorCode;
+    bool execOk;
+  };
+
+  TestCase testcases[] = {
+    "Stall in commit",       /* LQH execCOMMIT()    */
+    NdbTransaction::Commit,
+    5110,
+    false,                   /* Commit stall blocks API ack */
+
+    "Stall in complete",     /* LQH execCOMPLETE()  */
+    NdbTransaction::Commit,
+    5111,
+    true                     /* Complete stall does not block
+                              * API ack (ReadPrimary) */
+  };
+
+  for (int stallPoint = 0; stallPoint < 2; stallPoint++)
+  {
+    HugoOperations hugoOps(*ctx->getTab());
+    TestCase& test = testcases[stallPoint];
+
+    ndbout_c("- *** Case : %s ***", test.type);
+
+    /* Prepare some update operations on a number of rows */
+    const Uint32 numUpdates = 10;
+    CHECK(hugoOps.startTransaction(pNdb) == 0,
+          "Start transaction failed");
+    CHECK(hugoOps.pkUpdateRecord(pNdb, 1, numUpdates) == 0,
+          "Define Updates failed");
+    CHECK(hugoOps.execute_NoCommit(pNdb) == 0,
+          "Execute NoCommit failed");
+
+    int errorCode = test.errorCode;
+    ndbout_c("  - Inserting error %u on all data nodes",
+             errorCode);
+    CHECK(restarter.
+          insertErrorInAllNodes(errorCode) == 0,
+          "Error insert failed");
+
+    ndbout_c("  - Sending commit with async api");
+
+    NdbTransaction* trans = hugoOps.getTransaction();
+    CallbackData cbd;
+    cbd.ready=0;
+    cbd.result=0;
+
+    trans->executeAsynchPrepare(test.execType,
+                                asyncCallbackFn,
+                                &cbd);
+    pNdb->sendPreparedTransactions();
+
+    CHECK(trans->getNdbError().code == 0,
+          "Async send failed");
+
+    const int waitTime=5;
+    ndbout_c("  - Waiting for up to %u seconds for result",
+             waitTime);
+
+    for (int i=0; i < waitTime; i++)
+    {
+      pNdb->pollNdb(1000);
+
+      if (cbd.ready)
+      {
+        break;
+      }
+    }
+
+    if (cbd.ready != test.execOk)
+    {
+      /* Mismatch with expectations */
+      ndbout_c("cbd.ready : %u  test.execOk : %u, failed.",
+               cbd.ready, test.execOk);
+      /* Clear error insert and wait for cleanup */
+      restarter.insertErrorInAllNodes(0);
+      pNdb->pollNdb(20000);
+      return NDBT_FAILED;
+    }
+
+    if (cbd.ready)
+    {
+      ndbout_c("  - Got a result : OK");
+    }
+    else
+    {
+      ndbout_c("  - No result after %u seconds : OK", waitTime);
+    }
+
+    ndbout_c("  - Check that we cannot perform a further update on the same rows");
+    {
+      HugoOperations hugoOps2(*ctx->getTab());
+
+      /* Prepare an update on the same rows from a different transaction */
+      CHECK(hugoOps2.startTransaction(pNdb) == 0,
+            "Start transaction failed");
+      CHECK(hugoOps2.pkUpdateRecord(pNdb, 1, 10) == 0,
+            "Define updates failed");
+
+      NdbTransaction* trans2 = hugoOps2.getTransaction();
+      CallbackData cbd2;
+      cbd2.ready = 0;
+      cbd2.result = 0;
+
+      /* This will block as the first transaction has not
+       * managed to commit/complete, and row locks
+       * are still held
+       */
+      trans2->executeAsynchPrepare(NdbTransaction::Commit,
+                                   asyncCallbackFn,
+                                   &cbd2);
+      pNdb->sendPreparedTransactions();
+
+      CHECK(trans2->getNdbError().code == 0,
+            "Async send2 failed");
+
+      ndbout_c("    - Waiting for up to %u seconds for result",
+               waitTime);
+
+      /* For commit + complete blocking, update will fail
+       * after TDDT.
+       */
+      for (int i=0; i < waitTime; i++)
+      {
+        pNdb->pollNdb(1000);
+
+        if (cbd2.ready)
+        {
+          /* Commit + Complete stalls */
+          break;
+        }
+      }
+
+      ndbout_c("    - Removing error insert");
+      restarter.insertErrorInAllNodes(0);
+
+      if (!cbd2.ready)
+      {
+        const int FurtherDelay = 5;
+        ndbout_c("    - Waited for %us with no result on second update",
+                 waitTime);
+        ndbout_c("    - Waiting for a further %us with no stall",
+                 FurtherDelay);
+        for (int i=0; i<FurtherDelay; i++)
+        {
+          pNdb->pollNdb(1000);
+
+          if (cbd2.ready)
+            break;
+        }
+
+        if (!cbd2.ready)
+        {
+          ndbout_c("No result at all - failed.");
+          pNdb->pollNdb(20000);
+          return NDBT_FAILED;
+        }
+      }
+      ndbout_c("    - Received response on second update");
+
+      ndbout_c("    - Checking that second update received timeout");
+
+      if (trans2->getNdbError().code != 266)
+      {
+        ndbout_c("Error, expected 266, but got %u %s",
+                 trans2->getNdbError().code,
+                 trans2->getNdbError().message);
+        return NDBT_FAILED;
+      }
+
+      CHECK(hugoOps2.closeTransaction(pNdb) == 0,
+            "Failed to close transaction");
+    }
+
+    ndbout_c("  - Waiting for result of first request");
+    const int FurtherDelay = 2;
+    pNdb->pollNdb(FurtherDelay * 1000);
+
+    if (!cbd.ready)
+    {
+      ndbout_c("No result on first request after %u seconds, failed",
+               waitTime + FurtherDelay);
+      pNdb->pollNdb(20000);
+      return NDBT_FAILED;
+    }
+
+    ndbout_c("  - Original request result : %u", cbd.result);
+    CHECK(cbd.result == 0, "Transaction failed");
+  }
+
+  return NDBT_OK;
+}
+
+int runTestStallTimeoutAndNF(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Testing for fix of bug#22602898
+   *   NDB : CURIOUS STATE OF TC COMMIT_SENT / COMPLETE_SENT TIMEOUT HANDLING
+   *
+   * This fix removed the 'switch to serial commit/complete
+   * protocol due to transaction timeout behaviour.
+   * This is done as the serial commit/complete protocol further
+   * slows the system when a timeout is detected.
+   *
+   * However we still need the serial commit/complete protocol to
+   * handle node failures :
+   *  - Failure of participant
+   *    Surviving TC will switch protocol to commit/complete
+   *    the transaction remains
+   *  - Failure of TC
+   *    Master TC will gather transaction state, then commit/complete
+   *    the remains using a different (non stalled) protocol
+   */
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+
+  struct TestCase
+  {
+    const char* type;
+    NdbTransaction::ExecType execType;
+    int errorCode;
+  };
+
+  TestCase testcases[] = {
+    "Stall in commit",   NdbTransaction::Commit,   5110,
+    "Stall in complete", NdbTransaction::Commit,   5111,
+  };
+
+  const char* failTypes[] = {
+    "Participant failure",
+    "TC failure"
+  };
+
+  for (int failType = 0; failType < 2; failType++)
+  {
+    ndbout_c("Scenario : %s", failTypes[failType]);
+
+    for (int stallPoint = 0; stallPoint < 2; stallPoint++)
+    {
+      TestCase& test = testcases[stallPoint];
+
+      ndbout_c("  Stall case : %s", test.type);
+
+      HugoOperations hugoOps(*ctx->getTab());
+
+      /* Prepare a single update operation on a row,
+       * in a single transaction hinted for the row
+       */
+      int rowNum = ndb_rand() % ctx->getNumRecords();
+
+      ndbout_c("   - Preparing update on row %u", rowNum);
+
+      CHECK(hugoOps.startTransaction(pNdb, rowNum) == 0,
+            "Start transaction failed");
+      CHECK(hugoOps.pkUpdateRecord(pNdb, 1, 1) == 0,
+            "Define Update failed");
+      CHECK(hugoOps.execute_NoCommit(pNdb) == 0,
+            "Execute NoCommit failed");
+
+      NdbTransaction* trans = hugoOps.getTransaction();
+      int primaryNodeId = trans->getConnectedNodeId();
+      int participantNodeId = restarter.getRandomNodeSameNodeGroup(primaryNodeId,
+                                                                   ndb_rand());
+
+      ndbout_c("   - Performing error insert on primary node %u",
+               primaryNodeId);
+      CHECK(restarter.insertErrorInNode(primaryNodeId, test.errorCode) == 0,
+            "Failed to insertError");
+
+      ndbout_c("   - Executing commit/abort");
+      CallbackData cbd;
+      cbd.ready=0;
+      cbd.result=0;
+
+      trans->executeAsynchPrepare(test.execType,
+                                  asyncCallbackFn,
+                                  &cbd);
+      pNdb->sendPreparedTransactions();
+
+      CHECK(trans->getNdbError().code == 0,
+            "Async send failed");
+
+      const int waitTime = 5;
+      for (int i=0; i < waitTime; i++)
+      {
+        pNdb->pollNdb(1000);
+
+        if (cbd.ready)
+        {
+          break;
+        }
+      }
+
+      /* Transaction stalled now */
+
+      /* Next, restart a node */
+      /* For participant failure, restart non-TC node which should be
+       * backup -> TC knows trans outcome so will handle.
+       * For TC failure, restart TC node which will be taken over
+       * by master.  As backup was not stalled, it knows outcome
+       */
+      int nodeToRestart = (failType == 0)?
+        participantNodeId:
+        primaryNodeId;
+
+      ndbout_c("   - Transaction stalled, now restarting node %u",
+               nodeToRestart);
+
+      CHECK(restarter.restartOneDbNode(nodeToRestart,
+                                       false,
+                                       false,
+                                       true, /* abort */
+                                       false) == 0,
+            "Failed node restart");
+
+      CHECK(restarter.waitNodesStarted(&nodeToRestart, 1) == 0,
+            "Failed waiting for node to recover");
+
+      ndbout_c("   - Restart complete, now checking trans result");
+
+      // Now, wait for result to materialise and
+      // check it
+
+      for (int i=0; i < waitTime; i++)
+      {
+        pNdb->pollNdb(1000);
+
+        if (cbd.ready)
+        {
+          break;
+        }
+      }
+
+      if (!cbd.ready)
+      {
+        ndbout_c("Failed to get any result");
+        restarter.insertErrorInAllNodes(0);
+        return NDBT_FAILED;
+      }
+
+      CHECK(trans->getNdbError().code == 0, "Error on original request");
+
+      NdbTransaction::CommitStatusType cst = trans->commitStatus();
+
+      if (cst != NdbTransaction::Committed)
+      {
+        ndbout_c("ERROR : Bad commitstatus.  Expected %u, got %u",
+                 NdbTransaction::Committed,
+                 cst);
+        restarter.insertErrorInAllNodes(0);
+        return NDBT_FAILED;
+      }
+
+      ndbout_c("   - Result ok, clearing error insert");
+
+      restarter.insertErrorInAllNodes(0);
+    } /* stallpoint */
+  } /* failType */
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -11771,7 +12183,20 @@ TESTCASE("CheckGcpStopTimerDistributed",
   STEP(runDelayGCP_SAVEREQ);
   FINALIZER(runChangeDataNodeConfig);
 }
-
+TESTCASE("TransStallTimeout",
+         "")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runTestStallTimeout);
+  FINALIZER(runClearTable);
+}
+TESTCASE("TransStallTimeoutNF",
+         "")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runTestStallTimeoutAndNF);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char** argv){
