@@ -126,6 +126,19 @@ void RouterComponentBootstrapTest::bootstrap_failover(
 
   std::vector<std::tuple<ProcessWrapper &, unsigned int>> mock_servers;
 
+  // shutdown the mock-servers when bootstrap is done.
+  Scope_guard guard{[&mock_servers]() {
+    // send a shutdown to all mocks
+    for (auto [proc, port] : mock_servers) {
+      proc.send_clean_shutdown_event();
+    }
+
+    // ... then wait for them all to finish.
+    for (auto [proc, port] : mock_servers) {
+      proc.wait_for_exit();
+    }
+  }};
+
   // start the mocks
   for (const auto &mock_server_config : mock_server_configs) {
     if (mock_server_config.js_filename.empty()) continue;
