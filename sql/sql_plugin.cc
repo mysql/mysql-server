@@ -687,7 +687,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
   plugin_dl.ref_count = 1;
   /* Open new dll handle */
   mysql_mutex_assert_owner(&LOCK_plugin);
-  if (!(plugin_dl.handle = dlopen(dlpath, RTLD_NOW))) {
+#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
+  // Do not unload the shared object during dlclose().
+  // LeakSanitizer needs this in order to match entries in lsan.supp
+  plugin_dl.handle = dlopen(dlpath, RTLD_NOW | RTLD_NODELETE);
+#else
+  plugin_dl.handle = dlopen(dlpath, RTLD_NOW);
+#endif
+
+  if (plugin_dl.handle == nullptr) {
     const char *errmsg;
     const int error_number = dlopen_errno;
     /*
