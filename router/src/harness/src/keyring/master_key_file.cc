@@ -223,7 +223,7 @@ std::string MasterKeyFile::get(const std::string &id,
 
   if (!decrypted_res) throw decryption_error("Decryption failed.");
 
-  return std::string(&decrypted_buffer[0], decrypted_res.value());
+  return std::string(decrypted_buffer.data(), decrypted_res.value());
 }
 
 bool MasterKeyFile::remove(const std::string &id) {

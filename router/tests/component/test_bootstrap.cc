@@ -1640,7 +1640,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   const auto router_port_ro = port_pool_.get_next_available();
   const auto router_port_x_rw = port_pool_.get_next_available();
   const auto router_port_x_ro = port_pool_.get_next_available();
-  std::vector<std::string> bootsrtap_params{
+  std::vector<std::string> bootstrap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "-d",
       bootstrap_dir.name(),
@@ -1653,12 +1653,12 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
       "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
           std::to_string(router_port_x_ro)};
 
-  bootsrtap_params.insert(bootsrtap_params.end(),
+  bootstrap_params.insert(bootstrap_params.end(),
                           GetParam().bootstrap_params.begin(),
                           GetParam().bootstrap_params.end());
 
   // launch the router in bootstrap mode
-  auto &router = launch_router_for_bootstrap(bootsrtap_params);
+  auto &router = launch_router_for_bootstrap(bootstrap_params);
 
   check_exit_code(router, EXIT_SUCCESS);
 

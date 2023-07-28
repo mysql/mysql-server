@@ -25,7 +25,6 @@
 #ifndef MYSQL_HARNESS_KEYRING_FILE_INCLUDED
 #define MYSQL_HARNESS_KEYRING_FILE_INCLUDED
 
-#include <iostream>
 #include "keyring_memory.h"
 
 namespace mysql_harness {
