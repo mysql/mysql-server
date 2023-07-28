@@ -29,6 +29,7 @@
 
 #include <fstream>
 #include <string>
+#include <system_error>
 
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
@@ -61,6 +62,7 @@
 #include "script_generator.h"
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
+#include "test/temp_directory.h"
 
 /**
  * @file
@@ -73,6 +75,59 @@ using mysqlrouter::ClusterType;
 
 // for the test with no param
 class RouterBootstrapTest : public RouterComponentBootstrapTest {};
+
+#ifndef _WIN32
+// needs symlink()
+TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
+  RecordProperty("Description",
+                 "Bootstrap into a symlinked directory and check that the "
+                 "router can run from that directory.");
+  const auto server_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+
+  std::vector<Config> config{
+      {"127.0.0.1", server_port, http_port,
+       get_data_dir().join("bootstrap_gr.js").str()},
+  };
+
+  SCOPED_TRACE("// prepare symlinked directory");
+  TempDirectory tmpdir;
+
+  auto subdir = mysql_harness::Path(tmpdir.name()).join("subdir").str();
+  auto symlinkdir = mysql_harness::Path(tmpdir.name()).join("symlink").str();
+  ASSERT_EQ(mysql_harness::mkdir(subdir, 0700), 0);
+  ASSERT_EQ(symlink(subdir.c_str(), symlinkdir.c_str()), 0);
+
+  // point the bootstrap at the symlink dir.
+  bootstrap_dir.reset(symlinkdir);
+
+  SCOPED_TRACE("// bootstrap into the symlink dir");
+  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
+      config, ClusterType::GR_V2, {}, EXIT_SUCCESS, {}, 30s, {2, 0, 3},
+      {
+          "--conf-set-option=DEFAULT.plugin_folder=" +
+              mysql_harness::get_plugin_dir(get_origin().str()),
+          "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
+          "--conf-set-option=DEFAULT.keyring_path=" + symlinkdir +
+              "/data/keyring",
+      }));
+
+  SCOPED_TRACE("// launch mock-server for router");
+  const std::string runtime_json_stmts =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch mock server that is our metadata server
+  launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    {GRNode{server_port, "uuid-1"}}, 0,
+                    {ClusterNode{server_port, "uuid-1", server_x_port}});
+
+  SCOPED_TRACE("// launch router with bootstrapped config");
+  launch_router({"-c", bootstrap_dir.name() + "/mysqlrouter.conf"});
+}
+#endif
 
 struct BootstrapTestParam {
   ClusterType cluster_type;

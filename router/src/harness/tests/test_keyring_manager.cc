@@ -392,6 +392,38 @@ TEST(KeyringManager, regression) {
   mysql_harness::reset_keyring();
 }
 
+#ifndef _WIN32
+TEST(KeyringManager, symlink_dir) {
+  SCOPED_TRACE("// prepare symlinked directory");
+  TempDirectory tmpdir;
+
+  auto subdir = mysql_harness::Path(tmpdir.name()).join("subdir").str();
+  auto symlinkdir = mysql_harness::Path(tmpdir.name()).join("symlink").str();
+  ASSERT_EQ(mysql_harness::mkdir(subdir, 0700), 0);
+  ASSERT_EQ(symlink(subdir.c_str(), symlinkdir.c_str()), 0);
+
+  auto keyring = symlinkdir + "/keyring";
+  auto masterring = symlinkdir + "/keyfile";
+
+  SCOPED_TRACE("// create the encrypted keyring.");
+  EXPECT_FALSE(mysql_harness::init_keyring(keyring, masterring, true));
+  mysql_harness::reset_keyring();
+
+  SCOPED_TRACE("// try to open it again, via the symlink dir.");
+  EXPECT_TRUE(mysql_harness::init_keyring(keyring, masterring, false));
+  mysql_harness::reset_keyring();
+
+  SCOPED_TRACE("// try to open it again, via the real dir.");
+  EXPECT_TRUE(
+      mysql_harness::init_keyring(subdir + "/keyring", masterring, false));
+  mysql_harness::reset_keyring();
+
+  SCOPED_TRACE("// try to open it again, via the real dir.");
+  EXPECT_TRUE(mysql_harness::init_keyring(subdir + "/keyring",
+                                          subdir + "/keyfile", false));
+}
+#endif
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
