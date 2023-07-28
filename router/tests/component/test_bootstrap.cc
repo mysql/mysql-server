@@ -1558,13 +1558,14 @@ TEST_F(RouterBootstrapTest,
  */
 TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
   std::string master_key_path =
-      Path(bootstrap_dir.name()).join("master_key").str();
+      Path(bootstrap_dir.name()).join("mysqlrouter.key").str();
   std::string keyring_path =
       Path(bootstrap_dir.name()).join("data").join("keyring").str();
 
   mysql_harness::mkdir(Path(bootstrap_dir.name()).str(), 0777);
   mysql_harness::mkdir(Path(bootstrap_dir.name()).join("data").str(), 0777);
 
+  SCOPED_TRACE("// create the keyrings manually.");
   auto &proc = launch_command(get_origin().join("mysqlrouter_keyring").str(),
                               {
                                   "init",
@@ -1574,14 +1575,10 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
                               });
   ASSERT_NO_THROW(proc.wait_for_exit());
 
-  std::string master_key;
-  {
-    std::ifstream file(master_key_path);
-    std::stringstream iss;
-    iss << file.rdbuf();
-    master_key = iss.str();
-  }
+  // remember the initially generated master-key
+  const auto master_key = get_file_output(master_key_path);
 
+  SCOPED_TRACE("// bootstrap.");
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -1599,12 +1596,9 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(mock_servers, ClusterType::GR_V2,
                                              router_options, EXIT_SUCCESS, {}));
-  {
-    std::ifstream file(master_key_path);
-    std::stringstream iss;
-    iss << file.rdbuf();
-    ASSERT_THAT(master_key, testing::Eq(iss.str()));
-  }
+
+  SCOPED_TRACE("// check master-key-file doesn't change after bootstrap.");
+  ASSERT_THAT(master_key, testing::Eq(get_file_output(master_key_path)));
 }
 
 struct UseGrNotificationTestParams {
