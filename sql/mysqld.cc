@@ -12898,6 +12898,13 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   else
     global_system_variables.option_bits &= ~OPTION_BIG_SELECTS;
 
+  // reset the values of some variables that might affect initialize
+  if ((opt_initialize || opt_initialize_insecure) && !opt_autocommit) {
+    opt_autocommit = true;
+    LogErr(WARNING_LEVEL, ER_WARN_OPTION_RESET_AND_IGNORED_DURING_INITIALIZE,
+           "--autocommit");
+  }
+
   // Synchronize @@global.autocommit value on --autocommit
   const ulonglong turn_bit_on =
       opt_autocommit ? OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;

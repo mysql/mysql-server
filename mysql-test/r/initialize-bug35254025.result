@@ -1,0 +1,23 @@
+# shut server down
+# Server is down
+#
+# Bug#35254025: Mysql instance cannot be initialized correctly because autocommit is turned off.
+#
+# Run the server with --initialize --autocommit=off
+# Restart the server against DDIR
+# connect as root
+# Test: must show sys
+SHOW DATABASES LIKE 'sys';
+Database (sys)
+sys
+include/assert_grep.inc [Checking for the autocommit ignore warning]
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# delete datadir
+#
+# Cleanup
+#
+# Restarting the server
+# End of 8.0 tests

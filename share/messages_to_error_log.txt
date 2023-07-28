@@ -12343,6 +12343,9 @@ ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR
 ER_COMPONENT_KEYRING_OCI_INVALID_CONFIG_VAR
    eng "Invalid value of argument %s (%s)."
 
+ER_WARN_OPTION_RESET_AND_IGNORED_DURING_INITIALIZE
+   eng "Ignoring a non-default value for %s during --initialize."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
