@@ -4779,7 +4779,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[0]);
     regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[1]);
     regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[2]);
-    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[3]);  
+    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[3]);
+    regApiPtr->m_transaction_nodes.clear(unsigned(0)); // unset bit zero
   }
   
   lqhKeyReq->tableSchemaVersion = sig0;
@@ -6674,9 +6675,10 @@ Dbtc::sendCommitLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
-  if (ERROR_INSERTED(8113))
+  if (ERROR_INSERTED_CLEAR(8113))
   {
     jam();
+    ndbout_c("Discarding GSN_COMMIT");
     /* Don't actually send -> timeout */
     return 0;
   }
@@ -7148,9 +7150,10 @@ Dbtc::sendCompleteLqh(Signal* signal,
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
-  if (ERROR_INSERTED(8114))
+  if (ERROR_INSERTED_CLEAR(8114))
   {
     jam();
+    ndbout_c("Discarding GSN_COMPLETE");
     /* Don't send COMPLETE to LQH ---> TIMEOUT */
     return 0;
   }
@@ -9683,6 +9686,89 @@ void Dbtc::logTransactionTimeout(Signal* signal,
   } while (tcConList.next(localTcConnectptr));
 }
 
+/**
+ * periodicLogOddTimeoutAndResetTimer()
+ *
+ * Method used when timeout is detected in states where it is not
+ * expected, or there is not much we can do.
+ * We will log periodically so that there is some visibility, but
+ * not all the time to avoid log floods, especially when some
+ * other problem (node liveness, communication) is to blame.
+ *
+ */
+void Dbtc::periodicLogOddTimeoutAndResetTimer(ApiConnectRecordPtr apiPtr)
+{
+  jam();
+
+  /* TODO : Count occurrences ? */
+  /* TODO : Consider implication w.r.t. TimeBetweenEpochsTimeout */
+
+  /* Get a millis_passed value from the 10 milli unit references */
+  const Uint32 millis_passed = 10 *
+    (ctcTimer - getApiConTimer(apiPtr));
+  const Uint32 logPeriodMillis = 10*1000;
+
+  /* 10s elapsed */
+  if (millis_passed > logPeriodMillis)
+  {
+    jam();
+
+    /* Generate a concise summary of operation states */
+    const Uint32 buffSz = 80;
+    char opStateBuff[buffSz];
+    opStateBuff[0] = 0;
+
+    Uint32 opStateCounts[OS_MAX_STATE_VAL + 1];
+    memset(&opStateCounts[0], 0, sizeof(opStateCounts));
+
+    /* Build count of operation states within this transaction */
+    TcConnectRecordPtr opPtr;
+    LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiPtr.p->tcConnect);
+    if (tcConList.first(opPtr))
+    {
+      do
+      {
+        opStateCounts[opPtr.p->tcConnectstate]++;
+      } while (tcConList.next(opPtr));
+    }
+
+    /* Produce op state summary string */
+    Uint32 idx=0;
+    for (Uint32 i=0; i<= OS_MAX_STATE_VAL; i++)
+    {
+      if (opStateCounts[i] > 0)
+      {
+        int res = BaseString::snprintf(opStateBuff + idx,
+                                       buffSz - idx,
+                                       "S%u:%u ",
+                                       i,
+                                       opStateCounts[i]);
+        idx += res;
+        if (idx >= buffSz)
+        {
+          opStateBuff[buffSz-1] = 0;
+          break;
+        }
+      }
+    }
+
+    g_eventLogger->info("DBTC %u : Transaction 0x%x 0x%x waiting in state %u "
+                        "con %u nodes %s opstates : %s",
+                        instance(),
+                        apiPtr.p->transid[0],
+                        apiPtr.p->transid[1],
+                        (Uint32)apiPtr.p->apiConnectstate,
+                        apiPtr.i,
+                        BaseString::
+                        getPrettyText(apiPtr.p->m_transaction_nodes).
+                        c_str(),
+                        opStateBuff);
+
+    /* Set timer start to now, to avoid over-logging */
+    setApiConTimer(apiPtr, ctcTimer, __LINE__);
+  }
+}
+
 
 void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode) 
 {
@@ -9751,53 +9837,76 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_PREPARE_TO_COMMIT:
   {
     jam();
-    /*------------------------------------------------------------------*/
-    /*       WE ARE WAITING FOR DIH TO COMMIT THE TRANSACTION. WE SIMPLY*/
-    /*       KEEP WAITING SINCE THERE IS NO BETTER IDEA ON WHAT TO DO.  */
-    /*       IF IT IS BLOCKED THEN NO TRANSACTION WILL PASS THIS GATE.  */
-    // To ensure against strange bugs we crash the system if we have passed
-    // time-out period by a factor of 10 and it is also at least 5 seconds.
-    /*------------------------------------------------------------------*/
-    Uint32 time_passed = ctcTimer - getApiConTimer(apiConnectptr);
-    if (time_passed > 500 &&
-        time_passed > (5 * cDbHbInterval) &&
-        time_passed > (10 * ctimeOutValue))
-    {
-      jam();
-
-      logTransactionTimeout(signal, TapiConPtr, errCode, true);
-      // Reset timeout to not flood log...
-      setApiConTimer(apiConnectptr, 0, __LINE__);
-    }//if
+    /**
+     * CS_COMMITTING and CS_COMPLETING are states where we send commit
+     * and complete signals, should be short lived.
+     * CS_PREPARE_TO_COMMIT is where DIH is asked for permission to
+     * commit.  Should be short lived unless there are communication
+     * issues with GCP_PREPARE/COMMIT processing.
+     * Use periodic logging to get some throttled visibility.
+     */
+    periodicLogOddTimeoutAndResetTimer(apiConnectptr);
     break;
   }
   case CS_COMMIT_SENT:
     jam();
     /*------------------------------------------------------------------*/
-    /*       WE HAVE SENT COMMIT TO A NUMBER OF NODES. WE ARE CURRENTLY */
-    /*       WAITING FOR THEIR REPLY. WITH NODE RECOVERY SUPPORTED WE   */
-    /*       WILL CHECK FOR CRASHED NODES AND RESEND THE COMMIT SIGNAL  */
-    /*       TO THOSE NODES THAT HAVE MISSED THE COMMIT SIGNAL DUE TO   */
-    /*       A NODE FAILURE.                                            */
+    /* We are waiting for confirmation that Commit has occurred at one  */
+    /* or more LQH instances.  We cannot speed this up.                 */
+    /* Only in confirmed node failure situations do we take action.     */
     /*------------------------------------------------------------------*/
-    logTransactionTimeout(signal, TapiConPtr, errCode);
-    tabortInd = ZCOMMIT_SETUP;
-    setupFailData(signal, apiConnectptr.p);
-    toCommitHandlingLab(signal, apiConnectptr);
+    if (errCode == ZNODEFAIL_BEFORE_COMMIT)
+    {
+      jam();
+      /**
+       * Node failure handling, switch to serial commit handling
+       * which can accomodate lost signals
+       */
+      tabortInd = ZCOMMIT_SETUP;
+      setupFailData(signal, apiConnectptr.p);
+      toCommitHandlingLab(signal, apiConnectptr);
+    }
+    else
+    {
+      jam();
+      /**
+       * Slow commit - could be communication failure or overload
+       * Log details if user configured verbosity.
+       * Always log summary.
+       */
+      logTransactionTimeout(signal, TapiConPtr, errCode);
+      periodicLogOddTimeoutAndResetTimer(apiConnectptr);
+    }
     return;
   case CS_COMPLETE_SENT:
     jam();
     /*--------------------------------------------------------------------*/
-    /*       WE HAVE SENT COMPLETE TO A NUMBER OF NODES. WE ARE CURRENTLY */
-    /*       WAITING FOR THEIR REPLY. WITH NODE RECOVERY SUPPORTED WE     */
-    /*       WILL CHECK FOR CRASHED NODES AND RESEND THE COMPLETE SIGNAL  */
-    /*       TO THOSE NODES THAT HAVE MISSED THE COMPLETE SIGNAL DUE TO   */
-    /*       A NODE FAILURE.                                              */
+    /* We are waiting for confirmation that Complete has occured at one   */
+    /* or more LQH instances.  We cannot speed this up.                   */
+    /* Only in confirmed node failure situations do we take action.       */
     /*--------------------------------------------------------------------*/
-    logTransactionTimeout(signal, TapiConPtr, errCode);
-    tabortInd = ZCOMMIT_SETUP;
-    setupFailData(signal, apiConnectptr.p);
-    toCompleteHandlingLab(signal, apiConnectptr);
+    if (errCode == ZNODEFAIL_BEFORE_COMMIT)
+    {
+      jam();
+      /**
+       * Node failure handling, switch to serial complete handling
+       * which can handle lost signals.
+       */
+      tabortInd = ZCOMMIT_SETUP;
+      setupFailData(signal, apiConnectptr.p);
+      toCompleteHandlingLab(signal, apiConnectptr);
+    }
+    else
+    {
+      jam();
+      /**
+       * Slow complete - could be communication failure or overload,
+       * Log details if user configured verbosity.
+       * Always log summary
+       */
+      logTransactionTimeout(signal, TapiConPtr, errCode);
+      periodicLogOddTimeoutAndResetTimer(apiConnectptr);
+    }
     return;
   case CS_ABORTING:
     jam();
@@ -9805,6 +9914,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       TIME-OUT DURING ABORT. WE NEED TO SEND ABORTED FOR ALL     */
     /*       NODES THAT HAVE FAILED BEFORE SENDING ABORTED.             */
     /*------------------------------------------------------------------*/
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
     sendAbortedAfterTimeout(signal, 0, apiConnectptr);
     break;

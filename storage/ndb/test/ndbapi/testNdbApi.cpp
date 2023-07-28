@@ -7922,10 +7922,12 @@ int runCheckLateDisconnect(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
-runCheckWriteTransaction(NDBT_Context* ctx, NDBT_Step* step)
+runCheckWriteTransactionOverOtherNodeFailure(NDBT_Context* ctx,
+                                             NDBT_Step* step,
+                                             NdbRestarter& restarter,
+                                             Uint32 errorCode)
 {
   const NdbDictionary::Table* pTab = ctx->getTab();
-  
   HugoOperations hugoOps(*pTab);
   Ndb* pNdb = GETNDB(step);
   
@@ -7935,10 +7937,52 @@ runCheckWriteTransaction(NDBT_Context* ctx, NDBT_Step* step)
   CHECKE((hugoOps.pkWriteRecord(pNdb,
                                 0) == NDBT_OK),
          hugoOps);
-  CHECKE((hugoOps.execute_Commit(pNdb) == NDBT_OK),
+  CHECKE((hugoOps.execute_NoCommit(pNdb) == NDBT_OK), hugoOps);
+
+  const int tcNodeId = hugoOps.getTransaction()->getConnectedNodeId();
+  int victimNodeId = tcNodeId;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ndbout_c("Too few nodes - failing");
+    return NDBT_FAILED;
+  }
+
+  while (victimNodeId == tcNodeId)
+  {
+    victimNodeId =  restarter.getNode(NdbRestarter::NS_RANDOM);
+  }
+
+  ndbout_c("Injecting error %u in tc node %u prior to commit request",
+           errorCode, tcNodeId);
+  CHECK(restarter.insertErrorInNode(tcNodeId, errorCode) == 0);
+
+  CHECKE((hugoOps.execute_async(pNdb, NdbTransaction::Commit) == NDBT_OK),
          hugoOps);
+
+  /* Give some time for the commit to stall prior to the node failure */
+  NdbSleep_MilliSleep(2000);
+  ndbout_c("Transaction prepared and committing on node %u, killing node %u",
+           tcNodeId,
+           victimNodeId);
+  CHECK(restarter.restartOneDbNode(victimNodeId,
+                                   false,   // initial
+                                   false,   // nostart
+                                   true,    // abort
+                                   true)    // force
+        == 0);
+
+  ndbout_c("Waiting for transaction ack");
+  CHECKE((hugoOps.wait_async(pNdb) == NDBT_OK),
+         hugoOps);
+  ndbout_c("Ok");
+
+  CHECK(restarter.insertErrorInAllNodes(0) == 0);
+
   CHECKE((hugoOps.closeTransaction(pNdb) == NDBT_OK),
          hugoOps);  
+
+  ndbout_c("Waiting for node to recover");
+  CHECK(restarter.waitClusterStarted() == 0);
   
   return NDBT_OK;
 }
@@ -7949,6 +7993,12 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   /* Want to test the 'slow' commit protocol behaves
    * correctly for various table types
+   * This protocol is now only used when handling
+   * node failure situations where a transaction
+   * participant has failed but the coordinator is
+   * still live.
+   * In this case, the slow commit protocol should result
+   * in the waiting api receiving an ack in all cases.
    */
   for (int table_type = 0; table_type < 3; table_type++)
   {
@@ -8000,14 +8050,15 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
         errorCode = 8114;
         break;
       }
-      ndbout << "Inserting error " << errorCode 
-             << " in all nodes." << endl;
+
+      int ret = runCheckWriteTransactionOverOtherNodeFailure(ctx,
+                                                             step,
+                                                             restarter,
+                                                             errorCode);
       
-      restarter.insertErrorInAllNodes(errorCode);
-        
-      int ret = runCheckWriteTransaction(ctx,step);
-      
+      /* In case of some problem */
       restarter.insertErrorInAllNodes(0);
+
       if (ret != NDBT_OK)
       {
         return NDBT_FAILED;

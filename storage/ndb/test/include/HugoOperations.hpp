@@ -39,6 +39,7 @@ public:
   int startTransaction(Ndb*, const NdbDictionary::Table *table= 0,
                        const char  *keyData= 0, Uint32 keyLen= 0);
   int startTransaction(Ndb*, Uint32 node_id, Uint32 instance_id);
+  int startTransaction(Ndb*, int recordNo);
   int setTransaction(NdbTransaction*,bool not_null_ok= false);
   int closeTransaction(Ndb*);
   NdbTransaction* getTransaction();
