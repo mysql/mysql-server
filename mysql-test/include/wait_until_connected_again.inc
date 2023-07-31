@@ -60,9 +60,9 @@ if ($SECONDARY_ENGINE_TEST) {
   --let $secondary_engine_bootstrap = query_get_value($SECONDARY_ENGINE_BOOTSTRAP_QUERY, Value, 1)
   if ( $secondary_engine_bootstrap == ON ) {
     --let $counter = 100
-    --let $secondary_engine_status = OFF
+    --let $secondary_engine_status = OFFLINE
 
-    while ($secondary_engine_status == OFF) {
+    while ($secondary_engine_status == OFFLINE) {
       --let $secondary_engine_status = query_get_value($SECONDARY_ENGINE_STATUS_QUERY, Value, 1)
       --dec $counter
 
