@@ -6,7 +6,7 @@ SET @v2 = @v1;
 
 # Unsupported functionality.
 EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT 1;
-ERROR 0A000: EXPLAIN ANALYZE does not support the INTO clause.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v1 SELECT 1' at line 1
 EXPLAIN INTO @v1 SELECT 1;
 ERROR 0A000: EXPLAIN INTO does not support implicit FORMAT.
 EXPLAIN FORMAT=TRADITIONAL INTO @v1 SELECT 1;
@@ -90,11 +90,18 @@ JSON_VALID(@v1)	@v1 != @v2	@v1 NOT LIKE CONCAT(@v2, '%')
 1	1	1
 SET @v1 = NULL;
 
-# EXPLAIN single table INSERT.
+# EXPLAIN single table INSERT VALUES.
 EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
 SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
 JSON_VALID(@v1)	COUNT(*) = 3
 0	1
+SET @v1 = NULL;
+
+# EXPLAIN single table INSERT SELECT.
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 SELECT * FROM t2;
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
 SET @v1 = NULL;
 
 # EXPLAIN single table UPDATE.

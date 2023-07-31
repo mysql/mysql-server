@@ -1,0 +1,163 @@
+#
+# WL#15785 EXPLAIN FOR SCHEMA
+#
+CREATE SCHEMA test_explain_for_schema;
+CREATE TABLE explain_outputs (in_schema TEXT, for_schema TEXT);
+USE test_explain_for_schema;
+CREATE TABLE t1 (i1 INT, i2 INT);
+CREATE TABLE t2 (i3 INT, i4 INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4), (5, 6);
+INSERT INTO t2 SELECT i2, i1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test_explain_for_schema.t1	analyze	status	OK
+test_explain_for_schema.t2	analyze	status	OK
+# A sample EXPLAIN for each type of explainable statement
+EXPLAIN FORMAT=JSON INTO @in_schema_1 SELECT 1;
+EXPLAIN FORMAT=JSON INTO @in_schema_2 SELECT * FROM t1, t2;
+EXPLAIN FORMAT=JSON INTO @in_schema_3 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+EXPLAIN FORMAT=JSON INTO @in_schema_4 INSERT INTO t1 VALUES (4,5);
+EXPLAIN FORMAT=JSON INTO @in_schema_5 INSERT INTO t1 SELECT * FROM t2;
+EXPLAIN FORMAT=JSON INTO @in_schema_6 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+EXPLAIN FORMAT=JSON INTO @in_schema_7 REPLACE t1 SELECT * FROM t2;
+EXPLAIN FORMAT=JSON INTO @in_schema_8 DELETE FROM t1;
+EXPLAIN FORMAT=JSON INTO @in_schema_9 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+EXPLAIN FORMAT=JSON INTO @in_schema_10 DELETE t1, t2 FROM t1, t2 WHERE i3 = 4;
+USE test;
+EXPLAIN FORMAT=JSON INTO @for_schema_1 FOR SCHEMA test_explain_for_schema SELECT 1;
+EXPLAIN FORMAT=JSON INTO @for_schema_2 FOR SCHEMA test_explain_for_schema SELECT * FROM t1, t2;
+EXPLAIN FORMAT=JSON INTO @for_schema_3 FOR SCHEMA test_explain_for_schema SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+EXPLAIN FORMAT=JSON INTO @for_schema_4 FOR SCHEMA test_explain_for_schema INSERT INTO t1 VALUES (4,5);
+EXPLAIN FORMAT=JSON INTO @for_schema_5 FOR SCHEMA test_explain_for_schema INSERT INTO t1 SELECT * FROM t2;
+EXPLAIN FORMAT=JSON INTO @for_schema_6 FOR SCHEMA test_explain_for_schema UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+EXPLAIN FORMAT=JSON INTO @for_schema_7 FOR SCHEMA test_explain_for_schema REPLACE t1 SELECT * FROM t2;
+EXPLAIN FORMAT=JSON INTO @for_schema_8 FOR SCHEMA test_explain_for_schema DELETE FROM t1;
+EXPLAIN FORMAT=JSON INTO @for_schema_9 FOR SCHEMA test_explain_for_schema UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+EXPLAIN FORMAT=JSON INTO @for_schema_10 FOR SCHEMA test_explain_for_schema DELETE t1, t2 FROM t1, t2 WHERE i3 = 4;
+INSERT INTO explain_outputs (in_schema, for_schema) VALUES (@in_schema_1, @for_schema_1),
+(@in_schema_2, @for_schema_2),
+(@in_schema_3, @for_schema_3),
+(@in_schema_4, @for_schema_4),
+(@in_schema_5, @for_schema_5),
+(@in_schema_6, @for_schema_6),
+(@in_schema_7, @for_schema_7),
+(@in_schema_8, @for_schema_8),
+(@in_schema_9, @for_schema_9),
+(@in_schema_10, @for_schema_10);
+SELECT JSON_VALID(in_schema), JSON_VALID(for_schema), in_schema = for_schema FROM explain_outputs;
+JSON_VALID(in_schema)	JSON_VALID(for_schema)	in_schema = for_schema
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+1	1	1
+# Check every format is supported
+EXPLAIN FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test_explain_for_schema`.`t1`.`i1` AS `i1`,`test_explain_for_schema`.`t1`.`i2` AS `i2` from `test_explain_for_schema`.`t1`
+EXPLAIN FORMAT=TRADITIONAL FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test_explain_for_schema`.`t1`.`i1` AS `i1`,`test_explain_for_schema`.`t1`.`i2` AS `i2` from `test_explain_for_schema`.`t1`
+EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (...)
+
+EXPLAIN FORMAT=JSON INTO @format_test FOR SCHEMA test_explain_for_schema SELECT * FROM t1;
+SELECT JSON_VALID(@format_test);
+JSON_VALID(@format_test)
+1
+# Check other errors
+EXPLAIN FOR SCHEMA test_explain_for_schema FOR CONNECTION 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR CONNECTION 1' at line 1
+EXPLAIN FORMAT=JSON FOR SCHEMA test_explain_for_schema INTO @dummy_var SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @dummy_var SELECT 1' at line 1
+EXPLAIN FOR SCHEMA test_explain_for_schema FORMAT=JSON INTO @dummy_var SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FORMAT=JSON INTO @dummy_var SELECT 1' at line 1
+EXPLAIN FOR SCHEMA non_existent_schema SELECT 1;
+ERROR 42000: Unknown database 'non_existent_schema'
+EXPLAIN FOR SCHEMA test_explain_for_schema SELECT * FROM non_existent_table;
+ERROR 42S02: Table 'test_explain_for_schema.non_existent_table' doesn't exist
+SELECT @dummy_var IS NULL;
+@dummy_var IS NULL
+1
+SET @explain_output = NULL;
+SET @schema_before_create_proc = SCHEMA();
+# Check correct schema is restored after EXPLAIN FOR SCHEMA in nested procedure calls and prepared statement
+CREATE PROCEDURE prepare_and_execute_cmd (IN command VARCHAR(256))
+BEGIN
+SET @prepare_statement_cmd = command;
+PREPARE stmt FROM @prepare_statement_cmd;
+EXECUTE stmt;
+END|
+CREATE PROCEDURE make_and_execute_explain_stmt ()
+BEGIN
+SET @command = CONCAT('EXPLAIN FORMAT=JSON INTO @explain_output FOR SCHEMA ', @schema_name, ' ', @query_text);
+CALL prepare_and_execute_cmd(@command);
+END|
+SET @schema_after_create_proc = SCHEMA();
+SET @schema_name = "test_explain_for_schema",
+@query_text  = "SELECT i1, i3, i4 FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2";
+CALL make_and_execute_explain_stmt;
+SET @schema_after_call_proc = SCHEMA();
+SELECT JSON_VALID(@explain_output), @schema_before_create_proc, @schema_after_create_proc,
+@schema_after_call_proc,
+@schema_before_create_proc = @schema_after_create_proc,
+@schema_after_create_proc = @schema_after_call_proc;
+JSON_VALID(@explain_output)	@schema_before_create_proc	@schema_after_create_proc	@schema_after_call_proc	@schema_before_create_proc = @schema_after_create_proc	@schema_after_create_proc = @schema_after_call_proc
+1	test	test	test	1	1
+# Check unqualified table names in SP uses schema from FOR SCHEMA and not from SP
+CREATE PROCEDURE p ()
+BEGIN
+EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+END|
+CALL p;
+EXPLAIN
+-> Inner hash join (t2.i3 = t1.i1)  (...)
+    -> Table scan on t2  (...)
+    -> Hash
+        -> Filter: (t1.i2 = 2)  (...)
+            -> Table scan on t1  (...)
+
+DROP PROCEDURE p;
+# Check that correct schema is used to qualify functions in an SP
+CREATE FUNCTION test_explain_for_schema.f () RETURNS INT DETERMINISTIC LANGUAGE SQL BEGIN RETURN 2; END|
+CREATE PROCEDURE p () BEGIN EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT f(); END|
+CALL p;
+EXPLAIN
+-> Rows fetched before execution  (...)
+
+# Check that EXPLAIN FOR SCHEMA does not give access where access is not granted
+CREATE USER access_check;
+GRANT ALL ON test.* TO access_check;
+USE test;
+EXPLAIN FORMAT=TREE FOR SCHEMA test_explain_for_schema SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+ERROR 42000: Access denied for user 'access_check'@'%' to database 'test_explain_for_schema'
+USE test;
+DROP USER access_check;
+DROP PROCEDURE p;
+DROP PROCEDURE make_and_execute_explain_stmt;
+DROP PROCEDURE prepare_and_execute_cmd;
+SET @in_schema_1 = NULL, @for_schema_1 = NULL,
+@in_schema_2 = NULL, @for_schema_2 = NULL,
+@in_schema_3 = NULL, @for_schema_3 = NULL,
+@in_schema_4 = NULL, @for_schema_4 = NULL,
+@in_schema_5 = NULL, @for_schema_5 = NULL,
+@in_schema_6 = NULL, @for_schema_6 = NULL,
+@in_schema_7 = NULL, @for_schema_7 = NULL,
+@in_schema_8 = NULL, @for_schema_8 = NULL,
+@in_schema_9 = NULL, @for_schema_9 = NULL,
+@in_schema_10 = NULL, @for_schema_10 = NULL,
+@schema_name = NULL, @query_text = NULL, @explain_output = NULL,
+@schema_before_create_proc = NULL, @schema_after_create_proc = NULL,
+@schema_after_call_proc = NULL;
+DROP TABLE explain_outputs;
+DROP SCHEMA test_explain_for_schema;

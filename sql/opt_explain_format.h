@@ -514,6 +514,10 @@ class Explain_format {
  private:
   std::optional<std::string_view> m_explain_into_variable_name;
 
+ public:
+  /* Which schema this EXPLAIN statement should be run for. */
+  LEX_CSTRING m_schema_name_for_explain;
+
  protected:
   Explain_format() : output(nullptr) {}
   explicit Explain_format(
@@ -557,6 +561,19 @@ class Explain_format {
    */
   bool is_explain_into() const {
     return m_explain_into_variable_name.has_value();
+  }
+
+  /**
+   * Whether the EXPLAIN statement should be run in another schema than the
+   * current active schema. If this returns true, m_schema_name_for_explain
+   * contains the name of the schema to use for EXPLAIN.
+   *
+   * @return true       The EXPLAIN statement should be run in another schema.
+   * @return false      The EXPLAIN statement should be run in the current
+   *                    active schema.
+   */
+  bool is_explain_for_schema() const {
+    return m_schema_name_for_explain.length != 0;
   }
 
   /**

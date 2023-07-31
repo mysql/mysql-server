@@ -3804,7 +3804,12 @@ bool LEX::need_correct_ident() {
 */
 
 bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
-  if (sphead) {
+  /*
+     When both is_explain_for_schema() and sphead() are true, it means EXPLAIN
+     FOR SCHEMA is called from inside a procedure. In such case, the EXPLAIN db
+     overrides the procedure's db for that statement.
+  */
+  if (!(is_explain() && explain_format->is_explain_for_schema()) && sphead) {
     assert(sphead->m_db.str && sphead->m_db.length);
     /*
       It is safe to assign the string by-pointer, both sphead and

@@ -1487,6 +1487,7 @@ void warn_on_deprecated_user_defined_collation(
         opt_binlog_in
         persisted_variable_ident
         routine_string
+        opt_explain_into
 
 %type <lex_cstr>
         key_cache_name
@@ -1496,6 +1497,7 @@ void warn_on_deprecated_user_defined_collation(
         sp_opt_label
         json_attribute
         opt_channel
+        opt_explain_for_schema
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1907,7 +1909,6 @@ void warn_on_deprecated_user_defined_collation(
         drop_role_stmt
         drop_srs_stmt
         explain_stmt
-        explainable_stmt
         handler_stmt
         insert_stmt
         keycache_stmt
@@ -2200,6 +2201,8 @@ void warn_on_deprecated_user_defined_collation(
 
 %type <explain_options_type> opt_explain_format
 %type <explain_options_type> opt_explain_options
+
+%type <explainable_stmt> explainable_stmt
 
 %type <load_set_element> load_data_set_elem
 
@@ -14118,47 +14121,45 @@ explain_stmt:
           describe_command opt_explain_options explainable_stmt
           {
             $$= NEW_PTN PT_explain(@$, $2.explain_format_type, $2.is_analyze,
-                                   $2.is_explicit, $3,
-                                   /*explain_into_variable_name=*/std::nullopt);
-          }
-        | describe_command
-          opt_explain_options   // Using the opt_explain_options rule instead
-                                // of opt_explain_format here allows for
-                                // the implementation of EXPLAIN ANALYZE INTO
-                                // without changing the language in the future.
-          INTO '@' ident_or_text
-          explainable_stmt
-          {
-            if ($2.is_analyze) {
-              MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED, MYF(0));
-            }
-            if (!$2.is_explicit) {
-              MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED,
-                                  MYF(0));
-            }
-            if ($2.explain_format_type != Explain_format_type::JSON) {
-              if ($2.explain_format_type == Explain_format_type::TREE) {
-                MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED, MYF(0),
-                                    "TREE");
-              } else {
-                MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED, MYF(0),
-                                    "TRADITIONAL");
-              }
-            }
-            $$= NEW_PTN PT_explain(@$, $2.explain_format_type, $2.is_analyze,
-                                   $2.is_explicit, $6, to_string_view($5));
+                  $2.is_explicit, $3.statement,
+                  $2.explain_into_variable_name.length ?
+                  std::optional<std::string_view>(
+                    to_string_view($2.explain_into_variable_name)) :
+                  std::optional<std::string_view>(std::nullopt),
+                  $3.schema_name_for_explain);
           }
         ;
 
 explainable_stmt:
-          select_stmt
-        | insert_stmt
-        | replace_stmt
-        | update_stmt
-        | delete_stmt
+          opt_explain_for_schema select_stmt
+          {
+            $$.statement = $2;
+            $$.schema_name_for_explain = $1;
+          }
+        | opt_explain_for_schema insert_stmt
+          {
+            $$.statement = $2;
+            $$.schema_name_for_explain = $1;
+          }
+        | opt_explain_for_schema replace_stmt
+          {
+            $$.statement = $2;
+            $$.schema_name_for_explain = $1;
+          }
+        | opt_explain_for_schema update_stmt
+          {
+            $$.statement = $2;
+            $$.schema_name_for_explain = $1;
+          }
+        | opt_explain_for_schema delete_stmt
+          {
+            $$.statement = $2;
+            $$.schema_name_for_explain = $1;
+          }
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
-            $$= NEW_PTN PT_explain_for_connection(@$, static_cast<my_thread_id>($3));
+            $$.statement = NEW_PTN PT_explain_for_connection(@$, static_cast<my_thread_id>($3));
+            $$.schema_name_for_explain = NULL_CSTR;
           }
         ;
 
@@ -14198,11 +14199,51 @@ opt_explain_options:
           {
             $$ = $2;
             $$.is_analyze = true;
+            $$.explain_into_variable_name = NULL_STR;
           }
-        | opt_explain_format
+        | opt_explain_format opt_explain_into
           {
             $$ = $1;
             $$.is_analyze = false;
+
+            if ($2.length) {
+              if (!$$.is_explicit) {
+                MYSQL_YYABORT_ERROR(
+                  ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED, MYF(0));
+              }
+              if ($$.explain_format_type != Explain_format_type::JSON) {
+                if ($$.explain_format_type == Explain_format_type::TREE) {
+                  MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED,
+                                      MYF(0), "TREE");
+                } else {
+                  MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED,
+                                      MYF(0), "TRADITIONAL");
+                }
+              }
+            }
+            $$.explain_into_variable_name = $2;
+          }
+        ;
+
+opt_explain_into:
+          %empty
+          {
+            $$ = NULL_STR;
+          }
+        | INTO '@' ident_or_text
+          {
+            $$ = $3;
+          }
+        ;
+
+opt_explain_for_schema:
+          %empty
+          {
+            $$ = NULL_CSTR;
+          }
+        | FOR_SYM DATABASE ident_or_text
+          {
+            $$ = to_lex_cstring($3);
           }
         ;
 

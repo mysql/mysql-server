@@ -3067,6 +3067,20 @@ int mysql_execute_command(THD *thd, bool first_level) {
     already.
   */
   assert(!thd->transaction_rollback_request || thd->in_sub_stmt);
+
+  char saved_schema_name_buf[NAME_LEN + 1];
+  LEX_STRING saved_schema_name{saved_schema_name_buf,
+                               sizeof(saved_schema_name_buf)};
+  bool cur_db_changed = false;
+  if (lex->is_explain() && lex->explain_format->is_explain_for_schema() &&
+      mysql_opt_change_db(thd, lex->explain_format->m_schema_name_for_explain,
+                          &saved_schema_name, false, &cur_db_changed)) {
+    /* purecov: begin inspected */
+    binlog_gtid_end_transaction(thd);
+    return 1;
+    /* purecov: end */
+  }
+
   /*
     In many cases first table of main Query_block have special meaning =>
     check that it is first table in global list and relink it first in
@@ -5151,6 +5165,11 @@ finish:
     total_leaked_bytes = leaked;
   }
 #endif
+
+  if (cur_db_changed &&
+      mysql_change_db(thd, to_lex_cstring(saved_schema_name), true)) {
+    res = true; /* purecov: inspected */
+  }
 
   if (!res && !thd->is_error()) {      // if statement succeeded
     binlog_gtid_end_transaction(thd);  // finalize GTID life-cycle

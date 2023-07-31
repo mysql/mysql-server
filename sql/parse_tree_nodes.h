@@ -5417,13 +5417,15 @@ class PT_explain : public Parse_tree_root {
  public:
   PT_explain(const POS &pos, Explain_format_type format, bool is_analyze,
              bool is_explicit_format, Parse_tree_root *explainable_stmt,
-             std::optional<std::string_view> explain_into_variable_name)
+             std::optional<std::string_view> explain_into_variable_name,
+             LEX_CSTRING schema_name_for_explain)
       : Parse_tree_root(pos),
         m_format(format),
         m_analyze(is_analyze),
         m_explicit_format(is_explicit_format),
         m_explainable_stmt(explainable_stmt),
-        m_explain_into_variable_name(explain_into_variable_name) {}
+        m_explain_into_variable_name(explain_into_variable_name),
+        m_schema_name_for_explain(schema_name_for_explain) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -5433,6 +5435,7 @@ class PT_explain : public Parse_tree_root {
   const bool m_explicit_format;
   Parse_tree_root *const m_explainable_stmt;
   std::optional<std::string_view> m_explain_into_variable_name;
+  LEX_CSTRING m_schema_name_for_explain;
 };
 
 class PT_load_table final : public Parse_tree_root {

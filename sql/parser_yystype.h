@@ -690,6 +690,7 @@ union MY_SQL_PARSER_STYPE {
     Explain_format_type explain_format_type;
     bool is_analyze;
     bool is_explicit;
+    LEX_STRING explain_into_variable_name;
   } explain_options_type;
   struct {
     Item *set_var;
@@ -712,6 +713,10 @@ union MY_SQL_PARSER_STYPE {
   Set_operator query_operator;
   PT_install_component_set_element *install_component_set_element;
   List<PT_install_component_set_element> *install_component_set_list;
+  struct {
+    Parse_tree_root *statement;
+    LEX_CSTRING schema_name_for_explain;
+  } explainable_stmt;
 };
 
 static_assert(sizeof(MY_SQL_PARSER_STYPE) <= 32, "YYSTYPE is too big");

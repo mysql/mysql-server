@@ -79,6 +79,7 @@
 #include "sql/sql_component.h"  // Sql_cmd_component
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
+#include "sql/sql_db.h"
 #include "sql/sql_delete.h"  // Sql_cmd_delete...
 #include "sql/sql_do.h"      // Sql_cmd_do...
 #include "sql/sql_error.h"
@@ -3631,7 +3632,32 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
   if (lex->explain_format == nullptr) return nullptr;  // OOM
   lex->is_explain_analyze = m_analyze;
 
+  /*
+    If this EXPLAIN statement is supposed to be run in another schema change to
+    the appropriate schema and save the current schema name.
+  */
+  lex->explain_format->m_schema_name_for_explain = m_schema_name_for_explain;
+  char saved_schema_name_buf[NAME_LEN + 1];
+  LEX_STRING saved_schema_name{saved_schema_name_buf,
+                               sizeof(saved_schema_name_buf)};
+  bool cur_db_changed = false;
+  if (m_schema_name_for_explain.length != 0 &&
+      mysql_opt_change_db(thd, m_schema_name_for_explain, &saved_schema_name,
+                          false, &cur_db_changed)) {
+    return nullptr; /* purecov: inspected */
+  }
+
   Sql_cmd *ret = m_explainable_stmt->make_cmd(thd);
+
+  /*
+    Change back to original schema to make sure current schema stays consistent
+    when preparing a statement or SP with EXPLAIN FOR SCHEMA.
+  */
+  if (cur_db_changed &&
+      mysql_change_db(thd, to_lex_cstring(saved_schema_name), true)) {
+    ret = nullptr; /* purecov: inspected */
+  }
+
   if (ret == nullptr) return nullptr;  // OOM
 
   auto code = ret->sql_command_code();
