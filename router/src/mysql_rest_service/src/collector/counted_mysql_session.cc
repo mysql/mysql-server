@@ -38,11 +38,65 @@ CountedMySQLSession::~CountedMySQLSession() {
   mrs::Counter<kEntityCounterMySQLConnectionsActive>::increment(-1);
 }
 
+CountedMySQLSession::ConnectionParameters
+CountedMySQLSession::get_connection_parameters() const {
+  return connections_;
+}
+
+void CountedMySQLSession::connect_and_set_opts(
+    const ConnectionParameters &connection_params) {
+  connections_ = connection_params;
+  connect(connections_.conn_opts.host, connections_.conn_opts.port,
+          connections_.conn_opts.username, connections_.conn_opts.password,
+          connections_.conn_opts.unix_socket,
+          connections_.conn_opts.default_schema,
+          connections_.conn_opts.connect_timeout,
+          connections_.conn_opts.read_timeout,
+          connections_.conn_opts.extra_client_flags);
+}
+
+void CountedMySQLSession::connect(const std::string &host, unsigned int port,
+                                  const std::string &username,
+                                  const std::string &password,
+                                  const std::string &unix_socket,
+                                  const std::string &default_schema,
+                                  int connect_timeout, int read_timeout,
+                                  unsigned long extra_client_flags) {
+  MySQLSession::connect(host, port, username, password, unix_socket,
+                        default_schema, connect_timeout, read_timeout,
+                        extra_client_flags);
+
+  connections_.conn_opts.host = host;
+  connections_.conn_opts.port = port;
+  connections_.conn_opts.username = username;
+  connections_.conn_opts.password = password;
+  connections_.conn_opts.unix_socket = unix_socket;
+  connections_.conn_opts.default_schema = default_schema;
+  connections_.conn_opts.connect_timeout = connect_timeout;
+  connections_.conn_opts.read_timeout = read_timeout;
+  connections_.conn_opts.extra_client_flags = extra_client_flags;
+}
+
+void CountedMySQLSession::connect(const MySQLSession &other,
+                                  const std::string &username,
+                                  const std::string &password) {
+  auto other_counted = dynamic_cast<const CountedMySQLSession *>(&other);
+  assert(other_counted && "Must be instance of CountedMySQLSession.");
+  auto params = other_counted->get_connection_parameters();
+  params.conn_opts.username = username;
+  params.conn_opts.password = password;
+
+  connect_and_set_opts(params);
+}
+
 void CountedMySQLSession::change_user(const std::string &user,
                                       const std::string &password,
                                       const std::string &db) {
   mrs::Counter<kEntityCounterMySQLChangeUser>::increment();
   MySQLSession::change_user(user, password, db);
+  connections_.conn_opts.username = user;
+  connections_.conn_opts.password = password;
+  connections_.conn_opts.default_schema = db;
 }
 
 void CountedMySQLSession::reset() { MySQLSession::reset(); }

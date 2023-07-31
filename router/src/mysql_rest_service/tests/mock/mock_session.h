@@ -36,6 +36,9 @@ class MockMySQLSession : public collector::CountedMySQLSession {
                const std::string &, const std::string &, const std::string &,
                int, int, unsigned long),
               (override));
+  MOCK_METHOD(void, connect,
+              (const MySQLSession &, const std::string &, const std::string &),
+              (override));
   MOCK_METHOD(void, disconnect, (), (override));
   MOCK_METHOD(void, connect_and_set_opts, (const ConnectionParameters &),
               (override));
@@ -44,7 +47,8 @@ class MockMySQLSession : public collector::CountedMySQLSession {
               (override));
   MOCK_METHOD(void, reset, (), (override));
 
-  MOCK_METHOD(ConnectionParameters, get_connection_parameters, (), (override));
+  MOCK_METHOD(ConnectionParameters, get_connection_parameters, (),
+              (const, override));
 
   MOCK_METHOD(uint64_t, prepare, (const std::string &), (override));
   MOCK_METHOD(void, prepare_execute,

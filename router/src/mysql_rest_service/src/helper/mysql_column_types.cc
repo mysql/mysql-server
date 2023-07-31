@@ -28,9 +28,9 @@
 #include <map>
 #include <string_view>
 
-#include "m_ctype.h"
 #include "my_sys.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/strings/m_ctype.h"
 
 IMPORT_LOG_FUNCTIONS()
 

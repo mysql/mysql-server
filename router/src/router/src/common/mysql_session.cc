@@ -421,8 +421,7 @@ void MySQLSession::connect(const MySQLSession &other,
   connect(other.connect_params_.host, other.connect_params_.port, username,
           password, other.connect_params_.unix_socket,
           other.connect_params_.unix_socket, other.connect_timeout(),
-          other.read_timeout(),
-          other.get_connection_parameters().conn_opts.extra_client_flags);
+          other.read_timeout(), 0);
 }
 
 void MySQLSession::reset() {
@@ -447,10 +446,6 @@ void MySQLSession::change_user(const std::string &user,
        << ")";
     throw Error(ss.str(), mysql_errno(connection_));
   }
-
-  conn_params_.conn_opts.username = user;
-  conn_params_.conn_opts.password = password;
-  conn_params_.conn_opts.default_schema = db;
 }
 
 void MySQLSession::disconnect() {
