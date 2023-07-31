@@ -51,8 +51,7 @@ std::string RouterComponentMetadataTest::get_metadata_cache_section(
 
 std::string RouterComponentMetadataTest::get_metadata_cache_routing_section(
     uint16_t router_port, const std::string &role, const std::string &strategy,
-    const std::string &mode, const std::string &section_name,
-    const std::string &protocol,
+    const std::string &section_name, const std::string &protocol,
     const std::vector<std::pair<std::string, std::string>>
         &additional_options) {
   std::map<std::string, std::string> options{
@@ -62,10 +61,6 @@ std::string RouterComponentMetadataTest::get_metadata_cache_routing_section(
 
   if (!strategy.empty()) {
     options["routing_strategy"] = strategy;
-  }
-
-  if (!mode.empty()) {
-    options["mode"] = mode;
   }
 
   for (const auto &op : additional_options) {

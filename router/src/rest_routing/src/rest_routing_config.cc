@@ -102,7 +102,6 @@ bool RestRoutingConfig::on_handle_request(
                inst.get_destination_replicaset_name());
     add_if_set(json_doc, "socket", inst.get_socket());
     add_if_set(json_doc, "routingStrategy", inst.get_routing_strategy());
-    add_if_set(json_doc, "mode", inst.get_mode());
   }
   send_json_document(req, HttpStatusCode::Ok, json_doc);
 

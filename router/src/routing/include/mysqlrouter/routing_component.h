@@ -58,7 +58,6 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   int get_max_connections() const;
   uint64_t get_max_connect_errors() const;
-  std::string get_mode() const;
 
   std::string get_name() const;
 

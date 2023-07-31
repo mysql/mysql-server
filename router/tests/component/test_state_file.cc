@@ -109,8 +109,7 @@ class StateFileTest : public RouterComponentBootstrapTest {
 
   std::pair<std::string, std::map<std::string, std::string>>
   metadata_cache_routing_section(uint16_t router_port, const std::string &role,
-                                 const std::string &strategy,
-                                 const std::string &mode = "") {
+                                 const std::string &strategy) {
     std::map<std::string, std::string> options{
         {"bind_port", std::to_string(router_port)},
         {"destinations", "metadata-cache://test/default?role=" + role},
@@ -118,20 +117,17 @@ class StateFileTest : public RouterComponentBootstrapTest {
     };
 
     if (!strategy.empty()) options["routing_strategy"] = strategy;
-    if (!mode.empty()) options["mode"] = mode;
 
     return {"routing:test_default", options};
   }
 
   std::string get_metadata_cache_routing_section(uint16_t router_port,
                                                  const std::string &role,
-                                                 const std::string &strategy,
-                                                 const std::string &mode = "") {
-    auto section =
-        metadata_cache_routing_section(router_port, role, strategy, mode);
+                                                 const std::string &strategy) {
+    const auto section =
+        metadata_cache_routing_section(router_port, role, strategy);
     return mysql_harness::ConfigBuilder::build_section(section.first,
-                                                       section.second) +
-           "\n";
+                                                       section.second);
   }
 
   auto &launch_router(const std::string &temp_test_dir,

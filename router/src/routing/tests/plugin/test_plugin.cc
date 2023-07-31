@@ -85,7 +85,6 @@ class RoutingPluginTests : public ConsoleOutputTest {
         "127.0.0.1:" + std::to_string(tcp_port_pool_.get_next_available());
     socket = rundir + "/unix_socket";
     routing_strategy = "round-robin";
-    mode = "read-only";
     connect_timeout = "1";
     client_connect_timeout = "9";
     max_connect_errors = "100";
@@ -116,7 +115,6 @@ class RoutingPluginTests : public ConsoleOutputTest {
           {"socket", std::ref(socket)},
           {"destinations", std::ref(destinations)},
           {"routing_strategy", std::ref(routing_strategy)},
-          {"mode", std::ref(mode)},
           {"connect_timeout", std::ref(connect_timeout)},
           {"client_connect_timeout", std::ref(client_connect_timeout)},
           {"max_connect_errors", std::ref(max_connect_errors)},
@@ -160,7 +158,6 @@ class RoutingPluginTests : public ConsoleOutputTest {
   string destinations;
   string socket;
   string routing_strategy;
-  string mode;
   string connect_timeout;
   string client_connect_timeout;
   string max_connect_errors;
@@ -204,7 +201,7 @@ TEST_F(RoutingPluginTests, ListeningTcpSocket) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("bind_address", "127.0.0.1:15508");
 
   EXPECT_NO_THROW({
@@ -218,7 +215,7 @@ TEST_F(RoutingPluginTests, ListeningUnixSocket) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("socket", "./socket");  // if this test fails, check if you don't
                                       // have this file hanging around
 
@@ -232,7 +229,7 @@ TEST_F(RoutingPluginTests, ListeningBothSockets) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("bind_address", "127.0.0.1:15508");
   section.add("socket", "./socket");  // if this test fails, check if you don't
                                       // have this file hanging around
@@ -247,11 +244,11 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithoutTcp) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section1 = cfg.add("routing", "test_route1");
   section1.add("destinations", "localhost:1234");
-  section1.add("mode", "read-only");
+  section1.add("routing_strategy", "round-robin");
   section1.add("socket", "./socket1");
   mysql_harness::ConfigSection &section2 = cfg.add("routing", "test_route2");
   section2.add("destinations", "localhost:1234");
-  section2.add("mode", "read-only");
+  section2.add("routing_strategy", "round-robin");
   section2.add("socket", "./socket2");
 
   mysql_harness::AppInfo info;
@@ -267,12 +264,12 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section1 = cfg.add("routing", "test_route1");
   section1.add("destinations", "localhost:1234");
-  section1.add("mode", "read-only");
+  section1.add("routing_strategy", "round-robin");
   section1.add("bind_address", "127.0.0.1:15501");
   section1.add("socket", "./socket1");
   mysql_harness::ConfigSection &section2 = cfg.add("routing", "test_route2");
   section2.add("destinations", "localhost:1234");
-  section2.add("mode", "read-only");
+  section2.add("routing_strategy", "round-robin");
   section2.add("bind_address", "127.0.0.1:15502");
   section2.add("socket", "./socket2");
 
@@ -298,7 +295,7 @@ static void test_socket_length(const std::string &socket_name, size_t max_len) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("socket", socket_name);
 
   if (socket_name.length() <= max_len) {
@@ -343,11 +340,11 @@ TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section1 = cfg.add("routing", "test_route1");
   section1.add("destinations", "localhost:1234");
-  section1.add("mode", "read-only");
+  section1.add("routing_strategy", "round-robin");
   section1.add("bind_address", "127.0.0.1:15508");
   mysql_harness::ConfigSection &section2 = cfg.add("routing", "test_route2");
   section2.add("destinations", "localhost:1234");
-  section2.add("mode", "read-only");
+  section2.add("routing_strategy", "round-robin");
   section2.add("bind_address", "127.0.0.1:15508");
 
   mysql_harness::AppInfo info;
@@ -380,7 +377,7 @@ TEST_F(RoutingPluginTests, EmptyUnixSocket) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("socket", "");
 
   // If this not provided, RoutingPluginConfig() will throw with its own error,
@@ -404,7 +401,7 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("bind_address", "host.that.does.not..exist:15508");
 
   try {
@@ -428,7 +425,7 @@ TEST_F(RoutingPluginTests, Ipv6LinkLocal) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "[fe80::3617:ebff:fecb:587e%3]:3306");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("bind_port", "6446");
 
   try {
@@ -443,7 +440,7 @@ TEST_F(RoutingPluginTests, InvalidIpv6) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
   section.add("destinations", "[fe80::3617:ebff:fecb:587e@3]:3306");
-  section.add("mode", "read-only");
+  section.add("routing_strategy", "round-robin");
   section.add("bind_port", "6446");
 
   try {
@@ -478,7 +475,7 @@ class RoutingConfigTest
 
     mysql_harness::ConfigSection &section = cfg_.add("routing", "test_route");
     section.add("destinations", "127.0.0.1:3306");
-    section.add("mode", "read-only");
+    section.add("routing_strategy", "round-robin");
     section.add("bind_port", "6446");
   }
   mysql_harness::Config cfg_{mysql_harness::Config::allow_keys};
@@ -1132,7 +1129,7 @@ class RoutingConfigFailTest
 
     mysql_harness::ConfigSection &section = cfg_.add("routing", "test_route");
     section.add("destinations", "127.0.0.1:3306");
-    section.add("mode", "read-only");
+    section.add("routing_strategy", "round-robin");
     section.add("bind_port", "6446");
   }
 

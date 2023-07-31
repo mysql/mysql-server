@@ -43,8 +43,7 @@ class RouterComponentMetadataTest : public RouterComponentClusterSetTest {
 
   std::string get_metadata_cache_routing_section(
       uint16_t router_port, const std::string &role,
-      const std::string &strategy, const std::string &mode = "",
-      const std::string &section_name = "default",
+      const std::string &strategy, const std::string &section_name = "default",
       const std::string &protocol = "classic",
       const std::vector<std::pair<std::string, std::string>>
           &additional_options = {});

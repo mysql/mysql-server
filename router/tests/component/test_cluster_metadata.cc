@@ -756,10 +756,10 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
       get_metadata_cache_section(GetParam().cluster_type, "0.1");
   const auto router_rw_port = port_pool_.get_next_available();
   const std::string routing_rw_section = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, "PRIMARY", "first-available", "rw");
   const auto router_ro_port = port_pool_.get_next_available();
   const std::string routing_ro_section = get_metadata_cache_routing_section(
-      router_ro_port, "PRIMARY", "round-robin", "", "ro");
+      router_ro_port, "PRIMARY", "round-robin", "ro");
   /*auto &router =*/
   launch_router(metadata_cache_section, routing_rw_section + routing_ro_section,
                 md_servers_classic_ports, EXIT_SUCCESS,
@@ -882,10 +882,10 @@ TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
       GetParam().cluster_type, "0.1", kInitialClusterName);
   const auto router_rw_port = port_pool_.get_next_available();
   const std::string routing_rw_section = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, "PRIMARY", "first-available", "rw");
   const auto router_ro_port = port_pool_.get_next_available();
   const std::string routing_ro_section = get_metadata_cache_routing_section(
-      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+      router_ro_port, "SECONDARY", "round-robin", "ro");
   auto &router = launch_router(metadata_cache_section,
                                routing_rw_section + routing_ro_section,
                                md_servers_classic_ports, EXIT_SUCCESS,
@@ -972,7 +972,7 @@ TEST_P(SessionReuseTest, SessionReuse) {
   const std::string metadata_cache_section = get_metadata_cache_section(
       ClusterType::GR_V2, "0.2", "test", test_params.router_ssl_mode);
   const std::string routing_rw = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, "PRIMARY", "first-available", "rw");
 
   launch_router(metadata_cache_section, routing_rw, classic_ports, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
@@ -1095,7 +1095,7 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type, "0.05");
   const std::string routing_rw = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, "PRIMARY", "first-available", "rw");
 
   auto &router = launch_router(metadata_cache_section, routing_rw,
                                metadata_server_ports, EXIT_SUCCESS,

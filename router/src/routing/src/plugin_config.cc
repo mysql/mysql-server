@@ -76,32 +76,6 @@ class ProtocolOption {
   }
 };
 
-class ModeOption {
- public:
-  routing::Mode operator()(const std::optional<std::string> &value,
-                           const std::string &option_desc) {
-    if (!value) return routing::Mode::kUndefined;
-
-    if (value->empty()) {
-      throw std::invalid_argument(option_desc + " needs a value");
-    }
-
-    std::string lc_value{value.value()};
-
-    std::transform(lc_value.begin(), lc_value.end(), lc_value.begin(),
-                   ::tolower);
-
-    // if the mode is given it still needs to be valid
-    routing::Mode result = routing::get_mode(lc_value);
-    if (result == routing::Mode::kUndefined) {
-      const std::string valid = routing::get_mode_names();
-      throw std::invalid_argument(option_desc + " is invalid; valid are " +
-                                  valid + " (was '" + value.value() + "')");
-    }
-    return result;
-  }
-};
-
 class AccessModeOption {
  public:
   routing::AccessMode operator()(const std::optional<std::string> &value,
@@ -128,21 +102,13 @@ class AccessModeOption {
 
 class RoutingStrategyOption {
  public:
-  RoutingStrategyOption(routing::Mode mode, bool is_metadata_cache)
-      : mode_{mode}, is_metadata_cache_{is_metadata_cache} {}
+  RoutingStrategyOption(bool is_metadata_cache)
+      : is_metadata_cache_{is_metadata_cache} {}
 
   routing::RoutingStrategy operator()(const std::optional<std::string> &value,
                                       const std::string &option_desc) {
     if (!value) {
-      // routing_strategy option is not given
-      // this is fine as long as mode is set which means that we deal with an
-      // old configuration which we still want to support
-
-      if (mode_ == routing::Mode::kUndefined) {
-        throw std::invalid_argument(option_desc + " is required");
-      }
-
-      /** @brief `mode` option read from configuration section */
+      throw std::invalid_argument(option_desc + " is required");
       return routing::RoutingStrategy::kUndefined;
     } else if (value->empty()) {
       throw std::invalid_argument(option_desc + " needs a value");
@@ -165,7 +131,6 @@ class RoutingStrategyOption {
   }
 
  private:
-  routing::Mode mode_;
   bool is_metadata_cache_;
 };
 
@@ -447,8 +412,7 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(named_socket, section, "socket", NamedSocketOption{});
   GET_OPTION_CHECKED(connect_timeout, section, "connect_timeout",
                      IntOption<uint16_t>{1});
-  GET_OPTION_NO_DEFAULT_CHECKED(mode, section, "mode", ModeOption{});
-  auto routing_strategy_op = RoutingStrategyOption{mode, metadata_cache_};
+  auto routing_strategy_op = RoutingStrategyOption{metadata_cache_};
   GET_OPTION_NO_DEFAULT_CHECKED(routing_strategy, section, "routing_strategy",
                                 routing_strategy_op);
   GET_OPTION_CHECKED(max_connections, section, "max_connections",

@@ -128,9 +128,9 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(ClusterType::GR_V2, "0.2");
   const std::string routing_rw = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, "PRIMARY", "first-available", "rw");
   const std::string routing_ro = get_metadata_cache_routing_section(
-      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+      router_ro_port, "SECONDARY", "round-robin", "ro");
 
   auto &router = launch_router(metadata_cache_section, routing_rw + routing_ro,
                                classic_ports, EXIT_SUCCESS,

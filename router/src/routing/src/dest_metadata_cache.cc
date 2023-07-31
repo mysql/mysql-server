@@ -105,20 +105,6 @@ DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
   return role_it->second;
 }
 
-namespace {
-std::string get_server_role_name(
-    const DestMetadataCacheGroup::ServerRole role) {
-  auto role_it =
-      std::find_if(known_roles.begin(), known_roles.end(),
-                   [role](const auto &p) { return p.second == role; });
-
-  if (role_it == known_roles.end()) {
-    return "unknown";
-  }
-
-  return std::string{role_it->first};
-}
-
 routing::RoutingStrategy get_default_routing_strategy(
     const DestMetadataCacheGroup::ServerRole role) {
   switch (role) {
@@ -129,27 +115,6 @@ routing::RoutingStrategy get_default_routing_strategy(
   }
 
   return routing::RoutingStrategy::kUndefined;
-}
-
-/** @brief check that mode (if present) is correct for the role */
-bool mode_is_valid(const routing::Mode mode,
-                   const DestMetadataCacheGroup::ServerRole role) {
-  // no mode given, that's ok, nothing to check
-  if (mode == routing::Mode::kUndefined) {
-    return true;
-  }
-
-  switch (role) {
-    case DestMetadataCacheGroup::ServerRole::Primary:
-      return mode == routing::Mode::kReadWrite;
-    case DestMetadataCacheGroup::ServerRole::Secondary:
-    case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return mode == routing::Mode::kReadOnly;
-    default:;  //
-               /* fall-through, no access mode is valid for that role */
-  }
-
-  return false;
 }
 
 // throws:
@@ -187,7 +152,7 @@ bool get_disconnect_on_promoted_to_primary(
   auto check_option_allowed = [&]() {
     if (role != DestMetadataCacheGroup::ServerRole::Secondary) {
       throw std::runtime_error("Option '" + kOptionName +
-                               "' is valid only for mode=SECONDARY");
+                               "' is valid only for role=SECONDARY");
     }
   };
 
@@ -205,8 +170,6 @@ bool get_disconnect_on_metadata_unavailable(const mysqlrouter::URIQuery &uri) {
                            check_option_allowed);
 }
 
-}  // namespace
-
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 // doxygen confuses 'const mysqlrouter::URIQuery &query' with
 // 'std::map<std::string, std::string>'
@@ -214,12 +177,11 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
     net::io_context &io_ctx, const std::string &metadata_cache,
     const routing::RoutingStrategy routing_strategy,
     const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
-    const routing::Mode mode, metadata_cache::MetadataCacheAPIBase *cache_api)
+    metadata_cache::MetadataCacheAPIBase *cache_api)
     : RouteDestination(io_ctx, protocol),
       cache_name_(metadata_cache),
       uri_query_(query),
       routing_strategy_(routing_strategy),
-      mode_(mode),
       server_role_(get_server_role_from_uri(query)),
       cache_api_(cache_api),
       disconnect_on_promoted_to_primary_(
@@ -329,25 +291,9 @@ void DestMetadataCacheGroup::init() {
     }
   }
 
-  // if the routing strategy is set we don't allow mode to be set
-  if (routing_strategy_ != routing::RoutingStrategy::kUndefined &&
-      mode_ != routing::Mode::kUndefined) {
-    throw std::runtime_error(
-        "option 'mode' is not allowed together with 'routing_strategy' option");
-  }
-
   // if the routing_strategy is not set we go with the default based on the role
   if (routing_strategy_ == routing::RoutingStrategy::kUndefined) {
     routing_strategy_ = get_default_routing_strategy(server_role_);
-  }
-
-  // check that mode (if present) is correct for the role
-  // we don't actually use it but support it for backward compatibility
-  // and parity with STANDALONE routing destinations
-  if (!mode_is_valid(mode_, server_role_)) {
-    throw std::runtime_error(
-        "mode '" + routing::get_mode_name(mode_) +
-        "' is not valid for 'role=" + get_server_role_name(server_role_) + "'");
   }
 
   auto query_part = uri_query_.find("allow_primary_reads");

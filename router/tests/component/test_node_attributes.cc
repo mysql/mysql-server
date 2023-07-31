@@ -108,14 +108,14 @@ class NodeAttributesTest : public RouterComponentMetadataTest {
     std::string routing_rw_section{""};
     if (!read_only) {
       routing_rw_section = get_metadata_cache_routing_section(
-          router_rw_port, "PRIMARY", "first-available", "", "rw");
+          router_rw_port, "PRIMARY", "first-available", "rw");
       routing_rw_section += get_metadata_cache_routing_section(
-          router_rw_x_port, "PRIMARY", "first-available", "", "x_rw", "x");
+          router_rw_x_port, "PRIMARY", "first-available", "x_rw", "x");
     }
     std::string routing_ro_section = get_metadata_cache_routing_section(
-        router_ro_port, "SECONDARY", "round-robin", "", "ro");
+        router_ro_port, "SECONDARY", "round-robin", "ro");
     routing_ro_section += get_metadata_cache_routing_section(
-        router_ro_x_port, "SECONDARY", "round-robin", "", "x_ro", "x");
+        router_ro_x_port, "SECONDARY", "round-robin", "x_ro", "x");
 
     router = &launch_router(metadata_cache_section,
                             routing_rw_section + routing_ro_section, node_ports,
@@ -711,9 +711,9 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "round-robin", "", "rw");
+      router_rw_port, "PRIMARY", "round-robin", "rw");
   routing_section += get_metadata_cache_routing_section(
-      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "ro");
 
   launch_router(metadata_cache_section, routing_section, node_ports,
                 EXIT_SUCCESS,
@@ -785,9 +785,9 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "round-robin", "", "rw");
+      router_rw_port, "PRIMARY", "round-robin", "rw");
   routing_section += get_metadata_cache_routing_section(
-      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "ro");
 
   launch_router(metadata_cache_section, routing_section, node_ports,
                 EXIT_SUCCESS,

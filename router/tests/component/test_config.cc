@@ -61,13 +61,11 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
   const auto server_port = port_pool_.get_next_available();
 
   const std::string routing_section =
-      "[routing:basic]\n"
-      "bind_port = " +
-      std::to_string(router_port) +
-      "\n"
-      "mode = read-write\n"
-      "destinations = 127.0.0.1:" +
-      std::to_string(server_port) + "\n";
+      mysql_harness::ConfigBuilder::build_section(
+          "routing:basic",
+          {{"bind_port", std::to_string(router_port)},
+           {"routing_strategy", "round-robin"},
+           {"destinations", "127.0.0.1:" + std::to_string(server_port)}});
 
   TempDirectory conf_dir("conf");
   TempDirectory extra_conf_dir;
@@ -500,6 +498,69 @@ TEST_F(RouterConfigTest, MetadataCacheBootstrapServerAddresses) {
                         "main ERROR .* Error: option "
                         "'metadata_cache.bootstrap_server_addresses' is not "
                         "supported",
+                        2s));
+}
+
+TEST_F(RouterConfigTest, RoutingModeUnsupported) {
+  RecordProperty("Worklog", "15877");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty("Description",
+                 "Verifies that the Router fails to start when "
+                 "[routing].mode is configured and logs error stating that it "
+                 "is not supoprted option.");
+
+  const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:test", {{"bind_port", "6064"},
+                       {"destinations", "127.0.0.1:3060"},
+                       {"routing_strategy", "round-robin"},
+                       {"mode", "read-only"}});
+
+  TempDirectory conf_dir("conf");
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir.name());
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), mdc_section, &default_section);
+
+  // launch the router giving directory instead of an extra config name
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_TRUE(wait_log_contains(
+      router, "main ERROR .* Error: option 'routing.mode' is not supported",
+      2s));
+}
+
+TEST_F(RouterConfigTest, RoutingRoutingStrategyRequired) {
+  RecordProperty("Worklog", "15877");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty("Description",
+                 "Verifies that the Router fails to start when "
+                 "[routing].routing_strategy is not configured and logs error "
+                 "stating that it is required option.");
+
+  const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:test", {{"bind_port", "6064"},
+                       {"destinations", "127.0.0.1:3060"},
+                       {"mode", "read-only"}});
+
+  TempDirectory conf_dir("conf");
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir.name());
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), mdc_section, &default_section);
+
+  // launch the router giving directory instead of an extra config name
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "main ERROR .* Configuration error: option "
+                        "routing_strategy in \\[routing:test\\] is required",
                         2s));
 }
 

@@ -143,8 +143,7 @@ class SocketCloseTest : public RouterComponentTest {
   std::string get_metadata_cache_routing_section(
       const std::optional<uint16_t> &router_port,
       const std::optional<std::string> &router_socket, const std::string &role,
-      const std::string &strategy, const std::string &mode = "",
-      const std::string &section_name = "default",
+      const std::string &strategy, const std::string &section_name = "default",
       const std::string &protocol = "classic") const {
     std::vector<std::pair<std::string, std::string>> options{
         {"destinations", "metadata-cache://test/default?role=" + role},
@@ -155,7 +154,6 @@ class SocketCloseTest : public RouterComponentTest {
     if (router_socket) options.emplace_back("socket", *router_socket);
 
     if (!strategy.empty()) options.emplace_back("routing_strategy", strategy);
-    if (!mode.empty()) options.emplace_back("mode", mode);
 
     return mysql_harness::ConfigBuilder::build_section(
         "routing:" + section_name, options);
@@ -201,15 +199,15 @@ class SocketCloseTest : public RouterComponentTest {
     std::string routing_rw_section{""};
     if (!read_only) {
       routing_rw_section = get_metadata_cache_routing_section(
-          router_rw_port, router_rw_socket, "PRIMARY", "round-robin", "", "rw");
+          router_rw_port, router_rw_socket, "PRIMARY", "round-robin", "rw");
       routing_rw_section += get_metadata_cache_routing_section(
-          router_rw_x_port, router_rw_x_socket, "PRIMARY", "round-robin", "",
+          router_rw_x_port, router_rw_x_socket, "PRIMARY", "round-robin",
           "x_rw", "x");
     }
     std::string routing_ro_section = get_metadata_cache_routing_section(
-        router_ro_port, router_ro_socket, "SECONDARY", "round-robin", "", "ro");
+        router_ro_port, router_ro_socket, "SECONDARY", "round-robin", "ro");
     routing_ro_section += get_metadata_cache_routing_section(
-        router_ro_x_port, router_ro_x_socket, "SECONDARY", "round-robin", "",
+        router_ro_x_port, router_ro_x_socket, "SECONDARY", "round-robin",
         "x_ro", "x");
 
     router =
@@ -1603,13 +1601,13 @@ TEST_P(FailToOpenSocketOnStartup, FailOnStartup) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
-      router_rw_port, "PRIMARY", "round-robin", "", "rw");
+      router_rw_port, "PRIMARY", "round-robin", "rw");
   routing_section += get_metadata_cache_routing_section(
-      router_rw_x_port, "PRIMARY", "round-robin", "", "x_rw", "x");
+      router_rw_x_port, "PRIMARY", "round-robin", "x_rw", "x");
   routing_section += get_metadata_cache_routing_section(
-      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+      router_ro_port, "SECONDARY", "round-robin", "ro");
   routing_section += get_metadata_cache_routing_section(
-      router_ro_x_port, "SECONDARY", "round-robin", "", "x_ro", "x");
+      router_ro_x_port, "SECONDARY", "round-robin", "x_ro", "x");
 
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_FAILURE,
@@ -1682,10 +1680,10 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
-      router_rw_port, std::nullopt, "PRIMARY", "round-robin", "", "rw");
+      router_rw_port, std::nullopt, "PRIMARY", "round-robin", "rw");
   routing_section += get_metadata_cache_routing_section(
       router_ro_port, std::nullopt, "SECONDARY", "round-robin-with-fallback",
-      "", "ro");
+      "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
@@ -1760,9 +1758,9 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   const std::string metadata_cache_section =
       get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
-      router_rw_port, std::nullopt, "PRIMARY", "first-available", "", "rw");
+      router_rw_port, std::nullopt, "PRIMARY", "first-available", "rw");
   routing_section += get_metadata_cache_routing_section(
-      router_ro_port, std::nullopt, "SECONDARY", "first-available", "", "ro");
+      router_ro_port, std::nullopt, "SECONDARY", "first-available", "ro");
 
   launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
@@ -1965,9 +1963,9 @@ TEST_F(SharedQuarantineSocketCloseWithFallback,
   const std::string metadata_cache_section =
       get_metadata_cache_section(ClusterType::GR_V2);
   std::string routing_section = get_metadata_cache_routing_section(
-      bind_port_r1, std::nullopt, "PRIMARY", "round-robin", "", "r1");
+      bind_port_r1, std::nullopt, "PRIMARY", "round-robin", "r1");
   routing_section += get_metadata_cache_routing_section(
-      bind_port_r2, std::nullopt, "SECONDARY", "round-robin-with-fallback", "",
+      bind_port_r2, std::nullopt, "SECONDARY", "round-robin-with-fallback",
       "r2");
   routing_section += get_static_routing_section(bind_port_r3, std::nullopt,
                                                 {node_ports[1]}, "round-robin");

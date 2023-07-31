@@ -44,7 +44,6 @@ class RoutingConfig {
   mysql_harness::TCPAddress bind_address;  //!< IP address to bind to
   mysql_harness::Path named_socket;  //!< unix domain socket path to bind to
   int connect_timeout{};             //!< connect-timeout in seconds
-  routing::Mode mode{routing::Mode::kUndefined};  //!< read-only/read-write
   routing::RoutingStrategy routing_strategy{
       routing::RoutingStrategy::kUndefined};  //!< routing strategy (next-avail,
                                               //!< ...)

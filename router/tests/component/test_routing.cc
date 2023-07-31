@@ -79,7 +79,6 @@ class RouterRoutingTest : public RouterComponentBootstrapTest {
       destinations.push_back("127.0.0.1:" + std::to_string(port));
     }
     std::vector<ConfigBuilder::kv_type> options{
-        {"mode", "read-write"},
         {"destinations", mysql_harness::join(destinations, ",")},
         {"routing_strategy", "round-robin"},
         {"protocol", protocol}};
@@ -223,7 +222,7 @@ TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
 
   std::vector<std::pair<std::string, std::string>> routing_section_options{
       {"bind_port", std::to_string(router_port)},
-      {"mode", "read-write"},
+      {"routing_strategy", "round-robin"},
       // we use example.org's IP here to avoid DNS resolution which on PB2
       // often takes too long and causes the test timeout assumption to fail
       {"destinations", "93.184.216.34:81"}};
@@ -301,7 +300,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:timeout",
       {{"bind_port", std::to_string(router_port)},
-       {"mode", "read-write"},
+       {"routing_strategy", "round-robin"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
        {"destinations", "93.184.216.34:81"}});
 
@@ -368,7 +367,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutTimerCanceledCorrectly) {
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:timeout",
       {{"bind_port", std::to_string(router_port)},
-       {"mode", "read-write"},
+       {"routing_strategy", "round-robin"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
        {"destinations", "127.0.0.1:" + std::to_string(server_port)}});
 
@@ -400,7 +399,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:timeout",
       {{"bind_port", std::to_string(router_port)},
-       {"mode", "read-write"},
+       {"routing_strategy", "round-robin"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
        {"protocol", "x"},
        // we use example.org's IP here to avoid DNS resolution which on PB2
@@ -471,7 +470,6 @@ TEST_F(RouterRoutingTest, EccCertificate) {
       "routing:classic_ecdh_rsa",
       {
           {"bind_port", std::to_string(router_classic_ecdh_rsa_port)},
-          {"mode", "read-write"},
           {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
           {"routing_strategy", "round-robin"},
           {"protocol", "classic"},
@@ -484,7 +482,6 @@ TEST_F(RouterRoutingTest, EccCertificate) {
       "routing:classic_ecdh_dsa",
       {
           {"bind_port", std::to_string(router_classic_ecdh_dsa_port)},
-          {"mode", "read-write"},
           {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
           {"routing_strategy", "round-robin"},
           {"protocol", "classic"},
@@ -497,7 +494,6 @@ TEST_F(RouterRoutingTest, EccCertificate) {
       "routing:classic_ecdsa",
       {
           {"bind_port", std::to_string(router_classic_ecdsa_port)},
-          {"mode", "read-write"},
           {"destinations", "127.0.0.1:" + std::to_string(server_classic_port)},
           {"routing_strategy", "round-robin"},
           {"protocol", "classic"},
@@ -547,7 +543,7 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
       "routing:xproto",
       {{"bind_port", std::to_string(router_port)},
-       {"mode", "read-write"},
+       {"routing_strategy", "round-robin"},
        {"protocol", "x"},
        {"destinations", "127.0.0.1:" + std::to_string(server_x_port)}});
 
@@ -1084,7 +1080,7 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
       "socket = " +
       socket_file +
       "\n"
-      "mode = read-write\n"
+      "routing_strategy = round-robin\n"
       "destinations = 127.0.0.1:1234\n";  // port can be bogus
   TempDirectory conf_dir("conf");
   const std::string conf_file =
@@ -1137,7 +1133,7 @@ TEST_F(RouterRoutingTest, named_socket_fails_with_socket_is_not_readable) {
 
   writer.section("routing:basic", {
                                       {"socket", socket_file},
-                                      {"mode", "read-write"},
+                                      {"routing_strategy", "first-available"},
                                       {"destinations", "127.0.0.1:1234"},
                                   });
   auto &router = router_spawner()
@@ -1263,20 +1259,6 @@ const RoutingConfigParam routing_config_param[] = {
                       "option bind_port in [routing] needs value between 1 and "
                       "65535 inclusive, was '23123124123123'")));
      }},
-    {"invalid_mode",
-     {
-         {"destinations", "127.0.0.1:3306"},
-         {"bind_address", "127.0.0.1"},
-         {"bind_port", "6000"},
-         {"mode", "invalid"},
-     },
-     [](const std::vector<std::string> &lines) {
-       EXPECT_THAT(
-           lines,
-           ::testing::Contains(::testing::HasSubstr(
-               "option mode in [routing] is invalid; valid are read-write "
-               "and read-only (was 'invalid')")));
-     }},
     {"invalid_routing_strategy",
      {
          {"destinations", "127.0.0.1:3306"},
@@ -1290,17 +1272,6 @@ const RoutingConfigParam routing_config_param[] = {
                        "option routing_strategy in [routing] is invalid; valid "
                        "are first-available, "
                        "next-available, and round-robin (was 'invalid')")));
-     }},
-    {"empty_mode",
-     {
-         {"destinations", "127.0.0.1:3306"},
-         {"bind_address", "127.0.0.1"},
-         {"bind_port", "6000"},
-         {"mode", ""},
-     },
-     [](const std::vector<std::string> &lines) {
-       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
-                              "option mode in [routing] needs a value")));
      }},
     {"empty_routing_strategy",
      {

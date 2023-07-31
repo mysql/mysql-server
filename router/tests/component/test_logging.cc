@@ -1967,7 +1967,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     router_port_ = port_pool_.get_next_available();
     metadata_cache_section = get_metadata_cache_section();
     routing_section =
-        get_metadata_cache_routing_section("PRIMARY", "round-robin", "");
+        get_metadata_cache_routing_section("PRIMARY", "round-robin");
   }
 
   std::string get_static_routing_section() {
@@ -1992,8 +1992,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   }
 
   std::string get_metadata_cache_routing_section(const std::string &role,
-                                                 const std::string &strategy,
-                                                 const std::string &mode = "") {
+                                                 const std::string &strategy) {
     std::vector<std::pair<std::string, std::string>> options{
         {"bind_port", std::to_string(router_port_)},
         {"destinations", "metadata-cache://test/default?role=" + role},
@@ -2001,7 +2000,6 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     };
 
     if (!strategy.empty()) options.emplace_back("routing_strategy", strategy);
-    if (!mode.empty()) options.emplace_back("mode", mode);
 
     return mysql_harness::ConfigBuilder::build_section("routing:test_default",
                                                        options);

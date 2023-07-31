@@ -51,7 +51,6 @@ class DestMetadataCacheGroup final
                          const routing::RoutingStrategy routing_strategy,
                          const mysqlrouter::URIQuery &query,
                          const Protocol::Type protocol,
-                         const routing::Mode mode = routing::Mode::kUndefined,
                          metadata_cache::MetadataCacheAPIBase *cache_api =
                              metadata_cache::MetadataCacheAPI::instance());
 
@@ -173,8 +172,6 @@ class DestMetadataCacheGroup final
       bool primary_fallback);
 
   routing::RoutingStrategy routing_strategy_;
-
-  routing::Mode mode_;
 
   ServerRole server_role_;
 

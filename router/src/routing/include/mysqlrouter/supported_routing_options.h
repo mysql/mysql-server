@@ -35,7 +35,6 @@ static constexpr std::array<const char *, 48> routing_supported_options{
     "bind_address",
     "socket",
     "connect_timeout",
-    "mode",
     "routing_strategy",
     "max_connect_errors",
     "max_connections",

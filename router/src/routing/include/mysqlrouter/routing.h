@@ -129,20 +129,6 @@ constexpr const bool kDefaultWaitForMyWrites{true};
  */
 constexpr const std::chrono::seconds kDefaultWaitForMyWritesTimeout{2};
 
-/** @brief Modes supported by Routing plugin */
-enum class RoutingMode {
-  kUndefined = 0,
-  kReadWrite = 1,
-  kReadOnly = 2,
-};
-
-// the declaration of RoutingMode and then renaming to Mode works around a bug
-// in doxygen which otherwise reports:
-//
-// storage/innobase/include/buf0dblwr.h:365: warning:
-// documented symbol 'bool dblwr::Mode::is_atomic' was not declared or defined.
-using Mode = RoutingMode;
-
 enum class AccessMode {
   kUndefined = 0,
   kAuto = 1,
@@ -156,33 +142,6 @@ enum class RoutingStrategy {
   kRoundRobin = 3,
   kRoundRobinWithFallback = 4,
 };
-
-/**
- * Get comma separated list of all mode names.
- */
-std::string ROUTING_EXPORT get_mode_names();
-
-/**
- * Returns Mode for its literal representation.
- *
- * If no Mode is found for given string,
- * AccessMode::kUndefined is returned.
- *
- * @param value literal representation of the access mode
- * @return Mode for the given string or Mode::kUndefined
- */
-Mode ROUTING_EXPORT get_mode(const std::string &value);
-
-/**
- * Returns literal name of given mode.
- *
- * Returns literal name of given mode as a std:string. When
- * the mode is not found, empty string is returned.
- *
- * @param mode mode to look up
- * @return Name of mode as std::string or empty string
- */
-std::string ROUTING_EXPORT get_mode_name(Mode mode) noexcept;
 
 /**
  * Get comma separated list of all access mode names.
