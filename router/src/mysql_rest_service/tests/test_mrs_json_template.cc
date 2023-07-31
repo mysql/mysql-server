@@ -54,7 +54,7 @@ TEST_F(JsonTemplateNestedTests,
   sut_.end_resultset();
   sut_.finish();
   ASSERT_EQ(
-      "{\"items\":[{\"type\":\"myitems\",\"items\":[],\"metadata\":{"
+      "{\"items\":[{\"type\":\"myitems\",\"items\":[],\"_metadata\":{"
       "\"columns\":[]}}]}",
       sut_.get_result());
 }
@@ -71,7 +71,7 @@ TEST_F(
       "{"
       "\"type\":\"myitems\","
       "\"items\":[],"
-      "\"metadata\":{"
+      "\"_metadata\":{"
       "\"columns\":["
       "{\"name\":\"c1\",\"type\":\"INTEGER\"},"
       "{\"name\":\"c2\",\"type\":\"TEXT\"}"

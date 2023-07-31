@@ -65,7 +65,8 @@ class HandleObjectTests : public Test {
         const std::string &cached_primary, const std::string &schema,
         const std::string &object, const std::string &rest_path,
         const std::string &rest_url,
-        const std::vector<std::string> &cached_columns)
+        const std::vector<std::string> &cached_columns,
+        collector::MySQLConnection conn = collector::kMySQLConnectionUserdataRO)
         : parent_{parent},
           user_row_ownership_{user_row_ownership},
           group_row_ownership_{group_row_ownership},
@@ -86,10 +87,11 @@ class HandleObjectTests : public Test {
       }
       cached_object_ = builder.root();
 
-      expectSetup();
+      expectSetup(conn);
     }
 
-    void expectSetup() {
+    void expectSetup(collector::MySQLConnection conn =
+                         collector::kMySQLConnectionUserdataRO) {
       static std::string k_empty_string;
       EXPECT_CALL(parent_.mock_route, get_options())
           .WillRepeatedly(ReturnRef(k_empty_string));
@@ -108,8 +110,7 @@ class HandleObjectTests : public Test {
           .WillRepeatedly(ReturnRef(rest_path_));
       EXPECT_CALL(parent_.mock_route, get_cache())
           .WillRepeatedly(Return(&parent_.mysql_cache));
-      EXPECT_CALL(parent_.mysql_cache,
-                  get_instance(collector::kMySQLConnectionUserdataRO, false))
+      EXPECT_CALL(parent_.mysql_cache, get_instance(conn, false))
           .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
               nullptr, false, &parent_.mock_session))));
 
@@ -222,7 +223,8 @@ TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
                                    "object",
                                    "/schema/object/1",
                                    "https://test.pl/schema/object",
-                                   {"column2", "column3"}};
+                                   {"column2", "column3"},
+                                   collector::kMySQLConnectionUserdataRW};
 
   RequestContext ctxt{&mock_request_};
   HandlerTable object{&mock_route, &mock_auth_manager};
@@ -250,7 +252,8 @@ TEST_F(HandleObjectTests, delete_single_object) {
                                    "object",
                                    "/schema/object/1",
                                    "https://test.pl/schema/object?q={}",
-                                   {"column2", "column3"}};
+                                   {"column2", "column3"},
+                                   collector::kMySQLConnectionUserdataRW};
 
   RequestContext ctxt{&mock_request_};
   HandlerTable object{&mock_route, &mock_auth_manager};
