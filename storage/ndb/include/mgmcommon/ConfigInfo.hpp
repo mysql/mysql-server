@@ -25,6 +25,7 @@
 #ifndef ConfigInfo_H
 #define ConfigInfo_H
 
+#include <cassert>
 #include <kernel_types.h>
 #include <Properties.hpp>
 #include <ndb_limits.h>
@@ -127,6 +128,66 @@ public:
     const char*  _default;
     const char* _min;
     const char* _max;
+  public:
+    ParamInfo(Uint32 paramId, const char* fname, const char* section,
+              const char* description, Status status, Uint32 flags, Type type,
+              const char* default_, const char* min, const char* max):
+      _paramId(paramId),
+      _fname(fname),
+      _section(section),
+      _description(description),
+      _status(status),
+      _flags(flags),
+      _type(type),
+      _default(default_),
+      _min(min),
+      _max(max)
+    {
+      // If assert trigger, see special constructor for CI_SECTION below
+      assert(type != CI_SECTION);
+      // If assert trigger, see special constructor for CI_ENUM below
+      assert(type != CI_ENUM);
+    }
+    /*
+     * Constructor for CI_ENUM: _min must be a Typelib pointer and _max must
+     * not be provided (it is not used).
+     */
+    ParamInfo(Uint32 paramId, const char* fname, const char* section,
+              const char* description, Status status, Uint32 flags, Type type,
+              const char* default_, const Typelib* typelibptr):
+      _paramId(paramId),
+      _fname(fname),
+      _section(section),
+      _description(description),
+      _status(status),
+      _flags(flags),
+      _type(type),
+      _default(default_),
+      _min(reinterpret_cast<const char*>(typelibptr)),
+      _max(nullptr)
+    {
+      assert(type == CI_ENUM);
+    }
+    /*
+     * Constructor for CI_SECTION: _default must be a section type and _min
+     * and _max must not be provided (they are not used).
+     */
+    ParamInfo(Uint32 paramId, const char* fname, const char* section,
+              const char* description, Status status, Uint32 flags, Type type,
+              Uint32 section_type):
+      _paramId(paramId),
+      _fname(fname),
+      _section(section),
+      _description(description),
+      _status(status),
+      _flags(flags),
+      _type(type),
+      _default(reinterpret_cast<const char*>(section_type)),
+      _min(nullptr),
+      _max(nullptr)
+    {
+      assert(type == CI_SECTION);
+    }
   };
 
   /**
