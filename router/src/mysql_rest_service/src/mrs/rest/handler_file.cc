@@ -126,7 +126,7 @@ HttpResult HandlerFile::handle_get(rest::RequestContext *ctxt) {
   }
 
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
-                             MySQLConnection::kMySQLConnectionUserdataRO);
+                             MySQLConnection::kMySQLConnectionMetadataRO);
   auto result_type = get_result_type_from_extension(
       mysql_harness::make_lower(path.extension()));
 
