@@ -1630,7 +1630,7 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
   {
     try {
       // will throw if logging in using Router's credentials fails
-      rtr_acct_sess.connect(*mysql_.get(), username, password);
+      rtr_acct_sess.connect(*mysql_, username, password);
     } catch (const MySQLSession::Error &e) {
       failed_verification_handler(e);
       return;

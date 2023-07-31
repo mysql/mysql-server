@@ -81,8 +81,8 @@ class ConnectionConfiguration {
 
 class MysqlCacheManager {
  public:
-  using ConnectionParameters = mysqlrouter::MySQLSession::ConnectionParameters;
   using MySQLSession = CountedMySQLSession;
+  using ConnectionParameters = MySQLSession::ConnectionParameters;
   using MySqlCacheManager = CacheManager<CountedMySQLSession *>;
   using CachedObject = MySqlCacheManager::CachedObject;
   using Callbacks = MySqlCacheManager::Callbacks;

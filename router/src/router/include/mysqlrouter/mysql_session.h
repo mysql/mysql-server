@@ -168,7 +168,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   static const char kSslModeRequired[];
   static const char kSslModeVerifyCa[];
   static const char kSslModeVerifyIdentity[];
-      unsigned long extra_client_flags = 0;
   //
   // mysql_option's
   //
@@ -449,14 +448,12 @@ class ROUTER_LIB_EXPORT MySQLSession {
                        unsigned long extra_client_flags = 0);  // throws Error
   virtual void disconnect();
 
+  virtual void change_user(const std::string &user, const std::string &password,
+                           const std::string &db);
+  virtual void reset();
   /**
    * Connect using the same settings and parameters that were used for the last
    * other.connect() using provided credentials.
-  virtual void change_user(const std::string &user, const std::string &password,
-                           const std::string &db);
-
-  virtual void reset();
-
    */
   virtual void connect(const MySQLSession &other, const std::string &username,
                        const std::string &password);
@@ -528,6 +525,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   bool connected_;
   std::string connection_address_;
   SQLLogFilter log_filter_;
+  unsigned long extra_client_flags_{0};
 
   class MYSQL_RES_Deleter {
    public:

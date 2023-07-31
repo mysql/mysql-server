@@ -31,8 +31,49 @@ namespace collector {
 
 class CountedMySQLSession : public mysqlrouter::MySQLSession {
  public:
+  struct ConnectionParameters {
+    struct SslOptions {
+      mysql_ssl_mode ssl_mode;
+      std::string tls_version;
+      std::string ssl_cipher;
+      std::string ca;
+      std::string capath;
+      std::string crl;
+      std::string crlpath;
+    } ssl_opts;
+    struct SslCert {
+      std::string cert;
+      std::string key;
+    } ssl_cert;
+    struct ConnOptions {
+      std::string host;
+      unsigned int port;
+      std::string username;
+      std::string password;
+      std::string unix_socket;
+      std::string default_schema;
+      int connect_timeout;
+      int read_timeout;
+      unsigned long extra_client_flags = 0;
+    } conn_opts;
+  };
+
   CountedMySQLSession();
   ~CountedMySQLSession() override;
+
+  virtual ConnectionParameters get_connection_parameters() const;
+  virtual void connect_and_set_opts(
+      const ConnectionParameters &connection_params);
+
+  void connect(const MySQLSession &other, const std::string &username,
+               const std::string &password) override;
+  void connect(const std::string &host, unsigned int port,
+               const std::string &username, const std::string &password,
+               const std::string &unix_socket,
+               const std::string &default_schema,
+               int connect_timeout = kDefaultConnectTimeout,
+               int read_timeout = kDefaultReadTimeout,
+               unsigned long extra_client_flags = 0) override;
 
   void change_user(const std::string &user, const std::string &password,
                    const std::string &db) override;
@@ -54,6 +95,9 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
       const FieldValidator &validator) override;  // throws Error
   std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query) override;  // throws Error
+
+ private:
+  ConnectionParameters connections_;
 };
 
 }  // namespace collector
