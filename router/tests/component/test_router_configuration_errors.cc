@@ -214,44 +214,6 @@ static const BrokenConfigParams broken_config_params[]{
      "Configuration error: option client_connect_timeout in [routing] "
      "needs value between 2 and 31536000 inclusive, was '31536001'",
      ""},
-
-    {"metadata_cache_invalid_bind_address",
-     {
-         mysql_harness::ConfigBuilder::build_section(
-             "metadata_cache",
-             {
-                 {"bootstrap_server_addresses",
-                  "mysql://127.0.0.1:13000,mysql://127.0.0.1:99999"},
-             }),
-     },
-     "option bootstrap_server_addresses in [metadata_cache] is incorrect "
-     "(invalid URI: invalid port: impossible port number",
-     ""},
-    {"metadata_cache_no_bootstrap_server_addresses",
-     {
-         mysql_harness::ConfigBuilder::build_section("metadata_cache",
-                                                     {
-                                                         {"user", "foobar"},
-                                                     }),
-     },
-     "list of metadata-servers is empty: 'bootstrap_server_addresses' in the "
-     "configuration file is empty or not set and no known "
-     "'dynamic_config'-file",
-     ""},
-    {"metadata_cache_empty_bootstrap_server_addresses",
-     {
-         mysql_harness::ConfigBuilder::build_section(
-             "metadata_cache",
-             {
-                 {"user", "foobar"},
-                 {"bootstrap_server_addresses", ""},
-             }),
-     },
-     "list of metadata-servers is empty: 'bootstrap_server_addresses' in the "
-     "configuration file is empty or not set and no known "
-     "'dynamic_config'-file",
-     ""},
-
     {"metadata_cache_must_be_single",
      {
          mysql_harness::ConfigBuilder::build_section("metadata_cache:one", {}),

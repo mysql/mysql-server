@@ -30,6 +30,7 @@ var options = {
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   metadata_schema_version: [1, 0, 2],
+  gr_id: mysqld.global.gr_id,
 };
 
 var router_select_metadata =

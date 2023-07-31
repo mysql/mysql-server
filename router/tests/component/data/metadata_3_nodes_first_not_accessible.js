@@ -11,6 +11,7 @@ if (mysqld.global.innodb_cluster_name === undefined) {
 var options = {
   metadata_schema_version: [2, 1, 0],
   innodb_cluster_name: mysqld.global.innodb_cluster_name,
+  gr_id: mysqld.global.gr_id,
   group_replication_members:
       gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes),
   innodb_cluster_instances:

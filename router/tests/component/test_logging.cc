@@ -1965,7 +1965,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
                                 port_pool_.get_next_available(),
                                 port_pool_.get_next_available()};
     router_port_ = port_pool_.get_next_available();
-    metadata_cache_section = get_metadata_cache_section(cluster_nodes_ports);
+    metadata_cache_section = get_metadata_cache_section();
     routing_section =
         get_metadata_cache_routing_section("PRIMARY", "round-robin", "");
   }
@@ -1979,21 +1979,11 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
                                 });
   }
 
-  std::string get_metadata_cache_section(std::vector<uint16_t> ports) {
-    std::string metadata_caches;
-
-    for (const auto &port : ports) {
-      if (!metadata_caches.empty()) {
-        metadata_caches.append(",");
-      }
-      metadata_caches += "mysql://127.0.0.1:" + std::to_string(port);
-    }
-
+  std::string get_metadata_cache_section() {
     return mysql_harness::ConfigBuilder::build_section(
         "metadata_cache:test",
         {
             {"router_id", "1"},
-            {"bootstrap_server_addresses", metadata_caches},
             {"user", "mysql_router1_user"},
             {"metadata_cluster", "test"},
             {"connect_timeout", "1"},
@@ -2038,6 +2028,12 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
                                            bool log_to_console) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir.name());
+
+    const auto state_file = create_state_file(
+        get_test_temp_dir_name(),
+        create_state_file_content("uuid", "", cluster_nodes_ports, 0));
+    default_section["dynamic_state"] = state_file;
+
     default_section["logging_folder"] =
         log_to_console ? "" : get_logging_dir().str();
     const std::string sinks =
@@ -2111,7 +2107,7 @@ TEST_F(MetadataCacheLoggingTest,
   EXPECT_TRUE(error_timestamp);
   EXPECT_FALSE(get_log_timestamp(
       router.get_logfile_path(),
-      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 20 * ttl_));
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 5 * ttl_));
   // After logging an error next logs should be debug (unless the server state
   // changes)
   const auto debug_timestamp = get_log_timestamp(
@@ -2127,7 +2123,7 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(http_port);
@@ -2169,7 +2165,7 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[1], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[1]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
 
@@ -2217,7 +2213,7 @@ TEST_F(MetadataCacheLoggingTest,
   ASSERT_NO_FATAL_FAILURE(check_port_ready(new_server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(cluster_nodes_http_ports[0])
                   .wait_for_rest_endpoint_ready());
-  set_mock_metadata(cluster_nodes_http_ports[0], "",
+  set_mock_metadata(cluster_nodes_http_ports[0], "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(cluster_nodes_http_ports[0]);

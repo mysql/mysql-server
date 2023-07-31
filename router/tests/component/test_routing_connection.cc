@@ -108,13 +108,6 @@ class ConfigGenerator {
   void add_metadata_cache_section(
       std::chrono::milliseconds ttl,
       ClusterType cluster_type = ClusterType::GR_V2) {
-    // NOT: Those tests are using bootstrap_server_addresses in the static
-    // configuration which is now moved to the dynamic state file. This way we
-    // are testing the backward compatibility of the old
-    // bootstrap_server_addresses still working. If this is ever changed to
-    // use
-    // dynamic state file,  a new test should be added to test that
-    // bootstrap_server_addresses is still handled properly.
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "ar" : "gr";
     metadata_cache_section_ =
@@ -126,14 +119,6 @@ class ConfigGenerator {
         cluster_type_str +
         "\n"
         "router_id=1\n"
-        "bootstrap_server_addresses=";
-    size_t i = 0;
-    for (uint16_t port : metadata_server_ports_) {
-      metadata_cache_section_ += "mysql://127.0.0.1:" + std::to_string(port);
-      if (i < metadata_server_ports_.size() - 1) metadata_cache_section_ += ",";
-    }
-    metadata_cache_section_ +=
-        "\n"
         "user=mysql_router1_user\n"
         "metadata_cluster=test\n"
         "connect_timeout=1\n"
@@ -216,7 +201,8 @@ class ConfigGenerator {
     return std::string("[DEFAULT]\n") + l("logging_folder") +
            l("plugin_folder") + l("runtime_folder") + l("config_folder") +
            l("data_folder") + l("keyring_path") + l("master_key_path") +
-           l("master_key_reader") + l("master_key_writer") + "\n";
+           l("master_key_reader") + l("master_key_writer") +
+           l("dynamic_state") + "\n";
   }
 
   std::string create_config_file(
@@ -253,6 +239,11 @@ class ConfigGenerator {
     }
 
     init_keyring(defaults_, temp_test_dir);
+
+    const auto state_file = ProcessManager::create_state_file(
+        temp_test_dir,
+        create_state_file_content("uuid", "", metadata_server_ports_, 0));
+    defaults_["dynamic_state"] = state_file;
 
     return create_config_file(&defaults_, config_dir_);
   }
@@ -334,8 +325,8 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
                 nodes_ports.begin());
 
     EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-    set_mock_metadata(http_port, "", classic_ports_to_gr_nodes(nodes_ports), 0,
-                      classic_ports_to_cluster_nodes(nodes_ports));
+    set_mock_metadata(http_port, "uuid", classic_ports_to_gr_nodes(nodes_ports),
+                      0, classic_ports_to_cluster_nodes(nodes_ports));
     return cluster_node;
   }
 
@@ -401,7 +392,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   void set_additional_globals(uint16_t http_port,
                               const server_globals &globals) {
     auto json_doc = mock_GR_metadata_as_json(
-        "", classic_ports_to_gr_nodes(cluster_nodes_ports_), 0,
+        "uuid", classic_ports_to_gr_nodes(cluster_nodes_ports_), 0,
         classic_ports_to_cluster_nodes(cluster_nodes_ports_));
     JsonAllocator allocator;
     json_doc.AddMember("primary_removed", globals.primary_removed, allocator);

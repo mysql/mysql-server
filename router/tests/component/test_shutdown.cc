@@ -43,6 +43,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 
 using ::testing::Eq;
 using namespace std::chrono_literals;
@@ -216,20 +217,17 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   }
 
   // write Router config
-  std::string servers;
-  for (unsigned port : cluster_node_ports)
-    servers += "mysql://127.0.0.1:" + std::to_string(port) + ",";
-  servers.resize(servers.size() - 1);  // trim last ","
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("gr-id", "", cluster_node_ports, 0));
   const std::string config =
       /*[DEFAULT]*/
       "connect_timeout = " + std::to_string(kConnectTimeout.count() / 1000) +
       "\n"
-      "\n"
+      "dynamic_state = " +
+      state_file + "\n\n" +
       "[metadata_cache:test]\n"
       "router_id=1\n"
-      "bootstrap_server_addresses=" +
-      servers +
-      "\n"
       "user=mysql_router1_user\n"
       "metadata_cluster=test\n"
       "ttl=0.1\n"

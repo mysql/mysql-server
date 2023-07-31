@@ -27,7 +27,7 @@
 
 #include <array>
 
-static constexpr std::array<const char *, 19> metadata_cache_supported_options{{
+static constexpr std::array<const char *, 18> metadata_cache_supported_options{{
     "user",
     "ttl",
     "auth_cache_ttl",
@@ -39,7 +39,6 @@ static constexpr std::array<const char *, 19> metadata_cache_supported_options{{
     "thread_stack_size",
     "use_gr_notifications",
     "cluster_type",
-    "bootstrap_server_addresses",
     "ssl_mode",
     "ssl_cipher",
     "tls_version",

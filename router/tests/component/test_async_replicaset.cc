@@ -78,7 +78,6 @@ class AsyncReplicasetTest : public RouterComponentTest {
   }
 
   std::string get_metadata_cache_section(
-      uint16_t metadata_server_port = 0,
       const std::chrono::milliseconds ttl = kTTL,
       const std::string &cluster_type_str = "rs") {
     auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
@@ -87,11 +86,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
            "cluster_type=" +
            cluster_type_str +
            "\n"
-           "router_id=1\n" +
-           ((metadata_server_port == 0)
-                ? ""
-                : "bootstrap_server_addresses=mysql://localhost:" +
-                      std::to_string(metadata_server_port) + "\n") +
+           "router_id=1\n"
            "user=mysql_router1_user\n"
            "metadata_cluster=test\n"
            "connect_timeout=1\n"
@@ -246,8 +241,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -309,8 +303,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -398,8 +391,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -489,8 +481,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -568,8 +559,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -641,8 +631,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   SCOPED_TRACE(
       "// Create a configuration file. disconnect_on_metadata_unavailable for "
       "R/W routing is false, for RO routing is true");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available",
@@ -727,8 +716,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   SCOPED_TRACE(
       "// Create a configuration file. disconnect_on_metadata_unavailable for "
       "R/W routing is true, for RO routing is false");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available",
@@ -829,8 +817,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
                             cluster_id, "", initial_cluster_members, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -907,8 +894,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -996,8 +982,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
                             cluster_id, "", initial_cluster_members, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1081,8 +1066,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1159,8 +1143,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1245,8 +1228,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1328,8 +1310,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1409,8 +1390,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1517,8 +1497,7 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
       create_state_file_content(cluster_id, "", cluster_nodes_ports, view_id));
 
   SCOPED_TRACE("// Create a configuration file.");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1601,7 +1580,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
 
   SCOPED_TRACE("// Create a configuration file.");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, GetParam().cluster_type_str);
+      get_metadata_cache_section(kTTL, GetParam().cluster_type_str);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available");
@@ -1679,7 +1658,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
       "// Create a configuration file. disconnect_on_metadata_unavailable for "
       "R/W  and R/O routing is true");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, GetParam().cluster_type_str);
+      get_metadata_cache_section(kTTL, GetParam().cluster_type_str);
   const uint16_t router_port_rw = port_pool_.get_next_available();
   const std::string routing_section_rw = get_metadata_cache_routing_section(
       router_port_rw, "PRIMARY", "first-available",

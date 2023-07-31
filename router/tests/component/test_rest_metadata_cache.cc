@@ -88,11 +88,8 @@ class RestMetadataCacheApiWithoutClusterTest
       public ::testing::WithParamInterface<RestApiTestParams> {};
 
 // precondition to these tests is that we can start a router against a
-// metadata-cluster which has no nodes. But with Bug#28352482 (no empty
-// bootstrap_server_addresses) fixed we can't bring the metadata into that state
-// anymore. We just won't start.
-//
-// An empty dynamic_config file will also not allow to start.
+// metadata-cluster which has no nodes but an empty dynamic_config file will
+// also not allow to start.
 //
 // In case that functionally ever comes back, we'll leave this code around, but
 // disabled.

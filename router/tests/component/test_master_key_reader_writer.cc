@@ -46,6 +46,7 @@
 #include "process_manager.h"
 #include "random_generator.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "script_generator.h"
 #include "tcp_port_pool.h"
 
@@ -93,18 +94,16 @@ class MasterKeyReaderWriterTest : public RouterComponentBootstrapTest {
   }
 
   static std::pair<std::string, std::map<std::string, std::string>>
-  metadata_cache_section(uint16_t server_port) {
+  metadata_cache_section() {
     return {"metadata_cache:test",
             {{"router_id", "1"},
-             {"bootstrap_server_addresses",
-              "mysql://localhost:" + std::to_string(server_port)},
              {"user", "mysql_router1_user"},
              {"metadata_cluster", "test"},
              {"ttl", "500"}}};
   }
 
-  static std::string get_metadata_cache_section(unsigned server_port) {
-    auto section = metadata_cache_section(server_port);
+  static std::string get_metadata_cache_section() {
+    auto section = metadata_cache_section();
 
     return mysql_harness::ConfigBuilder::build_section(section.first,
                                                        section.second);
@@ -531,7 +530,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   TempDirectory conf_dir("conf");
 
   auto writer = config_writer(conf_dir.name())
-                    .section(metadata_cache_section(server_port))
+                    .section(metadata_cache_section())
                     .section(metadata_cache_routing_section(
                         "PRIMARY", "round-robin", router_port));
 
@@ -543,6 +542,11 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   default_section["keyring_path"] = keyring_info.get_keyring_file();
   default_section["master_key_reader"] = keyring_info.get_master_key_reader();
   default_section["master_key_writer"] = keyring_info.get_master_key_writer();
+
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {server_port}, 0));
+  default_section["dynamic_state"] = state_file;
 
   auto &router =
       router_spawner()
@@ -575,7 +579,7 @@ TEST_F(MasterKeyReaderWriterTest,
   TempDirectory conf_dir("conf");
 
   auto writer = config_writer(conf_dir.name())
-                    .section(metadata_cache_section(server_port))
+                    .section(metadata_cache_section())
                     .section(metadata_cache_routing_section(
                         "PRIMARY", "round-robin", router_port));
 
@@ -587,6 +591,11 @@ TEST_F(MasterKeyReaderWriterTest,
   default_section["keyring_path"] = keyring_info.get_keyring_file();
   default_section["master_key_reader"] = keyring_info.get_master_key_reader();
   default_section["master_key_writer"] = keyring_info.get_master_key_writer();
+
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {server_port}, 0));
+  default_section["dynamic_state"] = state_file;
 
   // launch the router with metadata-cache configuration
 
@@ -615,7 +624,7 @@ TEST_F(MasterKeyReaderWriterTest,
 TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
   auto server_port = port_pool_.get_next_available();
   auto router_port = port_pool_.get_next_available();
-  std::string metadata_cache_section = get_metadata_cache_section(server_port);
+  std::string metadata_cache_section = get_metadata_cache_section();
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 
@@ -650,7 +659,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
 TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
   auto server_port = port_pool_.get_next_available();
   auto router_port = port_pool_.get_next_available();
-  std::string metadata_cache_section = get_metadata_cache_section(server_port);
+  std::string metadata_cache_section = get_metadata_cache_section();
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
 

@@ -20,6 +20,7 @@ var cluster_nodes = gr_memberships.single_host_cluster_nodes(
 var options = {
   group_replication_members: group_replication_members_online,
   innodb_cluster_instances: cluster_nodes,
+  gr_id: "uuid"
 };
 
 var common_responses = common_stmts.prepare_callable_statement_responses(

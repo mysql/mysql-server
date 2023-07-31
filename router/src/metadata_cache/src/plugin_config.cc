@@ -110,8 +110,7 @@ uint64_t MetadataCachePluginConfig::get_view_id() const {
 }
 
 std::vector<mysql_harness::TCPAddress>
-MetadataCachePluginConfig::get_metadata_servers(
-    const mysql_harness::ConfigSection *section, uint16_t default_port) const {
+MetadataCachePluginConfig::get_metadata_servers(uint16_t default_port) const {
   std::vector<mysql_harness::TCPAddress> address_vector;
 
   auto add_metadata_server = [&](const std::string &address) {
@@ -127,12 +126,6 @@ MetadataCachePluginConfig::get_metadata_servers(
   };
 
   if (metadata_cache_dynamic_state) {
-    if (section->has("bootstrap_server_addresses")) {
-      throw std::runtime_error(
-          "bootstrap_server_addresses is not allowed when dynamic state file "
-          "is used");
-    }
-
     metadata_cache_dynamic_state->load();
     // we do the save right away to check whether we have a write permission to
     // the state file and if not to get an early error report and close the
@@ -151,23 +144,6 @@ MetadataCachePluginConfig::get_metadata_servers(
             exc.what() + ")");
       }
     }
-  } else {
-    get_option(section, "bootstrap_server_addresses",
-               [&](const std::string &value, const std::string &option_desc) {
-                 std::stringstream ss(value);
-                 std::string address;
-
-                 // Fetch the string that contains the list of bootstrap servers
-                 // separated by a delimiter (,).
-                 while (getline(ss, address, ',')) {
-                   try {
-                     add_metadata_server(address);
-                   } catch (const std::runtime_error &exc) {
-                     throw std::invalid_argument(
-                         option_desc + " is incorrect (" + exc.what() + ")");
-                   }
-                 }
-               });
   }
 
   return address_vector;
@@ -214,7 +190,7 @@ MetadataCachePluginConfig::MetadataCachePluginConfig(
     : BasePluginConfig(section),
       metadata_cache_dynamic_state(get_dynamic_state(section)),
       metadata_servers_addresses(
-          get_metadata_servers(section, metadata_cache::kDefaultMetadataPort)) {
+          get_metadata_servers(metadata_cache::kDefaultMetadataPort)) {
   GET_OPTION_CHECKED(user, section, "user", StringOption{});
   auto ttl_op = MilliSecondsOption{0.0, 3600.0};
   GET_OPTION_CHECKED(ttl, section, "ttl", ttl_op);

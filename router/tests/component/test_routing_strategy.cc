@@ -63,16 +63,12 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     }
   }
 
-  std::string get_metadata_cache_section(const uint16_t metadata_server_port,
-                                         const uint16_t ttl = 300) const {
+  std::string get_metadata_cache_section(const uint16_t ttl = 300) const {
     return mysql_harness::ConfigBuilder::build_section(
-        "metadata_cache:test",
-        {{"router_id", "1"},
-         {"bootstrap_server_addresses",
-          "mysql://localhost:" + std::to_string(metadata_server_port)},
-         {"user", "mysql_router1_user"},
-         {"metadata_cluster", "test"},
-         {"ttl", std::to_string(ttl)}});
+        "metadata_cache:test", {{"router_id", "1"},
+                                {"user", "mysql_router1_user"},
+                                {"metadata_cluster", "test"},
+                                {"ttl", std::to_string(ttl)}});
   }
 
   std::string get_static_routing_section(
@@ -254,9 +250,14 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
   ProcessWrapper &launch_router(const std::string &temp_test_dir,
                                 const std::string &metadata_cache_section,
-                                const std::string &routing_section) {
+                                const std::string &routing_section,
+                                const std::vector<uint16_t> &md_servers) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
+    const auto state_file =
+        create_state_file(get_test_temp_dir_name(),
+                          create_state_file_content("uuid", "", md_servers, 0));
+    default_section["dynamic_state"] = state_file;
 
     // launch the router with metadata-cache configuration
     const std::string conf_file = create_config_file(
@@ -345,7 +346,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -361,8 +362,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   // launch the router with metadata-cache configuration
   const auto router_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0]);
+  const std::string metadata_cache_section = get_metadata_cache_section();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, test_params.role, test_params.routing_strategy,
       test_params.mode);
@@ -372,7 +372,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   auto &router = launch_router(temp_test_dir.name(),
                                metadata_cache_section + monitoring_section,
-                               routing_section);
+                               routing_section, {cluster_nodes_ports[0]});
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // give the router a chance to initialise metadata-cache module
@@ -997,7 +997,7 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -1015,8 +1015,7 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   const auto X_RW_bind_port = port_pool_.get_next_available();
   const auto X_RO_bind_port = port_pool_.get_next_available();
   const auto classic_RO_bind_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0]);
+  const std::string metadata_cache_section = get_metadata_cache_section();
   const std::string routing_section =
       get_metadata_cache_routing_section(X_RW_bind_port, "PRIMARY",
                                          "first-available", "", "x_rw") +
@@ -1030,7 +1029,7 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
 
   auto &router = launch_router(temp_test_dir.name(),
                                metadata_cache_section + monitoring_section,
-                               routing_section);
+                               routing_section, {cluster_nodes_ports[0]});
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, X_RW_bind_port));
 
   RestMetadataClient::MetadataStatus metadata_status;
@@ -1112,7 +1111,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -1128,8 +1127,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
 
   // launch the router with metadata-cache configuration
   const auto classic_RO_bind_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0]);
+  const std::string metadata_cache_section = get_metadata_cache_section();
   const std::string routing_section = get_metadata_cache_routing_section(
       classic_RO_bind_port, "SECONDARY", "round-robin", "", "c_ro",
       GetParam().unreachable_destination_refresh_interval);
@@ -1139,6 +1137,12 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, temp_test_dir.name());
+
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {cluster_nodes_ports[0]}, 0));
+  default_section["dynamic_state"] = state_file;
+
   const std::string destination_status_section =
       get_destination_status_section(GetParam().interval, GetParam().threshold);
   const std::string conf_file{
@@ -1277,7 +1281,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -1295,7 +1299,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   const auto X_RO_bind_port = port_pool_.get_next_available();
   const auto classic_RO_bind_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0], ttl.count());
+      get_metadata_cache_section(ttl.count());
   const std::string routing_section =
       get_metadata_cache_routing_section(X_RO_bind_port, "SECONDARY",
                                          "round-robin", "", "x_ro") +
@@ -1307,6 +1311,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, temp_test_dir.name());
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {cluster_nodes_ports[0]}, 0));
+  default_section["dynamic_state"] = state_file;
+
   const std::chrono::seconds unreachable_dest_refresh_value = ttl * 10;
   const std::string destination_status_section =
       get_destination_status_section(unreachable_dest_refresh_value, 1);
@@ -1337,7 +1346,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
 
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
-      http_port, "",
+      http_port, "uuid",
       classic_ports_to_gr_nodes({cluster_nodes_ports[0], cluster_nodes_ports[2],
                                  cluster_nodes_ports[3]}),
       0,
@@ -1352,7 +1361,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   SCOPED_TRACE("// restore first RO node");
   cluster_nodes[1] =
       &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(http_port, 2);
@@ -1389,7 +1398,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -1407,7 +1416,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   const auto classic_RO_bind_port = port_pool_.get_next_available();
   const auto static_bind_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0], ttl.count());
+      get_metadata_cache_section(ttl.count());
   const std::string routing_section =
       get_metadata_cache_routing_section(classic_RO_bind_port, "SECONDARY",
                                          "round-robin", "", "c_ro") +
@@ -1420,6 +1429,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, temp_test_dir.name());
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {cluster_nodes_ports[0]}, 0));
+  default_section["dynamic_state"] = state_file;
+
   const std::chrono::seconds unreachable_dest_refresh_value = ttl * 10;
   const std::string destination_status_section =
       get_destination_status_section(unreachable_dest_refresh_value, 1);
@@ -1449,7 +1463,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
 
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
-      http_port, "",
+      http_port, "uuid",
       classic_ports_to_gr_nodes({cluster_nodes_ports[0], cluster_nodes_ports[2],
                                  cluster_nodes_ports[3]}),
       0,
@@ -1487,7 +1501,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "",
+  set_mock_metadata(http_port, "uuid",
                     classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
                     classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
@@ -1504,7 +1518,7 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   // launch the router with metadata-cache configuration
   const auto classic_RO_bind_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(cluster_nodes_ports[0], 1 /*ttl*/);
+      get_metadata_cache_section(1 /*ttl*/);
   const std::string routing_section = get_metadata_cache_routing_section(
       classic_RO_bind_port, "SECONDARY", "round-robin", "", "c_ro");
   const auto monitoring_port = port_pool_.get_next_available();
@@ -1513,6 +1527,11 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, temp_test_dir.name());
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {cluster_nodes_ports[0]}, 0));
+  default_section["dynamic_state"] = state_file;
+
   const std::chrono::seconds unreachable_dest_refresh_value{3600};
   const std::string destination_status_section =
       get_destination_status_section(unreachable_dest_refresh_value, 1);

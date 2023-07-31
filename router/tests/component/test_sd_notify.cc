@@ -439,8 +439,7 @@ TEST_F(NotifyTest, NotifyReadyMetadataCacheNoServer) {
       "we pick a socket where on which there is noone accepting to mimic "
       "unavailable cluster");
 
-  const auto nodes =
-      "mysql://localhost:" + std::to_string(port_pool_.get_next_available());
+  const auto metadata_server_port = port_pool_.get_next_available();
 
   auto writer =
       config_writer(get_test_temp_dir_name())
@@ -453,14 +452,18 @@ TEST_F(NotifyTest, NotifyReadyMetadataCacheNoServer) {
           .section("metadata_cache", {
                                          {"cluster_type", "gr"},
                                          {"router_id", "1"},
-                                         {"bootstrap_server_addresses", nodes},
                                          {"user", "mysql_router1_user"},
                                          {"connect_timeout", "1"},
                                          {"metadata_cluster", "test"},
                                      });
 
-  // prepare keyring
-  init_keyring(writer.sections()["DEFAULT"], get_test_temp_dir_name());
+  // prepare keyring and state file
+  auto &default_section = writer.sections()["DEFAULT"];
+  init_keyring(default_section, get_test_temp_dir_name());
+  const auto state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {metadata_server_port}, 0));
+  default_section["dynamic_state"] = state_file;
 
   // check that router never becomes READY (within a reasonable time) as
   // metadata-cache fails to connect

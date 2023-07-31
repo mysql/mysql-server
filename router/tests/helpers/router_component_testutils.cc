@@ -37,6 +37,7 @@
 
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 #include "mysqlrouter/mock_server_rest_client.h"
 #include "router_test_helpers.h"
 
@@ -58,13 +59,24 @@ std::string create_state_file_content(
     const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const std::vector<uint16_t> &metadata_servers_ports,
-    const uint64_t view_id /*= 0*/) {
-  std::string metadata_servers;
-  for (std::size_t i = 0; i < metadata_servers_ports.size(); i++) {
-    metadata_servers +=
-        "\"mysql://127.0.0.1:" + std::to_string(metadata_servers_ports[i]) +
-        "\"";
-    if (i < metadata_servers_ports.size() - 1) metadata_servers += ",";
+    const uint64_t view_id) {
+  std::vector<mysql_harness::TCPAddress> metadata_servers;
+  for (const auto port : metadata_servers_ports) {
+    metadata_servers.emplace_back("127.0.0.1", port);
+  }
+  return create_state_file_content(metadata_servers, cluster_type_specific_id,
+                                   clusterset_id, view_id);
+}
+
+std::string create_state_file_content(
+    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
+    const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id, const uint64_t view_id /*= 0*/) {
+  std::string metadata_servers_str;
+  for (auto [i, metadata_server] : stdx::views::enumerate(metadata_servers)) {
+    metadata_servers_str += "\"mysql://" + metadata_server.address() + ":" +
+                            std::to_string(metadata_server.port()) + "\"";
+    if (i < metadata_servers.size() - 1) metadata_servers_str += ",";
   }
   std::string view_id_str;
   if (view_id > 0) view_id_str = R"(, "view-id":)" + std::to_string(view_id);
@@ -85,7 +97,7 @@ std::string create_state_file_content(
        R"("version": ")" + version + R"(",)"
        R"("metadata-cache": {)"
          + cluster_id +
-         R"("cluster-metadata-servers": [)" + metadata_servers + "]"
+         R"("cluster-metadata-servers": [)" + metadata_servers_str + "]"
          + view_id_str +
         "}"
       "}";

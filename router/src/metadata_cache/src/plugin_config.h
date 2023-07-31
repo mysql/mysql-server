@@ -113,12 +113,11 @@ class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
    *
    * Throws std::invalid_argument on errors.
    *
-   * @param section Instance of ConfigSection
    * @param default_port Use this port when none was provided
    * @return std::vector<mysql_harness::TCPAddress>
    */
   std::vector<mysql_harness::TCPAddress> get_metadata_servers(
-      const mysql_harness::ConfigSection *section, uint16_t default_port) const;
+      uint16_t default_port) const;
 
   mysqlrouter::ClusterType get_cluster_type(
       const mysql_harness::ConfigSection *section);

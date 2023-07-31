@@ -84,8 +84,7 @@ class StateFileTest : public RouterComponentBootstrapTest {
   }
 
   std::pair<std::string, std::map<std::string, std::string>>
-  metadata_cache_section(uint16_t metadata_server_port = 0,
-                         const std::chrono::milliseconds ttl = kTTL,
+  metadata_cache_section(const std::chrono::milliseconds ttl = kTTL,
                          ClusterType cluster_type = ClusterType::GR_V2) {
     std::map<std::string, std::string> options{
         {"cluster_type", (cluster_type == ClusterType::RS_V2) ? "rs" : "gr"},
@@ -96,20 +95,13 @@ class StateFileTest : public RouterComponentBootstrapTest {
         {"ttl", std::to_string(std::chrono::duration<double>(ttl).count())},
     };
 
-    if (metadata_server_port != 0) {
-      options["bootstrap_server_addresses"] =
-          "mysql://localhost:" + std::to_string(metadata_server_port);
-    };
-
     return {"metadata_cache:test", options};
   }
 
   std::string get_metadata_cache_section(
-      uint16_t metadata_server_port = 0,
       const std::chrono::milliseconds ttl = kTTL,
       ClusterType cluster_type = ClusterType::GR_V2) {
-    auto section =
-        metadata_cache_section(metadata_server_port, ttl, cluster_type);
+    auto section = metadata_cache_section(ttl, cluster_type);
     return mysql_harness::ConfigBuilder::build_section(section.first,
                                                        section.second) +
            "\n";
@@ -308,7 +300,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "changes we make in the mock server via http port were refreshed "
       "quickly");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, param.cluster_type);
+      get_metadata_cache_section(kTTL, param.cluster_type);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -437,7 +429,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
 
   SCOPED_TRACE("// Create a configuration file with low ttl");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, param.cluster_type);
+      get_metadata_cache_section(kTTL, param.cluster_type);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -521,7 +513,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
       "changes we make in the mock server via http port were refreshed "
       "quickly");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, param.cluster_type);
+      get_metadata_cache_section(kTTL, param.cluster_type);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -633,7 +625,7 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
       "changes we make in the mock server via http port were refreshed "
       "quickly");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL, param.cluster_type);
+      get_metadata_cache_section(kTTL, param.cluster_type);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -685,8 +677,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       "// Create a configuration file sections with low ttl so that any "
       "changes we make in the mock server via http port were refreshed "
       "quickly");
-  const std::string metadata_cache_section =
-      get_metadata_cache_section(0, kTTL);
+  const std::string metadata_cache_section = get_metadata_cache_section(kTTL);
   const uint16_t router_port = port_pool_.get_next_available();
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
@@ -701,9 +692,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   // proper error should get logged
   EXPECT_TRUE(wait_log_file_contains(
       router,
-      "'bootstrap_server_addresses' in the configuration file is empty "
-      "or not set and list of 'cluster-metadata-servers' in "
-      "'dynamic_config'-file is empty, too.",
+      "list of 'cluster-metadata-servers' in 'dynamic_config'-file is empty.",
       3 * kTTL));
 }
 
@@ -714,7 +703,6 @@ struct StateFileSchemaTestParams {
   std::vector<std::string> expected_errors_in_log;
   bool create_state_file_from_content{true};
   std::string state_file_path{""};
-  bool use_static_server_list{false};
   ClusterType cluster_type{ClusterType::GR_V2};
 };
 
@@ -758,10 +746,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
 
   auto writer =
       config_writer(temp_test_dir.name())
-          .section(metadata_cache_section(test_params.use_static_server_list
-                                              ? port_pool_.get_next_available()
-                                              : 0,
-                                          kTTL, test_params.cluster_type))
+          .section(metadata_cache_section(kTTL, test_params.cluster_type))
           .section(metadata_cache_routing_section(router_port, "PRIMARY",
                                                   "first-available"));
 
@@ -801,7 +786,8 @@ INSTANTIATE_TEST_SUITE_P(
 
         // state file path empty
         StateFileSchemaTestParams{
-            "", {"Could not open dynamic state file '' for reading"},
+            "",
+            {"Could not open dynamic state file '' for reading"},
             false, /* = don't create state file, use the empty path given */
             ""},
 
@@ -814,9 +800,9 @@ INSTANTIATE_TEST_SUITE_P(
         StateFileSchemaTestParams{"[]",
                                   {"Invalid json structure: not an object"}},
 
+        // clang-format off
         // version field missing
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"metadata-cache\": {"
                 "\"group-replication-id\": \"3a0be5af-994c-11e8-9655-0800279e6a88\","
@@ -826,12 +812,10 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
             {"Invalid json structure: missing field: version"}},
 
         // version field is not a string
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": 1,"
               "\"metadata-cache\": {"
@@ -842,13 +826,11 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
             {"Invalid json structure: field version "
              "should be a string type"}},
 
         // version field is non numeric string
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": \"str\","
               "\"metadata-cache\": {"
@@ -859,13 +841,11 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
             {"Invalid version field format, expected MAJOR.MINOR.PATCH, "
              "found: str"}},
 
         // version field has wrong number of numeric values
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": \"1.0\","
               "\"metadata-cache\": {"
@@ -876,13 +856,11 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
             {"Invalid version field format, expected MAJOR.MINOR.PATCH, "
              "found: 1.0"}},
 
         // major version does not match (GR cluster)
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": \"2.0.0\","
               "\"metadata-cache\": {"
@@ -893,13 +871,10 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
             {"Unsupported state file version, "
              "expected: 1.1.0, found: 2.0.0"}},
-
         // major version does not match (AR cluster)
         StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": \"2.0.0\","
               "\"metadata-cache\": {"
@@ -910,13 +885,10 @@ INSTANTIATE_TEST_SUITE_P(
                 "]"
               "}"
             "}",
-            // clang-format on
-            {"Unsupported state file version, "
-             "expected: 1.1.0, found: 2.0.0"}, true, "", false,
-             ClusterType::RS_V2},
-
+            {"Unsupported state file version, expected: 1.1.0, found: 2.0.0"},
+              true, "", ClusterType::RS_V2},
         // minor version does not match
-        StateFileSchemaTestParams{            // clang-format off
+        StateFileSchemaTestParams{
         "{"
           "\"version\": \"1.2.0\","
           "\"metadata-cache\": {"
@@ -927,33 +899,11 @@ INSTANTIATE_TEST_SUITE_P(
             "]"
           "}"
         "}",
-        // clang-format on
         {"Unsupported state file version, "
          "expected: 1.1.0, found: 1.2.0"}},
-
-        // both bootstrap_server_addresses and dynamic_state configured
-        StateFileSchemaTestParams{
-        // clang-format off
-        "{"
-          "\"version\": \"1.0.0\","
-          "\"metadata-cache\": {"
-            "\"group-replication-id\": \"3a0be5af-994c-11e8-9655-0800279e6a88\","
-            "\"cluster-metadata-servers\": ["
-              "\"mysql://localhost:5000\","
-              "\"mysql://127.0.0.1:5001\""
-            "]"
-          "}"
-        "}",
-        // clang-format on
-        {"bootstrap_server_addresses is not allowed when dynamic "
-         "state file is used"},
-        true, "",
-        true /*use static bootstrap_server_addresses in static conf. file*/},
-
         // group-replication-id filed missing
         // no longer required
 //        StateFileSchemaTestParams{
-//        // clang-format off
 //        "{"
 //          "\"version\": \"1.0.0\","
 //          "\"metadata-cache\": {"
@@ -963,51 +913,36 @@ INSTANTIATE_TEST_SUITE_P(
 //            "]"
 //          "}"
 //        "}",
-//        // clang-format on
 //        {"JSON file failed validation against JSON schema: Failed schema "
 //         "directive: #/properties/metadata-cache",
 //         "Failed schema keyword:   required",
 //         "Failure location in validated document: #/metadata-cache"}},
-
         // cluster-metadata-servers filed missing (GR cluster)
         StateFileSchemaTestParams{
-        // clang-format off
         "{"
           "\"version\": \"1.0.0\","
           "\"metadata-cache\": {"
             "\"group-replication-id\": \"3a0be5af-994c-11e8-9655-0800279e6a88\""
           "}"
         "}",
-        // clang-format on
         {"JSON file failed validation against JSON schema: Failed schema "
          "directive: #/properties/metadata-cache",
          "Failed schema keyword:   required",
          "Failure location in validated document: #/metadata-cache"}},
-
          // cluster-metadata-servers filed missing (AR cluster)
          StateFileSchemaTestParams{
-            // clang-format off
             "{"
               "\"version\": \"1.0.0\","
               "\"metadata-cache\": {"
                 "\"group-replication-id\": \"3a0be5af-994c-11e8-9655-0800279e6a88\""
               "}"
             "}",
-            // clang-format on
             {"JSON file failed validation against JSON schema: Failed schema "
              "directive: #/properties/metadata-cache",
              "Failed schema keyword:   required",
-             "Failure location in validated document: #/metadata-cache"}},
-
-        // both bootstrap_server_addresses and dynamic_state configured
-        // dynamic_state file not existing
-            StateFileSchemaTestParams{
-            "",
-            {"bootstrap_server_addresses is not allowed when dynamic "
-             "state file is used"},
-            false, /* = don't create state file, use the path given */
-            "non-existing.json",
-            true /*use static bootstrap_server_addresses in static conf. file*/}));
+             "Failure location in validated document: #/metadata-cache"
+                // clang-format on
+            }}));
 
 ////////////////////////////////////////////
 // Test for state file right access

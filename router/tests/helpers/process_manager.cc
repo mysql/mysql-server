@@ -605,8 +605,8 @@ std::string ProcessManager::create_config_file(
   return file_path.str();
 }
 
-std::string ProcessManager::create_state_file(const std::string &dir_name,
-                                              const std::string &content) {
+/* static */ std::string ProcessManager::create_state_file(
+    const std::string &dir_name, const std::string &content) {
   Path file_path = Path(dir_name).join("state.json");
   std::ofstream ofs_config(file_path.str());
 

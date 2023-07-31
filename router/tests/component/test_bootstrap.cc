@@ -41,6 +41,7 @@
 #include <rapidjson/writer.h>
 
 #include "common.h"  // truncate_string
+#include "config_builder.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "keyring/keyring_manager.h"
@@ -3087,6 +3088,62 @@ INSTANTIATE_TEST_SUITE_P(
             /*fail_host_plugin_query*/ false,
             /*fail_default_auth_plugin_query*/ false,
             /*fail_alter_user_query*/ true}));
+
+/**
+ * @test
+ *       Verify that when the Router is bootstrapped over existing confuguration
+ * it removes unsupported bootstrap_server_addresses from the configuration file
+ */
+TEST_F(RouterComponentBootstrapTest, BootstrapRemoveServerAddressesOption) {
+  RecordProperty("Worklog", "15867");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty(
+      "Description",
+      "Verifies that when the Router is bootstrapped over existing "
+      "configuration that contains bootstrap_server_addresses, the newly "
+      "created configuration file does not contain it any more.");
+  // launch our Cluster mock
+  const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
+  const auto mock_server_port = port_pool_.get_next_available();
+  const auto mock_http_port = port_pool_.get_next_available();
+
+  launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false,
+                           mock_http_port);
+  set_mock_metadata(mock_http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({mock_server_port}), 0,
+                    {mock_server_port});
+
+  // bootstrap for the first time, force the bootstrap_server_addresses to be
+  // set in the config
+  const auto bs_dir = get_test_temp_dir_name() + "/bs";
+  std::vector<std::string> bs1_params = {
+      "--bootstrap=root:"s + kRootPassword + "@localhost:"s +
+          std::to_string(mock_server_port),
+      "--conf-set-option=metadata_cache:bootstrap.bootstrap_server_addresses="
+      "127.0.0.1:" +
+          std::to_string(mock_server_port),
+      "-d", bs_dir};
+
+  auto &router1 = launch_router_for_bootstrap(bs1_params, EXIT_SUCCESS);
+  check_exit_code(router1, EXIT_SUCCESS);
+
+  // make sure the config contains bootstrap_server_addresses anymore
+  EXPECT_THAT(get_file_output(bs_dir + "/mysqlrouter.conf"),
+              ::testing::HasSubstr("bootstrap_server_addresses"));
+
+  // bootstrap again using the same output directory
+  std::vector<std::string> bs2_params = {"--bootstrap=root:"s + kRootPassword +
+                                             "@localhost:"s +
+                                             std::to_string(mock_server_port),
+                                         "--force", "-d", bs_dir};
+  auto &router2 = launch_router_for_bootstrap(bs2_params, EXIT_SUCCESS);
+  check_exit_code(router2, EXIT_SUCCESS);
+
+  // make sure the config does NOT contain bootstrap_server_addresses anymore
+  EXPECT_THAT(
+      get_file_output(bs_dir + "/mysqlrouter.conf"),
+      ::testing::Not(::testing::HasSubstr("bootstrap_server_addresses")));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

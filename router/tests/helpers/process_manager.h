@@ -203,6 +203,12 @@ class ProcessManager {
    */
   static Path get_data_dir() { return data_dir_; }
 
+  /** @brief Creates a state file with a given contents and returns full path to
+   * the file
+   */
+  static std::string create_state_file(const std::string &dir_name,
+                                       const std::string &content);
+
  protected:
   virtual ~ProcessManager() = default;
 
@@ -512,10 +518,6 @@ class ProcessManager {
       const std::string &name = "mysqlrouter.conf",
       const std::string &extra_defaults = "",
       bool enable_debug_logging = true) const;
-
-  // returns full path to the file
-  std::string create_state_file(const std::string &dir_name,
-                                const std::string &content);
 
   static const Path &get_plugin_dir() { return plugin_dir_; }
 

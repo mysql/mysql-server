@@ -31,12 +31,18 @@
 
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
+#include "tcp_address.h"
 
 std::string create_state_file_content(
     const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const std::vector<uint16_t> &metadata_servers_ports,
     const uint64_t view_id = 0);
+
+std::string create_state_file_content(
+    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
+    const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id, const uint64_t view_id = 0);
 
 void check_state_file(
     const std::string &state_file, const mysqlrouter::ClusterType cluster_type,

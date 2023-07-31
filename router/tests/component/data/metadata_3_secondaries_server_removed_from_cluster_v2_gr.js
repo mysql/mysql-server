@@ -22,6 +22,7 @@ var options = {
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
 };
 
 var router_select_metadata =
@@ -41,6 +42,7 @@ var options_removed_primary = {
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
 };
 
 var router_select_metadata_removed_primary =
@@ -59,6 +61,7 @@ var options_removed_secondary = {
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
 };
 
 var router_select_metadata_removed_secondary =

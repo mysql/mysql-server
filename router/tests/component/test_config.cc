@@ -24,6 +24,7 @@
 
 #include <gmock/gmock.h>
 
+#include "config_builder.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -463,6 +464,44 @@ INSTANTIATE_TEST_SUITE_P(
             config_sections_t{
                 {keepalive_section(),
                  default_section({{"unknown_config_option", "Warning 4"}})}}}));
+
+TEST_F(RouterConfigTest, MetadataCacheBootstrapServerAddresses) {
+  RecordProperty("Worklog", "15867");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty(
+      "Description",
+      "Verifies that the Router fails to start when "
+      "[metadata_cache].bootstrap_server_addresses is configured and "
+      "logs error stating that it is not supoprted option.");
+
+  const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
+      "metadata_cache:test",
+      {{"cluster_type", "gr"},
+       {"router_id", "1"},
+       {"user", "mysql_router1_user"},
+       {"metadata_cluster", "test"},
+       {"bootstrap_server_addresses", "mysql://127.0.0.1:3060"},
+       {"ttl", "0.5"}});
+
+  TempDirectory conf_dir("conf");
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir.name());
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), mdc_section, &default_section);
+
+  // launch the router giving directory instead of an extra config name
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "main ERROR .* Error: option "
+                        "'metadata_cache.bootstrap_server_addresses' is not "
+                        "supported",
+                        2s));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
