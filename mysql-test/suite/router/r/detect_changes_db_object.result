@@ -39,7 +39,7 @@ GET /svc/basic/t2/1
     ],
     "comments": "First comment",
     "_metadata": {
-        "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
+        "etag": "77004781476882B937CFE9FFC837CC8FC1D13F717B87F6ABCE20142D1C4140D6"
     }
 }
 OK
@@ -61,7 +61,7 @@ GET /svc/basic/t2_new/1
     ],
     "comments": "First comment",
     "_metadata": {
-        "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
+        "etag": "77004781476882B937CFE9FFC837CC8FC1D13F717B87F6ABCE20142D1C4140D6"
     }
 }
 OK
@@ -75,7 +75,7 @@ GET /svc/basic/t1/1
         }
     ],
     "_metadata": {
-        "etag": "D6132AC057950FB3305B3B1DB876B6B31B92F837E93F57CE3734B6A935FDA9E7"
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
     }
 }
 OK
@@ -96,7 +96,7 @@ GET /svc/basic_new/t1/1
         }
     ],
     "_metadata": {
-        "etag": "D6132AC057950FB3305B3B1DB876B6B31B92F837E93F57CE3734B6A935FDA9E7"
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
     }
 }
 OK
@@ -113,7 +113,7 @@ GET /svc/basic_new/t2_new/1
     ],
     "comments": "First comment",
     "_metadata": {
-        "etag": "B83C8015DB8BA0740281293624FAFDA1752BB629E1D16EFD86F4AEBCFBF16446"
+        "etag": "77004781476882B937CFE9FFC837CC8FC1D13F717B87F6ABCE20142D1C4140D6"
     }
 }
 OK
@@ -133,7 +133,7 @@ GET /svc/basic_new/t2_new/1
     "my_name": "First row",
     "my_comments": "First comment",
     "_metadata": {
-        "etag": "B3476BB71FE2E6C243273E901FD73536859E2B55FF1F2F178DD6ED17554817C3"
+        "etag": "7466E75E86D6786E8769B414A65808A9B12687C22B2A24061E5A0A33B63D1173"
     }
 }
 OK
@@ -159,7 +159,7 @@ GET /svc/basic_new/t4/2
     "table2_id": 2,
     "first_name": "Haley",
     "_metadata": {
-        "etag": "59C2F0FE184B6F725CB1C8E3C6125B34DE14A9C288DD517094344C43E8F35774"
+        "etag": "E8EECFE5E09F7461A9816F6AEBAC23E6A69D608258D2EEF02FD79D356DAB7ACA"
     }
 }
 OK
@@ -180,7 +180,7 @@ GET /svc/basic_new/t4/2
     "first_name": "Haley",
     "my_comments": null,
     "_metadata": {
-        "etag": "133A8CA224F68304EF0D9C989124C2225C83697D8933956A565EBC7B47712E7F"
+        "etag": "061036F52CF9471820D547438A7C5F2FEF72F5E88C7248207E2C47A4B2837008"
     }
 }
 OK

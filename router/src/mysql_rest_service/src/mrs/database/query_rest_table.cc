@@ -41,19 +41,6 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-static void json_object_fast_append(std::string &jo, const std::string &key,
-                                    const std::string &value) {
-  // remove closing }
-  jo.pop_back();
-  // add metadata sub-object
-
-  jo.append(", \"");
-  jo.append(key);
-  jo.append("\":");
-  jo.append(value);
-  jo.push_back('}');
-}
-
 namespace mrs {
 namespace database {
 

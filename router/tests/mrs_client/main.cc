@@ -635,6 +635,13 @@ static void validate_result(Result &result) {
 
   rapidjson::Document doc = helper::json::text_to_document(result.body);
 
+  if (doc.HasParseError()) {
+    std::cerr << "JSON parser error: " << static_cast<int>(doc.GetParseError())
+              << ", at " << doc.GetErrorOffset() << std::endl;
+    result.ok = false;
+    return;
+  }
+
   if (!g_configuration.json_schema_file.empty()) {
     auto schema = get_json_schema();
     rapidjson::SchemaValidator v(schema);

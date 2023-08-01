@@ -28,6 +28,9 @@
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
 
+namespace mrs {
+namespace database {
+
 static void json_object_fast_append(std::string &jo, const std::string &key,
                                     const std::string &value) {
   // remove closing }
@@ -40,9 +43,6 @@ static void json_object_fast_append(std::string &jo, const std::string &key,
   jo.append(value);
   jo.push_back('}');
 }
-
-namespace mrs {
-namespace database {
 
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
@@ -73,12 +73,12 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
 
   response = r[0];
   if (compute_etag_) {
-    std::string doc = r[0];
     // calc etag and strip filtered fields
-    process_document_etag_and_filter(object_, *field_filter_, metadata_, &doc);
-    response.append(doc);
-  } else {
-    response.append(r[0]);
+    process_document_etag_and_filter(object_, *field_filter_, metadata_,
+                                     &response);
+  } else if (!metadata_.empty()) {
+    json_object_fast_append(response, "_metadata",
+                            helper::json::to_string(metadata_));
   }
 
   ++items;
