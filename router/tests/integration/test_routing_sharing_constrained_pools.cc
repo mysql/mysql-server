@@ -3872,7 +3872,7 @@ TEST_P(ShareConnectionSmallPoolTwoRoutesTest, round_robin_one_route) {
     SCOPED_TRACE("// round " + std::to_string(round));
 
     std::array<MysqlClient, max_clients> clis{};
-    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
 
     for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
       const auto account = SharedServer::native_password_account();
@@ -4049,7 +4049,7 @@ TEST_P(ShareConnectionSmallPoolTwoRoutesTest, round_robin_two_routes) {
     SCOPED_TRACE("// round " + std::to_string(round));
 
     std::array<MysqlClient, max_clients> clis{};
-    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
 
     for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
       SCOPED_TRACE("// connection: " + std::to_string(ndx));
@@ -4239,7 +4239,7 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_one_route) {
     SCOPED_TRACE("// round " + std::to_string(round));
 
     std::array<MysqlClient, 4> clis{};
-    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
 
     for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
       const auto account = SharedServer::native_password_account();
@@ -4419,7 +4419,7 @@ TEST_P(ShareConnectionTinyPoolTwoRoutesTest, round_robin_two_routes) {
     }
 
     std::array<MysqlClient, max_clients> clis{};
-    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+    std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
 
     for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
       const auto account = SharedServer::native_password_account();
@@ -4536,7 +4536,7 @@ TEST_P(ShareConnectionSmallPoolFourServersTest, round_robin_all_in_pool) {
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
-  std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+  std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = SharedServer::native_password_account();
 
@@ -4594,7 +4594,7 @@ TEST_P(ShareConnectionTinyPoolTwoServersTest, round_robin_all_in_pool) {
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
   const bool can_share = GetParam().can_share();
 
-  std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids{};
+  std::array<std::array<std::string, 2>, clis.size()> cli_connection_ids;
 
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     auto account = SharedServer::native_password_account();
