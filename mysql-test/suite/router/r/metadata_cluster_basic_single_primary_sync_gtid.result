@@ -155,12 +155,6 @@ GET /svc/basic/t1/2
     "status": 404
 }
 OK
-DELETE /svc/basic/t1/20
-{
-    "_metadata": {
-        "gtid": "f9865d1d-2c73-11ee-b326-04ed333fde50:1-335"
-    }
-}
 OK
 {
     "count": 0

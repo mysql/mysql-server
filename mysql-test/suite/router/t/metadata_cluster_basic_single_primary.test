@@ -47,7 +47,7 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t2
   --exclude-json-pointer /_metadata/gtid
   --payload '{"id":3000, "name":"PUT item", "date":"1920-12-1"}';
 --source include/rpl_sync.inc
---exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000 --exclude-json-pointer /_metadata/gtid
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000
 
 # Cleanup
 DROP SCHEMA basic_schema;
