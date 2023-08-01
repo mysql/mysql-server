@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_ROUTING_INCLUDE_MYSQLROUTER_DESTINATION_NODES_STATE_NOTIFIER_H_
 #define ROUTER_SRC_ROUTING_INCLUDE_MYSQLROUTER_DESTINATION_NODES_STATE_NOTIFIER_H_
 
+#include "mysqlrouter/routing_export.h"
+
 #include "mysqlrouter/destination_status_types.h"
 
 // first argument is the new set of the allowed nodes
@@ -61,7 +63,7 @@ using QueryQuarantinedDestinationsCallback =
  * Allows the obervers to register for notifications on the change in the state
  * of the destination nodes.
  */
-class DestinationNodesStateNotifier {
+class ROUTING_EXPORT DestinationNodesStateNotifier {
  public:
   virtual ~DestinationNodesStateNotifier() = default;
 
