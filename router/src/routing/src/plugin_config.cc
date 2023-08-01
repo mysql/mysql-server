@@ -530,14 +530,6 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(router_require_enforce, section, "router_require_enforce",
                      BoolOption{});
 
-  if (get_option(section, "unreachable_destination_refresh_interval",
-                 StringOption{}) != "") {
-    log_warning(
-        "Option 'unreachable_destination_refresh_interval' is deprecated and "
-        "has no effect. Please configure "
-        "[destination_status].error_quarantine_interval instead.");
-  }
-
   GET_OPTION_CHECKED(connection_sharing, section, "connection_sharing",
                      BoolOption{});
 

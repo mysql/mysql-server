@@ -63,9 +63,6 @@ static constexpr std::array<const char *, 48> routing_supported_options{
     "server_ssl_crl",
     "server_ssl_crlpath",
     "server_ssl_curves",
-    // that is no longer used, kept for backward compatibilty, replaced by
-    // [destination_status].error_quarantine_interval
-    "unreachable_destination_refresh_interval",
     "connection_sharing",
     "connection_sharing_delay",
     "client_ssl_session_cache_mode",

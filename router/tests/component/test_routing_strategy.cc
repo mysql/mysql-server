@@ -118,9 +118,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   std::string get_metadata_cache_routing_section(
       unsigned router_port, const std::string &role,
       const std::string &strategy, const std::string &mode = "",
-      const std::string &name = "test_default",
-      const std::optional<std::chrono::seconds>
-          unreachable_destination_refresh_interval = std::nullopt) const {
+      const std::string &name = "test_default") const {
     std::vector<std::pair<std::string, std::string>> options{
         {"bind_port", std::to_string(router_port)},
         {"destinations", "metadata-cache://test/default?role=" + role},
@@ -128,10 +126,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
     if (!strategy.empty()) options.emplace_back("routing_strategy", strategy);
     if (!mode.empty()) options.emplace_back("mode", mode);
-    if (unreachable_destination_refresh_interval)
-      options.emplace_back(
-          "unreachable_destination_refresh_interval",
-          std::to_string((*unreachable_destination_refresh_interval).count()));
 
     return mysql_harness::ConfigBuilder::build_section("routing:" + name,
                                                        options);
@@ -1081,8 +1075,6 @@ class UnreachableDestinationRefreshIntervalOption
 struct QuarantineTestParam {
   std::optional<std::chrono::seconds> interval;
   std::optional<uint32_t> threshold;
-  // old, deprecated option for interval
-  std::optional<std::chrono::seconds> unreachable_destination_refresh_interval;
 };
 
 class UnreachableDestinationQuarantineOptions
@@ -1129,8 +1121,7 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   const auto classic_RO_bind_port = port_pool_.get_next_available();
   const std::string metadata_cache_section = get_metadata_cache_section();
   const std::string routing_section = get_metadata_cache_routing_section(
-      classic_RO_bind_port, "SECONDARY", "round-robin", "", "c_ro",
-      GetParam().unreachable_destination_refresh_interval);
+      classic_RO_bind_port, "SECONDARY", "round-robin", "", "c_ro");
   const auto monitoring_port = port_pool_.get_next_available();
   const std::string monitoring_section =
       get_monitoring_section(monitoring_port, temp_test_dir.name());
@@ -1158,19 +1149,6 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
                                           kRestApiUsername, kRestApiPassword);
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
       wait_for_cache_ready_timeout, metadata_status));
-
-  const std::string deprecate_warning =
-      "Option 'unreachable_destination_refresh_interval' is deprecated and "
-      "has no effect. Please configure "
-      "[destination_status].error_quarantine_interval instead.";
-  if (GetParam().unreachable_destination_refresh_interval) {
-    EXPECT_THAT(router.get_logfile_content(),
-                ::testing::HasSubstr(deprecate_warning));
-
-  } else {
-    EXPECT_THAT(router.get_logfile_content(),
-                ::testing::Not(::testing::HasSubstr(deprecate_warning)));
-  }
 
   SCOPED_TRACE("// make first RO node unavailable");
   cluster_nodes[1]->send_clean_shutdown_event();
@@ -1239,22 +1217,12 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
 
 INSTANTIATE_TEST_SUITE_P(
     Test, UnreachableDestinationQuarantineOptions,
-    ::testing::Values(
-        QuarantineTestParam{/*interval=default*/ std::nullopt,
-                            /*threshold=default*/ std::nullopt,
-                            /*deprecated_interval=none*/ std::nullopt},
-        QuarantineTestParam{/*interval=default*/ std::nullopt,
-                            /*threshold*/ 5,
-                            /*deprecated_interval=none*/ std::nullopt},
-        QuarantineTestParam{/*interval*/ 2s,
-                            /*threshold=default*/ std::nullopt,
-                            /*deprecated_interval=none*/ std::nullopt},
-        // we expect warning about 'using
-        // unreachable_destination_refresh_interval', it's value should be
-        // ignored and default should be used
-        QuarantineTestParam{/*interval=default*/ std::nullopt,
-                            /*threshold=default*/ std::nullopt,
-                            /*deprecated_interval*/ 4s}));
+    ::testing::Values(QuarantineTestParam{/*interval=default*/ std::nullopt,
+                                          /*threshold=default*/ std::nullopt},
+                      QuarantineTestParam{/*interval=default*/ std::nullopt,
+                                          /*threshold*/ 5},
+                      QuarantineTestParam{/*interval*/ 2s,
+                                          /*threshold=default*/ std::nullopt}));
 
 class RefreshSharedQuarantineOnTTL : public RouterRoutingStrategyTest {};
 

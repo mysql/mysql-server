@@ -503,6 +503,41 @@ TEST_F(RouterConfigTest, MetadataCacheBootstrapServerAddresses) {
                         2s));
 }
 
+TEST_F(RouterConfigTest,
+       RoutingUnreachableDestinationRefreshIntervalUnsupported) {
+  RecordProperty("Worklog", "15869");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty(
+      "Description",
+      "Verifies that the Router fails to start when "
+      "[routing].unreachable_destination_refresh_interval is configured and "
+      "logs error stating that it is not supported option.");
+
+  const std::string mdc_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:test", {{"bind_port", "6064"},
+                       {"destinations", "127.0.0.1:3060"},
+                       {"routing_strategy", "round-robin"},
+                       {"unreachable_destination_refresh_interval", "1"}});
+
+  TempDirectory conf_dir("conf");
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir.name());
+
+  std::string conf_file =
+      create_config_file(conf_dir.name(), mdc_section, &default_section);
+
+  // launch the router giving directory instead of an extra config name
+  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "main ERROR .* Error: option "
+      "'routing.unreachable_destination_refresh_interval' is not supported",
+      2s));
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());
