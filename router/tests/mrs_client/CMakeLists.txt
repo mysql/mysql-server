@@ -30,6 +30,7 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   LINK_LIBRARIES
   http_client
   harness-library
+  harness_tls
   ${SSL_LIBRARIES}
   DEPENDENCIES
   mysql_rest_service_if
