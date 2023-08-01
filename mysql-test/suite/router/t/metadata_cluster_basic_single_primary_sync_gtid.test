@@ -37,6 +37,7 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
   --write-to-file $MYSQL_TMP_DIR/gtid.inc
   --write-format mtr
   --request-type delete
+  --display RESULT
   --json-pointer /_metadata/gtid;
 
 --source $MYSQL_TMP_DIR/gtid.inc

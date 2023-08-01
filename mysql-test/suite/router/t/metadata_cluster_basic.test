@@ -44,6 +44,7 @@ exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/200 --expected-status 404
 exec $MRS_CLIENT_ARGS --path /svc/basic/t2
   --request-type post
+  --exclude-json-pointer /_metadata/gtid
   --payload '{"id":3000, "name":"PUT item", "date":"1920-12-1"}';
 --source include/rpl_sync.inc
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/3000
