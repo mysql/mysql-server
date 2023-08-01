@@ -46,7 +46,7 @@ GET /svc/basic/t1/1
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "B0C1E8F0E2A47D4F2D7C3ADC6822B9F378678C06C78C34F1781A308ED764F595"
+        "etag": "6C10F758EC177C18EBCBA88FB5AC97BC87238C2FE50653A7B6F5B9CD069617BF"
     }
 }
 OK
@@ -61,7 +61,7 @@ GET /svc/basic/t1/1?f=id,cyear
         }
     ],
     "_metadata": {
-        "etag": "B70262D56201CE095CA72BFEB76B85D799D881962E96FB08B5A0E33DFA99CC41"
+        "etag": "9234207861A58D35406CFF5307987EE49D4B34092CAB6E3C26959F3FE8DA7C26"
     }
 }
 OK
@@ -86,7 +86,7 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
     "csmallint": 32767,
     "cmediumint": 8388607,
     "_metadata": {
-        "etag": "68D43F7BA2A01DF4E697B6FF1A5F690101D8022956BF7DCF30C57D743A0DF54B"
+        "etag": "F4CF1B8971C7012ABC991163D34F537548EB814D333C87D9B545B35AA0C54045"
     }
 }
 OK
@@ -102,7 +102,7 @@ GET /svc/basic/t2/1
         }
     ],
     "_metadata": {
-        "etag": "E531A26F13E20DBB592B7BA138228FA5D645F9B9BB5FD82E649F7616E64A5831"
+        "etag": "BA73ED4EE553DAC78D636CB7D1520782AA62F0954DF3EC62E66B2E3567EC8C29"
     }
 }
 OK
@@ -116,7 +116,7 @@ GET /svc/basic/t2/1?f=id,cyear
         }
     ],
     "_metadata": {
-        "etag": "D6132AC057950FB3305B3B1DB876B6B31B92F837E93F57CE3734B6A935FDA9E7"
+        "etag": "349A978B6EEAC86C01C2D7FD0F0C13EEAEE998366EF4D2B4881E22957865400F"
     }
 }
 OK
@@ -130,7 +130,7 @@ GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
         }
     ],
     "_metadata": {
-        "etag": "4458D0E71E164F87079CE06D19FEEEAACCDA6D4782964D86DD1A0DAD433A6698"
+        "etag": "3308B8BA3A14BE440EB8C18F0037A1F39DFC14F4684C71D8DC7308DD3BB52030"
     }
 }
 OK
