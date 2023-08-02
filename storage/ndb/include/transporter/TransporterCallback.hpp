@@ -167,7 +167,8 @@ public:
    * get_bytes_to_send_iovec(). It may, or may not, also provide
    * synchronization wrt TransporterSendBufferHandle::isSendEnabled().
    * Iff not synchronized, we allow send buffer allocation to disconnected
-   * node and silently discard the written contents later (at next synch point)
+   * the transporter and silently discard the written contents later
+   * (at next synch point)
    *
    * A send buffer should not be enabled without first being in a
    * disabled state. This might be asserted by the implementation.
@@ -175,8 +176,8 @@ public:
    * failures, e.g. a couple of direct transitions from CONNECTING
    * to DISCONNECTING in the TransporterRegistry.
    */
-  virtual void enable_send_buffer(NodeId, TrpId) = 0;
-  virtual void disable_send_buffer(NodeId, TrpId) = 0;
+  virtual void enable_send_buffer(TrpId) = 0;
+  virtual void disable_send_buffer(TrpId) = 0;
 
   /**
    * The transporter periodically calls this method, indicating the number
@@ -200,10 +201,10 @@ public:
    *
    * See src/common/transporter/trp.txt for more information.
    */
-  virtual void lock_transporter(NodeId, TrpId) { }
-  virtual void unlock_transporter(NodeId, TrpId) { }
-  virtual void lock_send_transporter(NodeId, TrpId) { }
-  virtual void unlock_send_transporter(NodeId, TrpId) { }
+  virtual void lock_transporter(TrpId) { }
+  virtual void unlock_transporter(TrpId) { }
+  virtual void lock_send_transporter(TrpId) { }
+  virtual void unlock_send_transporter(TrpId) { }
 
   /**
    * ToDo: In current patch, these are not used, instead we use default
@@ -220,7 +221,7 @@ public:
 
   /**
    * Ask upper layer to supply a list of struct iovec's with data to
-   * send to a node.
+   * send over a transporter.
    *
    * The call should fill in data from all threads (if any).
    *
@@ -232,10 +233,9 @@ public:
    * Will be called from the thread that does performSend(), so multi-threaded
    * use cases must be prepared for that and do any necessary locking.
    *
-   * Nothing should be returned from a node with a disabled send buffer.
+   * Nothing should be returned for a transporter with a disabled send buffer.
    */
-  virtual Uint32 get_bytes_to_send_iovec(NodeId node,
-                                         TrpId id,
+  virtual Uint32 get_bytes_to_send_iovec(TrpId id,
                                          struct iovec *dst,
                                          Uint32) = 0;
 
@@ -248,11 +248,11 @@ public:
    * partially sent, and may not be freed until another call to bytes_sent()
    * which covers the rest of its data.
    *
-   * Returns total amount of unsent data in send buffers for this node.
+   * Returns total amount of unsent data in send buffers for this transporter.
    *
    * Like get_bytes_to_send_iovec(), this is called during performSend().
    */
-  virtual Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) = 0;
+  virtual Uint32 bytes_sent(TrpId, Uint32 bytes) = 0;
 
   virtual ~TransporterCallback() {}
 };
@@ -298,32 +298,31 @@ public:
 			             Uint64 /*extra_send_buffer*/) {}
 
   /**
-   * Check that send bufferes are enabled for the specified node.
-   * Calling getWritePtr() for a node with a disabled send buffer
+   * Check that send bufferes are enabled for the specified transporter.
+   * Calling getWritePtr() for a transporter with a disabled send buffer
    * is considered a protocol breakage. (could be asserted).
    *
    * It is up to each implementation whether we allow send buffer
-   * allocation to a possibly disconnected node or not. 
+   * allocation to a possibly disconnected transporter or not.
    * Default is to always allow buffer allocation and silently
    * discard the prepared send message if it later turns out that
-   * the node was disconnected.
+   * the transporter was disconnected.
    *
    * Note, that even if send was enabled at the time we allocated 
    * send buffers, it may be disabled before the written data is
    * actually sent. The buffer contents is then silently discarded.
    */
-  virtual bool isSendEnabled(NodeId /*node*/) const
+  virtual bool isSendEnabled(TrpId) const
   { return true; }
 
   /**
    * Get space for packing a signal into, allocate more buffer as needed.
    *
    * The max_use parameter is a limit on the amount of unsent data (whether
-   * delivered through get_bytes_to_send_iovec() or not) for one node; the
-   * method must return NULL rather than allow to exceed this amount.
+   * delivered through get_bytes_to_send_iovec() or not) for a transporter;
+   * the method must return NULL rather than allow to exceed this amount.
    */
-  virtual Uint32 *getWritePtr(NodeId,
-                              TrpId, 
+  virtual Uint32 *getWritePtr(TrpId,
                               Uint32 lenBytes,
                               Uint32 prio,
                               Uint32 max_use,
@@ -335,8 +334,7 @@ public:
    * was made available to send with get_bytes_to_send_iovec(), but has not
    * yet been marked as really sent from bytes_sent()).
    */
-  virtual Uint32 updateWritePtr(NodeId,
-                                TrpId,
+  virtual Uint32 updateWritePtr(TrpId,
                                 Uint32 lenBytes,
                                 Uint32 prio) = 0;
 
@@ -345,14 +343,14 @@ public:
    * This is useful in long-running activities to ensure that they don't
    * jeopardize short, high priority actions in the cluster.
    */
-  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level) = 0;
+  //virtual void getSendBufferLevel(TrpId, SB_LevelType &level) = 0;
 
   /**
    * Called during prepareSend() if send buffer gets full, to do an emergency
-   * send to the remote node with the hope of freeing up send buffer for the
+   * send on th etransporter with the hope of freeing up send buffer for the
    * signal to be queued.
    */
-  virtual bool forceSend(NodeId, TrpId) = 0;
+  virtual bool forceSend(TrpId) = 0;
 
   virtual ~TransporterSendBufferHandle() {}
 };

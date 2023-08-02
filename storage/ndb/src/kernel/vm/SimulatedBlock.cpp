@@ -640,15 +640,21 @@ releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
   ErrorReporter::handleAssert(msg, __FILE__, __LINE__);
 }
 
+/**
+ * ::getSendBufferLevel() is unused.
+ * However, it is kept as we expect it to be used in near future in
+ * patches fixing overload control and/or transporter ndbinfo tables WLs
 void
-SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
+SimulatedBlock::getSendBufferLevel(TrpId trp_id,
+                                   SB_LevelType &level)
 {
 #ifdef NDBD_MULTITHREADED
-  mt_getSendBufferLevel(m_threadId, node, level);
+  mt_getSendBufferLevel(m_threadId, trp_id, level);
 #else
-  getNonMTTransporterSendHandle()->getSendBufferLevel(node, level);
+  getNonMTTransporterSendHandle()->getSendBufferLevel(trp_id, level);
 #endif
 }
+**/
 
 Uint32
 SimulatedBlock::getEstimatedJobBufferLevel()
@@ -874,7 +880,7 @@ SimulatedBlock::set_watchdog_counter()
 }
 
 void
-SimulatedBlock::assign_recv_thread_new_trp(Uint32 trp_id)
+SimulatedBlock::assign_recv_thread_new_trp(TrpId trp_id)
 {
 #ifdef NDBD_MULTITHREADED
   mt_assign_recv_thread_new_trp(trp_id);
@@ -890,10 +896,10 @@ SimulatedBlock::assign_multi_trps_to_send_threads()
 }
 
 bool
-SimulatedBlock::epoll_add_trp(NodeId node_id, TrpId trp_id)
+SimulatedBlock::epoll_add_trp(TrpId trp_id)
 {
 #ifdef NDBD_MULTITHREADED
-  return mt_epoll_add_trp(m_threadId, node_id, trp_id);
+  return mt_epoll_add_trp(m_threadId, trp_id);
 #else
   require(false);
   return false;
@@ -901,10 +907,10 @@ SimulatedBlock::epoll_add_trp(NodeId node_id, TrpId trp_id)
 }
 
 bool
-SimulatedBlock::is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id)
+SimulatedBlock::is_recv_thread_for_new_trp(TrpId trp_id)
 {
 #ifdef NDBD_MULTITHREADED
-  return mt_is_recv_thread_for_new_trp(m_threadId, node_id, trp_id);
+  return mt_is_recv_thread_for_new_trp(m_threadId, trp_id);
 #else
   require(false);
   return false;

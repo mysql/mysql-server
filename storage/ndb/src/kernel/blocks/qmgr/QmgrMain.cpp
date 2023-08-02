@@ -10295,8 +10295,7 @@ Qmgr::execFREEZE_ACTION_REQ(Signal *signal)
 
     Transporter *current_trp = multi_trp->get_active_transporter(0);
     TrpId current_trp_id = current_trp->getTransporterIndex();
-    multi_trp->get_callback_obj()->lock_send_transporter(node_id,
-                                                         current_trp_id);
+    multi_trp->get_callback_obj()->lock_send_transporter(current_trp_id);
 
     Uint32 num_inactive_transporters =
       multi_trp->get_num_inactive_transporters();
@@ -10305,7 +10304,7 @@ Qmgr::execFREEZE_ACTION_REQ(Signal *signal)
       jam();
       Transporter *tmp_trp = multi_trp->get_inactive_transporter(i);
       TrpId trp_id = tmp_trp->getTransporterIndex();
-      multi_trp->get_callback_obj()->lock_send_transporter(node_id, trp_id);
+      multi_trp->get_callback_obj()->lock_send_transporter(trp_id);
     }
 
     ActivateTrpReq* act_trp_req = CAST_PTR(ActivateTrpReq,
@@ -10318,8 +10317,7 @@ Qmgr::execFREEZE_ACTION_REQ(Signal *signal)
 
     flush_send_buffers();
     /* Either perform send or insert_trp below TODO */
-    multi_trp->get_callback_obj()->unlock_send_transporter(node_id,
-                                                           current_trp_id);
+    multi_trp->get_callback_obj()->unlock_send_transporter(current_trp_id);
 
     if (ERROR_INSERTED(982))
     {
@@ -10334,8 +10332,8 @@ Qmgr::execFREEZE_ACTION_REQ(Signal *signal)
       jam();
       Transporter *tmp_trp = multi_trp->get_active_transporter(i);
       TrpId id = tmp_trp->getTransporterIndex();
-      multi_trp->get_callback_obj()->unlock_send_transporter(node_id, id);
-      multi_trp->get_callback_obj()->enable_send_buffer(node_id, id);
+      multi_trp->get_callback_obj()->unlock_send_transporter(id);
+      multi_trp->get_callback_obj()->enable_send_buffer(id);
     }
     globalTransporterRegistry.insert_node_transporter(node_id, multi_trp);
     globalTransporterRegistry.unlockMultiTransporters();
@@ -10611,10 +10609,10 @@ Qmgr::check_switch_completed(Signal *signal, NodeId node_id)
     jam();
     Transporter *tmp_trp = array_trp[i];
     TrpId trp_id = tmp_trp->getTransporterIndex();
-    tmp_trp->get_callback_obj()->lock_transporter(node_id, trp_id);
+    tmp_trp->get_callback_obj()->lock_transporter(trp_id);
     tmp_trp->shutdown();
-    tmp_trp->get_callback_obj()->unlock_transporter(node_id, trp_id);
-    multi_trp->get_callback_obj()->disable_send_buffer(node_id, trp_id);
+    tmp_trp->get_callback_obj()->unlock_transporter(trp_id);
+    multi_trp->get_callback_obj()->disable_send_buffer(trp_id);
   }
   /**
    * We have now completed the switch to new set of transporters, the

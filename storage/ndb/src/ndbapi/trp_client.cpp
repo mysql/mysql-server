@@ -34,14 +34,18 @@ trp_client::trp_client()
     m_is_receiver_thread(false),
     m_mutex(nullptr),
     m_poll(),
-    m_enabled_nodes_mask(),
-    m_send_nodes_mask(),
-    m_send_nodes_cnt(0),
+    m_enabled_trps_mask(),
+    m_send_trps_mask(),
+    m_send_trps_cnt(0),
     m_send_buffers(nullptr),
-    m_flushed_nodes_mask()
+    m_flushed_trps_mask()
 {
   m_mutex = NdbMutex_Create();
-  m_send_buffers = new TFBuffer[MAX_NODES];
+  // The local trp_client::m_send_buffers[] are 'flushed' to the
+  // global TransporterFacade:::m_send_buffers[].
+  // -> Both need to be able to handle the same 'MAX_TRPS'
+  static_assert(trp_client::MAX_TRPS == TransporterFacade::MAX_TRPS);
+  m_send_buffers = new TFBuffer[trp_client::MAX_TRPS];
 }
 
 trp_client::~trp_client()
@@ -50,7 +54,7 @@ trp_client::~trp_client()
   NdbMutex_Destroy(m_mutex);
 
   m_mutex = nullptr;
-  assert(m_send_nodes_cnt == 0);
+  assert(m_send_trps_cnt == 0);
   assert(m_locked_for_poll == false);
   delete [] m_send_buffers;
 }
@@ -95,14 +99,14 @@ Uint32
 trp_client::open(TransporterFacade* tf, int blockNo)
 {
   Uint32 res = 0;
-  assert(m_enabled_nodes_mask.isclear());
+  assert(m_enabled_trps_mask.isclear());
   assert(m_facade == nullptr);
   if (m_facade == nullptr)
   {
     m_facade = tf;
 
-    /* Initially allowed to communicate with itself */
-    m_enabled_nodes_mask.set(m_facade->theOwnId);
+    /* Initially allowed to communicate with the already enabled TF-trps*/
+    m_enabled_trps_mask.assign(m_facade->m_enabled_trps_mask);
 
     res = tf->open_clnt(this, blockNo);
     if (res != 0)
@@ -117,7 +121,7 @@ trp_client::open(TransporterFacade* tf, int blockNo)
   return res;
 }
 
-Uint32
+NodeId
 trp_client::getOwnNodeId() const
 {
   return m_facade->theOwnId;
@@ -133,20 +137,20 @@ trp_client::close()
     m_facade = nullptr;
     m_blockNo = ~Uint32(0);
   }
-  m_enabled_nodes_mask.clear();
+  m_enabled_trps_mask.clear();
 }
 
 /**
- * Initial setup of the nodes having their send buffers enabled.
+ * Initial setup of the transporters having their send buffers enabled.
  * Callback from TransporterFacade::open_clnt' called above.
  *
  * Protected by having the 'm_mutex' locked
  */
 void
-trp_client::set_enabled_send(const NodeBitmask &nodes)
+trp_client::set_enabled_send(const TrpBitmask &trps)
 {
   assert(NdbMutex_Trylock(m_mutex) != 0);
-  m_enabled_nodes_mask.assign(nodes);
+  m_enabled_trps_mask.assign(trps);
 }
 
 /**
@@ -168,25 +172,25 @@ trp_client::set_enabled_send(const NodeBitmask &nodes)
  * buffer will indicate a concurrency control problem. (Asserted)
  */
 void
-trp_client::enable_send(NodeId node)
+trp_client::enable_send(TrpId trp)
 {
   assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
-  m_enabled_nodes_mask.set(node);
+  m_enabled_trps_mask.set(trp);
 }
 
 void
-trp_client::disable_send(NodeId node)
+trp_client::disable_send(TrpId trp)
 {
   assert(m_poll.m_locked || NdbMutex_Trylock(m_mutex) != 0);
-  if (m_send_nodes_mask.get(node))
+  if (m_send_trps_mask.get(trp))
   {
-    // Discard any buffered data to disabled node.
-    TFBuffer* b = m_send_buffers + node;
+    // Discard any buffered data to disabled transporter.
+    TFBuffer* b = m_send_buffers + trp;
     TFBufferGuard g0(* b);
     m_facade->m_send_buffer.release_list(b->m_head);
     b->clear();
   }
-  m_enabled_nodes_mask.clear(node);
+  m_enabled_trps_mask.clear(trp);
 }
 
 /**
@@ -231,7 +235,7 @@ trp_client::complete_poll()
 }
 
 /**
- * Send to the set of 'nodes' this client has produced messages to.
+ * Send to the set of 'transporters' this client has produced messages to.
  * We either try to do the send immediately ourself if 'forceSend',
  * or we may choose an adaptive approach where (part of) the send
  * may be ofloaded to the send thread.
@@ -243,13 +247,13 @@ trp_client::do_forceSend(bool forceSend)
 
   if (forceSend)
   {
-    m_facade->try_send_all(m_flushed_nodes_mask);
+    m_facade->try_send_all(m_flushed_trps_mask);
   }
   else
   {
-    m_facade->do_send_adaptive(m_flushed_nodes_mask);
+    m_facade->do_send_adaptive(m_flushed_trps_mask);
   }
-  m_flushed_nodes_mask.clear();
+  m_flushed_trps_mask.clear();
 
   /**
    * Note that independent of whether we 'forceSend' or not, we *did*
@@ -268,9 +272,9 @@ trp_client::do_forceSend(bool forceSend)
  * The TransporterFacade may then send these whenever
  * it find convenient.
  *
- * Build an aggregated bitmap 'm_flushed_nodes_mask'
- * of nodes this client has flushed messages to.
- * Client must ensure that the messages to these nodes
+ * Build an aggregated bitmap 'm_flushed_trps_mask'
+ * of transporters this client has flushed messages to.
+ * Client must ensure that the messages to these transporters
  * are force-sent before it starts waiting for any reply.
  *
  * Need to be called with the 'm_mutex' held
@@ -279,20 +283,20 @@ void
 trp_client::flush_send_buffers()
 {
   assert(m_poll.m_locked);
-  const Uint32 cnt = m_send_nodes_cnt;
+  const Uint32 cnt = m_send_trps_cnt;
   for (Uint32 i = 0; i<cnt; i++)
   {
-    const Uint32 node = m_send_nodes_list[i];
-    assert(m_send_nodes_mask.get(node));
-    assert(m_enabled_nodes_mask.get(node));
-    TFBuffer* b = m_send_buffers + node;
+    const TrpId trp = m_send_trps_list[i];
+    assert(m_send_trps_mask.get(trp));
+    assert(m_enabled_trps_mask.get(trp));
+    TFBuffer* b = m_send_buffers + trp;
     TFBufferGuard g0(* b);
-    m_facade->flush_send_buffer(node, b);
+    m_facade->flush_send_buffer(trp, b);
     b->clear();
   }
-  m_flushed_nodes_mask.bitOR(m_send_nodes_mask);
-  m_send_nodes_cnt = 0;
-  m_send_nodes_mask.clear();
+  m_flushed_trps_mask.bitOR(m_send_trps_mask);
+  m_send_trps_cnt = 0;
+  m_send_trps_mask.clear();
 }
 
 /**
@@ -345,28 +349,30 @@ trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId,
  * ::isSendEnabled() and get-/updateWritePtr()
  *
  * We assume (and assert) that TransporterRegistry::prepareSend()
- * check whether a node is 'isSendEnabled()' before allocating send buffer
- * for a node send by calling getWritePtr() - updateWritePtr().
+ * check whether a transporter is 'isSendEnabled()' before allocating send buffer
+ * for a transporter send by calling getWritePtr() - updateWritePtr().
  *
  * Requires the 'm_mutex' to be held prior to calling these functions
  */
 bool
-trp_client::isSendEnabled(NodeId node) const
+trp_client::isSendEnabled(TrpId trp_id) const
 {
   assert(m_poll.m_locked);
-  return m_enabled_nodes_mask.get(node);
+  return m_enabled_trps_mask.get(trp_id);
 }
 
-Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
-                                Uint32 prio [[maybe_unused]],
-                                Uint32 /*max_use*/, SendStatus* error)
+Uint32* trp_client::getWritePtr(TrpId trp_id,
+                                Uint32 lenBytes,
+                                Uint32 prio[[maybe_unused]],
+                                Uint32 max_use[[maybe_unused]],
+                                SendStatus* error)
 {
   assert(prio == 1 /* JBB */);
-  assert(isSendEnabled(node));
+  assert(isSendEnabled(trp_id));
   
-  TFBuffer* b = m_send_buffers+node;
+  TFBuffer* b = m_send_buffers+trp_id;
   TFBufferGuard g0(* b);
-  bool found = m_send_nodes_mask.get(node);
+  bool found = m_send_trps_mask.get(trp_id);
   if (likely(found))
   {
     TFPage * page = b->m_tail;
@@ -378,10 +384,10 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   }
   else
   {
-    Uint32 cnt = m_send_nodes_cnt;
-    m_send_nodes_mask.set(node);
-    m_send_nodes_list[cnt] = node;
-    m_send_nodes_cnt = cnt + 1;
+    const Uint32 cnt = m_send_trps_cnt;
+    m_send_trps_mask.set(trp_id);
+    m_send_trps_list[cnt] = trp_id;
+    m_send_trps_cnt = cnt + 1;
   }
 
   if (unlikely(lenBytes > TFPage::max_data_bytes()))
@@ -390,7 +396,7 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   }
   else
   {
-    TFPage* page = m_facade->alloc_sb_page(node);
+    TFPage* page = m_facade->alloc_sb_page(trp_id);
     if (likely(page != nullptr))
     {
       page->init();
@@ -416,8 +422,8 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   if (b->m_tail == nullptr)
   {
     assert(!found);
-    m_send_nodes_mask.clear(node);
-    m_send_nodes_cnt--;
+    m_send_trps_mask.clear(trp_id);
+    m_send_trps_cnt--;
   }
   else
   {
@@ -427,13 +433,14 @@ Uint32* trp_client::getWritePtr(NodeId node, TrpId /*trp_id*/, Uint32 lenBytes,
   return nullptr;
 }
 
-Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
-                                  Uint32 lenBytes, Uint32 prio [[maybe_unused]])
+Uint32 trp_client::updateWritePtr(TrpId trp_id,
+                                  Uint32 lenBytes,
+                                  Uint32 prio [[maybe_unused]])
 {
   assert(prio == 1 /* JBB */);
-  TFBuffer* b = m_send_buffers+node;
+  TFBuffer* b = m_send_buffers+trp_id;
   TFBufferGuard g0(* b);
-  assert(m_send_nodes_mask.get(node));
+  assert(m_send_trps_mask.get(trp_id));
   assert(b->m_head != nullptr);
   assert(b->m_tail != nullptr);
 
@@ -448,7 +455,7 @@ Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
  * This is the implementation used by the NDB API. I update the
  * current send buffer size every time a thread gets the send mutex and
  * links their buffers to the common pool of buffers. I recalculate the
- * buffer size also every time a send to the node has been completed.
+ * buffer size also every time a send on th etransporter has been completed.
  *
  * The values we read here are read unprotected, the idea is that the
  * value reported from here should only used for guidance. So it should
@@ -457,10 +464,11 @@ Uint32 trp_client::updateWritePtr(NodeId node, TrpId /*trp_id*/,
  * should not be high. Also we expect measures of slowing down to occur
  * at a fairly early stage, so not close to when the buffers are filling up.
  */
+/**
 void
-trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
+trp_client::getSendBufferLevel(TrpId trp_id, SB_LevelType &level)
 {
-  Uint32 current_send_buffer_size = m_facade->get_current_send_buffer_size(node);
+  Uint32 current_send_buffer_size = m_facade->get_current_send_buffer_size(trp_id);
   Uint64 tot_send_buffer_size =
     m_facade->m_send_buffer.get_total_send_buffer_size();
   Uint64 tot_used_send_buffer_size =
@@ -472,9 +480,10 @@ trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
                               level);
   return;
 }
+**/
 
 bool
-trp_client::forceSend(NodeId, TrpId)
+trp_client::forceSend(TrpId)
 {
   do_forceSend();
   return true;

@@ -429,10 +429,10 @@ SHM_Transporter::set_socket(NdbSocket & sock)
   set_get(sock.ndb_socket(), IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
   set_get(sock.ndb_socket(), SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
   sock.set_nonblocking(true);
-  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->lock_transporter(m_transporter_index);
   NdbSocket::transfer(theSocket, sock);
   send_checksum_state.init();
-  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->unlock_transporter(m_transporter_index);
 }
 
 bool
@@ -615,7 +615,7 @@ void SHM_Transporter::setupBuffersUndone()
 void
 SHM_Transporter::disconnect_socket()
 {
-  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->lock_transporter(m_transporter_index);
 
   if(theSocket.is_valid())
   {
@@ -625,7 +625,7 @@ SHM_Transporter::disconnect_socket()
   }
   theSocket.invalidate();
   setupBuffersUndone();
-  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->unlock_transporter(m_transporter_index);
 }
 
 /**

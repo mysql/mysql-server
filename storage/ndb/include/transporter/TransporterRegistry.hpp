@@ -163,15 +163,21 @@ struct TransporterReceiveData
   /**
    * Bitmask of transporters having received corrupted or unsupported
    * message. No more unpacking and delivery of messages allowed.
+   *
+   * OJA FIXME:
+   *    Documented as 'Bitmask of transporters' (TrpBitmask)
+   *    Declared and used(!) as a NodeBitMask!
+   *
+   * Could it possibly be the root cause of the multiTransporter checksum bug?
    */
   NodeBitmask m_bad_data_transporters;
 
   /**
-   * Last node received from if unable to complete all transporters
+   * Last transporter received from if unable to complete all transporters
    * in previous ::performReceive(). Next ::performReceive will
    * resume from first transporter after this.
    */
-  Uint32 m_last_trp_id;
+  TrpId m_last_trp_id;
 
   /**
    * Spintime calculated as maximum of currently connected transporters.
@@ -411,7 +417,7 @@ private:
   bool createSHMTransporter(TransporterConfiguration * config);
 
 public:
-  bool createMultiTransporter(Uint32 node_id, Uint32 num_trps);
+  bool createMultiTransporter(NodeId node_id, Uint32 num_trps);
   /**
    *   configureTransporter
    *
@@ -436,31 +442,31 @@ public:
   /**
    * Get transporter's connect count
    */
-  Uint32 get_connect_count(Uint32 nodeId);
+  Uint32 get_connect_count(NodeId nodeId);
 
   /**
    * Set or clear overloaded bit.
    * Query if any overloaded bit is set.
    */
-  void set_status_overloaded(Uint32 nodeId, bool val);
+  void set_status_overloaded(NodeId nodeId, bool val);
   const NodeBitmask& get_status_overloaded() const;
   
   /**
    * Get transporter's overload count since connect
    */
-  Uint32 get_overload_count(Uint32 nodeId);
+  Uint32 get_overload_count(NodeId nodeId);
 
   /**
    * Set or clear slowdown bit.
    * Query if any slowdown bit is set.
    */
-  void set_status_slowdown(Uint32 nodeId, bool val);
+  void set_status_slowdown(NodeId nodeId, bool val);
   const NodeBitmask& get_status_slowdown() const;
  
   /** 
    * Get transporter's slowdown count since connect
    */
-  Uint32 get_slowdown_count(Uint32 nodeId);
+  Uint32 get_slowdown_count(NodeId nodeId);
 
   /**
    * prepareSend
@@ -513,6 +519,7 @@ public:
                          Uint8 prio,
                          const Uint32 *signalData,
                          NodeId nodeId,
+                         TrpId &trp_id,
                          const GenericSectionPtr ptr[3]);
 
   SendStatus prepareSendOverAllLinks(
@@ -525,8 +532,6 @@ public:
 
   /* Send on a specific transporter */
   bool performSend(TrpId id, bool need_wakeup = true);
-  /* performSendNode is only used from NDB API */
-  bool performSendNode(NodeId nodeId, bool need_wakeup = true);
   void performSend();
   
   void printState();
@@ -694,22 +699,22 @@ private:
 
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
                       Transporter*,
-                      Uint32 trp_id,
+                      TrpId trp_id,
                       Uint32 lenBytes,
                       Uint32 prio,
                       SendStatus *error);
   void updateWritePtr(TransporterSendBufferHandle *handle,
                       Transporter*,
-                      Uint32 trp_id,
+                      TrpId trp_id,
                       Uint32 lenBytes,
                       Uint32 prio);
 
 public:
   /* Various internal */
-  void inc_overload_count(Uint32 nodeId);
-  void inc_slowdown_count(Uint32 nodeId);
+  void inc_overload_count(NodeId nodeId);
+  void inc_slowdown_count(NodeId nodeId);
 
-  void get_trps_for_node(Uint32 nodeId,
+  void get_trps_for_node(NodeId nodeId,
                          TrpId *trp_ids,
                          Uint32 &num_trp_ids,
                          Uint32 max_trp_ids);
@@ -779,7 +784,7 @@ TransporterRegistry::get_num_trps()
 }
 
 inline void
-TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
+TransporterRegistry::set_status_overloaded(NodeId nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
   if (val != m_status_overloaded.get(nodeId))
@@ -799,7 +804,7 @@ TransporterRegistry::get_status_overloaded() const
 }
 
 inline void
-TransporterRegistry::set_status_slowdown(Uint32 nodeId, bool val)
+TransporterRegistry::set_status_slowdown(NodeId nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
   if (val != m_status_slowdown.get(nodeId))

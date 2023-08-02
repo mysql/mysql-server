@@ -1763,18 +1763,16 @@ struct mt_send_handle  : public TransporterSendBufferHandle
   mt_send_handle(thr_data* ptr) : m_selfptr(ptr) {}
   ~mt_send_handle() override {}
 
-  Uint32 *getWritePtr(NodeId nodeId,
-                      TrpId trp_id,
+  Uint32 *getWritePtr(TrpId trp_id,
                       Uint32 len,
                       Uint32 prio,
                       Uint32 max,
                       SendStatus *error) override;
-  Uint32 updateWritePtr(NodeId nodeId,
-                        TrpId trp_id,
+  Uint32 updateWritePtr(TrpId trp_id,
                         Uint32 lenBytes,
                         Uint32 prio) override;
-  void getSendBufferLevel(NodeId node_id, SB_LevelType &level) override;
-  bool forceSend(NodeId, TrpId) override;
+  //void getSendBufferLevel(TrpId, SB_LevelType &level) override;
+  bool forceSend(TrpId) override;
 };
 
 struct trp_callback : public TransporterCallback
@@ -1782,19 +1780,18 @@ struct trp_callback : public TransporterCallback
   trp_callback() {}
 
   /* Callback interface. */
-  void enable_send_buffer(NodeId, TrpId) override;
-  void disable_send_buffer(NodeId, TrpId) override;
+  void enable_send_buffer(TrpId) override;
+  void disable_send_buffer(TrpId) override;
 
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
-  void lock_transporter(NodeId, TrpId) override;
-  void unlock_transporter(NodeId, TrpId) override;
-  void lock_send_transporter(NodeId, TrpId) override;
-  void unlock_send_transporter(NodeId, TrpId) override;
-  Uint32 get_bytes_to_send_iovec(NodeId nodeId,
-                                 TrpId trp_id,
+  void lock_transporter(TrpId) override;
+  void unlock_transporter(TrpId) override;
+  void lock_send_transporter(TrpId) override;
+  void unlock_send_transporter(TrpId) override;
+  Uint32 get_bytes_to_send_iovec(TrpId trp_id,
                                  struct iovec *dst,
                                  Uint32 max) override;
-  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) override;
+  Uint32 bytes_sent(TrpId, Uint32 bytes) override;
 };
 
 static char *g_thr_repository_mem = NULL;
@@ -2329,19 +2326,19 @@ public:
   }
   void setNeighbourNode(NodeId nodeId)
   {
-    NodeId id[MAX_NODE_GROUP_TRANSPORTERS];
+    TrpId trpId[MAX_NODE_GROUP_TRANSPORTERS];
     Uint32 num_ids;
     if (globalData.ndbMtSendThreads == 0)
     {
       return;
     }
     globalTransporterRegistry.get_trps_for_node(nodeId,
-                                                &id[0],
+                                                &trpId[0],
                                                 num_ids,
                                                 MAX_NODE_GROUP_TRANSPORTERS);
     for (Uint32 index = 0; index < num_ids; index++)
     {
-      Uint32 this_id = id[index];
+      TrpId this_id = trpId[index];
       Uint32 send_instance = get_send_instance(this_id);
       m_trp_state[this_id].m_neighbour_trp = true;
       for (Uint32 i = 0; i < MAX_NEIGHBOURS; i++)
@@ -2789,7 +2786,7 @@ thr_send_threads::check_delay_expired(TrpId trp_id, NDB_TICKS now)
  * of the workings of the MaxSendDelay parameter.
  */
 
-static Uint64 mt_get_send_buffer_bytes(NodeId id);
+static Uint64 mt_get_send_buffer_bytes(TrpId trp_id);
 
 /**
  * MAX_SEND_BUFFER_SIZE_TO_DELAY is a heauristic constant that specifies
@@ -4772,7 +4769,8 @@ set_congested_jb_quotas(thr_data *selfptr, Uint32 congested, Uint32 free)
 }
 
 void
-trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+trp_callback::reportSendLen(NodeId nodeId[[maybe_unused]],
+                            Uint32 count, Uint64 bytes)
 {
 #ifdef RONM_TODO
   SignalT<3> signal[1] = {};
@@ -4800,7 +4798,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
   signal.theData[2] = (Uint32)(bytes/count);
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendlocal(g_thr_repository->m_send_buffers[nodeId].m_send_thread,
+  sendlocal(g_thr_repository->m_send_buffers[trp_id].m_send_thread,
             &signalT.header, signalT.theData, NULL);
 #endif
 }
@@ -4817,9 +4815,8 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
  * NDB_INVALID_SOCKET, not for the actual close() syscall.
  */
 void
-trp_callback::lock_transporter(NodeId node, TrpId trp_id)
+trp_callback::lock_transporter(TrpId trp_id)
 {
-  (void)node;
   Uint32 recv_thread_idx = mt_get_recv_thread_idx(trp_id);
   struct thr_repository* rep = g_thr_repository;
   /**
@@ -4836,9 +4833,8 @@ trp_callback::lock_transporter(NodeId node, TrpId trp_id)
 }
 
 void
-trp_callback::unlock_transporter(NodeId node, TrpId trp_id)
+trp_callback::unlock_transporter(TrpId trp_id)
 {
-  (void)node;
   Uint32 recv_thread_idx = mt_get_recv_thread_idx(trp_id);
   struct thr_repository* rep = g_thr_repository;
   unlock(&rep->m_receive_lock[recv_thread_idx]);
@@ -4846,17 +4842,15 @@ trp_callback::unlock_transporter(NodeId node, TrpId trp_id)
 }
 
 void
-trp_callback::lock_send_transporter(NodeId node, TrpId trp_id)
+trp_callback::lock_send_transporter(TrpId trp_id)
 {
-  (void)node;
   struct thr_repository* rep = g_thr_repository;
   lock(&rep->m_send_buffers[trp_id].m_send_lock);
 }
 
 void
-trp_callback::unlock_send_transporter(NodeId node, TrpId trp_id)
+trp_callback::unlock_send_transporter(TrpId trp_id)
 {
-  (void)node;
   struct thr_repository* rep = g_thr_repository;
   unlock(&rep->m_send_buffers[trp_id].m_send_lock);
 }
@@ -5098,11 +5092,11 @@ mt_checkDoJob(Uint32 recv_thread_idx)
  */
 static
 Uint32
-link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 id)
+link_thread_send_buffers(thr_repository::send_buffer * sb, TrpId trp_id)
 {
   Uint32 ri[MAX_BLOCK_THREADS];
   Uint32 wi[MAX_BLOCK_THREADS];
-  thr_send_queue *src = g_thr_repository->m_thread_send_buffers[id];
+  thr_send_queue *src = g_thr_repository->m_thread_send_buffers[trp_id];
   for (unsigned thr = 0; thr < glob_num_threads; thr++)
   {
     ri[thr] = sb->m_read_index[thr];
@@ -5138,7 +5132,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 id)
 
     do
     {
-      src = g_thr_repository->m_thread_send_buffers[id];
+      src = g_thr_repository->m_thread_send_buffers[trp_id];
       more_pages = false;
       for (unsigned thr = 0; thr < glob_num_threads; thr++, src++)
       {
@@ -5348,12 +5342,10 @@ release_list(thread_local_pool<thr_send_page>* pool,
  * are released instead of being returned from this method.
  */
 Uint32
-trp_callback::get_bytes_to_send_iovec(NodeId node,
-                                      TrpId trp_id,
+trp_callback::get_bytes_to_send_iovec(TrpId trp_id,
                                       struct iovec *dst,
                                       Uint32 max)
 {
-  (void)node;
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers + trp_id;
   sb->m_bytes_sent = 0;
 
@@ -5588,9 +5580,9 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
  * this function.
  */
 Uint32
-trp_callback::bytes_sent(NodeId node, TrpId trp_id, Uint32 bytes)
+trp_callback::bytes_sent(TrpId trp_id,
+                         Uint32 bytes)
 {
-  (void)node;
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+trp_id;
   Uint32 thr_no = sb->m_send_thread;
   assert(thr_no != NO_SEND_THREAD);
@@ -5610,9 +5602,8 @@ trp_callback::bytes_sent(NodeId node, TrpId trp_id, Uint32 bytes)
 }
 
 void
-trp_callback::enable_send_buffer(NodeId node, TrpId trp_id)
+trp_callback::enable_send_buffer(TrpId trp_id)
 {
-  (void)node;
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+trp_id;
   lock(&sb->m_send_lock);
   assert(sb->m_sending_size == 0);
@@ -5645,9 +5636,8 @@ trp_callback::enable_send_buffer(NodeId node, TrpId trp_id)
 }
 
 void
-trp_callback::disable_send_buffer(NodeId node, TrpId trp_id)
+trp_callback::disable_send_buffer(TrpId trp_id)
 {
-  (void)node;
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+trp_id;
   lock(&sb->m_send_lock);
   sb->m_enabled = false;
@@ -5679,7 +5669,7 @@ trp_callback::disable_send_buffer(NodeId node, TrpId trp_id)
 
 static inline
 void
-register_pending_send(thr_data *selfptr, Uint32 trp_id)
+register_pending_send(thr_data *selfptr, TrpId trp_id)
 {
   /* Mark that this trp has pending send data. */
   if (!selfptr->m_pending_send_mask.get(trp_id))
@@ -5698,7 +5688,7 @@ register_pending_send(thr_data *selfptr, Uint32 trp_id)
   and still have massive amounts of free space.
 
   We call this from the main loop in the block threads when we fail to
-  allocate enough send buffers. In addition we call the node local
+  allocate enough send buffers. In addition we call the thread local
   pack_sb_pages() several places - See header-comment for that function.
 */
 static
@@ -5708,17 +5698,17 @@ try_pack_send_buffers(thr_data* selfptr)
   thr_repository* rep = g_thr_repository;
   thread_local_pool<thr_send_page>* pool = &selfptr->m_send_buffer_pool;
 
-  for (Uint32 i = 1; i < NDB_ARRAY_SIZE(selfptr->m_send_buffers); i++)
+  for (TrpId trp_id = 1; trp_id < MAX_NTRANSPORTERS; trp_id++)
   {
-    if (globalTransporterRegistry.get_transporter(i))
+    if (globalTransporterRegistry.get_transporter(trp_id))
     {
-      thr_repository::send_buffer* sb = rep->m_send_buffers+i;
+      thr_repository::send_buffer* sb = rep->m_send_buffers+trp_id;
       if (trylock(&sb->m_buffer_lock) != 0)
       {
         continue; // Continue with next if busy
       }
 
-      link_thread_send_buffers(sb, i);
+      link_thread_send_buffers(sb, trp_id);
       if (sb->m_buffer.m_first_page != NULL)
       {
         pack_sb_pages(pool, &sb->m_buffer);
@@ -5738,7 +5728,7 @@ try_pack_send_buffers(thr_data* selfptr)
  */
 static
 void
-flush_send_buffer(thr_data* selfptr, Uint32 trp_id)
+flush_send_buffer(thr_data* selfptr, TrpId trp_id)
 {
   unsigned thr_no = selfptr->m_thr_no;
   thr_send_buffer * src = selfptr->m_send_buffers + trp_id;
@@ -5781,9 +5771,8 @@ flush_send_buffer(thr_data* selfptr, Uint32 trp_id)
  * hopefully freeing up some buffer space for the next signal.
  */
 bool
-mt_send_handle::forceSend(NodeId node, TrpId trp_id)
+mt_send_handle::forceSend(TrpId trp_id)
 {
-  (void)node;
   struct thr_repository *rep = g_thr_repository;
   struct thr_data *selfptr = m_selfptr;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + trp_id;
@@ -5828,7 +5817,7 @@ mt_send_handle::forceSend(NodeId node, TrpId trp_id)
  */
 static
 void
-try_send(thr_data * selfptr, Uint32 trp_id)
+try_send(thr_data * selfptr, TrpId trp_id)
 {
   struct thr_repository *rep = g_thr_repository;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + trp_id;
@@ -5887,7 +5876,7 @@ do_flush(struct thr_data* selfptr)
 {
   Uint32 i;
   Uint32 count = selfptr->m_pending_send_count;
-  NodeId *trps = selfptr->m_pending_send_trps;
+  TrpId *trps = selfptr->m_pending_send_trps;
 
   for (i = 0; i < count; i++)
   {
@@ -5987,7 +5976,7 @@ bool
 do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
 {
   Uint32 count = selfptr->m_pending_send_count;
-  NodeId *trps = selfptr->m_pending_send_trps;
+  TrpId *trps = selfptr->m_pending_send_trps;
 
   const NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_curr_ticks = now;
@@ -6060,10 +6049,9 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
     /**
      * Make the data available for sending immediately so that
      * any other trp sending will grab this data without having
-     * wait for us to handling the other trps.
+     * to wait for us to handling the other trps.
      */
-    Uint32 id = trps[i];
-    flush_send_buffer(selfptr, id);
+    flush_send_buffer(selfptr, trps[i]);
   }
   selfptr->m_watchdog_counter = 6;
   if (g_send_threads)
@@ -6168,8 +6156,8 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
 
   for (Uint32 i = 0; i < count; i++)
   {
-    Uint32 id = trps[i];
-    thr_repository::send_buffer * sb = rep->m_send_buffers + id;
+    TrpId trp_id = trps[i];
+    thr_repository::send_buffer * sb = rep->m_send_buffers + trp_id;
 
     selfptr->m_watchdog_counter = 6;
 
@@ -6198,7 +6186,7 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
          * As we only add from the start of an empty list, we are safe from
          * overwriting the list while we are iterating over it.
          */
-        register_pending_send(selfptr, id);
+        register_pending_send(selfptr, trp_id);
       }
       else
       {
@@ -6225,14 +6213,14 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
        * thread holds the send lock for this remote trp.
        */
       sb->m_send_thread = selfptr->m_thr_no;
-      const bool more = globalTransporterRegistry.performSend(id);
+      const bool more = globalTransporterRegistry.performSend(trp_id);
       made_progress += sb->m_bytes_sent;
       sb->m_send_thread = NO_SEND_THREAD;
       unlock(&sb->m_send_lock);
 
       if (more)   //Didn't complete all my send work
       {
-        register_pending_send(selfptr, id);
+        register_pending_send(selfptr, trp_id);
       }
       else
       {
@@ -6245,7 +6233,7 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
         if (sb->m_force_send) //Other thread forced us to do more send
         {
           made_progress++;    //Avoid false 'no progress' handling
-          register_pending_send(selfptr, id);
+          register_pending_send(selfptr, trp_id);
         }
       }
     }
@@ -6277,14 +6265,12 @@ mt_set_delayed_prepare(Uint32 self)
  * in ndbmtd.
  */
 Uint32 *
-mt_send_handle::getWritePtr(NodeId nodeId,
-                            TrpId trp_id,
+mt_send_handle::getWritePtr(TrpId trp_id,
                             Uint32 len,
                             Uint32 prio,
                             Uint32 max,
                             SendStatus *error)
 {
-  (void)nodeId;
 #ifdef ERROR_INSERT
   if (m_selfptr->m_delayed_prepare)
   {
@@ -6366,13 +6352,21 @@ mt_get_send_buffer_bytes(TrpId trp_id)
   return total_send_buffer_size;
 }
 
+#if 0
+/**
+ * *getSendBufferLevel() is currently unused.
+ * As similar functionality is likely needed in near future
+ * (overload control, ndbinfo-transporter tables, ...)
+ * it is kept for now
+ */
 void
-mt_getSendBufferLevel(Uint32 self, NodeId id, SB_LevelType &level)
+mt_getSendBufferLevel(Uint32 self[[maybe_unused]]
+                      TrpId trp_id, SB_LevelType &level)
 {
   Resource_limit rl;
   const Uint32 page_size = thr_send_page::PGSIZE;
   thr_repository *rep = g_thr_repository;
-  thr_repository::send_buffer *sb = &rep->m_send_buffers[id];
+  thr_repository::send_buffer *sb = &rep->m_send_buffers[trp_id];
   const Uint64 current_trp_send_buffer_size =
     sb->m_buffered_size + sb->m_sending_size;
 
@@ -6405,20 +6399,18 @@ mt_getSendBufferLevel(Uint32 self, NodeId id, SB_LevelType &level)
 }
 
 void
-mt_send_handle::getSendBufferLevel(NodeId id, SB_LevelType &level)
+mt_send_handle::getSendBufferLevel(TrpId trp_id,
+                                   SB_LevelType &level)
 {
-  (void)id;
-  (void)level;
   return;
 }
+#endif
 
 Uint32
-mt_send_handle::updateWritePtr(NodeId nodeId,
-                               TrpId trp_id,
+mt_send_handle::updateWritePtr(TrpId trp_id,
                                Uint32 lenBytes,
                                Uint32 prio)
 {
-  (void)nodeId;
   struct thr_send_buffer * b = m_selfptr->m_send_buffers+trp_id;
   thr_send_page * p = b->m_last_page;
   p->m_bytes += lenBytes;
@@ -10285,7 +10277,7 @@ assign_receiver_threads(void)
 }
 
 void
-mt_assign_recv_thread_new_trp(Uint32 trp_id)
+mt_assign_recv_thread_new_trp(TrpId trp_id)
 {
   if (g_trp_to_recv_thr_map[trp_id] != MAX_NTRANSPORTERS)
   {
@@ -10345,9 +10337,8 @@ mt_assign_recv_thread_new_trp(Uint32 trp_id)
 }
 
 bool
-mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id)
+mt_epoll_add_trp(Uint32 self, TrpId trp_id)
 {
-  (void)node_id;
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
   unsigned thr_no = selfptr->m_thr_no;
@@ -10370,10 +10361,8 @@ mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id)
 
 bool
 mt_is_recv_thread_for_new_trp(Uint32 self,
-                              NodeId node_id,
                               TrpId trp_id)
 {
-  (void)node_id;
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
   unsigned thr_no = selfptr->m_thr_no;

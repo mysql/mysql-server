@@ -237,10 +237,10 @@ bool TCP_Transporter::connect_common(NdbSocket & socket)
   setSocketOptions(socket.ndb_socket());
   socket.set_nonblocking(true);
 
-  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->lock_transporter(m_transporter_index);
   NdbSocket::transfer(theSocket, socket);
   send_checksum_state.init();
-  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->unlock_transporter(m_transporter_index);
 
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
               remoteNodeId));
@@ -703,9 +703,9 @@ TCP_Transporter::disconnectImpl()
 {
   NdbSocket sock;
 
-  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->lock_transporter(m_transporter_index);
   NdbSocket::transfer(sock, theSocket);
-  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+  get_callback_obj()->unlock_transporter(m_transporter_index);
 
   if(sock.is_valid())
   {
