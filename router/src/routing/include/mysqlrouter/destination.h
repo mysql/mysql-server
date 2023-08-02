@@ -97,7 +97,7 @@ class ROUTING_EXPORT Destination {
  */
 class ROUTING_EXPORT Destinations {
  public:
-  using value_type = std::unique_ptr<Destination>;
+  using value_type = std::shared_ptr<Destination>;
   using container_type = std::list<value_type>;
   using iterator = typename container_type::iterator;
   using const_iterator = typename container_type::const_iterator;
