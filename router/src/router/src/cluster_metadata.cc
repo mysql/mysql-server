@@ -442,6 +442,20 @@ bool metadata_schema_version_is_compatible(
   return true;
 }
 
+bool ROUTER_LIB_EXPORT metadata_schema_version_is_deprecated(
+    const mysqlrouter::MetadataSchemaVersion &version) {
+  return version < kNewMetadataVersion;
+}
+
+std::string ROUTER_LIB_EXPORT get_metadata_schema_deprecated_msg(
+    const mysqlrouter::MetadataSchemaVersion &version) {
+  return "The target Cluster's Metadata version ('" + to_string(version) +
+         "') is deprecated. Please use the latest MySQL Shell to upgrade it "
+         "using 'dba.upgradeMetadata()'. Although this version of MySQL Router "
+         "still supports it, future versions will no longer work with this "
+         "Cluster unless its metadata is upgraded.";
+}
+
 std::string to_string(const MetadataSchemaVersion &version) {
   return std::to_string(version.major) + "." + std::to_string(version.minor) +
          "." + std::to_string(version.patch);

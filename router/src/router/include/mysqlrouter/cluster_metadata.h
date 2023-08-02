@@ -100,6 +100,12 @@ bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
 
+bool ROUTER_LIB_EXPORT metadata_schema_version_is_deprecated(
+    const mysqlrouter::MetadataSchemaVersion &version);
+
+std::string ROUTER_LIB_EXPORT get_metadata_schema_deprecated_msg(
+    const mysqlrouter::MetadataSchemaVersion &version);
+
 // throws std::logic_error, MySQLSession::Error
 bool ROUTER_LIB_EXPORT check_group_replication_online(MySQLSession *mysql);
 

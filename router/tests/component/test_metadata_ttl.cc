@@ -806,6 +806,54 @@ TEST_F(MetadataChacheTTLTest, CheckRouterInfoUpdatesClusterPartOfCS) {
   EXPECT_EQ(0, last_check_in_upd_count);
 }
 
+/**
+ * @test verify if appropriate warning messages are logged when the Cluster has
+ * deprecated metadata version.
+ */
+TEST_F(MetadataChacheTTLTest, LogWarningWhenMetadataIsDeprecated) {
+  RecordProperty("Worklog", "15876");
+  RecordProperty("RequirementId", "FR1");
+  RecordProperty("Description",
+                 "Checks that the Router logs a deprecation warning for "
+                 "metadata version 1.x exactly once per each metadata server");
+  // create a 2-node cluster
+  const std::vector<uint16_t> cluster_nodes_ports{
+      port_pool_.get_next_available(), port_pool_.get_next_available()};
+  const std::vector<uint16_t> cluster_nodes_http_ports{
+      port_pool_.get_next_available(), port_pool_.get_next_available()};
+  for (size_t i = 0; i < cluster_nodes_ports.size(); ++i) {
+    const auto classic_port = cluster_nodes_ports[i];
+    const auto http_port = cluster_nodes_http_ports[i];
+    launch_mysql_server_mock(
+        get_data_dir().join("metadata_dynamic_nodes.js").str(), classic_port,
+        EXIT_SUCCESS, false, http_port);
+    EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
+    ::set_mock_metadata(http_port, "uuid",
+                        classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
+                        classic_ports_to_cluster_nodes(cluster_nodes_ports));
+  }
+  // launch the router with metadata-cache configuration
+  const auto router_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(ClusterType::GR_V2, "0.1");
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               cluster_nodes_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+  // let the Router run for a several metadata refresh cycles
+  wait_for_transaction_count_increase(cluster_nodes_http_ports[0], 6);
+  // check that warning about deprecated metadata was logged once (we only
+  // connected to a single metadata server as it is a part of quorum)
+  check_log_contains(
+      router,
+      "Instance '127.0.0.1:" + std::to_string(cluster_nodes_ports[0]) +
+          "': The target Cluster's Metadata version ('1.0.2') is "
+          "deprecated. Please use the latest MySQL Shell to upgrade it using "
+          "'dba.upgradeMetadata()'.",
+      1);
+}
+
 class PermissionErrorOnVersionUpdateTest
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};

@@ -163,9 +163,23 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
        get_data_dir().join(param.trace_file).str()},
   };
 
-  const std::vector<std::string> expected_output{
+  std::vector<std::string> expected_output{
       "# Bootstrapping MySQL Router "s + MYSQL_ROUTER_VERSION + " \\(" +
       MYSQL_ROUTER_VERSION_EDITION + "\\) instance at"};
+
+  // For metadata version 1.x we should get deprecation warning
+  if (param.cluster_type == ClusterType::GR_V1) {
+    RecordProperty("Worklog", "15876");
+    RecordProperty("RequirementId", "FR2");
+    RecordProperty("Description",
+                   "Checks that the Router prints a deprecation warning for "
+                   "metadata version 1.x");
+
+    expected_output.push_back(
+        "WARNING: The target Cluster's Metadata version \\('1.0.2'\\) is "
+        "deprecated. Please use the latest MySQL Shell to upgrade it using "
+        "'dba.upgradeMetadata\\(\\)'.");
+  }
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type, {},
                                              EXIT_SUCCESS, expected_output));

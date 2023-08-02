@@ -760,10 +760,16 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   // there should be no WARNINGs nor ERRORs in the log file
   const std::string log_content = router.get_logfile_content();
 
-  EXPECT_THAT(log_content,
-              ::testing::Not(::testing::AnyOf(
-                  ::testing::HasSubstr(" metadata_cache ERROR "),
-                  ::testing::HasSubstr(" metadata_cache WARNING "))));
+  if (GetParam() == "metadata_dynamic_nodes.js") {
+    // there will be warning about deprecated metadata for MD 1.x
+    EXPECT_THAT(log_content,
+                ::testing::Not(::testing::HasSubstr(" metadata_cache ERROR ")));
+  } else {
+    EXPECT_THAT(log_content,
+                ::testing::Not(::testing::AnyOf(
+                    ::testing::HasSubstr(" metadata_cache ERROR "),
+                    ::testing::HasSubstr(" metadata_cache WARNING "))));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(GrNotificationMysqlxWaitTimeoutUnsupported,
