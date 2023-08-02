@@ -89,7 +89,7 @@ void mt_execSTOP_FOR_CRASH();
 /**
  * Interface methods to SimulatedBlock for ndbtmd.
  */
-void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
+void mt_getSendBufferLevel(Uint32 self, TrpId trp_id, SB_LevelType &level);
 Uint32 mt_getEstimatedJobBufferLevel(Uint32 self);
 bool mt_isEstimatedJobBufferLevelChanged(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
@@ -127,11 +127,10 @@ Uint32 mt_getNumSendThreads();
 Uint32 mt_getNumThreads();
 void mt_flush_send_buffers(Uint32 self);
 void mt_set_watchdog_counter(Uint32 self);
-void mt_assign_recv_thread_new_trp(Uint32 trp_id);
+void mt_assign_recv_thread_new_trp(TrpId trp_id);
 void mt_assign_multi_trps_to_send_threads();
-bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
+bool mt_epoll_add_trp(Uint32 self, TrpId trp_id);
 bool mt_is_recv_thread_for_new_trp(Uint32 self,
-                                   NodeId node_id,
                                    TrpId trp_id);
 Uint32 mt_getMainThrmanInstance();
 

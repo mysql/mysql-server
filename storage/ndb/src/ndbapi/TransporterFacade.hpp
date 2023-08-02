@@ -67,6 +67,13 @@ public:
    */
   static constexpr Uint32 MAX_NO_THREADS = 4711;
   static constexpr Uint32 MAX_LOCKED_CLIENTS = 256;
+
+  /**
+   * The clients does not use the MultiTransporters. Thus the max number
+   * of client transporters are limited by 'MAX_NODES'.
+   */
+  static constexpr Uint32 MAX_TRPS = MAX_NODES;
+
   TransporterFacade(GlobalDictCache *cache);
   ~TransporterFacade() override;
 
@@ -117,7 +124,7 @@ private:
                            const GenericSectionPtr ptr[3], Uint32 secs);
 
   /* Support routine to configure */
-  void set_up_node_active_in_send_buffers(Uint32 nodeId,
+  void set_up_node_active_in_send_buffers(NodeId nodeId,
                                           const ndb_mgm_configuration *conf);
 
  public:
@@ -126,9 +133,9 @@ private:
    * These are functions used by ndb_mgmd
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
-  ndb_sockaddr ext_get_connect_address(Uint32 nodeId);
+  ndb_sockaddr ext_get_connect_address(NodeId nodeId);
   bool ext_isConnected(NodeId aNodeId);
-  void ext_doConnect(int aNodeId);
+  void ext_doConnect(NodeId aNodeId);
 
   // Is node available for running transactions
 private:
@@ -144,10 +151,10 @@ public:
 
   void connected();
 
-  void doConnect(int NodeId);
-  void reportConnected(int NodeId);
-  void doDisconnect(int NodeId);
-  void reportDisconnected(int NodeId);
+  void doConnect(NodeId NodeId);
+  void reportConnected(NodeId NodeId);
+  void doDisconnect(NodeId NodeId);
+  void reportDisconnected(NodeId NodeId);
 
   NodeId get_an_alive_node();
   void trp_node_status(NodeId, Uint32 event);
@@ -318,6 +325,7 @@ private:
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
+  TrpId theOwnTrpId;
   NodeId theOwnId;
   NodeId theStartNodeId;
 
@@ -435,11 +443,11 @@ private:
   } m_threads;
 
   /**
-   * Global set of nodes having their send buffer enabled.
+   * Global set of transporters having their send buffer enabled.
    * Primary usage is to init the trp_client with enabled
-   * nodes when it 'open' the communication.
+   * transporters when it 'open' the communication.
    */
-  NodeBitmask m_enabled_nodes_mask;  //need m_open_close_mutex
+  TrpBitmask m_enabled_trps_mask;  //need m_open_close_mutex
 
   /**
    * Block number handling
@@ -461,19 +469,20 @@ public:
   /**
    * Add a send buffer to out-buffer
    */
-  void flush_send_buffer(Uint32 node, const TFBuffer* buffer);
+  void flush_send_buffer(TrpId trp, const TFBuffer* buffer);
 
   /**
    * Allocate a send buffer
    */
-  TFPage *alloc_sb_page(Uint32 node) 
+  TFPage *alloc_sb_page(TrpId trp)
   {
     /**
      * Try to grab a single page, 
      * including from the reserved pool if 
      * sending-to-self 
      */
-    bool reserved = (node == theOwnId);
+    assert(theOwnTrpId != 0);
+    const bool reserved = (trp == theOwnTrpId);
     return m_send_buffer.try_alloc(1, reserved);
   }
 
@@ -482,15 +491,13 @@ public:
    * methods on all clients known by TF to handle theirs thread local
    * send buffers.
    */
-  void enable_send_buffer(NodeId nodeId, TrpId trp_id) override;
-  void disable_send_buffer(NodeId nodeId, TrpId trp_id) override;
+  void enable_send_buffer(TrpId trp_id) override;
+  void disable_send_buffer(TrpId trp_id) override;
 
-  Uint32 get_bytes_to_send_iovec(NodeId nodeId,
-                                 TrpId trp_id,
+  Uint32 get_bytes_to_send_iovec(TrpId trp_id,
                                  struct iovec *dst,
                                  Uint32 max) override;
-  Uint32 bytes_sent(NodeId nodeId,
-                    TrpId trp_id,
+  Uint32 bytes_sent(TrpId trp_id,
                     Uint32 bytes) override;
 
 #ifdef ERROR_INSERT
@@ -537,7 +544,7 @@ private:
      * A protected view of the current send buffer size of the node.
      * This is to support getSendBufferLevel.
      */
-    Uint32 m_current_send_buffer_size;
+    Uint32 m_current_send_buffer_size;  // OJA: used anymore?
 
     /**
      * This is data that have been "scheduled" to be sent
@@ -560,26 +567,29 @@ private:
      */
     bool try_lock_send();
     void unlock_send();
-  } m_send_buffers[MAX_NODES];
+  } m_send_buffers[MAX_TRPS];
 
   /**
-   * The set of nodes having a 'm_send_buffer[]::m_node_active '== true'
-   * This is the set of all nodes we have been configured to send to.
+   * The set of transporters having a 'm_send_buffer[]::m_node_active '== true'
+   * This is the set of all transporters to nodes we have been configured to
+   * send to.
    */
-  NodeBitmask m_active_nodes;
+  TrpBitmask m_active_trps;
 
   void discard_send_buffer(TFSendBuffer *b);
 
-  void do_send_buffer(Uint32 node, TFSendBuffer *b);
+  void do_send_buffer(TrpId trp, TFSendBuffer *b);
+  void try_send_buffer(TrpId trp, TFSendBuffer* b);
+  void try_send_all(const TrpBitmask& trps);
+  void do_send_adaptive(const TrpBitmask& trps);
 
-  void try_send_buffer(Uint32 node, TFSendBuffer* b);
-  void try_send_all(const NodeBitmask& nodes);
-  void do_send_adaptive(const NodeBitmask& nodes);
-
-  Uint32 get_current_send_buffer_size(NodeId node) const
+  /**
+   * Was used by the (unused) ::getSendBufferLevel()
+  Uint32 get_current_send_buffer_size(TrpId trp) const
   {
-    return m_send_buffers[node].m_current_send_buffer_size;
+    return m_send_buffers[trp].m_current_send_buffer_size;
   }
+  **/
 
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
@@ -589,13 +599,13 @@ private:
   NodeBitmask m_send_thread_nodes;  //Future use: multiple send threads
 
   /**
-   * The set of nodes having unsent buffered data. Either after
+   * The set of transporters having unsent buffered data. Either after
    * previous do_send_buffer() not being able to send everything,
    * or the adaptive send decided to defer the send.
    * In both cases the send thread will be activated to take care
-   * of sending to these nodes.
+   * of sending the data on these transporters.
    */
-  NodeBitmask m_has_data_nodes;
+  TrpBitmask m_has_data_trps;
 };
 
 inline

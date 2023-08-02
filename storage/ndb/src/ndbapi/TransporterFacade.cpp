@@ -115,32 +115,30 @@ TransporterFacade::reportError(NodeId nodeId,
  * Report average send length in bytes (4096 last sends)
  */
 void
-TransporterFacade::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+TransporterFacade::reportSendLen(NodeId nodeId[[maybe_unused]],
+                                 Uint32 count[[maybe_unused]],
+                                 Uint64 bytes[[maybe_unused]])
 {
 #ifdef REPORT_TRANSPORTER
   g_eventLogger->info(
       "REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", (int)nodeId,
       (Uint32)(bytes / count));
 #endif
-  (void)nodeId;
-  (void)count;
-  (void)bytes;
 }
 
 /** 
  * Report average receive length in bytes (4096 last receives)
  */
 void
-TransporterFacade::reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+TransporterFacade::reportReceiveLen(NodeId nodeId[[maybe_unused]],
+                                    Uint32 count[[maybe_unused]],
+                                    Uint64 bytes[[maybe_unused]])
 {
 #ifdef REPORT_TRANSPORTER
   g_eventLogger->info(
       "REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)",
       (int)nodeId, (Uint32)(bytes / count));
 #endif
-  (void)nodeId;
-  (void)count;
-  (void)bytes;
 }
 
 /**
@@ -503,6 +501,7 @@ TransporterFacade::start_instance(NodeId nodeId,
 {
   DBUG_ENTER("TransporterFacade::start_instance");
 
+  assert(theOwnTrpId == 0);
   assert(theOwnId == 0);
   theOwnId = nodeId;
   DEBUG_FPRINTF((stderr, "(%u)FAC:start_instance\n", ownId()));
@@ -1065,15 +1064,15 @@ TransporterFacade::wakeup_send_thread(void)
  *    possible, which is more or less the same as 'adaptive' does.
  */
 void
-TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
+TransporterFacade::do_send_adaptive(const TrpBitmask& trps)
 {
-  assert(m_active_nodes.contains(nodes));
+  assert(m_active_trps.contains(trps));
 
-  for (Uint32 node = nodes.find_first();
-       node != NodeBitmask::NotFound;
-       node = nodes.find_next(node+1))
+  for (Uint32 trp = trps.find_first();
+       trp != TrpBitmask::NotFound;
+       trp = trps.find_next(trp+1))
   {
-    struct TFSendBuffer *b = &m_send_buffers[node];
+    struct TFSendBuffer *b = &m_send_buffers[trp];
     Guard g(&b->m_mutex);
 
     if (b->m_flushed_cnt > 0 && b->m_current_send_buffer_size > 0)
@@ -1086,16 +1085,16 @@ TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
       if (b->m_current_send_buffer_size > 4*1024 ||    // 1)
           b->m_flushed_cnt >= m_poll_waiters/8)        // 2)
       {
-        try_send_buffer(node, b);
+        try_send_buffer(trp, b);
       }
       else                                             // 3)
       {
         Guard g(m_send_thread_mutex);
-        if (m_has_data_nodes.isclear()) //Awake Send thread from 'idle sleep'
+        if (m_has_data_trps.isclear()) //Awake Send thread from 'idle sleep'
         {
           wakeup_send_thread();
         }
-        m_has_data_nodes.set(node);
+        m_has_data_trps.set(trp);
       }
     }
   }
@@ -1104,8 +1103,8 @@ TransporterFacade::do_send_adaptive(const NodeBitmask& nodes)
 /**
  * The send thread mainly serve two purposes:
  *
- * 1) If a regular try_send_buffer(node) failed to grab the 
- *    try_lock_send(), the 'node' will be added to 'm_has_data_nodes',
+ * 1) If a regular try_send_buffer(trp) failed to grab the
+ *    try_lock_send(), the 'trp' will be added to 'm_has_data_trps',
  *    and the send taken over by the send thread.
  *
  * 2) Handle deferred sends from the adaptive send algorithm,
@@ -1150,18 +1149,18 @@ void TransporterFacade::threadMainSend(void)
   {
     NdbMutex_Lock(m_send_thread_mutex);
     /**
-     * Note: It is intentional that we set 'send_nodes' before we
-     * wait: If more 'm_has_data_nodes' are added while we wait, we
+     * Note: It is intentional that we set 'send_trps' before we
+     * wait: If more 'm_has_data_trps' are added while we wait, we
      * do not want these to take effect until after the 200us
      * grace period. The exception is if we are woken up from the
      * micro-nap (!= ETIMEDOUT), which only happens if we have to
      * take immediate send action.
      */
-    NodeBitmask send_nodes(m_has_data_nodes);
+    TrpBitmask send_trps(m_has_data_trps);
 
     if (m_send_thread_nodes.get(SEND_THREAD_NO) == false)
     {
-      if (!m_has_data_nodes.isclear())
+      if (!m_has_data_trps.isclear())
       {
         /**
          * Take a 200us micro-nap to allow more buffered data
@@ -1175,9 +1174,9 @@ void TransporterFacade::threadMainSend(void)
                                               m_send_thread_mutex,
                                               &wait_end);
 
-        /* If we were woken by a signal: take the new send_node set */
+        /* If we were woken by a signal: take the new send_trps set */
         if (ret != ETIMEDOUT)
-          send_nodes.assign(m_has_data_nodes);
+          send_trps.assign(m_has_data_trps);
       }
       else
       {
@@ -1190,19 +1189,19 @@ void TransporterFacade::threadMainSend(void)
     NdbMutex_Unlock(m_send_thread_mutex);
 
     /**
-     * try_send to all nodes requesting assist of the send thread.
-     * 'm_has_data_nodes' is maintained by try_send to reflect nodes
+     * try_send on all transporters requesting assist of the send thread.
+     * 'm_has_data_trps' is maintained by try_send to reflect nodes
      * still in need of more send after this try_send
      */
-    try_send_all(send_nodes);
+    try_send_all(send_trps);
 
     /**
      * Safeguard against messages being stuck: (probably an old bug...)
      *
      *  There seems to be cases where messages somehow are put into 
      *  the send buffers without ever being registered in the set of
-     *  nodes having messages to be sent. Thus we try to send to all
-     *  'active' nodes every 'sendThreadWaitMillisec'.
+     *  transporters having messages to be sent. Thus we try to send
+     *  to all 'active' transporters every 'sendThreadWaitMillisec'.
      */
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     const Uint32 elapsed_ms = NdbTick_Elapsed(lastActivityCheck,now).milliSec();
@@ -1211,7 +1210,7 @@ void TransporterFacade::threadMainSend(void)
       lastActivityCheck = now;
 
       Guard g(m_send_thread_mutex);
-      m_has_data_nodes.bitOR(m_active_nodes);
+      m_has_data_trps.bitOR(m_active_trps);
     }
   }
   theTransporterRegistry->stopSending();
@@ -1638,6 +1637,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_num_active_clients(0),
   m_check_connections(true),
   theTransporterRegistry(nullptr),
+  theOwnTrpId(0),
   theOwnId(0),
   theStartNodeId(1),
   theClusterMgr(nullptr),
@@ -1656,17 +1656,17 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_wakeup_thread_mutex(nullptr),
   m_wakeup_thread_cond(nullptr),
   recv_client(nullptr),
-  m_enabled_nodes_mask(),
+  m_enabled_trps_mask(),
   m_fragmented_signal_id(0),
   m_open_close_mutex(nullptr),
   thePollMutex(nullptr),
   m_globalDictCache(cache),
   m_send_buffer("sendbufferpool"),
-  m_active_nodes(),
+  m_active_trps(),
   m_send_thread_mutex(nullptr),
   m_send_thread_cond(nullptr),
   m_send_thread_nodes(),
-  m_has_data_nodes()
+  m_has_data_trps()
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
@@ -1698,7 +1698,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
 
 
 /* Return true if node with "nodeId" is a MGM node */
-static bool is_mgmd(Uint32 nodeId,
+static bool is_mgmd(NodeId nodeId,
                     const ndb_mgm_configuration *conf)
 {
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
@@ -1742,18 +1742,28 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
 }
 
 void
-TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
+TransporterFacade::set_up_node_active_in_send_buffers(NodeId nodeId,
                                    const ndb_mgm_configuration *conf)
 {
   DBUG_ENTER("TransporterFacade::set_up_node_active_in_send_buffers");
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
   Uint32 nodeId1, nodeId2, remoteNodeId;
   struct TFSendBuffer *b;
+  TrpId trp_ids[MAX_NODE_GROUP_TRANSPORTERS];
+  Uint32 num_ids;
+
+  {
+    theTransporterRegistry->get_trps_for_node(theOwnId, trp_ids, num_ids,
+                                              MAX_NODE_GROUP_TRANSPORTERS);
+    assert(num_ids == 1);
+    assert(trp_ids[0] > 0);
+    theOwnTrpId = trp_ids[0];
+  }
 
   /* Need to also communicate with myself, not found in config */
-  b = m_send_buffers + nodeId;
+  b = m_send_buffers + theOwnTrpId;
   b->m_node_active = true;
-  m_active_nodes.set(nodeId);
+  m_active_trps.set(theOwnTrpId);
 
   for (iter.first(); iter.valid(); iter.next())
   {
@@ -1761,9 +1771,12 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
     if (iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
     if (nodeId1 != nodeId && nodeId2 != nodeId) continue;
     remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
-    b = m_send_buffers + remoteNodeId;
+    theTransporterRegistry->get_trps_for_node(remoteNodeId, trp_ids, num_ids,
+                                              MAX_NODE_GROUP_TRANSPORTERS);
+    assert(num_ids == 1);
+    b = m_send_buffers + trp_ids[0];
     b->m_node_active = true;
-    m_active_nodes.set(remoteNodeId);
+    m_active_trps.set(trp_ids[0]);
   }
   DBUG_VOID_RETURN;
 }
@@ -1778,15 +1791,15 @@ TransporterFacade::configure(NodeId nodeId,
   assert(theTransporterRegistry);
   assert(theClusterMgr);
 
-  /* Set up active communication with all configured nodes */
-  set_up_node_active_in_send_buffers(nodeId, conf);
-
   // Configure transporters
-  if (!IPCConfig::configureTransporters(nodeId,
+  if (!IPCConfig::configureTransporters(theOwnId,
                                         conf,
                                         * theTransporterRegistry,
                                         true))
     DBUG_RETURN(false);
+
+  /* Set up active communication with all configured nodes / transporters */
+  set_up_node_active_in_send_buffers(theOwnId, conf);
 
   // Configure cluster manager
   theClusterMgr->configure(nodeId, conf);
@@ -2145,6 +2158,11 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
      */
     if (do_expand)
     {
+      if (unlikely(theOwnTrpId == 0)) {
+        assert(!clnt->isSendEnabled(theOwnTrpId));
+        DBUG_RETURN(0);
+      }
+
       NdbApiSignal signal(numberToRef(0, theOwnId));
       signal.theVerId_signalNumber = GSN_EXPAND_CLNT;
       signal.theTrace = 0;
@@ -2153,9 +2171,8 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theData[0] = 0;  //Unused
 
       clnt->prepare_poll();
-      // This client should be allowed to sent to 'ownId'
-      assert(theOwnId > 0);
-      assert(clnt->isSendEnabled(theOwnId));
+      // This client should be allowed to send to itself
+      assert(clnt->isSendEnabled(theOwnTrpId));
 
       const int res = clnt->raw_sendSignal(&signal, theOwnId);
       if (res != 0)
@@ -2185,7 +2202,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
    * A successful m_threads.open() above also included this client in
    * the list of clients receiving enable_send()/disable_send() callbacks
    * as we (dis)connects to other nodes. First we have to set the initial
-   * known set of enabled nodes:
+   * known set of enabled transporters:
    *
    * As the lock order requires client lock to be taken before
    * open_close_mutex, we have to release it above, before relocking
@@ -2203,7 +2220,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
    */
   clnt->lock();
   NdbMutex_Lock(m_open_close_mutex);
-  clnt->set_enabled_send(m_enabled_nodes_mask);
+  clnt->set_enabled_send(m_enabled_trps_mask);
   NdbMutex_Unlock(m_open_close_mutex);
   clnt->unlock();
 
@@ -2507,12 +2524,13 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
       tmp_signal.m_noOfSections= i-start_i+1;
       // do prepare send
       {
+        TrpId trp_id = 0;
 	SendStatus ss = theTransporterRegistry->prepareSend
           (clnt,
            &tmp_signal,
 	   1, /*JBB*/
 	   tmp_signal_data,
-	   aNode, 
+	   aNode, trp_id,
 	   &tmp_ptr[start_i]);
         if (likely(ss == SEND_OK))
         {
@@ -2569,12 +2587,13 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
   // send aSignal
   int ret;
   {
+    TrpId trp_id = 0;
     SendStatus ss = theTransporterRegistry->prepareSend
       (clnt,
        aSignal,
        1/*JBB*/,
        aSignal->getConstDataPtrSend(),
-       aNode,
+       aNode, trp_id,
        &tmp_ptr[start_i]);
     if (likely(ss == SEND_OK))
     {
@@ -2752,12 +2771,13 @@ TransporterFacade::sendSignal(trp_client* clnt,
       ptr[i].sectionIter->reset();
   }
 #endif
+  TrpId trp_id = 0;
   SendStatus ss = theTransporterRegistry->prepareSend
     (clnt,
      aSignal,
      1, // JBB
      aSignal->getConstDataPtrSend(),
-     aNode,
+     aNode, trp_id,
      ptr);
   int ret;
   if (ss == SEND_OK)
@@ -2782,13 +2802,13 @@ TransporterFacade::sendSignal(trp_client* clnt,
  * CONNECTION METHODS  Etc
  ******************************************************************************/
 void
-TransporterFacade::doConnect(int aNodeId){
+TransporterFacade::doConnect(NodeId aNodeId){
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
   theTransporterRegistry->do_connect(aNodeId);
 }
 
 void
-TransporterFacade::doDisconnect(int aNodeId)
+TransporterFacade::doDisconnect(NodeId aNodeId)
 {
   theTransporterRegistry->do_disconnect(aNodeId);
 }
@@ -2798,13 +2818,13 @@ TransporterFacade::doDisconnect(int aNodeId)
  * Notify it about the changed connection state.
  */
 void
-TransporterFacade::reportConnected(int aNodeId)
+TransporterFacade::reportConnected(NodeId aNodeId)
 {
   theClusterMgr->reportConnected(aNodeId);
 }
 
 void
-TransporterFacade::reportDisconnected(int aNodeId)
+TransporterFacade::reportDisconnected(NodeId aNodeId)
 {
   theClusterMgr->reportDisconnected(aNodeId);
 }
@@ -3594,14 +3614,14 @@ template class Vector<TransporterFacade::ThreadData::Client>;
  * flushing any data into a disabled send buffer. (Asserted below)
  */
 void
-TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
+TransporterFacade::flush_send_buffer(TrpId trp, const TFBuffer * sb)
 {
   if (unlikely(sb->m_head == nullptr)) //Cleared by ::disable_send_buffer()
     return;
 
-  assert(node < NDB_ARRAY_SIZE(m_send_buffers));
-  assert(m_active_nodes.get(node));
-  struct TFSendBuffer * b = m_send_buffers + node;
+  assert(trp < NDB_ARRAY_SIZE(m_send_buffers));
+  assert(m_active_trps.get(trp));
+  struct TFSendBuffer * b = m_send_buffers + trp;
   Guard g(&b->m_mutex);
   assert(b->m_node_enabled);
   b->m_current_send_buffer_size += sb->m_bytes_in_buffer;
@@ -3620,7 +3640,7 @@ TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
  * Requires the 'b->m_mutex' to be held by callee
  */
 void
-TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
+TransporterFacade::try_send_buffer(TrpId trp_id, struct TFSendBuffer *b)
 {
   if (!b->try_lock_send())
   {
@@ -3632,10 +3652,10 @@ TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
   }
   else
   {
-    assert(b->m_current_send_buffer_size == 
+    assert(b->m_current_send_buffer_size ==
            b->m_buffer.m_bytes_in_buffer+b->m_out_buffer.m_bytes_in_buffer);
 
-    do_send_buffer(node,b);
+    do_send_buffer(trp_id,b);
     const Uint32 out_buffer_bytes  = b->m_out_buffer.m_bytes_in_buffer;
     const Uint32 send_buffer_bytes = b->m_current_send_buffer_size;
     b->unlock_send();
@@ -3655,7 +3675,7 @@ TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
      *     to too much send data, or the adaptive send being too lazy
      *     (Also implies 'send_buffer_bytes > 0')
      *
-     * In both cases we append the node to the 'm_has_data_nodes' set
+     * In both cases we append the transporter to the 'm_has_data_trps'
      * which is to be handled by the send thread.
      *
      * We need to wakeup the send thread if it was in either
@@ -3669,22 +3689,22 @@ TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
     Guard g(m_send_thread_mutex);
     if (send_buffer_bytes > 0)
     {
-      if (m_has_data_nodes.isclear() ||  //In 'deep sleep'
+      if (m_has_data_trps.isclear() ||  //In 'deep sleep'
           out_buffer_bytes > 0)          //Lagging behind, immediate retry
       {
         wakeup_send_thread();
       }
-      m_has_data_nodes.set(node);
+      m_has_data_trps.set(trp_id);
     }
     else
     {
-      m_has_data_nodes.clear(node);
+      m_has_data_trps.clear(trp_id);
     }
   }
 }
 
 /**
- * Try to send the prepared send buffers to all nodes
+ * Try to send the prepared send buffers on all transporters
  * having pending data. Called regularly from the
  * send thread when woken up by the regular timer,
  * or needed to off load a client thread having
@@ -3693,22 +3713,22 @@ TransporterFacade::try_send_buffer(Uint32 node, struct TFSendBuffer *b)
  * Also see ::try_send_buffer() for comments.
  */
 void
-TransporterFacade::try_send_all(const NodeBitmask& nodes)
+TransporterFacade::try_send_all(const TrpBitmask& trps)
 {
-  for (Uint32 node = nodes.find_first();
-       node != NodeBitmask::NotFound;
-       node = nodes.find_next(node+1))
+  for (Uint32 trp = trps.find_first();
+       trp != TrpBitmask::NotFound;
+       trp = trps.find_next(trp+1))
   {
-    struct TFSendBuffer *b = &m_send_buffers[node];
+    struct TFSendBuffer *b = &m_send_buffers[trp];
     NdbMutex_Lock(&b->m_mutex);
     if (likely(b->m_current_send_buffer_size > 0))
     {
-      try_send_buffer(node, b);
+      try_send_buffer(trp, b);
     }
     else
     {
       Guard g(m_send_thread_mutex);
-      m_has_data_nodes.clear(node);
+      m_has_data_trps.clear(trp);
     }
     NdbMutex_Unlock(&b->m_mutex);
   }
@@ -3726,7 +3746,7 @@ TransporterFacade::try_send_all(const NodeBitmask& nodes)
  * before return.
  */
 void
-TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
+TransporterFacade::do_send_buffer(TrpId trp_id, struct TFSendBuffer *b)
 {
   assert(!b->try_lock_send()); //Sending already locked
   assert(b->m_node_enabled);
@@ -3747,7 +3767,7 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
   {
     link_buffer(&b->m_out_buffer, &copy);
   }
-  theTransporterRegistry->performSendNode(node);
+  theTransporterRegistry->performSend(trp_id);
 
   NdbMutex_Lock(&b->m_mutex);
   /**
@@ -3769,24 +3789,22 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
 /**
  * Precondition: ::get_bytes_to_send_iovec() & ::bytes_sent()
  *
- * Required to be called with m_send_buffers[node].m_sending==true.
+ * Required to be called with m_send_buffers[trp_id].m_sending==true.
  * 'm_sending==true' is a 'lock' which signals to other threads
- * to back of from the 'm_out_buffer' for this node.
+ * to back of from the 'm_out_buffer' for this transporter.
  */
 Uint32
-TransporterFacade::get_bytes_to_send_iovec(NodeId node,
-                                           TrpId trp_id,
+TransporterFacade::get_bytes_to_send_iovec(TrpId trp_id,
                                            struct iovec *dst,
                                            Uint32 max)
 {
-  (void)trp_id;
   if (max == 0)
   {
     return 0;
   }
 
   Uint32 count = 0;
-  TFBuffer *b = &m_send_buffers[node].m_out_buffer;
+  TFBuffer *b = &m_send_buffers[trp_id].m_out_buffer;
   TFBufferGuard g0(* b);
   TFPage *page = b->m_head;
   while (page != nullptr && count < max)
@@ -3802,12 +3820,10 @@ TransporterFacade::get_bytes_to_send_iovec(NodeId node,
 }
 
 Uint32
-TransporterFacade::bytes_sent(NodeId node,
-                              TrpId trp_id,
+TransporterFacade::bytes_sent(TrpId trp_id,
                               Uint32 bytes)
 {
-  (void)trp_id;
-  TFBuffer *b = &m_send_buffers[node].m_out_buffer;
+  TFBuffer *b = &m_send_buffers[trp_id].m_out_buffer;
   TFBufferGuard g0(* b);
   Uint32 used_bytes = b->m_bytes_in_buffer;
   Uint32 page_count = 0;
@@ -3856,7 +3872,7 @@ TransporterFacade::bytes_sent(NodeId node,
 /**
  * ::enable_send_buffer(), ::disable_send_buffer()
  *
- * Enable / disable send to the specified 'node'.
+ * Enable / disable send on the specified 'transporter'.
  * Any pending data in the TransporterFacade and trp_client's
  * send buffers are discarded when 'disabled'.
  *
@@ -3883,29 +3899,28 @@ TransporterFacade::bytes_sent(NodeId node,
  * by a disable of the same node, or a client being closed while being
  * notified about enable/disable.
  *
- * A 'global' TransporterFacade::m_enabled_nodes_mask holding the
- * current set of enabled nodes is also maintained. 'Open' of new
- * clients will  use this to init their current set of enabled nodes.
+ * A 'global' TransporterFacade::m_enabled_trps_mask holding the
+ * current set of enabled transporters is also maintained. 'Open' of new
+ * clients will  use this to init their current set of enabled transporters.
  * (Must be set prior to client enable/disable callback to handle a
  * a race in ::open_clnt()) 
  *
  * Also see comments for these methods in TransporterCallback.hpp,
  * and how ::open_clnt() synchronize its set of enabled nodes. */
 void
-TransporterFacade::enable_send_buffer(NodeId node, TrpId trp_id)
+TransporterFacade::enable_send_buffer(TrpId trp_id)
 {
-  (void)trp_id;
   assert(is_poll_owner_thread());
 
   //Always set the 'outcome' first
   NdbMutex_Lock(m_open_close_mutex);
-  assert(!m_enabled_nodes_mask.get(node));
-  m_enabled_nodes_mask.set(node);
+  assert(!m_enabled_trps_mask.get(trp_id));
+  m_enabled_trps_mask.set(trp_id);
   NdbMutex_Unlock(m_open_close_mutex);
 
   //Enable global buffers
   {
-    struct TFSendBuffer *b = &m_send_buffers[node];
+    struct TFSendBuffer *b = &m_send_buffers[trp_id];
     Guard g(&b->m_mutex);
 
     //There should be no pending buffered send data
@@ -3925,26 +3940,25 @@ TransporterFacade::enable_send_buffer(NodeId node, TrpId trp_id)
     {
       if (clnt->is_locked_for_poll())
       {
-        clnt->enable_send(node);
+        clnt->enable_send(trp_id);
       }
       else
       {
         Guard g(clnt->m_mutex);
-        clnt->enable_send(node);
+        clnt->enable_send(trp_id);
       }
     }
   }
 }
 
 void
-TransporterFacade::disable_send_buffer(NodeId node, TrpId trp_id)
+TransporterFacade::disable_send_buffer(TrpId trp_id)
 {
-  (void)trp_id;
   assert(is_poll_owner_thread());
 
   //Always set the 'outcome' first.
   NdbMutex_Lock(m_open_close_mutex);
-  m_enabled_nodes_mask.clear(node);
+  m_enabled_trps_mask.clear(trp_id);
   NdbMutex_Unlock(m_open_close_mutex);
 
   /**
@@ -3962,23 +3976,23 @@ TransporterFacade::disable_send_buffer(NodeId node, TrpId trp_id)
     {
       if (clnt->is_locked_for_poll())
       {
-        clnt->disable_send(node);
+        clnt->disable_send(trp_id);
       }
       else
       {
         Guard g(clnt->m_mutex);
-        clnt->disable_send(node);
+        clnt->disable_send(trp_id);
       }
     }
   }
   
   //Disable global buffers when all thread-locals are disabled.
   {
-    struct TFSendBuffer *b = &m_send_buffers[node];
+    struct TFSendBuffer *b = &m_send_buffers[trp_id];
     Guard g(&b->m_mutex);
     b->m_node_enabled = false;
     discard_send_buffer(b);
-    m_has_data_nodes.set(node);
+    m_has_data_trps.set(trp_id);
   }
 }
 
@@ -4050,7 +4064,7 @@ TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
 }
 
 ndb_sockaddr
-TransporterFacade::ext_get_connect_address(Uint32 nodeId)
+TransporterFacade::ext_get_connect_address(NodeId nodeId)
 {
   return theTransporterRegistry->get_connect_address(nodeId);
 }
@@ -4066,7 +4080,7 @@ TransporterFacade::ext_isConnected(NodeId aNodeId)
 }
 
 void
-TransporterFacade::ext_doConnect(int aNodeId)
+TransporterFacade::ext_doConnect(NodeId aNodeId)
 {
   theClusterMgr->lock();
   assert(theClusterMgr->theNodes[aNodeId].is_connected() == false);

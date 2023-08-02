@@ -900,9 +900,9 @@ Trpman::execACTIVATE_TRP_REQ(Signal *signal)
   Uint32 node_id = req->nodeId;
   Uint32 trp_id = req->trpId;
   BlockReference ret_ref = req->senderRef;
-  if (is_recv_thread_for_new_trp(node_id, trp_id))
+  if (is_recv_thread_for_new_trp(trp_id))
   {
-    epoll_add_trp(node_id, trp_id);
+    epoll_add_trp(trp_id);
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is receiver (%u,%u)",
                    instance(), node_id, trp_id));
     ActivateTrpConf* conf =

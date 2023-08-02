@@ -43,6 +43,12 @@ class trp_client : TransporterSendBufferHandle
   friend class TransporterFacade;
   friend class ReceiveThreadClient;
 public:
+  /**
+   * The clients does not use MultiTransporters. Thus the max number
+   * of client transporters are limited by 'MAX_NODES'.
+   */
+  static constexpr Uint32 MAX_TRPS = MAX_NODES;
+
   trp_client();
   ~trp_client() override;
 
@@ -60,9 +66,9 @@ public:
   void wakeup();
 
   // Called under m_mutex protection
-  void set_enabled_send(const NodeBitmask &nodes);
-  void enable_send(NodeId node);
-  void disable_send(NodeId node);
+  void set_enabled_send(const TrpBitmask &trps);
+  void enable_send(TrpId trp);
+  void disable_send(TrpId trp);
   
   void flush_send_buffers();
   int do_forceSend(bool forceSend = true);
@@ -87,7 +93,7 @@ public:
   void lock_client();
   bool check_if_locked(void) const;
 
-  Uint32 getOwnNodeId() const;
+  NodeId getOwnNodeId() const;
 
   /**
    * This sendSignal variant can be called on any trp_client
@@ -115,19 +121,18 @@ private:
   /**
    * TransporterSendBufferHandle interface
    */
-  bool isSendEnabled(NodeId node) const override;
-  Uint32 *getWritePtr(NodeId nodeId,
-                      TrpId trp_id,
+  bool isSendEnabled(TrpId) const override;
+  Uint32 *getWritePtr(TrpId trp_id,
                       Uint32 lenBytes,
                       Uint32 prio,
                       Uint32 max_use,
                       SendStatus *error) override;
-  Uint32 updateWritePtr(NodeId nodeId,
-                        TrpId trp_id,
+  Uint32 updateWritePtr(TrpId trp_id,
                         Uint32 lenBytes,
                         Uint32 prio) override;
-  void getSendBufferLevel(NodeId node, SB_LevelType &level) override;
-  bool forceSend(NodeId nodeId, TrpId trp_id) override;
+  //void getSendBufferLevel(TrpId, SB_LevelType &level) override;
+
+  bool forceSend(TrpId trp_id) override;
 
 private:
   Uint32 m_blockNo;
@@ -158,7 +163,7 @@ public:
 
   bool has_unflushed_sends() const
   {
-    return m_send_nodes_cnt > 0;
+    return m_send_trps_cnt > 0;
   }
 private:
   struct PollQueue
@@ -186,25 +191,25 @@ private:
     NdbCondition * m_condition;
   } m_poll;
 
-  NodeBitmask m_enabled_nodes_mask;
+  TrpBitmask m_enabled_trps_mask;
 
   /**
    * This is used for sending.
-   * m_send_nodes_* are the nodes we have pending unflushed
-   * messages to
+   * m_send_trps_* are the transporters we have pending unflushed
+   * messages to. (In m_send_buffers, indexed by the 'trps')
    */
-  NodeBitmask m_send_nodes_mask;
-  Uint32 m_send_nodes_cnt;
-  NodeId m_send_nodes_list[MAX_NODES];
+  TrpBitmask m_send_trps_mask;
+  Uint32 m_send_trps_cnt;
+  TrpId m_send_trps_list[MAX_TRPS];
 
   TFBuffer* m_send_buffers;
 
   /**
-   * The m_flushed_nodes_mask are the aggregated set of nodes
+   * The m_flushed_trps_mask are the aggregated set of transporters
    * we have flushed messages to, which are yet not known to
-   * to have been (force-)sent by the transporter.
+   * have been (force-)sent by the transporter.
    */
-  NodeBitmask m_flushed_nodes_mask;
+  TrpBitmask m_flushed_trps_mask;
 };
 
 class PollGuard

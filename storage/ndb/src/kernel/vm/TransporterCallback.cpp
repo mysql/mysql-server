@@ -132,28 +132,26 @@ public:
   /**
    * Implements TransporterCallback interface:
    */
-  void enable_send_buffer(NodeId, TrpId) override;
-  void disable_send_buffer(NodeId, TrpId) override;
+  void enable_send_buffer(TrpId) override;
+  void disable_send_buffer(TrpId) override;
 
-  Uint32 get_bytes_to_send_iovec(NodeId node_id,
-                                 TrpId trp_id,
+  Uint32 get_bytes_to_send_iovec(TrpId trp_id,
                                  struct iovec *dst,
                                  Uint32 max) override;
-  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) override;
+  Uint32 bytes_sent(TrpId, Uint32 bytes) override;
 
   /**
    * These are the TransporterSendBufferHandle methods used by the
    * single-threaded ndbd.
    */
-  Uint32 *getWritePtr(NodeId,
-                      TrpId,
+  Uint32 *getWritePtr(TrpId,
                       Uint32 lenBytes,
                       Uint32 prio,
                       Uint32 max_use,
                       SendStatus *error) override;
-  Uint32 updateWritePtr(NodeId, TrpId, Uint32 lenBytes, Uint32 prio) override;
-  void getSendBufferLevel(NodeId node, SB_LevelType &level) override;
-  bool forceSend(NodeId, TrpId) override;
+  Uint32 updateWritePtr(TrpId, Uint32 lenBytes, Uint32 prio) override;
+  //void getSendBufferLevel(TrpId, SB_LevelType &level) override;
+  bool forceSend(TrpId) override;
 
 private:
   /* Send buffer pages. */
@@ -697,12 +695,10 @@ TransporterCallbackKernelNonMT::release_page(SendBufferPage *page)
 }
 
 Uint32
-TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(NodeId node,
-                                                        TrpId trp_id,
+TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(TrpId trp_id,
                                                         struct iovec *dst,
                                                         Uint32 max)
 {
-  (void)node;
   SendBuffer *b = m_send_buffers + trp_id;
 
   if (unlikely(!b->m_enabled))
@@ -728,11 +724,9 @@ TransporterCallbackKernelNonMT::get_bytes_to_send_iovec(NodeId node,
 }
 
 Uint32
-TransporterCallbackKernelNonMT::bytes_sent(NodeId nodeId,
-                                           TrpId trp_id,
+TransporterCallbackKernelNonMT::bytes_sent(TrpId trp_id,
                                            Uint32 bytes)
 {
-  (void)nodeId;
   SendBuffer *b = m_send_buffers + trp_id;
   Uint32 used_bytes = b->m_used_bytes;
 
@@ -768,9 +762,8 @@ TransporterCallbackKernelNonMT::bytes_sent(NodeId nodeId,
 }
 
 void
-TransporterCallbackKernelNonMT::enable_send_buffer(NodeId nodeId, TrpId trp_id)
+TransporterCallbackKernelNonMT::enable_send_buffer(TrpId trp_id)
 {
-  (void)nodeId;
   SendBuffer *b = m_send_buffers + trp_id;
   assert(b->m_enabled == false);
   assert(b->m_first_page == NULL);  //Disabled buffer is empty
@@ -778,10 +771,8 @@ TransporterCallbackKernelNonMT::enable_send_buffer(NodeId nodeId, TrpId trp_id)
 }
 
 void
-TransporterCallbackKernelNonMT::disable_send_buffer(NodeId nodeId,
-                                                    TrpId trp_id)
+TransporterCallbackKernelNonMT::disable_send_buffer(TrpId trp_id)
 {
-  (void)nodeId;
   SendBuffer *b = m_send_buffers + trp_id;
   b->m_enabled = false;
   discard_send_buffer(trp_id);
@@ -808,14 +799,12 @@ TransporterCallbackKernelNonMT::discard_send_buffer(TrpId trp_id)
  * single-threaded ndbd.
  */
 Uint32 *
-TransporterCallbackKernelNonMT::getWritePtr(NodeId nodeId,
-                                            TrpId trp_id,
+TransporterCallbackKernelNonMT::getWritePtr(TrpId trp_id,
                                             Uint32 lenBytes,
                                             Uint32 prio,
                                             Uint32 max_use,
                                             SendStatus *error)
 {
-  (void)nodeId;
   SendBuffer *b = m_send_buffers + trp_id;
 
   /* First check if we have room in already allocated page. */
@@ -864,12 +853,10 @@ TransporterCallbackKernelNonMT::getWritePtr(NodeId nodeId,
 }
 
 Uint32
-TransporterCallbackKernelNonMT::updateWritePtr(NodeId nodeId,
-                                               TrpId trp_id,
+TransporterCallbackKernelNonMT::updateWritePtr(TrpId trp_id,
                                                Uint32 lenBytes,
                                                Uint32 prio)
 {
-  (void)nodeId;
   SendBuffer *b = m_send_buffers + trp_id;
   SendBufferPage *page = b->m_last_page;
   assert(page != NULL);
@@ -883,17 +870,14 @@ TransporterCallbackKernelNonMT::updateWritePtr(NodeId nodeId,
  * This is used by the ndbd, so here only one thread is using this, so
  * values will always be consistent.
  */
+/**
+ * ::getSendBufferLevel() is currently unused. Kept as similar
+ * functionality will likely be needed in near future.
 void
-TransporterCallbackKernelNonMT::getSendBufferLevel(NodeId nodeId,
+TransporterCallbackKernelNonMT::getSendBufferLevel(TrpId trp_id,
                                                    SB_LevelType &level)
 {
-  TrpId trp_ids;
-  Uint32 num_ids;
-  globalTransporterRegistry.get_trps_for_node(nodeId,
-                                              &trp_ids,
-                                              num_ids,
-                                              1);
-  SendBuffer *b = m_send_buffers + trp_ids;
+  SendBuffer *b = m_send_buffers + trp_id;
   calculate_send_buffer_level(b->m_used_bytes,
                               m_tot_send_buffer_memory,
                               m_tot_used_buffer_memory,
@@ -901,11 +885,11 @@ TransporterCallbackKernelNonMT::getSendBufferLevel(NodeId nodeId,
                               level);
   return;
 }
+**/
 
 bool
-TransporterCallbackKernelNonMT::forceSend(NodeId nodeId, TrpId trp_id)
+TransporterCallbackKernelNonMT::forceSend(TrpId trp_id)
 {
-  (void)nodeId;
   return globalTransporterRegistry.performSend(trp_id);
 }
 
