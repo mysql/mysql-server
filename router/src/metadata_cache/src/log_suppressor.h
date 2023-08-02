@@ -54,7 +54,10 @@ class LogSuppressor {
     kReadOnlyTargets,
 
     /* incorrect JSON or value for unreachable_quorum_allowed_traffic */
-    kUnreachableQuorumAllowedTraffic
+    kUnreachableQuorumAllowedTraffic,
+
+    /* deprecated version of Cluster Metadata */
+    kDeprecatedMetadataVersion
   };
 
   static LogSuppressor &instance() {

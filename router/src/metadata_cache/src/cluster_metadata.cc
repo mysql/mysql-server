@@ -188,6 +188,17 @@ ClusterMetadata::get_and_check_metadata_schema_version(
         to_string(version).c_str()));
   }
 
+  if (metadata_schema_version_is_deprecated(version)) {
+    const auto instance = session.get_address();
+    const auto message =
+        "Instance '" + instance +
+        "': " + mysqlrouter::get_metadata_schema_deprecated_msg(version);
+
+    LogSuppressor::instance().log_message(
+        LogSuppressor::MessageId::kDeprecatedMetadataVersion, instance, message,
+        true);
+  }
+
   return version;
 }
 
