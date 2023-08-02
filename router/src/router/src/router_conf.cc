@@ -1000,8 +1000,7 @@ void MySQLRouterConf::prepare_command_options(
 
   // in this context we only want the service-related options to be known and
   // displayed with --help; they are handled elsewhere (main-windows.cc)
-  ServiceConfOptions unused;
-  add_service_options(arg_handler, unused);
+  add_service_options(arg_handler);
 
   arg_handler.add_option(
       CmdOption::OptionNames({"--remove-credentials-section"}),
