@@ -30,6 +30,7 @@
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
+#include <mysql/psi/mysql_metric.h>
 #include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/module_cache.h"
 #include "plugin/x/src/mysql_variables.h"
@@ -192,6 +193,9 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
       m_server->delayed_start_tasks();
     }
 
+    mysql_meter_register(xpl::Plugin_status_variables::m_xpl_meter,
+                         xpl::Plugin_status_variables::get_meter_count());
+
     guard_of_server_start.commit();
   } catch (const std::exception &e) {
     log_error(ER_XPLUGIN_STARTUP_FAILED, e.what());
@@ -223,6 +227,8 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   unrequire_services();
   unprovide_services();
   unregister_udfs();
+  mysql_meter_unregister(xpl::Plugin_status_variables::m_xpl_meter,
+                         xpl::Plugin_status_variables::get_meter_count());
 
   xpl::plugin_handle = nullptr;
 

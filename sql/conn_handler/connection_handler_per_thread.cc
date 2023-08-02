@@ -441,3 +441,10 @@ handle_error:
 uint Per_thread_connection_handler::get_max_threads() const {
   return max_connections;
 }
+
+ulong Per_thread_connection_handler::get_blocked_pthread_count() {
+  mysql_mutex_lock(&LOCK_thread_cache);
+  const ulong res = blocked_pthread_count;
+  mysql_mutex_unlock(&LOCK_thread_cache);
+  return res;
+}

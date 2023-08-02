@@ -64,6 +64,7 @@
 #ifdef _WIN32
 #include "sql/nt_servc.h"
 #endif  // _WIN32
+#include "aggregated_stats.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"  // UUID_LENGTH
 
@@ -369,6 +370,7 @@ extern const char *in_left_expr_name;
 extern SHOW_VAR status_vars[];
 extern struct System_variables max_system_variables;
 extern struct System_status_var global_status_var;
+extern struct aggregated_stats global_aggregated_stats;
 extern struct rand_struct sql_rand;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;

@@ -11883,8 +11883,11 @@ int Write_rows_log_event::do_before_row_operations(
   /*
     Increment the global status insert count variable
   */
-  if (get_flags(STMT_END_F)) thd->status_var.com_stat[SQLCOM_INSERT]++;
-
+  if (get_flags(STMT_END_F)) {
+    thd->status_var.com_stat[SQLCOM_INSERT]++;
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .com_stat[SQLCOM_INSERT]++;
+  }
   /*
     Let storage engines treat this event as an INSERT command.
 
@@ -12373,8 +12376,11 @@ int Delete_rows_log_event::do_before_row_operations(
   /*
     Increment the global status delete count variable
    */
-  if (get_flags(STMT_END_F)) thd->status_var.com_stat[SQLCOM_DELETE]++;
-
+  if (get_flags(STMT_END_F)) {
+    thd->status_var.com_stat[SQLCOM_DELETE]++;
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .com_stat[SQLCOM_DELETE]++;
+  }
   /*
     Let storage engines treat this event as a DELETE command.
 
@@ -12505,8 +12511,11 @@ int Update_rows_log_event::do_before_row_operations(
   /*
     Increment the global status update count variable
   */
-  if (get_flags(STMT_END_F)) thd->status_var.com_stat[SQLCOM_UPDATE]++;
-
+  if (get_flags(STMT_END_F)) {
+    thd->status_var.com_stat[SQLCOM_UPDATE]++;
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .com_stat[SQLCOM_UPDATE]++;
+  }
   /*
     Let storage engines treat this event as an UPDATE command.
 

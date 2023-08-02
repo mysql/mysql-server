@@ -1,0 +1,36 @@
+
+====================================================================
+Testing index for columns NAME
+====================================================================
+############ Explain for Query ####################################
+explain select METER 
+from performance_schema.setup_metrics 
+where NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select METER
+from performance_schema.setup_metrics
+where NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_metrics	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select METER
+from performance_schema.setup_metrics
+where NAME < "2";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_metrics	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select METER
+from performance_schema.setup_metrics
+where NAME = "uptime";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	setup_metrics	NULL	const	PRIMARY	PRIMARY	254	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select METER
+from performance_schema.setup_metrics
+where NAME = "uptime";
+METER
+#
+OK: handler_read_key incremented

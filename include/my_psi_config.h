@@ -67,7 +67,8 @@
  @sa DISABLE_PSI_TRANSACTION
  @sa DISABLE_TLS_CHANNEL
  @sa DISABLE_PSI_SERVER_TELEMETRY_TRACES
-*/
+ @sa DISABLE_PSI_METRICS
+ */
 
 #ifndef DISABLE_PSI_MUTEX
 #define HAVE_PSI_MUTEX_INTERFACE
@@ -270,11 +271,21 @@
   @def DISABLE_PSI_SERVER_TELEMETRY_TRACES
   Compiling option to disable MySQL Server Telemetry traces instrumentation.
   @sa DISABLE_PSI_MUTEX
- */
+*/
 
 #ifndef DISABLE_PSI_SERVER_TELEMETRY_TRACES
 #define HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
 #endif  // !DISABLE_PSI_SERVER_TELEMETRY_TRACES
+
+/**
+  @def DISABLE_PSI_METRICS
+  Compiling option to disable MySQL Server Telemetry metrics instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_METRICS
+#define HAVE_PSI_METRICS_INTERFACE
+#endif  // !DISABLE_PSI_METRICS
 
 #endif /* HAVE_PSI_INTERFACE */
 

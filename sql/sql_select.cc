@@ -214,11 +214,15 @@ bool set_statement_timer(THD *thd) {
   thd->timer = thd_timer_set(thd, thd->timer_cache, max_execution_time);
   thd->timer_cache = nullptr;
 
-  if (thd->timer)
+  if (thd->timer) {
     thd->status_var.max_execution_time_set++;
-  else
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .max_execution_time_set++;
+  } else {
     thd->status_var.max_execution_time_set_failed++;
-
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .max_execution_time_set_failed++;
+  }
   return thd->timer;
 }
 
@@ -788,8 +792,11 @@ bool Sql_cmd_dml::execute(THD *thd) {
   if (execute_inner(thd)) goto err;
 
   // Count the number of statements offloaded to a secondary storage engine.
-  if (using_secondary_storage_engine() && lex->unit->is_executed())
+  if (using_secondary_storage_engine() && lex->unit->is_executed()) {
     ++thd->status_var.secondary_engine_execution_count;
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .secondary_engine_execution_count++;
+  }
 
   assert(!thd->is_error());
 

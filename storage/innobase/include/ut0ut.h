@@ -395,6 +395,21 @@ class Throttler {
 };
 }  // namespace ib
 
+namespace ut {
+
+template <typename T, typename U>
+constexpr bool can_type_fit_value(const U value) {
+  return ((value > U(0)) == (T(value) > T(0))) && U(T(value)) == value;
+}
+template <typename T, typename U>
+T clamp(U x) {
+  return can_type_fit_value<T>(x) ? T(x)
+                                  : x < 0 ? std::numeric_limits<T>::min()
+                                          : std::numeric_limits<T>::max();
+}
+
+}  // namespace ut
+
 #include "ut0ut.ic"
 
 #endif /* !ut0ut_h */

@@ -9,66 +9,72 @@ SELECT COUNT(*) FROM table_list INTO @table_count;
 # For each table in the performance schema, attempt HANDLER...OPEN,
 # which should fail with an error 1031, ER_ILLEGAL_HA.
 
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=111;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=113;
 HANDLER performance_schema.variables_info OPEN;
 ERROR HY000: Table storage engine for 'variables_info' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=110;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=112;
 HANDLER performance_schema.variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=109;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=111;
 HANDLER performance_schema.users OPEN;
 ERROR HY000: Table storage engine for 'users' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=108;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=110;
 HANDLER performance_schema.user_variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'user_variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=107;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=109;
 HANDLER performance_schema.user_defined_functions OPEN;
 ERROR HY000: Table storage engine for 'user_defined_functions' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=106;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=108;
 HANDLER performance_schema.tls_channel_status OPEN;
 ERROR HY000: Table storage engine for 'tls_channel_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=105;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=107;
 HANDLER performance_schema.threads OPEN;
 ERROR HY000: Table storage engine for 'threads' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=104;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=106;
 HANDLER performance_schema.table_lock_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_lock_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=103;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=105;
 HANDLER performance_schema.table_io_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=102;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=104;
 HANDLER performance_schema.table_io_waits_summary_by_index_usage OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_index_usage' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=101;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=103;
 HANDLER performance_schema.table_handles OPEN;
 ERROR HY000: Table storage engine for 'table_handles' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=100;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=102;
 HANDLER performance_schema.status_by_user OPEN;
 ERROR HY000: Table storage engine for 'status_by_user' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=99;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=101;
 HANDLER performance_schema.status_by_thread OPEN;
 ERROR HY000: Table storage engine for 'status_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=98;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=100;
 HANDLER performance_schema.status_by_host OPEN;
 ERROR HY000: Table storage engine for 'status_by_host' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=97;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=99;
 HANDLER performance_schema.status_by_account OPEN;
 ERROR HY000: Table storage engine for 'status_by_account' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=96;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=98;
 HANDLER performance_schema.socket_summary_by_instance OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_instance' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=95;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=97;
 HANDLER performance_schema.socket_summary_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=94;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=96;
 HANDLER performance_schema.socket_instances OPEN;
 ERROR HY000: Table storage engine for 'socket_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=93;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=95;
 HANDLER performance_schema.setup_threads OPEN;
 ERROR HY000: Table storage engine for 'setup_threads' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=92;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=94;
 HANDLER performance_schema.setup_objects OPEN;
 ERROR HY000: Table storage engine for 'setup_objects' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=93;
+HANDLER performance_schema.setup_metrics OPEN;
+ERROR HY000: Table storage engine for 'setup_metrics' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=92;
+HANDLER performance_schema.setup_meters OPEN;
+ERROR HY000: Table storage engine for 'setup_meters' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=91;
 HANDLER performance_schema.setup_instruments OPEN;
 ERROR HY000: Table storage engine for 'setup_instruments' doesn't have this option

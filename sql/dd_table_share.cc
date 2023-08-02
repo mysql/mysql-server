@@ -50,6 +50,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/aggregated_stats.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
@@ -92,6 +93,8 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "typelib.h"
+
+extern struct aggregated_stats global_aggregated_stats;
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
   switch (type) {
@@ -2306,6 +2309,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   if (!error) {
     share->table_category = get_table_category(share->db, share->table_name);
     thd->status_var.opened_shares++;
+    global_aggregated_stats.get_shard(thd->thread_id()).opened_shares++;
     return false;
   }
   return true;

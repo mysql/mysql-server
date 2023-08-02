@@ -30,6 +30,7 @@
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
+#include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
 
 static void test_no_registration() {
@@ -46,7 +47,11 @@ static void test_no_registration() {
   PFS_file_class *file;
   PFS_socket_class *socket;
   PFS_memory_class *memory;
+  PFS_meter_class *meter;
+  PFS_metric_class *metric;
   /* PFS_table_share *table; */
+  PFS_meter_key meter_key;
+  PFS_metric_key metric_key;
 
   rc = init_sync_class(0, 0, 0);
   ok(rc == 0, "zero init (sync)");
@@ -60,6 +65,10 @@ static void test_no_registration() {
   ok(rc == 0, "zero init (table)");
   rc = init_memory_class(0);
   ok(rc == 0, "zero init (memory)");
+  rc = init_meter_class(0);
+  ok(rc == 0, "zero init (meter)");
+  rc = init_metric_class(0);
+  ok(rc == 0, "zero init (metric)");
 
   PSI_mutex_info_v1 mutex_info;
   memset(&mutex_info, 0, sizeof(mutex_info));
@@ -82,6 +91,12 @@ static void test_no_registration() {
 
   PSI_memory_info_v1 memory_info;
   memset(&memory_info, 0, sizeof(memory_info));
+
+  PSI_meter_info_v1 meter_info;
+  memset(&meter_info, 0, sizeof(meter_info));
+
+  PSI_metric_info_v1 metric_info;
+  memset(&metric_info, 0, sizeof(metric_info));
 
   key = register_mutex_class("FOO", 3, &mutex_info);
   ok(key == 0, "no mutex registered");
@@ -131,6 +146,20 @@ static void test_no_registration() {
   ok(memory_key == 0, "no memory registered");
   memory_key = register_memory_class("FOO", 3, &memory_info);
   ok(memory_key == 0, "no memory registered");
+
+  meter_key = register_meter_class("FOO", 3, &meter_info);
+  ok(meter_key == 0, "no meter registered");
+  meter_key = register_meter_class("BAR", 3, &meter_info);
+  ok(meter_key == 0, "no meter registered");
+  meter_key = register_meter_class("FOO", 3, &meter_info);
+  ok(meter_key == 0, "no meter registered");
+
+  metric_key = register_metric_class("FOO", 3, &metric_info, "meter");
+  ok(metric_key == 0, "no metric registered");
+  metric_key = register_metric_class("BAR", 3, &metric_info, "meter");
+  ok(metric_key == 0, "no metric registered");
+  metric_key = register_metric_class("FOO", 3, &metric_info, "meter");
+  ok(metric_key == 0, "no metric registered");
 
 #ifdef LATER
   PFS_thread fake_thread;
@@ -196,12 +225,28 @@ static void test_no_registration() {
   memory = find_memory_class(9999);
   ok(memory == nullptr, "no memory key 9999");
 
+  meter = find_meter_class(0);
+  ok(meter == nullptr, "no meter key 0");
+  meter = find_meter_class(1);
+  ok(meter == nullptr, "no meter key 1");
+  meter = find_meter_class(9999);
+  ok(meter == nullptr, "no meter key 9999");
+
+  metric = find_metric_class(0);
+  ok(metric == nullptr, "no metric key 0");
+  metric = find_metric_class(1);
+  ok(metric == nullptr, "no metric key 1");
+  metric = find_metric_class(9999);
+  ok(metric == nullptr, "no metric key 9999");
+
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_file_class();
   cleanup_socket_class();
   cleanup_table_share();
   cleanup_memory_class();
+  cleanup_meter_class();
+  cleanup_metric_class();
 }
 
 static void test_mutex_registration() {
@@ -590,6 +635,101 @@ static void test_memory_registration() {
   cleanup_memory_class();
 }
 
+static void test_meter_registration() {
+  int rc;
+  PFS_meter_key key;
+  PFS_meter_class *meter;
+  PSI_meter_info_v1 meter_info;
+  memset(&meter_info, 0, sizeof(meter_info));
+
+  // meter stores metrics
+  init_metric_class(5);
+  rc = init_meter_class(5);
+  ok(rc == 0, "room for 5 meter");
+
+  key = register_meter_class("FOO", 3, &meter_info);
+  ok(key == 1, "foo registered");
+  key = register_meter_class("BAR", 3, &meter_info);
+  ok(key == 2, "bar registered");
+  key = register_meter_class("FOO", 3, &meter_info);
+  ok(key == UINT_MAX, "foo duplicate detected");
+  key = register_meter_class("meter-3", 7, &meter_info);
+  ok(key == 3, "meter-3 registered");
+  key = register_meter_class("meter-4", 7, &meter_info);
+  ok(key == 4, "meter-4 registered");
+  key = register_meter_class("meter-5", 7, &meter_info);
+  ok(key == 5, "meter-5 registered");
+  ok(meter_class_lost == 0, "lost nothing");
+  key = register_meter_class("meter-6", 7, &meter_info);
+  ok(key == 0, "meter-6 not registered");
+  ok(meter_class_lost == 1, "lost 1 meter");
+  key = register_meter_class("meter-7", 7, &meter_info);
+  ok(key == 0, "meter-7 not registered");
+  ok(meter_class_lost == 2, "lost 2 meter");
+  key = register_meter_class("meter-3", 7, &meter_info);
+  ok(key == UINT_MAX, "meter-3 duplicate detected");
+  ok(meter_class_lost == 2, "lost 2 meter");
+  key = register_meter_class("meter-5", 7, &meter_info);
+  ok(key == UINT_MAX, "meter-5 duplicate detected");
+  ok(meter_class_lost == 2, "lost 2 meter");
+
+  meter = find_meter_class(0);
+  ok(meter == nullptr, "no key 0");
+  meter = find_meter_class(3);
+  ok(meter != nullptr, "found key 3");
+  meter = find_meter_class(9999);
+  ok(meter == nullptr, "no key 9999");
+
+  cleanup_meter_class();
+  cleanup_metric_class();
+}
+
+static void test_metric_registration() {
+  int rc;
+  PFS_metric_key key;
+  PFS_metric_class *metric;
+  PSI_metric_info_v1 metric_info;
+  memset(&metric_info, 0, sizeof(metric_info));
+
+  rc = init_metric_class(5);
+  ok(rc == 0, "room for 5 metric");
+
+  key = register_metric_class("FOO", 3, &metric_info, "meter");
+  ok(key == 1, "foo registered");
+  key = register_metric_class("BAR", 3, &metric_info, "meter");
+  ok(key == 2, "bar registered");
+  key = register_metric_class("FOO", 3, &metric_info, "meter");
+  ok(key == UINT_MAX, "foo duplicate detected");
+  key = register_metric_class("metric-3", 8, &metric_info, "meter");
+  ok(key == 3, "metric-3 registered");
+  key = register_metric_class("metric-4", 8, &metric_info, "meter");
+  ok(key == 4, "metric-4 registered");
+  key = register_metric_class("metric-5", 8, &metric_info, "meter");
+  ok(key == 5, "metric-5 registered");
+  ok(metric_class_lost == 0, "lost nothing");
+  key = register_metric_class("metric-6", 8, &metric_info, "meter");
+  ok(key == 0, "metric-6 not registered");
+  ok(metric_class_lost == 1, "lost 1 metric");
+  key = register_metric_class("metric-7", 8, &metric_info, "meter");
+  ok(key == 0, "metric-7 not registered");
+  ok(metric_class_lost == 2, "lost 2 metric");
+  key = register_metric_class("metric-3", 8, &metric_info, "meter");
+  ok(key == UINT_MAX, "metric-3 duplicate detected");
+  ok(metric_class_lost == 2, "lost 2 metric");
+  key = register_metric_class("metric-5", 8, &metric_info, "meter");
+  ok(key == UINT_MAX, "metric-5 duplicate detected");
+  ok(metric_class_lost == 2, "lost 2 metric");
+
+  metric = find_metric_class(0);
+  ok(metric == nullptr, "no key 0");
+  metric = find_metric_class(3);
+  ok(metric != nullptr, "found key 3");
+  metric = find_metric_class(9999);
+  ok(metric == nullptr, "no key 9999");
+
+  cleanup_metric_class();
+}
+
 #ifdef LATER
 void set_wait_stat(PFS_instr_class *klass) {
   PFS_single_stat *stat;
@@ -786,11 +926,13 @@ static void do_all_tests() {
   test_socket_registration();
   test_table_registration();
   test_memory_registration();
+  test_meter_registration();
+  test_metric_registration();
   test_instruments_reset();
 }
 
 int main(int, char **) {
-  plan(209);
+  plan(261);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
   my_end(0);

@@ -90,6 +90,11 @@ class Per_thread_connection_handler : public Connection_handler {
   */
   static void modify_thread_cache_size(const ulong thread_cache_size);
 
+  /**
+    Return blocked threads count.
+  */
+  static ulong get_blocked_pthread_count();
+
   Per_thread_connection_handler() = default;
   ~Per_thread_connection_handler() override = default;
 

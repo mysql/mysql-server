@@ -1970,6 +1970,22 @@ bool PFS_key_event_name::match_view(uint view) {
   }
 }
 
+bool PFS_key_meter_name::match(PFS_meter_class *pfs) {
+  PFS_meter_class *safe_class = sanitize_meter_class(pfs);
+  if (unlikely(safe_class == nullptr)) {
+    return false;
+  }
+  return do_match(false, safe_class->m_meter, safe_class->m_meter_length);
+}
+
+bool PFS_key_metric_name::match(PFS_metric_class *pfs) {
+  PFS_metric_class *safe_class = sanitize_metric_class(pfs);
+  if (unlikely(safe_class == nullptr)) {
+    return false;
+  }
+  return do_match(false, safe_class->m_metric, safe_class->m_metric_length);
+}
+
 bool PFS_key_user::match(const PFS_thread *pfs) {
   const bool record_null = (pfs->m_user_name.length() == 0);
   return do_match(record_null, pfs->m_user_name.ptr(),

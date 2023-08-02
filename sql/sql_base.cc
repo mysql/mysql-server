@@ -824,6 +824,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
         share->table_category =
             get_table_category(share->db, share->table_name);
         thd->status_var.opened_shares++;
+        global_aggregated_stats.get_shard(thd->thread_id()).opened_shares++;
         open_table_err = false;
       }
     } else {
@@ -3219,6 +3220,7 @@ retry_share : {
     table->file->ha_extra(HA_EXTRA_RESET_STATE);
 
     thd->status_var.table_open_cache_hits++;
+    global_aggregated_stats.get_shard(thd->thread_id()).table_open_cache_hits++;
     goto table_found;
   } else if (share) {
     /*
@@ -3469,6 +3471,7 @@ share_found:
     tc->unlock();
   }
   thd->status_var.table_open_cache_misses++;
+  global_aggregated_stats.get_shard(thd->thread_id()).table_open_cache_misses++;
 
 table_found:
   table->mdl_ticket = mdl_ticket;

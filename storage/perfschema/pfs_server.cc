@@ -34,6 +34,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "sql/mysqld.h"
+#include "storage/perfschema/mysql_server_telemetry_metrics_service_imp.h"
 #include "storage/perfschema/mysql_server_telemetry_traces_service_imp.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
@@ -50,6 +51,7 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_metrics_service_imp.h"
 #include "storage/perfschema/pfs_plugin_table.h"
 #include "storage/perfschema/pfs_prepared_stmt.h"
 #include "storage/perfschema/pfs_program.h"
@@ -160,7 +162,8 @@ int initialize_performance_schema(
       init_account_hash(param) || init_digest(param) ||
       init_digest_hash(param) || init_program(param) ||
       init_program_hash(param) || init_prepared_stmt(param) ||
-      init_error(param)) {
+      init_meter_class(param->m_meter_class_sizing) ||
+      init_metric_class(param->m_metric_class_sizing) || init_error(param)) {
     /*
       The performance schema initialization failed.
       Free the memory used, and disable the instrumentation.
@@ -268,7 +271,23 @@ int initialize_performance_schema(
   init_pfs_tls_channels_instrumentation();
 
   /*
-     Initialize telemetry tracing service.
+    Initialize telemetry metrics instrument service.
+    This must be done:
+    - after the memory allocation for rwlock instrumentation,
+      so that rwlock LOCK_pfs_metrics gets instrumented
+      (if the instrumentation is enabled),
+    - Even if the rwlock LOCK_pfs_metrics ends up not instrumented,
+       it still needs to be initialized.
+  */
+  initialize_mysql_server_metrics_instrument_service();
+
+  /*
+    Initialize telemetry metrics service.
+  */
+  initialize_mysql_server_telemetry_metrics_service();
+
+  /*
+    Initialize telemetry tracing service.
     This must be done:
     - after the memory allocation for mutex instrumentation,
       so that mutex LOCK_pfs_tracing_callback gets instrumented
@@ -337,6 +356,8 @@ static void cleanup_performance_schema() {
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_mysql_server_telemetry_metrics_service();
+  cleanup_mysql_server_metrics_instrument_service();
   cleanup_mysql_server_telemetry_traces_service();
   cleanup_pfs_tls_channels_instrumentation();
   cleanup_pfs_plugin_table();
@@ -353,6 +374,8 @@ static void cleanup_performance_schema() {
   cleanup_statement_class();
   cleanup_socket_class();
   cleanup_memory_class();
+  cleanup_meter_class();
+  cleanup_metric_class();
 
   cleanup_instruments();
 }

@@ -804,6 +804,8 @@ SET(SQL_SOURCE
   srv_session.cc
   srv_session_info_service.cc
   srv_session_service.cc
+  aggregated_stats_buffer.cc
+  aggregated_stats.cc
   )
 
 IF(NOT HAVE_SETNS)

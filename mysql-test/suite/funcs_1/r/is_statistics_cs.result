@@ -342,6 +342,8 @@ def	performance_schema	setup_actors	performance_schema	PRIMARY
 def	performance_schema	setup_actors	performance_schema	PRIMARY
 def	performance_schema	setup_consumers	performance_schema	PRIMARY
 def	performance_schema	setup_instruments	performance_schema	PRIMARY
+def	performance_schema	setup_meters	performance_schema	PRIMARY
+def	performance_schema	setup_metrics	performance_schema	PRIMARY
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT

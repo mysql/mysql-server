@@ -1298,11 +1298,38 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         name = "(max_session_server_errors).count";
         size = max_session_server_errors;
         break;
+      case 247:
+        name = "(pfs_meter_class).size";
+        size = sizeof(PFS_meter_class);
+        break;
+      case 248:
+        name = "(pfs_meter_class).count";
+        size = meter_class_max;
+        break;
+      case 249:
+        name = "(pfs_meter_class).memory";
+        size = meter_class_max * sizeof(PFS_meter_class);
+        total_memory += size;
+        break;
+      case 250:
+        name = "(pfs_metric_class).size";
+        size = sizeof(PFS_metric_class);
+        break;
+      case 251:
+        name = "(pfs_metric_class).count";
+        size = metric_class_max;
+        break;
+      case 252:
+        name = "(pfs_metric_class).memory";
+        size = metric_class_max * sizeof(PFS_metric_class);
+        total_memory += size;
+        break;
+
       /*
         This case must be last,
         for aggregation in total_memory.
       */
-      case 247:
+      case 253:
         name = "performance_schema.memory";
         size = total_memory;
         break;
@@ -1555,6 +1582,10 @@ static SHOW_VAR pfs_status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Performance_schema_metadata_lock_lost",
      (char *)&global_mdl_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"Performance_schema_meter_lost", (char *)&meter_class_lost, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"Performance_schema_metric_lost", (char *)&metric_class_lost, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 struct st_mysql_storage_engine pfs_storage_engine = {

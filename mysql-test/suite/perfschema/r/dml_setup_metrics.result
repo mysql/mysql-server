@@ -1,0 +1,31 @@
+SELECT * FROM performance_schema.setup_metrics;
+SELECT * FROM performance_schema.setup_metrics
+WHERE NAME='uptime';
+INSERT INTO performance_schema.setup_metrics
+SET NAME='FOO';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_metrics'
+SELECT * FROM performance_schema.setup_metrics;
+DELETE FROM performance_schema.setup_metrics;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_metrics'
+DELETE FROM performance_schema.setup_metrics
+WHERE NAME LIKE 'uptime';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_metrics'
+LOCK TABLES performance_schema.setup_metrics WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'setup_metrics'
+LOCK TABLES performance_schema.setup_metrics WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'setup_metrics'
+UPDATE performance_schema.setup_metrics
+SET METER='mysql.test';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'setup_metrics'
+UPDATE performance_schema.setup_metrics
+SET METRIC_TYPE='ASYNC COUNTER';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'setup_metrics'
+UPDATE performance_schema.setup_metrics
+SET NUM_TYPE='DOUBLE';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'setup_metrics'
+UPDATE performance_schema.setup_metrics
+SET UNIT='By';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'setup_metrics'
+UPDATE performance_schema.setup_metrics
+SET DESCRIPTION='Something';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'setup_metrics'

@@ -93,6 +93,8 @@ performance_schema	session_variables	def
 performance_schema	setup_actors	def
 performance_schema	setup_consumers	def
 performance_schema	setup_instruments	def
+performance_schema	setup_meters	def
+performance_schema	setup_metrics	def
 performance_schema	setup_objects	def
 performance_schema	setup_threads	def
 performance_schema	socket_instances	def
@@ -208,6 +210,8 @@ session_variables	BASE TABLE	PERFORMANCE_SCHEMA
 setup_actors	BASE TABLE	PERFORMANCE_SCHEMA
 setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
 setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
+setup_meters	BASE TABLE	PERFORMANCE_SCHEMA
+setup_metrics	BASE TABLE	PERFORMANCE_SCHEMA
 setup_objects	BASE TABLE	PERFORMANCE_SCHEMA
 setup_threads	BASE TABLE	PERFORMANCE_SCHEMA
 socket_instances	BASE TABLE	PERFORMANCE_SCHEMA
@@ -323,6 +327,8 @@ session_variables	10	Dynamic
 setup_actors	10	Fixed
 setup_consumers	10	Dynamic
 setup_instruments	10	Dynamic
+setup_meters	10	Dynamic
+setup_metrics	10	Dynamic
 setup_objects	10	Dynamic
 setup_threads	10	Dynamic
 socket_instances	10	Dynamic
@@ -434,6 +440,8 @@ session_connect_attrs	0
 setup_actors	0
 setup_consumers	0
 setup_instruments	0
+setup_meters	0
+setup_metrics	0
 setup_objects	0
 setup_threads	0
 socket_instances	0
@@ -559,6 +567,8 @@ session_variables	0	0
 setup_actors	0	0
 setup_consumers	0	0
 setup_instruments	0	0
+setup_meters	0	0
+setup_metrics	0	0
 setup_objects	0	0
 setup_threads	0	0
 socket_instances	0	0
@@ -674,6 +684,8 @@ session_variables	0	0	NULL
 setup_actors	0	0	NULL
 setup_consumers	0	0	NULL
 setup_instruments	0	0	NULL
+setup_meters	0	0	NULL
+setup_metrics	0	0	NULL
 setup_objects	0	0	NULL
 setup_threads	0	0	NULL
 socket_instances	0	0	NULL
@@ -789,6 +801,8 @@ session_variables	NULL	NULL	NULL
 setup_actors	NULL	NULL	NULL
 setup_consumers	NULL	NULL	NULL
 setup_instruments	NULL	NULL	NULL
+setup_meters	NULL	NULL	NULL
+setup_metrics	NULL	NULL	NULL
 setup_objects	NULL	NULL	NULL
 setup_threads	NULL	NULL	NULL
 socket_instances	NULL	NULL	NULL
@@ -904,6 +918,8 @@ session_variables	utf8mb4_0900_ai_ci	NULL
 setup_actors	utf8mb4_0900_ai_ci	NULL
 setup_consumers	utf8mb4_0900_ai_ci	NULL
 setup_instruments	utf8mb4_0900_ai_ci	NULL
+setup_meters	utf8mb4_0900_ai_ci	NULL
+setup_metrics	utf8mb4_0900_ai_ci	NULL
 setup_objects	utf8mb4_0900_ai_ci	NULL
 setup_threads	utf8mb4_0900_ai_ci	NULL
 socket_instances	utf8mb4_0900_ai_ci	NULL
@@ -1019,6 +1035,8 @@ session_variables
 setup_actors	
 setup_consumers	
 setup_instruments	
+setup_meters	
+setup_metrics	
 setup_objects	
 setup_threads	
 socket_instances	
@@ -1134,6 +1152,8 @@ session_variables
 setup_actors	
 setup_consumers	
 setup_instruments	
+setup_meters	
+setup_metrics	
 setup_objects	
 setup_threads	
 socket_instances	

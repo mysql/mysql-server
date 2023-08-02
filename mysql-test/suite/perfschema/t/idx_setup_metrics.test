@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_server_telemetry_metrics.inc
+
+#setup
+let $select_column = METER;
+let $table = performance_schema.setup_metrics;
+
+# Test index on NAME
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "uptime";
+
+--source ../include/idx_explain_test.inc
+

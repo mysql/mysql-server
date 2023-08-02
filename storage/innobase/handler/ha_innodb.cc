@@ -149,6 +149,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_data_lock.h"
+#include "mysql/psi/mysql_metric.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
@@ -191,6 +192,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "ut0test.h"
+#include "ut0ut.h"
 #else
 #include <typelib.h>
 #include "buf0types.h"
@@ -5092,6 +5094,344 @@ static void innobase_post_ddl(THD *thd) {
   }
 }
 
+// simple (no measurement attributes supported) metric callback
+template <typename T>
+static void get_metric_simple_integer(void *measurement_context,
+                                      measurement_delivery_callback_t delivery,
+                                      void *delivery_context) {
+  assert(measurement_context != nullptr);
+  assert(delivery != nullptr);
+  // OTEL only supports int64_t integer counters, clamp wider types
+  const T measurement = *(T *)measurement_context;
+  const int64_t value = ut::clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+template <typename T>
+constexpr PSI_metric_info_v1 simple(const char *name, const char *unit,
+                                    const char *description,
+                                    MetricOTELType type, T &variable) {
+  return {name,
+          unit,
+          description,
+          type,
+          MetricNumType::METRIC_INTEGER,
+          0,
+          0,
+          get_metric_simple_integer<T>,
+          &variable};
+}
+
+//
+// Telemetry metric sources instrumented within the InnoDB storage engine
+// are being defined below.
+//
+// NOTE: please keep the metric descriptions in sync with the
+// description of the matching counters in srv/srv0mon.cc
+
+// clang-format off
+static PSI_metric_info_v1 inno_metrics[] = {
+    simple("dblwr_pages_written",
+     "",
+     "Number of pages that have been written for doublewrite operations (innodb_dblwr_pages_written)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_dblwr_pages_written),
+    simple("dblwr_writes",
+     "",
+     "Number of doublewrite operations that have been performed (innodb_dblwr_writes)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_dblwr_writes),
+    simple("redo_log_logical_size",
+     METRIC_UNIT_BYTES,
+     "LSN range size in bytes containing in-use redo log data (innodb_redo_log_logical_size)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_redo_log_logical_size),
+    simple("redo_log_physical_size",
+     METRIC_UNIT_BYTES,
+     "Disk space in bytes currently consumed by all redo log files on disk, excluding spare redo log files (innodb_redo_log_physical_size)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_redo_log_physical_size),
+    simple("redo_log_capacity_resized",
+     METRIC_UNIT_BYTES,
+     "Redo log capacity in bytes for all redo log files, after the last completed capacity resize operation (innodb_redo_log_capacity_resized)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_redo_log_capacity_resized),
+    simple("log_waits",
+     "",
+     "Number of log waits due to small log buffer (innodb_log_waits)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_log_waits),
+    simple("log_write_requests",
+     "",
+     "Number of log write requests (innodb_log_write_requests)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_log_write_requests),
+    simple("log_writes",
+     "",
+     "The number of physical writes to the InnoDB redo log file (innodb_log_writes)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_log_writes),
+    simple("os_log_fsyncs",
+     "",
+     "Number of fsync log writes (innodb_os_log_fsyncs)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_os_log_fsyncs),
+    simple("os_log_pending_fsyncs",
+     "",
+     "Number of pending fsync write (innodb_os_log_pending_fsyncs)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_os_log_pending_fsyncs),
+    simple("os_log_pending_writes",
+     "",
+     "Number of pending log file writes (innodb_os_log_pending_writes)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_os_log_pending_writes),
+    simple("os_log_written",
+     METRIC_UNIT_BYTES,
+     "Bytes of log written (innodb_os_log_written)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_os_log_written),
+    simple("page_size",
+     METRIC_UNIT_BYTES,
+     "InnoDB page size in bytes (innodb_page_size)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_page_size),
+    simple("pages_created",
+     "",
+     "Number of pages created (innodb_pages_created)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_pages_created),
+    simple("pages_read",
+     "",
+     "Number of pages read (innodb_pages_read)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_pages_read),
+    simple("pages_written",
+     "",
+     "Number of pages written (innodb_pages_written)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_pages_written),
+    simple("row_lock_current_waits",
+     "",
+     "Number of row locks currently being waited for (innodb_row_lock_current_waits)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_row_lock_current_waits),
+    simple("row_lock_time",
+     METRIC_UNIT_MILLISECONDS,
+     "Time spent in acquiring row locks, in milliseconds (innodb_row_lock_time)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_row_lock_time),
+    simple("row_lock_time_avg",
+     METRIC_UNIT_MILLISECONDS,
+     "The average time to acquire a row lock, in milliseconds (innodb_row_lock_time_avg)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_row_lock_time_avg),
+    simple("row_lock_time_max",
+     METRIC_UNIT_MILLISECONDS,
+     "The maximum time to acquire a row lock, in milliseconds (innodb_row_lock_time_max)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_row_lock_time_max),
+    simple("row_lock_waits",
+     "",
+     "Number of times a row lock had to be waited for (innodb_row_lock_waits)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_row_lock_waits),
+    simple("rows_deleted",
+     "",
+     "The number of rows deleted from InnoDB tables (innodb_rows_deleted)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_rows_deleted),
+    simple("rows_inserted",
+     "",
+     "The number of rows inserted into InnoDB tables (innodb_rows_inserted)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_rows_inserted),
+    simple("rows_read",
+     "",
+     "The number of rows read from InnoDB tables (innodb_rows_read)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_rows_read),
+    simple("rows_updated",
+     "",
+     "The number of rows updated in InnoDB tables (innodb_rows_updated)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_rows_updated),
+    simple("system_rows_deleted",
+     "",
+     "Number of rows deleted from InnoDB tables belonging to system-created schemas (innodb_system_rows_deleted)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_system_rows_deleted),
+    simple("system_rows_inserted",
+     "",
+     "Number of rows inserted into InnoDB tables belonging to system-created schemas (innodb_system_rows_inserted)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_system_rows_inserted),
+    simple("system_rows_read",
+     "",
+     "Number of rows read from InnoDB tables belonging to system-created schemas (innodb_system_rows_read)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_system_rows_read),
+    simple("system_rows_updated",
+     "",
+     "Number of rows updated in InnoDB tables belonging to system-created schemas (innodb_system_rows_updated)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_system_rows_updated),
+    simple("num_open_files",
+     "",
+     "Number of files currently open (innodb_num_open_files)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_num_open_files),
+    simple("truncated_status_writes",
+     "",
+     "Number of times output from the SHOW ENGINE INNODB STATUS statement has been truncated (innodb_truncated_status_writes)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_truncated_status_writes),
+    simple("undo_tablespaces_total",
+     "",
+     "Total number of undo tablespaces (innodb_undo_tablespaces_total)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_undo_tablespaces_total),
+    simple("undo_tablespaces_explicit",
+     "",
+     "Number of user-created undo tablespaces (innodb_undo_tablespaces_explicit)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_undo_tablespaces_explicit),
+    simple("undo_tablespaces_active", "",
+     "Number of active undo tablespaces, including implicit and explicit tablespaces (innodb_undo_tablespaces_active)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_undo_tablespaces_active)};
+
+static PSI_metric_info_v1 buffer_metrics[] = {
+    simple("pages_data",
+     "",
+     "Buffer pages containing data (innodb_buffer_pool_pages_data)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_pages_data),
+    simple("bytes_data",
+     METRIC_UNIT_BYTES,
+     "Buffer bytes containing data (innodb_buffer_pool_bytes_data)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_bytes_data),
+    simple("pages_dirty",
+     "",
+     "Buffer pages currently dirty (innodb_buffer_pool_pages_dirty)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_pages_dirty),
+    simple("bytes_dirty",
+     METRIC_UNIT_BYTES,
+     "Buffer bytes currently dirty (innodb_buffer_pool_bytes_dirty)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_bytes_dirty),
+    simple("pages_flushed",
+     "",
+     "The number of requests to flush pages from the InnoDB buffer pool (innodb_buffer_pool_pages_flushed)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_pages_flushed),
+    simple("pages_free",
+     "",
+     "Buffer pages currently free (innodb_buffer_pool_pages_free)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_pages_free),
+    simple("pages_misc",
+     "",
+     "Buffer pages for misc use such as row locks or the adaptive hash index (innodb_buffer_pool_pages_misc)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_pages_misc),
+    simple("pages_total",
+     "",
+     "Total buffer pool size in pages (innodb_buffer_pool_pages_total)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_buffer_pool_pages_total),
+    simple("read_ahead_rnd",
+     "",
+     "The number of 'random' read-aheads initiated by InnoDB (innodb_buffer_pool_read_ahead_rnd)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_read_ahead_rnd),
+    simple("read_ahead",
+     "",
+     "Number of pages read as read ahead (innodb_buffer_pool_read_ahead)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_read_ahead),
+    simple("read_ahead_evicted",
+     "",
+     "Read-ahead pages evicted without being accessed (innodb_buffer_pool_read_ahead_evicted)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_read_ahead_evicted),
+    simple("read_requests",
+     "",
+     "Number of logical read requests (innodb_buffer_pool_read_requests)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_read_requests),
+    simple("reads",
+     "",
+     "Number of reads directly from disk (innodb_buffer_pool_reads)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_reads),
+    simple("wait_free",
+     "",
+     "Number of times waited for free buffer (innodb_buffer_pool_wait_free)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_wait_free),
+    simple("write_requests",
+     "",
+     "Number of write requests (innodb_buffer_pool_write_requests)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_buffer_pool_write_requests)
+};
+
+static PSI_metric_info_v1 data_metrics[] = {
+    simple("fsyncs",
+     "",
+     "Number of fsync() calls (innodb_data_fsyncs)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_data_fsyncs),
+    simple("pending_fsyncs",
+     "",
+     "Number of pending fsync operations (innodb_data_pending_fsyncs)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_data_pending_fsyncs),
+    simple("pending_reads",
+     "",
+     "The current number of pending reads (innodb_data_pending_reads)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_data_pending_reads),
+    simple("pending_writes",
+     "",
+     "The current number of pending writes (innodb_data_pending_writes)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER,
+     export_vars.innodb_data_pending_writes),
+    simple("read",
+     METRIC_UNIT_BYTES,
+     "Amount of data read in bytes (innodb_data_read)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_data_read),
+    simple("reads",
+     "",
+     "Number of reads initiated (innodb_data_reads)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_data_reads),
+    simple("writes",
+     "",
+     "Number of writes initiated (innodb_data_writes)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_data_writes),
+    simple("written",
+     METRIC_UNIT_BYTES,
+     "Amount of data written in bytes (innodb_data_written)",
+     MetricOTELType::ASYNC_COUNTER,
+     export_vars.innodb_data_written)
+};
+
+// clang-format on
+
+static PSI_meter_info_v1 inno_meter[] = {
+    {"mysql.inno", "MySql InnoDB metrics", 10, 0, 0, inno_metrics,
+     std::size(inno_metrics)},
+    {"mysql.inno.buffer_pool", "MySql InnoDB buffer pool metrics", 10, 0, 0,
+     buffer_metrics, std::size(buffer_metrics)},
+    {"mysql.inno.data", "MySql InnoDB data metrics", 10, 0, 0, data_metrics,
+     std::size(data_metrics)}};
+
 /** Initialize the InnoDB storage engine plugin.
 @param[in,out]  p       InnoDB handlerton
 @return error code
@@ -5360,12 +5700,15 @@ static int innodb_init(void *p) {
     return innodb_init_abort();
   }
 
+  mysql_meter_register(inno_meter, std::size(inno_meter));
+
   return 0;
 }
 
 /** De initialize the InnoDB storage engine plugin. */
 static int innodb_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   release_plugin_services();
+  mysql_meter_unregister(inno_meter, std::size(inno_meter));
   return 0;
 }
 

@@ -1066,6 +1066,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer.so
@@ -1162,6 +1163,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer.so
@@ -1246,6 +1248,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Mon Jul 24 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.2.0-1
+- Added component_test_server_telemetry_metrics test component
+
 * Wed Apr 05 2023 Erlend Dahl <erlend.dahl@oracle.com> - 8.1.0-1
 - Bump in the major version of MySQL, so increase the libmysqlclient major version to 22.
 

@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_server_telemetry_metrics.inc
+
+#setup
+let $select_column = ENABLED;
+let $table = performance_schema.setup_meters;
+
+# Test index on NAME
+
+let $column_count = 1;
+let $col1 = NAME;
+let $col1_act = "mysql.stats";
+
+--source ../include/idx_explain_test.inc
+

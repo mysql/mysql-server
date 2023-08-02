@@ -1,0 +1,1103 @@
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+SELECT test_component_metric_log('TEST - No metrics exported with all meters disabled:');
+UPDATE performance_schema.setup_meters SET enabled = 'NO';
+SELECT test_report_metrics();
+test_report_metrics()
+0
+SELECT test_component_metric_log('TEST - Reload component:');
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+SELECT test_component_metric_log('TEST - Check registration with slot holes:');
+SELECT count(*) FROM performance_schema.setup_metrics;
+count(*)
+424
+SELECT test_register_metric_a();
+test_register_metric_a()
+0
+SELECT count(*) FROM performance_schema.setup_metrics;
+count(*)
+425
+SELECT test_register_metric_b();
+test_register_metric_b()
+0
+SELECT count(*) FROM performance_schema.setup_metrics;
+count(*)
+426
+SELECT test_unregister_metric_a();
+test_unregister_metric_a()
+0
+SELECT count(*) FROM performance_schema.setup_metrics;
+count(*)
+425
+SELECT test_unregister_metric_b();
+test_unregister_metric_b()
+0
+SELECT count(*) FROM performance_schema.setup_metrics;
+count(*)
+424
+SELECT test_component_metric_log('TEST - All metrics exported except ones in mysql.x group:');
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+UPDATE performance_schema.setup_meters SET enabled = 'NO' WHERE NAME='mysql.x';
+SELECT test_report_metrics();
+test_report_metrics()
+0
+SELECT test_component_metric_log('TEST - All metrics exported:');
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+SELECT test_report_metrics();
+test_report_metrics()
+0
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+Variable_name	Value
+Performance_schema_meter_lost	0
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+Variable_name	Value
+Performance_schema_metric_lost	0
+FLUSH STATUS;
+SELECT test_component_metric_log('TEST - Register duplicate meters/metrics:');
+SELECT test_duplicate_metrics();
+test_duplicate_metrics()
+0
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+Variable_name	Value
+Performance_schema_meter_lost	1
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+Variable_name	Value
+Performance_schema_metric_lost	1
+FLUSH STATUS;
+SELECT test_component_metric_log('TEST - Register invalid meters/metrics:');
+SELECT test_invalid_metrics();
+test_invalid_metrics()
+0
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+Variable_name	Value
+Performance_schema_meter_lost	3
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+Variable_name	Value
+Performance_schema_metric_lost	4
+FLUSH STATUS;
+SELECT test_component_metric_log('TEST - Register same meter/metric twice:');
+SELECT test_register_metric_a();
+test_register_metric_a()
+0
+SELECT test_register_metric_a();
+test_register_metric_a()
+0
+SELECT test_unregister_metric_a();
+test_unregister_metric_a()
+0
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+Variable_name	Value
+Performance_schema_meter_lost	0
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+Variable_name	Value
+Performance_schema_metric_lost	0
+FLUSH STATUS;
+SELECT test_component_metric_log('TEST - Restart server with restricted num. of classes:');
+# restart: --performance_schema_max_meter_classes=1 --performance_schema_max_metric_classes=10
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+Variable_name	Value
+Performance_schema_meter_lost	11
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+Variable_name	Value
+Performance_schema_metric_lost	24
+SHOW GLOBAL VARIABLES LIKE "performance_schema_max_meter_classes";
+Variable_name	Value
+performance_schema_max_meter_classes	1
+SHOW GLOBAL VARIABLES LIKE "performance_schema_max_metric_classes";
+Variable_name	Value
+performance_schema_max_metric_classes	10
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+# restart:
+Component logs:
+test_server_telemetry_metrics_component_init init:
+ - UDFs registered.
+ - Meter change notification callback registered.
+End of init
+TEST - No metrics exported with all meters disabled:
+*** Meter change notification: mysql.inno updated
+*** Meter change - silently enumerate metrics for mysql.inno
+*** Meter change notification: mysql.inno.buffer_pool updated
+*** Meter change - silently enumerate metrics for mysql.inno.buffer_pool
+*** Meter change notification: mysql.inno.data updated
+*** Meter change - silently enumerate metrics for mysql.inno.data
+*** Meter change notification: mysql.x updated
+*** Meter change - silently enumerate metrics for mysql.x
+*** Meter change notification: mysql.x.stmt updated
+*** Meter change - silently enumerate metrics for mysql.x.stmt
+*** Meter change notification: mysql.stats updated
+*** Meter change - silently enumerate metrics for mysql.stats
+*** Meter change notification: mysql.stats.com updated
+*** Meter change - silently enumerate metrics for mysql.stats.com
+*** Meter change notification: mysql.stats.connection updated
+*** Meter change - silently enumerate metrics for mysql.stats.connection
+*** Meter change notification: mysql.stats.handler updated
+*** Meter change - silently enumerate metrics for mysql.stats.handler
+*** Meter change notification: mysql.stats.ssl updated
+*** Meter change - silently enumerate metrics for mysql.stats.ssl
+*** Meter change notification: mysql.myisam updated
+*** Meter change - silently enumerate metrics for mysql.myisam
+*** Meter change notification: mysql.perf_schema updated
+*** Meter change - silently enumerate metrics for mysql.perf_schema
+test_report_metrics > report start:
+> meter 'mysql.inno'  (desc='MySql InnoDB metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.inno.buffer_pool'  (desc='MySql InnoDB buffer pool metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.inno.data'  (desc='MySql InnoDB data metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.myisam'  (desc='MySql MyISAM storage engine stats', frequency=10) is disabled, skip enumeration
+> meter 'mysql.perf_schema'  (desc='MySql performance_schema lost instruments', frequency=10) is disabled, skip enumeration
+> meter 'mysql.stats'  (desc='MySql core metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.stats.com'  (desc='MySql command stats', frequency=10) is disabled, skip enumeration
+> meter 'mysql.stats.connection'  (desc='MySql connection stats', frequency=10) is disabled, skip enumeration
+> meter 'mysql.stats.handler'  (desc='MySql handler stats', frequency=10) is disabled, skip enumeration
+> meter 'mysql.stats.ssl'  (desc='MySql TLS related stats', frequency=10) is disabled, skip enumeration
+> meter 'mysql.x'  (desc='MySql X plugin metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.x.stmt'  (desc='MySql X plugin statement statistics', frequency=10) is disabled, skip enumeration
+test_report_metrics < done reporting (total meters=12, metrics=0)
+TEST - Reload component:
+test_server_telemetry_metrics_component_deinit:
+ - Meter change notification callback unregistered.
+ - UDFs unregistered.
+ - Test metrics unregistered.
+End of deinit
+test_server_telemetry_metrics_component_init init:
+ - UDFs registered.
+ - Meter change notification callback registered.
+End of init
+TEST - Check registration with slot holes:
+register_metric_a > called
+*** Meter change notification: mysql.test1 added
+*** Meter change - silently enumerate metrics for mysql.test1
+register_metric_b > called
+*** Meter change notification: mysql.test2 added
+*** Meter change - silently enumerate metrics for mysql.test2
+unregister_metric_a > called
+*** Meter change notification: mysql.test1 removed
+unregister_metric_b > called
+*** Meter change notification: mysql.test2 removed
+TEST - All metrics exported except ones in mysql.x group:
+*** Meter change notification: mysql.inno updated
+*** Meter change - silently enumerate metrics for mysql.inno
+*** Meter change notification: mysql.inno.buffer_pool updated
+*** Meter change - silently enumerate metrics for mysql.inno.buffer_pool
+*** Meter change notification: mysql.inno.data updated
+*** Meter change - silently enumerate metrics for mysql.inno.data
+*** Meter change notification: mysql.x updated
+*** Meter change - silently enumerate metrics for mysql.x
+*** Meter change notification: mysql.x.stmt updated
+*** Meter change - silently enumerate metrics for mysql.x.stmt
+*** Meter change notification: mysql.stats updated
+*** Meter change - silently enumerate metrics for mysql.stats
+*** Meter change notification: mysql.stats.com updated
+*** Meter change - silently enumerate metrics for mysql.stats.com
+*** Meter change notification: mysql.stats.connection updated
+*** Meter change - silently enumerate metrics for mysql.stats.connection
+*** Meter change notification: mysql.stats.handler updated
+*** Meter change - silently enumerate metrics for mysql.stats.handler
+*** Meter change notification: mysql.stats.ssl updated
+*** Meter change - silently enumerate metrics for mysql.stats.ssl
+*** Meter change notification: mysql.myisam updated
+*** Meter change - silently enumerate metrics for mysql.myisam
+*** Meter change notification: mysql.perf_schema updated
+*** Meter change - silently enumerate metrics for mysql.perf_schema
+*** Meter change notification: mysql.x updated
+*** Meter change - silently enumerate metrics for mysql.x
+test_report_metrics > report start:
+> meter 'mysql.inno' (desc='MySql InnoDB metrics', frequency=10) start:
+ > metric 'dblwr_pages_written': unit='', desc='Number of pages that have been written for doublewrite operations (innodb_dblwr_pages_written)'
+ > metric 'dblwr_writes': unit='', desc='Number of doublewrite operations that have been performed (innodb_dblwr_writes)'
+ > metric 'log_waits': unit='', desc='Number of log waits due to small log buffer (innodb_log_waits)'
+ > metric 'log_write_requests': unit='', desc='Number of log write requests (innodb_log_write_requests)'
+ > metric 'log_writes': unit='', desc='The number of physical writes to the InnoDB redo log file (innodb_log_writes)'
+ > metric 'num_open_files': unit='', desc='Number of files currently open (innodb_num_open_files)'
+ > metric 'os_log_fsyncs': unit='', desc='Number of fsync log writes (innodb_os_log_fsyncs)'
+ > metric 'os_log_pending_fsyncs': unit='', desc='Number of pending fsync write (innodb_os_log_pending_fsyncs)'
+ > metric 'os_log_pending_writes': unit='', desc='Number of pending log file writes (innodb_os_log_pending_writes)'
+ > metric 'os_log_written': unit='By', desc='Bytes of log written (innodb_os_log_written)'
+ > metric 'page_size': unit='By', desc='InnoDB page size in bytes (innodb_page_size)'
+ > metric 'pages_created': unit='', desc='Number of pages created (innodb_pages_created)'
+ > metric 'pages_read': unit='', desc='Number of pages read (innodb_pages_read)'
+ > metric 'pages_written': unit='', desc='Number of pages written (innodb_pages_written)'
+ > metric 'redo_log_capacity_resized': unit='By', desc='Redo log capacity in bytes for all redo log files, after the last completed capacity resize operation (innodb_redo_log_capacity_resized)'
+ > metric 'redo_log_logical_size': unit='By', desc='LSN range size in bytes containing in-use redo log data (innodb_redo_log_logical_size)'
+ > metric 'redo_log_physical_size': unit='By', desc='Disk space in bytes currently consumed by all redo log files on disk, excluding spare redo log files (innodb_redo_log_physical_size)'
+ > metric 'row_lock_current_waits': unit='', desc='Number of row locks currently being waited for (innodb_row_lock_current_waits)'
+ > metric 'row_lock_time': unit='ms', desc='Time spent in acquiring row locks, in milliseconds (innodb_row_lock_time)'
+ > metric 'row_lock_time_avg': unit='ms', desc='The average time to acquire a row lock, in milliseconds (innodb_row_lock_time_avg)'
+ > metric 'row_lock_time_max': unit='ms', desc='The maximum time to acquire a row lock, in milliseconds (innodb_row_lock_time_max)'
+ > metric 'row_lock_waits': unit='', desc='Number of times a row lock had to be waited for (innodb_row_lock_waits)'
+ > metric 'rows_deleted': unit='', desc='The number of rows deleted from InnoDB tables (innodb_rows_deleted)'
+ > metric 'rows_inserted': unit='', desc='The number of rows inserted into InnoDB tables (innodb_rows_inserted)'
+ > metric 'rows_read': unit='', desc='The number of rows read from InnoDB tables (innodb_rows_read)'
+ > metric 'rows_updated': unit='', desc='The number of rows updated in InnoDB tables (innodb_rows_updated)'
+ > metric 'system_rows_deleted': unit='', desc='Number of rows deleted from InnoDB tables belonging to system-created schemas (innodb_system_rows_deleted)'
+ > metric 'system_rows_inserted': unit='', desc='Number of rows inserted into InnoDB tables belonging to system-created schemas (innodb_system_rows_inserted)'
+ > metric 'system_rows_read': unit='', desc='Number of rows read from InnoDB tables belonging to system-created schemas (innodb_system_rows_read)'
+ > metric 'system_rows_updated': unit='', desc='Number of rows updated in InnoDB tables belonging to system-created schemas (innodb_system_rows_updated)'
+ > metric 'truncated_status_writes': unit='', desc='Number of times output from the SHOW ENGINE INNODB STATUS statement has been truncated (innodb_truncated_status_writes)'
+ > metric 'undo_tablespaces_active': unit='', desc='Number of active undo tablespaces, including implicit and explicit tablespaces (innodb_undo_tablespaces_active)'
+ > metric 'undo_tablespaces_explicit': unit='', desc='Number of user-created undo tablespaces (innodb_undo_tablespaces_explicit)'
+ > metric 'undo_tablespaces_total': unit='', desc='Total number of undo tablespaces (innodb_undo_tablespaces_total)'
+< meter 'mysql.inno' end (34 metrics)
+> meter 'mysql.inno.buffer_pool' (desc='MySql InnoDB buffer pool metrics', frequency=10) start:
+ > metric 'bytes_data': unit='By', desc='Buffer bytes containing data (innodb_buffer_pool_bytes_data)'
+ > metric 'bytes_dirty': unit='By', desc='Buffer bytes currently dirty (innodb_buffer_pool_bytes_dirty)'
+ > metric 'pages_data': unit='', desc='Buffer pages containing data (innodb_buffer_pool_pages_data)'
+ > metric 'pages_dirty': unit='', desc='Buffer pages currently dirty (innodb_buffer_pool_pages_dirty)'
+ > metric 'pages_flushed': unit='', desc='The number of requests to flush pages from the InnoDB buffer pool (innodb_buffer_pool_pages_flushed)'
+ > metric 'pages_free': unit='', desc='Buffer pages currently free (innodb_buffer_pool_pages_free)'
+ > metric 'pages_misc': unit='', desc='Buffer pages for misc use such as row locks or the adaptive hash index (innodb_buffer_pool_pages_misc)'
+ > metric 'pages_total': unit='', desc='Total buffer pool size in pages (innodb_buffer_pool_pages_total)'
+ > metric 'read_ahead': unit='', desc='Number of pages read as read ahead (innodb_buffer_pool_read_ahead)'
+ > metric 'read_ahead_evicted': unit='', desc='Read-ahead pages evicted without being accessed (innodb_buffer_pool_read_ahead_evicted)'
+ > metric 'read_ahead_rnd': unit='', desc='The number of 'random' read-aheads initiated by InnoDB (innodb_buffer_pool_read_ahead_rnd)'
+ > metric 'read_requests': unit='', desc='Number of logical read requests (innodb_buffer_pool_read_requests)'
+ > metric 'reads': unit='', desc='Number of reads directly from disk (innodb_buffer_pool_reads)'
+ > metric 'wait_free': unit='', desc='Number of times waited for free buffer (innodb_buffer_pool_wait_free)'
+ > metric 'write_requests': unit='', desc='Number of write requests (innodb_buffer_pool_write_requests)'
+< meter 'mysql.inno.buffer_pool' end (15 metrics)
+> meter 'mysql.inno.data' (desc='MySql InnoDB data metrics', frequency=10) start:
+ > metric 'fsyncs': unit='', desc='Number of fsync() calls (innodb_data_fsyncs)'
+ > metric 'pending_fsyncs': unit='', desc='Number of pending fsync operations (innodb_data_pending_fsyncs)'
+ > metric 'pending_reads': unit='', desc='The current number of pending reads (innodb_data_pending_reads)'
+ > metric 'pending_writes': unit='', desc='The current number of pending writes (innodb_data_pending_writes)'
+ > metric 'read': unit='By', desc='Amount of data read in bytes (innodb_data_read)'
+ > metric 'reads': unit='', desc='Number of reads initiated (innodb_data_reads)'
+ > metric 'writes': unit='', desc='Number of writes initiated (innodb_data_writes)'
+ > metric 'written': unit='By', desc='Amount of data written in bytes (innodb_data_written)'
+< meter 'mysql.inno.data' end (8 metrics)
+> meter 'mysql.myisam' (desc='MySql MyISAM storage engine stats', frequency=10) start:
+ > metric 'key_blocks_not_flushed': unit='', desc='The number of key blocks in the MyISAM key cache that have changed but have not yet been flushed to disk (Key_blocks_not_flushed)'
+ > metric 'key_blocks_unused': unit='', desc='The number of unused blocks in the MyISAM key cache (Key_blocks_unused)'
+ > metric 'key_blocks_used': unit='', desc='The number of used blocks in the MyISAM key cache (Key_blocks_used)'
+ > metric 'key_read_requests': unit='', desc='The number of requests to read a key block from the MyISAM key cache (Key_read_requests)'
+ > metric 'key_reads': unit='', desc='The number of physical reads of a key block from disk into the MyISAM key cache (Key_reads)'
+ > metric 'key_write_requests': unit='', desc='The number of requests to write a key block to the MyISAM key cache (Key_write_requests)'
+ > metric 'key_writes': unit='', desc='The number of physical writes of a key block from the MyISAM key cache to disk (Key_writes)'
+< meter 'mysql.myisam' end (7 metrics)
+> meter 'mysql.perf_schema' (desc='MySql performance_schema lost instruments', frequency=10) start:
+ > metric 'accounts_lost': unit='', desc='The number of times a row could not be added to the accounts table because it was full (Performance_schema_accounts_lost)'
+ > metric 'cond_classes_lost': unit='', desc='How many condition instruments could not be loaded (Performance_schema_cond_classes_lost)'
+ > metric 'cond_instances_lost': unit='', desc='How many condition instrument instances could not be created (Performance_schema_cond_instances_lost)'
+ > metric 'digest_lost': unit='', desc='The number of digest instances that could not be instrumented in the events_statements_summary_by_digest table (Performance_schema_digest_lost)'
+ > metric 'file_classes_lost': unit='', desc='How many file instruments could not be loaded (Performance_schema_file_classes_lost)'
+ > metric 'file_handles_lost': unit='', desc='How many file instrument instances could not be opened (Performance_schema_file_handles_lost)'
+ > metric 'file_instances_lost': unit='', desc='How many file instrument instances could not be created (Performance_schema_file_instances_lost)'
+ > metric 'hosts_lost': unit='', desc='The number of times a row could not be added to the hosts table because it was full (Performance_schema_hosts_lost)'
+ > metric 'index_stat_lost': unit='', desc='The number of indexes for which statistics were lost (Performance_schema_index_stat_lost)'
+ > metric 'locker_lost': unit='', desc='How many events are 'lost' or not recorded (Performance_schema_locker_lost)'
+ > metric 'memory_classes_lost': unit='', desc='The number of times a memory instrument could not be loaded (Performance_schema_memory_classes_lost)'
+ > metric 'metadata_lock_lost': unit='', desc='The number of metadata locks that could not be instrumented in the metadata_locks table (Performance_schema_metadata_lock_lost)'
+ > metric 'meter_lost': unit='', desc='How many meter instruments could not be loaded (Performance_schema_meter_lost)'
+ > metric 'metric_lost': unit='', desc='How many metric instruments could not be loaded (Performance_schema_metric_lost)'
+ > metric 'mutex_classes_lost': unit='', desc='How many mutex instruments could not be loaded (Performance_schema_mutex_classes_lost)'
+ > metric 'mutex_instances_lost': unit='', desc='How many mutex instrument instances could not be created (Performance_schema_mutex_instances_lost)'
+ > metric 'nested_statement_lost': unit='', desc='The number of stored program statements for which statistics were lost (Performance_schema_nested_statement_lost)'
+ > metric 'prepared_statements_lost': unit='', desc='The number of prepared statements that could not be instrumented in the prepared_statements_instances table (Performance_schema_prepared_statements_lost)'
+ > metric 'program_lost': unit='', desc='The number of stored programs for which statistics were lost (Performance_schema_program_lost)'
+ > metric 'rwlock_classes_lost': unit='', desc='How many rwlock instruments could not be loaded (Performance_schema_rwlock_classes_lost)'
+ > metric 'rwlock_instances_lost': unit='', desc='How many rwlock instrument instances could not be created (Performance_schema_rwlock_instances_lost)'
+ > metric 'session_connect_attrs_longest_seen': unit='', desc='Longest seen connection attribute received (Performance_schema_session_connect_attrs_longest_seen)'
+ > metric 'session_connect_attrs_lost': unit='', desc='The number of connections for which connection attribute truncation has occurred (Performance_schema_session_connect_attrs_lost)'
+ > metric 'socket_classes_lost': unit='', desc='How many socket instruments could not be loaded (Performance_schema_socket_classes_lost)'
+ > metric 'socket_instances_lost': unit='', desc='How many socket instrument instances could not be created (Performance_schema_socket_instances_lost)'
+ > metric 'stage_classes_lost': unit='', desc='How many stage instruments could not be loaded (Performance_schema_stage_classes_lost)'
+ > metric 'statement_classes_lost': unit='', desc='How many statement instruments could not be loaded (Performance_schema_statement_classes_lost)'
+ > metric 'table_handles_lost': unit='', desc='How many table instrument instances could not be opened (Performance_schema_table_handles_lost)'
+ > metric 'table_instances_lost': unit='', desc='How many table instrument instances could not be created (Performance_schema_table_instances_lost)'
+ > metric 'table_lock_stat_lost': unit='', desc='The number of tables for which lock statistics were lost (Performance_schema_table_lock_stat_lost)'
+ > metric 'thread_classes_lost': unit='', desc='How many thread instruments could not be loaded (Performance_schema_thread_classes_lost)'
+ > metric 'thread_instances_lost': unit='', desc='The number of thread instances that could not be instrumented in the threads table (Performance_schema_thread_instances_lost)'
+ > metric 'users_lost': unit='', desc='The number of times a row could not be added to the users table because it was full (Performance_schema_users_lost)'
+< meter 'mysql.perf_schema' end (33 metrics)
+> meter 'mysql.stats' (desc='MySql core metrics', frequency=10) start:
+ > metric 'aborted_clients': unit='', desc='The number of connections that were aborted because the client died without closing the connection properly (Aborted_clients)'
+ > metric 'aborted_connects': unit='', desc='The number of failed attempts to connect to the MySQL server (Aborted_connects)'
+ > metric 'acl_cache_items_count': unit='', desc='The number of cached privilege objects (Acl_cache_items_count)'
+ > metric 'binlog_cache.disk_use': unit='', desc='The number of transactions that used the temporary binary log cache but that exceeded the value of binlog_cache_size and used a temporary file to store statements from the transaction (Binlog_cache_disk_use)'
+ > metric 'binlog_cache.use': unit='', desc='The number of transactions that used the binary log cache (Binlog_cache_use)'
+ > metric 'binlog_stmt_cache_disk_use': unit='', desc='The number of nontransaction statements that used the binary log statement cache but that exceeded the value of binlog_stmt_cache_size and used a temporary file to store those statements (Binlog_stmt_cache_disk_use)'
+ > metric 'binlog_stmt_cache_use': unit='', desc='The number of nontransactional statements that used the binary log statement cache (Binlog_stmt_cache_use)'
+ > metric 'bytes_received': unit='', desc='The number of bytes received from all clients (Bytes_received)'
+ > metric 'bytes_sent': unit='', desc='The number of bytes sent to all clients (Bytes_sent)'
+ > metric 'created.tmp_disk_tables': unit='', desc='The number of internal on-disk temporary tables created by the server while executing statements (Created_tmp_disk_tables)'
+ > metric 'created.tmp_files': unit='', desc='How many temporary files mysqld has created (Created_tmp_files)'
+ > metric 'created.tmp_tables': unit='', desc='The number of internal temporary tables created by the server while executing statements (Created_tmp_tables)'
+ > metric 'error_log.buffered_bytes': unit='', desc='The number of bytes currently used in the Performance Schema error_log table (Error_log_buffered_bytes)'
+ > metric 'error_log.buffered_events': unit='', desc='The number of events currently present in the Performance Schema error_log table (Error_log_buffered_events)'
+ > metric 'error_log.expired_events': unit='', desc='The number of events discarded from the Performance Schema error_log table to make room for new events (Error_log_expired_events)'
+ > metric 'flush_commands': unit='', desc='The number of times the server flushes tables (Flush_commands)'
+ > metric 'global_connection_memory': unit='', desc='The memory used by all user connections to the server (Global_connection_memory)'
+ > metric 'locked_connects': unit='', desc='The number of attempts to connect to locked user accounts (Locked_connects)'
+ > metric 'max_execution_time_exceeded': unit='', desc='The number of SELECT statements for which the execution timeout was exceeded (Max_execution_time_exceeded)'
+ > metric 'max_execution_time_set': unit='', desc='The number of SELECT statements for which a nonzero execution timeout was set (Max_execution_time_set)'
+ > metric 'max_execution_time_set_failed': unit='', desc='The number of SELECT statements for which the attempt to set an execution timeout failed (Max_execution_time_set_failed)'
+ > metric 'max_used_connections': unit='', desc='The maximum number of connections that have been in use simultaneously since the server started (Max_used_connections)'
+ > metric 'ongoing_anonymous_transaction_count': unit='', desc='Shows the number of ongoing transactions which have been marked as anonymous (Ongoing_anonymous_transaction_count)'
+ > metric 'open_files': unit='', desc='The number of files that are open. This count includes regular files opened by the server (Open_files)'
+ > metric 'open_streams': unit='', desc='The number of streams that are open, used mainly for logging (Open_streams)'
+ > metric 'open_table_definitions': unit='', desc='The number of cached table definitions (Open_table_definitions)'
+ > metric 'open_tables': unit='', desc='The number of tables that are open (Open_tables)'
+ > metric 'opened_files': unit='', desc='The number of files that have been opened with my_open() (Opened_files)'
+ > metric 'opened_table_definitions': unit='', desc='The number of table definitions that have been cached (Opened_table_definitions)'
+ > metric 'opened_tables': unit='', desc='The number of tables that have been opened (Opened_tables)'
+ > metric 'prepared_stmt_count': unit='', desc='The current number of prepared statements (Prepared_stmt_count)'
+ > metric 'queries': unit='', desc='The number of statements executed by the server, including ones executed within stored programs. It does not count COM_PING or COM_STATISTICS commands (Queries)'
+ > metric 'questions': unit='', desc='The number of statements executed by the server. This includes only statements sent to the server by clients and not statements executed within stored programs (Questions)'
+ > metric 'replica_open_temp_tables': unit='', desc='Number of temporary tables that the replication SQL thread currently has open (Replica_open_temp_tables)'
+ > metric 'secondary_engine_execution_count': unit='', desc='The number of queries offloaded to a secondary engine (Secondary_engine_execution_count)'
+ > metric 'select_full_join': unit='', desc='The number of joins that perform table scans because they do not use indexes (Select_full_join)'
+ > metric 'select_full_range_join': unit='', desc='The number of joins that used a range search on a reference table (Select_full_range_join)'
+ > metric 'select_range': unit='', desc='The number of joins that used ranges on the first table (Select_range)'
+ > metric 'select_range_check': unit='', desc='The number of joins without keys that check for key usage after each row (Select_range_check)'
+ > metric 'select_scan': unit='', desc='The number of joins that did a full scan of the first table (Select_scan)'
+ > metric 'slow_launch_threads': unit='', desc='The number of threads that have taken more than slow_launch_time seconds to create (Slow_launch_threads)'
+ > metric 'slow_queries': unit='', desc='The number of queries that have taken more than long_query_time seconds (Slow_queries)'
+ > metric 'sort_merge_passes': unit='', desc='The number of merge passes that the sort algorithm has had to do (Sort_merge_passes)'
+ > metric 'sort_range': unit='', desc='The number of sorts that were done using ranges (Sort_range)'
+ > metric 'sort_rows': unit='', desc='The number of sorted rows (Sort_rows)'
+ > metric 'sort_scan': unit='', desc='The number of sorts that were done by scanning the table (Sort_scan)'
+ > metric 'table_locks_immediate': unit='', desc='The number of times that a request for a table lock could be granted immediately (Table_locks_immediate)'
+ > metric 'table_locks_waited': unit='', desc='The number of times that a request for a table lock could not be granted immediately and a wait was needed (Table_locks_waited)'
+ > metric 'table_open_cache_hits': unit='', desc='The number of hits for open tables cache lookups (Table_open_cache_hits)'
+ > metric 'table_open_cache_misses': unit='', desc='The number of misses for open tables cache lookups (Table_open_cache_misses)'
+ > metric 'table_open_cache_overflows': unit='', desc='The number of overflows for the open tables cache (Table_open_cache_overflows)'
+ > metric 'tc_log_page_waits': unit='', desc='For the memory-mapped implementation of the recovery log, this variable increments each time the server was not able to commit a transaction and had to wait for a free page in the log (Tc_log_page_waits)'
+ > metric 'threads_cached': unit='', desc='The number of threads in the thread cache (Threads_cached)'
+ > metric 'threads_connected': unit='', desc='The number of currently open connections (Threads_connected)'
+ > metric 'threads_created': unit='', desc='The number of threads created to handle connections (Threads_created)'
+ > metric 'threads_running': unit='', desc='The number of threads that are not sleeping (Threads_running)'
+ > metric 'uptime': unit='', desc='The number of seconds that the server has been up (Uptime)'
+< meter 'mysql.stats' end (57 metrics)
+> meter 'mysql.stats.com' (desc='MySql command stats', frequency=10) start:
+ > metric 'admin_commands': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_tablespace': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_user_default_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'analyze': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'assign_to_keycache': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'begin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'binlog': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'call_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_master': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_repl_filter': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_replication_source': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'check': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'checksum': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'clone': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'commit': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_index': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_spatial_reference_system': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_udf': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_view': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'dealloc_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'delete': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'delete_multi': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'do': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_index': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_spatial_reference_system': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_view': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'empty_query': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'execute_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'explain_other': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'flush': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'get_diagnostics': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'grant': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'grant_roles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'group_replication_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'group_replication_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_close': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_open': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_read': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'help': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'import': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'insert': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'insert_select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'install_component': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'install_plugin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'kill': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'load': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'lock_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'lock_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'optimize': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'preload_keys': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'prepare_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'purge': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'purge_before_date': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'release_savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rename_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rename_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'repair': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replace': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replace_select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replica_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replica_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'reset': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'resignal': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'restart': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke_all': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke_roles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rollback': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rollback_to_savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_option': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_password': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binlog_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binlogs': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_charsets': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_collations': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_func': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_proc': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_databases': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_logs': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_mutex': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_errors': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_fields': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_function_code': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_function_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_grants': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_keys': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_master_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_open_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_plugins': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_privileges': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_procedure_code': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_procedure_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_processlist': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_profile': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_profiles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_relaylog_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_replica_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_replicas': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_storage_engines': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_table_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_triggers': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_variables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_warnings': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'shutdown': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'signal': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'slave_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'slave_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_close': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_execute': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_fetch': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_prepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_reprepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_reset': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_send_long_data': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'truncate': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'uninstall_component': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'uninstall_plugin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'unlock_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'unlock_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'update': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'update_multi': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_commit': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_end': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_prepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_recover': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_rollback': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_start': unit='', desc='Number of times corresponding command statement has been executed.'
+< meter 'mysql.stats.com' end (170 metrics)
+> meter 'mysql.stats.connection' (desc='MySql connection stats', frequency=10) start:
+ > metric 'errors_accept': unit='', desc='The number of errors that occurred during calls to accept() on the listening port (Connection_errors_accept)'
+ > metric 'errors_internal': unit='', desc='The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition (Connection_errors_internal)'
+ > metric 'errors_max_connections': unit='', desc='The number of connections refused because the server max_connections limit was reached (Connection_errors_max_connections)'
+ > metric 'errors_peer_address': unit='', desc='The number of errors that occurred while searching for connecting client IP addresses (Connection_errors_peer_address)'
+ > metric 'errors_select': unit='', desc='The number of errors that occurred during calls to select() or poll() on the listening port (Connection_errors_select)'
+ > metric 'errors_tcpwrap': unit='', desc='The number of connections refused by the libwrap library (Connection_errors_tcpwrap)'
+ > metric 'total': unit='', desc='Cumulative count of total connections created (Connections)'
+< meter 'mysql.stats.connection' end (7 metrics)
+> meter 'mysql.stats.handler' (desc='MySql handler stats', frequency=10) start:
+ > metric 'commit': unit='', desc='The number of internal COMMIT statements (Handler_commit)'
+ > metric 'delete': unit='', desc='The number of times that rows have been deleted from tables (Handler_delete)'
+ > metric 'discover': unit='', desc='The number of times that tables have been discovered (Handler_discover)'
+ > metric 'external_lock': unit='', desc='The server increments this variable for each call to its external_lock() function, which generally occurs at the beginning and end of access to a table instance (Handler_external_lock)'
+ > metric 'mrr_init': unit='', desc='The number of times the server uses a storage engine's own Multi-Range Read implementation for table access (Handler_mrr_init)'
+ > metric 'prepare': unit='', desc='A counter for the prepare phase of two-phase commit operations (Handler_prepare)'
+ > metric 'read_first': unit='', desc='The number of times the first entry in an index was read (Handler_read_first)'
+ > metric 'read_key': unit='', desc='The number of requests to read a row based on a key (Handler_read_key)'
+ > metric 'read_last': unit='', desc='The number of requests to read the last key in an index (Handler_read_last)'
+ > metric 'read_next': unit='', desc='The number of requests to read the next row in key order (Handler_read_next)'
+ > metric 'read_prev': unit='', desc='The number of requests to read the previous row in key order (Handler_read_prev)'
+ > metric 'read_rnd': unit='', desc='The number of requests to read a row based on a fixed position (Handler_read_rnd)'
+ > metric 'read_rnd_next': unit='', desc='The number of requests to read the next row in the data file (Handler_read_rnd_next)'
+ > metric 'rollback': unit='', desc='The number of requests for a storage engine to perform a rollback operation (Handler_rollback)'
+ > metric 'savepoint': unit='', desc='The number of requests for a storage engine to place a savepoint (Handler_savepoint)'
+ > metric 'savepoint_rollback': unit='', desc='The number of requests for a storage engine to roll back to a savepoint (Handler_savepoint_rollback)'
+ > metric 'update': unit='', desc='The number of requests to update a row in a table (Handler_update)'
+ > metric 'write': unit='', desc='The number of requests to insert a row in a table (Handler_write)'
+< meter 'mysql.stats.handler' end (18 metrics)
+> meter 'mysql.stats.ssl' (desc='MySql TLS related stats', frequency=10) start:
+ > metric 'accept_renegotiates': unit='', desc='The number of negotiates needed to establish the connection (Ssl_accept_renegotiates)'
+ > metric 'accepts': unit='', desc='The number of accepted SSL connections (Ssl_accepts)'
+ > metric 'callback_cache_hits': unit='', desc='The number of accepted SSL connections (Ssl_callback_cache_hits)'
+ > metric 'client_connects': unit='', desc='The number of SSL connection attempts to an SSL-enabled replication source server (Ssl_client_connects)'
+ > metric 'connect_renegotiates': unit='', desc='The number of negotiates needed to establish the connection to an SSL-enabled replication source server (Ssl_connect_renegotiates)'
+ > metric 'finished_accepts': unit='', desc='The number of successful SSL connections to the server (Ssl_finished_accepts)'
+ > metric 'finished_connects': unit='', desc='The number of successful replica connections to an SSL-enabled replication source server (Ssl_finished_connects)'
+ > metric 'session_cache_hits': unit='', desc='The number of SSL session cache hits (Ssl_session_cache_hits)'
+ > metric 'session_cache_misses': unit='', desc='The number of SSL session cache misses (Ssl_session_cache_misses)'
+ > metric 'session_cache_overflows': unit='', desc='The number of SSL session cache overflows (Ssl_session_cache_overflows)'
+ > metric 'session_cache_size': unit='', desc='The SSL session cache size (Ssl_session_cache_size)'
+ > metric 'session_cache_timeouts': unit='', desc='The number of SSL session cache timeouts (Ssl_session_cache_timeouts)'
+ > metric 'used_session_cache_entries': unit='', desc='How many SSL session cache entries were used (Ssl_used_session_cache_entries)'
+< meter 'mysql.stats.ssl' end (13 metrics)
+> meter 'mysql.x'  (desc='MySql X plugin metrics', frequency=10) is disabled, skip enumeration
+> meter 'mysql.x.stmt' (desc='MySql X plugin statement statistics', frequency=10) start:
+ > metric 'create_collection': unit='', desc='The number of create collection statements received (Mysqlx_stmt_create_collection)'
+ > metric 'create_collection_index': unit='', desc='The number of create collection index statements received (Mysqlx_stmt_create_collection_index)'
+ > metric 'disable_notices': unit='', desc='The number of disable notice statements received (Mysqlx_stmt_disable_notices)'
+ > metric 'drop_collection': unit='', desc='The number of drop collection statements received (Mysqlx_stmt_drop_collection)'
+ > metric 'drop_collection_index': unit='', desc='The number of drop collection index statements received (Mysqlx_stmt_drop_collection_index)'
+ > metric 'enable_notices': unit='', desc='The number of enable notice statements received (Mysqlx_stmt_enable_notices)'
+ > metric 'ensure_collection': unit='', desc='The number of ensure collection statements received (Mysqlx_stmt_ensure_collection)'
+ > metric 'execute_mysqlx': unit='', desc='The number of StmtExecute messages received with namespace set to mysqlx (Mysqlx_stmt_execute_mysqlx)'
+ > metric 'execute_sql': unit='', desc='The number of StmtExecute requests received for the SQL namespace (Mysqlx_stmt_execute_sql)'
+ > metric 'get_collection_options': unit='', desc='The number of get collection object statements received (Mysqlx_stmt_get_collection_options)'
+ > metric 'kill_client': unit='', desc='The number of kill client statements received (Mysqlx_stmt_kill_client)'
+ > metric 'list_clients': unit='', desc='The number of list client statements received (Mysqlx_stmt_list_clients)'
+ > metric 'list_notices': unit='', desc='The number of list notice statements received (Mysqlx_stmt_list_notices)'
+ > metric 'list_objects': unit='', desc='The number of list object statements received (Mysqlx_stmt_list_objects)'
+ > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
+ > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
+< meter 'mysql.x.stmt' end (16 metrics)
+test_report_metrics < done reporting (total meters=12, metrics=378)
+TEST - All metrics exported:
+*** Meter change notification: mysql.x updated
+*** Meter change - silently enumerate metrics for mysql.x
+test_report_metrics > report start:
+> meter 'mysql.inno' (desc='MySql InnoDB metrics', frequency=10) start:
+ > metric 'dblwr_pages_written': unit='', desc='Number of pages that have been written for doublewrite operations (innodb_dblwr_pages_written)'
+ > metric 'dblwr_writes': unit='', desc='Number of doublewrite operations that have been performed (innodb_dblwr_writes)'
+ > metric 'log_waits': unit='', desc='Number of log waits due to small log buffer (innodb_log_waits)'
+ > metric 'log_write_requests': unit='', desc='Number of log write requests (innodb_log_write_requests)'
+ > metric 'log_writes': unit='', desc='The number of physical writes to the InnoDB redo log file (innodb_log_writes)'
+ > metric 'num_open_files': unit='', desc='Number of files currently open (innodb_num_open_files)'
+ > metric 'os_log_fsyncs': unit='', desc='Number of fsync log writes (innodb_os_log_fsyncs)'
+ > metric 'os_log_pending_fsyncs': unit='', desc='Number of pending fsync write (innodb_os_log_pending_fsyncs)'
+ > metric 'os_log_pending_writes': unit='', desc='Number of pending log file writes (innodb_os_log_pending_writes)'
+ > metric 'os_log_written': unit='By', desc='Bytes of log written (innodb_os_log_written)'
+ > metric 'page_size': unit='By', desc='InnoDB page size in bytes (innodb_page_size)'
+ > metric 'pages_created': unit='', desc='Number of pages created (innodb_pages_created)'
+ > metric 'pages_read': unit='', desc='Number of pages read (innodb_pages_read)'
+ > metric 'pages_written': unit='', desc='Number of pages written (innodb_pages_written)'
+ > metric 'redo_log_capacity_resized': unit='By', desc='Redo log capacity in bytes for all redo log files, after the last completed capacity resize operation (innodb_redo_log_capacity_resized)'
+ > metric 'redo_log_logical_size': unit='By', desc='LSN range size in bytes containing in-use redo log data (innodb_redo_log_logical_size)'
+ > metric 'redo_log_physical_size': unit='By', desc='Disk space in bytes currently consumed by all redo log files on disk, excluding spare redo log files (innodb_redo_log_physical_size)'
+ > metric 'row_lock_current_waits': unit='', desc='Number of row locks currently being waited for (innodb_row_lock_current_waits)'
+ > metric 'row_lock_time': unit='ms', desc='Time spent in acquiring row locks, in milliseconds (innodb_row_lock_time)'
+ > metric 'row_lock_time_avg': unit='ms', desc='The average time to acquire a row lock, in milliseconds (innodb_row_lock_time_avg)'
+ > metric 'row_lock_time_max': unit='ms', desc='The maximum time to acquire a row lock, in milliseconds (innodb_row_lock_time_max)'
+ > metric 'row_lock_waits': unit='', desc='Number of times a row lock had to be waited for (innodb_row_lock_waits)'
+ > metric 'rows_deleted': unit='', desc='The number of rows deleted from InnoDB tables (innodb_rows_deleted)'
+ > metric 'rows_inserted': unit='', desc='The number of rows inserted into InnoDB tables (innodb_rows_inserted)'
+ > metric 'rows_read': unit='', desc='The number of rows read from InnoDB tables (innodb_rows_read)'
+ > metric 'rows_updated': unit='', desc='The number of rows updated in InnoDB tables (innodb_rows_updated)'
+ > metric 'system_rows_deleted': unit='', desc='Number of rows deleted from InnoDB tables belonging to system-created schemas (innodb_system_rows_deleted)'
+ > metric 'system_rows_inserted': unit='', desc='Number of rows inserted into InnoDB tables belonging to system-created schemas (innodb_system_rows_inserted)'
+ > metric 'system_rows_read': unit='', desc='Number of rows read from InnoDB tables belonging to system-created schemas (innodb_system_rows_read)'
+ > metric 'system_rows_updated': unit='', desc='Number of rows updated in InnoDB tables belonging to system-created schemas (innodb_system_rows_updated)'
+ > metric 'truncated_status_writes': unit='', desc='Number of times output from the SHOW ENGINE INNODB STATUS statement has been truncated (innodb_truncated_status_writes)'
+ > metric 'undo_tablespaces_active': unit='', desc='Number of active undo tablespaces, including implicit and explicit tablespaces (innodb_undo_tablespaces_active)'
+ > metric 'undo_tablespaces_explicit': unit='', desc='Number of user-created undo tablespaces (innodb_undo_tablespaces_explicit)'
+ > metric 'undo_tablespaces_total': unit='', desc='Total number of undo tablespaces (innodb_undo_tablespaces_total)'
+< meter 'mysql.inno' end (34 metrics)
+> meter 'mysql.inno.buffer_pool' (desc='MySql InnoDB buffer pool metrics', frequency=10) start:
+ > metric 'bytes_data': unit='By', desc='Buffer bytes containing data (innodb_buffer_pool_bytes_data)'
+ > metric 'bytes_dirty': unit='By', desc='Buffer bytes currently dirty (innodb_buffer_pool_bytes_dirty)'
+ > metric 'pages_data': unit='', desc='Buffer pages containing data (innodb_buffer_pool_pages_data)'
+ > metric 'pages_dirty': unit='', desc='Buffer pages currently dirty (innodb_buffer_pool_pages_dirty)'
+ > metric 'pages_flushed': unit='', desc='The number of requests to flush pages from the InnoDB buffer pool (innodb_buffer_pool_pages_flushed)'
+ > metric 'pages_free': unit='', desc='Buffer pages currently free (innodb_buffer_pool_pages_free)'
+ > metric 'pages_misc': unit='', desc='Buffer pages for misc use such as row locks or the adaptive hash index (innodb_buffer_pool_pages_misc)'
+ > metric 'pages_total': unit='', desc='Total buffer pool size in pages (innodb_buffer_pool_pages_total)'
+ > metric 'read_ahead': unit='', desc='Number of pages read as read ahead (innodb_buffer_pool_read_ahead)'
+ > metric 'read_ahead_evicted': unit='', desc='Read-ahead pages evicted without being accessed (innodb_buffer_pool_read_ahead_evicted)'
+ > metric 'read_ahead_rnd': unit='', desc='The number of 'random' read-aheads initiated by InnoDB (innodb_buffer_pool_read_ahead_rnd)'
+ > metric 'read_requests': unit='', desc='Number of logical read requests (innodb_buffer_pool_read_requests)'
+ > metric 'reads': unit='', desc='Number of reads directly from disk (innodb_buffer_pool_reads)'
+ > metric 'wait_free': unit='', desc='Number of times waited for free buffer (innodb_buffer_pool_wait_free)'
+ > metric 'write_requests': unit='', desc='Number of write requests (innodb_buffer_pool_write_requests)'
+< meter 'mysql.inno.buffer_pool' end (15 metrics)
+> meter 'mysql.inno.data' (desc='MySql InnoDB data metrics', frequency=10) start:
+ > metric 'fsyncs': unit='', desc='Number of fsync() calls (innodb_data_fsyncs)'
+ > metric 'pending_fsyncs': unit='', desc='Number of pending fsync operations (innodb_data_pending_fsyncs)'
+ > metric 'pending_reads': unit='', desc='The current number of pending reads (innodb_data_pending_reads)'
+ > metric 'pending_writes': unit='', desc='The current number of pending writes (innodb_data_pending_writes)'
+ > metric 'read': unit='By', desc='Amount of data read in bytes (innodb_data_read)'
+ > metric 'reads': unit='', desc='Number of reads initiated (innodb_data_reads)'
+ > metric 'writes': unit='', desc='Number of writes initiated (innodb_data_writes)'
+ > metric 'written': unit='By', desc='Amount of data written in bytes (innodb_data_written)'
+< meter 'mysql.inno.data' end (8 metrics)
+> meter 'mysql.myisam' (desc='MySql MyISAM storage engine stats', frequency=10) start:
+ > metric 'key_blocks_not_flushed': unit='', desc='The number of key blocks in the MyISAM key cache that have changed but have not yet been flushed to disk (Key_blocks_not_flushed)'
+ > metric 'key_blocks_unused': unit='', desc='The number of unused blocks in the MyISAM key cache (Key_blocks_unused)'
+ > metric 'key_blocks_used': unit='', desc='The number of used blocks in the MyISAM key cache (Key_blocks_used)'
+ > metric 'key_read_requests': unit='', desc='The number of requests to read a key block from the MyISAM key cache (Key_read_requests)'
+ > metric 'key_reads': unit='', desc='The number of physical reads of a key block from disk into the MyISAM key cache (Key_reads)'
+ > metric 'key_write_requests': unit='', desc='The number of requests to write a key block to the MyISAM key cache (Key_write_requests)'
+ > metric 'key_writes': unit='', desc='The number of physical writes of a key block from the MyISAM key cache to disk (Key_writes)'
+< meter 'mysql.myisam' end (7 metrics)
+> meter 'mysql.perf_schema' (desc='MySql performance_schema lost instruments', frequency=10) start:
+ > metric 'accounts_lost': unit='', desc='The number of times a row could not be added to the accounts table because it was full (Performance_schema_accounts_lost)'
+ > metric 'cond_classes_lost': unit='', desc='How many condition instruments could not be loaded (Performance_schema_cond_classes_lost)'
+ > metric 'cond_instances_lost': unit='', desc='How many condition instrument instances could not be created (Performance_schema_cond_instances_lost)'
+ > metric 'digest_lost': unit='', desc='The number of digest instances that could not be instrumented in the events_statements_summary_by_digest table (Performance_schema_digest_lost)'
+ > metric 'file_classes_lost': unit='', desc='How many file instruments could not be loaded (Performance_schema_file_classes_lost)'
+ > metric 'file_handles_lost': unit='', desc='How many file instrument instances could not be opened (Performance_schema_file_handles_lost)'
+ > metric 'file_instances_lost': unit='', desc='How many file instrument instances could not be created (Performance_schema_file_instances_lost)'
+ > metric 'hosts_lost': unit='', desc='The number of times a row could not be added to the hosts table because it was full (Performance_schema_hosts_lost)'
+ > metric 'index_stat_lost': unit='', desc='The number of indexes for which statistics were lost (Performance_schema_index_stat_lost)'
+ > metric 'locker_lost': unit='', desc='How many events are 'lost' or not recorded (Performance_schema_locker_lost)'
+ > metric 'memory_classes_lost': unit='', desc='The number of times a memory instrument could not be loaded (Performance_schema_memory_classes_lost)'
+ > metric 'metadata_lock_lost': unit='', desc='The number of metadata locks that could not be instrumented in the metadata_locks table (Performance_schema_metadata_lock_lost)'
+ > metric 'meter_lost': unit='', desc='How many meter instruments could not be loaded (Performance_schema_meter_lost)'
+ > metric 'metric_lost': unit='', desc='How many metric instruments could not be loaded (Performance_schema_metric_lost)'
+ > metric 'mutex_classes_lost': unit='', desc='How many mutex instruments could not be loaded (Performance_schema_mutex_classes_lost)'
+ > metric 'mutex_instances_lost': unit='', desc='How many mutex instrument instances could not be created (Performance_schema_mutex_instances_lost)'
+ > metric 'nested_statement_lost': unit='', desc='The number of stored program statements for which statistics were lost (Performance_schema_nested_statement_lost)'
+ > metric 'prepared_statements_lost': unit='', desc='The number of prepared statements that could not be instrumented in the prepared_statements_instances table (Performance_schema_prepared_statements_lost)'
+ > metric 'program_lost': unit='', desc='The number of stored programs for which statistics were lost (Performance_schema_program_lost)'
+ > metric 'rwlock_classes_lost': unit='', desc='How many rwlock instruments could not be loaded (Performance_schema_rwlock_classes_lost)'
+ > metric 'rwlock_instances_lost': unit='', desc='How many rwlock instrument instances could not be created (Performance_schema_rwlock_instances_lost)'
+ > metric 'session_connect_attrs_longest_seen': unit='', desc='Longest seen connection attribute received (Performance_schema_session_connect_attrs_longest_seen)'
+ > metric 'session_connect_attrs_lost': unit='', desc='The number of connections for which connection attribute truncation has occurred (Performance_schema_session_connect_attrs_lost)'
+ > metric 'socket_classes_lost': unit='', desc='How many socket instruments could not be loaded (Performance_schema_socket_classes_lost)'
+ > metric 'socket_instances_lost': unit='', desc='How many socket instrument instances could not be created (Performance_schema_socket_instances_lost)'
+ > metric 'stage_classes_lost': unit='', desc='How many stage instruments could not be loaded (Performance_schema_stage_classes_lost)'
+ > metric 'statement_classes_lost': unit='', desc='How many statement instruments could not be loaded (Performance_schema_statement_classes_lost)'
+ > metric 'table_handles_lost': unit='', desc='How many table instrument instances could not be opened (Performance_schema_table_handles_lost)'
+ > metric 'table_instances_lost': unit='', desc='How many table instrument instances could not be created (Performance_schema_table_instances_lost)'
+ > metric 'table_lock_stat_lost': unit='', desc='The number of tables for which lock statistics were lost (Performance_schema_table_lock_stat_lost)'
+ > metric 'thread_classes_lost': unit='', desc='How many thread instruments could not be loaded (Performance_schema_thread_classes_lost)'
+ > metric 'thread_instances_lost': unit='', desc='The number of thread instances that could not be instrumented in the threads table (Performance_schema_thread_instances_lost)'
+ > metric 'users_lost': unit='', desc='The number of times a row could not be added to the users table because it was full (Performance_schema_users_lost)'
+< meter 'mysql.perf_schema' end (33 metrics)
+> meter 'mysql.stats' (desc='MySql core metrics', frequency=10) start:
+ > metric 'aborted_clients': unit='', desc='The number of connections that were aborted because the client died without closing the connection properly (Aborted_clients)'
+ > metric 'aborted_connects': unit='', desc='The number of failed attempts to connect to the MySQL server (Aborted_connects)'
+ > metric 'acl_cache_items_count': unit='', desc='The number of cached privilege objects (Acl_cache_items_count)'
+ > metric 'binlog_cache.disk_use': unit='', desc='The number of transactions that used the temporary binary log cache but that exceeded the value of binlog_cache_size and used a temporary file to store statements from the transaction (Binlog_cache_disk_use)'
+ > metric 'binlog_cache.use': unit='', desc='The number of transactions that used the binary log cache (Binlog_cache_use)'
+ > metric 'binlog_stmt_cache_disk_use': unit='', desc='The number of nontransaction statements that used the binary log statement cache but that exceeded the value of binlog_stmt_cache_size and used a temporary file to store those statements (Binlog_stmt_cache_disk_use)'
+ > metric 'binlog_stmt_cache_use': unit='', desc='The number of nontransactional statements that used the binary log statement cache (Binlog_stmt_cache_use)'
+ > metric 'bytes_received': unit='', desc='The number of bytes received from all clients (Bytes_received)'
+ > metric 'bytes_sent': unit='', desc='The number of bytes sent to all clients (Bytes_sent)'
+ > metric 'created.tmp_disk_tables': unit='', desc='The number of internal on-disk temporary tables created by the server while executing statements (Created_tmp_disk_tables)'
+ > metric 'created.tmp_files': unit='', desc='How many temporary files mysqld has created (Created_tmp_files)'
+ > metric 'created.tmp_tables': unit='', desc='The number of internal temporary tables created by the server while executing statements (Created_tmp_tables)'
+ > metric 'error_log.buffered_bytes': unit='', desc='The number of bytes currently used in the Performance Schema error_log table (Error_log_buffered_bytes)'
+ > metric 'error_log.buffered_events': unit='', desc='The number of events currently present in the Performance Schema error_log table (Error_log_buffered_events)'
+ > metric 'error_log.expired_events': unit='', desc='The number of events discarded from the Performance Schema error_log table to make room for new events (Error_log_expired_events)'
+ > metric 'flush_commands': unit='', desc='The number of times the server flushes tables (Flush_commands)'
+ > metric 'global_connection_memory': unit='', desc='The memory used by all user connections to the server (Global_connection_memory)'
+ > metric 'locked_connects': unit='', desc='The number of attempts to connect to locked user accounts (Locked_connects)'
+ > metric 'max_execution_time_exceeded': unit='', desc='The number of SELECT statements for which the execution timeout was exceeded (Max_execution_time_exceeded)'
+ > metric 'max_execution_time_set': unit='', desc='The number of SELECT statements for which a nonzero execution timeout was set (Max_execution_time_set)'
+ > metric 'max_execution_time_set_failed': unit='', desc='The number of SELECT statements for which the attempt to set an execution timeout failed (Max_execution_time_set_failed)'
+ > metric 'max_used_connections': unit='', desc='The maximum number of connections that have been in use simultaneously since the server started (Max_used_connections)'
+ > metric 'ongoing_anonymous_transaction_count': unit='', desc='Shows the number of ongoing transactions which have been marked as anonymous (Ongoing_anonymous_transaction_count)'
+ > metric 'open_files': unit='', desc='The number of files that are open. This count includes regular files opened by the server (Open_files)'
+ > metric 'open_streams': unit='', desc='The number of streams that are open, used mainly for logging (Open_streams)'
+ > metric 'open_table_definitions': unit='', desc='The number of cached table definitions (Open_table_definitions)'
+ > metric 'open_tables': unit='', desc='The number of tables that are open (Open_tables)'
+ > metric 'opened_files': unit='', desc='The number of files that have been opened with my_open() (Opened_files)'
+ > metric 'opened_table_definitions': unit='', desc='The number of table definitions that have been cached (Opened_table_definitions)'
+ > metric 'opened_tables': unit='', desc='The number of tables that have been opened (Opened_tables)'
+ > metric 'prepared_stmt_count': unit='', desc='The current number of prepared statements (Prepared_stmt_count)'
+ > metric 'queries': unit='', desc='The number of statements executed by the server, including ones executed within stored programs. It does not count COM_PING or COM_STATISTICS commands (Queries)'
+ > metric 'questions': unit='', desc='The number of statements executed by the server. This includes only statements sent to the server by clients and not statements executed within stored programs (Questions)'
+ > metric 'replica_open_temp_tables': unit='', desc='Number of temporary tables that the replication SQL thread currently has open (Replica_open_temp_tables)'
+ > metric 'secondary_engine_execution_count': unit='', desc='The number of queries offloaded to a secondary engine (Secondary_engine_execution_count)'
+ > metric 'select_full_join': unit='', desc='The number of joins that perform table scans because they do not use indexes (Select_full_join)'
+ > metric 'select_full_range_join': unit='', desc='The number of joins that used a range search on a reference table (Select_full_range_join)'
+ > metric 'select_range': unit='', desc='The number of joins that used ranges on the first table (Select_range)'
+ > metric 'select_range_check': unit='', desc='The number of joins without keys that check for key usage after each row (Select_range_check)'
+ > metric 'select_scan': unit='', desc='The number of joins that did a full scan of the first table (Select_scan)'
+ > metric 'slow_launch_threads': unit='', desc='The number of threads that have taken more than slow_launch_time seconds to create (Slow_launch_threads)'
+ > metric 'slow_queries': unit='', desc='The number of queries that have taken more than long_query_time seconds (Slow_queries)'
+ > metric 'sort_merge_passes': unit='', desc='The number of merge passes that the sort algorithm has had to do (Sort_merge_passes)'
+ > metric 'sort_range': unit='', desc='The number of sorts that were done using ranges (Sort_range)'
+ > metric 'sort_rows': unit='', desc='The number of sorted rows (Sort_rows)'
+ > metric 'sort_scan': unit='', desc='The number of sorts that were done by scanning the table (Sort_scan)'
+ > metric 'table_locks_immediate': unit='', desc='The number of times that a request for a table lock could be granted immediately (Table_locks_immediate)'
+ > metric 'table_locks_waited': unit='', desc='The number of times that a request for a table lock could not be granted immediately and a wait was needed (Table_locks_waited)'
+ > metric 'table_open_cache_hits': unit='', desc='The number of hits for open tables cache lookups (Table_open_cache_hits)'
+ > metric 'table_open_cache_misses': unit='', desc='The number of misses for open tables cache lookups (Table_open_cache_misses)'
+ > metric 'table_open_cache_overflows': unit='', desc='The number of overflows for the open tables cache (Table_open_cache_overflows)'
+ > metric 'tc_log_page_waits': unit='', desc='For the memory-mapped implementation of the recovery log, this variable increments each time the server was not able to commit a transaction and had to wait for a free page in the log (Tc_log_page_waits)'
+ > metric 'threads_cached': unit='', desc='The number of threads in the thread cache (Threads_cached)'
+ > metric 'threads_connected': unit='', desc='The number of currently open connections (Threads_connected)'
+ > metric 'threads_created': unit='', desc='The number of threads created to handle connections (Threads_created)'
+ > metric 'threads_running': unit='', desc='The number of threads that are not sleeping (Threads_running)'
+ > metric 'uptime': unit='', desc='The number of seconds that the server has been up (Uptime)'
+< meter 'mysql.stats' end (57 metrics)
+> meter 'mysql.stats.com' (desc='MySql command stats', frequency=10) start:
+ > metric 'admin_commands': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_tablespace': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'alter_user_default_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'analyze': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'assign_to_keycache': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'begin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'binlog': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'call_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_master': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_repl_filter': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'change_replication_source': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'check': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'checksum': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'clone': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'commit': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_index': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_spatial_reference_system': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_udf': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'create_view': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'dealloc_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'delete': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'delete_multi': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'do': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_function': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_index': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_procedure': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_server': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_spatial_reference_system': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'drop_view': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'empty_query': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'execute_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'explain_other': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'flush': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'get_diagnostics': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'grant': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'grant_roles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'group_replication_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'group_replication_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_close': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_open': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'ha_read': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'help': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'import': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'insert': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'insert_select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'install_component': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'install_plugin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'kill': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'load': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'lock_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'lock_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'optimize': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'preload_keys': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'prepare_sql': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'purge': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'purge_before_date': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'release_savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rename_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rename_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'repair': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replace': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replace_select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replica_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'replica_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'reset': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'resignal': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'restart': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke_all': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'revoke_roles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rollback': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'rollback_to_savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'savepoint': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'select': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_option': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_password': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_resource_group': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'set_role': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binlog_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_binlogs': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_charsets': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_collations': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_db': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_event': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_func': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_proc': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_table': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_trigger': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_create_user': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_databases': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_logs': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_mutex': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_engine_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_errors': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_fields': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_function_code': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_function_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_grants': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_keys': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_master_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_open_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_plugins': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_privileges': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_procedure_code': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_procedure_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_processlist': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_profile': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_profiles': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_relaylog_events': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_replica_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_replicas': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_storage_engines': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_table_status': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_triggers': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_variables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'show_warnings': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'shutdown': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'signal': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'slave_start': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'slave_stop': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_close': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_execute': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_fetch': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_prepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_reprepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_reset': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'stmt_send_long_data': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'truncate': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'uninstall_component': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'uninstall_plugin': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'unlock_instance': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'unlock_tables': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'update': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'update_multi': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_commit': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_end': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_prepare': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_recover': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_rollback': unit='', desc='Number of times corresponding command statement has been executed.'
+ > metric 'xa_start': unit='', desc='Number of times corresponding command statement has been executed.'
+< meter 'mysql.stats.com' end (170 metrics)
+> meter 'mysql.stats.connection' (desc='MySql connection stats', frequency=10) start:
+ > metric 'errors_accept': unit='', desc='The number of errors that occurred during calls to accept() on the listening port (Connection_errors_accept)'
+ > metric 'errors_internal': unit='', desc='The number of connections refused due to internal errors in the server, such as failure to start a new thread or an out-of-memory condition (Connection_errors_internal)'
+ > metric 'errors_max_connections': unit='', desc='The number of connections refused because the server max_connections limit was reached (Connection_errors_max_connections)'
+ > metric 'errors_peer_address': unit='', desc='The number of errors that occurred while searching for connecting client IP addresses (Connection_errors_peer_address)'
+ > metric 'errors_select': unit='', desc='The number of errors that occurred during calls to select() or poll() on the listening port (Connection_errors_select)'
+ > metric 'errors_tcpwrap': unit='', desc='The number of connections refused by the libwrap library (Connection_errors_tcpwrap)'
+ > metric 'total': unit='', desc='Cumulative count of total connections created (Connections)'
+< meter 'mysql.stats.connection' end (7 metrics)
+> meter 'mysql.stats.handler' (desc='MySql handler stats', frequency=10) start:
+ > metric 'commit': unit='', desc='The number of internal COMMIT statements (Handler_commit)'
+ > metric 'delete': unit='', desc='The number of times that rows have been deleted from tables (Handler_delete)'
+ > metric 'discover': unit='', desc='The number of times that tables have been discovered (Handler_discover)'
+ > metric 'external_lock': unit='', desc='The server increments this variable for each call to its external_lock() function, which generally occurs at the beginning and end of access to a table instance (Handler_external_lock)'
+ > metric 'mrr_init': unit='', desc='The number of times the server uses a storage engine's own Multi-Range Read implementation for table access (Handler_mrr_init)'
+ > metric 'prepare': unit='', desc='A counter for the prepare phase of two-phase commit operations (Handler_prepare)'
+ > metric 'read_first': unit='', desc='The number of times the first entry in an index was read (Handler_read_first)'
+ > metric 'read_key': unit='', desc='The number of requests to read a row based on a key (Handler_read_key)'
+ > metric 'read_last': unit='', desc='The number of requests to read the last key in an index (Handler_read_last)'
+ > metric 'read_next': unit='', desc='The number of requests to read the next row in key order (Handler_read_next)'
+ > metric 'read_prev': unit='', desc='The number of requests to read the previous row in key order (Handler_read_prev)'
+ > metric 'read_rnd': unit='', desc='The number of requests to read a row based on a fixed position (Handler_read_rnd)'
+ > metric 'read_rnd_next': unit='', desc='The number of requests to read the next row in the data file (Handler_read_rnd_next)'
+ > metric 'rollback': unit='', desc='The number of requests for a storage engine to perform a rollback operation (Handler_rollback)'
+ > metric 'savepoint': unit='', desc='The number of requests for a storage engine to place a savepoint (Handler_savepoint)'
+ > metric 'savepoint_rollback': unit='', desc='The number of requests for a storage engine to roll back to a savepoint (Handler_savepoint_rollback)'
+ > metric 'update': unit='', desc='The number of requests to update a row in a table (Handler_update)'
+ > metric 'write': unit='', desc='The number of requests to insert a row in a table (Handler_write)'
+< meter 'mysql.stats.handler' end (18 metrics)
+> meter 'mysql.stats.ssl' (desc='MySql TLS related stats', frequency=10) start:
+ > metric 'accept_renegotiates': unit='', desc='The number of negotiates needed to establish the connection (Ssl_accept_renegotiates)'
+ > metric 'accepts': unit='', desc='The number of accepted SSL connections (Ssl_accepts)'
+ > metric 'callback_cache_hits': unit='', desc='The number of accepted SSL connections (Ssl_callback_cache_hits)'
+ > metric 'client_connects': unit='', desc='The number of SSL connection attempts to an SSL-enabled replication source server (Ssl_client_connects)'
+ > metric 'connect_renegotiates': unit='', desc='The number of negotiates needed to establish the connection to an SSL-enabled replication source server (Ssl_connect_renegotiates)'
+ > metric 'finished_accepts': unit='', desc='The number of successful SSL connections to the server (Ssl_finished_accepts)'
+ > metric 'finished_connects': unit='', desc='The number of successful replica connections to an SSL-enabled replication source server (Ssl_finished_connects)'
+ > metric 'session_cache_hits': unit='', desc='The number of SSL session cache hits (Ssl_session_cache_hits)'
+ > metric 'session_cache_misses': unit='', desc='The number of SSL session cache misses (Ssl_session_cache_misses)'
+ > metric 'session_cache_overflows': unit='', desc='The number of SSL session cache overflows (Ssl_session_cache_overflows)'
+ > metric 'session_cache_size': unit='', desc='The SSL session cache size (Ssl_session_cache_size)'
+ > metric 'session_cache_timeouts': unit='', desc='The number of SSL session cache timeouts (Ssl_session_cache_timeouts)'
+ > metric 'used_session_cache_entries': unit='', desc='How many SSL session cache entries were used (Ssl_used_session_cache_entries)'
+< meter 'mysql.stats.ssl' end (13 metrics)
+> meter 'mysql.x' (desc='MySql X plugin metrics', frequency=10) start:
+ > metric 'aborted_clients': unit='', desc='The number of clients that were disconnected because of an input or output error (Mysqlx_aborted_clients)'
+ > metric 'bytes_received': unit='By', desc='The total number of bytes received through the network, measured before decompression (Mysqlx_bytes_received)'
+ > metric 'bytes_received_compressed_payload': unit='By', desc='The number of bytes received as compressed message payloads, measured before decompression (Mysqlx_bytes_received_compressed_payload)'
+ > metric 'bytes_received_uncompressed_frame': unit='By', desc='The number of bytes received as compressed message payloads, measured after decompression (Mysqlx_bytes_received_uncompressed_frame)'
+ > metric 'bytes_sent': unit='By', desc='The total number of bytes sent through the network (Mysqlx_bytes_sent)'
+ > metric 'bytes_sent_compressed_payload': unit='By', desc='The number of bytes sent as compressed message payloads, measured after compression (Mysqlx_bytes_sent_compressed_payload)'
+ > metric 'bytes_sent_uncompressed_frame': unit='By', desc='The number of bytes sent as compressed message payloads, measured before compression (Mysqlx_bytes_sent_uncompressed_frame)'
+ > metric 'connection_accept_errors': unit='', desc='The number of connections which have caused accept errors (Mysqlx_connection_accept_errors)'
+ > metric 'connection_errors': unit='', desc='The number of connections which have caused errors (Mysqlx_connection_errors)'
+ > metric 'connections_accepted': unit='', desc='The number of connections which have been accepted (Mysqlx_connections_accepted)'
+ > metric 'connections_closed': unit='', desc='The number of connections which have been closed (Mysqlx_connections_closed)'
+ > metric 'connections_rejected': unit='', desc='The number of connections which have been rejected (Mysqlx_connections_rejected)'
+ > metric 'crud_create_view': unit='', desc='The number of create view requests received (Mysqlx_crud_create_view)'
+ > metric 'crud_delete': unit='', desc='The number of delete requests received (Mysqlx_crud_delete)'
+ > metric 'crud_drop_view': unit='', desc='The number of drop view requests received (Mysqlx_crud_drop_view)'
+ > metric 'crud_find': unit='', desc='The number of find requests received (Mysqlx_crud_find)'
+ > metric 'crud_insert': unit='', desc='The number of insert requests received (Mysqlx_crud_insert)'
+ > metric 'crud_modify_view': unit='', desc='The number of modify view requests received (Mysqlx_crud_modify_view)'
+ > metric 'crud_update': unit='', desc='The number of update requests received (Mysqlx_crud_update)'
+ > metric 'cursor_close': unit='', desc='The number of cursor-close messages received (Mysqlx_cursor_close)'
+ > metric 'cursor_fetch': unit='', desc='The number of cursor-fetch messages received (Mysqlx_cursor_fetch)'
+ > metric 'cursor_open': unit='', desc='The number of cursor-open messages received (Mysqlx_cursor_open)'
+ > metric 'errors_sent': unit='', desc='The number of errors sent to clients (Mysqlx_errors_sent)'
+ > metric 'errors_unknown_message_type': unit='', desc='The number of unknown message types that have been received (Mysqlx_errors_unknown_message_type)'
+ > metric 'expect_close': unit='', desc='The number of expectation blocks closed (Mysqlx_expect_close)'
+ > metric 'expect_open': unit='', desc='The number of expectation blocks opened (Mysqlx_expect_open)'
+ > metric 'init_error': unit='', desc='The number of errors during initialisation (Mysqlx_init_error)'
+ > metric 'messages_sent': unit='', desc='The total number of messages of all types sent to clients (Mysqlx_messages_sent)'
+ > metric 'notice_global_sent': unit='', desc='The number of global notifications sent to clients (Mysqlx_notice_global_sent)'
+ > metric 'notice_other_sent': unit='', desc='The number of other types of notices sent back to clients (Mysqlx_notice_other_sent)'
+ > metric 'notice_warning_sent': unit='', desc='The number of warning notices sent back to clients (Mysqlx_notice_warning_sent)'
+ > metric 'notified_by_group_replication': unit='', desc='Number of Group Replication notifications sent to clients (Mysqlx_notified_by_group_replication)'
+ > metric 'prep_deallocate': unit='', desc='The number of prepared-statement-deallocate messages received (Mysqlx_prep_deallocate)'
+ > metric 'prep_execute': unit='', desc='The number of prepared-statement-execute messages received (Mysqlx_prep_execute)'
+ > metric 'prep_prepare': unit='', desc='The number of prepared-statement messages received (Mysqlx_prep_prepare)'
+ > metric 'rows_sent': unit='', desc='The number of rows sent back to clients (Mysqlx_rows_sent)'
+ > metric 'sessions': unit='', desc='The number of sessions that have been opened (Mysqlx_sessions)'
+ > metric 'sessions_accepted': unit='', desc='The number of session attempts which have been accepted (Mysqlx_sessions_accepted)'
+ > metric 'sessions_closed': unit='', desc='The number of sessions that have been closed (Mysqlx_sessions_closed)'
+ > metric 'sessions_fatal_error': unit='', desc='The number of sessions that have closed with a fatal error (Mysqlx_sessions_fatal_error)'
+ > metric 'sessions_killed': unit='', desc='The number of sessions which have been killed (Mysqlx_sessions_killed)'
+ > metric 'sessions_rejected': unit='', desc='The number of session attempts which have been rejected (Mysqlx_sessions_rejected)'
+ > metric 'ssl_accepts': unit='', desc='The number of accepted SSL connections (Mysqlx_ssl_accepts)'
+ > metric 'ssl_finished_accepts': unit='', desc='The number of successful SSL connections to the server (Mysqlx_ssl_finished_accepts)'
+ > metric 'worker_threads': unit='', desc='The number of worker threads available (Mysqlx_worker_threads)'
+ > metric 'worker_threads_active': unit='', desc='The number of worker threads currently used (Mysqlx_worker_threads_active)'
+< meter 'mysql.x' end (46 metrics)
+> meter 'mysql.x.stmt' (desc='MySql X plugin statement statistics', frequency=10) start:
+ > metric 'create_collection': unit='', desc='The number of create collection statements received (Mysqlx_stmt_create_collection)'
+ > metric 'create_collection_index': unit='', desc='The number of create collection index statements received (Mysqlx_stmt_create_collection_index)'
+ > metric 'disable_notices': unit='', desc='The number of disable notice statements received (Mysqlx_stmt_disable_notices)'
+ > metric 'drop_collection': unit='', desc='The number of drop collection statements received (Mysqlx_stmt_drop_collection)'
+ > metric 'drop_collection_index': unit='', desc='The number of drop collection index statements received (Mysqlx_stmt_drop_collection_index)'
+ > metric 'enable_notices': unit='', desc='The number of enable notice statements received (Mysqlx_stmt_enable_notices)'
+ > metric 'ensure_collection': unit='', desc='The number of ensure collection statements received (Mysqlx_stmt_ensure_collection)'
+ > metric 'execute_mysqlx': unit='', desc='The number of StmtExecute messages received with namespace set to mysqlx (Mysqlx_stmt_execute_mysqlx)'
+ > metric 'execute_sql': unit='', desc='The number of StmtExecute requests received for the SQL namespace (Mysqlx_stmt_execute_sql)'
+ > metric 'get_collection_options': unit='', desc='The number of get collection object statements received (Mysqlx_stmt_get_collection_options)'
+ > metric 'kill_client': unit='', desc='The number of kill client statements received (Mysqlx_stmt_kill_client)'
+ > metric 'list_clients': unit='', desc='The number of list client statements received (Mysqlx_stmt_list_clients)'
+ > metric 'list_notices': unit='', desc='The number of list notice statements received (Mysqlx_stmt_list_notices)'
+ > metric 'list_objects': unit='', desc='The number of list object statements received (Mysqlx_stmt_list_objects)'
+ > metric 'modify_collection_options': unit='', desc='The number of modify collection options statements received (Mysqlx_stmt_modify_collection_options)'
+ > metric 'ping': unit='', desc='The number of ping statements received (Mysqlx_stmt_ping)'
+< meter 'mysql.x.stmt' end (16 metrics)
+test_report_metrics < done reporting (total meters=12, metrics=424)
+TEST - Register duplicate meters/metrics:
+test_duplicate_metrics > called
+*** Meter change notification: mysql.test4 added
+*** Meter change - silently enumerate metrics for mysql.test4
+*** Meter change notification: mysql.test4 removed
+TEST - Register invalid meters/metrics:
+test_invalid_metrics > called
+*** Meter change notification: mysql.test5 added
+*** Meter change - silently enumerate metrics for mysql.test5
+*** Meter change notification: mysql.test5 removed
+TEST - Register same meter/metric twice:
+register_metric_a > called
+*** Meter change notification: mysql.test1 added
+*** Meter change - silently enumerate metrics for mysql.test1
+register_metric_a > called
+unregister_metric_a > called
+*** Meter change notification: mysql.test1 removed
+TEST - Restart server with restricted num. of classes:
+*** Meter change notification: mysql.perf_schema removed
+*** Meter change notification: mysql.stats removed
+*** Meter change notification: mysql.stats.com removed
+*** Meter change notification: mysql.stats.connection removed
+*** Meter change notification: mysql.stats.handler removed
+*** Meter change notification: mysql.stats.ssl removed
+*** Meter change notification: mysql.myisam removed
+*** Meter change notification: mysql.x removed
+*** Meter change notification: mysql.x.stmt removed
+*** Meter change notification: mysql.inno removed
+*** Meter change notification: mysql.inno.buffer_pool removed
+*** Meter change notification: mysql.inno.data removed
+test_server_telemetry_metrics_component_deinit:
+ - Meter change notification callback unregistered.
+ - UDFs unregistered.
+ - Test metrics unregistered.
+End of deinit
+test_server_telemetry_metrics_component_init init:
+ - UDFs registered.
+ - Meter change notification callback registered.
+End of init
+test_server_telemetry_metrics_component_deinit:
+ - Meter change notification callback unregistered.
+ - UDFs unregistered.
+ - Test metrics unregistered.
+End of deinit

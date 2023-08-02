@@ -97,6 +97,11 @@ PFS_builtin_memory_class builtin_memory_stage_class;
 PFS_builtin_memory_class builtin_memory_statement_class;
 PFS_builtin_memory_class builtin_memory_memory_class;
 
+PFS_builtin_memory_class builtin_memory_meter_class;
+PFS_builtin_memory_class builtin_memory_meter;
+PFS_builtin_memory_class builtin_memory_metric_class;
+PFS_builtin_memory_class builtin_memory_metric;
+
 PFS_builtin_memory_class builtin_memory_setup_actor;
 PFS_builtin_memory_class builtin_memory_setup_object;
 
@@ -321,6 +326,12 @@ init_all_builtin_memory_class()
   init_builtin_memory_class(&builtin_memory_memory_class,
                             GEN_DOC("memory_class", "memory instrument classes"));
 
+  init_builtin_memory_class(&builtin_memory_meter_class,
+                            GEN_DOC("meter_class", "meter instrument classes"));
+
+  init_builtin_memory_class(&builtin_memory_metric_class,
+                            GEN_DOC("metric_class", "metric instrument classes"));
+
   init_builtin_memory_class(&builtin_memory_setup_actor,
                             TABLE_DOC("setup_actors"));
 
@@ -440,6 +451,8 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
   &builtin_memory_stage_class,
   &builtin_memory_statement_class,
   &builtin_memory_memory_class,
+  &builtin_memory_meter_class,
+  &builtin_memory_metric_class,
 
   &builtin_memory_setup_actor,
   &builtin_memory_setup_object,

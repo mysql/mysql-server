@@ -27,6 +27,7 @@
 
 #include <string>
 
+#include <mysql/psi/psi_metric.h>
 #include "mysql/plugin.h"
 #include "plugin/x/src/server/server_properties.h"
 
@@ -35,9 +36,11 @@ namespace xpl {
 class Plugin_status_variables {
  public:
   static struct SHOW_VAR m_plugin_status_variables[];
+  static PSI_meter_info_v1 m_xpl_meter[];
   static ngs::Server_properties m_properties;
 
   static std::string get_property(const ngs::Server_property_ids id);
+  static size_t get_meter_count();
 };
 
 }  // namespace xpl

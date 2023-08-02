@@ -394,6 +394,8 @@ MySQL clients support the protocol:
   @subpage PAGE_TABLE_ACCESS_SERVICE
   @subpage PAGE_MYSQL_SERVER_TELEMETRY_TRACES_SERVICE
   @subpage page_event_tracking_services
+  @subpage PAGE_MYSQL_SERVER_METRICS_INSTRUMENT_SERVICE
+  @subpage PAGE_MYSQL_SERVER_TELEMETRY_METRICS_SERVICE
 */
 
 
@@ -724,6 +726,7 @@ MySQL clients support the protocol:
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"  // mysql_memory_init
+#include "mysql/psi/mysql_metric.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_socket.h"
@@ -885,11 +888,15 @@ MySQL clients support the protocol:
 #include "strxnmov.h"
 #include "storage/myisam/ha_myisam.h"  // HA_RECOVER_OFF
 #include "storage/perfschema/pfs_services.h"
+#include "storage/perfschema/pfs_buffer_container.h"  // PFS metric counters
+#include "storage/perfschema/pfs_instr_class.h"       // PFS metric counters
+#include "storage/perfschema/telemetry_pfs_metrics.h"  // register_pfs_metric_sources
 #include "strings/str_alloc.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
+#include "pfs_metric_provider.h"
 #include "sql/binlog/services/iterator/file_storage.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -1545,6 +1552,7 @@ Udf_load_service udf_load_service;
 struct System_variables global_system_variables;
 struct System_variables max_system_variables;
 struct System_status_var global_status_var;
+struct aggregated_stats global_aggregated_stats;
 
 MY_TMPDIR mysql_tmpdir_list;
 
@@ -1695,6 +1703,8 @@ static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by
  * handle_options().*/
 static char **remaining_argv;
+
+void unregister_server_metric_sources();
 
 /**
  Holds the "original" (i.e. as on startup) set of arguments.
@@ -2645,6 +2655,9 @@ static void free_connection_acceptors() {
 static void clean_up(bool print_message) {
   DBUG_PRINT("exit", ("clean_up"));
   if (cleanup_done++) return; /* purecov: inspected */
+
+  unregister_pfs_metric_sources();
+  unregister_server_metric_sources();
 
   denit_command_maps();
 
@@ -4824,6 +4837,1681 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
     return my_strdup(key, buff, MYF(0));
   else
     return nullptr;
+}
+
+static void get_metric_connections(void * /* measurement_context */,
+                                   measurement_delivery_callback_t delivery,
+                                   void *delivery_context) {
+  // see show_thread_id_count()
+  assert(delivery != nullptr);
+  const int64_t value = static_cast<int64_t>(
+      Global_THD_manager::get_instance()->get_thread_id() - 1);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_aborted_connects(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_aborted_connects()
+  assert(delivery != nullptr);
+  const int64_t value = static_cast<int64_t>(
+      Connection_handler_manager::get_instance()->aborted_connects());
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_acl_cache_items_count(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_acl_cache_items_count()
+  assert(delivery != nullptr);
+  const int64_t value = static_cast<int64_t>(get_global_acl_cache_size());
+  delivery->value_int64(delivery_context, value);
+}
+
+template <typename T, typename U>
+constexpr bool CanTypeFitValue(const U value) {
+  return ((value > U(0)) == (T(value) > T(0))) && U(T(value)) == value;
+}
+
+template <typename T, typename U>
+T Clamp(U x) {
+  return CanTypeFitValue<T>(x) ? T(x)
+                               : x < 0 ? std::numeric_limits<T>::min()
+                                       : std::numeric_limits<T>::max();
+}
+
+// simple (no measurement attributes supported) metric callback
+template <typename T>
+static void get_metric_simple_integer(void *measurement_context,
+                                      measurement_delivery_callback_t delivery,
+                                      void *delivery_context) {
+  assert(measurement_context != nullptr);
+  assert(delivery != nullptr);
+  // OTEL only supports int64_t integer counters, clamp wider types
+  const T measurement = *(T *)measurement_context;
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+// simple (no measurement attributes supported) metric callback for aggregated
+// values
+static void get_metric_aggregated_integer(
+    void *measurement_context, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+
+  // aggregate single counter across the shards
+  const size_t offset = reinterpret_cast<size_t>(measurement_context);
+  const uint64_t measurement = global_aggregated_stats.get_single_total(offset);
+
+  // OTEL only supports int64_t integer counters, clamp wider types
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ongoing_anonymous_transaction_count(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_ongoing_anonymous_transaction_count()
+  assert(delivery != nullptr);
+  const auto measurement = gtid_state->get_anonymous_ownership_count();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_connection_errors_accept(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_connection_errors_accept()
+  assert(delivery != nullptr);
+  const auto measurement = get_connection_errors_accept();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_connection_errors_max_connection(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_connection_errors_max_connection()
+  assert(delivery != nullptr);
+  const auto measurement = Connection_handler_manager::get_instance()
+                               ->connection_errors_max_connection();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_connection_errors_query_block(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_connection_errors_query_block()
+  assert(delivery != nullptr);
+  const auto measurement = get_connection_errors_query_block();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_connection_errors_tcpwrap(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_connection_errors_tcpwrap()
+  assert(delivery != nullptr);
+  const auto measurement = get_connection_errors_tcpwrap();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_global_mem_counter(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_global_mem_counter()
+  assert(delivery != nullptr);
+  MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+  const auto measurement = global_conn_mem_counter;
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_open_table_definitions(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_table_definitions()
+  assert(delivery != nullptr);
+  const auto measurement = cached_table_definitions();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_open_tables(void * /* measurement_context */,
+                                   measurement_delivery_callback_t delivery,
+                                   void *delivery_context) {
+  // see show_open_tables()
+  assert(delivery != nullptr);
+  const auto measurement = table_cache_manager.cached_tables();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_prepared_stmt_count(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_prepared_stmt_count()
+  assert(delivery != nullptr);
+  mysql_mutex_lock(&LOCK_prepared_stmt_count);
+  const int64_t value = prepared_stmt_count;
+  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_replica_open_temp_tables(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  // see show_replica_open_temp_tables()
+  assert(delivery != nullptr);
+  const int64_t value = atomic_replica_open_temp_tables;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_accept_renegotiates(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_accept_renegotiate(nullptr, &var,
+                                                              (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_accepts(void * /* measurement_context */,
+                                   measurement_delivery_callback_t delivery,
+                                   void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_accept(nullptr, &var, (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_callback_cache_hits(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_cb_hits(nullptr, &var,
+                                                   (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_used_session_cache_entries(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_number(nullptr, &var, (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_session_cache_timeouts(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_timeouts(nullptr, &var,
+                                                    (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_session_cache_size(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_get_cache_size(nullptr, &var,
+                                                          (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_session_cache_overflows(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_cache_full(nullptr, &var,
+                                                      (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_session_cache_misses(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_misses(nullptr, &var, (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_session_cache_hits(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_hits(nullptr, &var, (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_finished_connects(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_connect_good(nullptr, &var,
+                                                        (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_finished_accepts(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_accept_good(nullptr, &var,
+                                                       (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_connect_renegotiates(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_connect_renegotiate(nullptr, &var,
+                                                               (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_client_connects(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  long buff = 0;
+  SHOW_VAR var;
+  Ssl_mysql_main_status::show_ssl_ctx_sess_connect(nullptr, &var,
+                                                   (char *)&buff);
+  const int64_t value = buff;
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_threads_created(void * /* measurement_context */,
+                                       measurement_delivery_callback_t delivery,
+                                       void *delivery_context) {
+  // see show_num_thread_created()
+  assert(delivery != nullptr);
+  const auto measurement =
+      Global_THD_manager::get_instance()->get_num_thread_created();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_threads_running(void * /* measurement_context */,
+                                       measurement_delivery_callback_t delivery,
+                                       void *delivery_context) {
+  // see show_num_thread_running()
+  assert(delivery != nullptr);
+  const auto measurement =
+      Global_THD_manager::get_instance()->get_num_thread_running();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_uptime(void * /* measurement_context */,
+                              measurement_delivery_callback_t delivery,
+                              void *delivery_context) {
+  // see show_starttime(), avoid using current_thd here
+  assert(delivery != nullptr);
+  const auto measurement = time(nullptr) - server_start_time;
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_queries(void * /* measurement_context */,
+                               measurement_delivery_callback_t delivery,
+                               void *delivery_context) {
+  // see show_queries(), avoid using current_thd here
+  assert(delivery != nullptr);
+  const auto measurement = atomic_global_query_id.load();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_threads_cached(void * /* measurement_context */,
+                                      measurement_delivery_callback_t delivery,
+                                      void *delivery_context) {
+  assert(delivery != nullptr);
+  const auto measurement =
+      Per_thread_connection_handler::get_blocked_pthread_count();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_threads_connected(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  const auto measurement = Connection_handler_manager::get_connection_count();
+  const int64_t value = Clamp<int64_t>(measurement);
+  delivery->value_int64(delivery_context, value);
+}
+
+//
+// Telemetry metric sources instrumented within the server itself
+// are being defined below.
+//
+
+static const char *COM_COMMON_DESCRIPTION =
+    "Number of times corresponding command statement has been executed.";
+
+static PSI_metric_info_v1 com_metrics[] = {
+    {"admin_commands", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_other)},
+    {"assign_to_keycache", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ASSIGN_TO_KEYCACHE])},
+    {"alter_db", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_DB])},
+    {"alter_event", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_EVENT])},
+    {"alter_function", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_FUNCTION])},
+    {"alter_instance", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_INSTANCE])},
+    {"alter_procedure", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_PROCEDURE])},
+    {"alter_resource_group", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_RESOURCE_GROUP])},
+    {"alter_server", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_SERVER])},
+    {"alter_table", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_TABLE])},
+    {"alter_tablespace", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_TABLESPACE])},
+    {"alter_user", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_USER])},
+    {"alter_user_default_role", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ALTER_USER_DEFAULT_ROLE])},
+    {"analyze", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_ANALYZE])},
+    {"begin", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_BEGIN])},
+    {"binlog", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_BINLOG_BASE64_EVENT])},
+    {"call_procedure", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_CALL])},
+    {"change_db", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CHANGE_DB])},
+    {"change_master", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CHANGE_MASTER])},
+    {"change_repl_filter", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CHANGE_REPLICATION_FILTER])},
+    {"change_replication_source", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CHANGE_MASTER])},
+    {"check", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_CHECK])},
+    {"checksum", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CHECKSUM])},
+    {"clone", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_CLONE])},
+    {"commit", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_COMMIT])},
+    {"create_db", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_DB])},
+    {"create_event", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_EVENT])},
+    {"create_function", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_SPFUNCTION])},
+    {"create_index", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_INDEX])},
+    {"create_procedure", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_PROCEDURE])},
+    {"create_role", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_ROLE])},
+    {"create_server", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_SERVER])},
+    {"create_table", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_TABLE])},
+    {"create_resource_group", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_RESOURCE_GROUP])},
+    {"create_trigger", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_TRIGGER])},
+    {"create_udf", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_FUNCTION])},
+    {"create_user", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_USER])},
+    {"create_view", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_VIEW])},
+    {"create_spatial_reference_system", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_CREATE_SRS])},
+    {"dealloc_sql", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DEALLOCATE_PREPARE])},
+    {"delete", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_DELETE])},
+    {"delete_multi", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DELETE_MULTI])},
+    {"do", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_DO])},
+    {"drop_db", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_DROP_DB])},
+    {"drop_event", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_EVENT])},
+    {"drop_function", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_FUNCTION])},
+    {"drop_index", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_INDEX])},
+    {"drop_procedure", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_PROCEDURE])},
+    {"drop_resource_group", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_RESOURCE_GROUP])},
+    {"drop_role", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_ROLE])},
+    {"drop_server", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_SERVER])},
+    {"drop_spatial_reference_system", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_SRS])},
+    {"drop_table", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_TABLE])},
+    {"drop_trigger", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_TRIGGER])},
+    {"drop_user", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_USER])},
+    {"drop_view", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_DROP_VIEW])},
+    {"empty_query", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_EMPTY_QUERY])},
+    {"execute_sql", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_EXECUTE])},
+    {"explain_other", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_EXPLAIN_OTHER])},
+    {"flush", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_FLUSH])},
+    {"get_diagnostics", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_GET_DIAGNOSTICS])},
+    {"grant", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_GRANT])},
+    {"grant_roles", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_GRANT_ROLE])},
+    {"ha_close", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_HA_CLOSE])},
+    {"ha_open", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_HA_OPEN])},
+    {"ha_read", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_HA_READ])},
+    {"help", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_HELP])},
+    {"import", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_IMPORT])},
+    {"insert", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_INSERT])},
+    {"insert_select", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_INSERT_SELECT])},
+    {"install_component", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_INSTALL_COMPONENT])},
+    {"install_plugin", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_INSTALL_PLUGIN])},
+    {"kill", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_KILL])},
+    {"load", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_LOAD])},
+    {"lock_instance", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_LOCK_INSTANCE])},
+    {"lock_tables", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_LOCK_TABLES])},
+    {"optimize", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_OPTIMIZE])},
+    {"preload_keys", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_PRELOAD_KEYS])},
+    {"prepare_sql", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_PREPARE])},
+    {"purge", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_PURGE])},
+    {"purge_before_date", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_PURGE_BEFORE])},
+    {"release_savepoint", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_RELEASE_SAVEPOINT])},
+    {"rename_table", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_RENAME_TABLE])},
+    {"rename_user", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_RENAME_USER])},
+    {"repair", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_REPAIR])},
+    {"replace", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_REPLACE])},
+    {"replace_select", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_REPLACE_SELECT])},
+    {"reset", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_RESET])},
+    {"resignal", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_RESIGNAL])},
+    {"restart", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_RESTART_SERVER])},
+    {"revoke", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_REVOKE])},
+    {"revoke_all", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_REVOKE_ALL])},
+    {"revoke_roles", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_REVOKE_ROLE])},
+    {"rollback", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ROLLBACK])},
+    {"rollback_to_savepoint", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_ROLLBACK_TO_SAVEPOINT])},
+    {"savepoint", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SAVEPOINT])},
+    {"select", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_SELECT])},
+    {"set_option", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SET_OPTION])},
+    {"set_password", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SET_PASSWORD])},
+    {"set_resource_group", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SET_RESOURCE_GROUP])},
+    {"set_role", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SET_ROLE])},
+    {"signal", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_SIGNAL])},
+    {"show_binlog_events", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_BINLOG_EVENTS])},
+    {"show_binlogs", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_BINLOGS])},
+    {"show_charsets", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CHARSETS])},
+    {"show_collations", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_COLLATIONS])},
+    {"show_create_db", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_DB])},
+    {"show_create_event", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_EVENT])},
+    {"show_create_func", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_FUNC])},
+    {"show_create_proc", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_PROC])},
+    {"show_create_table", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE])},
+    {"show_create_trigger", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_TRIGGER])},
+    {"show_databases", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_DATABASES])},
+    {"show_engine_logs", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_ENGINE_LOGS])},
+    {"show_engine_mutex", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_ENGINE_MUTEX])},
+    {"show_engine_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_ENGINE_STATUS])},
+    {"show_events", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_EVENTS])},
+    {"show_errors", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_ERRORS])},
+    {"show_fields", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_FIELDS])},
+    {"show_function_code", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_FUNC_CODE])},
+    {"show_function_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_STATUS_FUNC])},
+    {"show_grants", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_GRANTS])},
+    {"show_keys", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_KEYS])},
+    {"show_master_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_MASTER_STAT])},
+    {"show_open_tables", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_OPEN_TABLES])},
+    {"show_plugins", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PLUGINS])},
+    {"show_privileges", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PRIVILEGES])},
+    {"show_procedure_code", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PROC_CODE])},
+    {"show_procedure_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_STATUS_PROC])},
+    {"show_processlist", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PROCESSLIST])},
+    {"show_profile", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PROFILE])},
+    {"show_profiles", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_PROFILES])},
+    {"show_relaylog_events", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_RELAYLOG_EVENTS])},
+    {"show_replicas", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_SLAVE_HOSTS])},
+    {"show_replica_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_SLAVE_STAT])},
+    {"show_status", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_STATUS])},
+    {"show_storage_engines", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_STORAGE_ENGINES])},
+    {"show_table_status", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_TABLE_STATUS])},
+    {"show_tables", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_TABLES])},
+    {"show_triggers", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_TRIGGERS])},
+    {"show_variables", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_VARIABLES])},
+    {"show_warnings", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_WARNS])},
+    {"show_create_user", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHOW_CREATE_USER])},
+    {"shutdown", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SHUTDOWN])},
+    {"replica_start", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SLAVE_START])},
+    {"slave_start", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SLAVE_START])},
+    {"replica_stop", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SLAVE_STOP])},
+    {"slave_stop", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_SLAVE_STOP])},
+    {"group_replication_start", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_START_GROUP_REPLICATION])},
+    {"group_replication_stop", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_STOP_GROUP_REPLICATION])},
+    {"stmt_execute", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_execute)},
+    {"stmt_close", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_close)},
+    {"stmt_fetch", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_fetch)},
+    {"stmt_prepare", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_prepare)},
+    {"stmt_reset", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_reset)},
+    {"stmt_send_long_data", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_send_long_data)},
+    {"truncate", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_TRUNCATE])},
+    {"uninstall_component", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_UNINSTALL_COMPONENT])},
+    {"uninstall_plugin", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_UNINSTALL_PLUGIN])},
+    {"unlock_instance", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_UNLOCK_INSTANCE])},
+    {"unlock_tables", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_UNLOCK_TABLES])},
+    {"update", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_UPDATE])},
+    {"update_multi", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_UPDATE_MULTI])},
+    {"xa_commit", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_XA_COMMIT])},
+    {"xa_end", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stat[(uint)SQLCOM_XA_END])},
+    {"xa_prepare", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_XA_PREPARE])},
+    {"xa_recover", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_XA_RECOVER])},
+    {"xa_rollback", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_XA_ROLLBACK])},
+    {"xa_start", "", COM_COMMON_DESCRIPTION, MetricOTELType::ASYNC_COUNTER,
+     MetricNumType::METRIC_INTEGER, 0, 0, get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      com_stat[(uint)SQLCOM_XA_START])},
+    {"stmt_reprepare", "", COM_COMMON_DESCRIPTION,
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, com_stmt_reprepare)}};
+
+static PSI_metric_info_v1 core_metrics[] = {
+
+    {"threads_cached", "",
+     "The number of threads in the thread cache (Threads_cached)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_threads_cached, nullptr},
+    {"threads_connected", "",
+     "The number of currently open connections (Threads_connected)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_threads_connected, nullptr},
+    {"threads_created", "",
+     "The number of threads created to handle connections (Threads_created)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_threads_created, nullptr},
+    {"threads_running", "",
+     "The number of threads that are not sleeping (Threads_running)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_threads_running, nullptr},
+    {"uptime", "", "The number of seconds that the server has been up (Uptime)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_uptime, nullptr},
+    {"table_locks_immediate", "",
+     "The number of times that a request for a table lock could be granted "
+     "immediately (Table_locks_immediate)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(locks_immediate)>, &locks_immediate},
+    {"table_locks_waited", "",
+     "The number of times that a request for a table lock could not be granted "
+     "immediately and a wait was needed (Table_locks_waited)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(locks_waited)>, &locks_waited},
+    {"table_open_cache_hits", "",
+     "The number of hits for open tables cache lookups (Table_open_cache_hits)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, table_open_cache_hits)},
+    {"table_open_cache_misses", "",
+     "The number of misses for open tables cache lookups "
+     "(Table_open_cache_misses)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, table_open_cache_misses)},
+    {"table_open_cache_overflows", "",
+     "The number of overflows for the open tables cache "
+     "(Table_open_cache_overflows)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, table_open_cache_overflows)},
+    {"tc_log_page_waits", "",
+     "For the memory-mapped implementation of the recovery log, this variable "
+     "increments each time the server was not able to commit a transaction and "
+     "had to wait for a free page in the log (Tc_log_page_waits)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(tc_log_page_waits)>,
+     &tc_log_page_waits},
+    {"created.tmp_disk_tables", "",
+     "The number of internal on-disk temporary tables created by the server "
+     "while executing statements (Created_tmp_disk_tables)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, created_tmp_disk_tables)},
+    {"created.tmp_files", "",
+     "How many temporary files mysqld has created (Created_tmp_files)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(my_tmp_file_created)>,
+     &my_tmp_file_created},
+    {"created.tmp_tables", "",
+     "The number of internal temporary tables created by the server while "
+     "executing statements (Created_tmp_tables)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, created_tmp_tables)},
+    {"error_log.buffered_bytes", "",
+     "The number of bytes currently used in the Performance Schema error_log "
+     "table (Error_log_buffered_bytes)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(log_sink_pfs_buffered_bytes)>,
+     &log_sink_pfs_buffered_bytes},
+    {"error_log.buffered_events", "",
+     "The number of events currently present in the Performance Schema "
+     "error_log table (Error_log_buffered_events)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(log_sink_pfs_buffered_events)>,
+     &log_sink_pfs_buffered_events},
+    {"error_log.expired_events", "",
+     "The number of events discarded from the Performance Schema error_log "
+     "table to make room for new events (Error_log_expired_events)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(log_sink_pfs_expired_events)>,
+     &log_sink_pfs_expired_events},
+    {"flush_commands", "",
+     "The number of times the server flushes tables (Flush_commands)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(refresh_version)>, &refresh_version},
+    {"global_connection_memory", "",
+     "The memory used by all user connections to the server "
+     "(Global_connection_memory)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_global_mem_counter, nullptr},
+    {"locked_connects", "",
+     "The number of attempts to connect to locked user accounts "
+     "(Locked_connects)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(locked_account_connection_count)>,
+     &locked_account_connection_count},
+    {"max_execution_time_exceeded", "",
+     "The number of SELECT statements for which the execution timeout was "
+     "exceeded (Max_execution_time_exceeded)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, max_execution_time_exceeded)},
+    {"max_execution_time_set", "",
+     "The number of SELECT statements for which a nonzero execution timeout "
+     "was set (Max_execution_time_set)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, max_execution_time_set)},
+    {"max_execution_time_set_failed", "",
+     "The number of SELECT statements for which the attempt to set an "
+     "execution timeout failed (Max_execution_time_set_failed)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, max_execution_time_set_failed)},
+    {"max_used_connections", "",
+     "The maximum number of connections that have been in use simultaneously "
+     "since the server started (Max_used_connections)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(
+         Connection_handler_manager::max_used_connections)>,
+     &Connection_handler_manager::max_used_connections},
+    {"open_files", "",
+     "The number of files that are open. This count includes regular files "
+     "opened by the server (Open_files)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(my_file_opened)>, &my_file_opened},
+    {"open_streams", "",
+     "The number of streams that are open, used mainly for logging "
+     "(Open_streams)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(my_stream_opened)>, &my_stream_opened},
+    {"open_table_definitions", "",
+     "The number of cached table definitions (Open_table_definitions)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_open_table_definitions, nullptr},
+    {"open_tables", "", "The number of tables that are open (Open_tables)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_open_tables, nullptr},
+    {"opened_files", "",
+     "The number of files that have been opened with my_open() (Opened_files)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(my_file_total_opened)>,
+     &my_file_total_opened},
+    {"opened_tables", "",
+     "The number of tables that have been opened (Opened_tables)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, opened_tables)},
+    {"opened_table_definitions", "",
+     "The number of table definitions that have been cached "
+     "(Opened_table_definitions)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, opened_shares)},
+    {"prepared_stmt_count", "",
+     "The current number of prepared statements (Prepared_stmt_count)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_prepared_stmt_count, nullptr},
+    {"replica_open_temp_tables", "",
+     "Number of temporary tables that the replication SQL thread currently has "
+     "open (Replica_open_temp_tables)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_replica_open_temp_tables, nullptr},
+    {"questions", "",
+     "The number of statements executed by the server. This includes only "
+     "statements sent to the server by clients and not statements executed "
+     "within stored programs (Questions)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, questions)},
+    {"queries", "",
+     "The number of statements executed by the server, including ones executed "
+     "within stored programs. It does not count COM_PING or COM_STATISTICS "
+     "commands (Queries)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_queries, nullptr},
+    {"secondary_engine_execution_count", "",
+     "The number of queries offloaded to a secondary engine "
+     "(Secondary_engine_execution_count)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer,
+                      secondary_engine_execution_count)},
+    {"select_full_join", "",
+     "The number of joins that perform table scans because they do not use "
+     "indexes (Select_full_join)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, select_full_join_count)},
+    {"select_full_range_join", "",
+     "The number of joins that used a range search on a reference table "
+     "(Select_full_range_join)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, select_full_range_join_count)},
+    {"select_range", "",
+     "The number of joins that used ranges on the first table (Select_range)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, select_range_count)},
+    {"select_range_check", "",
+     "The number of joins without keys that check for key usage after each "
+     "row (Select_range_check)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, select_range_check_count)},
+    {"select_scan", "",
+     "The number of joins that did a full scan of the first table "
+     "(Select_scan)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, select_scan_count)},
+    {"slow_launch_threads", "",
+     "The number of threads that have taken more than slow_launch_time seconds "
+     "to create (Slow_launch_threads)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(
+         Per_thread_connection_handler::slow_launch_threads)>,
+     &Per_thread_connection_handler::slow_launch_threads},
+    {"slow_queries", "",
+     "The number of queries that have taken more than long_query_time seconds "
+     "(Slow_queries)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, long_query_count)},
+    {"sort_merge_passes", "",
+     "The number of merge passes that the sort algorithm has had to do "
+     "(Sort_merge_passes)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, filesort_merge_passes)},
+    {"sort_range", "",
+     "The number of sorts that were done using ranges (Sort_range)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, filesort_range_count)},
+    {"sort_rows", "", "The number of sorted rows (Sort_rows)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, filesort_rows)},
+    {"sort_scan", "",
+     "The number of sorts that were done by scanning the table (Sort_scan)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, filesort_scan_count)},
+    {"ongoing_anonymous_transaction_count", "",
+     "Shows the number of ongoing transactions which have been marked as "
+     "anonymous (Ongoing_anonymous_transaction_count)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ongoing_anonymous_transaction_count, nullptr},
+    {"binlog_cache.disk_use", "",
+     "The number of transactions that used the temporary binary log cache but "
+     "that exceeded the value of binlog_cache_size and used a temporary file "
+     "to store statements from the transaction (Binlog_cache_disk_use)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(binlog_cache_disk_use)>,
+     &binlog_cache_disk_use},
+    {"binlog_cache.use", "",
+     "The number of transactions that used the binary log cache "
+     "(Binlog_cache_use)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(binlog_cache_use)>, &binlog_cache_use},
+    {"aborted_clients", "",
+     "The number of connections that were aborted because the client died "
+     "without closing the connection properly (Aborted_clients)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(aborted_threads)>, &aborted_threads},
+    {"aborted_connects", "",
+     "The number of failed attempts to connect to the MySQL server "
+     "(Aborted_connects)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aborted_connects, nullptr},
+    {"bytes_sent", "", "The number of bytes sent to all clients (Bytes_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, bytes_sent)},
+    {"bytes_received", "",
+     "The number of bytes received from all clients (Bytes_received)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, bytes_received)},
+    {"acl_cache_items_count", "",
+     "The number of cached privilege objects (Acl_cache_items_count)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_acl_cache_items_count, nullptr},
+    {"binlog_stmt_cache_disk_use", "",
+     "The number of nontransaction statements that used the binary log "
+     "statement cache but that exceeded the value of binlog_stmt_cache_size "
+     "and used a temporary file to store those statements "
+     "(Binlog_stmt_cache_disk_use)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(binlog_stmt_cache_disk_use)>,
+     &binlog_stmt_cache_disk_use},
+    {"binlog_stmt_cache_use", "",
+     "The number of nontransactional statements that used the binary log "
+     "statement cache (Binlog_stmt_cache_use)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(binlog_stmt_cache_use)>,
+     &binlog_stmt_cache_use}};
+
+static PSI_metric_info_v1 connection_metrics[] = {
+    {"total", "", "Cumulative count of total connections created (Connections)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_connections, nullptr},
+    {"errors_accept", "",
+     "The number of errors that occurred during calls to accept() on the "
+     "listening port (Connection_errors_accept)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_connection_errors_accept, nullptr},
+    {"errors_internal", "",
+     "The number of connections refused due to internal errors in the server, "
+     "such as failure to start a new thread or an out-of-memory condition "
+     "(Connection_errors_internal)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(connection_errors_internal)>,
+     &connection_errors_internal},
+    {"errors_max_connections", "",
+     "The number of connections refused because the server max_connections "
+     "limit was reached (Connection_errors_max_connections)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_connection_errors_max_connection, nullptr},
+    {"errors_peer_address", "",
+     "The number of errors that occurred while searching for connecting client "
+     "IP addresses (Connection_errors_peer_address)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(connection_errors_peer_addr)>,
+     &connection_errors_peer_addr},
+    {"errors_select", "",
+     "The number of errors that occurred during calls to select() or poll() on "
+     "the listening port (Connection_errors_select)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_connection_errors_query_block, nullptr},
+    {"errors_tcpwrap", "",
+     "The number of connections refused by the libwrap library "
+     "(Connection_errors_tcpwrap)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_connection_errors_tcpwrap, nullptr}};
+
+static PSI_metric_info_v1 handler_metrics[] = {
+    {"commit", "", "The number of internal COMMIT statements (Handler_commit)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_commit_count)},
+    {"delete", "",
+     "The number of times that rows have been deleted from tables "
+     "(Handler_delete)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_delete_count)},
+    {"discover", "",
+     "The number of times that tables have been discovered (Handler_discover)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_discover_count)},
+    {"external_lock", "",
+     "The server increments this variable for each call to its external_lock() "
+     "function, which generally occurs at the beginning and end of access to a "
+     "table instance (Handler_external_lock)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_external_lock_count)},
+    {"mrr_init", "",
+     "The number of times the server uses a storage engine's own Multi-Range "
+     "Read implementation for table access (Handler_mrr_init)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_multi_range_read_init_count)},
+    {"prepare", "",
+     "A counter for the prepare phase of two-phase commit operations "
+     "(Handler_prepare)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_prepare_count)},
+    {"read_first", "",
+     "The number of times the first entry in an index was read "
+     "(Handler_read_first)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_first_count)},
+    {"read_key", "",
+     "The number of requests to read a row based on a key (Handler_read_key)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_key_count)},
+    {"read_last", "",
+     "The number of requests to read the last key in an index "
+     "(Handler_read_last)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_last_count)},
+    {"read_next", "",
+     "The number of requests to read the next row in key order "
+     "(Handler_read_next)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_next_count)},
+    {"read_prev", "",
+     "The number of requests to read the previous row in key order "
+     "(Handler_read_prev)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_prev_count)},
+    {"read_rnd", "",
+     "The number of requests to read a row based on a fixed position "
+     "(Handler_read_rnd)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_rnd_count)},
+    {"read_rnd_next", "",
+     "The number of requests to read the next row in the data file "
+     "(Handler_read_rnd_next)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_read_rnd_next_count)},
+    {"rollback", "",
+     "The number of requests for a storage engine to perform a rollback "
+     "operation (Handler_rollback)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_rollback_count)},
+    {"savepoint", "",
+     "The number of requests for a storage engine to place a savepoint "
+     "(Handler_savepoint)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_savepoint_count)},
+    {"savepoint_rollback", "",
+     "The number of requests for a storage engine to roll back to a savepoint "
+     "(Handler_savepoint_rollback)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_savepoint_rollback_count)},
+    {"update", "",
+     "The number of requests to update a row in a table (Handler_update)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_update_count)},
+    {"write", "",
+     "The number of requests to insert a row in a table (Handler_write)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_aggregated_integer,
+     (void *)offsetof(aggregated_stats_buffer, ha_write_count)}};
+
+static PSI_metric_info_v1 myisam_metrics[] = {
+    {"key_blocks_not_flushed", "",
+     "The number of key blocks in the MyISAM key cache that have changed but "
+     "have not yet been flushed to disk (Key_blocks_not_flushed)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(dflt_key_cache->global_blocks_changed)>,
+     &dflt_key_cache->global_blocks_changed},
+    {"key_blocks_unused", "",
+     "The number of unused blocks in the MyISAM key cache (Key_blocks_unused)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(dflt_key_cache->blocks_unused)>,
+     &dflt_key_cache->blocks_unused},
+    {"key_blocks_used", "",
+     "The number of used blocks in the MyISAM key cache (Key_blocks_used)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(dflt_key_cache->blocks_used)>,
+     &dflt_key_cache->blocks_used},
+    {"key_read_requests", "",
+     "The number of requests to read a key block from the MyISAM key cache "
+     "(Key_read_requests)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(
+         dflt_key_cache->global_cache_r_requests)>,
+     &dflt_key_cache->global_cache_r_requests},
+    {"key_reads", "",
+     "The number of physical reads of a key block from disk into the MyISAM "
+     "key cache (Key_reads)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(dflt_key_cache->global_cache_read)>,
+     &dflt_key_cache->global_cache_read},
+    {"key_write_requests", "",
+     "The number of requests to write a key block to the MyISAM key cache "
+     "(Key_write_requests)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(
+         dflt_key_cache->global_cache_w_requests)>,
+     &dflt_key_cache->global_cache_w_requests},
+    {"key_writes", "",
+     "The number of physical writes of a key block from the MyISAM key cache "
+     "to disk (Key_writes)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(dflt_key_cache->global_cache_write)>,
+     &dflt_key_cache->global_cache_write}};
+
+static PSI_metric_info_v1 ssl_metrics[] = {
+    {"client_connects", "",
+     "The number of SSL connection attempts to an SSL-enabled replication "
+     "source server (Ssl_client_connects)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_client_connects, nullptr},
+    {"connect_renegotiates", "",
+     "The number of negotiates needed to establish the connection to an "
+     "SSL-enabled replication source server (Ssl_connect_renegotiates)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_connect_renegotiates, nullptr},
+    {"finished_accepts", "",
+     "The number of successful SSL connections to the server "
+     "(Ssl_finished_accepts)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_finished_accepts, nullptr},
+    {"finished_connects", "",
+     "The number of successful replica connections to an SSL-enabled "
+     "replication source server (Ssl_finished_connects)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_finished_connects, nullptr},
+    {"session_cache_hits", "",
+     "The number of SSL session cache hits (Ssl_session_cache_hits)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_session_cache_hits, nullptr},
+    {"session_cache_misses", "",
+     "The number of SSL session cache misses (Ssl_session_cache_misses)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_session_cache_misses, nullptr},
+    {"session_cache_overflows", "",
+     "The number of SSL session cache overflows (Ssl_session_cache_overflows)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_session_cache_overflows, nullptr},
+    {"session_cache_size", "",
+     "The SSL session cache size (Ssl_session_cache_size)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_session_cache_size, nullptr},
+    {"session_cache_timeouts", "",
+     "The number of SSL session cache timeouts (Ssl_session_cache_timeouts)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_session_cache_timeouts, nullptr},
+    {"used_session_cache_entries", "",
+     "How many SSL session cache entries were used "
+     "(Ssl_used_session_cache_entries)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_used_session_cache_entries, nullptr},
+    {"accept_renegotiates", "",
+     "The number of negotiates needed to establish the connection "
+     "(Ssl_accept_renegotiates)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_accept_renegotiates, nullptr},
+    {"accepts", "", "The number of accepted SSL connections (Ssl_accepts)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_accepts, nullptr},
+    {"callback_cache_hits", "",
+     "The number of accepted SSL connections (Ssl_callback_cache_hits)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_callback_cache_hits, nullptr}};
+
+static PSI_meter_info_v1 core_meters[] = {
+    {"mysql.stats", "MySql core metrics", 10, 0, 0, core_metrics,
+     std::size(core_metrics)},
+    {"mysql.stats.com", "MySql command stats", 10, 0, 0, com_metrics,
+     std::size(com_metrics)},
+    {"mysql.stats.connection", "MySql connection stats", 10, 0, 0,
+     connection_metrics, std::size(connection_metrics)},
+    {"mysql.stats.handler", "MySql handler stats", 10, 0, 0, handler_metrics,
+     std::size(handler_metrics)},
+    {"mysql.stats.ssl", "MySql TLS related stats", 10, 0, 0, ssl_metrics,
+     std::size(ssl_metrics)},
+    {"mysql.myisam", "MySql MyISAM storage engine stats", 10, 0, 0,
+     myisam_metrics, std::size(myisam_metrics)}};
+
+void register_server_metric_sources() {
+  mysql_meter_register(core_meters, std::size(core_meters));
+}
+
+void unregister_server_metric_sources() {
+  mysql_meter_unregister(core_meters, std::size(core_meters));
 }
 
 int init_common_variables() {
@@ -7618,6 +9306,13 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
+  if (psi_metric_hook != nullptr) {
+    service = psi_metric_hook->get_interface(PSI_CURRENT_METRIC_VERSION);
+    if (service != nullptr) {
+      set_psi_metric_service(service);
+    }
+  }
+
   /*
     Now that we have parsed the command line arguments, and have initialized
     the performance schema itself, the next step is to register all the
@@ -8091,6 +9786,9 @@ int mysqld_main(int argc, char **argv)
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }
+
+  register_server_metric_sources();
+  register_pfs_metric_sources();
 
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
@@ -9708,6 +11406,18 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
+static int show_telemetry_metrics_support(THD * /*unused*/, SHOW_VAR *var,
+                                          char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+#ifdef HAVE_PSI_METRICS_INTERFACE
+  *(pointer_cast<bool *>(buf)) = true;
+#else
+  *(pointer_cast<bool *>(buf)) = false;
+#endif /* HAVE_PSI_METRICS_INTERFACE */
+  return 0;
+}
+
 static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
                                          char *buf) {
   var->type = SHOW_BOOL;
@@ -10078,6 +11788,8 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Telemetry_metrics_supported", (char *)show_telemetry_metrics_support,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Tls_sni_server_name", (char *)&show_ssl_get_tls_sni_servername, SHOW_FUNC,

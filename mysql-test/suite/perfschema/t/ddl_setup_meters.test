@@ -1,0 +1,22 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.setup_meters ADD COLUMN foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.setup_meters;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.setup_meters ADD INDEX test_index(NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.setup_meters(NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY` ON performance_schema.setup_meters;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.setup_meters;
+
+DROP TABLE test.create_select;
+

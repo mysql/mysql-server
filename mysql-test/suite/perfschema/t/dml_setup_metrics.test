@@ -1,0 +1,70 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_server_telemetry_metrics.inc
+
+# The query result are not re producible,
+# due to variations in platforms and plugins
+# We still execute the select statement, for:
+# - code coverage
+# - make sure it does not crash
+# - valgrind coverage
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_metrics;
+--enable_result_log
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_metrics
+  WHERE NAME='uptime';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.setup_metrics
+  SET NAME='FOO';
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_metrics;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.setup_metrics;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.setup_metrics
+  WHERE NAME LIKE 'uptime';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.setup_metrics WRITE;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.setup_metrics WRITE;
+
+# METER column
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.setup_metrics
+  SET METER='mysql.test';
+
+# METRIC_TYPE column
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.setup_metrics
+  SET METRIC_TYPE='ASYNC COUNTER';
+
+# NUM_TYPE column
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.setup_metrics
+  SET NUM_TYPE='DOUBLE';
+
+# UNIT column
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.setup_metrics
+  SET UNIT='By';
+
+# DESCRIPTION column
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.setup_metrics
+  SET DESCRIPTION='Something';
+

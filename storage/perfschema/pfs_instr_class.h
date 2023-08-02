@@ -33,6 +33,7 @@
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
+#include "mysql/components/services/bits/psi_metric_bits.h"
 #include "mysql_com.h" /* NAME_LEN */
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -103,6 +104,10 @@ typedef unsigned int PFS_transaction_key;
 typedef unsigned int PFS_socket_key;
 /** Key, naming a memory instrument. */
 typedef unsigned int PFS_memory_key;
+/** Key, naming a meter instrument. */
+typedef unsigned int PFS_meter_key;
+/** Key, naming a metric instrument. */
+typedef unsigned int PFS_metric_key;
 
 enum PFS_class_type {
   PFS_CLASS_NONE = 0,
@@ -122,7 +127,9 @@ enum PFS_class_type {
   PFS_CLASS_METADATA = 14,
   PFS_CLASS_ERROR = 15,
   PFS_CLASS_THREAD = 16,
-  PFS_CLASS_LAST = PFS_CLASS_THREAD,
+  PFS_CLASS_METRIC = 17,
+  PFS_CLASS_METER = 18,
+  PFS_CLASS_LAST = PFS_CLASS_METER,
   PFS_CLASS_MAX = PFS_CLASS_LAST + 1
 };
 
@@ -354,6 +361,48 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class {
   char m_os_name[PFS_MAX_OS_NAME_LENGTH];
   /** Thread instance sequence number counter. */
   std::atomic<unsigned int> m_seqnum;
+};
+
+/** Instrumentation metadata for a metric. */
+struct PFS_ALIGNED PFS_metric_class : public PFS_instr_class {
+  pfs_lock m_lock;
+
+  /** Metric name with length. */
+  const char *m_metric;
+  uint m_metric_length;
+  /** Metric group with length. */
+  const char *m_group;
+  uint m_group_length;
+  /** Metric unit with length. */
+  const char *m_unit;
+  uint m_unit_length;
+  /** Metric description with length. */
+  const char *m_description;
+  uint m_description_length;
+  MetricNumType m_num_type;
+  MetricOTELType m_metric_type;
+  PSI_metric_key m_key;
+  measurement_callback_t m_measurement_callback;
+  void *m_measurement_context;
+};
+
+/** Instrumentation metadata for a meter. */
+struct PFS_ALIGNED PFS_meter_class : public PFS_instr_class {
+  pfs_lock m_lock;
+
+  /** Meter name with length. */
+  const char *m_meter;
+  uint m_meter_length;
+  /** Meter export frequency in seconds. */
+  uint m_frequency;
+  /** Meter description with length. */
+  const char *m_description;
+  uint m_description_length;
+  PSI_meter_key m_key;
+
+  /** Metrics belonging to this meter. */
+  PSI_metric_key *m_metrics;
+  uint m_metrics_size;
 };
 
 /** Key identifying a table share. */
@@ -607,6 +656,10 @@ int init_socket_class(uint socket_class_sizing);
 void cleanup_socket_class();
 int init_memory_class(uint memory_class_sizing);
 void cleanup_memory_class();
+int init_metric_class(uint metric_class_sizing);
+void cleanup_metric_class();
+int init_meter_class(uint meter_class_sizing);
+void cleanup_meter_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
                                   PSI_mutex_info *info);
@@ -634,6 +687,16 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
 
 PFS_memory_key register_memory_class(const char *name, uint name_length,
                                      PSI_memory_info *info);
+
+PFS_meter_key register_meter_class(const char *name, uint name_length,
+                                   PSI_meter_info_v1 *info);
+void unregister_meter_class(PSI_meter_info_v1 *info);
+uint32 meter_class_count();
+PFS_metric_key register_metric_class(const char *name, uint name_length,
+                                     PSI_metric_info_v1 *info,
+                                     const char *meter);
+void unregister_metric_class(PSI_metric_info_v1 *info);
+uint32 metric_class_count();
 
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);
@@ -664,6 +727,10 @@ PFS_error_class *sanitize_error_class(PFS_instr_class *unsafe);
 PFS_transaction_class *find_transaction_class(uint index);
 PFS_transaction_class *sanitize_transaction_class(
     PFS_transaction_class *unsafe);
+PFS_meter_class *find_meter_class(PSI_meter_key key);
+PFS_meter_class *sanitize_meter_class(PFS_meter_class *unsafe);
+PFS_metric_class *find_metric_class(PSI_metric_key key);
+PFS_metric_class *sanitize_metric_class(PFS_metric_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread, bool temporary,
                                             const TABLE_SHARE *share);
@@ -693,6 +760,10 @@ extern ulong socket_class_max;
 extern ulong socket_class_lost;
 extern ulong memory_class_max;
 extern ulong memory_class_lost;
+extern ulong meter_class_max;
+extern ulong meter_class_lost;
+extern ulong metric_class_max;
+extern ulong metric_class_lost;
 extern ulong error_class_max;
 
 /* Exposing the data directly, for iterators. */
@@ -701,6 +772,8 @@ extern PFS_mutex_class *mutex_class_array;
 extern PFS_rwlock_class *rwlock_class_array;
 extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
+extern PFS_meter_class *meter_class_array;
+extern PFS_metric_class *metric_class_array;
 
 void reset_events_waits_by_class();
 void reset_file_class_io();

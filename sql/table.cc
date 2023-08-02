@@ -3283,7 +3283,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
   /* Increment the opened_tables counter, only when open flags set. */
-  if (db_stat) thd->status_var.opened_tables++;
+  if (db_stat) {
+    thd->status_var.opened_tables++;
+    global_aggregated_stats.get_shard(thd->thread_id()).opened_tables++;
+  }
 
   return 0;
 

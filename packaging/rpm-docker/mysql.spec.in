@@ -289,6 +289,7 @@ for p in \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \
          component_test_sensitive_system_variables.so \
+         component_test_server_telemetry_metrics.so \
          component_test_server_telemetry_traces.so \
          component_test_status_var_service_int.so \
          component_test_status_var_service_reg_only.so \
@@ -559,6 +560,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon Jul 24 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.2.0-1
+- Added component_test_server_telemetry_metrics test component
+
 * Wed Mar 01 2023 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.34-1
 - Added components, libraries and binaries related to event tracking
 

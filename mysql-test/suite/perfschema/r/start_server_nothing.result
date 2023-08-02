@@ -138,6 +138,8 @@ performance_schema_max_file_instances	0
 performance_schema_max_index_stat	0
 performance_schema_max_memory_classes	0
 performance_schema_max_metadata_locks	0
+performance_schema_max_meter_classes	0
+performance_schema_max_metric_classes	0
 performance_schema_max_mutex_classes	0
 performance_schema_max_mutex_instances	0
 performance_schema_max_prepared_statements_instances	-1
@@ -221,6 +223,8 @@ memory/performance_schema/memory_summary_by_thread_by_event_name	YES	NULL	global
 memory/performance_schema/memory_summary_by_user_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_by_user_by_event_name
 memory/performance_schema/memory_summary_global_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.memory_summary_global_by_event_name
 memory/performance_schema/metadata_locks	YES	NULL	global_statistics	1	Memory used for table performance_schema.metadata_locks
+memory/performance_schema/meter_class	YES	NULL	global_statistics	1	Memory used for meter instrument classes
+memory/performance_schema/metric_class	YES	NULL	global_statistics	1	Memory used for metric instrument classes
 memory/performance_schema/mutex_class	YES	NULL	global_statistics	1	Memory used for mutex instrument classes
 memory/performance_schema/mutex_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.mutex_instances
 memory/performance_schema/prepared_statements_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.prepared_statements_instances

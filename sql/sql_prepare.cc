@@ -1984,6 +1984,7 @@ void mysql_sql_stmt_execute(THD *thd) {
 void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows) {
   DBUG_TRACE;
   thd->status_var.com_stmt_fetch++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_fetch++;
 
   Server_side_cursor *cursor = stmt->m_cursor;
   if (cursor == nullptr || !cursor->is_open()) {
@@ -2023,6 +2024,7 @@ void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt) {
   DBUG_TRACE;
 
   thd->status_var.com_stmt_reset++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_reset++;
   stmt->close_cursor();
 
   /*
@@ -2114,6 +2116,7 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
   DBUG_TRACE;
 
   thd->status_var.com_stmt_send_long_data++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_send_long_data++;
   Diagnostics_area new_stmt_da(false);
   thd->push_diagnostics_area(&new_stmt_da);
 
@@ -2473,6 +2476,7 @@ bool Prepared_statement::prepare(THD *thd, const char *query_str,
     no matter what kind of prepare is processed.
   */
   thd->status_var.com_stmt_prepare++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_prepare++;
 
   assert(m_lex == nullptr);
 
@@ -3225,6 +3229,7 @@ bool Prepared_statement::reprepare(THD *thd) {
       create_scope_guard([&]() { swap_prepared_statement(&copy); });
 
   thd->status_var.com_stmt_reprepare++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_reprepare++;
 
   /*
     m_name has been moved to the copy. Allocate it again in the original
@@ -3416,6 +3421,7 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
   assert(thd->item_list() == nullptr);
 
   thd->status_var.com_stmt_execute++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_execute++;
 
   /*
     Reset the diagnostics area.
@@ -3686,6 +3692,7 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
 void Prepared_statement::deallocate(THD *thd) {
   /* We account deallocate in the same manner as mysqld_stmt_close */
   thd->status_var.com_stmt_close++;
+  global_aggregated_stats.get_shard(thd->thread_id()).com_stmt_close++;
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
 }

@@ -51,6 +51,7 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/psi_cond_service.h>
 #include <mysql/components/services/psi_error_service.h>
@@ -58,6 +59,7 @@
 #include <mysql/components/services/psi_idle_service.h>
 #include <mysql/components/services/psi_mdl_service.h>
 #include <mysql/components/services/psi_memory_service.h>
+#include <mysql/components/services/psi_metric_service.h>
 #include <mysql/components/services/psi_mutex_service.h>
 #include <mysql/components/services/psi_rwlock_service.h>
 #include <mysql/components/services/psi_socket_service.h>
@@ -84,6 +86,7 @@
 #include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_metric.h"
 #include "mysql/strings/m_ctype.h"
 #include "pfs_error_provider.h"
 /* Make sure exported prototypes match the implementation. */
@@ -91,6 +94,7 @@
 #include "pfs_idle_provider.h"
 #include "pfs_memory_provider.h"
 #include "pfs_metadata_provider.h"
+#include "pfs_metric_provider.h"
 #include "pfs_socket_provider.h"
 #include "pfs_stage_provider.h"
 #include "pfs_statement_provider.h"
@@ -117,6 +121,7 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_metrics_service_imp.h"
 #include "storage/perfschema/pfs_plugin_table.h"
 #include "storage/perfschema/pfs_prepared_stmt.h"
 #include "storage/perfschema/pfs_program.h"
@@ -142,6 +147,7 @@
 #define DISABLE_PSI_IDLE
 #define DISABLE_PSI_MEMORY
 #define DISABLE_PSI_METADATA
+#define DISABLE_PSI_METRICS
 #define DISABLE_PSI_MUTEX
 #define DISABLE_PSI_PS
 #define DISABLE_PSI_RWLOCK
@@ -9930,6 +9936,8 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
     PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
+    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_metrics_v1),
+    PROVIDES_SERVICE(performance_schema, psi_metric_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_text_v1),
     END_COMPONENT_PROVIDES();
 

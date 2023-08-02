@@ -1,0 +1,71 @@
+# Tests for PERFORMANCE_SCHEMA
+--source include/have_server_telemetry_metrics.inc
+
+# The query result are not re producible,
+# due to variations in platforms and plugins
+# We still execute the select statement, for:
+# - code coverage
+# - make sure it does not crash
+# - valgrind coverage
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_meters;
+--enable_result_log
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_meters
+  WHERE NAME='mysql.stats';
+--enable_result_log
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_meters
+  WHERE ENABLED='YES';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.setup_meters
+  SET NAME='FOO', ENABLED='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.setup_meters
+  SET NAME='FOO';
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED='NO';
+
+--disable_result_log
+SELECT * FROM performance_schema.setup_meters;
+--enable_result_log
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED='YES';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.setup_meters;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.setup_meters
+  WHERE NAME LIKE 'mysql.stats';
+
+LOCK TABLES performance_schema.setup_meters READ;
+UNLOCK TABLES;
+
+LOCK TABLES performance_schema.setup_meters WRITE;
+UNLOCK TABLES;
+
+# FREQUENCY column
+
+UPDATE performance_schema.setup_meters
+  SET FREQUENCY=100;
+
+# DESCRIPTION column
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+UPDATE performance_schema.setup_meters
+  SET DESCRIPTION='Something';
+
+# Test cleanup
+
+UPDATE performance_schema.setup_meters
+  SET ENABLED='YES';
+

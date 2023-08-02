@@ -38,6 +38,7 @@
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
+#include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
 
 PFS_thread pfs_thread;

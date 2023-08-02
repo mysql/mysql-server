@@ -1941,6 +1941,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
+      global_aggregated_stats.get_shard(thd->thread_id()).ha_commit_count++;
       ha_info.reset(); /* keep it conveniently zero-filled */
     }
     if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
@@ -2020,6 +2021,7 @@ int ha_rollback_low(THD *thd, bool all) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_rollback_count++;
+      global_aggregated_stats.get_shard(thd->thread_id()).ha_rollback_count++;
       ha_info.reset(); /* keep it conveniently zero-filled */
     }
     if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
@@ -2185,6 +2187,7 @@ int ha_commit_attachable(THD *thd) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
+      global_aggregated_stats.get_shard(thd->thread_id()).ha_commit_count++;
       ha_info.reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(Transaction_ctx::STMT);
@@ -2269,6 +2272,8 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     }
     assert(!thd->status_var_aggregated);
     thd->status_var.ha_savepoint_rollback_count++;
+    global_aggregated_stats.get_shard(thd->thread_id())
+        .ha_savepoint_rollback_count++;
     if (ht->prepare == nullptr) trn_ctx->set_no_2pc(trx_scope, true);
   }
 
@@ -2288,6 +2293,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     }
     assert(!thd->status_var_aggregated);
     thd->status_var.ha_rollback_count++;
+    global_aggregated_stats.get_shard(thd->thread_id()).ha_rollback_count++;
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trn_ctx->set_ha_trx_info(trx_scope, sv->ha_list);
@@ -2328,6 +2334,7 @@ int ha_prepare_low(THD *thd, bool all) {
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_prepare_count++;
+      global_aggregated_stats.get_shard(thd->thread_id()).ha_prepare_count++;
 
       if (error) break;
     }
@@ -2370,6 +2377,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv) {
     }
     assert(!thd->status_var_aggregated);
     thd->status_var.ha_savepoint_count++;
+    global_aggregated_stats.get_shard(thd->thread_id()).ha_savepoint_count++;
   }
   /*
     Remember the list of registered storage engines. All new
@@ -5728,6 +5736,7 @@ static int ha_discover(THD *thd, const char *db, const char *name,
   if (!error) {
     assert(!thd->status_var_aggregated);
     thd->status_var.ha_discover_count++;
+    global_aggregated_stats.get_shard(thd->thread_id()).ha_discover_count++;
   }
   return error;
 }

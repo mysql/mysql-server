@@ -1443,6 +1443,24 @@ class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
   bool match_view(uint view);
 };
 
+class PFS_key_meter_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
+ public:
+  explicit PFS_key_meter_name(const char *name) : PFS_key_string(name) {}
+
+  ~PFS_key_meter_name() override = default;
+
+  bool match(PFS_meter_class *pfs);
+};
+
+class PFS_key_metric_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
+ public:
+  explicit PFS_key_metric_name(const char *name) : PFS_key_string(name) {}
+
+  ~PFS_key_metric_name() override = default;
+
+  bool match(PFS_metric_class *pfs);
+};
+
 class PFS_key_user : public PFS_key_string<USERNAME_LENGTH> {
  public:
   explicit PFS_key_user(const char *name) : PFS_key_string(name) {}

@@ -118,6 +118,8 @@ Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
+Performance_schema_meter_lost	0
+Performance_schema_metric_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0

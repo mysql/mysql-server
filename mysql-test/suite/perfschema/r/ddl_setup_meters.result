@@ -1,0 +1,13 @@
+ALTER TABLE performance_schema.setup_meters ADD COLUMN foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+TRUNCATE TABLE performance_schema.setup_meters;
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'setup_meters'
+ALTER TABLE performance_schema.setup_meters ADD INDEX test_index(NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index ON performance_schema.setup_meters(NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY` ON performance_schema.setup_meters;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.setup_meters;
+DROP TABLE test.create_select;

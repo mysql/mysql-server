@@ -455,4 +455,408 @@ struct SHOW_VAR Plugin_status_variables::m_plugin_status_variables[] = {
 
     {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL}};
 
+// simple (no measurement attributes supported) common Variable metric
+// callback
+static void get_metric_simple_variable(void *measurement_context,
+                                       measurement_delivery_callback_t delivery,
+                                       void *delivery_context) {
+  assert(measurement_context != nullptr);
+  assert(delivery != nullptr);
+  ngs::Common_status_variables::Variable &var =
+      *(ngs::Common_status_variables::Variable *)measurement_context;
+  const int64_t value = var.load();
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_sess_accept(void * /* measurement_context */,
+                                       measurement_delivery_callback_t delivery,
+                                       void *delivery_context) {
+  assert(delivery != nullptr);
+  auto server = modules::Module_mysqlx::get_instance_server();
+  if (!server.container()) return;
+  if (!server->ssl_context()) return;
+
+  auto &context = server->ssl_context()->options();
+  const int64_t value = context.ssl_sess_accept();
+  delivery->value_int64(delivery_context, value);
+}
+
+static void get_metric_ssl_sess_accept_good(
+    void * /* measurement_context */, measurement_delivery_callback_t delivery,
+    void *delivery_context) {
+  assert(delivery != nullptr);
+  auto server = modules::Module_mysqlx::get_instance_server();
+  if (!server.container()) return;
+  if (!server->ssl_context()) return;
+
+  auto &context = server->ssl_context()->options();
+  const int64_t value = context.ssl_sess_accept_good();
+  delivery->value_int64(delivery_context, value);
+}
+
+//
+// Telemetry metric sources instrumented within the X plugin
+// are being defined below.
+//
+
+static PSI_metric_info_v1 xpl_metrics[] = {
+    {"aborted_clients", "",
+     "The number of clients that were disconnected because of an input or "
+     "output error (Mysqlx_aborted_clients)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_aborted_clients},
+    {"bytes_received", METRIC_UNIT_BYTES,
+     "The total number of bytes received through the network, measured before "
+     "decompression (Mysqlx_bytes_received)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_bytes_received},
+    {"bytes_received_compressed_payload", METRIC_UNIT_BYTES,
+     "The number of bytes received as compressed message payloads, measured "
+     "before decompression (Mysqlx_bytes_received_compressed_payload)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance()
+          .m_bytes_received_compressed_payload},
+    {"bytes_received_uncompressed_frame", METRIC_UNIT_BYTES,
+     "The number of bytes received as compressed message payloads, measured "
+     "after decompression (Mysqlx_bytes_received_uncompressed_frame)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance()
+          .m_bytes_received_uncompressed_frame},
+    {"bytes_sent", METRIC_UNIT_BYTES,
+     "The total number of bytes sent through the network (Mysqlx_bytes_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_bytes_sent},
+    {"bytes_sent_compressed_payload", METRIC_UNIT_BYTES,
+     "The number of bytes sent as compressed message payloads, measured after "
+     "compression (Mysqlx_bytes_sent_compressed_payload)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_bytes_sent_compressed_payload},
+    {"bytes_sent_uncompressed_frame", METRIC_UNIT_BYTES,
+     "The number of bytes sent as compressed message payloads, measured before "
+     "compression (Mysqlx_bytes_sent_uncompressed_frame)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_bytes_sent_uncompressed_frame},
+    {"connection_accept_errors", "",
+     "The number of connections which have caused accept errors "
+     "(Mysqlx_connection_accept_errors)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance()
+          .m_connection_accept_errors_count},
+    {"connection_errors", "",
+     "The number of connections which have caused errors "
+     "(Mysqlx_connection_errors)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_connection_errors_count},
+    {"connections_accepted", "",
+     "The number of connections which have been accepted "
+     "(Mysqlx_connections_accepted)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_accepted_connections_count},
+    {"connections_closed", "",
+     "The number of connections which have been closed "
+     "(Mysqlx_connections_closed)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_closed_connections_count},
+    {"connections_rejected", "",
+     "The number of connections which have been rejected "
+     "(Mysqlx_connections_rejected)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_rejected_connections_count},
+    {"crud_create_view", "",
+     "The number of create view requests received (Mysqlx_crud_create_view)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_create_view},
+    {"crud_delete", "",
+     "The number of delete requests received (Mysqlx_crud_delete)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_delete},
+    {"crud_drop_view", "",
+     "The number of drop view requests received (Mysqlx_crud_drop_view)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_drop_view},
+    {"crud_find", "", "The number of find requests received (Mysqlx_crud_find)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_find},
+    {"crud_insert", "",
+     "The number of insert requests received (Mysqlx_crud_insert)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_insert},
+    {"crud_modify_view", "",
+     "The number of modify view requests received (Mysqlx_crud_modify_view)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_modify_view},
+    {"crud_update", "",
+     "The number of update requests received (Mysqlx_crud_update)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_crud_update},
+    {"cursor_close", "",
+     "The number of cursor-close messages received (Mysqlx_cursor_close)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_cursor_close},
+    {"cursor_fetch", "",
+     "The number of cursor-fetch messages received (Mysqlx_cursor_fetch)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_cursor_fetch},
+    {"cursor_open", "",
+     "The number of cursor-open messages received (Mysqlx_cursor_open)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_cursor_open},
+    {"errors_sent", "",
+     "The number of errors sent to clients (Mysqlx_errors_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_errors_sent},
+    {"errors_unknown_message_type", "",
+     "The number of unknown message types that have been received "
+     "(Mysqlx_errors_unknown_message_type)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_errors_unknown_message_type},
+    {"expect_close", "",
+     "The number of expectation blocks closed (Mysqlx_expect_close)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_expect_close},
+    {"expect_open", "",
+     "The number of expectation blocks opened (Mysqlx_expect_open)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_expect_open},
+    {"init_error", "",
+     "The number of errors during initialisation (Mysqlx_init_error)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_init_errors_count},
+    {"messages_sent", "",
+     "The total number of messages of all types sent to clients "
+     "(Mysqlx_messages_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_messages_sent},
+    {"notice_global_sent", "",
+     "The number of global notifications sent to clients "
+     "(Mysqlx_notice_global_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_notice_global_sent},
+    {"notice_other_sent", "",
+     "The number of other types of notices sent back to clients "
+     "(Mysqlx_notice_other_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_notice_other_sent},
+    {"notice_warning_sent", "",
+     "The number of warning notices sent back to clients "
+     "(Mysqlx_notice_warning_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_notice_warning_sent},
+    {"notified_by_group_replication", "",
+     "Number of Group Replication notifications sent to clients "
+     "(Mysqlx_notified_by_group_replication)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_notified_by_group_replication},
+    {"prep_deallocate", "",
+     "The number of prepared-statement-deallocate messages received "
+     "(Mysqlx_prep_deallocate)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_prep_deallocate},
+    {"prep_execute", "",
+     "The number of prepared-statement-execute messages received "
+     "(Mysqlx_prep_execute)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_prep_execute},
+    {"prep_prepare", "",
+     "The number of prepared-statement messages received (Mysqlx_prep_prepare)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_prep_prepare},
+    {"rows_sent", "",
+     "The number of rows sent back to clients (Mysqlx_rows_sent)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_rows_sent},
+    {"sessions", "",
+     "The number of sessions that have been opened (Mysqlx_sessions)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_sessions_count},
+    {"sessions_accepted", "",
+     "The number of session attempts which have been accepted "
+     "(Mysqlx_sessions_accepted)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_accepted_sessions_count},
+    {"sessions_closed", "",
+     "The number of sessions that have been closed (Mysqlx_sessions_closed)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_closed_sessions_count},
+    {"sessions_fatal_error", "",
+     "The number of sessions that have closed with a fatal error "
+     "(Mysqlx_sessions_fatal_error)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_sessions_fatal_errors_count},
+    {"sessions_killed", "",
+     "The number of sessions which have been killed (Mysqlx_sessions_killed)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_killed_sessions_count},
+    {"sessions_rejected", "",
+     "The number of session attempts which have been rejected "
+     "(Mysqlx_sessions_rejected)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_rejected_sessions_count},
+    {"ssl_accepts", "",
+     "The number of accepted SSL connections (Mysqlx_ssl_accepts)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_sess_accept, nullptr},
+    {"ssl_finished_accepts", "",
+     "The number of successful SSL connections to the server "
+     "(Mysqlx_ssl_finished_accepts)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_ssl_sess_accept_good, nullptr},
+    {"worker_threads", "",
+     "The number of worker threads available (Mysqlx_worker_threads)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_worker_thread_count},
+    {"worker_threads_active", "",
+     "The number of worker threads currently used "
+     "(Mysqlx_worker_threads_active)",
+     MetricOTELType::ASYNC_GAUGE_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_active_worker_thread_count}};
+
+static PSI_metric_info_v1 stmt_metrics[] = {
+    {"create_collection", "",
+     "The number of create collection statements received "
+     "(Mysqlx_stmt_create_collection)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_create_collection},
+    {"create_collection_index", "",
+     "The number of create collection index statements received "
+     "(Mysqlx_stmt_create_collection_index)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_create_collection_index},
+    {"disable_notices", "",
+     "The number of disable notice statements received "
+     "(Mysqlx_stmt_disable_notices)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_disable_notices},
+    {"drop_collection", "",
+     "The number of drop collection statements received "
+     "(Mysqlx_stmt_drop_collection)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_drop_collection},
+    {"drop_collection_index", "",
+     "The number of drop collection index statements received "
+     "(Mysqlx_stmt_drop_collection_index)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_drop_collection_index},
+    {"enable_notices", "",
+     "The number of enable notice statements received "
+     "(Mysqlx_stmt_enable_notices)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_enable_notices},
+    {"ensure_collection", "",
+     "The number of ensure collection statements received "
+     "(Mysqlx_stmt_ensure_collection)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_ensure_collection},
+    {"execute_mysqlx", "",
+     "The number of StmtExecute messages received with namespace set to "
+     "mysqlx (Mysqlx_stmt_execute_mysqlx)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_execute_mysqlx},
+    {"execute_sql", "",
+     "The number of StmtExecute requests received for the SQL namespace "
+     "(Mysqlx_stmt_execute_sql)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_execute_sql},
+    {"get_collection_options", "",
+     "The number of get collection object statements received "
+     "(Mysqlx_stmt_get_collection_options)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_get_collection_options},
+    {"kill_client", "",
+     "The number of kill client statements received (Mysqlx_stmt_kill_client)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_kill_client},
+    {"list_clients", "",
+     "The number of list client statements received (Mysqlx_stmt_list_clients)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_list_clients},
+    {"list_notices", "",
+     "The number of list notice statements received (Mysqlx_stmt_list_notices)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_list_notices},
+    {"list_objects", "",
+     "The number of list object statements received (Mysqlx_stmt_list_objects)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_list_objects},
+    {"modify_collection_options", "",
+     "The number of modify collection options statements received "
+     "(Mysqlx_stmt_modify_collection_options)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance()
+          .m_stmt_modify_collection_options},
+    {"ping", "", "The number of ping statements received (Mysqlx_stmt_ping)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_variable,
+     &xpl::Global_status_variables::instance().m_stmt_ping}};
+
+PSI_meter_info_v1 Plugin_status_variables::m_xpl_meter[] = {
+    {"mysql.x", "MySql X plugin metrics", 10, 0, 0, xpl_metrics,
+     std::size(xpl_metrics)},
+    {"mysql.x.stmt", "MySql X plugin statement statistics", 10, 0, 0,
+     stmt_metrics, std::size(stmt_metrics)},
+};
+
+size_t Plugin_status_variables::get_meter_count() {
+  return std::size(m_xpl_meter);
+}
+
 }  // namespace xpl

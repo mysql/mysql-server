@@ -26,6 +26,7 @@
 #include "mysql/components/services/registry.h"
 
 // pfs services
+#include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/psi_cond_service.h>
 #include <mysql/components/services/psi_error_service.h>
@@ -33,6 +34,7 @@
 #include <mysql/components/services/psi_idle_service.h>
 #include <mysql/components/services/psi_mdl_service.h>
 #include <mysql/components/services/psi_memory_service.h>
+#include <mysql/components/services/psi_metric_service.h>
 #include <mysql/components/services/psi_mutex_service.h>
 #include <mysql/components/services/psi_rwlock_service.h>
 #include <mysql/components/services/psi_socket_service.h>
@@ -61,6 +63,8 @@ extern SERVICE_TYPE(psi_mdl_v2)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v2);
 extern SERVICE_TYPE(psi_memory_v2)
     SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v2);
+extern SERVICE_TYPE(psi_metric_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_metric_v1);
 extern SERVICE_TYPE(psi_mutex_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_mutex_v1);
 extern SERVICE_TYPE(psi_rwlock_v2)
@@ -88,5 +92,8 @@ extern SERVICE_TYPE(psi_tls_channel_v1)
 extern SERVICE_TYPE(mysql_server_telemetry_traces_v1)
     SERVICE_IMPLEMENTATION(performance_schema,
                            mysql_server_telemetry_traces_v1);
+extern SERVICE_TYPE(mysql_server_telemetry_metrics_v1)
+    SERVICE_IMPLEMENTATION(performance_schema,
+                           mysql_server_telemetry_metrics_v1);
 
 #endif /* PFS_SERVICES_H */

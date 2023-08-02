@@ -275,6 +275,8 @@ def	performance_schema	PRIMARY	def	performance_schema	setup_actors	ROLE
 def	performance_schema	PRIMARY	def	performance_schema	setup_actors	USER
 def	performance_schema	PRIMARY	def	performance_schema	setup_consumers	NAME
 def	performance_schema	PRIMARY	def	performance_schema	setup_instruments	NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_meters	NAME
+def	performance_schema	PRIMARY	def	performance_schema	setup_metrics	NAME
 def	performance_schema	PRIMARY	def	performance_schema	setup_threads	NAME
 def	performance_schema	PRIMARY	def	performance_schema	socket_instances	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	socket_summary_by_event_name	EVENT_NAME

@@ -900,6 +900,20 @@ static Sys_var_ulong Sys_pfs_max_memory_classes(
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_MEMORY_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_meter_classes(
+    "performance_schema_max_meter_classes",
+    "Maximum number of meter source instruments.",
+    READ_ONLY GLOBAL_VAR(pfs_param.m_meter_class_sizing),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 64), DEFAULT(PFS_MAX_METER_CLASS),
+    BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_metric_classes(
+    "performance_schema_max_metric_classes",
+    "Maximum number of metric source instruments.",
+    READ_ONLY GLOBAL_VAR(pfs_param.m_metric_class_sizing),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 11000),
+    DEFAULT(PFS_MAX_METRIC_CLASS), BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_long Sys_pfs_digest_size(
     "performance_schema_digests_size",
     "Size of the statement digest."

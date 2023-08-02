@@ -983,6 +983,10 @@ The following options may be given as the first argument:
  --performance-schema-max-metadata-locks=# 
  Maximum number of metadata locks. Use 0 to disable, -1
  for automated scaling.
+ --performance-schema-max-meter-classes=# 
+ Maximum number of meter source instruments.
+ --performance-schema-max-metric-classes=# 
+ Maximum number of metric source instruments.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
@@ -1933,11 +1937,13 @@ performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 470
 performance-schema-max-metadata-locks -1
+performance-schema-max-meter-classes 30
+performance-schema-max-metric-classes 600
 performance-schema-max-mutex-classes 350
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
-performance-schema-max-rwlock-classes 60
+performance-schema-max-rwlock-classes 100
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1

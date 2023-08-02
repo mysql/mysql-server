@@ -169,6 +169,8 @@ def	performance_schema	PRIMARY	performance_schema	session_variables
 def	performance_schema	PRIMARY	performance_schema	setup_actors
 def	performance_schema	PRIMARY	performance_schema	setup_consumers
 def	performance_schema	PRIMARY	performance_schema	setup_instruments
+def	performance_schema	PRIMARY	performance_schema	setup_meters
+def	performance_schema	PRIMARY	performance_schema	setup_metrics
 def	performance_schema	OBJECT	performance_schema	setup_objects
 def	performance_schema	PRIMARY	performance_schema	setup_threads
 def	performance_schema	PRIMARY	performance_schema	socket_instances

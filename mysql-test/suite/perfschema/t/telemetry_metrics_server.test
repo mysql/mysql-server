@@ -1,0 +1,92 @@
+--source include/have_server_telemetry_metrics.inc
+
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - No metrics exported with all meters disabled:');
+--enable_result_log
+UPDATE performance_schema.setup_meters SET enabled = 'NO';
+SELECT test_report_metrics();
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Reload component:');
+--enable_result_log
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Check registration with slot holes:');
+--enable_result_log
+SELECT count(*) FROM performance_schema.setup_metrics;
+SELECT test_register_metric_a();
+SELECT count(*) FROM performance_schema.setup_metrics;
+SELECT test_register_metric_b();
+SELECT count(*) FROM performance_schema.setup_metrics;
+SELECT test_unregister_metric_a();
+SELECT count(*) FROM performance_schema.setup_metrics;
+SELECT test_unregister_metric_b();
+SELECT count(*) FROM performance_schema.setup_metrics;
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - All metrics exported except ones in mysql.x group:');
+--enable_result_log
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+UPDATE performance_schema.setup_meters SET enabled = 'NO' WHERE NAME='mysql.x';
+SELECT test_report_metrics();
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - All metrics exported:');
+--enable_result_log
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+SELECT test_report_metrics();
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+FLUSH STATUS;
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Register duplicate meters/metrics:');
+--enable_result_log
+SELECT test_duplicate_metrics();
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+FLUSH STATUS;
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Register invalid meters/metrics:');
+--enable_result_log
+SELECT test_invalid_metrics();
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+FLUSH STATUS;
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Register same meter/metric twice:');
+--enable_result_log
+SELECT test_register_metric_a();
+SELECT test_register_metric_a();
+SELECT test_unregister_metric_a();
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+FLUSH STATUS;
+
+--disable_result_log
+SELECT test_component_metric_log('TEST - Restart server with restricted num. of classes:');
+--enable_result_log
+--let $restart_parameters="restart: --performance_schema_max_meter_classes=1 --performance_schema_max_metric_classes=10"
+--source include/restart_mysqld.inc
+SHOW STATUS LIKE 'Performance_schema_meter_lost';
+SHOW STATUS LIKE 'Performance_schema_metric_lost';
+SHOW GLOBAL VARIABLES LIKE "performance_schema_max_meter_classes";
+SHOW GLOBAL VARIABLES LIKE "performance_schema_max_metric_classes";
+
+# Cleanup
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+UPDATE performance_schema.setup_meters SET enabled = 'YES';
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--echo Component logs:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_server_telemetry_metrics_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_metrics_component.log;
+

@@ -226,8 +226,13 @@
 
    - WL#15059: PERFORMANCE_SCHEMA, OTEL TRACE INTERFACE
      New column TELEMETRY_ACTIVE added to performance_schema.threads
+
+  80200:
+
+   - WL#15199: PERFORMANCE_SCHEMA, OTEL METRICS INTERFACE
+      New tables setup_meters, setup_metrics added to performance_schema
 */
 
-static const uint PFS_DD_VERSION = 80033;
+static const uint PFS_DD_VERSION = 80200;
 
 #endif /* PFS_DD_VERSION_H */

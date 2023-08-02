@@ -74,6 +74,7 @@ IF(NOT WITHOUT_SERVER)
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_system_v1.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_metric_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/services.h
   )
 ENDIF()

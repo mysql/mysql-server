@@ -1209,6 +1209,16 @@ def	performance_schema	setup_instruments	PROPERTIES	4	NULL	NO	set	71	284	NULL	NU
 def	performance_schema	setup_instruments	FLAGS	5	NULL	YES	set	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	set('controlled')			select,insert,update,references			NULL
 def	performance_schema	setup_instruments	VOLATILITY	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	performance_schema	setup_instruments	DOCUMENTATION	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	longtext			select,insert,update,references			NULL
+def	performance_schema	setup_meters	NAME	1	NULL	NO	varchar	63	252	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(63)	PRI		select,insert,update,references			NULL
+def	performance_schema	setup_meters	FREQUENCY	2	NULL	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint unsigned			select,insert,update,references			NULL
+def	performance_schema	setup_meters	ENABLED	3	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('YES','NO')			select,insert,update,references			NULL
+def	performance_schema	setup_meters	DESCRIPTION	4	NULL	YES	varchar	1023	4092	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1023)			select,insert,update,references			NULL
+def	performance_schema	setup_metrics	NAME	1	NULL	NO	varchar	63	252	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(63)	PRI		select,insert,update,references			NULL
+def	performance_schema	setup_metrics	METER	2	NULL	NO	varchar	63	252	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(63)			select,insert,update,references			NULL
+def	performance_schema	setup_metrics	METRIC_TYPE	3	NULL	NO	enum	20	80	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('ASYNC COUNTER','ASYNC UPDOWN COUNTER','ASYNC GAUGE COUNTER')			select,insert,update,references			NULL
+def	performance_schema	setup_metrics	NUM_TYPE	4	NULL	NO	enum	7	28	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('INTEGER','DOUBLE')			select,insert,update,references			NULL
+def	performance_schema	setup_metrics	UNIT	5	NULL	YES	varchar	63	252	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(63)			select,insert,update,references			NULL
+def	performance_schema	setup_metrics	DESCRIPTION	6	NULL	YES	varchar	1023	4092	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(1023)			select,insert,update,references			NULL
 def	performance_schema	setup_objects	OBJECT_TYPE	1	TABLE	NO	enum	9	36	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER')	MUL		select,insert,update,references			NULL
 def	performance_schema	setup_objects	OBJECT_SCHEMA	2	%	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	setup_objects	OBJECT_NAME	3	%	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL

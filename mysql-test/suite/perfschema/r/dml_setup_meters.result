@@ -1,0 +1,32 @@
+SELECT * FROM performance_schema.setup_meters;
+SELECT * FROM performance_schema.setup_meters
+WHERE NAME='mysql.stats';
+SELECT * FROM performance_schema.setup_meters
+WHERE ENABLED='YES';
+INSERT INTO performance_schema.setup_meters
+SET NAME='FOO', ENABLED='YES';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_meters'
+INSERT INTO performance_schema.setup_meters
+SET NAME='FOO';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_meters'
+UPDATE performance_schema.setup_meters
+SET ENABLED='NO';
+SELECT * FROM performance_schema.setup_meters;
+UPDATE performance_schema.setup_meters
+SET ENABLED='YES';
+DELETE FROM performance_schema.setup_meters;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_meters'
+DELETE FROM performance_schema.setup_meters
+WHERE NAME LIKE 'mysql.stats';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_meters'
+LOCK TABLES performance_schema.setup_meters READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.setup_meters WRITE;
+UNLOCK TABLES;
+UPDATE performance_schema.setup_meters
+SET FREQUENCY=100;
+UPDATE performance_schema.setup_meters
+SET DESCRIPTION='Something';
+ERROR HY000: Invalid performance_schema usage.
+UPDATE performance_schema.setup_meters
+SET ENABLED='YES';

@@ -410,8 +410,11 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     res = populate_table(thd, lex);
 
     // Count the number of statements offloaded to a secondary storage engine.
-    if (using_secondary_storage_engine() && lex->unit->is_executed())
+    if (using_secondary_storage_engine() && lex->unit->is_executed()) {
       ++thd->status_var.secondary_engine_execution_count;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .secondary_engine_execution_count++;
+    }
 
     if (lex->is_ignore() || thd->is_strict_mode()) thd->pop_internal_handler();
     lex->cleanup(false);

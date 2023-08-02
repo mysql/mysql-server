@@ -1816,8 +1816,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->reset_rewritten_query();
   thd_manager->inc_thread_running();
 
-  if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
+  if (!(server_command_flags[command] & CF_SKIP_QUESTIONS)) {
     thd->status_var.questions++;
+    global_aggregated_stats.get_shard(thd->thread_id()).questions++;
+  }
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1874,6 +1876,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     case COM_INIT_DB: {
       LEX_STRING tmp;
       thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_CHANGE_DB]++;
       thd->convert_string(&tmp, system_charset_info,
                           com_data->com_init_db.db_name,
                           com_data->com_init_db.length, thd->charset());
@@ -1895,12 +1899,14 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     case COM_RESET_CONNECTION: {
       thd->status_var.com_other++;
+      global_aggregated_stats.get_shard(thd->thread_id()).com_other++;
       thd->cleanup_connection();
       my_ok(thd);
       break;
     }
     case COM_CLONE: {
       thd->status_var.com_other++;
+      global_aggregated_stats.get_shard(thd->thread_id()).com_other++;
 
       /* Try loading clone plugin */
       clone_cmd = new (thd->mem_root) Sql_cmd_clone();
@@ -1940,6 +1946,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     case COM_CHANGE_USER: {
       int auth_rc;
       thd->status_var.com_other++;
+      global_aggregated_stats.get_shard(thd->thread_id()).com_other++;
 
       thd->cleanup_connection();
       USER_CONN *save_user_connect =
@@ -2194,6 +2201,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
           Count each statement from the client.
         */
         thd->status_var.questions++;
+        global_aggregated_stats.get_shard(thd->thread_id()).questions++;
         thd->set_time(); /* Reset the query start time. */
         parser_state.reset(beginning_of_next_stmt, length);
         thd->set_secondary_engine_optimization(
@@ -2233,6 +2241,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
 
       thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_SHOW_FIELDS]++;
       if (thd->copy_db_to(&db.str, &db.length)) break;
       thd->convert_string(&table_name, system_charset_info,
                           (char *)com_data->com_field_list.table_name,
@@ -2348,6 +2358,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       lex_start(thd);
 
       thd->status_var.com_stat[SQLCOM_FLUSH]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_FLUSH]++;
       const ulong options = (ulong)com_data->com_refresh.options;
       if (trans_commit_implicit(thd)) break;
       thd->mdl_context.release_transactional_locks();
@@ -2392,6 +2404,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       query_logger.general_log_print(thd, command, NullS);
       thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_SHOW_STATUS]++;
       mysql_mutex_lock(&LOCK_status);
       calc_sum_of_all_status(&current_global_status_var);
       mysql_mutex_unlock(&LOCK_status);
@@ -2422,12 +2436,15 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     case COM_PING:
       thd->status_var.com_other++;
+      global_aggregated_stats.get_shard(thd->thread_id()).com_other++;
       my_ok(thd);  // Tell client we are alive
       break;
     case COM_PROCESS_INFO:
       bool global_access;
       LEX_CSTRING db_saved;
       thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_SHOW_PROCESSLIST]++;
       push_deprecated_warn(thd, "COM_PROCESS_INFO",
                            "SHOW PROCESSLIST statement");
       global_access = (check_global_access(thd, PROCESS_ACL) == 0);
@@ -2450,12 +2467,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
       else {
         thd->status_var.com_stat[SQLCOM_KILL]++;
+        global_aggregated_stats.get_shard(thd->thread_id())
+            .com_stat[SQLCOM_KILL]++;
         sql_kill(thd, com_data->com_kill.id, false);
       }
       break;
     }
     case COM_SET_OPTION: {
       thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
+      global_aggregated_stats.get_shard(thd->thread_id())
+          .com_stat[SQLCOM_SET_OPTION]++;
 
       switch (com_data->com_set_option.opt_command) {
         case (int)MYSQL_OPTION_MULTI_STATEMENTS_ON:
@@ -2477,6 +2498,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     case COM_DEBUG:
       thd->status_var.com_other++;
+      global_aggregated_stats.get_shard(thd->thread_id()).com_other++;
       if (check_global_access(thd, SUPER_ACL)) break; /* purecov: inspected */
       query_logger.general_log_print(thd, command, NullS);
       my_eof(thd);
@@ -3250,6 +3272,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
   } /* endif unlikely slave */
 
   thd->status_var.com_stat[lex->sql_command]++;
+  global_aggregated_stats.get_shard(thd->thread_id())
+      .com_stat[lex->sql_command]++;
 
   Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
                       thd->query().str, thd->query().length, nullptr,

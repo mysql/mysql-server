@@ -98,6 +98,10 @@ static std::atomic<uint32> rwlock_class_dirty_count{0};
 static std::atomic<uint32> rwlock_class_allocated_count{0};
 static std::atomic<uint32> cond_class_dirty_count{0};
 static std::atomic<uint32> cond_class_allocated_count{0};
+static std::atomic<uint32> meter_class_dirty_count{0};
+static std::atomic<uint32> meter_class_allocated_count{0};
+static std::atomic<uint32> metric_class_dirty_count{0};
+static std::atomic<uint32> metric_class_allocated_count{0};
 
 /** Size of the mutex class array. @sa mutex_class_array */
 ulong mutex_class_max = 0;
@@ -135,6 +139,14 @@ ulong socket_class_lost = 0;
 ulong memory_class_max = 0;
 /** Number of memory class lost. @sa memory_class_array */
 ulong memory_class_lost = 0;
+/** Size of the meter class array. @sa meter_class_array */
+ulong meter_class_max = 0;
+/** Number of meter class lost. @sa meter_class_array */
+ulong meter_class_lost = 0;
+/** Size of the metric class array. @sa metric_class_array */
+ulong metric_class_max = 0;
+/** Number of metric class lost. @sa metric_class_array */
+ulong metric_class_lost = 0;
 
 /**
   Number of transaction classes. Although there is only one transaction class,
@@ -153,6 +165,8 @@ ulong error_class_max = 0;
 PFS_mutex_class *mutex_class_array = nullptr;
 PFS_rwlock_class *rwlock_class_array = nullptr;
 PFS_cond_class *cond_class_array = nullptr;
+PFS_meter_class *meter_class_array = nullptr;
+PFS_metric_class *metric_class_array = nullptr;
 
 /**
   Current number or elements in thread_class_array.
@@ -177,6 +191,8 @@ PFS_ALIGNED PFS_instr_class global_idle_class;
 PFS_ALIGNED PFS_instr_class global_metadata_class;
 PFS_ALIGNED PFS_error_class global_error_class;
 PFS_ALIGNED PFS_transaction_class global_transaction_class;
+PFS_ALIGNED PFS_meter_class global_meter_class;
+PFS_ALIGNED PFS_metric_class global_metric_class;
 
 /**
   Hash index for instrumented table shares.
@@ -476,6 +492,94 @@ int init_table_share(uint table_share_sizing) {
   }
 
   return 0;
+}
+
+/**
+  Initialize the meter class buffer.
+  @param meter_class_sizing          max number of meter class
+  @return 0 on success
+*/
+int init_meter_class(uint meter_class_sizing) {
+  int result = 0;
+  meter_class_dirty_count = meter_class_allocated_count = 0;
+  meter_class_max = meter_class_sizing;
+  meter_class_lost = 0;
+
+  if (meter_class_max > 0) {
+    meter_class_array = PFS_MALLOC_ARRAY(
+        &builtin_memory_meter_class, meter_class_max, sizeof(PFS_meter_class),
+        PFS_meter_class, MYF(MY_ZEROFILL));
+    if (unlikely(meter_class_array == nullptr)) {
+      result = 1;
+    }
+  } else {
+    meter_class_array = nullptr;
+  }
+
+  return result;
+}
+
+/** Cleanup the meter class buffers. */
+void cleanup_meter_class() {
+  unsigned int i;
+
+  if (meter_class_array != nullptr) {
+    for (i = 0; i < meter_class_max; i++) {
+      my_free(meter_class_array[i].m_documentation);
+      PFS_FREE_ARRAY(&builtin_memory_meter_class, metric_class_max,
+                     sizeof(PFS_metric_key), meter_class_array[i].m_metrics);
+      meter_class_array[i].m_metrics = nullptr;
+      meter_class_array[i].m_metrics_size = 0;
+    }
+  }
+
+  PFS_FREE_ARRAY(&builtin_memory_meter_class, meter_class_max,
+                 sizeof(PFS_meter_class), meter_class_array);
+  meter_class_array = nullptr;
+  meter_class_dirty_count = meter_class_allocated_count = 0;
+  meter_class_max = 0;
+}
+
+/**
+  Initialize the metric class buffer.
+  @param metric_class_sizing          max number of metric class
+  @return 0 on success
+*/
+int init_metric_class(uint metric_class_sizing) {
+  int result = 0;
+  metric_class_dirty_count = metric_class_allocated_count = 0;
+  metric_class_max = metric_class_sizing;
+  metric_class_lost = 0;
+
+  if (metric_class_max > 0) {
+    metric_class_array = PFS_MALLOC_ARRAY(
+        &builtin_memory_metric_class, metric_class_max,
+        sizeof(PFS_metric_class), PFS_metric_class, MYF(MY_ZEROFILL));
+    if (unlikely(metric_class_array == nullptr)) {
+      result = 1;
+    }
+  } else {
+    metric_class_array = nullptr;
+  }
+
+  return result;
+}
+
+/** Cleanup the metric class buffers. */
+void cleanup_metric_class() {
+  unsigned int i;
+
+  if (metric_class_array != nullptr) {
+    for (i = 0; i < metric_class_max; i++) {
+      my_free(metric_class_array[i].m_documentation);
+    }
+  }
+
+  PFS_FREE_ARRAY(&builtin_memory_metric_class, metric_class_max,
+                 sizeof(PFS_metric_class), metric_class_array);
+  metric_class_array = nullptr;
+  metric_class_dirty_count = metric_class_allocated_count = 0;
+  metric_class_max = 0;
 }
 
 /** Cleanup the table share buffers. */
@@ -1104,6 +1208,19 @@ static void configure_instr_class(PFS_instr_class *entry) {
     }                                                                  \
   }
 
+// Changes compared to above version:
+// - additionally checks for valid key
+// - return UINT_MAX key on error
+#define REGISTER_CLASS_BODY_PART_V2(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
+  for (INDEX = 0; INDEX < MAX; ++INDEX) {                                 \
+    entry = &ARRAY[INDEX];                                                \
+    if ((entry->m_key > 0) && (entry->m_name.length() == NAME_LENGTH) &&  \
+        (strncmp(entry->m_name.str(), NAME, NAME_LENGTH) == 0)) {         \
+      assert(entry->m_flags == info->m_flags);                            \
+      return UINT_MAX;                                                    \
+    }                                                                     \
+  }
+
 /**
   Register a mutex instrumentation metadata.
   @param name                         the instrumented name
@@ -1296,6 +1413,13 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   }                                        \
   return &ARRAY[KEY - 1]
 
+// Additionally check if this slot has valid key
+#define FIND_CLASS_BODY_V2(KEY, COUNT, ARRAY)                       \
+  if ((KEY == 0) || (KEY > COUNT) || (ARRAY[KEY - 1].m_key == 0)) { \
+    return NULL;                                                    \
+  }                                                                 \
+  return &ARRAY[KEY - 1]
+
 /**
   Find a mutex instrumentation class by key.
   @param key                          the instrument key
@@ -1335,6 +1459,34 @@ PFS_cond_class *find_cond_class(PFS_sync_key key) {
 
 PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe) {
   SANITIZE_ARRAY_BODY(PFS_cond_class, cond_class_array, cond_class_max, unsafe);
+}
+
+/**
+  Find a meter instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_meter_class *find_meter_class(PSI_meter_key key) {
+  FIND_CLASS_BODY_V2(key, meter_class_max, meter_class_array);
+}
+
+PFS_meter_class *sanitize_meter_class(PFS_meter_class *unsafe) {
+  SANITIZE_ARRAY_BODY(PFS_meter_class, meter_class_array, meter_class_max,
+                      unsafe);
+}
+
+/**
+  Find a metric instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_metric_class *find_metric_class(PSI_metric_key key) {
+  FIND_CLASS_BODY_V2(key, metric_class_max, metric_class_array);
+}
+
+PFS_metric_class *sanitize_metric_class(PFS_metric_class *unsafe) {
+  SANITIZE_ARRAY_BODY(PFS_metric_class, metric_class_array, metric_class_max,
+                      unsafe);
 }
 
 /**
@@ -1703,6 +1855,230 @@ PFS_memory_class *sanitize_memory_class(PFS_memory_class *unsafe) {
   SANITIZE_ARRAY_BODY(PFS_memory_class, memory_class_array.load(),
                       memory_class_max, unsafe);
 }
+
+/**
+  Register a meter instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param info                         the instrumentation properties
+  @return a meter instrumentation key, 0 on error, UINT_MAX on duplicate
+*/
+PFS_meter_key register_meter_class(const char *name, uint name_length,
+                                   PSI_meter_info_v1 *info) {
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_meter_class *entry;
+
+  REGISTER_CLASS_BODY_PART_V2(index, meter_class_array, meter_class_max, name,
+                              name_length)
+
+  // search free slot
+  if (meter_class_dirty_count < meter_class_max &&
+      meter_class_array[meter_class_dirty_count].m_key == 0) {
+    // fast path
+    index = meter_class_dirty_count;
+  } else {
+    index = meter_class_max;
+    for (uint32 i = 0; i < meter_class_max; i++) {
+      if (meter_class_array[i].m_key == 0) {
+        index = i;
+        break;
+      }
+    }
+  }
+
+  if (index < meter_class_max) {
+    const PFS_meter_key key = index + 1;
+
+    entry = &meter_class_array[index];
+
+    // init entry lock
+    pfs_dirty_state dirty_state;
+    if (!entry->m_lock.free_to_dirty(&dirty_state)) {
+      if (pfs_enabled) {
+        meter_class_lost++;
+      }
+      return 0;
+    }
+    entry->m_lock.dirty_to_allocated(&dirty_state);
+
+    init_instr_class(entry, name, name_length, 0,
+                     0, /* statements have no volatility */
+                     PSI_DOCUMENT_ME, PFS_CLASS_METRIC);
+    entry->m_event_name_index = index;
+    entry->m_enabled = true; /* enabled by default */
+    entry->m_timed = true;
+
+    // storage for metric keys allocated once per slot
+    // on a when-needed bases (instead of doing it in init_meter_class)
+    if (metric_class_max > 0 && entry->m_metrics == nullptr) {
+      entry->m_metrics = PFS_MALLOC_ARRAY(
+          &builtin_memory_meter_class, metric_class_max, sizeof(PFS_metric_key),
+          PFS_metric_key, MYF(MY_ZEROFILL));
+    }
+    entry->m_metrics_size = 0;
+
+    // copy metric source info
+    entry->m_meter = info->m_meter;
+    entry->m_meter_length =
+        (info->m_meter == nullptr) ? 0 : strlen(info->m_meter);
+    entry->m_description = info->m_description;
+    entry->m_description_length =
+        (info->m_description == nullptr) ? 0 : strlen(info->m_description);
+    entry->m_frequency = info->m_frequency;
+    entry->m_key = key;
+
+    // update input entry (same structure used on unregister)
+    info->m_key = key;
+
+    entry->enforce_valid_flags(PSI_FLAG_MUTABLE);
+
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
+    ++meter_class_allocated_count;
+
+    if (index == meter_class_dirty_count) meter_class_dirty_count++;
+
+    return key;
+  }
+
+  if (pfs_enabled) {
+    meter_class_lost++;
+  }
+  return 0;
+}
+
+void unregister_meter_class(PSI_meter_info_v1 *info) {
+  assert(info != nullptr);
+
+  if (info->m_key == 0) return;
+
+  const uint32 index = info->m_key - 1;
+  PFS_meter_class *entry = &meter_class_array[index];
+
+  // unregister
+  entry->m_key = 0;
+  info->m_key = 0;
+
+  entry->m_lock.allocated_to_free();
+
+  --meter_class_allocated_count;
+  meter_class_dirty_count = 0;
+}
+
+uint32 meter_class_count() { return meter_class_allocated_count; }
+
+/**
+  Register a metric instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param info                         the instrumentation properties
+  @param meter                        group name for this metric
+  @return a metric instrumentation key, 0 on error, UINT_MAX on duplicate
+*/
+PFS_metric_key register_metric_class(const char *name, uint name_length,
+                                     PSI_metric_info_v1 *info,
+                                     const char *meter) {
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_metric_class *entry;
+
+  REGISTER_CLASS_BODY_PART_V2(index, metric_class_array, metric_class_max, name,
+                              name_length)
+
+  // search free slot
+  if (metric_class_dirty_count < metric_class_max &&
+      metric_class_array[metric_class_dirty_count].m_key == 0) {
+    // fast path
+    index = metric_class_dirty_count;
+  } else {
+    index = metric_class_max;
+    for (uint32 i = 0; i < metric_class_max; i++) {
+      if (metric_class_array[i].m_key == 0) {
+        index = i;
+        break;
+      }
+    }
+  }
+
+  if (index < metric_class_max) {
+    const PFS_metric_key key = index + 1;
+
+    entry = &metric_class_array[index];
+
+    // init entry lock
+    pfs_dirty_state dirty_state;
+    if (!entry->m_lock.free_to_dirty(&dirty_state)) {
+      if (pfs_enabled) {
+        meter_class_lost++;
+      }
+      return 0;
+    }
+    entry->m_lock.dirty_to_allocated(&dirty_state);
+
+    init_instr_class(entry, name, name_length, 0,
+                     0, /* statements have no volatility */
+                     PSI_DOCUMENT_ME, PFS_CLASS_METRIC);
+    entry->m_event_name_index = index;
+    entry->m_enabled = true; /* enabled by default */
+    entry->m_timed = true;
+
+    // copy metric source info
+    entry->m_metric = info->m_metric;
+    entry->m_metric_length =
+        (info->m_metric == nullptr) ? 0 : strlen(info->m_metric);
+    entry->m_group = meter;
+    entry->m_group_length = (meter == nullptr) ? 0 : strlen(meter);
+    entry->m_unit = info->m_unit;
+    entry->m_unit_length = (info->m_unit == nullptr) ? 0 : strlen(info->m_unit);
+    entry->m_description = info->m_description;
+    entry->m_description_length =
+        (info->m_description == nullptr) ? 0 : strlen(info->m_description);
+    entry->m_num_type = info->m_num_type;
+    entry->m_metric_type = info->m_metric_type;
+    entry->m_key = key;
+    entry->m_measurement_callback = info->m_measurement_callback;
+    entry->m_measurement_context = info->m_measurement_context;
+
+    // update input entry (same structure used on unregister)
+    info->m_key = key;
+
+    entry->enforce_valid_flags(PSI_FLAG_MUTABLE);
+
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
+    ++metric_class_allocated_count;
+
+    if (index == metric_class_dirty_count) metric_class_dirty_count++;
+
+    return key;
+  }
+
+  if (pfs_enabled) {
+    metric_class_lost++;
+  }
+  return 0;
+}
+
+void unregister_metric_class(PSI_metric_info_v1 *info) {
+  assert(info != nullptr);
+
+  if (info->m_key == 0) return;
+
+  const uint32 index = info->m_key - 1;
+  PFS_metric_class *entry = &metric_class_array[index];
+
+  // unregister
+  entry->m_key = 0;
+  info->m_key = 0;
+
+  entry->m_lock.allocated_to_free();
+
+  --metric_class_allocated_count;
+  metric_class_dirty_count = 0;
+}
+
+uint32 metric_class_count() { return metric_class_allocated_count; }
 
 PFS_instr_class *find_table_class(uint index) {
   if (index == 1) {

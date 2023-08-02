@@ -232,5 +232,15 @@ class Connection_handler_manager {
     wat till connection_count to become zero.
   */
   static void wait_till_no_connection();
+
+  /**
+    Return number of connections in thread-safe way.
+  */
+  static uint get_connection_count() {
+    mysql_mutex_lock(&LOCK_connection_count);
+    const uint res = connection_count;
+    mysql_mutex_unlock(&LOCK_connection_count);
+    return res;
+  }
 };
 #endif  // CONNECTION_HANDLER_MANAGER_INCLUDED.

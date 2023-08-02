@@ -39,6 +39,7 @@
 #include "storage/perfschema/unittest/stub_pfs_global.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
+#include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
 
 PSI_thread_key thread_key_1;
