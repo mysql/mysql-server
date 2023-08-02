@@ -4,6 +4,7 @@
 #include "log_uring/iouring.h"
 #include "log_uring/utils.h"
 #include "log_uring/define.h"
+#include "log_uring/duration.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,15 @@
 
 #define SQ_THD_IDLE 2000
 
+thread_local xlog_op_duration _duration;
+
+inline xlog_op_duration * get_duration() {
+  return &_duration;
+}
+
+xlog_op_duration xlog::op_duration() {
+  return _duration;
+}
 
 xlog::xlog():
 num_log_files_(NUM_LOG_FILES),
@@ -43,7 +53,7 @@ void xlog::init(
   num_uring_entries_ = num_uring_entries;
   use_uring_ = use_iouring;
   {
-    std::scoped_lock l(mutex_init_);
+    std::unique_lock l(mutex_init_);
     init_ = false;
     cond_init_.notify_all();
   }
@@ -105,7 +115,7 @@ int xlog::append(void *buf, size_t size) {
   uint64_t lsn = next_lsn_.fetch_add(1);
 
   if (use_uring_) {
-    io_event* e = new_io_event(size);
+    io_event* e = new_io_event();
     e->type_ = EVENT_TYPE_WRITE;
     e->event_.index_ = 0;
     e->event_.lsn_ = lsn;
@@ -123,7 +133,7 @@ int xlog::append(void *buf, size_t size) {
     add_event(e);
   } else {
     // append to memory
-    std::scoped_lock l(sync_log_mutex_);
+    std::unique_lock l(sync_log_mutex_);
     size_t old_size = sync_log_buf_.size();
     sync_log_buf_.resize(size + old_size);
     memcpy(sync_log_buf_.data() + old_size, buf, size);
@@ -131,12 +141,14 @@ int xlog::append(void *buf, size_t size) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = end - start;
 
+  get_duration()->append_add(diff);
   return 0;
 }
 
 int xlog::sync(size_t lsn) {
+  auto start = std::chrono::high_resolution_clock::now();
   if (use_uring_) {
-    io_event* e = new_io_event(0);
+    io_event* e = new_io_event();
     e->type_ = EVENT_TYPE_FSYNC;
     e->event_.index_ = 0;
     e->event_.lsn_ = lsn;
@@ -181,6 +193,10 @@ int xlog::sync(size_t lsn) {
       }
     }
   }
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> diff = end - start;
+
+  get_duration()->append_add(diff);
   return 0;
 }
 
@@ -189,7 +205,7 @@ int xlog::handle_event_list() {
   size_t list_index = sequence_ % 2;
   std::vector<io_event*> list;
   {
-    std::scoped_lock l(mutex_queue_);
+    std::unique_lock l(mutex_queue_);
     max_to_sync_lsn_ = 0;
     list.reserve(num_uring_entries_ * 2);
     list.swap(list_[list_index]);
@@ -339,7 +355,7 @@ bool xlog::enqueue_sqe_fsync_combine() {
         return false;
       }
 
-      io_event *e = new_io_event(0);
+      io_event *e = new_io_event();
       e->type_ = EVENT_TYPE_FSYNC;
       e->event_.lsn_ = file_[i].max_lsn_;
       e->event_.index_ = i;
@@ -384,7 +400,7 @@ void xlog::wait_start() {
 }
 
 
-io_event* xlog::new_io_event(size_t size) {
+io_event* xlog::new_io_event() {
   io_event* e = new io_event;
   return e;
 }

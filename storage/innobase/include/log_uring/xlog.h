@@ -5,11 +5,13 @@
 #include "log_uring/ptr.hpp"
 #include "log_uring/event.h"
 #include "log_uring/iouring.h"
+#include "log_uring/duration.h"
 #include <thread>
 #include <mutex>
 #include <atomic>
 #include <vector>
 #include <condition_variable>
+#include <boost/thread/tss.hpp>
 
 
 struct file_ctrl {
@@ -19,29 +21,6 @@ struct file_ctrl {
 };
 
 
-class op_duration {
-  std::chrono::duration<double> duration_;
-  int count;
-public:
-  void add(std::chrono::duration<double> duration) {
-    duration_ += duration;
-    count += 1;
-  }
-};
-
-
-class xlog_op_duration {
-  op_duration append_;
-  op_duration sync_;
-
-  void sync_add(std::chrono::duration<double> duration) {
-    sync_.add(duration);
-  }
-
-  void append_add(std::chrono::duration<double> duration) {
-    append_.add(duration);
-  }
-};
 
 class xlog {
 public:
@@ -64,23 +43,36 @@ public:
   
   void wait_start();
 
+  static xlog_op_duration op_duration() ;
 private:
+  // main loop run in io_uring handle thread
   void main_loop();
+
+  // add io event to queue
   void add_event(io_event *e);
+
+  // handle io event in queue
   int handle_event_list();
+  
+  // handle completion in main loop 
   int handle_completion(int submit);
+
+  // handle an io completion event
   void handle_completion_event(io_event *e);
+  
   bool enqueue_sqe(io_event *e);
   bool enqueue_sqe_write(io_event *e);
   bool enqueue_sqe_fsync(io_event *e);
   bool enqueue_sqe_fsync_combine();
   
+  // uring thread notify the log service start
   void notify_start();
 
+  // create a new io event
+  static io_event* new_io_event();
 
-  static io_event* new_io_event(size_t size);
+  // delete the io event
   static void delete_io_event(io_event*);
-
 
   size_t num_log_files_;
   size_t num_uring_entries_;

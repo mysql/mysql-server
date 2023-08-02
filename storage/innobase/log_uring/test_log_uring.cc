@@ -3,6 +3,7 @@
 #include "log_uring/ptr.hpp"
 #include "log_uring/log_uring.h"
 #include "log_uring/xlog.h"
+#include "log_uring/ptr.hpp"
 #include "log_uring/define.h"
 #include <stdlib.h>
 #include <thread>
@@ -14,6 +15,48 @@ namespace po = boost::program_options;
 
 
 
+
+class duration_list {
+  std::mutex mutex_;
+  std::condition_variable cond_;
+  std::vector<xlog_op_duration> list_;
+  int thread_;
+  std::atomic_bool stopped_;
+public:
+  duration_list() : thread_(0), stopped_(false) {
+
+  }
+  void append(xlog_op_duration duration) {
+    std::unique_lock l (mutex_);
+    list_.push_back(duration);
+  }
+
+  void notify(int thread) {
+    std::unique_lock l(mutex_);
+    thread_ = thread;
+    cond_.notify_all();
+  }
+
+  void wait() {
+    std::unique_lock l(mutex_);
+    cond_.wait(l, [this] {
+        return thread_ != 0 && (int) list_.size() == thread_;
+      });
+  }
+
+  bool is_stopped() {
+    return stopped_.load();
+  }
+
+  void stop() {
+    stopped_.store(true);
+  }
+
+  void calculate() {
+
+  }
+};
+
 class log_thread_handler {
 public:
     void operator()() {
@@ -21,15 +64,20 @@ public:
     }
 };
 
+ptr<duration_list> _list = cs_new<duration_list>();
+
 class worker_thread_handler {
 public:
   worker_thread_handler(
+    ptr<duration_list> list,
     xlog* log, 
     int log_size,
-    int num_log_entries_sync
+    int num_log_entries_sync,
+    int num_thread
     ): 
     log_(log),
-    num_log_entries_sync_(num_log_entries_sync)
+    num_log_entries_sync_(num_log_entries_sync),
+    num_thread_(num_thread)
   {
     buffer_.resize(log_size, 0);
   }
@@ -37,18 +85,49 @@ public:
   void operator()() {
     log_->wait_start();
     
-    for (size_t i = 0; i < NUM_APPEND_LOGS || NUM_APPEND_LOGS == 0; i++) {
+    for (int i = 0; (i < num_log_entries_sync_ || num_log_entries_sync_ == 0) && !list_->is_stopped(); i++) {
       
       uint64_t lsn = log_->append(buffer_.data(), buffer_.size());
       if (i % (size_t)num_log_entries_sync_ == (size_t)num_log_entries_sync_ - 1) {
         log_->sync(lsn);
       }
     }
+    xlog_op_duration duration = xlog::op_duration();
+    list_->append(duration);
+
+    list_->notify(num_thread_);
   }
 private:
+
+  ptr<duration_list> list_;
   xlog* log_;
   int num_log_entries_sync_;
+  int num_thread_;
   std::vector<uint8_t> buffer_;
+};
+
+
+class calculate_thread_handler {
+public:
+  calculate_thread_handler(
+    ptr<duration_list> list,
+    int wait_seconds
+    ):list_(list),
+    wait_seconds_(wait_seconds)
+  {
+
+  }
+  
+  void operator()() {
+    sleep(wait_seconds_);
+    list_->stop();
+    list_->wait();
+
+    list_->calculate();
+  }
+private:
+  ptr<duration_list> list_;
+  int wait_seconds_;
 };
 
 ptr<std::thread> create_log_thread() {
@@ -57,12 +136,19 @@ ptr<std::thread> create_log_thread() {
 }
 
 
-ptr<std::thread> create_worker_thread(xlog*log, int log_size, int num_log_entries_sync) {
+ptr<std::thread> create_worker_thread(
+  xlog*log, 
+  int log_size, 
+  int num_log_entries_sync,
+  int num_thread
+  ) {
   ptr<std::thread> thd(new std::thread(
     worker_thread_handler(
+      _list,
       log, 
       log_size,
-      num_log_entries_sync
+      num_log_entries_sync, 
+      num_thread
       )));
   return thd;
 }
@@ -127,10 +213,22 @@ int main(int argc, const char*argv[]) {
     ptr<std::thread> thd = create_worker_thread(
         log, 
         log_size, 
-        num_log_entries_sync
+        num_log_entries_sync,
+        num_worker_threads
         );
     threads.push_back(thd);
   }
+  
+  // create calculate thread
+  {
+    ptr<std::thread> calculate_thread(new std::thread(
+      calculate_thread_handler(
+        _list,
+        30 // 30seconds
+        )));
+    threads.push_back(calculate_thread);
+  }
+
   for (size_t i = 0; i < threads.size(); i++) {
     threads[i]->join();
   }
