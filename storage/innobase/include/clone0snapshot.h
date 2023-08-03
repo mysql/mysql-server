@@ -787,9 +787,9 @@ class Clone_Snapshot {
   int init_apply_state(Clone_Desc_State *state_desc);
 
   /** Extend and flush files after copying data
-  @param[in]    is_redo if true flush redo, otherwise data
+  @param[in]    flush_redo if true flush redo, otherwise data
   @return error code */
-  int extend_and_flush_files(bool is_redo);
+  int extend_and_flush_files(bool flush_redo);
 
   /** Create file descriptor and add to current file list
   @param[in]    data_dir        destination data directory

@@ -1734,10 +1734,10 @@ int Clone_Snapshot::extend_and_flush_files(bool flush_redo) {
     std::string file_name;
     file_ctx->get_file_name(file_name);
 
-    auto file =
-        os_file_create(innodb_clone_file_key, file_name.c_str(),
-                       OS_FILE_OPEN | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-                       OS_CLONE_DATA_FILE, false, &success);
+    auto file = os_file_create(
+        innodb_clone_file_key, file_name.c_str(),
+        OS_FILE_OPEN | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
+        flush_redo ? OS_CLONE_LOG_FILE : OS_CLONE_DATA_FILE, false, &success);
 
     if (!success) {
       /* purecov: begin inspected */
