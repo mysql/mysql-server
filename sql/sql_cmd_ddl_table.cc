@@ -356,6 +356,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
     Query_result_create *result;
     if (!query_expression->is_prepared()) {
+      const Prepare_error_tracker tracker(thd);
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       result = new (thd->mem_root)
           Query_result_create(create_table, &query_block->fields,
