@@ -8683,6 +8683,8 @@ dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
   ut::aligned_free(page);
   ut::free(filepath);
 
+  block->page.reset_page_id();
+
   mutex_free(&block->mutex);
 
   ut::free(block);
