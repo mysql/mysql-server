@@ -377,6 +377,10 @@ void DestMetadataCacheGroup::init() {
           "Invalid value for allow_primary_reads option: '" +
           query_part->second + "'");
     }
+
+    log_warning(
+        "allow_primary_reads is deprecated, use role=PRIMARY_AND_SECONDARY "
+        "instead");
   }
 
   // validate routing strategy:

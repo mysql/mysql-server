@@ -272,6 +272,13 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     EXPECT_EQ(server->wait_for_exit(), 0);
   }
 
+  void check_log_contains(ProcessWrapper &router,
+                          const std::string &expected_string) {
+    const std::string log_content = router.get_logfile_content();
+    EXPECT_EQ(1, count_str_occurences(log_content, expected_string))
+        << log_content;
+  }
+
   std::chrono::milliseconds wait_for_cache_ready_timeout{1000};
   std::chrono::milliseconds wait_for_static_ready_timeout{100};
   std::chrono::milliseconds wait_for_process_exit_timeout{10000};
@@ -423,6 +430,19 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                   node_port);
       }
     }
+  }
+
+  if (GetParam().role.find("allow_primary_reads") != std::string::npos) {
+    RecordProperty("Worklog", "15871");
+    RecordProperty("RequirementId", "FR1");
+    RecordProperty("Description",
+                   "Checks that the Router logs a deprecation warning if "
+                   "allow_primary_reads parameter is used in the "
+                   "[routing].destinations URI");
+
+    check_log_contains(router,
+                       "allow_primary_reads is deprecated, use "
+                       "role=PRIMARY_AND_SECONDARY instead");
   }
 
   ASSERT_THAT(router.kill(), testing::Eq(0));
