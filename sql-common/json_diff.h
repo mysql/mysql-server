@@ -251,4 +251,44 @@ class Json_diff_vector {
   static const size_t ENCODED_LENGTH_BYTES = 4;
 };
 
+/**
+  The result of applying JSON diffs on a JSON value using apply_json_diff().
+*/
+enum class enum_json_diff_status {
+  /**
+     The JSON diffs were applied and the JSON value in the column was updated
+     successfully.
+  */
+  SUCCESS,
+
+  /**
+    An error was raised while applying one of the diffs. The value in the
+    column was not updated.
+  */
+  ERROR,
+
+  /**
+    One of the diffs was rejected. This could happen if the path specified in
+    the diff does not exist in the JSON value, or if the diff is supposed to
+    add a new value at a given path, but there already is a value at the path.
+
+    This return code would usually indicate that the replication slave where
+    the diff is applied, is out of sync with the replication master where the
+    diff was created.
+
+    The value in the column was not updated, but no error was raised.
+  */
+  REJECTED,
+};
+
+/**
+  Apply one JSON diff to the DOM provided.
+
+  @param diff The diff which contains the path to apply it and the new value.
+  @param dom The DOM to apply the diff to.
+  @return An enum_json_diff_status value that tells if the diff was applied
+  successfully.
+ */
+enum_json_diff_status apply_json_diff(const Json_diff &diff, Json_dom *dom);
+
 #endif /* JSON_DIFF_INCLUDED */

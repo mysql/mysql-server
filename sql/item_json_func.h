@@ -65,6 +65,8 @@ class THD;
 class my_decimal;
 enum Cast_target : unsigned char;
 enum class Json_on_response_type : uint16;
+enum class enum_json_diff_status;
+
 struct Cast_type;
 struct TABLE;
 
@@ -1251,36 +1253,6 @@ using Json_dom_ptr = std::unique_ptr<Json_dom>;
 bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
                 const JsonParseErrorHandler &error_handler,
                 const JsonErrorHandler &depth_handler);
-
-/**
-  The result of applying JSON diffs on a JSON value using apply_json_diffs().
-*/
-enum class enum_json_diff_status {
-  /**
-     The JSON diffs were applied and the JSON value in the column was updated
-     successfully.
-  */
-  SUCCESS,
-
-  /**
-    An error was raised while applying one of the diffs. The value in the
-    column was not updated.
-  */
-  ERROR,
-
-  /**
-    One of the diffs was rejected. This could happen if the path specified in
-    the diff does not exist in the JSON value, or if the diff is supposed to
-    add a new value at a given path, but there already is a value at the path.
-
-    This return code would usually indicate that the replication slave where
-    the diff is applied, is out of sync with the replication master where the
-    diff was created.
-
-    The value in the column was not updated, but no error was raised.
-  */
-  REJECTED,
-};
 
 /**
   Apply a sequence of JSON diffs to the value stored in a JSON column.

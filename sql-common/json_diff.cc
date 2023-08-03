@@ -385,3 +385,112 @@ corrupted:
            table->s->table_name.str, field_name);
   return true;
 }
+
+/**
+  Find the value at the specified path in a JSON DOM. The path should
+  not contain any wildcard or ellipsis, only simple array cells or
+  member names. Auto-wrapping is not performed.
+
+  @param dom        the root of the DOM
+  @param first_leg  the first path leg
+  @param last_leg   the last path leg (exclusive)
+  @return the JSON DOM at the given path, or `nullptr` if the path is not found
+ */
+static Json_dom *seek_exact_path(Json_dom *dom,
+                                 const Json_path_iterator &first_leg,
+                                 const Json_path_iterator &last_leg) {
+  for (auto it = first_leg; it != last_leg; ++it) {
+    const Json_path_leg *leg = *it;
+    const auto leg_type = leg->get_type();
+    assert(leg_type == jpl_member || leg_type == jpl_array_cell);
+    switch (dom->json_type()) {
+      case enum_json_type::J_ARRAY: {
+        const auto array = down_cast<Json_array *>(dom);
+        if (leg_type != jpl_array_cell) return nullptr;
+        Json_array_index idx = leg->first_array_index(array->size());
+        if (!idx.within_bounds()) return nullptr;
+        dom = (*array)[idx.position()];
+        continue;
+      }
+      case enum_json_type::J_OBJECT: {
+        const auto object = down_cast<Json_object *>(dom);
+        if (leg_type != jpl_member) return nullptr;
+        dom = object->get(leg->get_member_name());
+        if (dom == nullptr) return nullptr;
+        continue;
+      }
+      default:
+        return nullptr;
+    }
+  }
+
+  return dom;
+}
+
+enum_json_diff_status apply_json_diff(const Json_diff &diff, Json_dom *dom) {
+  Json_wrapper val_to_apply = diff.value();
+  const Json_path &path = diff.path();
+
+  switch (diff.operation()) {
+    case enum_json_diff_operation::REPLACE: {
+      assert(path.leg_count() > 0);
+      Json_dom *old = seek_exact_path(dom, path.begin(), path.end());
+      if (old == nullptr) return enum_json_diff_status::REJECTED;
+      assert(old->parent() != nullptr);
+      old->parent()->replace_dom_in_container(old, val_to_apply.clone_dom());
+      return enum_json_diff_status::SUCCESS;
+    }
+    case enum_json_diff_operation::INSERT: {
+      assert(path.leg_count() > 0);
+      Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
+      if (parent == nullptr) return enum_json_diff_status::REJECTED;
+      const Json_path_leg *last_leg = path.last_leg();
+      if (parent->json_type() == enum_json_type::J_OBJECT &&
+          last_leg->get_type() == jpl_member) {
+        auto obj = down_cast<Json_object *>(parent);
+        if (obj->get(last_leg->get_member_name()) != nullptr)
+          return enum_json_diff_status::REJECTED;
+        if (obj->add_alias(last_leg->get_member_name(),
+                           val_to_apply.clone_dom()))
+          return enum_json_diff_status::ERROR; /* purecov: inspected */
+        return enum_json_diff_status::SUCCESS;
+      }
+      if (parent->json_type() == enum_json_type::J_ARRAY &&
+          last_leg->get_type() == jpl_array_cell) {
+        auto array = down_cast<Json_array *>(parent);
+        Json_array_index idx = last_leg->first_array_index(array->size());
+        if (array->insert_alias(idx.position(), val_to_apply.clone_dom()))
+          return enum_json_diff_status::ERROR; /* purecov: inspected */
+        return enum_json_diff_status::SUCCESS;
+      }
+      return enum_json_diff_status::REJECTED;
+    }
+    case enum_json_diff_operation::REMOVE: {
+      assert(path.leg_count() > 0);
+      Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
+      if (parent == nullptr) return enum_json_diff_status::REJECTED;
+      const Json_path_leg *last_leg = path.last_leg();
+      if (parent->json_type() == enum_json_type::J_OBJECT) {
+        auto object = down_cast<Json_object *>(parent);
+        if (last_leg->get_type() != jpl_member ||
+            !object->remove(last_leg->get_member_name()))
+          return enum_json_diff_status::REJECTED;
+      } else if (parent->json_type() == enum_json_type::J_ARRAY) {
+        if (last_leg->get_type() != jpl_array_cell)
+          return enum_json_diff_status::REJECTED;
+        auto array = down_cast<Json_array *>(parent);
+        Json_array_index idx = last_leg->first_array_index(array->size());
+        if (!idx.within_bounds() || !array->remove(idx.position()))
+          return enum_json_diff_status::REJECTED;
+      } else {
+        return enum_json_diff_status::REJECTED;
+      }
+      return enum_json_diff_status::SUCCESS;
+    }
+  }
+
+  /* purecov: begin deadcode */
+  assert(false);
+  return enum_json_diff_status::ERROR;
+  /* purecov: end */
+}
