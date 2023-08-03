@@ -67,6 +67,19 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
                                        const std::string &pattern,
                                        std::chrono::milliseconds timeout);
 
+  /** @brief Checks if the process' log contains specific number of occurences
+   * of a given string
+   *
+   * @param process             process handle
+   * @param expected_string     the string to look for in the logfile
+   * @param expected_occurences number of string occurences expected in the
+   *                            logfile
+   *
+   */
+  void check_log_contains(const ProcessWrapper &process,
+                          const std::string &expected_string,
+                          size_t expected_occurences = 1);
+
   /** @brief Sleep for a duration given as a parameter. The duration is
    * increased 10 times for the run with VALGRIND.
    */

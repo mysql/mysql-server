@@ -30,6 +30,7 @@
 #include "filesystem_utils.h"
 #include "mock_server_testutils.h"
 #include "random_generator.h"
+#include "router_component_testutils.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -85,6 +86,15 @@ bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,
   } while (!found && clock_type::now() < end);
 
   return found;
+}
+
+void RouterComponentTest::check_log_contains(
+    const ProcessWrapper &router, const std::string &expected_string,
+    size_t expected_occurences /*=1*/) {
+  const std::string log_content = router.get_logfile_content();
+  EXPECT_EQ(expected_occurences,
+            count_str_occurences(log_content, expected_string))
+      << log_content;
 }
 
 constexpr const char RouterComponentBootstrapTest::kRootPassword[];

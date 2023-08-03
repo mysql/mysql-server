@@ -121,12 +121,3 @@ ProcessWrapper &RouterComponentMetadataTest::launch_router(
 
   return router;
 }
-
-void RouterComponentMetadataTest::check_log_contains(
-    ProcessWrapper &router, const std::string &expected_string,
-    size_t expected_occurences) {
-  const std::string log_content = router.get_logfile_content();
-  EXPECT_EQ(expected_occurences,
-            count_str_occurences(log_content, expected_string))
-      << log_content;
-}

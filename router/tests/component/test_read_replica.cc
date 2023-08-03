@@ -49,15 +49,6 @@ Path g_origin_path;
 
 class ReadReplicaTest : public RouterComponentClusterSetTest {
  protected:
-  void check_log_contains(const ProcessWrapper *proc,
-                          const std::string &expected_string,
-                          size_t expected_occurences) {
-    const std::string log_content = proc->get_logfile_content();
-    EXPECT_EQ(expected_occurences,
-              count_str_occurences(log_content, expected_string))
-        << log_content;
-  }
-
   std::pair<std::string, std::map<std::string, std::string>>
   metadata_cache_section(const std::string &cluster_type_str = "gr") {
     auto ttl_str = std::to_string(std::chrono::duration<double>(kTTL).count());
@@ -663,7 +654,7 @@ TEST_F(ReadReplicaTest, ReadOnlyTargetsChanges) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
   check_log_contains(
-      &router,
+      router,
       "Error parsing read_only_targets from options JSON string: "
       "Unknown read_only_targets read from the metadata: ''. "
       "Using default value. ({\"read_only_targets\" : \"\"})",
@@ -678,7 +669,7 @@ TEST_F(ReadReplicaTest, ReadOnlyTargetsChanges) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
   check_log_contains(
-      &router,
+      router,
       "Error parsing read_only_targets from options JSON string: "
       "Unknown read_only_targets read from the metadata: 'foo'. "
       "Using default value. ({\"read_only_targets\" : \"foo\"})",
@@ -688,7 +679,7 @@ TEST_F(ReadReplicaTest, ReadOnlyTargetsChanges) {
   change_read_only_targets("all");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  check_log_contains(&router, "Using read_only_targets='all'", 2);
+  check_log_contains(router, "Using read_only_targets='all'", 2);
 
   // make sure Read Replicas were NOT added to the state file as a metadata
   // servers
@@ -782,7 +773,7 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
   // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "Error parsing instance_type from attributes JSON string: "
                      "Unknown attributes.instance_type value: ''",
                      1);
@@ -794,7 +785,7 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
   // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "Error parsing instance_type from attributes JSON string: "
                      "Unknown attributes.instance_type value: 'foo'",
                      1);
@@ -918,7 +909,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
                            cluster_nodes_[gr_nodes_count].classic_port);
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_D) + "' to quarantine",
                      1);
@@ -951,7 +942,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
     make_new_connection_ok(router_port_ro, classic_port_D);
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_E) + "' to quarantine",
                      1);
@@ -962,7 +953,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
     verify_new_connection_fails(router_port_ro);
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_D) + "' to quarantine",
                      2);
@@ -1009,7 +1000,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedReadOnlyTargetsAll) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_D) + "' to quarantine",
                      1);
@@ -1038,7 +1029,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedReadOnlyTargetsAll) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_E) + "' to quarantine",
                      1);
@@ -1052,7 +1043,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedReadOnlyTargetsAll) {
     make_new_connection_ok(router_port_ro, {classic_port_B, classic_port_C});
   }
 
-  check_log_contains(&router,
+  check_log_contains(router,
                      "add destination '127.0.0.1:" +
                          std::to_string(classic_port_D) + "' to quarantine",
                      2);
@@ -1101,7 +1092,7 @@ TEST_F(ReadReplicaTest, ReadReplicaInAsyncReplicaCluster) {
   const auto classic_port_E = cluster_nodes_[4].classic_port;
   // Read Replicas should be ignored
   for (const auto port : {classic_port_D, classic_port_E}) {
-    check_log_contains(&router,
+    check_log_contains(router,
                        "Ignoring unsupported instance 127.0.0.1:" +
                            std::to_string(port) + ", type: 'read-replica'",
                        1);

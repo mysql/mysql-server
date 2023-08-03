@@ -74,9 +74,6 @@ class RouterComponentMetadataTest : public RouterComponentClusterSetTest {
       std::chrono::milliseconds wait_for_notify_ready =
           std::chrono::seconds(30));
 
-  void check_log_contains(ProcessWrapper &router,
-                          const std::string &expected_string,
-                          size_t expected_occurences);
   std::string state_file_;
   const std::string router_metadata_username{"mysql_router1_user"};
 };

@@ -2681,15 +2681,7 @@ struct SessionReuseInvalidOptionValueParam {
 class RoutingSessionReuseInvalidOptionValueTest
     : public RoutingSessionReuseTest,
       public ::testing::WithParamInterface<
-          SessionReuseInvalidOptionValueParam> {
- protected:
-  void check_log_contains(ProcessWrapper &router,
-                          const std::string &expected_string) {
-    const std::string log_content = router.get_logfile_content();
-    EXPECT_EQ(1, count_str_occurences(log_content, expected_string))
-        << log_content;
-  }
-};
+          SessionReuseInvalidOptionValueParam> {};
 
 TEST_P(RoutingSessionReuseInvalidOptionValueTest, Spec) {
   const auto test_param = GetParam();

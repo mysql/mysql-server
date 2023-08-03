@@ -424,6 +424,19 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                 testing::UnorderedElementsAreArray(expected_ports));
   }
 
+  if (GetParam().role.find("allow_primary_reads") != std::string::npos) {
+    RecordProperty("Worklog", "15871");
+    RecordProperty("RequirementId", "FR1");
+    RecordProperty("Description",
+                   "Checks that the Router logs a deprecation warning if "
+                   "allow_primary_reads parameter is used in the "
+                   "[routing].destinations URI");
+
+    check_log_contains(router,
+                       "allow_primary_reads is deprecated, use "
+                       "role=PRIMARY_AND_SECONDARY instead");
+  }
+
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
