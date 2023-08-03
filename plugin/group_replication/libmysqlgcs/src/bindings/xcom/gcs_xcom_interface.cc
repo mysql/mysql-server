@@ -52,6 +52,8 @@ using std::map;
 using std::string;
 using std::vector;
 
+unsigned long xcom_ssl_socket_timeout;
+unsigned long xcom_ssl_accept_retries;
 extern uint32_t get_my_xcom_id();
 
 Gcs_interface *Gcs_xcom_interface::interface_reference_singleton = nullptr;
@@ -1056,6 +1058,16 @@ bool Gcs_xcom_interface::initialize_xcom(
         interface_params.get_parameter("tls_version");
     const std::string *tls_ciphersuites =
         interface_params.get_parameter("tls_ciphersuites");
+
+    const std::string *xcom_ssl_socket_timeout_str =
+        interface_params.get_parameter("xcom_ssl_socket_timeout");
+    const std::string *xcom_ssl_accept_retries_str =
+        interface_params.get_parameter("xcom_ssl_accept_retries");
+
+    xcom_ssl_socket_timeout =
+        static_cast<unsigned long>(atoi(xcom_ssl_socket_timeout_str->c_str()));
+    xcom_ssl_accept_retries =
+        static_cast<unsigned long>(atoi(xcom_ssl_accept_retries_str->c_str()));
 
     ssl_parameters ssl_configuration = {
         ssl_mode_int,

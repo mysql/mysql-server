@@ -95,6 +95,8 @@ static inline int is_socket_error(int x) { return x == SOCKET_ERROR || x < 0; }
 #define SOCK_ECONNRESET ECONNRESET
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_REUSEADDR
+#define SOCK_OPT_RECVTIMEOUT SO_RCVTIMEO
+#define SOCK_OPT_SENDTIMEOOUT SO_SNDTIMEO
 #define GET_OS_ERR errno
 #define SET_OS_ERR(x) errno = (x)
 #define CLOSESOCKET(x) close(x)

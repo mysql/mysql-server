@@ -204,6 +204,16 @@ struct plugin_options_variables {
 #define MIN_COMPRESSION_THRESHOLD 0
   ulong compression_threshold_var;
 
+#define DEFAULT_XCOM_SSL_SOCKET_TIMEOUT 0
+#define MAX_XCOM_SSL_SOCKET_TIMEOUT UINT_MAX32
+#define MIN_XCOM_SSL_SOCKET_TIMEOUT 0
+  ulong xcom_ssl_socket_timeout_var;
+
+#define DEFAULT_XCOM_SSL_ACCEPT_RETRIES 10
+#define MAX_XCOM_SSL_ACCEPT_RETRIES UINT_MAX32
+#define MIN_XCOM_SSL_ACCEPT_RETRIES 0
+  ulong xcom_ssl_accept_retries_var;
+
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
 #define MAX_GTID_ASSIGNMENT_BLOCK_SIZE GNO_END

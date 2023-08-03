@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 61 GR variables.
-include/assert.inc [There are 61 GR variables at present.]
+# Test#1: Basic check that there are 63 GR variables.
+include/assert.inc [There are 63 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;

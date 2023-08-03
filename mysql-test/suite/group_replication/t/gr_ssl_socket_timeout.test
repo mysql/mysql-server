@@ -1,0 +1,130 @@
+################################################################################
+# This test verifies that any unintended connection on group_replication
+# communication port is aborted by the server after the timout configured by
+# the group_replication_xcom_ssl_socket_timeout.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Enable group_replication_ssl_mode = REQUIRED on both members and start GR.
+# 2. With both members ONLINE, stop GR on M2.
+# 3. Initiate a connection on the GR communication port of M1 as a background
+#    process.
+# 4. Start GR on M2.
+# 5. Verify that START GR will be successful, after the server aborting the
+#    connection.
+# 6. Cleanup
+################################################################################
+
+--source include/have_group_replication_xcom_communication_stack.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start one member with GCS SSL enabled.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+
+# Set the group_replication_xcom_ssl_socket_timeout and group_replication_xcom_ssl_accept_retries
+SET @group_replication_xcom_ssl_socket_timeout_save= @@GLOBAL.group_replication_xcom_ssl_socket_timeout;
+SET @group_replication_xcom_ssl_accept_retries_save= @@GLOBAL.group_replication_xcom_ssl_accept_retries;
+
+SET GLOBAL group_replication_xcom_ssl_socket_timeout= 3;
+SET GLOBAL group_replication_xcom_ssl_accept_retries= 3;
+
+# Bootstrap and start group replication
+--source include/start_and_bootstrap_group_replication.inc
+
+# Verify that GR was started with group_replication_ssl_mode = REQUIRED
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Start the second member with GCS SSL enabled, the member
+--echo #    will be able to join the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+--enable_query_log
+
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Verify that any connection on group_replication
+--echo #    communication port is aborted by the server after the
+--echo #    timout configured by the group_replication_xcom_ssl_socket_timeout.
+
+# STOP GR on server2
+--source include/stop_group_replication.inc
+
+# Connect to GR communication port on server1. For the purpose of testing, we
+# use mysql client here.
+--connection server1
+SET @group_replication_communication_debug_options_save = @@GLOBAL.group_replication_communication_debug_options;
+SET GLOBAL group_replication_communication_debug_options= "XCOM_DEBUG_BASIC";
+--let $gr_port= `SELECT SUBSTRING(@@group_replication_local_address, LOCATE(':',@@group_replication_local_address) + 1)`
+--let $command= $MYSQL
+--let $command_opt= --user=root --host=127.0.0.1 --port=$gr_port
+--let $output_file= $MYSQLTEST_VARDIR/tmp/mysql_output
+--let $pid_file= $MYSQLTEST_VARDIR/tmp/mysql_pid
+--let $redirect_stderr= 1
+--source include/start_proc_in_background.inc
+
+--connection server2
+START GROUP_REPLICATION;
+
+--connection server1
+SET @@GLOBAL.group_replication_communication_debug_options= @group_replication_communication_debug_options_save;
+--source include/wait_proc_to_finish.inc
+
+# Assert that mysql command has failed
+--let $assert_text= Assert that the mysql connection has been ended by the server
+--let $assert_select= Lost connection to MySQL server at \'reading initial communication packet\'
+--let $assert_file= $output_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Assert that message about aborting the connection has been logged to GCS_DEBUG_TRACE file
+--let $assert_text= Assert that message about aborting the connection has been logged to GCS_DEBUG_TRACE file
+--let $assert_select= SSL_accept did receive any data on fd .* despite waiting for 12 seconds in total, aborting the connection.
+--let $assert_file= $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+--let $assert_count= 1
+--source include/assert_grep.inc
+--exec cat $output_file
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+SET GLOBAL group_replication_xcom_ssl_socket_timeout= @group_replication_xcom_ssl_socket_timeout_save;
+SET GLOBAL group_replication_xcom_ssl_accept_retries= @group_replication_xcom_ssl_accept_retries_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--remove_file $pid_file
+--remove_file $output_file
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+--source include/group_replication_end.inc

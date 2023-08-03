@@ -1,0 +1,50 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start one member with GCS SSL enabled.
+[connection server1]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+SET @group_replication_xcom_ssl_socket_timeout_save= @@GLOBAL.group_replication_xcom_ssl_socket_timeout;
+SET @group_replication_xcom_ssl_accept_retries_save= @@GLOBAL.group_replication_xcom_ssl_accept_retries;
+SET GLOBAL group_replication_xcom_ssl_socket_timeout= 3;
+SET GLOBAL group_replication_xcom_ssl_accept_retries= 3;
+include/start_and_bootstrap_group_replication.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
+
+############################################################
+# 2. Start the second member with GCS SSL enabled, the member
+#    will be able to join the group.
+[connection server2]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 1
+
+############################################################
+# 3. Verify that any connection on group_replication
+#    communication port is aborted by the server after the
+#    timout configured by the group_replication_xcom_ssl_socket_timeout.
+include/stop_group_replication.inc
+SET @group_replication_communication_debug_options_save = @@GLOBAL.group_replication_communication_debug_options;
+SET GLOBAL group_replication_communication_debug_options= "XCOM_DEBUG_BASIC";
+START GROUP_REPLICATION;
+SET @@GLOBAL.group_replication_communication_debug_options= @group_replication_communication_debug_options_save;
+include/assert_grep.inc [Assert that the mysql connection has been ended by the server]
+include/assert_grep.inc [Assert that message about aborting the connection has been logged to GCS_DEBUG_TRACE file]
+ERROR 2013 (HY000): Lost connection to MySQL server at 'reading initial communication packet', system error: 2
+
+############################################################
+# 4. Clean up.
+[connection server1]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+SET GLOBAL group_replication_xcom_ssl_socket_timeout= @group_replication_xcom_ssl_socket_timeout_save;
+SET GLOBAL group_replication_xcom_ssl_accept_retries= @group_replication_xcom_ssl_accept_retries_save;
+[connection server2]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+include/group_replication_end.inc

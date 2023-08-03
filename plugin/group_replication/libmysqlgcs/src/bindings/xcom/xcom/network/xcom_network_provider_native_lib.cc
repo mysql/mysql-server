@@ -33,6 +33,8 @@ reserved.
 #include "xcom/xcom_base.h"
 #include "xcom/xcom_transport.h"
 
+extern unsigned long xcom_ssl_socket_timeout;
+
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -168,6 +170,28 @@ result Xcom_network_provider_library::create_server_socket() {
       close_open_connection(&cd);
       return fd;
     }
+
+    /*
+     This code sets the socket level timeout defined by
+     group_replication_xcom_ssl_socket_timeout.
+    */
+    struct timeval timeout;
+    timeout.tv_sec = xcom_ssl_socket_timeout;
+    timeout.tv_usec = 0;
+    SET_OS_ERR(0);
+    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_RECVTIMEOUT, &timeout,
+                   sizeof(timeout)) < 0) {
+      fd.funerr = to_errno(GET_OS_ERR);
+      G_MESSAGE(
+          "Unable to set socket options "
+          "(socket=%d, errno=%d)!",
+          fd.val, to_errno(GET_OS_ERR));
+
+      connection_descriptor cd;
+      cd.fd = fd.val;
+      close_open_connection(&cd);
+      return fd;
+    }
   }
   return fd;
 }
@@ -198,6 +222,28 @@ result Xcom_network_provider_library::create_server_socket_v4() {
       close_open_connection(&cd);
       return fd;
     }
+  }
+
+  /*
+   This code sets the socket level timeout defined by
+   group_replication_xcom_ssl_socket_timeout.
+  */
+  struct timeval timeout;
+  timeout.tv_sec = xcom_ssl_socket_timeout;
+  timeout.tv_usec = 0;
+  SET_OS_ERR(0);
+  if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_RECVTIMEOUT, &timeout,
+                 sizeof(timeout)) < 0) {
+    fd.funerr = to_errno(GET_OS_ERR);
+    G_MESSAGE(
+        "Unable to set socket options "
+        "(socket=%d, errno=%d)!",
+        fd.val, to_errno(GET_OS_ERR));
+
+    connection_descriptor cd;
+    cd.fd = fd.val;
+    close_open_connection(&cd);
+    return fd;
   }
   return fd;
 }
