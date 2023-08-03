@@ -591,8 +591,9 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 
   m_sort_index = is_fts_index() ? m_ctx.m_fts.m_ptr->sort_index() : m_index;
 
-  if (dict_table_is_comp(m_ctx.m_old_table) &&
-      !dict_table_is_comp(m_ctx.m_new_table)) {
+  DBUG_EXECUTE_IF("ddl_convert_charset_without_heap_fail", { return; });
+  if (!dict_table_is_comp(m_ctx.m_new_table)) {
+    /* Converting to redundant format requires heap allocation */
     m_conv_heap.create(sizeof(mrec_buf_t), UT_LOCATION_HERE);
   }
 }
@@ -932,10 +933,14 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
                   page_size,
                   IF_DEBUG(dict_table_is_sdi(m_ctx.m_old_table->id), )
                       m_conv_heap.get());
-        } else {
-          /* Field length mismatch should not happen when rebuilding
-          redundant row format table. */
-          ut_a(dict_table_is_comp(m_index->table));
+        } else if (!dict_table_is_comp(m_index->table)) {
+          /* Heap is created when new table is not compact. */
+          ib::info(ER_IB_DDL_CONVERT_HEAP_NOT_FOUND);
+
+          DBUG_EXECUTE_IF("ddl_convert_charset_without_heap_fail",
+                          { return DB_ERROR; });
+          ut_ad(false);
+          return DB_ERROR;
         }
       }
     } else {

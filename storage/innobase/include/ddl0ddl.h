@@ -445,7 +445,7 @@ struct Context {
     dberr_t expected{DB_SUCCESS};
 
     if (m_err.compare_exchange_strong(expected, err)) {
-      ut_a(m_err_key_number == std::numeric_limits<size_t>::max());
+      ut_ad(m_err_key_number == std::numeric_limits<size_t>::max());
       m_err_key_number = m_key_numbers[id];
     }
   }
