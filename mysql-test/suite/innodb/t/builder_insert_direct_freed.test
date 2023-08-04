@@ -1,0 +1,31 @@
+--source include/have_debug.inc
+# Test error handling in case m_btr_load was found nullptr
+
+--echo # Bug scenario:
+CREATE TABLE t1 (c1 INT);
+
+--echo # Create big enough table to ensure another call to Builder::insert_direct
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .* DDL Failed as Builder is already freed");
+DELIMITER |;
+CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
+BEGIN
+  DECLARE i INT DEFAULT BASE;
+  WHILE (i <= SIZE) DO
+    INSERT INTO t1 values (i);
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+CALL populate_t1(0, 10000);
+DROP PROCEDURE populate_t1;
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+SET DEBUG="+d,builder_insert_direct_no_builder";
+--error ER_GET_ERRNO
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+
+DROP TABLE t1;

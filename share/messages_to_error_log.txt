@@ -12550,6 +12550,9 @@ ER_GROUP_REPLICATION_NO_CERTIFICATION_DONOR_AVAILABLE
 ER_GROUP_REPLICATION_RECOVERY_STOPPED_GTID_PRESENT
   eng "The group replication recovery is complete, joiner gtid executed set has all the transactions of the donor's gtid set %s."
 
+ER_IB_MSG_DDL_FAIL_NO_BUILDER
+  eng "DDL Failed as Builder is already freed"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

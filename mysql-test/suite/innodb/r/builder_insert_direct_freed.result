@@ -1,0 +1,10 @@
+# Bug scenario:
+CREATE TABLE t1 (c1 INT);
+# Create big enough table to ensure another call to Builder::insert_direct
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10001
+SET DEBUG="+d,builder_insert_direct_no_builder";
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
+DROP TABLE t1;
