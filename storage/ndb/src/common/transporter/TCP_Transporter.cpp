@@ -219,7 +219,7 @@ bool TCP_Transporter::connect_common(NdbSocket & socket)
   socket.set_nonblocking(true);
 
   get_callback_obj()->lock_transporter(m_transporter_index);
-  NdbSocket::transfer(theSocket, socket);
+  theSocket = std::move(socket);
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(m_transporter_index);
 
@@ -678,10 +678,8 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 void
 TCP_Transporter::disconnectImpl()
 {
-  NdbSocket sock;
-
   get_callback_obj()->lock_transporter(m_transporter_index);
-  NdbSocket::transfer(sock, theSocket);
+  NdbSocket sock = std::move(theSocket);
   get_callback_obj()->unlock_transporter(m_transporter_index);
 
   if(sock.is_valid())

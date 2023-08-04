@@ -430,7 +430,7 @@ SHM_Transporter::set_socket(NdbSocket & sock)
   set_get(sock.ndb_socket(), SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
   sock.set_nonblocking(true);
   get_callback_obj()->lock_transporter(m_transporter_index);
-  NdbSocket::transfer(theSocket, sock);
+  theSocket = std::move(sock);
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(m_transporter_index);
 }
