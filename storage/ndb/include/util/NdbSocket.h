@@ -25,6 +25,7 @@
 #ifndef NDB_UTIL_SECURE_SOCKET_H
 #define NDB_UTIL_SECURE_SOCKET_H
 
+#include <utility> // std::swap
 #include "portlib/ndb_socket.h"
 #include "portlib/ndb_socket_poller.h"
 #include "portlib/NdbMutex.h"
@@ -37,19 +38,13 @@ public:
   enum class From { New, Existing };
 
   NdbSocket() = default;
+  NdbSocket(NdbSocket&& oth);
   NdbSocket(ndb_socket_t ndbsocket, From fromType) {
     ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
     init_from_native(ndbsocket.s);
   }
   ~NdbSocket()                       { disable_locking(); }
-
- /* The standard copy constructor and copy operator are private.
-  * NdbSockets should be copied using NdbSocket::transfer(), which
-  * invalidates the original, and transfers ownership of its ssl and
-  * mutex.
-  */
-  static void transfer(NdbSocket & newSocket, NdbSocket & original);
-  static NdbSocket transfer(NdbSocket & original);
+  NdbSocket& operator=(NdbSocket &&);
 
   void init_from_new(ndb_socket_t);
   void init_from_native(socket_t fd) { ndb_socket_init_from_native(s, fd); }
@@ -175,9 +170,6 @@ public:
   bool check_hup() const;
 
 private:
-  NdbSocket & operator= (const NdbSocket &) = default;
-  NdbSocket(const NdbSocket &) = default;
-
   ssize_t ssl_recv(char * buf, size_t len) const;
   ssize_t ssl_peek(char * buf, size_t len) const;
   ssize_t ssl_send(const char * buf, size_t len) const;
@@ -207,20 +199,37 @@ void NdbSocket::init_from_new(ndb_socket_t ndbsocket) {
   init_from_native(ndbsocket.s);
 }
 
+/*
+ * There must not be any concurrent operations on the source object (oth) while
+ * calling the move constructor.
+ */
 inline
-void NdbSocket::transfer(NdbSocket & newSocket, NdbSocket & original) {
-  assert(! newSocket.is_valid());
-  newSocket = original;           // invokes the private copy operator
-  original.ssl = nullptr;         // transfer ownership
-  original.mutex = nullptr;       // transfer ownership
-  original.invalidate();
+NdbSocket::NdbSocket(NdbSocket && oth) {
+  // All members are default member initialized.
+  // Using swap for move.
+  // Source (oth) will become like default initialized.
+  std::swap(ssl, oth.ssl);
+  std::swap(mutex, oth.mutex);
+  std::swap(s, oth.s);
 }
 
+/*
+ * There must not be any concurrent operations on either the source object
+ * (oth) or destination object (this) while calling the move assignment.
+ */
 inline
-NdbSocket NdbSocket::transfer(NdbSocket & original) {
-  NdbSocket newSocket;
-  transfer(newSocket, original);
-  return newSocket;               // invokes the private copy constructor
+NdbSocket& NdbSocket::operator=(NdbSocket && oth) {
+  // Only allow move assignment to default NdbSocket object
+  require(ssl == nullptr);
+  require(mutex == nullptr);
+  require(!ndb_socket_valid(s));
+
+  // Using swap for move.
+  // Source (oth) will become like default initialized.
+  std::swap(ssl, oth.ssl);
+  std::swap(mutex, oth.mutex);
+  std::swap(s, oth.s);
+  return *this;
 }
 
 inline

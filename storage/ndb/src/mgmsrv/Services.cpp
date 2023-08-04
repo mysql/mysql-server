@@ -1820,8 +1820,7 @@ Ndb_mgmd_event_service::add_listener(Event_listener& client, NdbSocket& socket)
 
   check_listeners();
 
-  client.m_socket_ptr = new NdbSocket();
-  NdbSocket::transfer(* client.m_socket_ptr, socket);
+  client.m_socket_ptr = new NdbSocket(std::move(socket));
 
   m_clients.push_back(client);
   update_max_log_level(client.m_logLevel);
@@ -2048,7 +2047,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
       but don't close the socket, it's been taken over
       by the transporter
     */
-    NdbSocket s = NdbSocket::transfer(m_secure_socket);
+    NdbSocket s = std::move(m_secure_socket);
   }
 
   m_stop= true; // Stop the session

@@ -3795,7 +3795,7 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle, NdbSocket *s)
     return;
   }
 
-  NdbSocket::transfer(*s, (*handle)->socket);
+  *s = std::move((*handle)->socket);
   SecureSocketOutputStream s_output(*s, (*handle)->timeout);
   s_output.println("transporter connect");
   s_output.println("%s", "");
