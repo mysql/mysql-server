@@ -138,6 +138,11 @@ dynamic_privilege_services_impl::register_privilege,
     dynamic_privilege_services_impl::unregister_privilege
     END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_privilege_deprecation)
+dynamic_privilege_services_impl::add_deprecated,
+    dynamic_privilege_services_impl::remove_deprecated
+    END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
 dynamic_privilege_services_impl::has_global_grant END_SERVICE_IMPLEMENTATION();
 
@@ -979,6 +984,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_debug_keyword_service),
     PROVIDES_SERVICE(mysql_server, mysql_debug_sync_service),
 #endif
+    PROVIDES_SERVICE(mysql_server, dynamic_privilege_deprecation),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

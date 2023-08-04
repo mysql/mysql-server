@@ -33,6 +33,7 @@
 
 class String;
 class THD;
+struct LEX_USER;
 
 void roles_graphml(THD *thd, String *);
 bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
@@ -50,4 +51,28 @@ void get_granted_roles(Role_vertex_descriptor &v,
                        std::function<void(const Role_id &, bool)> f);
 /* For for get_mandatory_roles and Sys_mandatory_roles */
 extern mysql_mutex_t LOCK_mandatory_roles;
+
+/**
+  Check if the definer is a valid one
+
+  if the definer is different to the current session account, make sure
+  it's OK to use it:
+   - check for the right privs: SUPER, SET_USER_ID or SET_ANY_DEFINER
+   - whether it doesn't violate system user
+
+  if it's not OK, generate an error.
+
+  Also checks if the user\@host is a non-existent user account
+  and if it is throws an error and returns true, given that
+  SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER are not granted.
+  If the privs arent granted a warning is produced instead of an error.
+
+
+  @param thd the session
+  @param definer the definer to check
+  @retval false : success
+  @retval true : failure
+*/
+extern bool check_valid_definer(THD *thd, LEX_USER *definer);
+
 #endif /* SQL_AUTHORIZATION_INCLUDED */

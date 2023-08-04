@@ -9879,6 +9879,13 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
+  /*
+    Bootstrap the dynamic privilege service implementation
+  */
+  if (dynamic_privilege_init()) {
+    LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
+  }
+
   if (abort || acl_init(opt_noacl)) {
     if (!abort) LogErr(ERROR_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
     abort = true;
@@ -9898,13 +9905,6 @@ int mysqld_main(int argc, char **argv)
     delete_pid_file(MYF(MY_WME));
 
     unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
-  /*
-    Bootstrap the dynamic privilege service implementation
-  */
-  if (dynamic_privilege_init()) {
-    LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
   }
 
   /*

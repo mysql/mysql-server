@@ -7,7 +7,8 @@ USE wl14073;
 CREATE table t1(i int);
 CREATE USER normal_user;
 GRANT ALL ON *.* TO normal_user;
-REVOKE SET_USER_ID ON *.* FROM normal_user;
+REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
+ON *.* FROM normal_user;
 CREATE USER power_user;
 GRANT ALL ON *.* TO power_user;
 # case1: check for view with normal_user

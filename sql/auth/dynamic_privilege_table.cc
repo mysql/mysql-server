@@ -50,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/handler.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/key.h"
+#include "sql/mysqld.h"  // srv_registry
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/table.h"
@@ -62,6 +63,7 @@ class THD;
 #define MYSQL_DYNAMIC_PRIV_FIELD_GRANT 3
 
 Dynamic_privilege_register g_dynamic_privilege_register;
+Dynamic_privilege_register g_dynamic_privilege_deprecations;
 
 /**
   This function returns a pointer to a global variable allocated on the heap.
@@ -70,6 +72,25 @@ Dynamic_privilege_register g_dynamic_privilege_register;
 
 Dynamic_privilege_register *get_dynamic_privilege_register(void) {
   return &g_dynamic_privilege_register;
+}
+
+bool is_dynamic_privilege_defined(const std::string &str) {
+  return g_dynamic_privilege_register.find(str) !=
+         g_dynamic_privilege_register.end();
+}
+
+/**
+  This function returns a pointer to a global variable allocated on the heap.
+  @return A pointer to the dynamic privilege deprecation register.
+*/
+
+Dynamic_privilege_register *get_dynamic_privilege_deprecations(void) {
+  return &g_dynamic_privilege_deprecations;
+}
+
+bool is_dynamic_privilege_deprecated(const std::string &str) {
+  return g_dynamic_privilege_deprecations.find(str) !=
+         g_dynamic_privilege_deprecations.end();
 }
 
 /**
@@ -112,10 +133,9 @@ bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
     We need the the dynamic privilege register in order to register any unknown
     privilege identifiers.
   */
-  SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
-        "dynamic_privilege_register.mysql_server", r);
+        "dynamic_privilege_register.mysql_server", srv_registry);
     if (!service.is_valid()) {
       return true;
     }
@@ -140,6 +160,9 @@ bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
       const LEX_CSTRING str_user = {user, strlen(user)};
       const LEX_CSTRING str_host = {host, strlen(host)};
       Update_dynamic_privilege_table no_update;
+      if (is_dynamic_privilege_deprecated(priv))
+        LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER, priv,
+               user ? user : "", host ? host : "");
       if (grant_dynamic_privilege(str_priv, str_user, str_host,
                                   (*with_grant_option == 'Y' ? true : false),
                                   no_update)) {
@@ -170,7 +193,6 @@ bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
     */
     get_global_acl_cache()->increase_version();
   }  // exit scope
-  mysql_plugin_registry_release(r);
   return error;
 }
 
@@ -248,6 +270,22 @@ bool iterate_all_dynamic_privileges(THD *thd,
       get_dynamic_privilege_register()->end();
   while (it != end_it) {
     if (action(it->c_str())) return true;
+    ++it;
+  }
+  return false;
+}
+
+bool iterate_all_dynamic_non_deprecated_privileges(
+    THD *thd, std::function<bool(const char *)> action) {
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock()) return true;
+  Dynamic_privilege_register::iterator it =
+      get_dynamic_privilege_register()->begin();
+  Dynamic_privilege_register::iterator end_it =
+      get_dynamic_privilege_register()->end();
+  while (it != end_it) {
+    if (!is_dynamic_privilege_deprecated(*it) && action(it->c_str()))
+      return true;
     ++it;
   }
   return false;

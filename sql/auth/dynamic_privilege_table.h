@@ -63,8 +63,14 @@ class Update_dynamic_privilege_table {
   bool m_no_update;
 };
 
-Dynamic_privilege_register *get_dynamic_privilege_register(void);
-void register_dynamic_privilege_impl(const std::string &priv);
-bool iterate_all_dynamic_privileges(THD *thd,
-                                    std::function<bool(const char *)> action);
+extern Dynamic_privilege_register *get_dynamic_privilege_register(void);
+extern bool is_dynamic_privilege_defined(const std::string &str);
+extern bool iterate_all_dynamic_privileges(
+    THD *thd, std::function<bool(const char *)> action);
+
+extern Dynamic_privilege_register *get_dynamic_privilege_deprecations(void);
+extern bool is_dynamic_privilege_deprecated(const std::string &str);
+extern bool iterate_all_dynamic_non_deprecated_privileges(
+    THD *thd, std::function<bool(const char *)> action);
+
 #endif

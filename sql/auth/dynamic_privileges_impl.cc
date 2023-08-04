@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
+#include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"
 #include "sql/sql_thd_internal_api.h"  // create_internal_thd
 #include "string_with_len.h"
@@ -113,11 +114,9 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
     Acl_cache_lock_guard acl_cache_lock(get_thd(),
                                         Acl_cache_lock_mode::WRITE_MODE);
     acl_cache_lock.lock();
-    Dynamic_privilege_register *reg = get_dynamic_privilege_register();
-    if (reg->find(priv) != reg->end()) {
-      /* If the privilege ID already is registered; report success */
-      return false;
-    }
+    /* If the privilege ID already is registered; report success */
+    if (is_dynamic_privilege_defined(priv)) return false;
+
     return !get_dynamic_privilege_register()->insert(priv).second;
   } catch (...) {
     return true;
@@ -158,9 +157,15 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
       DBUG_EXECUTE_IF("bug34594035_simulate_lock_failure",
                       DBUG_SET("+d,bug34594035_fail_acl_cache_lock"););
       acl_cache_lock.lock();
+      /* do a best effort erase from the deprecations too */
+      get_dynamic_privilege_deprecations()->erase(priv);
+
       return (get_dynamic_privilege_register()->erase(priv) == 0);
-    } else
+    } else {
+      /* do a best effort erase from the deprecations too */
+      get_dynamic_privilege_deprecations()->erase(priv);
       return (get_dynamic_privilege_register()->erase(priv) == 0);
+    }
   } catch (...) {
     return true;
   }
@@ -185,75 +190,138 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
   return sctx->has_global_grant(privilege_str, privilege_str_len).first;
 }
 
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::add_deprecated,
+                   (const char *priv_name, size_t priv_name_len)) {
+  try {
+    std::string priv;
+    const char *c = &priv_name[0];
+    for (size_t i = 0; i < priv_name_len; ++i, ++c)
+      priv.append(1, static_cast<char>(toupper(*c)));
+
+    if (Global_THD_manager::is_initialized()) {
+      Thd_creator get_thd(current_thd);
+      Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                          Acl_cache_lock_mode::WRITE_MODE);
+      if (!acl_cache_lock.lock()) return true;
+
+      /* If the privilege ID isn't registered report failure */
+      if (!is_dynamic_privilege_defined(priv)) return true;
+
+      /* If the privilege ID already is deprecated; report success */
+      if (is_dynamic_privilege_deprecated(priv)) return false;
+      return !get_dynamic_privilege_deprecations()->insert(priv).second;
+    } else {
+      /* If the privilege ID isn't registered report failure */
+      if (!is_dynamic_privilege_defined(priv)) return true;
+
+      /* If the privilege ID already is deprecated; report success */
+      if (is_dynamic_privilege_deprecated(priv)) return false;
+      return !get_dynamic_privilege_deprecations()->insert(priv).second;
+    }
+  } catch (...) {
+    return true;
+  }
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::remove_deprecated,
+                   (const char *priv_name, size_t priv_name_len)) {
+  try {
+    std::string priv;
+    const char *c = &priv_name[0];
+    for (size_t i = 0; i < priv_name_len; ++i, ++c)
+      priv.append(1, static_cast<char>(toupper(*c)));
+
+    /*
+      This function may be called after the thd manager is gone, e.g.
+      from component deinitialization.
+      In this case it can just remove the priv from the global list
+      without taking locks.
+    */
+    if (Global_THD_manager::is_initialized()) {
+      Thd_creator get_thd(current_thd);
+      Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                          Acl_cache_lock_mode::WRITE_MODE);
+      if (!acl_cache_lock.lock()) return true;
+
+      /* If the privilege ID isn't registered report failure */
+      if (!is_dynamic_privilege_defined(priv)) return true;
+
+      return (get_dynamic_privilege_deprecations()->erase(priv) == 0);
+    } else {
+      /* If the privilege ID isn't registered report failure */
+      if (!is_dynamic_privilege_defined(priv)) return true;
+      return (get_dynamic_privilege_deprecations()->erase(priv) == 0);
+    }
+  } catch (...) {
+    return true;
+  }
+}
+
 /**
   Bootstrap the dynamic privilege service by seeding it with server
   implementation-specific data.
 */
 
 bool dynamic_privilege_init(void) {
-  // Set up default dynamic privileges
-  SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   int ret = false;
-  {
-    my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
-        "dynamic_privilege_register.mysql_server", r);
-    if (service.is_valid()) {
-      ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
-      ret += service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
-      ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("TELEMETRY_LOG_ADMIN"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
-      ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("FLUSH_OPTIMIZER_COSTS"));
-      ret += service->register_privilege(STRING_WITH_LEN("FLUSH_STATUS"));
-      ret +=
-          service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
-      ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("GROUP_REPLICATION_STREAM"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("PASSWORDLESS_USER_ADMIN"));
-      ret += service->register_privilege(
-          STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"));
-    }
-  }  // exist scope
-  mysql_plugin_registry_release(r);
+
+  // Set up default dynamic privileges
+  my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
+      "dynamic_privilege_register.mysql_server", srv_registry);
+  assert(service.is_valid());
+  ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+  ret += service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+  ret += service->register_privilege(
+      STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"));
+  ret += service->register_privilege(
+      STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
+  ret += service->register_privilege(STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("TELEMETRY_LOG_ADMIN"));
+  ret += service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
+  ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
+  ret += service->register_privilege(STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"));
+  ret += service->register_privilege(STRING_WITH_LEN("FLUSH_OPTIMIZER_COSTS"));
+  ret += service->register_privilege(STRING_WITH_LEN("FLUSH_STATUS"));
+  ret += service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
+  ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_STREAM"));
+  ret += service->register_privilege(
+      STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("PASSWORDLESS_USER_ADMIN"));
+  ret += service->register_privilege(
+      STRING_WITH_LEN("SENSITIVE_VARIABLES_OBSERVER"));
+  ret += service->register_privilege(STRING_WITH_LEN("SET_ANY_DEFINER"));
+  ret +=
+      service->register_privilege(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"));
+
+  // Set up default dynamic privileges deprecations
+  my_service<SERVICE_TYPE(dynamic_privilege_deprecation)> deprecation_service(
+      "dynamic_privilege_deprecation.mysql_server", srv_registry);
+  assert(deprecation_service.is_valid());
+  ret += deprecation_service->add(STRING_WITH_LEN("SET_USER_ID"));
+
   return ret != 0;
 }
