@@ -571,16 +571,14 @@ class Opt_trace_struct {
      @param  item   the Item
      @return a reference to the structure
   */
-  Opt_trace_struct &add(const char *key, Item *item) {
+  Opt_trace_struct &add(const char *key, const Item *item) {
     if (likely(!started)) return *this;
     return do_add(key, item);
   }
-  Opt_trace_struct &add(Item *item) {
+  Opt_trace_struct &add(const Item *item) {
     if (likely(!started)) return *this;
     return do_add(nullptr, item);
   }
-
- public:
   Opt_trace_struct &add(const char *key, bool value) {
     if (likely(!started)) return *this;
     return do_add(key, value);
@@ -742,7 +740,7 @@ class Opt_trace_struct {
   */
   Opt_trace_struct &do_add(const char *key, const char *value,
                            size_t val_length, bool escape);
-  Opt_trace_struct &do_add(const char *key, Item *item);
+  Opt_trace_struct &do_add(const char *key, const Item *item);
   Opt_trace_struct &do_add(const char *key, bool value);
   Opt_trace_struct &do_add(const char *key, longlong value);
   Opt_trace_struct &do_add(const char *key, ulonglong value);

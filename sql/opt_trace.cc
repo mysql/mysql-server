@@ -347,7 +347,7 @@ Opt_trace_struct &Opt_trace_struct::do_add_null(const char *key) {
   return *this;
 }
 
-Opt_trace_struct &Opt_trace_struct::do_add(const char *key, Item *item) {
+Opt_trace_struct &Opt_trace_struct::do_add(const char *key, const Item *item) {
   char buff[256];
   String str(buff, sizeof(buff), system_charset_info);
   str.length(0);

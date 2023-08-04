@@ -100,20 +100,20 @@ void item_init(void); /* Init item functions */
   For predicates that are always satisfied. Must be 1.0 or the filter
   calculation logic will break down.
 */
-#define COND_FILTER_ALLPASS 1.0f
+constexpr float COND_FILTER_ALLPASS{1.0f};
 /// Filtering effect for equalities: col1 = col2
-#define COND_FILTER_EQUALITY 0.1f
+constexpr float COND_FILTER_EQUALITY{0.1f};
 /// Filtering effect for inequalities: col1 > col2
-#define COND_FILTER_INEQUALITY 0.3333f
+constexpr float COND_FILTER_INEQUALITY{0.3333f};
 /// Filtering effect for between: col1 BETWEEN a AND b
-#define COND_FILTER_BETWEEN 0.1111f
+constexpr float COND_FILTER_BETWEEN{0.1111f};
 /**
    Value is out-of-date, will need recalculation.
    This is used by post-greedy-search logic which changes the access method and
   thus makes obsolete the filtering value calculated by best_access_path(). For
   example, test_if_skip_sort_order().
 */
-#define COND_FILTER_STALE -1.0f
+constexpr float COND_FILTER_STALE{-1.0f};
 /**
    A special subcase of the above:
    - if this is table/index/range scan, and
@@ -129,7 +129,7 @@ void item_init(void); /* Init item functions */
    - the constant condition's effect has to be moved to filter_effect for
    EXPLAIN.
 */
-#define COND_FILTER_STALE_NO_CONST -2.0f
+constexpr float COND_FILTER_STALE_NO_CONST{-2.0f};
 
 static inline uint32 char_to_byte_length_safe(uint32 char_length_arg,
                                               uint32 mbmaxlen_arg) {
