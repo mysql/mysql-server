@@ -3860,7 +3860,7 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
                          __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
-  DBUG_RETURN(NdbSocket::copy(socket));
+  DBUG_RETURN(NdbSocket::transfer(socket));
 }
 
 /**
