@@ -112,6 +112,7 @@ Query_term *Query_term::pushdown_limit_order_by(Query_term_set_op *parent) {
             child_block->select_limit == nullptr) {
           child_block->order_list = this_block->order_list;
           child_block->absorb_limit_of(this_block);
+          child_block->m_windows.prepend(&this_block->m_windows);
 
           if (this_block->first_inner_query_expression() != nullptr) {
             // Change context of any items in ORDER BY to child block
