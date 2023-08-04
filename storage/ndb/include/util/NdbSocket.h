@@ -47,13 +47,9 @@ public:
   * NdbSockets should be copied using NdbSocket::transfer(), which
   * invalidates the original, and transfers ownership of its ssl and
   * mutex.
-  *
-  * NdbSocket::copy() should only be used when the original is going
-  * out of scope.
   */
   static void transfer(NdbSocket & newSocket, NdbSocket & original);
   static NdbSocket transfer(NdbSocket & original);
-  static NdbSocket copy(const NdbSocket &s) { return s; }
 
   void init_from_new(ndb_socket_t);
   void init_from_native(socket_t fd) { ndb_socket_init_from_native(s, fd); }
