@@ -33,23 +33,17 @@ LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
 # in order to search include/boost_1_70_0/patches
 # INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
 
-# We require at least Clang 6.0 (FreeBSD 12).
+# We require at least GCC 10 Clang 10
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(MY_COMPILER_IS_CLANG)
-    CHECK_C_SOURCE_RUNS("
-      int main()
-      {
-        return (__clang_major__ < 6);
-      }" HAVE_SUPPORTED_CLANG_VERSION)
-    IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 6.0 or newer is required!")
+  IF(MY_COMPILER_IS_GNU)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+      MESSAGE(FATAL_ERROR "GCC 10 or newer is required")
     ENDIF()
-  ELSEIF(MY_COMPILER_IS_GNU)
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
-      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+      MESSAGE(FATAL_ERROR "Clang 10 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")
   ENDIF()
 ENDIF()
-

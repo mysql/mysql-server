@@ -227,11 +227,7 @@ IF(MYSQL_MAINTAINER_MODE)
   IF(MY_COMPILER_IS_CLANG)
     ADD_COMPILE_OPTIONS("-Wshadow")
   ELSEIF(MY_COMPILER_IS_GNU)
-    # GCC's -Wshadow is too noisy. Starting with GCC 7 we can use the
-    # more surgical -Wshadow=compatible-local
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-      ADD_COMPILE_OPTIONS("-Wshadow=compatible-local")
-    ENDIF()
+    ADD_COMPILE_OPTIONS("-Wshadow=compatible-local")
   ENDIF()
 ENDIF()
 

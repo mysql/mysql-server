@@ -26,8 +26,7 @@
 # Memory allocation in NDB kernel relies on object properties that
 # are set before calling the object constructor.
 #
-IF(CMAKE_COMPILER_IS_GNUCXX
-   AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "6.0.0")
+IF(CMAKE_COMPILER_IS_GNUCXX)
   STRING_APPEND(CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} " -flifetime-dse=1")
 ENDIF()
 

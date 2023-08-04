@@ -64,15 +64,17 @@ IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
   SET(LINUX_RPM_PLATFORM 1)
 ENDIF()
 
-# We require at least GCC 7.1 Clang 5
+# We require at least GCC 10 Clang 10
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
-      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
+    # gcc9 is known to fail
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+      MESSAGE(FATAL_ERROR "GCC 10 or newer is required")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
-      MESSAGE(FATAL_ERROR "Clang 5 or newer is required!")
+    # This is the lowest version tested
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+      MESSAGE(FATAL_ERROR "Clang 10 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

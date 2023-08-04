@@ -144,7 +144,7 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
-IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
+IF(MY_COMPILER_IS_GNU)
   # It's tricky to check alloc-size-larger-than warning in
   # MY_CHECK_CXX_COMPILER_WARNING(). Handle it differently
   # as done in sql/CMakeLists.txt

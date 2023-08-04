@@ -60,10 +60,7 @@ IF(MY_COMPILER_IS_GNU)
   # This is included in -Wall on some platforms, enable it explicitly.
   MY_ADD_C_WARNING_FLAG("Wstringop-truncation")
   MY_ADD_CXX_WARNING_FLAG("Wstringop-truncation")
-  IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
-    # GCC 8 has bugs with "final".
-    MY_ADD_CXX_WARNING_FLAG("Wsuggest-override")
-  ENDIF()
+  MY_ADD_CXX_WARNING_FLAG("Wsuggest-override")
   MY_ADD_C_WARNING_FLAG("Wmissing-include-dirs")
   MY_ADD_CXX_WARNING_FLAG("Wmissing-include-dirs")
 
@@ -193,10 +190,9 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
 ENDIF()
 
 MACRO(ADD_WSHADOW_WARNING)
-  IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7)
+  IF(MY_COMPILER_IS_GNU)
     ADD_COMPILE_OPTIONS("-Wshadow=local")
-  ELSEIF(MY_COMPILER_IS_CLANG AND
-      CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5)
+  ELSEIF(MY_COMPILER_IS_CLANG)
     # added in clang-5.0
     ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
   ENDIF()

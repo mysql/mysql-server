@@ -46,9 +46,7 @@ STRING_APPEND(CMAKE_C_LINK_FLAGS   " -m64")
 STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -m64")
 
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(MY_COMPILER_IS_SUNPRO)
-    MESSAGE(FATAL_ERROR "Oracle Studio is not supported.")
-  ELSEIF(MY_COMPILER_IS_CLANG)
+  IF(MY_COMPILER_IS_CLANG)
     MESSAGE(WARNING "Clang is experimental!!")
   ELSEIF(MY_COMPILER_IS_GNU)
     # 9.2.0 generated code which dumped core in optimized mode.

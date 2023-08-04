@@ -22,24 +22,6 @@
 
 # Options for doing PGO (profile guided optimization) with gcc/clang.
 #
-# gcc8 and gcc9 handle naming and location of the .gcda files
-# (containing profile data) completely differently, hence the slightly
-# different HowTos below:
-#
-# HowTo for gcc8:
-# Assuming we have three build directories
-#   <some path>/build-gen
-#   <some path>/build-use
-#   <some path>/profile-data
-#
-# in build-gen
-#   cmake <path to source> -DFPROFILE_GENERATE=1
-#   make
-#   run whatever test suite is an appropriate training set
-# in build-use
-#   cmake <path to source> -DFPROFILE_USE=1
-#   make
-#
 # HowTo for gcc9 and above:
 # Assuming we have two build directories
 #   <some path>/build
@@ -82,11 +64,7 @@ IF(NOT MY_COMPILER_IS_GNU_OR_CLANG)
 ENDIF()
 
 IF(MY_COMPILER_IS_GNU)
-  IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
-  ELSE()
-    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}-profile-data")
-  ENDIF()
+  SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}-profile-data")
 ELSE()
   SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
 ENDIF()
@@ -123,10 +101,8 @@ IF(FPROFILE_USE)
     # to be optimized as if they were compiled without profile feedback.
     # This leads to better performance when train run is not representative
     # but also leads to significantly bigger code.
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
-      STRING_APPEND(CMAKE_C_FLAGS " -fprofile-partial-training")
-      STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-partial-training")
-    ENDIF()
+    STRING_APPEND(CMAKE_C_FLAGS " -fprofile-partial-training")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-partial-training")
 
   ENDIF()
 ENDIF()
