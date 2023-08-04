@@ -1,0 +1,22 @@
+# Bug scenario:
+CREATE TABLE t1 (c1 INT);
+# Create big enough table to ensure another call to Builder::insert_direct
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10001
+# Builder::insert_direct returns DB_ONLINE_LOG_TOO_BIG
+SET DEBUG="+d,builder_insert_direct_trigger_error";
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+ERROR HY000: Creating index 'GEN_CLUST_INDEX' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
+SET DEBUG="-d,builder_insert_direct_trigger_error";
+# Pages still buffer fixed should assert during shutdown
+# restart
+# Builder::add_row returns DB_ONLINE_LOG_TOO_BIG
+SET DEBUG="+d,builder_add_row_trigger_error";
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+ERROR HY000: Creating index 'GEN_CLUST_INDEX' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
+SET DEBUG="-d,builder_add_row_trigger_error";
+# Pages still buffer fixed should assert during shutdown
+# restart
+# Cleanup
+DROP TABLE t1;

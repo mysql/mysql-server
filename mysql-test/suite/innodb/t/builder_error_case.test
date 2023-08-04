@@ -1,0 +1,49 @@
+--source include/have_debug.inc
+# Bug scenario:
+# When DDL is on-going and hits an error in online build (for example when online log is too big); it must rollback
+# The error handling code has missed a call to m_btr_load->finish to cleanup the buffer fixed pages at each level
+
+--echo # Bug scenario:
+CREATE TABLE t1 (c1 INT);
+
+--echo # Create big enough table to ensure another call to Builder::insert_direct
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
+BEGIN
+  DECLARE i INT DEFAULT BASE;
+  WHILE (i <= SIZE) DO
+    INSERT INTO t1 values (i);
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+CALL populate_t1(0, 10000);
+DROP PROCEDURE populate_t1;
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+--echo # Builder::insert_direct returns DB_ONLINE_LOG_TOO_BIG
+SET DEBUG="+d,builder_insert_direct_trigger_error";
+--error ER_INNODB_ONLINE_LOG_TOO_BIG
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+SET DEBUG="-d,builder_insert_direct_trigger_error";
+
+--echo # Pages still buffer fixed should assert during shutdown
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+--echo # Builder::add_row returns DB_ONLINE_LOG_TOO_BIG
+SET DEBUG="+d,builder_add_row_trigger_error";
+--error ER_INNODB_ONLINE_LOG_TOO_BIG
+ALTER TABLE t1 ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INPLACE;
+SET DEBUG="-d,builder_add_row_trigger_error";
+
+--echo # Pages still buffer fixed should assert during shutdown
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+--echo # Cleanup
+DROP TABLE t1;

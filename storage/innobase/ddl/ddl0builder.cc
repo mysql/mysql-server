@@ -1217,6 +1217,23 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
   return DB_SUCCESS;
 }
 
+dberr_t Builder::online_build_handle_error(dberr_t err) noexcept {
+  set_error(err);
+
+  if (m_btr_load != nullptr) {
+    /* page_loaders[0] has increased buf_fix_count through release(). This is
+    decremented by calling latch(). Similar release() calls for page_loaders at
+    non-zero levels are handled in finish() */
+    m_btr_load->latch();
+    err = m_btr_load->finish(err);
+
+    ut::delete_(m_btr_load);
+    m_btr_load = nullptr;
+  }
+
+  return get_error();
+}
+
 dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
   ut_a(m_id == 0);
   ut_ad(is_skip_file_sort());
@@ -1229,13 +1246,26 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
   {
     auto err = m_ctx.check_state_of_online_build_log();
 
+    DBUG_EXECUTE_IF("builder_insert_direct_trigger_error", {
+      static int count = 0;
+      ++count;
+      if (count > 1) {
+        err = DB_ONLINE_LOG_TOO_BIG;
+        m_ctx.m_trx->error_key_num = SERVER_CLUSTER_INDEX_ID;
+      }
+    });
+
     if (err != DB_SUCCESS) {
-      set_error(err);
-      err = m_btr_load->finish(err);
-      ut::delete_(m_btr_load);
-      m_btr_load = nullptr;
-      return get_error();
+      return online_build_handle_error(err);
     }
+  }
+
+  DBUG_EXECUTE_IF("builder_insert_direct_no_builder",
+                  { static_cast<void>(online_build_handle_error(DB_ERROR)); });
+
+  if (m_btr_load == nullptr) {
+    ib::error(ER_IB_MSG_DDL_FAIL_NO_BUILDER);
+    return DB_ERROR;
   }
 
   m_btr_load->latch();
@@ -1544,8 +1574,13 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
                          Latch_release &&latch_release) noexcept {
   auto err = m_ctx.check_state_of_online_build_log();
 
+  DBUG_EXECUTE_IF("builder_add_row_trigger_error", {
+    err = DB_ONLINE_LOG_TOO_BIG;
+    m_ctx.m_trx->error_key_num = SERVER_CLUSTER_INDEX_ID;
+  });
+
   if (err != DB_SUCCESS) {
-    set_error(err);
+    err = online_build_handle_error(err);
   } else if (is_spatial_index()) {
     if (!cursor.eof()) {
       err = batch_add_row(row, thread_id);

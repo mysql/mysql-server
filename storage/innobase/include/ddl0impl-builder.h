@@ -395,6 +395,16 @@ struct Builder {
   [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck,
                                          Dup *dup) noexcept;
 
+  /** Cleanup DDL after error in online build
+  Note: To be called if DDL must cleanup due to error in online build. Pages
+  which are buffer-fixed (in Page_load::release) until the next iteration, must
+  be unfixed (with Page_load::latch) before returning the error.
+  @note: Assumes that either m_btr_load->release is called before or
+  m_n_recs is 0 (no records are inserted yet).
+  @param[in]  err    Error hit in online build
+  @return the cursor error status. */
+  [[nodiscard]] dberr_t online_build_handle_error(dberr_t err) noexcept;
+
  private:
   /** Buffer ID. */
   size_t m_id{};
