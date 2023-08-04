@@ -33,7 +33,8 @@
 #include "my_sqlcommand.h"
 #include "mysql/strings/m_ctype.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // check_global_access
+#include "sql/auth/auth_common.h"        // check_global_access
+#include "sql/auth/sql_authorization.h"  // check_valid_definer
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd_trigger.h"  // dd::create_trigger
@@ -197,33 +198,9 @@ bool Table_trigger_dispatcher::create_trigger(
     return true;
   }
 
-  /*
-    If the specified definer differs from the current user, we should check
-    that the current user has SUPER privilege (in order to create trigger
-    under another user one must have SUPER privilege).
-  */
-  Security_context *sctx = thd->security_context();
-  if (lex->definer &&
-      (strcmp(lex->definer->user.str, sctx->priv_user().str) ||
-       my_strcasecmp(system_charset_info, lex->definer->host.str,
-                     sctx->priv_host().str))) {
-    if (!sctx->check_access(SUPER_ACL) &&
-        !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
-      return true;
-    }
-    if (sctx->can_operate_with({lex->definer}, consts::system_user, true))
-      return true;
-  }
+  if (check_valid_definer(thd, lex->definer)) return true;
 
-  if (lex->definer &&
-      !is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
-    push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
-                        ER_THD(thd, ER_NO_SUCH_USER), lex->definer->user.str,
-                        lex->definer->host.str);
-
-    if (thd->get_stmt_da()->is_error()) return true;
-  }
+  if (thd->get_stmt_da()->is_error()) return true;
 
   /*
     Check if all references to fields in OLD/NEW-rows in this trigger are valid.

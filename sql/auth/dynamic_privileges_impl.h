@@ -50,7 +50,11 @@ class dynamic_privilege_services_impl {
                             (Security_context_handle, const char *privilege_str,
                              size_t privilege_str_len));
 
- private:
+  static DEFINE_BOOL_METHOD(add_deprecated,
+                            (const char *priv_name, size_t priv_name_len));
+
+  static DEFINE_BOOL_METHOD(remove_deprecated,
+                            (const char *priv_name, size_t priv_name_len));
 };
 bool dynamic_privilege_init(void);
 #endif /* MYSQL_SERVER_DYNAMIC_LOADER_PATH_FILTER_H */

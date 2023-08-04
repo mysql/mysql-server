@@ -4116,6 +4116,8 @@ GRANT INSERT ON v1 TO user2@localhost;
 GRANT INSERT ON v2 TO user2@localhost;
 GRANT SYSTEM_USER ON *.* TO user2@localhost;
 GRANT SET_USER_ID ON *.* TO user2@localhost;
+Warnings:
+Warning	6016	The privilege 'SET_USER_ID' is deprecated.
 GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;

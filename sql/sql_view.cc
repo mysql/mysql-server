@@ -44,7 +44,8 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"  // CREATE_VIEW_ACL
+#include "sql/auth/auth_common.h"        // CREATE_VIEW_ACL
+#include "sql/auth/sql_authorization.h"  // check_valid_definer
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/dd/cache/dictionary_client.h"
@@ -529,33 +530,9 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
     if (!lex->definer) goto err;
   }
 
-  /*
-    check definer of view:
-      - same as current user
-      - current user has SUPER_ACL or SET_USER_ID
-  */
-  if (lex->definer &&
-      (strcmp(lex->definer->user.str,
-              thd->security_context()->priv_user().str) != 0 ||
-       my_strcasecmp(system_charset_info, lex->definer->host.str,
-                     thd->security_context()->priv_host().str) != 0)) {
-    Security_context *sctx = thd->security_context();
-    if (!(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
-      res = true;
-      goto err;
-    } else if (sctx->can_operate_with({lex->definer}, consts::system_user,
-                                      true)) {
-      res = true;
-      goto err;
-    } else {
-      if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
-        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
-                            ER_THD(thd, ER_NO_SUCH_USER),
-                            lex->definer->user.str, lex->definer->host.str);
-      }
-    }
+  if (check_valid_definer(thd, lex->definer)) {
+    res = true;
+    goto err;
   }
 
   /*

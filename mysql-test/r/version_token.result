@@ -254,6 +254,7 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 # VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
 SHOW PRIVILEGES;
 Privilege	Context	Comment
+ALLOW_NONEXISTENT_DEFINER	Server Admin	
 APPLICATION_PASSWORD_ADMIN	Server Admin	
 AUDIT_ABORT_EXEMPT	Server Admin	
 AUDIT_ADMIN	Server Admin	
@@ -308,6 +309,7 @@ Replication slave	Server Admin	To read binary log events from the master
 SENSITIVE_VARIABLES_OBSERVER	Server Admin	
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
+SET_ANY_DEFINER	Server Admin	
 SET_USER_ID	Server Admin	
 SHOW_ROUTINE	Server Admin	
 SYSTEM_USER	Server Admin	

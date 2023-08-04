@@ -14,7 +14,8 @@ CREATE table t1(i int);
 # create user without SET_USER_ID privilege
 CREATE USER normal_user;
 GRANT ALL ON *.* TO normal_user;
-REVOKE SET_USER_ID ON *.* FROM normal_user;
+REVOKE SET_USER_ID,ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER
+  ON *.* FROM normal_user;
 # create user with all privileges.
 CREATE USER power_user;
 GRANT ALL ON *.* TO power_user;

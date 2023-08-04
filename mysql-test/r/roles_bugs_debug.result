@@ -49,9 +49,11 @@ CREATE TABLE t35471453(c1 INT);
 # test1: should fail
 CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
 AS TABLE t35471453;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SET_USER_ID or SET_ANY_DEFINER privilege(s) for this operation
 # Now grant SET_USER_ID and retry
 GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+Warnings:
+Warning	6016	The privilege 'SET_USER_ID' is deprecated.
 # test2: should complete with a warning
 CREATE OR REPLACE DEFINER = 'role_35471453' VIEW v35471453
 AS TABLE t35471453;
@@ -64,6 +66,8 @@ DROP ROLE IF EXISTS role_35471453;
 ERROR HY000: Operation DROP ROLE failed for 'role_35471453'@'%' as it is referenced as a definer account in a view.
 # Now grant SET_USER_ID and retry
 GRANT SET_USER_ID ON *.* TO b35471453@localhost;
+Warnings:
+Warning	6016	The privilege 'SET_USER_ID' is deprecated.
 # test4: should pass with a warning
 DROP ROLE IF EXISTS role_35471453;
 Warnings:

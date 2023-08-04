@@ -756,10 +756,14 @@ INSERT INTO global_grants SELECT user, host, 'SESSION_VARIABLES_ADMIN', IF(grant
 FROM mysql.user WHERE super_priv = 'Y' AND @hadSessionVariablesAdminPriv = 0;
 COMMIT;
 
--- Add the privilege SET_USER_ID for every user who has the privilege SUPER
--- provided that there isn't a user who already has the privilige SET_USER_ID.
-SET @hadSetUserIdPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SET_USER_ID');
-INSERT INTO global_grants SELECT user, host, 'SET_USER_ID', IF(grant_priv = 'Y', 'Y', 'N')
+-- Add the privileges SET_ANY_DEFINER and ALLOW_NONEXISTENT_DEFINER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has and of the privileges SET_USER_ID, SET_ANY_DEFINER
+--   or ALLOW_NONEXISTENT_DEFINER.
+SET @hadSetUserIdPriv = (SELECT COUNT(*) FROM global_grants
+  WHERE priv IN ('SET_USER_ID','SET_ANY_DEFINER','ALLOW_NONEXISTENT_DEFINER'));
+INSERT INTO global_grants SELECT user, host, 'SET_ANY_DEFINER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSetUserIdPriv = 0;
+INSERT INTO global_grants SELECT user, host, 'ALLOW_NONEXISTENT_DEFINER', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE super_priv = 'Y' AND @hadSetUserIdPriv = 0;
 COMMIT;
 
@@ -1580,5 +1584,17 @@ ALTER TABLE mysql.columns_priv DROP PRIMARY KEY,
 
 ALTER TABLE mysql.procs_priv DROP PRIMARY KEY,
                              ADD PRIMARY KEY (`Host`,`User`,`Db`,`Routine_name`,`Routine_type`);
+
+-- Add the privilege SET_ANY_DEFINER for every user who has privilege SET_USER_ID privilege
+SET @hadSetAnyDefinerPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SET_ANY_DEFINER');
+INSERT INTO global_grants SELECT user, host, 'SET_ANY_DEFINER',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER_ID' AND @hadSetAnyDefinerPriv = 0;
+COMMIT;
+
+-- Add the privilege ALLOW_NONEXISTENT_DEFINER for every user who has privilege SET_USER_ID privilege
+SET @hadAllowNonexistentDefinerPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'ALLOW_NONEXISTENT_DEFINER');
+INSERT INTO global_grants SELECT user, host, 'ALLOW_NONEXISTENT_DEFINER',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER_ID' AND @hadAllowNonexistentDefinerPriv = 0;
+COMMIT;
 
 SET @@session.sql_mode = @old_sql_mode;

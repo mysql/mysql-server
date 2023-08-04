@@ -80,6 +80,7 @@
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_authorization.h"  // check_valid_definer
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_source_logs
 #include "sql/clone_handler.h"
@@ -2802,36 +2803,8 @@ static bool sp_process_definer(THD *thd) {
 
     if (thd->slave_thread && lex->sphead)
       lex->sphead->m_chistics->suid = SP_IS_NOT_SUID;
-  } else {
-    /*
-      If the specified definer differs from the current user, we
-      should check that the current user has a set_user_id privilege
-      (in order to create a stored routine under another user one must
-       have a set_user_id privilege).
-    */
-    Security_context *sctx = thd->security_context();
-    if ((strcmp(lex->definer->user.str,
-                thd->security_context()->priv_user().str) ||
-         my_strcasecmp(system_charset_info, lex->definer->host.str,
-                       thd->security_context()->priv_host().str))) {
-      if (!(sctx->check_access(SUPER_ACL) ||
-            sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
-        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                 "SUPER or SET_USER_ID");
-        return true;
-      }
-      if (sctx->can_operate_with({lex->definer}, consts::system_user))
-        return true;
-    }
   }
-
-  /* Check that the specified definer exists. Emit a warning if not. */
-
-  if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
-    push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
-                        ER_THD(thd, ER_NO_SUCH_USER), lex->definer->user.str,
-                        lex->definer->host.str);
-  }
+  if (check_valid_definer(thd, lex->definer)) return true;
 
   return false;
 }

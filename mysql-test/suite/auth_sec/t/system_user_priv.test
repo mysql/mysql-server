@@ -400,6 +400,7 @@ ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 DROP PROCEDURE test.p1;
 --echo # 7.1.2 ALTER and DROP FUNCTIONS
+connection default;
 CREATE DEFINER=test_user@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
 RETURN i*10;
 connection non_sys_usr_con;

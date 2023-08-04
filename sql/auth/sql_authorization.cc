@@ -392,13 +392,15 @@ bool Grant_validator::validate_dynamic_privileges() {
         dynamic privileges to grant.
       */
       privileges_to_check = new (m_thd->mem_root) List<LEX_CSTRING>;
-      iterate_all_dynamic_privileges(m_thd, [&](const char *str) {
-        LEX_CSTRING *new_str = (LEX_CSTRING *)m_thd->alloc(sizeof(LEX_CSTRING));
-        new_str->str = str;
-        new_str->length = strlen(str);
-        privileges_to_check->push_back(new_str);
-        return false;
-      });
+      iterate_all_dynamic_non_deprecated_privileges(
+          m_thd, [&](const char *str) {
+            LEX_CSTRING *new_str =
+                (LEX_CSTRING *)m_thd->alloc(sizeof(LEX_CSTRING));
+            new_str->str = str;
+            new_str->length = strlen(str);
+            privileges_to_check->push_back(new_str);
+            return false;
+          });
     } else
       privileges_to_check =
           &const_cast<List<LEX_CSTRING> &>(m_dynamic_privilege);
@@ -406,6 +408,15 @@ bool Grant_validator::validate_dynamic_privileges() {
     bool error = false;
     Security_context *sctx = m_thd->security_context();
     while ((priv = priv_it++) && !error) {
+      if (!m_grant_all && !m_revoke) {
+        std::string s(priv->str, priv->length);
+        if (is_dynamic_privilege_deprecated(s))
+          push_warning_printf(
+              m_thd, Sql_condition::SL_WARNING,
+              ER_WARN_DEPRECATED_DYNAMIC_PRIV_IN_GRANT,
+              ER_THD(m_thd, ER_WARN_DEPRECATED_DYNAMIC_PRIV_IN_GRANT),
+              s.c_str());
+      }
       /*
         Privilege to grant dynamic privilege to others is granted if the user
         either has super user privileges (currently UPDATE_ACL on mysql.*) or
@@ -3579,14 +3590,15 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
             dynamic privileges to grant.
           */
           privileges_to_check = new (thd->mem_root) List<LEX_CSTRING>;
-          iterate_all_dynamic_privileges(thd, [&](const char *str) {
-            LEX_CSTRING *new_str =
-                (LEX_CSTRING *)thd->alloc(sizeof(LEX_CSTRING));
-            new_str->str = str;
-            new_str->length = strlen(str);
-            privileges_to_check->push_back(new_str);
-            return false;
-          });
+          iterate_all_dynamic_non_deprecated_privileges(
+              thd, [&](const char *str) {
+                LEX_CSTRING *new_str =
+                    (LEX_CSTRING *)thd->alloc(sizeof(LEX_CSTRING));
+                new_str->str = str;
+                new_str->length = strlen(str);
+                privileges_to_check->push_back(new_str);
+                return false;
+              });
           granted_dynamic_privs = privileges_to_check;
         } else
           privileges_to_check =
@@ -7559,4 +7571,37 @@ bool check_system_user_privilege(THD *thd, List<LEX_USER> list) {
     if (sctx->can_operate_with({user}, consts::system_user)) return (true);
   }
   return (false);
+}
+
+bool check_valid_definer(THD *thd, LEX_USER *definer) {
+  DBUG_TRACE;
+  Security_context *sctx = thd->security_context();
+  if ((strcmp(definer->user.str, sctx->priv_user().str) ||
+       my_strcasecmp(system_charset_info, definer->host.str,
+                     sctx->priv_host().str))) {
+    if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_ANY_DEFINER")).first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER, SET_USER_ID or SET_ANY_DEFINER");
+      return true;
+    }
+    if (sctx->can_operate_with({definer}, consts::system_user, true))
+      return true;
+  }
+
+  if (!is_acl_user(thd, definer->host.str, definer->user.str)) {
+    if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first ||
+          sctx->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
+              .first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER, SET_USER_ID or ALLOW_NONEXISTENT_DEFINER");
+      return true;
+    } else
+      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
+                          ER_THD(thd, ER_NO_SUCH_USER), definer->user.str,
+                          definer->host.str);
+  }
+  return false;
 }

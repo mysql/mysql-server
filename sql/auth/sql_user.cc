@@ -2568,21 +2568,25 @@ end:
 /**
   This function checks if a user which is referenced as a definer account
   in objects like view, trigger, event, procedure or function has SET_USER_ID
-  privilege or not and report error or warning based on that.
+  privilege (or the replacement ALLOW_NONEXISTENT_DEFINER) or not and
+  report error or warning based on that.
 
   @param thd               The current thread
   @param user_name         user name which is referenced as a definer account
   @param object_type       Can be a view, trigger, event, procedure or function
 
-  @retval false      user_name has SET_USER_ID privilege
-  @retval true       user_name does not have SET_USER_ID privilege
+  @retval false      user_name is allowed as an orphaned definer
+  @retval true       user_name cannot be used as an orphaned definer
 */
-bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
-                            const std::string &object_type) {
+static bool stop_if_orphaned_definer(THD *thd, const LEX_USER *user_name,
+                                     const std::string &object_type) {
   String wrong_user;
   log_user(thd, &wrong_user, const_cast<LEX_USER *>(user_name), false);
   if (!(thd->security_context()
             ->has_global_grant(STRING_WITH_LEN("SET_USER_ID"))
+            .first ||
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
             .first)) {
     std::string operation;
     switch (thd->lex->sql_command) {
@@ -2652,25 +2656,25 @@ static bool check_orphaned_definers(THD *thd, List<LEX_USER> &list) {
 
     // Check events.
     if (thd->dd_client()->is_user_definer<dd::Event>(*user_name, &is_definer) ||
-        (is_definer && check_set_user_id_priv(thd, user_name, "an event")))
+        (is_definer && stop_if_orphaned_definer(thd, user_name, "an event")))
       return true;
 
     // Check views.
     if (thd->dd_client()->is_user_definer<dd::View>(*user_name, &is_definer) ||
-        (is_definer && check_set_user_id_priv(thd, user_name, "a view")))
+        (is_definer && stop_if_orphaned_definer(thd, user_name, "a view")))
       return true;
 
     // Check stored routines.
     if (thd->dd_client()->is_user_definer<dd::Routine>(*user_name,
                                                        &is_definer) ||
         (is_definer &&
-         check_set_user_id_priv(thd, user_name, "a stored routine")))
+         stop_if_orphaned_definer(thd, user_name, "a stored routine")))
       return true;
 
     // Check triggers.
     if (thd->dd_client()->is_user_definer<dd::Trigger>(*user_name,
                                                        &is_definer) ||
-        (is_definer && check_set_user_id_priv(thd, user_name, "a trigger")))
+        (is_definer && stop_if_orphaned_definer(thd, user_name, "a trigger")))
       return true;
   }
 
@@ -2686,7 +2690,6 @@ static bool check_orphaned_definers(THD *thd, List<LEX_USER> &list) {
     mysql_create_user()
     thd                         The current thread.
     list                        The users to create.
-
   RETURN
     false       OK.
     true        Error.

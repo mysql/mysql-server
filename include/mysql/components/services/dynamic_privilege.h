@@ -27,14 +27,42 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 DEFINE_SERVICE_HANDLE(Security_context_handle);
 
+/**
+  @ingroup group_components_services_inventory
+
+  A service to register and unregister dynamic privileges
+
+  Use it to add new privileges to the dynamic list.
+
+  Privilege names are in ASCII.
+
+  @sa @ref mysql_audit_api_connection_imp
+*/
 BEGIN_SERVICE_DEFINITION(dynamic_privilege_register)
-DECLARE_BOOL_METHOD(register_privilege, (const char *, size_t));
-DECLARE_BOOL_METHOD(unregister_privilege, (const char *, size_t));
+DECLARE_BOOL_METHOD(register_privilege,
+                    (const char *priv_name, size_t priv_name_len));
+DECLARE_BOOL_METHOD(unregister_privilege,
+                    (const char *priv_name, size_t priv_name_len));
 END_SERVICE_DEFINITION(dynamic_privilege_register)
 
 BEGIN_SERVICE_DEFINITION(global_grants_check)
 DECLARE_BOOL_METHOD(has_global_grant,
-                    (Security_context_handle, const char *, size_t));
+                    (Security_context_handle, const char *priv_name,
+                     size_t priv_name_len));
 END_SERVICE_DEFINITION(global_grants_check)
+
+/**
+  @ingroup group_components_services_inventory
+
+  A service to register and unregister dynamic privileges as deprecated.
+
+  Privilege names are in ASCII.
+
+  @sa @ref mysql_audit_api_connection_imp
+*/
+BEGIN_SERVICE_DEFINITION(dynamic_privilege_deprecation)
+DECLARE_BOOL_METHOD(add, (const char *priv_name, size_t priv_name_len));
+DECLARE_BOOL_METHOD(remove, (const char *priv_name, size_t priv_name_len));
+END_SERVICE_DEFINITION(dynamic_privilege_deprecation)
 
 #endif /* DYNAMIC_PRIVILEGE_H */
