@@ -11,11 +11,11 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
--> Filter: (x1.b = (select #2))  (cost=2.38..23.8 rows=10)
+-> Filter: (x1.b = (select #2))  (cost=1.71..17.1 rows=10)
     -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-            -> Filter: (x2.a > x1.a)  (cost=0.125..1.25 rows=10)
+        -> Aggregate: max(x2.b)  (cost=1.58..1.58 rows=1)
+            -> Filter: (x2.a > x1.a)  (cost=0.375..1.25 rows=3.33)
                 -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 Warnings:
@@ -23,12 +23,12 @@ Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
--> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.8 rows=10)
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=1.81..18.1 rows=10)
     -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
-            -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-                -> Filter: (x2.a > x1.a)  (cost=0.125..1.25 rows=10)
+        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=1.68..1.68 rows=1)
+            -> Aggregate: max(x2.b)  (cost=1.58..1.58 rows=1)
+                -> Filter: (x2.a > x1.a)  (cost=0.375..1.25 rows=3.33)
                     -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 Warnings:
@@ -36,7 +36,7 @@ Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
--> Filter: (x1.b = (select #2))  (cost=1.19..2.31 rows=10)
+-> Filter: (x1.b = (select #2))  (cost=2.31..2.31 rows=1)
     -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.b)  (cost=1.06..1.06 rows=1)
@@ -58,22 +58,22 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
--> Filter: (x1.b = (select #2))  (cost=2.38..23.8 rows=10)
+-> Filter: (x1.b = (select #2))  (cost=1.71..17.1 rows=10)
     -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; uncacheable)
-        -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-            -> Filter: (x2.a > (10 * rand(0)))  (cost=0.125..1.25 rows=10)
+        -> Aggregate: max(x2.b)  (cost=1.58..1.58 rows=1)
+            -> Filter: (x2.a > (10 * rand(0)))  (cost=0.375..1.25 rows=3.33)
                 -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
--> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.8 rows=10)
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=1.81..18.1 rows=10)
     -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
-        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
-            -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-                -> Filter: (x2.a > (10 * rand(0)))  (cost=0.125..1.25 rows=10)
+        -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=1.68..1.68 rows=1)
+            -> Aggregate: max(x2.b)  (cost=1.58..1.58 rows=1)
+                -> Filter: (x2.a > (10 * rand(0)))  (cost=0.375..1.25 rows=3.33)
                     -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1

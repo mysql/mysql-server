@@ -1982,8 +1982,8 @@ primary key (pk1, pk2)
 # Column 9, rows, can change depending on innodb-page-size.
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 EXPLAIN
--> Filter: ((t1.key1 = 0) and (t1.pk1 = 1) and (t1.pk2 < 80))  (rows=0.099)
-    -> Index range scan on t1 using PRIMARY over (pk1 = 1 AND pk2 < 80)  (rows=10)
+-> Filter: ((t1.key1 = 0) and (t1.pk1 = 1) and (t1.pk2 < 80))  (...)
+    -> Index range scan on t1 using PRIMARY over (pk1 = 1 AND pk2 < 80)  (...)
 
 # CPK scan + 1 ROR range scan is a special case
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;

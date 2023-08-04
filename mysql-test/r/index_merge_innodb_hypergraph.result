@@ -82,12 +82,12 @@ EXPLAIN
 explain select * from t0 where (key1 < 3 or key2 <4) and key3 = 50;
 EXPLAIN
 -> Filter: ((t0.key1 < 3) or (t0.key2 < 4))  (rows=0.556)
-    -> Index range scan on t0 using i3 over (key3 = 50)  (rows=1)
+    -> Index lookup on t0 using i3 (key3=50)  (rows=1)
 
 explain select * from t0 use index (i1,i2) where (key1 < 2 or key2 <3) and key3 = 50;
 EXPLAIN
--> Filter: (t0.key3 = 50)  (rows=56.9)
-    -> Sort-deduplicate by row ID  (rows=3)
+-> Filter: (t0.key3 = 50)  (rows=0.556)
+    -> Sort-deduplicate by row ID  (rows=0.556)
         -> Index range scan on t0 using i1 over (key1 < 2)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 < 3)  (rows=2)
 
@@ -114,7 +114,7 @@ EXPLAIN
 #    verify fallback to "range" if there is only one non-confluent condition
 explain select * from t0 where key2 = 45 or key1 <=> null;
 EXPLAIN
--> Filter: ((t0.key2 = 45) or (t0.key1 <=> NULL))  (rows=195)
+-> Filter: ((t0.key2 = 45) or (t0.key1 <=> NULL))  (rows=103)
     -> Index range scan on t0 using i2 over (key2 = 45)  (rows=1)
 
 explain select * from t0 where key2 = 45 or key1 is not null;
@@ -123,19 +123,19 @@ EXPLAIN
 
 explain select * from t0 where key2 = 45 or key1 is null;
 EXPLAIN
--> Index range scan on t0 using i2 over (key2 = 45)  (rows=1)
+-> Index lookup on t0 using i2 (key2=45)  (rows=1)
 
 #   the last conj. is always false and will be discarded
 explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=278)
+-> Deduplicate rows sorted by row ID  (rows=104)
     -> Index range scan on t0 using i2 over (key2 = 10)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 3)  (rows=1)
 
 #   the last conj. is always true and will cause 'all' scan
 explain select * from t0 where key2=10 or key3=3 or key4 is null;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=195)
+-> Deduplicate rows sorted by row ID  (rows=2)
     -> Index range scan on t0 using i2 over (key2 = 10)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 3)  (rows=1)
 
@@ -143,14 +143,14 @@ EXPLAIN
 explain select key1 from t0 where (key1 <=> null) or (key2 < 2) or
 (key3=10) or (key4 <=> null);
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=526)
+-> Sort-deduplicate by row ID  (rows=472)
     -> Index range scan on t0 using i2 over (key2 < 2)  (rows=1)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 
 explain select key1 from t0 where (key1 <=> null) or (key1 < 5) or
 (key3=10) or (key4 <=> null);
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=526)
+-> Sort-deduplicate by row ID  (rows=472)
     -> Index range scan on t0 using i1 over (key1 < 5)  (rows=4)
     -> Index range scan on t0 using i3 over (key3 = 10)  (rows=1)
 
@@ -323,7 +323,7 @@ alter table t2 add index i321(key3, key2, key1);
 #   index_merge vs 'index', index_merge is better.
 explain select key3 from t2 where key1 = 100 or key2 = 100;
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=195)
+-> Sort-deduplicate by row ID  (rows=2)
     -> Index range scan on t2 using i1_3 over (key1 = 100)  (rows=1)
     -> Index range scan on t2 using i2_3 over (key2 = 100)  (rows=1)
 
@@ -362,24 +362,24 @@ key1a	key1b	key2	key2_1	key2_2	key3
 4	4	0	4	4	4
 explain select * from t4 where key1a = 3 or key1b = 4;
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=195)
+-> Sort-deduplicate by row ID  (rows=2)
     -> Index range scan on t4 using i1a over (key1a = 3)  (rows=1)
     -> Index range scan on t4 using i1b over (key1b = 4)  (rows=1)
 
 #   and the following will not
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key3 = 5);
 EXPLAIN
--> Filter: ((t4.key2_1 = 1) or (t4.key3 = 5))  (rows=1.9)
-    -> Index range scan on t4 using i2_1 over (key2 = 1)  (rows=10)
+-> Filter: ((t4.key2_1 = 1) or (t4.key3 = 5))  (rows=1.09)
+    -> Index lookup on t4 using i2_1 (key2=1)  (rows=9.94)
 
 explain select * from t4 where key2 = 1 and (key2_1 = 1 or key2_2 = 5);
 EXPLAIN
--> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=1.9)
-    -> Index range scan on t4 using i2_1 over (key2 = 1)  (rows=10)
+-> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=1.09)
+    -> Index lookup on t4 using i2_1 (key2=1)  (rows=9.94)
 
 explain select * from t4 where key2_1 = 1 or key2_2 = 5;
 EXPLAIN
--> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=195)
+-> Filter: ((t4.key2_1 = 1) or (t4.key2_2 = 5))  (rows=112)
     -> Table scan on t4  (rows=1024)
 
 # 11. Multitable selects
@@ -389,8 +389,8 @@ insert into t1 select * from t0;
 explain select * from t0 left join t1 on (t0.key1=t1.key1)
 where t0.key1=3 or t0.key2=4;
 EXPLAIN
--> Nested loop left join  (rows=195)
-    -> Deduplicate rows sorted by row ID  (rows=195)
+-> Nested loop left join  (rows=2)
+    -> Deduplicate rows sorted by row ID  (rows=2)
         -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
     -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
@@ -403,11 +403,11 @@ key1	key2	key3	key4	key5	key6	key7	key8	key1	key2	key3	key4	key5	key6	key7	key8
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and ( t0.key1=3 or t0.key2=4);
 EXPLAIN
--> Nested loop inner join  (rows=37)
-    -> Deduplicate rows sorted by row ID  (rows=195)
+-> Nested loop inner join  (rows=0.0039)
+    -> Deduplicate rows sorted by row ID  (rows=2)
         -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
-    -> Filter: (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4))  (rows=0.19)
+    -> Filter: (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4))  (rows=0.00195)
         -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
 
 #  index_merge vs. ref
@@ -415,11 +415,11 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and
 (t0.key1=3 or t0.key2=4) and t1.key1<200;
 EXPLAIN
--> Nested loop inner join  (rows=7.18)
-    -> Deduplicate rows sorted by row ID  (rows=195)
+-> Nested loop inner join  (rows=758e-6)
+    -> Deduplicate rows sorted by row ID  (rows=2)
         -> Index range scan on t0 using i1 over (key1 = 3)  (rows=1)
         -> Index range scan on t0 using i2 over (key2 = 4)  (rows=1)
-    -> Filter: ((t1.key1 < 200) and (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4)))  (rows=0.0369)
+    -> Filter: ((t1.key1 < 200) and (((t0.key1 = 3) and (t1.key1 = 3)) or (t0.key2 = 4)))  (rows=379e-6)
         -> Index lookup on t1 using i1 (key1=t0.key1)  (rows=1)
 
 #  index_merge vs. ref
@@ -429,16 +429,16 @@ select * from t0,t1 where (t0.key1=t1.key1) and
 EXPLAIN
 -> Nested loop inner join  (rows=0.00293)
     -> Filter: (t0.key2 < 4)  (rows=0.00293)
-        -> Index range scan on t0 using i1 over (key1 = 2)  (rows=1)
-    -> Index range scan on t1 using i1 over (key1 = 2)  (rows=1)
+        -> Index lookup on t0 using i1 (key1=2)  (rows=1)
+    -> Index lookup on t1 using i1 (key1=2)  (rows=1)
 
 #  index_merge on second table in join
 explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 EXPLAIN
--> Nested loop inner join  (rows=195)
-    -> Index range scan on t0 using i1 over (key1 = 5)  (rows=1)
-    -> Deduplicate rows sorted by row ID  (rows=195)
+-> Nested loop inner join  (rows=2)
+    -> Index lookup on t0 using i1 (key1=5)  (rows=1)
+    -> Deduplicate rows sorted by row ID  (rows=2)
         -> Index range scan on t1 using i1 over (key1 = 5)  (rows=1)
         -> Index range scan on t1 using i8 over (key8 = 5)  (rows=1)
 
@@ -446,7 +446,7 @@ EXPLAIN
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 EXPLAIN
--> Inner hash join (no condition), extra conditions: ((t1.key1 = t0.key1) or (t1.key8 = t0.key1))  (rows=389)
+-> Inner hash join (no condition), extra conditions: ((t1.key1 = t0.key1) or (t1.key8 = t0.key1))  (rows=4)
     -> Table scan on t1  (rows=1024)
     -> Hash
         -> Index range scan on t0 using i1 over (key1 < 3)  (rows=2)
@@ -455,20 +455,20 @@ EXPLAIN
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
 EXPLAIN
--> Table scan on <union temporary>  (rows=604)
-    -> Union materialize with deduplication  (rows=604)
-        -> Deduplicate rows sorted by row ID  (rows=195)
+-> Table scan on <union temporary>  (rows=344)
+    -> Union materialize with deduplication  (rows=344)
+        -> Deduplicate rows sorted by row ID  (rows=2)
             -> Index range scan on t1 using i1 over (key1 = 3)  (rows=1)
             -> Index range scan on t1 using i2 over (key2 = 4)  (rows=1)
-        -> Sort-deduplicate by row ID  (rows=410)
+        -> Sort-deduplicate by row ID  (rows=342)
             -> Index range scan on t1 using i1 over (key1 < 4)  (rows=3)
             -> Index range scan on t1 using i3 over (key3 = 5)  (rows=1)
 
 #  index merge in subselect
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as z where key8 >5;
 EXPLAIN
--> Filter: (t1.key8 > 5)  (rows=193)
-    -> Deduplicate rows sorted by row ID  (rows=2)
+-> Filter: (t1.key8 > 5)  (rows=1.99)
+    -> Deduplicate rows sorted by row ID  (rows=1.99)
         -> Index range scan on t1 using i1 over (key1 = 3)  (rows=1)
         -> Index range scan on t1 using i2 over (key2 = 3)  (rows=1)
 
@@ -485,7 +485,7 @@ key1=1 or key2=2 or key3=3 or key4=4 or
 key5=5 or key6=6 or key7=7 or key8=8 or
 key9=9 or keyA=10 or keyB=11 or keyC=12;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (rows=735)
+-> Deduplicate rows sorted by row ID  (rows=11.9)
     -> Index range scan on t3 using i1 over (key1 = 1)  (rows=1)
     -> Index range scan on t3 using i2 over (key2 = 2)  (rows=1)
     -> Index range scan on t3 using i3 over (key3 = 3)  (rows=1)
@@ -576,10 +576,10 @@ where (a.key1 = 1 or a.key2 = 1)
 and   (b.key1 = 1 or b.key2 = 1);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Nested loop inner join  (rows=37632)
-        -> Filter: ((a.key1 = 1) or (a.key2 = 1))  (rows=194)
+    -> Nested loop inner join  (rows=1.04e+6)
+        -> Filter: ((a.key1 = 1) or (a.key2 = 1))  (rows=1021)
             -> Table scan on a  (rows=1021)
-        -> Deduplicate rows sorted by row ID  (rows=194)
+        -> Deduplicate rows sorted by row ID  (rows=1021)
             -> Index range scan on b using i1 over (key1 = 1)  (rows=1021)
             -> Index range scan on b using i2 over (key2 = 1)  (rows=1)
 
@@ -600,9 +600,9 @@ where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Nested loop inner join  (rows=10424)
-        -> Filter: (((a.key1 = 1) and (a.key2 = 1) and (a.key3 = 1) and (a.key4 = 1) and (a.key5 = 1) and (a.key6 = 1) and (a.key7 = 1)) or (a.key8 = 1))  (rows=102)
-            -> Deduplicate rows sorted by row ID  (rows=14.4)
+    -> Nested loop inner join  (rows=1)
+        -> Filter: (((a.key1 = 1) and (a.key2 = 1) and (a.key3 = 1) and (a.key4 = 1) and (a.key5 = 1) and (a.key6 = 1) and (a.key7 = 1)) or (a.key8 = 1))  (rows=1)
+            -> Deduplicate rows sorted by row ID  (rows=1)
                 -> Intersect rows sorted by row ID  (rows=13.4)
                     -> Index range scan on a using i2 over (key2 = 1)  (rows=496)
                     -> Index range scan on a using i3 over (key3 = 1)  (rows=496)
@@ -611,8 +611,8 @@ EXPLAIN
                     -> Index range scan on a using i6,i7? over (key6 = 1)  (rows=496)
                     -> Index range scan on a using i7 over (key7 = 1)  (rows=496)
                 -> Index range scan on a using i8 over (key8 = 1)  (rows=1)
-        -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=102)
-            -> Deduplicate rows sorted by row ID  (rows=14.4)
+        -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=1)
+            -> Deduplicate rows sorted by row ID  (rows=1)
                 -> Intersect rows sorted by row ID  (rows=13.4)
                     -> Index range scan on b using i2 over (key2 = 1)  (rows=496)
                     -> Index range scan on b using i3 over (key3 = 1)  (rows=496)
@@ -734,7 +734,7 @@ insert into t2 select * from t1;
 must use sort-union rather than union:
 explain select * from t1 where a=4 or b=4;
 EXPLAIN
--> Sort-deduplicate by row ID  (rows=6.84)
+-> Sort-deduplicate by row ID  (rows=3.89)
     -> Index range scan on t1 using a over (a = 4)  (rows=2)
     -> Index range scan on t1 using b over (b = 4)  (rows=2)
 
@@ -1259,7 +1259,7 @@ EXPLAIN
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
--> Filter: ((t1.swt1b = 1) and (t1.swt2b = 1))  (...)
+-> Filter: ((t1.swt2b = 1) and (t1.swt1b = 1))  (...)
     -> Intersect rows sorted by row ID  (...)
         -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
         -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
@@ -1742,8 +1742,8 @@ SELECT a
 FROM t1
 WHERE c = 1 AND b = 1 AND d = 1;
 EXPLAIN
--> Filter: (t1.c = 1)  (cost=0.127..0.254 rows=2)
-    -> Index lookup on t1 using bd (b=1, d=1)  (cost=0.25..0.25 rows=0.04)
+-> Filter: (t1.c = 1)  (cost=0.172..0.344 rows=2)
+    -> Index lookup on t1 using bd (b=1, d=1)  (cost=0.25..0.25 rows=0.943)
 
 CREATE TABLE t2 ( a INT )
 SELECT a
@@ -1797,7 +1797,7 @@ WHERE col_varchar_key >= 'l' OR
 (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 EXPLAIN
--> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=0.391..0.45 rows=1.15)
+-> Filter: ((t1.col_varchar_key >= 'l') or (((t1.pk = 141) or (t1.col_varchar_key <> 'l')) and ((t1.pk = 141) or (t1.col_int_key > 141))))  (cost=0.338..0.45 rows=1.33)
     -> Table scan on t1  (cost=0.125..0.25 rows=2)
 
 SELECT col_int_key
@@ -1981,8 +1981,8 @@ primary key (pk1, pk2)
 # Column 9, rows, can change depending on innodb-page-size.
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 EXPLAIN
--> Intersect rows sorted by row ID  (rows=10)
-    -> Index range scan on t1 using key1 over (key1 = 0 AND pk1 = 1 AND pk2 < 80)  (rows=10)
+-> Filter: (t1.pk2 < 80)  (...)
+    -> Index lookup on t1 using key1 (key1=0, pk1=1)  (...)
 
 # CPK scan + 1 ROR range scan is a special case
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
@@ -2023,7 +2023,7 @@ pk1	pk2
 explain select * from t1 where badkey=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.badkey = 1)  (rows=10)
-    -> Index range scan on t1 using key1 over (key1 = 10)  (rows=100)
+    -> Index lookup on t1 using key1 (key1=10)  (rows=96.1)
 
 # The expected number of rows can vary depending on page size
 explain select * from t1 where pk1 < 7500 and key1 = 10;
@@ -2056,17 +2056,17 @@ EXPLAIN
 explain select * from t1 where pktail3bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail3bad = 1)  (...)
-    -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+    -> Index lookup on t1 using key1 (key1=10)  (...)
 
 explain select * from t1 where pktail4bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail4bad = 1)  (...)
-    -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+    -> Index lookup on t1 using key1 (key1=10)  (...)
 
 explain select * from t1 where pktail5bad=1 and key1=10;
 EXPLAIN
 -> Filter: (t1.pktail5bad = 1)  (...)
-    -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+    -> Index lookup on t1 using key1 (key1=10)  (...)
 
 # Test for problem with innodb key values prefetch buffer:
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
@@ -2128,12 +2128,12 @@ f1
 EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 EXPLAIN
--> Filter: ((select #2) = 0)  (cost=0.313..0.313 rows=0.1)
-    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (cost=0.25..0.25 rows=0.1)
+-> Filter: ((select #2) = 0)  (cost=1.4..1.4 rows=1)
+    -> Single-row covering index lookup on t1 using PRIMARY (f1=2)  (cost=0.25..0.25 rows=1)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: count(0)  (cost=0.53..0.53 rows=1)
-            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (cost=0.165..0.33 rows=2)
-                -> Index lookup on t2 using f3 (f3='h')  (cost=0.25..0.25 rows=0.4)
+        -> Aggregate: count(0)  (cost=1.05..1.05 rows=1)
+            -> Filter: ((t2.f3 = 'h') and (t2.f2 = t1.f1))  (cost=0.425..0.85 rows=2)
+                -> Table scan on t2  (cost=0.0625..0.25 rows=4)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -2380,8 +2380,10 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (f1 INT AUTO_INCREMENT, f2 INT, f3 INT,
 PRIMARY KEY(f1), KEY(f2), KEY(f3));
-INSERT INTO t1 (f2,f3) VALUES
-(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3);
+INSERT INTO t1 (f2,f3)
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<20)
+SELECT 2,3 FROM qn;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK

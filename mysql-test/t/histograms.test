@@ -2300,6 +2300,26 @@ DROP TABLE ten;
 DROP TABLE hundred;
 DROP TABLE ten_thousand;
 
+-- echo #
+-- echo # Bug#34787357 Hypergraph: row estimates for
+-- echo # field=non_field_term ignores indexes and histogram.
+-- echo #
+
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1),(1),(2),(2),(3),(3),(NULL),(NULL);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1;
+ANALYZE TABLE t1;
+
+# Calculate selectivity as non_null_values_fraction/num_distinct_values.
+EXPLAIN SELECT * FROM t1 WHERE col1 = FLOOR(RAND(0));
+
+# Calculate selectivity as:
+# non_null_values_fraction * (num_distinct_values - 1) / num_distinct_values
+EXPLAIN SELECT * FROM t1 WHERE col1 <> FLOOR(RAND(0));
+
+DROP TABLE t1;
+
+
 # Run a restart without any special parameters, which causes "check testcase" to
 # be run. Always keep this at the very end of the test!
 let $restart_parameters = restart:;

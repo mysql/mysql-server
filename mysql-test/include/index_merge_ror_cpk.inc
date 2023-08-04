@@ -77,7 +77,7 @@ analyze table t1;
 --echo # Verify that range scan on CPK is ROR
 --echo # (use index_intersection because it is impossible to check that for index union)
 --echo # Column 9, rows, can change depending on innodb-page-size.
---replace_regex $elide_costs
+--replace_regex $elide_costs_and_rows
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 --echo # CPK scan + 1 ROR range scan is a special case
 --sorted_result

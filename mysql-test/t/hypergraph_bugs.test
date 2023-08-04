@@ -730,3 +730,119 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE foo(2)=3 AND c=5;
 
 DROP FUNCTION foo;
 DROP TABLE num, t1;
+
+--echo #
+--echo # Bug#34787357 Hypergraph: row estimates for field=non_field_term
+--echo # ignores indexes and histogram
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  f INT,
+  g INT,
+  PRIMARY KEY(a),
+  KEY k1 (b,d), --  'b' and 'd' are indepdendent.
+  KEY k2 (b,e), -- 'b' is funtionally dependent on 'e'.
+  KEY k3 (b,g), -- 'b' is funtionally dependent on 'g'.
+  KEY k4 (f,g) -- 'f' and 'g' are independet.
+);
+
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<255)
+SELECT n AS a, n DIV 16 AS b, n % 16 AS c, n % 16 AS d, n DIV 8 AS e,
+  n % 32 AS f, n DIV 8 AS g FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c;
+ANALYZE TABLE t1;
+
+# We estimate selectivity of <field>=<independent expression> as
+# 1/<num distinct values of field>. If there is a histogram on <field>,
+# or if it is the first field of an (non-hash) index, then the (estimated)
+# number of distinct values is directly available. If it is the second or
+# subsequent field of an index, we do not know to what extent <field> is
+# correlated with the preceeding fields. In this case, we estimate the
+# selectivity as the geometric mean of the two extermes:
+# 1) Uncorrelated:
+#    selectivity = records_per_key(prefix+key) / rows_in_table
+#
+# 2) prefix is functionally dependent on field:
+#    selectivity = records_per_key(prefix+key) / records_per_key(prefix)
+
+# Make estimate from index, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b=FLOOR(RAND(0));
+
+# Make estimate from histogram, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c=FLOOR(RAND(0));
+
+# Make estimate from second field of index. Since 'b' and 'd' are independent,
+# the estimate will be too low.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d=FLOOR(RAND(0));
+
+# Make estimate from second field of index. Since 'b' in functionally dependent
+# on 'e', the estimate will be too high.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE e=FLOOR(RAND(0));
+
+# Make estimate from second field of index. Since 'b' and 'd' are independent,
+# the estimate will be too low.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d=0;
+
+# Make estimate from second field of index. Since 'b' in functionally dependent
+# on 'e', the estimate will be too high.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE e=0;
+
+# Make estimate from second field of indexes k3 and k4.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE g=FLOOR(RAND(0));
+
+# Make estimate from index, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b=(SELECT MIN(b) FROM t1);
+
+# Make estimate from histogram, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c=(SELECT MIN(b) FROM t1);
+
+# Use histogram or index to make estimate for <field>!=<expression>
+# predicates.
+
+# Make estimate from index, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b<>FLOOR(RAND(0));
+
+# Make estimate from histogram, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>FLOOR(RAND(0));
+
+# Make estimate from index, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b<>(SELECT MIN(b) FROM t1);
+
+# Make estimate from histogram, even if value is unknown.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>(SELECT MIN(b) FROM t1);
+
+# Make estimate from second field of index.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d<>(SELECT MIN(b) FROM t1);
+
+# Make estimate from second field of index.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE e<>(SELECT MIN(b) FROM t1);
+
+# Subquery with column resolved in outer reference (OUTER_REF_TABLE_BIT).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1 WHERE d =
+(SELECT MIN(g) FROM t1 x2 WHERE x1.b<>x2.b);
+
+DROP TABLE t1;

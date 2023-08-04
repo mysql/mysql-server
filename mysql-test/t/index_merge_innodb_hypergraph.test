@@ -17,9 +17,13 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 INT AUTO_INCREMENT, f2 INT, f3 INT,
- PRIMARY KEY(f1), KEY(f2), KEY(f3));
-INSERT INTO t1 (f2,f3) VALUES
- (2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3);
+PRIMARY KEY(f1), KEY(f2), KEY(f3));
+
+INSERT INTO t1 (f2,f3)
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<20)
+SELECT 2,3 FROM qn;
+
 ANALYZE TABLE t1;
 # Should choose sort-union(f3,f2) because the condition "f2 BETWEEN 5 AND 10"
 # would make it cheaper compared to union(f3, pk)

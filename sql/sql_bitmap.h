@@ -138,6 +138,15 @@ class Bitmap {
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
   uint get_first_set() const { return bitmap_get_first_set(&map); }
+
+  /**
+      Find the next set bit after 'bit_no'.
+      @param bit_no Start search at bit_no+1.
+      @returns index of next set bit, or MY_BIT_NONE.
+   */
+  uint get_next_set(uint bit_no) const {
+    return bitmap_get_next_set(&map, bit_no);
+  }
 };
 
 template <>
@@ -205,6 +214,17 @@ class Bitmap<64> {
   }
   uint get_first_set() const {
     for (uint i = 0; i < ALL_BITS; i++)
+      if (map & (1ULL << i)) return i;
+    return MY_BIT_NONE;
+  }
+
+  /**
+      Find the next set bit after 'bit_no'.
+      @param bit_no Start search at bit_no+1.
+      @returns index of next set bit, or MY_BIT_NONE.
+   */
+  uint get_next_set(uint bit_no) const {
+    for (uint i = bit_no + 1; i < ALL_BITS; i++)
       if (map & (1ULL << i)) return i;
     return MY_BIT_NONE;
   }

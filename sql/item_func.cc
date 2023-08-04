@@ -897,8 +897,15 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
 }
 
 const Item_field *Item_func::contributes_to_filter(
-    table_map read_tables, table_map filter_for_table,
+    THD *thd, table_map read_tables, table_map filter_for_table,
     const MY_BITMAP *fields_to_ignore) const {
+  // We are loth to change existing plans. Therefore we keep the existing
+  // behavior for the original optimizer, which is to return nullptr if
+  // any of PSEUDO_TABLE_BITS are set in used_tables().
+  const table_map remaining_tables = thd->lex->using_hypergraph_optimizer
+                                         ? (~read_tables & ~PSEUDO_TABLE_BITS)
+                                         : ~read_tables;
+
   assert((read_tables & filter_for_table) == 0);
   /*
     Multiple equality (Item_equal) should not call this function
@@ -911,7 +918,7 @@ const Item_field *Item_func::contributes_to_filter(
     exactly one unread table: the table filtering is currently
     calculated for.
   */
-  if ((used_tables() & ~read_tables) != filter_for_table) return nullptr;
+  if ((used_tables() & remaining_tables) != filter_for_table) return nullptr;
 
   /*
     Whether or not this Item_func has an operand that is a field in
@@ -984,7 +991,7 @@ const Item_field *Item_func::contributes_to_filter(
         Already checked that this predicate does not refer to tables
         later in the join sequence. Verify it:
       */
-      assert(!(used_tabs & (~read_tables & ~filter_for_table)));
+      assert(!(used_tabs & remaining_tables & ~filter_for_table));
       found_comparable = true;
     }
   }
@@ -7509,12 +7516,13 @@ bool Item_func_match::init_search(THD *thd) {
   return false;
 }
 
-float Item_func_match::get_filtering_effect(THD *, table_map filter_for_table,
+float Item_func_match::get_filtering_effect(THD *thd,
+                                            table_map filter_for_table,
                                             table_map read_tables,
                                             const MY_BITMAP *fields_to_ignore,
                                             double rows_in_table) {
-  const Item_field *fld =
-      contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  const Item_field *fld = contributes_to_filter(
+      thd, read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
 
   /*

@@ -684,7 +684,7 @@ WHERE
 t1.col1 = t2.col1
 AND t1.col1 = FLOOR(RAND() / 2 + 2);
 EXPLAIN
--> Filter: (t1.col1 = floor(((rand() / 2) + 2)))  (rows=0.4)
+-> Filter: (t1.col1 = floor(((rand() / 2) + 2)))  (rows=0.04)
     -> Inner hash join (t1.col1 = t2.col1)  (rows=0.4)
         -> Table scan on t1  (rows=2)
         -> Hash
@@ -1021,10 +1021,10 @@ WHERE (NOT EXISTS
 ON alias4.col_varchar = alias3.col_varchar_key)
 WHERE alias3.pk >= table1.pk));
 EXPLAIN
--> Hash antijoin (no condition), extra conditions: (alias3.pk >= table1.pk)  (rows=1.07)
-    -> Nested loop inner join  (rows=1.6)
+-> Hash antijoin (no condition), extra conditions: (alias3.pk >= table1.pk)  (rows=1.33)
+    -> Nested loop inner join  (rows=2)
         -> Table scan on table2  (rows=1)
-        -> Filter: ((table2.pk = table1.pk) or (table1.col_varchar < 'D'))  (rows=1.6)
+        -> Filter: ((table2.pk = table1.pk) or (table1.col_varchar < 'D'))  (rows=2)
             -> Table scan on table1  (rows=4)
     -> Hash
         -> Inner hash join (alias4.col_varchar = alias3.col_varchar_key)  (rows=1)
@@ -2202,10 +2202,10 @@ WHERE t2.pk = 9
 EXPLAIN
 -> Table scan on t1  (rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Nested loop inner join  (rows=0.01)
-        -> Nested loop left join  (rows=0.1)
-            -> Single-row covering index lookup on t2 using PRIMARY (pk=9)  (rows=0.1)
-            -> Filter: ((t3.pk = 9) and (t2.pk = 9))  (rows=0.01)
+    -> Nested loop inner join  (rows=0.1)
+        -> Nested loop left join  (rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (pk=9)  (rows=1)
+            -> Filter: ((t3.pk = 9) and (t2.pk = 9))  (rows=0.1)
                 -> Table scan on t3  (rows=1)
         -> Filter: (t4.pk = 9)  (rows=0.1)
             -> Table scan on t4  (rows=1)

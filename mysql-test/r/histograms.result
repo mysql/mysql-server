@@ -3980,4 +3980,27 @@ Note	1003	/* select#1 */ select `test`.`ten_thousand`.`x` AS `x` from `test`.`te
 DROP TABLE ten;
 DROP TABLE hundred;
 DROP TABLE ten_thousand;
+#
+# Bug#34787357 Hypergraph: row estimates for
+# field=non_field_term ignores indexes and histogram.
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1),(1),(2),(2),(3),(3),(NULL),(NULL);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE col1 = FLOOR(RAND(0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	25.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` = floor(rand(0)))
+EXPLAIN SELECT * FROM t1 WHERE col1 <> FLOOR(RAND(0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` <> floor(rand(0)))
+DROP TABLE t1;
 # restart:

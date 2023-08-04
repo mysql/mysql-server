@@ -702,6 +702,7 @@ class Item_func : public Item_result_field {
     [1] "At least one" for multiple equality (X = Y = Z = ...), "all"
     for the rest (e.g. BETWEEN)
 
+    @param thd               The current thread.
     @param read_tables       Tables earlier in the join sequence.
                              Predicates for table 'filter_for_table' that
                              rely on values from these tables can be part of
@@ -719,7 +720,7 @@ class Item_func : public Item_result_field {
     placed in Item_func.
   */
   const Item_field *contributes_to_filter(
-      table_map read_tables, table_map filter_for_table,
+      THD *thd, table_map read_tables, table_map filter_for_table,
       const MY_BITMAP *fields_to_ignore) const;
   /**
     Named parameters are allowed in a parameter list

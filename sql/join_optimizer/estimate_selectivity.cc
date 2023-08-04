@@ -127,7 +127,8 @@ double KeyCap(const Field &field, uint key_no, string *trace) {
   there is no such index, return 1.0.
 */
 double FindSelectivityCap(const Field &field, string *trace) {
-  for (uint i = 0; i < field.table->s->keys; i++) {
+  for (uint i = field.key_start.get_first_set(); i != MY_BIT_NONE;
+       i = field.key_start.get_next_set(i)) {
     const double key_cap = KeyCap(field, i, trace);
 
     if (key_cap < 1.0) {
@@ -317,7 +318,9 @@ double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
   double selectivity_cap = 1.0;
 
   for (const Field *equal_field : equal_fields) {
-    for (uint key_no = 0; key_no < equal_field->table->s->keys; key_no++) {
+    for (uint key_no = equal_field->part_of_key.get_first_set();
+         key_no != MY_BIT_NONE;
+         key_no = equal_field->part_of_key.get_next_set(key_no)) {
       const KEY &key = equal_field->table->key_info[key_no];
       KeySelectivityResult key_data{-1.0, 0};
 

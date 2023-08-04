@@ -1991,8 +1991,10 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
         items_flipped[0] = items[1];
         items_flipped[1] = items[0];
         return get_selectivity(items_flipped, item_count, op, selectivity);
-      } else if (items[0]->type() != Item::FIELD_ITEM ||
-                 !items[1]->const_item()) {
+      } else if ((items[0]->type() != Item::FIELD_ITEM ||
+                  !items[1]->const_item()) &&
+                 op != enum_operator::EQUALS_TO &&
+                 op != enum_operator::NOT_EQUALS_TO) {
         return true;
       }
       break;
@@ -2036,10 +2038,26 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
 
   switch (op) {
     case enum_operator::LESS_THAN:
-    case enum_operator::EQUALS_TO:
     case enum_operator::GREATER_THAN: {
       return get_selectivity_dispatcher(items[1], op, typelib, selectivity);
     }
+    case enum_operator::EQUALS_TO:
+      if (items[1]->const_item()) {
+        return get_selectivity_dispatcher(items[1], op, typelib, selectivity);
+      } else if (empty(*this)) {
+        return true;
+      } else {
+        // We do not know the value of items[1], but we assume that it
+        // is uniformely distributed over the distinct values of
+        // items[0] (i.e. the field for which '*this' is the
+        // histogram).
+        *selectivity =
+            get_num_distinct_values() == 0
+                ? 0.0
+                : get_non_null_values_fraction() / get_num_distinct_values();
+
+        return false;
+      }
     case enum_operator::LESS_THAN_OR_EQUAL: {
       double greater_than_selectivity;
       if (get_selectivity_dispatcher(items[1], enum_operator::GREATER_THAN,
@@ -2060,16 +2078,33 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
           std::max(get_non_null_values_fraction() - less_than_selectivity, 0.0);
       return false;
     }
-    case enum_operator::NOT_EQUALS_TO: {
-      double equals_to_selectivity;
-      if (get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
-                                     typelib, &equals_to_selectivity))
-        return true;
+    case enum_operator::NOT_EQUALS_TO:
+      if (items[1]->const_item()) {
+        double equals_to_selectivity;
+        if (get_selectivity_dispatcher(items[1], enum_operator::EQUALS_TO,
+                                       typelib, &equals_to_selectivity))
+          return true;
 
-      *selectivity =
-          std::max(get_non_null_values_fraction() - equals_to_selectivity, 0.0);
-      return false;
-    }
+        *selectivity = std::max(
+            get_non_null_values_fraction() - equals_to_selectivity, 0.0);
+        return false;
+      } else if (empty(*this)) {
+        return true;
+      } else {
+        const size_t distinct_values = get_num_distinct_values();
+        if (distinct_values == 0) {
+          *selectivity = 0.0;  // Field is NULL for all rows.
+        } else {
+          // We do not know the value of items[1], but we assume that it
+          // is uniformely distributed over the distinct values of
+          // items[0] (i.e. the field for which '*this' is the
+          // histogram).
+          *selectivity = get_non_null_values_fraction() *
+                         (distinct_values - 1.0) / distinct_values;
+        }
+        return false;
+      }
+
     case enum_operator::BETWEEN: {
       double less_than_selectivity;
       double greater_than_selectivity;
