@@ -33,10 +33,10 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgm_show.txt;
 --exec $NDB_MGM -e show > $dump_file;
 
 # Load the file into a temporary table
-CREATE TEMPORARY TABLE ndb_mgm_show (a varchar(512));
+CREATE TEMPORARY TABLE ndb_mgm_show (id int AUTO_INCREMENT, a varchar(512), PRIMARY KEY (id));
 
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
-  FIELDS TERMINATED BY '\n';
+  FIELDS TERMINATED BY '\n' (a) set id = NULL;
 --remove_file $dump_file
 
 # Remove Windows line feeds
@@ -45,20 +45,34 @@ UPDATE ndb_mgm_show SET a = TRIM(TRAILING "\r" FROM a);
 # Ignoring things like: Truncated incorrect DOUBLE value: '---'
 --disable_warnings
 
+SELECT id into @ndbd_id FROM ndb_mgm_show
+  WHERE SUBSTR(a, 2, 4) = 'ndbd';
+
+SELECT id into @mgmd_id FROM ndb_mgm_show
+  WHERE SUBSTR(a, 2, 8) = 'ndb_mgmd';
+
+SELECT id into @mysqld_id FROM ndb_mgm_show
+  WHERE SUBSTR(a, 2, 6) = 'mysqld';
+
+SELECT COUNT(1) into @last_id FROM ndb_mgm_show;
+
+# select * from ndb_mgm_show;
+# select @ndbd_id ;
+# select @last_id ;
+# select @mgmd_id ;
+# select @mysqld_id ;
+
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndbd(s)' FROM ndb_mgm_show
-  WHERE SUBSTR(a, 4, 3) IN (1, 2, 3, 4);
-
+  WHERE id > @ndbd_id and id < @mgmd_id-1;
 
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndb_mgmd(s)' FROM ndb_mgm_show
-  WHERE SUBSTR(a, 4, 3) IN (5);
+  WHERE id > @mgmd_id and id < @mysqld_id-1;
 
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'mysqld(s)' FROM ndb_mgm_show
-  WHERE SUBSTR(a, 4, 3)
-    IN (6,7,8,9,10,11,12,13,14,15,16,17,18,19)
-      ORDER BY LOCATE("accepting", a);
+  WHERE id > @mysqld_id and id < @last_id;
 
 --enable_warnings
 
