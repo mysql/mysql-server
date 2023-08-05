@@ -358,6 +358,11 @@ int scanReadRecords(Ndb* pNdb,
 #define DELIMITER if (do_delimiter) ndbout << delimiter_string; else do_delimiter= true
     if (headers)
     {
+      /*
+       * Print header only once.
+       * If scan aborts header from initial Attempt will be used.
+       */
+      headers = false;
       if (rowid)
       {
         DELIMITER;
@@ -464,7 +469,11 @@ int scanReadRecords(Ndb* pNdb,
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
       
-      if (err.status == NdbError::TemporaryError){
+      /*
+       * If scan fails and no rows read, keep retrying.
+       * Otherwise abort.
+       */
+      if (err.status == NdbError::TemporaryError && rows == 0){
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
