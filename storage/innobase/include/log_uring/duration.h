@@ -1,13 +1,23 @@
 #pragma once
 
+#include <stdlib.h>
 #include <chrono>
 #include <sstream>
 
 class op_duration {
   std::chrono::duration<double> duration_;
-  int count_;
+  size_t count_;
 public:
-  int count() const {
+  op_duration():duration_(0), count_(0) {
+
+  }
+
+  void reset() {
+    duration_ = std::chrono::duration<double>(0);
+    count_ = 0;
+  }
+
+  size_t count() const {
     return count_;
   }
   
@@ -37,6 +47,11 @@ public:
 
   }
 
+  void reset() {
+    append_.reset();
+    sync_.reset();
+  }
+
   void sync_add(std::chrono::duration<double> duration) {
     sync_.add(duration);
   }
@@ -50,13 +65,15 @@ public:
       append_.add(duration.append_);
   }
   
-  std::string avg_time_str() const {
+  std::string avg_time_str(int wait_seconds) const {
     std::string ret;
     std::stringstream ssm;
     ssm << 
-      "append: " << append_.avg_duration().count()
-      << ", "
-      "sync" << sync_.avg_duration().count();
+      "append: " << append_.avg_duration().count() * 1000000 << "us, invoke "  << append_.count() << " times, " <<
+      "sync: " << sync_.avg_duration().count() * 1000000 << "us, invoke " << sync_.count() << " times, "
+      << " append/seconds: " <<  ((double)append_.count()) / ((double)wait_seconds)
+      << " sync/seconds: " <<  ((double)sync_.count()) / ((double)wait_seconds)
+      ;
     return ssm.str();
   }
 };

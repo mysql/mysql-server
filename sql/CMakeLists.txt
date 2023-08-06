@@ -1426,3 +1426,5 @@ ADD_CUSTOM_TARGET(distclean
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
+
+TARGET_LINK_LIBRARIES(mysqld boost_thread)

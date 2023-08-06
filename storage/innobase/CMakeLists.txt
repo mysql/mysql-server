@@ -405,6 +405,7 @@ TARGET_LINK_LIBRARIES(
   TestLogUring
   uring
   boost_program_options
+  boost_thread
 )
 
 TARGET_COMPILE_DEFINITIONS(

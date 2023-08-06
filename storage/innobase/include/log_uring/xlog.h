@@ -11,8 +11,7 @@
 #include <atomic>
 #include <vector>
 #include <condition_variable>
-#include <boost/thread/tss.hpp>
-
+#include <boost/thread/sync_bounded_queue.hpp>
 
 struct file_ctrl {
   int fd_;
@@ -37,6 +36,8 @@ public:
 
   void start();
   
+  void stop();
+
   int append(void *buf, size_t size);
 
   int sync(size_t lsn);
@@ -44,6 +45,8 @@ public:
   void wait_start();
 
   static xlog_op_duration op_duration() ;
+
+  static void reset_duration();
 private:
   // main loop run in io_uring handle thread
   void main_loop();
@@ -90,15 +93,13 @@ private:
   std::condition_variable condition_;
 
   iouring_ctx_t iouring_context_;
-  std::mutex mutex_queue_;
-  // condition variable to wait queue size
-  std::condition_variable condition_queue_;
-  std::vector<io_event *> list_[2];
-  std::vector<file_ctrl> file_;
+  boost::sync_bounded_queue<io_event*> queue_;
+
   // only access by uring main loop, need not to lock
+  std::vector<file_ctrl> file_;
   std::vector<io_event *> prev_list;
   std::vector<int> fd_;
-  uint32_t sequence_;
+
 
   std::mutex mutex_state_;
   std::condition_variable condition_state_;
@@ -112,6 +113,8 @@ private:
   std::condition_variable sync_log_cond_;
   bool sync_log_write_;
 
+
+  std::atomic_bool stopped_;
 };
 
 

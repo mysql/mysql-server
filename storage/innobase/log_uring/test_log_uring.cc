@@ -26,6 +26,7 @@ public:
   duration_list() : thread_(0), stopped_(false) {
 
   }
+
   void append(xlog_op_duration duration) {
     std::unique_lock l (mutex_);
     list_.push_back(duration);
@@ -52,8 +53,13 @@ public:
     stopped_.store(true);
   }
 
-  void calculate() {
-
+  void calculate(int wait_seconds) {
+    std::unique_lock l (mutex_);
+    xlog_op_duration dur;
+    for (size_t i = 0; i < list_.size(); i++) {
+      dur.add(list_[i]);
+    }
+    std::cout << dur.avg_time_str(wait_seconds) << std::endl;
   }
 };
 
@@ -72,10 +78,13 @@ public:
     ptr<duration_list> list,
     xlog* log, 
     int log_size,
+    int num_transactions,
     int num_log_entries_sync,
     int num_thread
     ): 
+    list_(list),
     log_(log),
+    num_transactions_(num_transactions),
     num_log_entries_sync_(num_log_entries_sync),
     num_thread_(num_thread)
   {
@@ -84,8 +93,7 @@ public:
   
   void operator()() {
     log_->wait_start();
-    
-    for (int i = 0; (i < num_log_entries_sync_ || num_log_entries_sync_ == 0) && !list_->is_stopped(); i++) {
+    for (int i = 0; (i < num_transactions_ || num_transactions_ == 0) && !list_->is_stopped(); i++) {
       
       uint64_t lsn = log_->append(buffer_.data(), buffer_.size());
       if (i % (size_t)num_log_entries_sync_ == (size_t)num_log_entries_sync_ - 1) {
@@ -101,6 +109,7 @@ private:
 
   ptr<duration_list> list_;
   xlog* log_;
+  int num_transactions_;
   int num_log_entries_sync_;
   int num_thread_;
   std::vector<uint8_t> buffer_;
@@ -120,10 +129,19 @@ public:
   
   void operator()() {
     sleep(wait_seconds_);
+    std::cout << "after running " << wait_seconds_ << " seconds" << std::endl;
     list_->stop();
     list_->wait();
+    
+    xlog::reset_duration();
 
-    list_->calculate();
+    list_->calculate(wait_seconds_);
+
+    get_xlog()->stop();
+
+    sleep(5);
+    // exit after calculate append/sync latency
+    exit(0);
   }
 private:
   ptr<duration_list> list_;
@@ -139,6 +157,7 @@ ptr<std::thread> create_log_thread() {
 ptr<std::thread> create_worker_thread(
   xlog*log, 
   int log_size, 
+  int num_transactions,
   int num_log_entries_sync,
   int num_thread
   ) {
@@ -147,6 +166,7 @@ ptr<std::thread> create_worker_thread(
       _list,
       log, 
       log_size,
+      num_transactions,
       num_log_entries_sync, 
       num_thread
       )));
@@ -160,6 +180,7 @@ int main(int argc, const char*argv[]) {
   int log_size = LOG_SIZE;
   bool use_iouring = USE_URING;
   int num_log_entries_sync = NUM_LOG_ENTRIES_SYNC;
+  int num_transactions = NUM_TRANSACTION;
   po::options_description desc("Allowed options");
   desc.add_options()
       ("help,h", "produce help message")
@@ -213,12 +234,19 @@ int main(int argc, const char*argv[]) {
     ptr<std::thread> thd = create_worker_thread(
         log, 
         log_size, 
+        num_transactions,
         num_log_entries_sync,
         num_worker_threads
         );
     threads.push_back(thd);
   }
   
+  std::cout 
+      << "use io_uring : " << use_iouring 
+      << " log size : " << log_size
+      << " log entries sync : " << num_log_entries_sync 
+      << " worker threads : " << num_worker_threads
+      << std::endl;
   // create calculate thread
   {
     ptr<std::thread> calculate_thread(new std::thread(
