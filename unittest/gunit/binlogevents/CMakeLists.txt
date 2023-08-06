@@ -52,5 +52,5 @@ ENDFOREACH()
 
 MYSQL_ADD_EXECUTABLE(gtid_set-t gtid_set-t.cc
   ADD_TEST gtid_set
-  LINK_LIBRARIES gunit_large server_unittest_library
+  LINK_LIBRARIES gunit_large server_unittest_library boost_thread
   COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")

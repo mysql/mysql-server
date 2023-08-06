@@ -51,7 +51,9 @@ TARGET_LINK_LIBRARIES(merge_temptable_tests-t
 #TARGET_LINK_LIBRARIES(merge_temptable_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
 #INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
-TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema)
+TARGET_LINK_LIBRARIES(merge_temptable_tests-t perfschema
+  boost_thread
+)
 
 ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
 

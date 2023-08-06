@@ -64,6 +64,8 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t my_nt_servc)
 ENDIF()
 
+TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t boost_thread)
+
 IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
   TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t
     mysql_server_component_services)
@@ -104,6 +106,8 @@ ENDIF()
 IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
   TARGET_LINK_LIBRARIES(reference_cache-t mysql_server_component_services)
 ENDIF()
+
+TARGET_LINK_LIBRARIES(reference_cache-t boost_thread)
 
 MYSQL_ADD_COMPONENT(self_required_test_component
   self_required_test_component.cc
