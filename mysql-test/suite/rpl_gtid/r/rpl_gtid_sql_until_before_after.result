@@ -42,6 +42,8 @@ include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Rows until 3 in t1 must be replicated now]
 SQL thread must stop *after* INSERT 5
 START SLAVE SQL_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:4-5";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 6
@@ -53,6 +55,8 @@ include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *after* INSERT 5
 1-5 are already applied so it will stop immediately
 START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:1-5";
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Rows until 5 in t1 must be replicated now]
 SQL thread must stop *before* INSERT 10

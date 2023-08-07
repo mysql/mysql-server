@@ -1,0 +1,64 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+##############################################################
+# 1. Create table t1 in SOURCE and synch with REPLICA
+CREATE TABLE test.t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+
+##############################################################
+# 2. Create table t2 in REPLICA
+CREATE TABLE test.t2(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
+include/suppress_messages.inc
+# Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Received all the transactions mentioned in the option SQL_AFTER_GTIDS. Timeout waiting for worker threads to apply the transactions. Please check the GTID_EXECUTED for any missing transaction.>.
+
+##############################################################
+# 3. Set the channel to SQL_AFTER_GTIDS='SOURCE:2,REPLICA:2'
+START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:2,REPLICA_UUID:2";
+
+##############################################################
+# 4. Lock table t1 to block the replica write from applying the
+#    transaction.
+#    Replicate, SOURCE:1 will be in replica worker thread.
+#    Since table is locked it will not be applied.
+[connection slave1]
+LOCK TABLES test.t1 WRITE;
+[connection master]
+INSERT INTO test.t1 VALUES(1);
+
+##############################################################
+# 5. Wait for the coordinator to read all the event.
+#    Execute transaction REPLICA:2, it will execute.
+[connection slave]
+INSERT INTO test.t2 VALUES(1);
+
+##############################################################
+# 6. SOURCE:2 was not present in gtid_executed and is present
+#    in gtid_set_local.
+#    REPLICA:2 is present in gtid_executed and in gtid_set_local.
+#    Check worker thread is still executing the transaction SOURCE:2.
+#    Check channel is still running, waiting for SOURCE:2 to be applied.
+[connection slave]
+include/check_slave_is_running.inc
+
+##############################################################
+# 7. Unlock tables.
+#    Since table is UNLOCKED now, SOURCE:2 will be applied and
+#    channel will STOP.
+[connection slave1]
+UNLOCK TABLES;
+include/wait_for_slave_sql_to_stop.inc
+
+##############################################################
+# 8. Cleanup
+[connection master]
+DROP TABLE t1;
+[connection slave]
+DROP TABLE t2;
+include/start_slave_sql.inc
+include/rpl_end.inc

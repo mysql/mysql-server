@@ -1,0 +1,55 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(c1 INTEGER PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/suppress_messages.inc
+# Connection 2 suppresses message <Worker .* failed executing transaction>.
+# Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Replica worker thread has failed to apply an event.>.
+# Connection 2 suppresses message <Error writing relay log repository data while a thread is being killed>.
+# Connection 2 suppresses message <Failed during replica worker thread creation for channel *>.
+# Connection 2 suppresses message <Replica: Coordinator experienced an error or was killed while scheduling an event at*>.
+# Connection 2 suppresses message <Error while waiting for the worker threads to apply the transactions. Please check the GTID_EXECUTED for any missing transaction.>.
+# Connection 2 suppresses message <Query execution was interrupted*>.
+# Connection 2 suppresses message <Replica: Coordinator experienced an error or was killed while scheduling an event at relay-log name*>.
+# Connection 2 suppresses message <Replica SQL for channel '': Relay log read failure: Could not parse relay log event entry*>.
+# Connection 2 suppresses message <Replica SQL for channel '': Error 'Duplicate entry '2' for key 't1.PRIMARY''*>.
+# Connection 2 suppresses message <Replica SQL for channel '': Could not execute Write_rows event on table test.t1*>.
+
+##############################################################
+# 1. Check general data failures are handled correctly.
+[connection slave]
+SET sql_log_bin=0;
+INSERT INTO t1 VALUES(2);
+SET sql_log_bin=1;
+[connection master]
+INSERT INTO t1 VALUES(2);
+[connection slave]
+START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:2";
+include/wait_for_slave_sql_error.inc [errno=1317,13121,1062]
+
+##############################################################
+# 2. Check general data failures are handled correctly for the last
+#    transaction with additional transaction in the queue.
+LOCK TABLE t1 WRITE;
+[connection master]
+INSERT INTO t1 VALUES(3);
+[connection slave]
+START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="SOURCE_UUID:2";
+UNLOCK TABLES;
+include/wait_for_slave_sql_error.inc [errno=1317,13121,1062]
+
+##############################################################
+# 3. Cleanup
+SET sql_log_bin=0;
+DELETE FROM t1 WHERE C1 = 2;
+SET sql_log_bin=1;
+[connection master]
+DROP TABLE t1;
+[connection slave]
+include/start_slave_sql.inc
+include/rpl_end.inc

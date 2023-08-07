@@ -2755,13 +2755,6 @@ int Relay_log_info::init_until_option(THD *thd,
 
         option = until_g = new Until_after_gtids(this);
         until_condition = UNTIL_SQL_AFTER_GTIDS;
-        if (opt_replica_parallel_workers != 0) {
-          opt_replica_parallel_workers = 0;
-          push_warning_printf(
-              thd, Sql_condition::SL_NOTE, ER_MTA_FEATURE_IS_NOT_SUPPORTED,
-              ER_THD(thd, ER_MTA_FEATURE_IS_NOT_SUPPORTED), "UNTIL condtion",
-              "Replica is started in the sequential execution mode.");
-        }
       }
       ret = until_g->init(master_param->gtid);
     } else if (master_param->until_after_gaps) {

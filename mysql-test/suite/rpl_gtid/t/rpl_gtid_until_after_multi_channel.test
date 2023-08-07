@@ -1,0 +1,447 @@
+#
+# ==== Purpose ====
+#
+# The following test verifies that SQL_AFTER_GTIDS works correctly with
+# different option in multi-channel mode.
+#
+# === Implementation ====
+#
+# 1. REPLICATE ALL SOURCE DATA
+# 2. DATA IS ALREADY PRESENT
+# 3. REPLICATE SUBSET OF SOURCE DATA WAITING ON A SINGLE GTID
+# 4. REPLICATE SUBSET OF SOURCE DATA WAITING WITH ALREADY KNOWN GTIDS
+# 5. REPLICATE SOURCE DATA WAITING WITH ALREADY KNOWN GTIDS
+# 6. REPLICATE MISSING SOURCE DATA WAITING WITH SINGLE GTID
+# 7. REPLICATE UUID NOT PRESENT WITH DATA INCOMING
+# 8. Cleanup
+#
+# === References ===
+#
+# WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
+#
+
+--source include/only_mts_replica_parallel_workers.inc
+--source include/have_slave_repository_type_table.inc
+
+--echo #
+--echo # set up source server_1 and server_3 with server_2 being a replica.
+--echo #.
+
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $source_1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1 (c1 int primary key);
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $source_3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t3 (c1 int primary key);
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. REPLICATE ALL SOURCE DATA
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=2
+while ($i != 5)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=2
+while ($i != 5)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-4,$source_3_uuid:1-4" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-4,$source_3_uuid:1-4" for channel 'channel_3'
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)=3 FROM t1
+--let $assert_text= 3 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)=3 FROM t3
+--let $assert_text= 3 rows in t3 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. DATA IS ALREADY PRESENT
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-2,$source_3_uuid:1-2" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-2,$source_3_uuid:1-2" for channel 'channel_3'
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)=3 FROM t1
+--let $assert_text= 3 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)=3 FROM t3
+--let $assert_text= 3 rows in t3 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. REPLICATE SUBSET OF SOURCE DATA WAITING ON A SINGLE GTID
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=5
+while ($i != 9)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=5
+while ($i != 9)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:7,$source_3_uuid:7" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:7,$source_3_uuid:7" for channel 'channel_3'
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)>=6 FROM t1
+--let $assert_text= Atleast 6 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)>=6 FROM t3
+--let $assert_text= Atleast 6 rows in t3 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 4. REPLICATE SUBSET OF SOURCE DATA WAITING WITH ALREADY KNOWN GTIDS
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=9
+while ($i != 10)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=9
+while ($i != 10)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-8,$source_3_uuid:1-8" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-8,$source_3_uuid:1-8" for channel 'channel_3'
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+# Transactions are coming from 2 channels.
+# channel_1 will wait for source_3_uuid:1-8
+# In mean time channel_1 will receive `source_1_uuid:9` and more
+# So channel_1 will fetch more than `source_1_uuid:1-8`
+# Hence COUNT(*) = 8 may not be true but COUNT(*)>=8 should be true.
+--let $assert_cond= COUNT(*)>=7 FROM t1
+--let $assert_text= Atleast 7 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)>=7 FROM t3
+--let $assert_text= Atleast 7 rows in t3 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 5. REPLICATE SOURCE DATA WAITING WITH ALREADY KNOWN GTIDS
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-10,$source_3_uuid:1-10" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-10,$source_3_uuid:1-10" for channel 'channel_3'
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=10
+while ($i != 11)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=10
+while ($i != 11)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)=9 FROM t1
+--let $assert_text= 9 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)=9 FROM t3
+--let $assert_text= 9 rows in t3 must be replicated now
+--source include/assert.inc
+
+
+--echo
+--echo ##############################################################
+--echo # 6. REPLICATE MISSING SOURCE DATA WAITING WITH SINGLE GTID
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:11,$source_3_uuid:11" for channel 'channel_1'
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:11,$source_3_uuid:11" for channel 'channel_3'
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=11
+while ($i != 12)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=11
+while ($i != 12)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)=10 FROM t1
+--let $assert_text= 10 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)=10 FROM t3
+--let $assert_text= 10 rows in t3 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 7. REPLICATE UUID NOT PRESENT WITH DATA INCOMING
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-20" for channel 'channel_1'
+
+## Notice: Channel_3 will never give source_1_uuid:1-20
+## But still channel will stop because GTIDs will be received from channel_1
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:1-20" for channel 'channel_3'
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=12
+while ($i != 16)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--source include/check_slave_is_running.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/check_slave_is_running.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $i=16
+while ($i != 21)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_3_uuid:1-20" for channel 'channel_1'
+
+## Notice: channel_1 will never give source_3_uuid:1-20
+## But still channel will stop because GTIDs will be received from channel_3
+--replace_result $source_1_uuid SOURCE_1_UUID $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_3_uuid:1-20" for channel 'channel_3'
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $i=12
+while ($i != 21)
+{
+  --eval INSERT INTO t3 VALUES($i)
+  --inc $i
+}
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*)=19 FROM t1
+--let $assert_text= 19 rows in t1 must be replicated now
+--source include/assert.inc
+
+--let $assert_cond= COUNT(*)=19 FROM t3
+--let $assert_text= 19 rows in t1 must be replicated now
+--source include/assert.inc
+
+--echo
+--echo ##############################################################
+--echo # 8. Cleanup
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+DROP TABLE t3;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $source_1_uuid SOURCE_1_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_1_uuid:21" for channel 'channel_1'
+
+--replace_result $source_3_uuid SOURCE_3_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_3_uuid:21" for channel 'channel_3'
+
+--let $rpl_channel_name= 'channel_1'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_channel_name= 'channel_3'
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

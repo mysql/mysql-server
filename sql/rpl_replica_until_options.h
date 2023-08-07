@@ -99,6 +99,19 @@ class Until_option {
     return ret;
   }
 
+  /**
+     check if the until option is waiting for more transactions to be read from
+     the relay log.
+
+     @return bool
+       @retval true all log events where read.
+       @retval false waiting for more log events to be read.
+  */
+  bool is_satisfied_all_transactions_read_from_relay_log() {
+    DBUG_TRACE;
+    return check_all_transactions_read_from_relay_log();
+  }
+
  protected:
   Relay_log_info *m_rli;
 
@@ -112,6 +125,7 @@ class Until_option {
   virtual bool check_at_start_slave() = 0;
   virtual bool check_before_dispatching_event(const Log_event *ev) = 0;
   virtual bool check_after_dispatching_event() = 0;
+  virtual bool check_all_transactions_read_from_relay_log() = 0;
 };
 
 /**
@@ -217,6 +231,7 @@ class Until_master_position : public Until_position {
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
 };
 
 /**
@@ -232,6 +247,7 @@ class Until_relay_position : public Until_position {
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
 };
 
 /**
@@ -281,6 +297,7 @@ class Until_before_gtids : public Until_gtids {
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
 };
 
 /**
@@ -291,11 +308,50 @@ class Until_before_gtids : public Until_gtids {
 class Until_after_gtids : public Until_gtids {
  public:
   Until_after_gtids(Relay_log_info *rli) : Until_gtids(rli) {}
+  ~Until_after_gtids() override;
 
  private:
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
+
+  /**
+   Checks if all the customer specified transactions have been executed or not.
+
+   @return bool
+     @retval true   all customer specified transactions have been executed
+     @retval false  customer specified all transactions have not been executed
+                    yet
+  */
+  bool check_all_transactions_executed();
+
+  /**
+   If last transaction has ben completely received wait for the worker thread
+   to finish executing the transactions.
+   @return bool
+     @retval true   error happened in wait like worker error out, shutdown etc.
+     @retval false  all specified transactions have been executed
+  */
+  bool wait_for_gtid_set();
+
+  /**
+     Print message to the error log for the last message.
+     Caller of the function should hold a read or write lock on global_sid_lock.
+  */
+  void last_transaction_executed_message();
+
+  /*
+    Gtid_set of transactions read from the Relay Log for application in this
+    channel and known exectuted GTID in the server, transactions may still be in
+    execution in worker threads.
+  */
+  std::unique_ptr<Gtid_set> m_gtids_known_to_channel{nullptr};
+
+  /*
+    Last transaction has been received and dispatched to worker.
+  */
+  bool m_last_transaction_in_execution{false};
 };
 
 /**
@@ -341,6 +397,7 @@ class Until_view_id : public Until_option {
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
 };
 
 /**
@@ -361,6 +418,7 @@ class Until_mts_gap : public Until_option {
   bool check_at_start_slave() override;
   bool check_before_dispatching_event(const Log_event *ev) override;
   bool check_after_dispatching_event() override;
+  bool check_all_transactions_read_from_relay_log() override;
 };
 
 #endif  // DEFINED_RPL_REPLICA_UNTIL_OPTIONS_H

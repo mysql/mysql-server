@@ -218,6 +218,12 @@ Log_event *Rpl_applier_reader::read_next_event() {
       /* Check it again to avoid missing update signals from receiver thread */
       if (read_active_log_end_pos()) break;
 
+      if (m_rli->is_until_satisfied_all_transactions_read_from_relay_log()) {
+        // Make it stop on the next execution
+        m_rli->abort_slave = true;
+        return nullptr;
+      }
+
       reset_seconds_behind_master();
       /* It should be protected by relay_log.LOCK_binlog_end_pos */
       if (m_rli->ign_master_log_name_end[0]) return generate_rotate_event();

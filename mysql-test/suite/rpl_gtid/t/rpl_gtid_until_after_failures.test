@@ -1,0 +1,103 @@
+#
+# ==== Purpose ====
+#
+# The following test verifies that SQL_AFTER_GTIDS logs error on general
+# failures. And coordinator threads does stop the channel.
+#
+# === Implementation ====
+#
+# 1. Check general data failures are handled correctly.
+# 2. Check general data failures are handled correctly for the last
+#    transaction with additional transaction in the queue.
+# 3. Cleanup
+#
+# === References ===
+#
+# WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
+#
+
+--source include/master-slave.inc
+
+--let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t1(c1 INTEGER PRIMARY KEY);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+let $messages =
+Worker .* failed executing transaction
+The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Replica worker thread has failed to apply an event.
+Error writing relay log repository data while a thread is being killed
+Failed during replica worker thread creation for channel *
+Replica: Coordinator experienced an error or was killed while scheduling an event at*
+Error while waiting for the worker threads to apply the transactions. Please check the GTID_EXECUTED for any missing transaction.
+Query execution was interrupted*
+Replica: Coordinator experienced an error or was killed while scheduling an event at relay-log name*
+Replica SQL for channel '': Relay log read failure: Could not parse relay log event entry*
+Replica SQL for channel '': Error 'Duplicate entry '2' for key 't1.PRIMARY''*
+Replica SQL for channel '': Could not execute Write_rows event on table test.t1*
+;
+
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Check general data failures are handled correctly.
+
+--source include/rpl_connection_slave.inc
+SET sql_log_bin=0;
+INSERT INTO t1 VALUES(2);
+SET sql_log_bin=1;
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(2);
+
+--source include/rpl_connection_slave.inc
+
+--replace_result $source_uuid SOURCE_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:2"
+
+--let $slave_sql_errno=1317,13121,1062
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo ##############################################################
+--echo # 2. Check general data failures are handled correctly for the last
+--echo #    transaction with additional transaction in the queue.
+
+# Block the transaction
+LOCK TABLE t1 WRITE;
+
+# Add 1 more transaction in the queue, this will not be applied
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(3);
+
+--source include/rpl_connection_slave.inc
+
+--replace_result $source_uuid SOURCE_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:2"
+
+# Wait for the transactions to be queued
+--let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE state = 'Waiting for table metadata lock'
+--source include/wait_condition.inc
+
+# Unlock table and check behavior
+UNLOCK TABLES;
+
+--let $slave_sql_errno=1317,13121,1062
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Cleanup
+
+SET sql_log_bin=0;
+DELETE FROM t1 WHERE C1 = 2;
+SET sql_log_bin=1;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+--source include/rpl_end.inc

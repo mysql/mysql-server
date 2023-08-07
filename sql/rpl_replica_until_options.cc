@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <memory>
 
 #include "m_string.h"
 #include "my_sys.h"
@@ -152,6 +153,10 @@ bool Until_master_position::check_after_dispatching_event() {
     return check_position(m_current_log_name, m_current_log_pos);
 }
 
+bool Until_master_position::check_all_transactions_read_from_relay_log() {
+  return false;
+}
+
 bool Until_relay_position::check_at_start_slave() {
   return check_position(m_rli->get_group_relay_log_name(),
                         m_rli->get_group_relay_log_pos());
@@ -164,6 +169,10 @@ bool Until_relay_position::check_before_dispatching_event(const Log_event *) {
 bool Until_relay_position::check_after_dispatching_event() {
   return check_position(m_rli->get_event_relay_log_name(),
                         m_rli->get_event_relay_log_pos());
+}
+
+bool Until_relay_position::check_all_transactions_read_from_relay_log() {
+  return false; /* purecov: inspected */
 }
 
 int Until_gtids::init(const char *gtid_set_str) {
@@ -216,27 +225,125 @@ bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
 
 bool Until_before_gtids::check_after_dispatching_event() { return false; }
 
-bool Until_after_gtids::check_at_start_slave() {
-  global_sid_lock->wrlock();
-  if (m_gtids.is_subset(gtid_state->get_executed_gtids())) {
-    char *buffer;
-    m_gtids.to_string(&buffer);
-    global_sid_lock->unlock();
-    LogErr(INFORMATION_LEVEL, ER_REPLICA_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED,
-           buffer);
-    my_free(buffer);
-    return true;
-  }
-  global_sid_lock->unlock();
+bool Until_before_gtids::check_all_transactions_read_from_relay_log() {
   return false;
 }
 
-bool Until_after_gtids::check_before_dispatching_event(const Log_event *) {
+Until_after_gtids::~Until_after_gtids() {}
+
+void Until_after_gtids::last_transaction_executed_message() {
+  char *buffer;
+  m_gtids.to_string(&buffer);
+  LogErr(SYSTEM_LEVEL, ER_REPLICA_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED,
+         buffer);
+  my_free(buffer);
+}
+
+bool Until_after_gtids::check_all_transactions_executed() {
+  const Checkable_rwlock::Guard global_sid_lock_guard(
+      *global_sid_lock, Checkable_rwlock::WRITE_LOCK);
+  if (m_gtids.is_subset(gtid_state->get_executed_gtids())) {
+    last_transaction_executed_message();
+    return true;
+  }
+  return false;
+}
+
+bool Until_after_gtids::check_at_start_slave() {
+  DBUG_TRACE;
+  if (check_all_transactions_executed()) return true;
+  if (m_gtids_known_to_channel == nullptr) {
+    m_gtids_known_to_channel =
+        std::make_unique<Gtid_set>(global_sid_map, nullptr);
+  }
+  return false;
+}
+
+bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev) {
+  DBUG_TRACE;
+
+  if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
+    global_sid_lock->wrlock();
+    /*
+     Below check is needed when last transaction is received from other source
+     while transactions scheduled by this channel are in execution.
+     This means next GTID cannot be dispatched to worker since all GTIDs
+     specified by customer have been received.
+     Example:
+     Channel1 START SQL_AFTER_GTID=UUID:1-3.
+     Channel1 receives UUID:1-2(workers are still executing)
+     NOTE: check_after_dispatching_event will not wait since last transaction
+     is not received.
+     Channel2 receives UUID:3(executed)
+     Channel1 receives UUID:4(received)
+     UUID:4 cannot be executed because UUID:1-3 have been received.
+     However UUID:1-2 are still being executed by ther worker.
+    */
+    m_gtids_known_to_channel->add_gtid_set(gtid_state->get_executed_gtids());
+    if (m_gtids.is_subset(m_gtids_known_to_channel.get())) {
+      global_sid_lock->unlock();
+      if (!wait_for_gtid_set()) {
+        const Checkable_rwlock::Guard global_sid_lock_guard(
+            *global_sid_lock, Checkable_rwlock::READ_LOCK);
+        last_transaction_executed_message();
+      }
+      return true;
+    }
+
+    Gtid_log_event *gev =
+        const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
+    m_gtids_known_to_channel->_add_gtid(gev->get_sidno(false), gev->get_gno());
+    global_sid_lock->unlock();
+  } else if (ev->ends_group()) {
+    const Checkable_rwlock::Guard global_sid_lock_guard(
+        *global_sid_lock, Checkable_rwlock::WRITE_LOCK);
+    m_gtids_known_to_channel->add_gtid_set(gtid_state->get_executed_gtids());
+    if (m_gtids.is_subset(m_gtids_known_to_channel.get())) {
+      m_last_transaction_in_execution = true;
+    }
+  }
+
   return false;
 }
 
 bool Until_after_gtids::check_after_dispatching_event() {
-  return check_at_start_slave();
+  if (m_last_transaction_in_execution) {
+    if (!wait_for_gtid_set()) {
+      const Checkable_rwlock::Guard global_sid_lock_guard(
+          *global_sid_lock, Checkable_rwlock::READ_LOCK);
+      last_transaction_executed_message();
+    }
+    return true;
+  }
+  return false;
+}
+
+bool Until_after_gtids::wait_for_gtid_set() {
+  constexpr double worker_wait_timeout = 1;
+  bool status = false;
+
+  global_sid_lock->rdlock();
+  while (gtid_state->wait_for_gtid_set(current_thd, &m_gtids,
+                                       worker_wait_timeout)) {
+    global_sid_lock->unlock();
+    /*
+     If some error happend in the worker, or shutdown we need to unblock and
+     stop the coordinator.
+    */
+    if (m_rli->sql_thread_kill_accepted || m_rli->is_error()) {
+      global_sid_lock->rdlock();
+      status = true;
+      break;
+    }
+    global_sid_lock->rdlock();
+  }
+  global_sid_lock->unlock();
+  return status;
+}
+
+bool Until_after_gtids::check_all_transactions_read_from_relay_log() {
+  DBUG_TRACE;
+  return check_all_transactions_executed();
 }
 
 int Until_view_id::init(const char *view_id) {
@@ -277,6 +384,10 @@ bool Until_view_id::check_after_dispatching_event() {
   return until_view_id_commit_found;
 }
 
+bool Until_view_id::check_all_transactions_read_from_relay_log() {
+  return false;
+}
+
 void Until_mts_gap::init() {
   m_rli->opt_replica_parallel_workers = m_rli->recovery_parallel_workers;
 }
@@ -293,3 +404,7 @@ bool Until_mts_gap::check_before_dispatching_event(const Log_event *) {
 }
 
 bool Until_mts_gap::check_after_dispatching_event() { return false; }
+
+bool Until_mts_gap::check_all_transactions_read_from_relay_log() {
+  return false; /* purecov: inspected */
+}

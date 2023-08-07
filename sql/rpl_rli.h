@@ -2069,6 +2069,10 @@ class Relay_log_info : public Rpl_info {
     return until_option != nullptr &&
            until_option->is_satisfied_after_dispatching_event();
   }
+  bool is_until_satisfied_all_transactions_read_from_relay_log() {
+    return until_option != nullptr &&
+           until_option->is_satisfied_all_transactions_read_from_relay_log();
+  }
   /**
    Initialize until option object when starting slave.
 

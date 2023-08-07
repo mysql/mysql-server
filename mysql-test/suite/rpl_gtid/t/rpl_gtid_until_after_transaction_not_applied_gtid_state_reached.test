@@ -1,0 +1,151 @@
+#
+# ==== Purpose ====
+#
+# The following test verifies that SQL_AFTER_GTIDS works correctly in below
+# condition:
+#
+# 0. Initial state:
+#    SQL_AFTER_GTIDS = 'S:2,R:2'
+#    global_gtid_executed = ''
+#    channel_known_gtids = ''
+#
+#    global_gtid_executed is the global GTID_EXECUTED.
+#    Where channel_known_gtids is a GTID_SET received and dispatched by
+#    the channel for execution where
+#    SQL_AFTER_GTIDS has been specified. It denotes transactions sent for
+#    application and does not necessarily mean executed.
+#
+# 1. A table is created on the source (S:1) and one is created on the replica
+#    (R:1)
+#
+# 2. A transaction S:2 is received from channel and R:2 is executed on the
+#    replica:
+#    global_gtid_executed = 'S:1, R:1-2'
+#    channel_known_gtids = 'S:1-2,R:1-2'
+#
+#    The coordinator schedules S:2 to a worker.
+#    The worker started to apply S:2, but not committed.
+#
+# 3. S:2 is allowed to commit .
+#    global_gtid_executed = 'S:1-2, R:1-2'
+#    channel_known_gtids = 'S:1-2,R:1-2'
+#
+# === Implementation ====
+#
+# 1. Create table t1 in SOURCE and synch with REPLICA
+# 2. Create table t2 in REPLICA
+# 3. Set the channel to SQL_AFTER_GTIDS='SOURCE:2,REPLICA:2'
+# 4. Lock table t1 to block the replica write from applying the
+#    transaction.
+#    Replicate, SOURCE:1 will be in replica worker thread.
+#    Since table is locked it will not be applied.
+# 5. Wait for the coordinator to read all the event.
+#    Execute transaction REPLICA:2, it will execute.
+# 6. SOURCE:2 was not present in gtid_executed and is present
+#    in gtid_set_local.
+#    REPLICA:2 is present in gtid_executed and in gtid_set_local.
+#    Check worker thread is still executing the transaction SOURCE:2.
+#    Check channel is still running, waiting for SOURCE:2 to be applied.
+# 7. Unlock tables.
+#    Since table is UNLOCKED now, SOURCE:2 will be applied and
+#    channel will STOP.
+# 8. Cleanup
+#
+# === References ===
+#
+# WL#15755: MAKE SQL_AFTER_GTIDS WORK WITH MTS
+#
+
+--source include/master-slave.inc
+
+--echo
+--echo ##############################################################
+--echo # 1. Create table t1 in SOURCE and synch with REPLICA
+
+--let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE test.t1(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--let $replica_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo ##############################################################
+--echo # 2. Create table t2 in REPLICA
+
+CREATE TABLE test.t2(c1 INTEGER PRIMARY KEY) ENGINE= Innodb;
+let $messages =
+The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Received all the transactions mentioned in the option SQL_AFTER_GTIDS. Timeout waiting for worker threads to apply the transactions. Please check the GTID_EXECUTED for any missing transaction.
+;
+--let $suppress_on_current_connection = 1
+--source include/suppress_messages.inc
+
+--echo
+--echo ##############################################################
+--echo # 3. Set the channel to SQL_AFTER_GTIDS='SOURCE:2,REPLICA:2'
+
+--replace_result $source_uuid SOURCE_UUID $replica_uuid REPLICA_UUID
+--eval START REPLICA SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS="$source_uuid:2,$replica_uuid:2"
+
+--echo
+--echo ##############################################################
+--echo # 4. Lock table t1 to block the replica write from applying the
+--echo #    transaction.
+--echo #    Replicate, SOURCE:1 will be in replica worker thread.
+--echo #    Since table is locked it will not be applied.
+
+ --source include/rpl_connection_slave1.inc
+LOCK TABLES test.t1 WRITE;
+
+--source include/rpl_connection_master.inc
+INSERT INTO test.t1 VALUES(1);
+
+--echo
+--echo ##############################################################
+--echo # 5. Wait for the coordinator to read all the event.
+--echo #    Execute transaction REPLICA:2, it will execute.
+
+--source include/rpl_connection_slave.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Waiting for source to send event'
+--source include/wait_condition.inc
+
+INSERT INTO test.t2 VALUES(1);
+
+--echo
+--echo ##############################################################
+--echo # 6. SOURCE:2 was not present in gtid_executed and is present
+--echo #    in gtid_set_local.
+--echo #    REPLICA:2 is present in gtid_executed and in gtid_set_local.
+--echo #    Check worker thread is still executing the transaction SOURCE:2.
+--echo #    Check channel is still running, waiting for SOURCE:2 to be applied.
+
+--source include/rpl_connection_slave.inc
+
+--let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE state = 'Waiting for table metadata lock'
+--source include/wait_condition.inc
+
+--source include/check_slave_is_running.inc
+
+--echo
+--echo ##############################################################
+--echo # 7. Unlock tables.
+--echo #    Since table is UNLOCKED now, SOURCE:2 will be applied and
+--echo #    channel will STOP.
+
+ --source include/rpl_connection_slave1.inc
+UNLOCK TABLES;
+
+--source include/wait_for_slave_sql_to_stop.inc
+
+--echo
+--echo ##############################################################
+--echo # 8. Cleanup
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_connection_slave.inc
+DROP TABLE t2;
+--source include/start_slave_sql.inc
+--source include/rpl_end.inc
