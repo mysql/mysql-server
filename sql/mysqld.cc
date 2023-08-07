@@ -1658,8 +1658,6 @@ static bool mysqld_process_must_end_at_startup = false;
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint report_port = 0;
 ulong master_retry_count = 0;
-const char *master_info_file;
-const char *relay_log_info_file;
 char *report_user, *report_password, *report_host;
 char *opt_relay_logname = nullptr, *opt_relaylog_index_name = nullptr;
 /*
@@ -10850,13 +10848,6 @@ struct my_option my_long_options[] = {
      &opt_tc_log_size, nullptr, GET_ULONG, REQUIRED_ARG,
      TC_LOG_MIN_PAGES *my_getpagesize(), TC_LOG_MIN_PAGES *my_getpagesize(),
      ULONG_MAX, nullptr, my_getpagesize(), nullptr},
-    {"master-info-file", OPT_MASTER_INFO_FILE,
-     "The path and filename where the replication receiver thread stores "
-     "connection configuration and positions, in case "
-     "--master-info-repository=FILE. "
-     "This option is deprecated and will be removed in a future version.",
-     &master_info_file, &master_info_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
-     0, nullptr, 0, nullptr},
     {"master-retry-count", OPT_MASTER_RETRY_COUNT,
      "The number of times this replica will attempt to connect to a source "
      "before giving up. "
@@ -12004,8 +11995,6 @@ static int mysql_init_variables() {
   multi_keycache_init();
 
   /* Replication parameters */
-  master_info_file = "master.info";
-  relay_log_info_file = "relay-log.info";
   report_user = report_password = report_host = nullptr; /* TO BE DELETED */
   opt_relay_logname = opt_relaylog_index_name = nullptr;
   opt_relaylog_index_name_supplied = false;
@@ -12691,12 +12680,6 @@ bool mysqld_get_one_option(int optid,
         return 1;
       }
 #endif  // _WIN32
-      break;
-    case OPT_RELAY_LOG_INFO_FILE:
-      push_deprecated_warn_no_replacement(nullptr, "--relay-log-info-file");
-      break;
-    case OPT_MASTER_INFO_FILE:
-      push_deprecated_warn_no_replacement(nullptr, "--master-info-file");
       break;
     case OPT_SLAVE_ROWS_SEARCH_ALGORITHMS:
       push_deprecated_warn_no_replacement(nullptr,
@@ -13941,7 +13924,7 @@ PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command"
 PSI_stage_info stage_explaining= { 0, "explaining", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_flushing_applier_and_connection_metadata= { 0, "Flushing relay log and source info repository.", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_flushing_applier_metadata= { 0, "Flushing relay-log info file.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_freeing_items= { 0, "freeing items", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_init= { 0, "init", 0, PSI_DOCUMENT_ME};
@@ -14045,7 +14028,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_explaining,
     &stage_finished_reading_one_binlog_switching_to_next_binlog,
     &stage_flushing_applier_and_connection_metadata,
-    &stage_flushing_relay_log_info_file,
+    &stage_flushing_applier_metadata,
     &stage_freeing_items,
     &stage_fulltext_initialization,
     &stage_init,

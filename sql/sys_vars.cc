@@ -5943,15 +5943,6 @@ static Sys_var_charptr Sys_log_bin_basename(
     READ_ONLY NON_PERSIST GLOBAL_VAR(log_bin_basename), NO_CMD_LINE,
     IN_FS_CHARSET, DEFAULT(nullptr));
 
-static Sys_var_charptr Sys_relay_log_info_file(
-    "relay_log_info_file",
-    "The location and name of the file that "
-    "remembers where the SQL replication thread is in the relay logs",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(relay_log_info_file),
-    CMD_LINE(REQUIRED_ARG, OPT_RELAY_LOG_INFO_FILE), IN_FS_CHARSET,
-    DEFAULT(nullptr), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
-
 static Sys_var_bool Sys_relay_log_purge(
     "relay_log_purge",
     "if disabled - do not purge relay logs. "

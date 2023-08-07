@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 111 variables in the table.]
+include/assert.inc [Expect 110 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;

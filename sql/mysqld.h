@@ -568,7 +568,7 @@ extern PSI_stage_info stage_explaining;
 extern PSI_stage_info
     stage_finished_reading_one_binlog_switching_to_next_binlog;
 extern PSI_stage_info stage_flushing_applier_and_connection_metadata;
-extern PSI_stage_info stage_flushing_relay_log_info_file;
+extern PSI_stage_info stage_flushing_applier_metadata;
 extern PSI_stage_info stage_freeing_items;
 extern PSI_stage_info stage_fulltext_initialization;
 extern PSI_stage_info stage_init;
