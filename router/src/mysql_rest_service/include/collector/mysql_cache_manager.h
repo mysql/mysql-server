@@ -42,24 +42,15 @@ enum MySQLConnection {
   kMySQLConnectionUserdataRW
 };
 
-inline bool is_rw(const MySQLConnection c) {
-  switch (c) {
-    case kMySQLConnectionMetadataRW:
-    case kMySQLConnectionUserdataRW:
-      return true;
-    default:
-      return false;
-  }
-}
-
 class ConnectionConfiguration {
  public:
   ConnectionConfiguration() = default;
 
   ConnectionConfiguration(MySQLConnection type,
                           const mrs::Configuration &configuration)
-      : provider_{is_rw(type) ? configuration.provider_rw_.get()
-                              : configuration.provider_ro_.get()} {
+      : type_{type},
+        provider_{is_rw() ? configuration.provider_rw_.get()
+                          : configuration.provider_ro_.get()} {
     switch (type) {
       case kMySQLConnectionMetadataRW:
       case kMySQLConnectionMetadataRO:
@@ -74,6 +65,17 @@ class ConnectionConfiguration {
     }
   }
 
+  bool is_rw() const {
+    switch (type_) {
+      case kMySQLConnectionMetadataRW:
+      case kMySQLConnectionUserdataRW:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  MySQLConnection type_{kMySQLConnectionMetadataRO};
   DestinationProvider *provider_{nullptr};
   std::string mysql_user_;
   std::string mysql_password_;
@@ -155,6 +157,20 @@ class MysqlCacheManager {
         return {};
     }
   }
+
+  virtual collector::MySQLConnection get_type(const CachedObject &obj) {
+    if (obj.parent_ == &cache_manager_metadata_ro_)
+      return collector::kMySQLConnectionMetadataRO;
+    else if (obj.parent_ == &cache_manager_metadata_ro_)
+      return collector::kMySQLConnectionMetadataRW;
+    else if (obj.parent_ == &cache_manager_metadata_rw_)
+      return collector::kMySQLConnectionUserdataRO;
+    else if (obj.parent_ == &cache_manager_userdata_rw_)
+      return collector::kMySQLConnectionUserdataRW;
+
+    return collector::kMySQLConnectionUserdataRO;
+  }
+
   virtual CachedObject get_instance(collector::MySQLConnection type,
                                     bool wait) {
     switch (type) {

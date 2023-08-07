@@ -1773,6 +1773,7 @@ uint64_t TableUpdater::handle_delete(MySQLSession *session,
   }
   check_primary_key(pk_values);
 
+  //  do {
   auto root_delete = std::make_shared<RowDelete>(
       std::shared_ptr<Operation>(nullptr), get_base_table(), pk_values,
       m_row_ownership_info);
@@ -1780,6 +1781,7 @@ uint64_t TableUpdater::handle_delete(MySQLSession *session,
   process_delete_object(m_object, m_row_ownership_info, root_delete, "/");
 
   safe_run(session, root_delete);
+  //  } while ();
 
   m_affected += root_delete->affected();
 

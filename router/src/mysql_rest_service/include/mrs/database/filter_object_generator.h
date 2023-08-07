@@ -46,12 +46,18 @@ class FilterObjectGenerator {
   using Value = const Document::ValueType;
 
  public:
-  FilterObjectGenerator(std::shared_ptr<database::entry::Object> object,
-                        bool joins_allowed);
+  FilterObjectGenerator(std::shared_ptr<database::entry::Object> object = {},
+                        bool joins_allowed = false, uint64_t wait_timeout = 0);
   void parse(const Document &doc);
+  void parse(const std::string &filter_query);
   mysqlrouter::sqlstring get_result() const;
+  mysqlrouter::sqlstring get_asof() const;
   bool has_where() const;
   bool has_order() const;
+  bool has_asof() const;
+
+  enum Clear { kWhere = 1, kOrder = 2, kAsof = 4, kAll = 7 };
+  void reset(const Clear clear = Clear::kAll);
 
  private:
   void parse_complex_or(Value *value);
@@ -66,13 +72,14 @@ class FilterObjectGenerator {
   mysqlrouter::sqlstring resolve_field_name(const char *name,
                                             bool for_sorting) const;
 
-  void reset();
-
   std::shared_ptr<database::entry::Object> object_metadata_;
   bool joins_allowed_{false};
+  bool empty_{true};
   mysqlrouter::sqlstring where_;
   std::list<std::string> argument_;
   mysqlrouter::sqlstring order_;
+  mysqlrouter::sqlstring asof_gtid_{};
+  uint64_t wait_timeout_{0};
 };
 
 }  // namespace database

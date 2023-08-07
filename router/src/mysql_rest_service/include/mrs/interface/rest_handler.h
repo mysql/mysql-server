@@ -104,6 +104,11 @@ class Options {
 
     bool gtid{true};
   } metadata;
+
+  class Query {
+   public:
+    uint64_t wait{1};
+  } query;
 };
 
 class RestHandler {

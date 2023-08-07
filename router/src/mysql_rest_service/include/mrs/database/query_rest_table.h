@@ -34,6 +34,7 @@
 #include "mrs/database/entry/object.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
+#include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query.h"
@@ -61,7 +62,7 @@ class QueryRestTable : private QueryLog {
       const ObjectFieldFilter &field_filter, const uint32_t offset,
       const uint32_t limit, const std::string &url, const bool is_default_limit,
       const ObjectRowOwnership &row_ownership = {},
-      const std::string &query = {}, const bool compute_etag = false);
+      const FilterObjectGenerator &fog = {}, const bool compute_etag = false);
 
   std::string response;
   uint64_t items{0};
@@ -82,7 +83,9 @@ class QueryRestTable : private QueryLog {
   bool compute_etag_{false};
   mysqlrouter::sqlstring where_;
   bool metadata_received_{false};
+  const JsonTemplateFactory *factory_;
 
+  void create_serializer();
   void on_row(const ResultRow &r) override;
   void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
 
@@ -97,7 +100,7 @@ class QueryRestTable : private QueryLog {
   void build_query(const ObjectFieldFilter &field_filter, const uint32_t offset,
                    const uint32_t limit, const std::string &url,
                    const ObjectRowOwnership &row_ownership,
-                   const std::string &query);
+                   const FilterObjectGenerator &fog);
 };
 
 }  // namespace database

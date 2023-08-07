@@ -33,6 +33,7 @@
 #include "helper/container/map.h"
 #include "helper/container/to_string.h"
 #include "helper/json/rapid_json_interator.h"
+#include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "mrs/interface/rest_error.h"
 
@@ -130,27 +131,56 @@ mysqlrouter::sqlstring to_sqlstring(Value *value) {
 }
 
 FilterObjectGenerator::FilterObjectGenerator(
-    std::shared_ptr<database::entry::Object> object, bool joins_allowed)
-    : object_metadata_(object), joins_allowed_(joins_allowed) {}
+    std::shared_ptr<database::entry::Object> object, bool joins_allowed,
+    uint64_t wait_timeout)
+    : object_metadata_{object},
+      joins_allowed_{joins_allowed},
+      wait_timeout_{wait_timeout} {}
 
 mysqlrouter::sqlstring FilterObjectGenerator::get_result() const {
   mysqlrouter::sqlstring tmp;
   tmp.append_preformatted(where_);
+  if (has_where() && has_asof()) {
+    tmp.append_preformatted(" AND ");
+  }
+
+  if (has_asof()) {
+    mysqlrouter::sqlstring wait{" 0=WAIT_FOR_EXECUTED_GTID_SET(?,?) "};
+    wait << asof_gtid_;
+    wait << wait_timeout_;
+    tmp.append_preformatted(wait);
+  }
+
   tmp.append_preformatted(order_);
   return tmp;
 }
 
-void FilterObjectGenerator::reset() {
-  where_.reset("");
-  order_.reset("");
+void FilterObjectGenerator::reset(const Clear clear) {
+  if (clear & Clear::kWhere) {
+    log_debug("Resetting where");
+    where_.reset("");
+  }
+  if (clear & Clear::kOrder) {
+    log_debug("Resetting order");
+    order_.reset("");
+  }
+  if (clear & Clear::kAsof) {
+    log_debug("Resetting asof");
+    asof_gtid_.reset("");
+  }
 }
 
 void FilterObjectGenerator::parse(const Document &doc) {
-  if (!doc.IsObject()) throw RestError("`FilterObject` must be a json object.");
-
   reset();
 
+  if (doc.IsNull()) return;
+  if (!doc.IsObject()) throw RestError("`FilterObject` must be a json object.");
+
   parse_orderby_asof_wmember(doc.GetObject());
+}
+
+void FilterObjectGenerator::parse(const std::string &filter_query) {
+  parse(helper::json::text_to_document(filter_query));
 }
 
 void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
@@ -158,8 +188,6 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
   static std::string k_asof{"$asof"};
   for (auto member : helper::json::member_iterator(object)) {
     if (k_asof == member.first) {
-      if (!where_.is_empty()) where_.append_preformatted(" AND");
-
       parse_asof(member.second);
     } else if (k_order == member.first) {
       if (!member.second->IsObject())
@@ -379,9 +407,15 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
   }
 }
 
+mysqlrouter::sqlstring FilterObjectGenerator::get_asof() const {
+  return asof_gtid_;
+}
+
 bool FilterObjectGenerator::has_where() const { return !where_.is_empty(); }
 
 bool FilterObjectGenerator::has_order() const { return !order_.is_empty(); }
+
+bool FilterObjectGenerator::has_asof() const { return !asof_gtid_.is_empty(); }
 
 void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   log_debug("Parser wmember");
@@ -404,10 +438,8 @@ void FilterObjectGenerator::parse_asof(Value *value) {
   log_debug("Parser asof");
   if (!value->IsString())
     throw RestError("Wrong value for `asof`, requires string with GTID.");
-  mysqlrouter::sqlstring wait{" 0=WAIT_FOR_EXECUTED_GTID_SET(?,?) "};
-  wait << value->GetString();
-  wait << 0;
-  where_.append_preformatted(wait);
+  asof_gtid_.reset("?");
+  asof_gtid_ << value->GetString();
 }
 
 void FilterObjectGenerator::parse_order(Object object) {

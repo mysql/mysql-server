@@ -320,6 +320,16 @@ OK
     ]
 }
 OK
+{
+    "message": "'Asof' requirement was not fulfilled, timeout occur.",
+    "status": 400
+}
+OK
+{
+    "message": "'Asof' requirement was not fulfilled, timeout occur.",
+    "status": 400
+}
+OK
 DROP SCHEMA basic_schema;
 DROP SCHEMA mysql_innodb_cluster_metadata;
 DROP SCHEMA mysql_rest_service_metadata;
