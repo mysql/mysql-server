@@ -38,13 +38,15 @@
 #include "helper/container/generic.h"
 #include "helper/http/url.h"
 #include "helper/json/rapid_json_to_text.h"
-#include "helper/json/text_to.h"
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "helper/mysql_numeric_value.h"
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_query.h"
+#include "mrs/database/helper/query_faults.h"
+#include "mrs/database/helper/query_gtid_executed.h"
+#include "mrs/database/helper/query_retry_on_rw.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
 #include "mrs/database/query_rest_table_single_row.h"
@@ -232,12 +234,20 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
     Url::parse_offset_limit(uri_param.parameters_, &offset, &limit);
 
     if (raw_value.empty()) {
-      database::QueryRestTable rest;
       static const std::string empty;
-      rest.query_entries(session.get(), object, field_filter, offset, limit,
-                         route_->get_rest_url(), route_->get_on_page() == limit,
-                         row_ownership_info(ctxt, object),
-                         uri_param.get_query_parameter("q"), true);
+      database::FilterObjectGenerator fog(object, true,
+                                          get_options().query.wait);
+      database::QueryRestTable rest{};
+
+      fog.parse(uri_param.get_query_parameter("q"));
+      database::QueryRetryOnRW query_retry{route_->get_cache(), session, fog};
+
+      do {
+        rest.query_entries(
+            query_retry.get_session(), object, field_filter, offset, limit,
+            route_->get_rest_url(), route_->get_on_page() == limit,
+            row_ownership_info(ctxt, object), query_retry.get_fog(), true);
+      } while (query_retry.should_retry(rest.items));
 
       Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
@@ -370,8 +380,9 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   } else {
     auto query = get_rest_query_parameter(requests_uri);
 
-    database::FilterObjectGenerator fog(object, false);
-    fog.parse(helper::json::text_to_document(query));
+    database::FilterObjectGenerator fog(object, false,
+                                        get_options().query.wait);
+    fog.parse(query);
 
     auto result = fog.get_result();
     if (result.is_empty())
@@ -381,6 +392,12 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
           "Filter must not contain ordering informations.");
 
     count = rest.handle_delete(session.get(), fog);
+
+    if (fog.has_asof() && 0 == count) {
+      if (!database::is_gtid_executed(session.get(), fog.get_asof())) {
+        database::throw_rest_error_asof_timeout();
+      }
+    }
   }
 
   helper::json::SerializerToText stt;
@@ -487,6 +504,9 @@ mrs::database::ObjectRowOwnership HandlerTable::row_ownership_info(
 std::string HandlerTable::get_most_relevant_gtid(
     ::mysqlrouter::MySQLSession *session) {
   auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
+  for (auto &g : gtids) {
+    log_debug("Received gtid: %s", g.c_str());
+  }
   if (gtids.size() > 0) return gtids[0];
   return {};
 }

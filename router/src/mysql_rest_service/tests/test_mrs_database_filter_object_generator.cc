@@ -42,13 +42,16 @@ class FilterObjectsTest : public Test {
     return result;
   }
 
-  FilterObjectsTest() : sut_({}, false) {}
+  FilterObjectsTest() : sut_({}, false, 0) {}
 
   FilterObjectGenerator sut_;
 };
 
-TEST_F(FilterObjectsTest, empty_json_throws) {
-  ASSERT_THROW(sut_.parse(json("")), std::exception);
+TEST_F(FilterObjectsTest, empty_json_has_nothing_configured) {
+  sut_.parse(json(""));
+  ASSERT_FALSE(sut_.has_asof());
+  ASSERT_FALSE(sut_.has_order());
+  ASSERT_FALSE(sut_.has_where());
 }
 
 TEST_F(FilterObjectsTest, int_json_throws) {
@@ -63,8 +66,12 @@ TEST_F(FilterObjectsTest, bool_json_throws) {
   ASSERT_THROW(sut_.parse(json("true")), std::exception);
 }
 
-TEST_F(FilterObjectsTest, array_json_throws) {
-  ASSERT_THROW(sut_.parse(json("")), std::exception);
+TEST_F(FilterObjectsTest, empty_array_json_throws) {
+  ASSERT_THROW(sut_.parse(json("[]")), std::exception);
+}
+
+TEST_F(FilterObjectsTest, int_array_json_throws) {
+  ASSERT_THROW(sut_.parse(json("[1,2,3]")), std::exception);
 }
 
 TEST_F(FilterObjectsTest, empty_object_accepted) {

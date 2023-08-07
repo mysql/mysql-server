@@ -41,6 +41,7 @@
 #include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/database/query_uuid.h"
+#include "mrs/interface/query_retry.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {

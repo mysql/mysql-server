@@ -25,6 +25,7 @@
 #include "mrs/rest/handler.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "mysql/harness/logging/logging.h"
@@ -625,6 +626,12 @@ bool to_bool(const ValueType &value) {
   return default_value;
 }
 
+template <typename ValueType>
+uint64_t to_uint(const ValueType &value) {
+  const auto &v = cvt::to_string(value);
+  return std::stoull(v.c_str());
+}
+
 class ParseOptions
     : public helper::json::RapidReaderHandlerToStruct<mrs::interface::Options> {
  public:
@@ -652,6 +659,8 @@ class ParseOptions
       result_.debug.http.response.detailed_errors_ = to_bool(vt);
     } else if (key == "metadata.gtid") {
       result_.metadata.gtid = to_bool(vt);
+    } else if (key == "query.wait") {
+      result_.query.wait = to_uint(vt);
     } else if (key == "http.allowedOrigin") {
       if (mysql_harness::make_lower(cvt::to_string(vt)) == "auto")
         result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;

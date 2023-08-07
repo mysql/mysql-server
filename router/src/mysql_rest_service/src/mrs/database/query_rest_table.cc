@@ -44,26 +44,26 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory) {
-  if (factory)
-    serializer_ = factory->create_template();
-  else
-    serializer_ = mrs::json::JsonTemplateFactory().create_template();
-}
+using sqlstring = mysqlrouter::sqlstring;
+using MySQLSession = mysqlrouter::MySQLSession;
+
+QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory)
+    : factory_{factory} {}
 
 void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const uint32_t offset,
     const uint32_t limit, const std::string &url_route,
     const bool is_default_limit, const ObjectRowOwnership &row_ownership,
-    const std::string &q, const bool compute_etag) {
+    const FilterObjectGenerator &fog, const bool compute_etag) {
+  create_serializer();
   object_ = object;
   compute_etag_ = compute_etag;
   metadata_received_ = false;
   items = 0;
   config_ = {offset, limit, is_default_limit, url_route};
 
-  build_query(field_filter, offset, limit + 1, url_route, row_ownership, q);
+  build_query(field_filter, offset, limit + 1, url_route, row_ownership, fog);
 
   serializer_->begin();
   execute(session);
@@ -97,10 +97,10 @@ void QueryRestTable::on_row(const ResultRow &r) {
   ++items;
 }
 
-const mysqlrouter::sqlstring &QueryRestTable::build_where(
+const sqlstring &QueryRestTable::build_where(
     const ObjectRowOwnership &row_ownership) {
-  using MatchLevel = entry::RowGroupOwnership::MatchLevel;
-  static std::map<MatchLevel, mysqlrouter::sqlstring> operations{
+  using MatchLevel = RowGroupOwnership::MatchLevel;
+  static std::map<MatchLevel, sqlstring> operations{
       {MatchLevel::kHigher, ">"},
       {MatchLevel::kEqualOrHigher, ">="},
       {MatchLevel::kEqual, "="},
@@ -222,12 +222,12 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   return where_;
 }
 
-const mysqlrouter::sqlstring &QueryRestTable::build_where(
+const sqlstring &QueryRestTable::build_where(
     const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<UniversalId> &user_groups) {
-  using MatchLevel = entry::RowGroupOwnership::MatchLevel;
-  static std::map<MatchLevel, mysqlrouter::sqlstring> operations{
+  using MatchLevel = RowGroupOwnership::MatchLevel;
+  static std::map<MatchLevel, sqlstring> operations{
       {MatchLevel::kHigher, ">"},
       {MatchLevel::kEqualOrHigher, ">="},
       {MatchLevel::kEqual, "="},
@@ -239,7 +239,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
       row_user.user_ownership_enforced ? row_user.user_ownership_column : empty;
 
   if (user_ownership_column.empty() && row_groups.empty())
-    return mysqlrouter::sqlstring::empty;
+    return sqlstring::empty;
 
   where_.reset("WHERE !");
   if (row_groups.empty()) {
@@ -349,41 +349,38 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   return where_;
 }
 
-void extend_where(std::shared_ptr<database::entry::Object> object,
-                  mysqlrouter::sqlstring &where, const std::string &query) {
+void extend_where(sqlstring &where, const FilterObjectGenerator &fog) {
   using namespace std::literals::string_literals;
-  if (query.empty()) return;
-  FilterObjectGenerator fog(object, true);
-  fog.parse(helper::json::text_to_document(query));
+
   const auto &result = fog.get_result();
   if (result.is_empty()) return;
 
   if (fog.has_where()) {
     bool is_empty = where.is_empty();
 
-    mysqlrouter::sqlstring r{"? ? ?"};
-    r << where << mysqlrouter::sqlstring(is_empty ? "WHERE" : "AND") << result;
+    sqlstring r{"? ? ?"};
+    r << where << sqlstring(is_empty ? "WHERE" : "AND") << result;
     where = r;
-  } else {
-    where.append_preformatted(result);
+    return;
   }
+
+  where.append_preformatted(result);
 }
 
 void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
                                  const uint32_t offset, const uint32_t limit,
                                  const std::string &url,
                                  const ObjectRowOwnership &row_ownership,
-                                 const std::string &query) {
+                                 const FilterObjectGenerator &fog) {
   auto where = build_where(row_ownership);
-  extend_where(object_, where, query);
+  extend_where(where, fog);
 
   JsonQueryBuilder qb(field_filter);
 
   qb.process_object(object_);
 
-  query_ =
-      mysqlrouter::sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
-  std::vector<mysqlrouter::sqlstring> json_object_fields;
+  query_ = sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
+  std::vector<sqlstring> json_object_fields;
 
   if (!qb.select_items().is_empty())
     json_object_fields.push_back(qb.select_items());
@@ -391,10 +388,10 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   auto pk_columns = format_key_names(object_->get_base_table());
 
   if (pk_columns.is_empty()) {
-    static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
+    static sqlstring empty_links{"'links', JSON_ARRAY()"};
     json_object_fields.push_back(empty_links);
   } else {
-    mysqlrouter::sqlstring fmt{
+    sqlstring fmt{
         "'links', "
         "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',"
         "CONCAT_WS(',',?))))"};
@@ -405,6 +402,13 @@ void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
   query_ << json_object_fields;
   query_ << qb.from_clause();
   query_ << where << offset << limit;
+}
+
+void QueryRestTable::create_serializer() {
+  if (factory_)
+    serializer_ = factory_->create_template();
+  else
+    serializer_ = mrs::json::JsonTemplateFactory().create_template();
 }
 
 }  // namespace database

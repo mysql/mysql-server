@@ -37,17 +37,6 @@ using testing::Return;
 using testing::StrictMock;
 using testing::Test;
 
-#if 0
-#undef EXPECT_EQ
-#define EXPECT_EQ(a, b)                    \
-  if (a != b) {                            \
-    std::cout << "vvv\n";                  \
-    std::cout << "R\"*(" << b << ")*\"\n"; \
-    std::cout << "^^^\n";                  \
-    EXPECT_STREQ(a, b.c_str());            \
-  }
-#endif
-
 // TODO
 // - composite keys
 // - nested join
@@ -62,6 +51,14 @@ using testing::Test;
 
 // inserts
 // - PK - auto-inc / single / composite
+
+FilterObjectGenerator filter(std::shared_ptr<Object> obj,
+                             const char *filter_query) {
+  FilterObjectGenerator result{obj, true, 0};
+  result.parse(filter_query);
+
+  return result;
+}
 
 class DatabaseQueryGet : public DatabaseRestTableTest {
  public:
@@ -1735,7 +1732,7 @@ TEST_F(DatabaseQueryGet, row_filter) {
 
   {
     rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                        R"*({"firstName": "PENELOPE"})*");
+                        filter(root, R"*({"firstName": "PENELOPE"})*"));
 
     auto json = make_json(rest->response);
     EXPECT_EQ(1, json["items"].GetArray().Size());
@@ -1746,7 +1743,8 @@ TEST_F(DatabaseQueryGet, row_filter) {
     EXPECT_REST_ERROR(
         rest->query_entries(
             m_.get(), root, {}, 0, 5, "url", true, {},
-            R"*({"firstName": "PENELOPE", "lastName": "SMITH"})*"),
+            filter(root,
+                   R"*({"firstName": "PENELOPE", "lastName": "SMITH"})*")),
         "Cannot filter on field lastName");
   }
   {
@@ -1754,7 +1752,7 @@ TEST_F(DatabaseQueryGet, row_filter) {
 
     EXPECT_REST_ERROR(
         rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                            R"*({"invalid_field": "HOORAY"})*"),
+                            filter(root, R"*({"invalid_field": "HOORAY"})*")),
         "Cannot filter on field invalid_field");
   }
 }
@@ -1800,7 +1798,7 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
 
   {
     rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                        R"*({"$orderby": {"id": 1}})*");
+                        filter(root, R"*({"$orderby": {"id": 1}})*"));
 
     auto json = make_json(rest->response);
     EXPECT_EQ(5, json["items"].GetArray().Size());
@@ -1814,7 +1812,7 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
     reset();
 
     rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                        R"*({"$orderby": {"firstName": -1}})*");
+                        filter(root, R"*({"$orderby": {"firstName": -1}})*"));
 
     auto json = make_json(rest->response);
     EXPECT_EQ(5, json["items"].GetArray().Size()) << rest->response;
@@ -1829,15 +1827,16 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
 
     EXPECT_REST_ERROR(
         rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                            R"*({"$orderby": {"lastName": 1}})*"),
+                            filter(root, R"*({"$orderby": {"lastName": 1}})*")),
         "Cannot sort on field lastName");
   }
   {
     reset();
 
     EXPECT_REST_ERROR(
-        rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                            R"*({"$orderby": {"invalid_field": 1}})*"),
+        rest->query_entries(
+            m_.get(), root, {}, 0, 5, "url", true, {},
+            filter(root, R"*({"$orderby": {"invalid_field": 1}})*")),
         "Cannot sort on field invalid_field");
   }
 }

@@ -106,7 +106,8 @@ void MysqlCacheManager::MysqlCacheCallbacks::initalize(Object obj) {
     obj->execute("SET ROLE "s + role_);
   }
 
-  obj->execute("SET @@SESSION.session_track_gtids=\"ALL_GTIDS\";");
+  if (connection_configuration_.is_rw())
+    obj->execute("SET @@SESSION.session_track_gtids=\"OWN_GTID\";");
 }
 
 bool MysqlCacheManager::MysqlCacheCallbacks::is_default_user(

@@ -56,7 +56,7 @@ class DatabaseQueryDelete : public DatabaseRestTableTest {
 
   void test_delete_f(std::shared_ptr<Object> root, const std::string &filter,
                      const ObjectRowOwnership &row_owner = {}) {
-    FilterObjectGenerator fog(root, true);
+    FilterObjectGenerator fog(root, true, 0);
     fog.parse(helper::json::text_to_document(filter));
 
     mrs::database::TableUpdater rest(root, row_owner);

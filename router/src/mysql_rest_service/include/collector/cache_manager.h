@@ -63,6 +63,8 @@ class CacheManager {
       return *this;
     }
 
+    bool empty() const { return object_ == nullptr; }
+
     bool operator==(const Object &obj) const { return obj == object_; }
 
     Object operator->() { return object_; }
