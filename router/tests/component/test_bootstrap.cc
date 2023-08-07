@@ -2934,6 +2934,10 @@ INSTANTIATE_TEST_SUITE_P(
             {"--name=Router01", "--conf-set-option=DEFAULT.name=Router02"},
             /*expected_conf_entries=*/{"name=Router02"},
             /*unexpected_conf_entries=*/{"name=Router01"}},
+        ConfSetOptionTestParam{
+            {"--https-port=10000", "--conf-set-option=http_server.ssl=0"},
+            /*expected_conf_entries=*/{"ssl=0"},
+            /*unexpected_conf_entries=*/{"ssl=1"}},
 
         ConfSetOptionTestParam{
             {"--connect-timeout=20",
@@ -2972,6 +2976,11 @@ INSTANTIATE_TEST_SUITE_P(
             {"--name=Router01", "--conf-set-option=DEFAULT.name=Router02"},
             /*expected_conf_entries=*/{"name=Router02"},
             /*unexpected_conf_entries=*/{"name=Router01"},
+            true},
+        ConfSetOptionTestParam{
+            {"--https-port=10000", "--conf-set-option=http_server.ssl=0"},
+            /*expected_conf_entries=*/{"ssl=0"},
+            /*unexpected_conf_entries=*/{"ssl=1"},
             true}));
 
 /**
