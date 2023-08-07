@@ -12,7 +12,6 @@ Variable_name	Value
 relay_log	hostname-relay-bin
 relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
 relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
-relay_log_info_file	relay-log.info
 relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0
@@ -28,7 +27,6 @@ Variable_name	Value
 relay_log	hostname-relay-bin
 relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
 relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
-relay_log_info_file	relay-log.info
 relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0

@@ -55,8 +55,6 @@ SET PERSIST_ONLY port = DEFAULT;
 ERROR HY000: Variable 'port' is a non persistent read only variable
 SET PERSIST_ONLY relay_log = DEFAULT;
 ERROR HY000: Variable 'relay_log' is a non persistent read only variable
-SET PERSIST_ONLY relay_log_info_file = DEFAULT;
-ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 SET PERSIST_ONLY secure_file_priv = DEFAULT;
 ERROR HY000: Variable 'secure_file_priv' is a non persistent read only variable
 SET PERSIST_ONLY skip_networking = DEFAULT;

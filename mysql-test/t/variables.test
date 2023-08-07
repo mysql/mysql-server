@@ -92,7 +92,7 @@ show variables like 'max_join_size';
 # Restoring max_join_size value back to 100.
 set max_join_size=100;
 --disable_warnings
-# To ignore MAX_JOIN_SIZE as the no. of rows returned by SELECT in session_variables 
+# To ignore MAX_JOIN_SIZE as the no. of rows returned by SELECT in session_variables
 # exceed the set value of max_join_size=100.
 SET SQL_BIG_SELECTS=1;
 
@@ -228,7 +228,7 @@ SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 
 --echo ==+ performance_schema data +==
 --disable_warnings
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM performance_schema.session_variables
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
 'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
@@ -268,7 +268,7 @@ SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 --enable_warnings
 --echo ==+ performance_schema data +==
 --disable_warnings
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM performance_schema.session_variables
 WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
 'transaction_alloc_block_size', 'transaction_prealloc_size') ORDER BY 1;
@@ -316,7 +316,7 @@ set character_set_client=NULL;
 set collation_connection=NULL;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@global.timestamp;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR 
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@version='';
 --error ER_GLOBAL_VARIABLE
 set @@concurrent_insert=1;
@@ -651,7 +651,7 @@ set global sql_mode=repeat('a',80);
 
 #
 # Bug#6282 Packet error with SELECT INTO
-# 
+#
 
 create table t1 (a int);
 select a into @x from t1;
@@ -717,7 +717,7 @@ set @@sql_big_selects = @old_sql_big_selects;
 #
 # Bug #16195: SHOW VARIABLES doesn't report correctly sql_warnings and
 # sql_notes values
-# 
+#
 set @@sql_notes = 0, @@sql_warnings = 0;
 show variables like 'sql_notes';
 --disable_warnings
@@ -780,7 +780,7 @@ select * from performance_schema.session_variables where variable_name like 'tmp
 
 #
 # Bug #19606: make ssl settings available via SHOW VARIABLES and @@variables
-# 
+#
 # Don't actually output, since it depends on the system
 --replace_column 1 # 2 # 3 # 4 # 5 #
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
@@ -1235,7 +1235,7 @@ SELECT @@GLOBAL.server_id;
 SET GLOBAL server_id = @old_server_id;
 
 #
-# Bug #42778: delete order by null global variable causes 
+# Bug #42778: delete order by null global variable causes
 #             assertion .\filesort.cc, line 797
 #
 
@@ -1255,7 +1255,7 @@ DROP TABLE t1;
 --echo #
 
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
---echo # Set the max_binlog_cache_size to size more than 4GB. 
+--echo # Set the max_binlog_cache_size to size more than 4GB.
 SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
 SELECT @@GLOBAL.max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
@@ -1554,7 +1554,7 @@ set session collation_database=2048;
 # once this happens to indicate that other tests will have to
 # be updated.
 #
-# The test does this by trying to set sql_mode to the next 
+# The test does this by trying to set sql_mode to the next
 # currently unused flag value and check that this currently fails.
 # Once a new flag is added, this value will become valid and
 # the statement below will succeed.
@@ -1567,7 +1567,7 @@ SET @@sql_mode= 8589934592;
 --echo #
 
 # Basic testing to check that each variable shows up and can be
-# altered. 
+# altered.
 #
 # Functional testing of log_slow_admin_statements is within
 # suites/sys_vars/t/log_slow_admin_statements_basic.test
@@ -1710,16 +1710,6 @@ SET @@session.log_bin_index= 'x';
 SET @@global.log_bin_index= 'x';
 #
 --echo #
-SHOW VARIABLES like 'relay_log_info_file';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT @@session.relay_log_info_file;
-SELECT @@global.relay_log_info_file;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@session.relay_log_info_file= 'x';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@global.relay_log_info_file= 'x';
-#
---echo #
 SHOW VARIABLES like 'relay_log_space_limit';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.relay_log_space_limit;
@@ -1753,7 +1743,7 @@ SET @@global.replica_skip_errors= 7;
 #
 
 --echo #
---echo # Bug #11766769 : 59959: SMALL VALUES OF --MAX-ALLOWED-PACKET 
+--echo # Bug #11766769 : 59959: SMALL VALUES OF --MAX-ALLOWED-PACKET
 --echo #   ARE NOT BEING HONORED
 --echo #
 

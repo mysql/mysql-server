@@ -29,7 +29,7 @@ CREATE TABLE non_persisted (name VARCHAR(100) PRIMARY KEY);
 INSERT INTO non_persisted VALUES
 ('gtid_executed'), ('gtid_owned'), ('gtid_purged'), ('log_bin'),
 ('log_bin_basename'), ('log_bin_index'), ('relay_log'), ('relay_log_basename'),
-('relay_log_index'), ('relay_log_info_file'), ('replica_load_tmpdir'),
+('relay_log_index'), ('replica_load_tmpdir'),
 ('slave_load_tmpdir');
 CREATE TABLE aliases (
 name VARCHAR(100) PRIMARY KEY
@@ -140,8 +140,6 @@ SET PERSIST_ONLY relay_log_basename = @@GLOBAL.relay_log_basename;
 ERROR HY000: Variable 'relay_log_basename' is a non persistent read only variable
 SET PERSIST_ONLY relay_log_index = @@GLOBAL.relay_log_index;
 ERROR HY000: Variable 'relay_log_index' is a non persistent read only variable
-SET PERSIST_ONLY relay_log_info_file = @@GLOBAL.relay_log_info_file;
-ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 SET PERSIST_ONLY relay_log_purge = @@GLOBAL.relay_log_purge;
 SET PERSIST_ONLY relay_log_recovery = @@GLOBAL.relay_log_recovery;
 SET PERSIST_ONLY relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
@@ -340,8 +338,6 @@ RESET PERSIST relay_log_basename;
 ERROR HY000: Variable relay_log_basename does not exist in persisted config file
 RESET PERSIST relay_log_index;
 ERROR HY000: Variable relay_log_index does not exist in persisted config file
-RESET PERSIST relay_log_info_file;
-ERROR HY000: Variable relay_log_info_file does not exist in persisted config file
 RESET PERSIST relay_log_purge;
 RESET PERSIST relay_log_recovery;
 RESET PERSIST relay_log_space_limit;
