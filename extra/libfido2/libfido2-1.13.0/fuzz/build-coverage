@@ -1,0 +1,34 @@
+#!/bin/sh -eux
+
+# Copyright (c) 2019 Yubico AB. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
+
+LIBCBOR="$1"
+LIBFIDO2="$2"
+
+CC="${CC:-clang}"
+CXX="${CXX:-clang++}"
+PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-${LIBCBOR}/install/lib/pkgconfig}"
+export CC PKG_CONFIG_PATH
+
+# Clean up.
+rm -rf "${LIBCBOR}/build" "${LIBCBOR}/install" "${LIBFIDO2}/build"
+
+# Patch, build, and install libcbor.
+(cd "${LIBCBOR}" && patch -N -l -s -p0 < "${LIBFIDO2}/fuzz/README") || true
+mkdir "${LIBCBOR}/build" "${LIBCBOR}/install"
+(cd "${LIBCBOR}/build" && cmake -DBUILD_SHARED_LIBS=ON \
+	-DCMAKE_INSTALL_PREFIX="${LIBCBOR}/install" ..)
+make -C "${LIBCBOR}/build" VERBOSE=1 all install
+
+# Build libfido2.
+mkdir -p "${LIBFIDO2}/build"
+export CFLAGS="-fprofile-instr-generate -fcoverage-mapping"
+export CFLAGS="${CFLAGS} -fsanitize=fuzzer-no-link"
+export LDFLAGS="${CFLAGS}"
+export FUZZ_LDFLAGS="${LDFLAGS} -fsanitize=fuzzer"
+(cd "${LIBFIDO2}/build" && cmake -DFUZZ=ON -DFUZZ_LDFLAGS="${FUZZ_LDFLAGS}" \
+	-DCMAKE_BUILD_TYPE=Debug ..)
+make -C "${LIBFIDO2}/build"
