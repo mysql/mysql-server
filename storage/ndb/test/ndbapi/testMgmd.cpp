@@ -2206,6 +2206,11 @@ int runTestRequireTls(NDBT_Context* ctx, NDBT_Step* step)
   int err = ndb_mgm_get_latest_error(handle);
   CHECK(err == NDB_MGM_AUTH_REQUIRES_TLS);
 
+  struct ndb_mgm_cluster_state * st = ndb_mgm_get_status(handle);
+  CHECK(st == nullptr);                       // COMMAND IS NOT YET ALLOWED
+  err = ndb_mgm_get_latest_error(handle);
+  CHECK(err == NDB_MGM_AUTH_REQUIRES_TLS);
+
   r = ndb_mgm_start_tls(handle);
   printf("ndb_mgm_start_tls(): %d\n", r);     // START TLS
   CHECK(r == 0);

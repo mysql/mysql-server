@@ -1366,7 +1366,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
-  if(strcmp("Authorization failed", buf) == 0)
+  if(strcmp("Authorization failed\n", buf) == 0)
   {
     RewindInputStream str(in, buf);
     (void) handle_authorization_failure(handle, str);
@@ -1615,7 +1615,7 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
-  if(strcmp("Authorization failed", buf) == 0)
+  if(strcmp("Authorization failed\n", buf) == 0)
   {
     RewindInputStream str(in, buf);
     (void) handle_authorization_failure(handle, str);
