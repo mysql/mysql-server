@@ -1259,29 +1259,33 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
-# Use lld on Linux if available and not explicitly disabled.
-# You need to install the 'lld' RPM/DEB package.
-# LTO build fails with lld, so turn it off by default.
-IF(LINUX AND NOT ALTERNATIVE_LD AND
-    NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
-  OPTION(USE_LD_LLD "Use llvm lld linker" ON)
-ELSE()
-  OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
+# If LINUX, and not any special build (profiling, devtoolset) then provide
+# -DWITH_LD=mold|lld
+# We restrict the list of known linkers to the ones we have actually tested.
+# LTO builds have failed earlier with "lld", so use this feature with care.
+IF(LINUX AND NOT ALTERNATIVE_LD AND NOT FPROFILE_GENERATE AND NOT FPROFILE_USE)
+  UNSET(USING_LD_LLD)
+  UNSET(USING_LD_LLD CACHE)
+  UNSET(USING_LD_MOLD)
+  UNSET(USING_LD_MOLD CACHE)
+  SET(KNOWN_LINKERS "mold" "lld")
+  IF(WITH_LD)
+    LIST(FIND KNOWN_LINKERS ${WITH_LD} FOUND_LINKER_INDEX)
+    IF(FOUND_LINKER_INDEX EQUAL -1)
+      MESSAGE(FATAL_ERROR "Unknown linker -fuse-ld=${WITH_LD}")
+    ENDIF()
+    UNSET(ALTERNATIVE_LINKER_RESULT)
+    CHECK_ALTERNATIVE_LINKER(${WITH_LD} ALTERNATIVE_LINKER_RESULT)
+    IF(ALTERNATIVE_LINKER_RESULT)
+      STRING(TOUPPER "${WITH_LD}" WITH_LD_UPPER)
+      # See ADD_GDB_INDEX below:
+      SET(USING_LD_${WITH_LD_UPPER} ON)
+      SET(USING_LD_${WITH_LD_UPPER} ON CACHE INTERNAL "")
+    ELSE()
+      MESSAGE(FATAL_ERROR "failed to link using: -fuse-ld=${WITH_LD}")
+    ENDIF()
+  ENDIF()
 ENDIF()
-
-# If ALTERNATIVE_LD is set, we must use it.
-IF(ALTERNATIVE_LD AND USE_LD_LLD)
-  MESSAGE(WARNING
-    "The compiler ${ALTERNATIVE_GPP} is not compatible with lld")
-  SET(USE_LD_LLD 0)
-  SET(USE_LD_LLD 0 CACHE INTERNAL "" FORCE)
-ENDIF()
-
-SET(USING_LD_LLD 0)
-IF(USE_LD_LLD)
-  CHECK_ALTERNATIVE_LINKER("lld" USING_LD_LLD)
-ENDIF()
-SET(USING_LD_LLD ${USING_LD_LLD} CACHE INTERNAL "")
 
 IF(LINUX_STANDALONE)
   # ON by default in pushbuild, but only for standalone builds.
@@ -1432,16 +1436,22 @@ IF(LINK_RANDOMIZE)
   SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
-# Gold and LLD support the --gdb-index option, which adds a .gdb_index
+# Mold and LLD support the --gdb-index option, which adds a .gdb_index
 # section to the binaries. It makes loading the binaries in gdb much
-# faster. The overhead of generating the index is small in LLD.
+# faster. The overhead of generating the index is small in.
 OPTION(ADD_GDB_INDEX "Generate a .gdb_index section in the binaries." OFF)
 
-IF(ADD_GDB_INDEX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-fuse-ld=lld")
+IF(ADD_GDB_INDEX AND (USING_LD_MOLD OR USING_LD_LLD))
   # -fuse-ld=lld is not enough to ensure that ld.lld will actually be used.
   # On some platforms we need an extra check for -Wl,--gdb-index
+  IF(USING_LD_LLD)
+    SET(FUSE_LD "-fuse-ld=lld")
+  ELSE()
+    SET(FUSE_LD "-fuse-ld=mold")
+  ENDIF()
+
   CMAKE_PUSH_CHECK_STATE()
-  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld -Wl,--gdb-index")
+  SET(CMAKE_REQUIRED_LIBRARIES "${FUSE_LD} -Wl,--gdb-index")
   CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_GDB_INDEX_RESULT)
   CMAKE_POP_CHECK_STATE()
 
@@ -2326,6 +2336,12 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
       IF(HAS_WARN_FLAG)
         MY_TARGET_LINK_OPTIONS(server_unittest_library "${HAS_WARN_FLAG}")
+      ENDIF()
+      # The mold linker and RelWithDebInfo build complains about
+      # the new expression in Rpl_info_values::init()
+      IF(MY_COMPILER_IS_GNU)
+        MY_TARGET_LINK_OPTIONS(server_unittest_library
+          "-Wno-alloc-size-larger-than")
       ENDIF()
     ENDIF()
   ELSE()

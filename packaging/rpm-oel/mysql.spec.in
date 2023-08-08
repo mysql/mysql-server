@@ -871,7 +871,6 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-           -DUSE_LD_LLD=0 \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
 %else
@@ -928,7 +927,6 @@ mkdir release
 	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DUSE_LD_LLD=0 \
 %if 0%{?ssl_default}
            -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
 %else

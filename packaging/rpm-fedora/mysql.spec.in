@@ -521,7 +521,6 @@ mkdir debug
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
@@ -560,7 +559,6 @@ mkdir release
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \

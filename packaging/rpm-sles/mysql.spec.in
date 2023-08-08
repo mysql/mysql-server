@@ -612,7 +612,6 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/run/mysql" \
@@ -656,7 +655,6 @@ mkdir release
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/run/mysql" \

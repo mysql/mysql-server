@@ -196,7 +196,6 @@ mkdir release
 	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-           -DUSE_LD_LLD=0 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_MYSQLTESTDIR="" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \

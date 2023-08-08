@@ -111,8 +111,10 @@ Sql_string_t ext_files[] = {create_string("cav3.ext"),
 */
 #define MAX_SUFFIX_LEN 17
 
+namespace {
 Log info(cout, "NOTE");
 Log error(cerr, "ERROR");
+}  // namespace
 
 char **defaults_argv = nullptr;
 static char *opt_datadir = nullptr;
