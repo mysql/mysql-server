@@ -1520,3 +1520,26 @@ eval EXECUTE stmt USING @a1;
 SET optimizer_switch=default;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35671595: Prepared statement with CTE assertion error
+--echo #
+
+PREPARE stmt FROM
+ 'WITH t1(f1) AS
+   (WITH t2(f1) AS
+     (SELECT ?) SELECT 1 FROM t2 WHERE t2.f1)
+   SELECT 1 FROM t1 JOIN t1 AS t3';
+
+SET @a = 1;
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM
+ 'WITH t1(f1) AS
+   (WITH t2(f1) AS
+     (SELECT ?+?) SELECT 1 FROM t2 WHERE t2.f1)
+   SELECT 1 FROM t1 JOIN t1 AS t3';
+
+SET @a = 1;
+SET @b = 2;
+EXECUTE stmt USING @a, @b;

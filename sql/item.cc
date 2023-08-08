@@ -3803,8 +3803,20 @@ bool Item_param::do_itemize(Parse_context *pc, Item **res) {
     List_iterator_fast<Item_param> it(lex->param_list);
     Item_param *master;
     auto master_pos = lex->reparse_derived_table_params_at.begin();
+    bool found = false;
     while ((master = it++)) {
-      if (*master_pos == master->pos_in_query) {
+      if (*master_pos == master->pos_in_query) found = true;
+      // If the position does not match with the parameter in the list,
+      // check if it matches with one of the clones of the param.
+      // This can happen when we are trying to pushdown a condition
+      // to a CTE which has re-parsed it's definition (See a few lines
+      // above). For such a case, params would have been cloned.
+      if (!found) {
+        for (auto p : master->m_clones) {
+          if (*master_pos == p->pos_in_query) found = true;
+        }
+      }
+      if (found) {
         lex->reparse_derived_table_params_at.erase(master_pos);
         // Register it against its master
         pos_in_query = master->pos_in_query;
