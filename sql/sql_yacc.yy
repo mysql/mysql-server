@@ -1429,9 +1429,9 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> INITIAL_SYM                1197      /* SQL-2016-R */
 %token<lexer.keyword> CHALLENGE_RESPONSE_SYM     1198      /* MYSQL */
 
-%token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
+%token<lexer.keyword> GTID_ONLY_SYM 1199                   /* MYSQL */
 
-%token                INTERSECT_SYM              1200 /* SQL-1992-R */
+%token                INTERSECT_SYM 1200                     /* SQL-1992-R */
 
 %token<lexer.keyword> BULK_SYM                   1201  /* MYSQL */
 %token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
@@ -1439,7 +1439,7 @@ void warn_on_deprecated_user_defined_collation(
 
 %token                DOLLAR_QUOTED_STRING_SYM   1204   /* INTERNAL (used in lexer) */
 
-%token<lexer.keyword> PARSE_TREE_SYM     1205      /* MYSQL */
+%token<lexer.keyword> PARSE_TREE_SYM             1205   /* MYSQL */
 
 %token<lexer.keyword> LOG_SYM                    1206   /* MYSQL */
 %token<lexer.keyword> GTIDS_SYM                  1207   /* MYSQL */
@@ -1447,6 +1447,10 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
 %token<lexer.keyword> S3_SYM             1209      /* MYSQL */
 %token<lexer.keyword> QUALIFY_SYM        1210      /* MYSQL */
+
+%token<lexer.keyword> AUTO_SYM                   1211   /* MYSQL */
+%token<lexer.keyword> MANUAL_SYM                 1212   /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1559,6 +1563,7 @@ void warn_on_deprecated_user_defined_collation(
         view_check_option
         signed_num
         opt_ignore_unknown_user
+        opt_histogram_num_buckets
 
 
 %type <order_direction>
@@ -1787,6 +1792,7 @@ void warn_on_deprecated_user_defined_collation(
         opt_interval
         opt_source_order
         opt_load_algorithm
+        opt_histogram_auto_update
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -9646,20 +9652,26 @@ analyze_table_stmt:
             if ($5.param) {
               $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
                                                 $5.command, $5.param->num_buckets,
-                                                $5.columns, $5.param->data);
+                                                $5.columns, $5.param->data, $5.param->auto_update);
             } else {
               $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
                                                 $5.command, 0,
-                                                $5.columns, {nullptr, 0});
+                                                $5.columns, {nullptr, 0}, false);
             }
           }
         ;
 
-opt_histogram_update_param:
+
+opt_histogram_auto_update:
+           %empty                { $$= false; }
+         | MANUAL_SYM UPDATE_SYM { $$= false; }
+         | AUTO_SYM UPDATE_SYM   { $$= true; }
+         ;
+
+opt_histogram_num_buckets:
           %empty
           {
-            $$.num_buckets= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS;
-            $$.data= { nullptr, 0 };
+            $$= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS;
           }
         | WITH NUM BUCKETS_SYM
           {
@@ -9673,13 +9685,21 @@ opt_histogram_update_param:
                        "ANALYZE TABLE");
               MYSQL_YYABORT;
             }
+            $$= num;
+          }
+        ;
 
-            $$.num_buckets= num;
+opt_histogram_update_param:
+          opt_histogram_num_buckets opt_histogram_auto_update
+          {
+            $$.num_buckets= $1;
+            $$.auto_update= $2;
             $$.data= { nullptr, 0 };
           }
         | USING DATA_SYM TEXT_STRING_literal
           {
             $$.num_buckets= 0;
+            $$.auto_update= false;
             $$.data= $3;
           }
         ;
@@ -15571,6 +15591,7 @@ ident_keywords_unambiguous:
         | ATTRIBUTE_SYM
         | AUTHENTICATION_SYM
         | AUTOEXTEND_SIZE_SYM
+        | AUTO_SYM
         | AUTO_INC
         | AVG_ROW_LENGTH
         | AVG_SYM

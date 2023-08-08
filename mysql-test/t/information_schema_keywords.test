@@ -12,7 +12,7 @@ SET SESSION debug= '+d,skip_dd_table_access_check';
 #
 let $IS_version= `SELECT is_version FROM
   (SELECT
-    LOCATE('IS_version=', properties) AS pos1,         # find the start of "IS_version=..." substring
+    LOCATE('IS_VERSION=', properties) AS pos1,         # find the start of "IS_version=..." substring
     (SELECT SUBSTR(properties, pos1)) AS tail,         # extract the "IS_version=..." substring
     (SELECT LOCATE(';', tail)) AS pos2,                # find the 1st ";" delimiter inside "IS_version=..."
     (SELECT SUBSTR(tail, 12, pos2 - 12)) AS is_version # extract the result ("12" is for the length of "IS_version=")
@@ -42,7 +42,9 @@ let $server_version= `SELECT CONCAT(v1, LPAD(v2, 2, '0'), LPAD(v3, 2, '0')) FROM
 #
 # 1. The I_S version stored in the database is "$IS_version"..
 # 2. The current I_S version in the server's binary is "$server_version".
-#
+# --echo $IS_version
+# --echo $server_version
+
 # If #1 is equal to #2, then everything is fine and
 # you are welcome to update the .result file with the new result.
 #

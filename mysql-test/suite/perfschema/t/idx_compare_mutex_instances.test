@@ -12,10 +12,13 @@ let $id_column = LOCKED_BY_THREAD_ID;
 --echo INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (NAME), KEY (LOCKED_BY_THREAD_ID)
 
 --source ../include/idx_compare_setup.inc
-
 --disable_query_log
 
 # Get an object_instance_begin, mutex_name and locked_by_thread_id
+
+# Get the thread id of the InnoDB background statistics thread so we can prevent interference from it.
+SELECT THREAD_ID INTO @innodb_stats_thread_id
+FROM performance_schema.threads WHERE name = 'thread/innodb/dict_stats_thread';
 
 --connection con1
 # Get MDL read lock
@@ -33,7 +36,8 @@ LOCK TABLE t1 READ;
 let $wait_condition=
   select count(*) = 1 from performance_schema.events_waits_current
   where event_name = 'wait/lock/metadata/sql/mdl'
-  and object_name = 't1';
+  and object_name = 't1'
+  and thread_id != @innodb_stats_thread_id;
 --source include/wait_condition.inc
 
 --connection default
@@ -42,7 +46,8 @@ eval SELECT object_instance_begin, locked_by_thread_id
   INTO @object_instance_begin, @target_id
   FROM performance_schema.mutex_instances
   WHERE name = 'wait/synch/mutex/sql/MDL_wait::LOCK_wait_status'
-  AND locked_by_thread_id IS NOT NULL LIMIT 1;
+  AND locked_by_thread_id IS NOT NULL
+  AND locked_by_thread_id != @innodb_stats_thread_id LIMIT 1;
 
 UPDATE performance_schema.threads SET instrumented = 'NO';
 

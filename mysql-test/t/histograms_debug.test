@@ -633,24 +633,24 @@ CREATE TABLE t(x VARCHAR(8));
 INSERT INTO t VALUES ('a'), ('b'), ('c');
 
 --echo # USING DATA with singleton string histogram.
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", 0.3333333333333333], ["base64:type254:MQ==", 0.6666666666666666], ["base64:type254:Mg==", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", 0.3333333333333333], ["base64:type254:MQ==", 0.6666666666666666], ["base64:type254:Mg==", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", 0.3333333333333333], ["base64:type254:MQ==", 0.6666666666666666], ["base64:type254:Mg==", 1.0]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", 0.3333333333333333], ["base64:type254:MQ==", 0.6666666666666666], ["base64:type254:Mg==", 1.0]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 ANALYZE TABLE t DROP HISTOGRAM ON x;
 
 --echo # USING DATA with equi-height string histogram.
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", "base64:type254:MQ==", 0.6666666666666666, 2], ["base64:type254:Mg==", "base64:type254:Mg==", 1.0, 1]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", "base64:type254:MQ==", 0.6666666666666666, 2], ["base64:type254:Mg==", "base64:type254:Mg==", 1.0, 1]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", "base64:type254:MQ==", 0.6666666666666666, 2], ["base64:type254:Mg==", "base64:type254:Mg==", 1.0, 1]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [["base64:type254:MA==", "base64:type254:MQ==", 0.6666666666666666, 2], ["base64:type254:Mg==", "base64:type254:Mg==", 1.0, 1]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
 DROP TABLE t;
 
 CREATE TABLE t(x INT);
 INSERT INTO t VALUES (1), (2), (3);
 
 --echo # USING DATA with singleton integer histogram.
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 ANALYZE TABLE t DROP HISTOGRAM ON x;
 
 --echo # USING DATA with equi-height integer histogram.
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
-ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+ANALYZE TABLE t UPDATE HISTOGRAM ON x USING DATA '{"buckets": [[0, 1, 0.6666666666666666, 2], [2, 2, 1.0, 1]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
 DROP TABLE t;

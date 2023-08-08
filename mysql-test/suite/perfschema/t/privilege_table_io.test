@@ -1,6 +1,8 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
 --source ../include/table_io_setup_helper.inc
+# Disable automatic statistics for the helper table to prevent histogram IO.
+ALTER TABLE test.marker STATS_AUTO_RECALC=0;
 
 # Remove "deleted" records from mysql.* that may come from previous tests,
 # to avoid displaying spurious fetch.

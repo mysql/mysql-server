@@ -230,40 +230,40 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	all_types	col_bigint	{"buckets": [[-9223372036854775808, 0.3333333333333333], [9223372036854775807, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_bigint_unsigned	{"buckets": [[0, 0.3333333333333333], [18446744073709551615, 0.6666666666666666]], "data-type": "uint", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_binary	{"buckets": [["base64:type254:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_bit	{"buckets": [[-1, 0.3333333333333333], [0, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_blob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_bool	{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_char	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_date	{"buckets": [["1000-01-01", 0.3333333333333333], ["9999-12-31", 0.6666666666666666]], "data-type": "date", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_datetime	{"buckets": [["1000-01-01 00:00:00.000000", 0.3333333333333333], ["9999-12-31 23:59:59.000000", 0.6666666666666666]], "data-type": "datetime", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_decimal	{"buckets": [[-999999999999999999999999999999999999999999999999999999999999999.99, 0.3333333333333333], [999999999999999999999999999999999999999999999999999999999999999.99, 0.6666666666666666]], "data-type": "decimal", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_double	{"buckets": [[-1.7976931348623157e308, 0.3333333333333333], [1.7976931348623157e308, 0.6666666666666666]], "data-type": "double", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_enum	{"buckets": [[1, 0.3333333333333333], [5, 0.6666666666666666]], "data-type": "enum", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_float	{"buckets": [[-3.4028234663852886e38, 0.3333333333333333], [3.4028234663852886e38, 0.6666666666666666]], "data-type": "double", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_integer	{"buckets": [[-2147483648, 0.3333333333333333], [2147483647, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_integer_unsigned	{"buckets": [[0, 0.3333333333333333], [4294967295, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_longblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_longtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_mediumblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_mediumint	{"buckets": [[-8388608, 0.3333333333333333], [8388607, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_mediumint_unsigned	{"buckets": [[0, 0.3333333333333333], [16777215, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_mediumtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_set	{"buckets": [[0, 0.3333333333333333], [4, 0.6666666666666666]], "data-type": "set", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_smallint	{"buckets": [[-32768, 0.3333333333333333], [32767, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_smallint_unsigned	{"buckets": [[0, 0.3333333333333333], [65535, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_text	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_time	{"buckets": [["-838:59:59.000000", 0.3333333333333333], ["838:59:59.000000", 0.6666666666666666]], "data-type": "time", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_timestamp	{"buckets": [["1970-01-02 00:00:01.000000", 0.3333333333333333], ["2038-01-19 03:14:07.000000", 0.6666666666666666]], "data-type": "datetime", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_tinyblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_tinyint	{"buckets": [[-128, 0.3333333333333333], [127, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_tinyint_unsigned	{"buckets": [[0, 0.3333333333333333], [255, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_tinytext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_varbinary	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_varchar	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	all_types	col_year	{"buckets": [[1901, 0.3333333333333333], [2155, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bigint	{"buckets": [[-9223372036854775808, 0.3333333333333333], [9223372036854775807, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bigint_unsigned	{"buckets": [[0, 0.3333333333333333], [18446744073709551615, 0.6666666666666666]], "data-type": "uint", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_binary	{"buckets": [["base64:type254:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bit	{"buckets": [[-1, 0.3333333333333333], [0, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_blob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bool	{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_char	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_date	{"buckets": [["1000-01-01", 0.3333333333333333], ["9999-12-31", 0.6666666666666666]], "data-type": "date", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_datetime	{"buckets": [["1000-01-01 00:00:00.000000", 0.3333333333333333], ["9999-12-31 23:59:59.000000", 0.6666666666666666]], "data-type": "datetime", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_decimal	{"buckets": [[-999999999999999999999999999999999999999999999999999999999999999.99, 0.3333333333333333], [999999999999999999999999999999999999999999999999999999999999999.99, 0.6666666666666666]], "data-type": "decimal", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_double	{"buckets": [[-1.7976931348623157e308, 0.3333333333333333], [1.7976931348623157e308, 0.6666666666666666]], "data-type": "double", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_enum	{"buckets": [[1, 0.3333333333333333], [5, 0.6666666666666666]], "data-type": "enum", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_float	{"buckets": [[-3.4028234663852886e38, 0.3333333333333333], [3.4028234663852886e38, 0.6666666666666666]], "data-type": "double", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_integer	{"buckets": [[-2147483648, 0.3333333333333333], [2147483647, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_integer_unsigned	{"buckets": [[0, 0.3333333333333333], [4294967295, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_longblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_longtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumint	{"buckets": [[-8388608, 0.3333333333333333], [8388607, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumint_unsigned	{"buckets": [[0, 0.3333333333333333], [16777215, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_set	{"buckets": [[0, 0.3333333333333333], [4, 0.6666666666666666]], "data-type": "set", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_smallint	{"buckets": [[-32768, 0.3333333333333333], [32767, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_smallint_unsigned	{"buckets": [[0, 0.3333333333333333], [65535, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_text	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_time	{"buckets": [["-838:59:59.000000", 0.3333333333333333], ["838:59:59.000000", 0.6666666666666666]], "data-type": "time", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_timestamp	{"buckets": [["1970-01-02 00:00:01.000000", 0.3333333333333333], ["2038-01-19 03:14:07.000000", 0.6666666666666666]], "data-type": "datetime", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyint	{"buckets": [[-128, 0.3333333333333333], [127, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyint_unsigned	{"buckets": [[0, 0.3333333333333333], [255, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinytext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_varbinary	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_varchar	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_year	{"buckets": [[1901, 0.3333333333333333], [2155, 0.6666666666666666]], "data-type": "int", "auto-update": false, "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
 # When we remove the table, all histograms that belong to this table
 # should also dissapear.
 DROP TABLE all_types;
@@ -365,9 +365,9 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col_integer	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
-test	t1	stored_generated	{"buckets": [[30, 0.3333333333333333], [40, 0.6666666666666666], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
-test	t1	virtual_generated	{"buckets": [[20, 0.3333333333333333], [30, 0.6666666666666666], [40, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t1	col_integer	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t1	stored_generated	{"buckets": [[30, 0.3333333333333333], [40, 0.6666666666666666], [50, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t1	virtual_generated	{"buckets": [[20, 0.3333333333333333], [30, 0.6666666666666666], [40, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
 ALTER TABLE t1 DROP COLUMN virtual_generated, DROP COLUMN stored_generated;
 # The histogram for 'virtual_generated' and 'stored_generated' should now
 # be gone
@@ -734,31 +734,31 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 RENAME TABLE t1 TO t1_renamed;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE t1_renamed RENAME TO t1;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE t1 RENAME TO t1_renamed, ALGORITHM = INPLACE;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE t1_renamed RENAME TO t1, ALGORITHM = COPY;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 DROP TABLE t1;
 #
 # Do RENAME TABLE on a table with string contents, since they have a more
@@ -777,15 +777,15 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
-test	t1	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+test	t1	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
 RENAME TABLE t1 TO t1_renamed;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1_renamed	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
-test	t1_renamed	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+test	t1_renamed	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1_renamed	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "auto-update": false, "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
 DROP TABLE t1_renamed;
 #
 # Drop database
@@ -1078,8 +1078,8 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
-test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE p PARTITION BY HASH (col1) PARTITIONS 2;
 # Histogram statistics should still be present after a re-partitioning.
 SELECT schema_name, table_name, column_name
@@ -1097,8 +1097,8 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
-test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 DROP TABLE p;
 #
 # Bug#26026996 WL8943:ASSERTION `MDL_CHECKER::IS_WRITE_LOCKED(M_THD,
@@ -1294,8 +1294,9 @@ INSERT INTO `t1` VALUES
 ('0','5','8','64','0'), ('1','1','44','16','0'), ('0','4','52',NULL,'2'),
 ('0','9','0',NULL,'3'), ('0','3','36','64','2'), ('0','3','52','16','8'),
 ('1','5','4','16','2'), ('0','9','58',NULL,'9');
-UPDATE mysql.innodb_table_stats SET n_rows = 197
-WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 4 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'tenPercent'.
@@ -1316,8 +1317,9 @@ tenPercent int(11) DEFAULT NULL
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (6),(5),(9),(1),(7);
-UPDATE mysql.innodb_table_stats SET n_rows = 5
-WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 2 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'tenPercent'.
@@ -1502,8 +1504,9 @@ INSERT INTO t1 VALUES (1), (2), (3);
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col1'.
-UPDATE mysql.innodb_table_stats SET n_rows = 3
-WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE col1 <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
@@ -2107,7 +2110,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS WHERE table_name = 't2' and column_name = 'col_datetime';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t2	col_datetime	{"buckets": [["1900-01-01 00:00:00.000000", 0.3], ["2001-01-20 12:47:23.000000", 0.35], ["2001-07-25 08:40:24.000000", 0.4], ["2001-10-22 11:13:24.000000", 0.45], ["2002-08-25 20:35:06.000000", 0.5], ["2002-12-08 11:34:58.000000", 0.55], ["2003-03-12 02:00:34.000000", 0.6], ["2003-12-04 11:14:26.000000", 0.65], ["2005-08-15 00:00:00.000000", 0.7], ["2006-09-11 18:25:21.000000", 0.75], ["2007-04-10 12:16:04.000000", 0.8], ["2008-05-16 08:09:06.000000", 0.85], ["2008-07-02 00:00:00.000000", 0.9], ["2009-06-07 13:48:58.000000", 0.95], ["2009-11-07 00:00:00.000000", 1.0]], "data-type": "datetime", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t2	col_datetime	{"buckets": [["1900-01-01 00:00:00.000000", 0.3], ["2001-01-20 12:47:23.000000", 0.35], ["2001-07-25 08:40:24.000000", 0.4], ["2001-10-22 11:13:24.000000", 0.45], ["2002-08-25 20:35:06.000000", 0.5], ["2002-12-08 11:34:58.000000", 0.55], ["2003-03-12 02:00:34.000000", 0.6], ["2003-12-04 11:14:26.000000", 0.65], ["2005-08-15 00:00:00.000000", 0.7], ["2006-09-11 18:25:21.000000", 0.75], ["2007-04-10 12:16:04.000000", 0.8], ["2008-05-16 08:09:06.000000", 0.85], ["2008-07-02 00:00:00.000000", 0.9], ["2009-06-07 13:48:58.000000", 0.95], ["2009-11-07 00:00:00.000000", 1.0]], "data-type": "datetime", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
 DROP TABLE t1, t2;
 SET @@SESSION.sql_mode=DEFAULT;
 #
@@ -2291,7 +2294,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	tbl_int	col1	{"buckets": [[1, 2, 0.4, 2], [3, 8, 0.8, 3]], "data-type": "int", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+test	tbl_int	col1	{"buckets": [[1, 2, 0.4, 2], [3, 8, 0.8, 3]], "data-type": "int", "auto-update": false, "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
 SELECT COUNT(*)/10.0 FROM tbl_int WHERE col1 > 0;
 COUNT(*)/10.0
 0.8000
@@ -3052,7 +3055,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	tbl_float	col	{"buckets": [[0.1, 0.2, 0.2, 2], [0.3, 0.4, 0.5, 2], [0.5, 0.5, 0.7, 1], [0.8, 0.8, 0.8, 1]], "data-type": "double", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
+test	tbl_float	col	{"buckets": [[0.1, 0.2, 0.2, 2], [0.3, 0.4, 0.5, 2], [0.5, 0.5, 0.7, 1], [0.8, 0.8, 0.8, 1]], "data-type": "double", "auto-update": false, "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
 SELECT COUNT(*)/10.0 FROM tbl_float WHERE col > 0.0;
 COUNT(*)/10.0
 0.8000
@@ -4004,3 +4007,49 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` <> floor(rand(0)))
 DROP TABLE t1;
 # restart:
+#
+# WL#15786 Automatically updated histograms
+# -- Explicit removal of histogram support on the mysql schema.
+#
+Histograms are not supported on the mysql schema.
+USE mysql;
+CREATE TABLE t1(x INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+Table	Op	Msg_type	Msg_text
+mysql.t1	histogram	Error	Histograms are not supported on the MySQL system schema.
+USE test;
+ANALYZE TABLE mysql.t1 UPDATE HISTOGRAM ON x;
+Table	Op	Msg_type	Msg_text
+mysql.t1	histogram	Error	Histograms are not supported on the MySQL system schema.
+DROP TABLE mysql.t1;
+Histograms are supported on tables named column_statistics.
+CREATE TABLE column_statistics(x INT);
+INSERT INTO column_statistics VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE column_statistics;
+Table	Op	Msg_type	Msg_text
+test.column_statistics	analyze	status	OK
+EXPLAIN SELECT x AS should_filter_33 FROM column_statistics WHERE x > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	column_statistics	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`column_statistics`.`x` AS `should_filter_33` from `test`.`column_statistics` where (`test`.`column_statistics`.`x` > 0)
+# Verify that histogram is constructed.
+ANALYZE TABLE column_statistics UPDATE HISTOGRAM ON x;
+Table	Op	Msg_type	Msg_text
+test.column_statistics	histogram	status	Histogram statistics created for column 'x'.
+SELECT COUNT(*) FROM information_schema.column_statistics;
+COUNT(*)
+1
+# Verify that histogram is used during optimization.
+EXPLAIN SELECT x AS should_filter_100 FROM column_statistics WHERE x > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	column_statistics	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`column_statistics`.`x` AS `should_filter_100` from `test`.`column_statistics` where (`test`.`column_statistics`.`x` > 0)
+ANALYZE TABLE column_statistics DROP HISTOGRAM on x;
+Table	Op	Msg_type	Msg_text
+test.column_statistics	histogram	status	Histogram statistics removed for column 'x'.
+SELECT COUNT(*) FROM information_schema.column_statistics;
+COUNT(*)
+0
+DROP TABLE column_statistics;

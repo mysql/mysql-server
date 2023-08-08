@@ -1605,6 +1605,7 @@ JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
     ]
   ],
   "data-type": "int",
+  "auto-update": false,
   "null-values": 0.0,
   "collation-id": 8,
   "sampling-rate": 1.0,
@@ -1687,6 +1688,7 @@ JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
     ]
   ],
   "data-type": "int",
+  "auto-update": false,
   "null-values": 0.0,
   "collation-id": 8,
   "sampling-rate": 1.0,
@@ -1769,6 +1771,7 @@ JSON_PRETTY(JSON_REMOVE(histogram, '$."last-updated"'))
     ]
   ],
   "data-type": "int",
+  "auto-update": false,
   "null-values": 0.0,
   "collation-id": 8,
   "sampling-rate": 1.0,

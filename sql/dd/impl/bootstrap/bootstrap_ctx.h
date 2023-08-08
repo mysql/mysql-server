@@ -64,6 +64,7 @@ static constexpr uint DD_VERSION_80021 = 80021;
 static constexpr uint DD_VERSION_80022 = 80022;
 static constexpr uint DD_VERSION_80023 = 80023;
 static constexpr uint DD_VERSION_80200 = 80200;
+static constexpr uint DD_VERSION_80300 = 80300;
 
 /*
   Set of supported DD version labels. A supported DD version is a version

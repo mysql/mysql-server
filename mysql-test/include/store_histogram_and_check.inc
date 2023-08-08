@@ -1,4 +1,4 @@
-eval ANALYZE TABLE $tbl_name UPDATE HISTOGRAM ON $col_name WITH $buckets BUCKETS;
+eval ANALYZE TABLE $tbl_name UPDATE HISTOGRAM ON $col_name WITH $buckets BUCKETS $update UPDATE;
 let $result1 = `SELECT JSON_REMOVE(HISTOGRAM, '$."last-updated"') AS HISTOGRAM FROM information_schema.COLUMN_STATISTICS WHERE TABLE_NAME="$tbl_name" AND COLUMN_NAME="$col_name";`;
 let $selectivity1 = `EXPLAIN SELECT * FROM $tbl_name WHERE $col_name < $comparison_value;`;
 eval ANALYZE TABLE $tbl_name UPDATE HISTOGRAM ON $col_name USING DATA '$json_data';

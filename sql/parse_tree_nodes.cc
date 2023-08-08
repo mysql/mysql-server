@@ -3298,9 +3298,10 @@ Sql_cmd *PT_analyze_table_stmt::make_cmd(THD *thd) {
 
   thd->lex->alter_info = &m_alter_info;
   auto cmd = new (thd->mem_root) Sql_cmd_analyze_table(
-      thd, &m_alter_info, m_command, m_num_buckets, m_data);
+      thd, &m_alter_info, m_command, m_num_buckets, m_data, m_auto_update);
   if (cmd == nullptr) return nullptr;
-  if (m_command != Sql_cmd_analyze_table::Histogram_command::NONE) {
+  if (m_command == Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM ||
+      m_command == Sql_cmd_analyze_table::Histogram_command::DROP_HISTOGRAM) {
     if (cmd->set_histogram_fields(m_columns)) return nullptr;
   }
   return cmd;

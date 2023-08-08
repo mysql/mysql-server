@@ -12,7 +12,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -32,7 +32,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[10, 0.1], [20, 0.2], [30, 0.3], [40, 0.4], [50, 0.5], [60, 0.6], [70, 0.7], [80, 0.8], [90, 0.9], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[10, 0.1], [20, 0.2], [30, 0.3], [40, 0.4], [50, 0.5], [60, 0.6], [70, 0.7], [80, 0.8], [90, 0.9], [100, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -54,7 +54,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -76,7 +76,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -97,7 +97,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[10, 0.2], [20, 0.4], [30, 0.6], [40, 0.8], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[10, 0.2], [20, 0.4], [30, 0.6], [40, 0.8], [50, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 set global innodb_limit_optimistic_insert_debug = 0;
 DROP TABLE t1;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
@@ -127,7 +127,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col1'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1	{"buckets": [[0.00004702340815870409, 0.19918984193279393, 0.201171875, 103], [0.1999328222125143, 0.40959737115502115, 0.40234375, 103], [0.40979592260885606, 0.6418956067803275, 0.603515625, 103], [0.6427194789449866, 0.8223161593287402, 0.8046875, 103], [0.823130699641193, 0.9968274254322308, 1.0, 100]], "data-type": "double", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 5}
+test	t1	col1	{"buckets": [[0.00004702340815870409, 0.19918984193279393, 0.201171875, 103], [0.1999328222125143, 0.40959737115502115, 0.40234375, 103], [0.40979592260885606, 0.6418956067803275, 0.603515625, 103], [0.6427194789449866, 0.8223161593287402, 0.8046875, 103], [0.823130699641193, 0.9968274254322308, 1.0, 100]], "data-type": "double", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 5}
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
 sampled_pages_read	257
@@ -144,7 +144,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col1'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1	{"buckets": [[0.011373644705278468, 0.03017090822585943, 0.021352313167259787, 8], [0.03405159156215525, 0.049177242488765385, 0.042704626334519574, 8], [0.05157797043358718, 0.07857959631698168, 0.06405693950177936, 8], [0.07900210849847841, 0.10384682668731253, 0.08540925266903915, 8], [0.10532979118202794, 0.11960073851011763, 0.10676156583629894, 8], [0.12111200589790196, 0.14349767951620526, 0.12811387900355872, 8], [0.14375604981906345, 0.15302471644526786, 0.1494661921708185, 8], [0.15431178561813363, 0.1663194039522851, 0.1708185053380783, 8], [0.1667632499400184, 0.17662728687434204, 0.19217081850533807, 8], [0.17775701189204773, 0.20359221771693994, 0.21352313167259787, 8], [0.20669731889543805, 0.2262614101416072, 0.23487544483985764, 8], [0.24205637652618472, 0.254564837789689, 0.25622775800711745, 8], [0.2554747008303876, 0.2674569676327118, 0.2775800711743772, 8], [0.276700429876056, 0.29336898335569445, 0.298932384341637, 8], [0.29497343608641385, 0.3172216995779627, 0.3202846975088968, 8], [0.3191653679303502, 0.34015713198125097, 0.3416370106761566, 8], [0.3420773095843171, 0.37191512377179703, 0.36298932384341637, 8], [0.37307905813034536, 0.3845601374139638, 0.38434163701067614, 8], [0.38665528352060846, 0.4141541108620857, 0.40569395017793597, 8], [0.4152270494170739, 0.4405881151934975, 0.42704626334519574, 8], [0.44108103443037816, 0.4866683506282683, 0.4483985765124555, 8], [0.4876218330931122, 0.5016206162996782, 0.4697508896797153, 8], [0.5050184973562308, 0.5347126485171846, 0.49110320284697506, 8], [0.5376834865079108, 0.5625990122208363, 0.5124555160142349, 8], [0.5629817047742957, 0.5791910519629634, 0.5338078291814946, 8], [0.5826131967665751, 0.5915928376760267, 0.5551601423487544, 8], [0.5919730324223387, 0.6096605915666191, 0.5765124555160143, 8], [0.6130504166828938, 0.6413875069854664, 0.597864768683274, 8], [0.6418956067803275, 0.6636503838595472, 0.6192170818505338, 8], [0.6659471072870745, 0.6720468659624894, 0.6405693950177936, 8], [0.6730587460781063, 0.6941590809208891, 0.6619217081850534, 8], [0.6942706012113677, 0.6983557359300142, 0.6832740213523132, 8], [0.6999798563308827, 0.7164718487453384, 0.7046263345195729, 8], [0.7168923567206528, 0.7439201099275798, 0.7259786476868327, 8], [0.7469746263203906, 0.7543273062951186, 0.7473309608540926, 8], [0.7599285894631674, 0.7916310800161502, 0.7686832740213523, 8], [0.7922831790449872, 0.8120951073356859, 0.7900355871886121, 8], [0.8137168584519223, 0.8324380236048605, 0.8113879003558719, 8], [0.8329705389523604, 0.8394600682328083, 0.8327402135231317, 8], [0.8410516156265992, 0.8643595006916295, 0.8540925266903915, 8], [0.8691186363521206, 0.878240405468494, 0.8754448398576512, 8], [0.8808078327037467, 0.8928038663163818, 0.896797153024911, 8], [0.8986274859855208, 0.9246205304978606, 0.9181494661921709, 8], [0.9308878350359274, 0.9578673000986383, 0.9395017793594306, 8], [0.9607241777337382, 0.9739582445229946, 0.9608540925266904, 8], [0.9793567359255224, 0.9869397673634251, 0.9822064056939501, 8], [0.9876527199406668, 0.9881308385991778, 0.9893238434163701, 3], [0.9897249396794708, 0.9897249396794708, 0.9928825622775801, 1], [0.9926347527584385, 0.9926347527584385, 0.99644128113879, 1], [0.9955119751351997, 0.9955119751351997, 1.0, 1]], "data-type": "double", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "equi-height", "number-of-buckets-specified": 50}
+test	t1	col1	{"buckets": [[0.011373644705278468, 0.03017090822585943, 0.021352313167259787, 8], [0.03405159156215525, 0.049177242488765385, 0.042704626334519574, 8], [0.05157797043358718, 0.07857959631698168, 0.06405693950177936, 8], [0.07900210849847841, 0.10384682668731253, 0.08540925266903915, 8], [0.10532979118202794, 0.11960073851011763, 0.10676156583629894, 8], [0.12111200589790196, 0.14349767951620526, 0.12811387900355872, 8], [0.14375604981906345, 0.15302471644526786, 0.1494661921708185, 8], [0.15431178561813363, 0.1663194039522851, 0.1708185053380783, 8], [0.1667632499400184, 0.17662728687434204, 0.19217081850533807, 8], [0.17775701189204773, 0.20359221771693994, 0.21352313167259787, 8], [0.20669731889543805, 0.2262614101416072, 0.23487544483985764, 8], [0.24205637652618472, 0.254564837789689, 0.25622775800711745, 8], [0.2554747008303876, 0.2674569676327118, 0.2775800711743772, 8], [0.276700429876056, 0.29336898335569445, 0.298932384341637, 8], [0.29497343608641385, 0.3172216995779627, 0.3202846975088968, 8], [0.3191653679303502, 0.34015713198125097, 0.3416370106761566, 8], [0.3420773095843171, 0.37191512377179703, 0.36298932384341637, 8], [0.37307905813034536, 0.3845601374139638, 0.38434163701067614, 8], [0.38665528352060846, 0.4141541108620857, 0.40569395017793597, 8], [0.4152270494170739, 0.4405881151934975, 0.42704626334519574, 8], [0.44108103443037816, 0.4866683506282683, 0.4483985765124555, 8], [0.4876218330931122, 0.5016206162996782, 0.4697508896797153, 8], [0.5050184973562308, 0.5347126485171846, 0.49110320284697506, 8], [0.5376834865079108, 0.5625990122208363, 0.5124555160142349, 8], [0.5629817047742957, 0.5791910519629634, 0.5338078291814946, 8], [0.5826131967665751, 0.5915928376760267, 0.5551601423487544, 8], [0.5919730324223387, 0.6096605915666191, 0.5765124555160143, 8], [0.6130504166828938, 0.6413875069854664, 0.597864768683274, 8], [0.6418956067803275, 0.6636503838595472, 0.6192170818505338, 8], [0.6659471072870745, 0.6720468659624894, 0.6405693950177936, 8], [0.6730587460781063, 0.6941590809208891, 0.6619217081850534, 8], [0.6942706012113677, 0.6983557359300142, 0.6832740213523132, 8], [0.6999798563308827, 0.7164718487453384, 0.7046263345195729, 8], [0.7168923567206528, 0.7439201099275798, 0.7259786476868327, 8], [0.7469746263203906, 0.7543273062951186, 0.7473309608540926, 8], [0.7599285894631674, 0.7916310800161502, 0.7686832740213523, 8], [0.7922831790449872, 0.8120951073356859, 0.7900355871886121, 8], [0.8137168584519223, 0.8324380236048605, 0.8113879003558719, 8], [0.8329705389523604, 0.8394600682328083, 0.8327402135231317, 8], [0.8410516156265992, 0.8643595006916295, 0.8540925266903915, 8], [0.8691186363521206, 0.878240405468494, 0.8754448398576512, 8], [0.8808078327037467, 0.8928038663163818, 0.896797153024911, 8], [0.8986274859855208, 0.9246205304978606, 0.9181494661921709, 8], [0.9308878350359274, 0.9578673000986383, 0.9395017793594306, 8], [0.9607241777337382, 0.9739582445229946, 0.9608540925266904, 8], [0.9793567359255224, 0.9869397673634251, 0.9822064056939501, 8], [0.9876527199406668, 0.9881308385991778, 0.9893238434163701, 3], [0.9897249396794708, 0.9897249396794708, 0.9928825622775801, 1], [0.9926347527584385, 0.9926347527584385, 0.99644128113879, 1], [0.9955119751351997, 0.9955119751351997, 1.0, 1]], "data-type": "double", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "equi-height", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 set global innodb_limit_optimistic_insert_debug = 0;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
@@ -167,7 +167,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
 sampled_pages_read	3
@@ -183,7 +183,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'a'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6], [90, 0.8], [100, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE t1;
 set global innodb_limit_optimistic_insert_debug = 0;
 SET DEBUG='-d,histogram_force_sampling';
@@ -228,7 +228,7 @@ Table	Op	Msg_type	Msg_text
 test.p	histogram	status	Histogram statistics created for column 'col2'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 DROP TABLE p;
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
@@ -251,7 +251,7 @@ Table	Op	Msg_type	Msg_text
 test.p	histogram	status	Histogram statistics created for column 'col2'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 NAME	COUNT
 sampled_pages_read	3
@@ -273,7 +273,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'id'.
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	id	{"buckets": [[1, 0.2], [2, 0.4], [3, 0.6], [4, 0.8], [5, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+test	t1	id	{"buckets": [[1, 0.2], [2, 0.4], [3, 0.6], [4, 0.8], [5, 1.0]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
 SET DEBUG = "-d, sample_read_sample_half";
 DROP TABLE t1;
 #

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0thread-create.h"
 #include "row0mysql.h"
+#include "sql/histograms/histogram.h"
 #include "srv0start.h"
 #include "ut0new.h"
 
@@ -299,13 +300,16 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
 
   dict_sys_mutex_exit();
 
+  dberr_t dict_stats_update_result = DB_ERROR_UNSET;
+  std::string db_name, table_name;
+  table->get_table_name(db_name, table_name);
+
   /* ut_time_monotonic() could be expensive, the current function
   is called once every time a table has been changed more than 10% and
   on a system with lots of small tables, this could become hot. If we
   find out that this is a problem, then the check below could eventually
   be replaced with something else, though a time interval is the natural
   approach. */
-
   if (std::chrono::steady_clock::now() - table->stats_last_recalc <
       MIN_RECALC_INTERVAL) {
     /* Stats were (re)calculated not long ago. To avoid
@@ -315,7 +319,8 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
     dict_stats_recalc_pool_add(table);
 
   } else {
-    dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
+    dict_stats_update_result =
+        dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
   }
 
   dict_sys_mutex_enter();
@@ -328,6 +333,27 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   /* This call can't be moved into dict_sys->mutex protection,
   since it'll cause deadlock while release mdl lock. */
   dd_table_close(table, thd, &mdl, false);
+
+  /* If InnoDB statistics were succesfully updated then we attempt to update
+  histograms. Note that this happens after InnoDB has released MDL locks, so it
+  is possible that DDL has been executed before we attempt to update histograms.
+  The reason for moving the histogram update outside of the protection of
+  InnoDB's dd_table_open_on_id()/dd_close_table() is that these functions
+  acquire/release an MDL_SHARED lock on the table. When attempting to acquire
+  MDL_SHARED_READ on the table while holding MDL_SHARED we sometimes get
+  deadlock errors. */
+  if (dict_stats_update_result == DB_SUCCESS) {
+#ifdef UNIV_DEBUG
+    /* Since we are calling from the InnoDB layer into the server layer, it is
+    crucial that we don't hold any InnoDB latches, to ensure no deadlock with
+    server layer latches. Note: This check is only in effect with the option
+    --innodb_sync_debug=ON. */
+    sync_allowed_latches no_allowed_latches;
+    ut_ad(!sync_check_iterate(no_allowed_latches));
+#endif
+    histograms::auto_update_table_histograms_from_background_thread(
+        thd, db_name, table_name);
+  }
 }
 
 #ifdef UNIV_DEBUG

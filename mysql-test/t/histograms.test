@@ -1065,9 +1065,7 @@ INSERT INTO `t1` VALUES
 ('0','9','0',NULL,'3'), ('0','3','36','64','2'), ('0','3','52','16','8'),
 ('1','5','4','16','2'), ('0','9','58',NULL,'9');
 
-UPDATE mysql.innodb_table_stats SET n_rows = 197
-WHERE database_name = "test" AND table_name = "t1";
-
+ANALYZE TABLE t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 4 BUCKETS;
 EXPLAIN SELECT a.two, b.eighty FROM t1 AS a,t1 AS b
         WHERE a.ten = b.sixty AND b.tenPercent < (9 + (5*10));
@@ -1083,9 +1081,7 @@ CREATE TABLE t1 (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 INSERT INTO t1 VALUES (6),(5),(9),(1),(7);
 
-UPDATE mysql.innodb_table_stats SET n_rows = 5
-WHERE database_name = "test" AND table_name = "t1";
-
+ANALYZE TABLE t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 2 BUCKETS;
 EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent NOT BETWEEN 3 AND 0;
 EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent BETWEEN 3 AND 0;
@@ -1236,8 +1232,7 @@ DROP TABLE a, k, g;
 CREATE TABLE t1 (col1 INT);
 INSERT INTO t1 VALUES (1), (2), (3);
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
-UPDATE mysql.innodb_table_stats SET n_rows = 3
-WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE col1 <= 3;
 DROP TABLE t1;
 
@@ -2324,3 +2319,34 @@ DROP TABLE t1;
 # be run. Always keep this at the very end of the test!
 let $restart_parameters = restart:;
 source include/restart_mysqld.inc;
+
+
+-- echo #
+-- echo # WL#15786 Automatically updated histograms
+-- echo # -- Explicit removal of histogram support on the mysql schema.
+-- echo #
+
+--echo Histograms are not supported on the mysql schema.
+USE mysql;
+CREATE TABLE t1(x INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+USE test;
+ANALYZE TABLE mysql.t1 UPDATE HISTOGRAM ON x;
+DROP TABLE mysql.t1;
+
+--echo Histograms are supported on tables named column_statistics.
+CREATE TABLE column_statistics(x INT);
+INSERT INTO column_statistics VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE column_statistics;
+EXPLAIN SELECT x AS should_filter_33 FROM column_statistics WHERE x > 0;
+
+--echo # Verify that histogram is constructed.
+ANALYZE TABLE column_statistics UPDATE HISTOGRAM ON x;
+SELECT COUNT(*) FROM information_schema.column_statistics;
+
+--echo # Verify that histogram is used during optimization.
+EXPLAIN SELECT x AS should_filter_100 FROM column_statistics WHERE x > 0;
+
+ANALYZE TABLE column_statistics DROP HISTOGRAM on x;
+SELECT COUNT(*) FROM information_schema.column_statistics;
+DROP TABLE column_statistics;

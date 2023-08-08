@@ -7,6 +7,7 @@ update performance_schema.setup_instruments set enabled='YES'
 truncate table performance_schema.events_waits_history_long;
 flush status;
 flush tables;
+ALTER TABLE test.marker STATS_AUTO_RECALC=0;
 # We are forced to suppress here the server response.
 optimize table mysql.host;
 optimize table mysql.user;

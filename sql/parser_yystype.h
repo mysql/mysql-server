@@ -610,6 +610,7 @@ union MY_SQL_PARSER_STYPE {
   struct Histogram_param {
     int num_buckets;
     LEX_STRING data;
+    bool auto_update;
   } histogram_param;
   struct {
     Sql_cmd_analyze_table::Histogram_command command;

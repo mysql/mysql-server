@@ -592,6 +592,18 @@ bool update_meta_data(THD *thd) {
   }
 
   /*
+    8.3.0 introduced a new "auto-update" property for histograms.
+    We add this property to any existing histograms and set it to false.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80300)) {
+    if (dd::execute_query(thd,
+                          "UPDATE mysql.column_statistics SET histogram = "
+                          "json_set(histogram, '$.\"auto-update\"', false)"))
+      return dd::end_transaction(thd, true);
+  }
+
+  /*
     Turn foreign key checks back on and commit explicitly.
   */
   if (dd::execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1"))

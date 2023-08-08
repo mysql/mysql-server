@@ -47,6 +47,7 @@
 #include "my_sys.h"  // my_micro_time, get_charset
 #include "my_systime.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
@@ -65,22 +66,26 @@
 #include "sql/debug_sync.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/handler.h"
-#include "sql/histograms/equi_height.h"  // Equi_height<T>
-#include "sql/histograms/singleton.h"    // Singleton<T>
-#include "sql/histograms/value_map.h"    // Value_map
+#include "sql/histograms/equi_height.h"       // Equi_height<T>
+#include "sql/histograms/singleton.h"         // Singleton<T>
+#include "sql/histograms/table_histograms.h"  // Table_histograms
+#include "sql/histograms/value_map.h"         // Value_map
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_json_func.h"  // parse_json
 #include "sql/key.h"
 #include "sql/mdl.h"             // MDL_request
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/mysqld.h"          // read_only
 #include "sql/psi_memory_key.h"  // key_memory_histograms
-#include "sql/sql_base.h"        // open_and_lock_tables,
+#include "sql/sql_base.h"        // open_and_lock_tables, close_thread_tables
 #include "sql/sql_bitmap.h"
-// close_thread_tables
 #include "sql/sql_class.h"  // make_lex_string_root
 #include "sql/sql_const.h"
-#include "sql/sql_time.h"  // str_to_time
-#include "sql/strfunc.h"   // find_type2, find_set
+#include "sql/sql_error.h"  // Diagnostics_area
+#include "sql/sql_lex.h"    // lex_start
+#include "sql/sql_time.h"   // str_to_time
+#include "sql/strfunc.h"    // find_type2, find_set
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -247,30 +252,6 @@ void Error_context::report_node(const Json_dom *dom, Message err_code) {
   m_results->emplace(to_string(str), err_code);
 }
 
-/// RAII class to trap lower-level errors.
-class Histogram_error_handler : public Internal_error_handler {
- public:
-  Histogram_error_handler(THD *thd)
-      : Internal_error_handler{}, m_thd(thd), m_has_error{false} {
-    m_thd->push_internal_handler(this);
-  }
-  ~Histogram_error_handler() override { m_thd->pop_internal_handler(); }
-
-  /// @return true if the condition is handled
-  bool handle_condition(THD *, uint, const char *,
-                        Sql_condition::enum_severity_level *,
-                        const char *) override {
-    m_has_error = true;
-    return true;
-  }
-
-  bool has_error() const { return m_has_error; }
-
- private:
-  THD *m_thd;
-  bool m_has_error;
-};
-
 /**
   Helper function for check_value().
 
@@ -308,13 +289,9 @@ static type_conversion_status check_value_aux(Field *field,
 
 template <typename T>
 bool Error_context::check_value(T *v) {
-  if (m_thd) {
-    Histogram_error_handler error_handler(m_thd);
-    return (m_field &&
-            check_value_aux(m_field, v) != type_conversion_status::TYPE_OK) ||
-           error_handler.has_error();
-  }
-  return false;
+  if (m_thd == nullptr || m_field == nullptr) return false;
+  return (check_value_aux(m_field, v) != type_conversion_status::TYPE_OK) ||
+         m_thd->is_error();
 }
 
 // Explicit template instantiations.
@@ -354,7 +331,8 @@ Histogram::Histogram(MEM_ROOT *mem_root, const std::string &db_name,
       m_num_buckets_specified(0),
       m_mem_root(mem_root),
       m_hist_type(type),
-      m_data_type(data_type) {
+      m_data_type(data_type),
+      m_auto_update(false) {
   if (lex_string_strmake(m_mem_root, &m_database_name, db_name.c_str(),
                          db_name.length()) ||
       lex_string_strmake(m_mem_root, &m_table_name, tbl_name.c_str(),
@@ -372,7 +350,8 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other, bool *error)
       m_num_buckets_specified(other.m_num_buckets_specified),
       m_mem_root(mem_root),
       m_hist_type(other.m_hist_type),
-      m_data_type(other.m_data_type) {
+      m_data_type(other.m_data_type),
+      m_auto_update(other.m_auto_update) {
   if (lex_string_strmake(m_mem_root, &m_database_name,
                          other.m_database_name.str,
                          other.m_database_name.length) ||
@@ -426,6 +405,11 @@ bool Histogram::histogram_to_json(Json_object *json_object) const {
   const Json_uint charset_id(get_character_set()->number);
   if (json_object->add_clone(collation_id_str(), &charset_id))
     return true; /* purecov: inspected */
+
+  // auto-update
+  const Json_boolean auto_update(get_auto_update());
+  if (json_object->add_clone(auto_update_str(), &auto_update)) return true;
+
   return false;
 }
 
@@ -711,6 +695,20 @@ bool Histogram::json_to_histogram(const Json_object &json_object,
     context->report_node(charset_id_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
     return true;
   }
+
+  // Auto-update property.
+  const Json_dom *auto_update_dom = json_object.get(auto_update_str());
+  if (auto_update_dom == nullptr) {
+    context->report_missing_attribute(Histogram::auto_update_str());
+    return true;
+  }
+  if (auto_update_dom->json_type() != enum_json_type::J_BOOLEAN) {
+    context->report_node(auto_update_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
+    return true;
+  }
+  const Json_boolean *auto_update =
+      down_cast<const Json_boolean *>(auto_update_dom);
+  m_auto_update = auto_update->value();
 
   // Common attributes post-check
   {
@@ -1001,19 +999,20 @@ static bool covered_by_single_part_index(const THD *thd, const Field *field) {
   are creating histogram statistics for two INTEGER columns, we estimate that
   one row will consume (sizeof(longlong) * 2) bytes (16 bytes).
 
-  @param fields              A vector with all the fields we are creating
-                             histogram statistics for.
+  @param settings            A collection of histogram settings with all the
+  fields we are creating histogram statistics for.
   @param[out] value_maps     A map where the Value_maps will be initialized.
   @param[out] row_size_bytes An estimation of how many bytes one row will
                              consume.
 
   @return true on error, false otherwise.
 */
-static bool prepare_value_maps(
-    std::vector<Field *, Histogram_key_allocator<Field *>> &fields,
-    value_map_collection &value_maps, size_t *row_size_bytes) {
+static bool prepare_value_maps(const Mem_root_array<HistogramSetting> &settings,
+                               value_map_collection &value_maps,
+                               size_t *row_size_bytes) {
   *row_size_bytes = 0;
-  for (const Field *field : fields) {
+  for (const HistogramSetting &setting : settings) {
+    const Field *field = setting.field;
     histograms::Value_map_base *value_map = nullptr;
 
     const Value_map_type value_map_type =
@@ -1078,25 +1077,25 @@ static bool prepare_value_maps(
   Read data from a table into the provided Value_maps. We will read data using
   sampling with the provided sampling percentage.
 
-  @param fields            A vector with the fields we are reading data from.
-  @param sample_percentage The sampling percentage we will use for sampling.
-                           Must be between 0.0 and 100.0.
-  @param table             The table we are reading the data from.
-  @param value_maps        The Value_maps we are reading data into.
+  @param settings           A collection of histogram settings that contain the
+                            fields we are reading data from.
+  @param sample_percentage  The sampling percentage we will use for sampling.
+                            Must be between 0.0 and 100.0.
+  @param table              The table we are reading the data from.
+  @param value_maps         The Value_maps we are reading data into.
 
   @return true on error, false otherwise.
 */
-static bool fill_value_maps(
-    const std::vector<Field *, Histogram_key_allocator<Field *>> &fields,
-    double sample_percentage, const TABLE *table,
-    value_map_collection &value_maps) {
+static bool fill_value_maps(const Mem_root_array<HistogramSetting> &settings,
+                            double sample_percentage, const TABLE *table,
+                            value_map_collection &value_maps) {
   assert(sample_percentage > 0.0);
   assert(sample_percentage <= 100.0);
-  assert(fields.size() == value_maps.size());
+  assert(settings.size() == value_maps.size());
 
-  std::random_device rd;
-  std::uniform_int_distribution<int> dist;
-  int sampling_seed = dist(rd);
+  // We use uint16_t to get a type with wrap-around that fits in a regular int.
+  static std::atomic<uint16_t> global_histogram_sampling_seed(0);
+  int sampling_seed = static_cast<int>(global_histogram_sampling_seed++);
 
   DBUG_EXECUTE_IF("histogram_force_sampling", {
     sampling_seed = 1;
@@ -1124,7 +1123,9 @@ static bool fill_value_maps(
   int res = table->file->ha_sample_next(scan_ctx, table->record[0]);
 
   while (res == 0) {
-    for (Field *field : fields) {
+    for (const HistogramSetting &setting : settings) {
+      const Field *field = setting.field;
+
       histograms::Value_map_base *value_map =
           value_maps.at(field->field_index()).get();
 
@@ -1235,51 +1236,67 @@ static bool fill_value_maps(
   return false;
 }
 
-bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
-                      int num_buckets, LEX_STRING data, results_map &results) {
-  // At this point we should have metadata locks on the table and histograms,
-  // and the table should be opened.
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(
-      MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
-  assert(table->table != nullptr);
-  TABLE *tbl = table->table;
+static bool is_using_data(const HistogramSetting &setting) {
+  return setting.data.str != nullptr;
+}
 
-  /*
-    Check if the provided column names exist, and that they have a supported
-    data type. If they do, mark them in the read set.
-  */
-  bitmap_clear_all(tbl->write_set);
-  bitmap_clear_all(tbl->read_set);
-  std::vector<Field *, Histogram_key_allocator<Field *>> resolved_fields;
+/**
+  Resolve histogram fields on the supplied collection of histogram update
+  settings. Modifies the collection of settings in-place to only keep those that
+  can be resolved to fields that exist in the table with a data type that is
+  supported by histograms. Also updates the read set for the TABLE to reflect
+  what columns to read when sampling data to update the histograms.
 
-  for (const std::string &column_name : columns) {
-    Field *field = find_field_in_table_sef(tbl, column_name.c_str());
+  @param thd              Thread handle.
+  @param table            Opened table.
+  @param[in,out] settings Dynamic array of settings for histograms to update.
+  @param results          A container for diagnostics information to the user.
+*/
+static void resolve_histogram_fields(THD *thd, TABLE *table,
+                                     Mem_root_array<HistogramSetting> *settings,
+                                     results_map &results) {
+  bitmap_clear_all(table->write_set);
+  bitmap_clear_all(table->read_set);
 
+  // We iterate through the settings, swap settings that cannot be resolved to
+  // the back, and resize the vector to keep only the resolved settings.
+  size_t i = 0;
+  size_t j = settings->size();
+  while (i < j) {
+    Field *field = find_field_in_table_sef(table, (*settings)[i].column_name);
     if (field == nullptr) {
       // Field not found in table
-      results.emplace(column_name, Message::FIELD_NOT_FOUND);
+      results.emplace((*settings)[i].column_name, Message::FIELD_NOT_FOUND);
+      std::swap((*settings)[i], (*settings)[--j]);
       continue;
-    } else if (histograms::field_type_to_value_map_type(field) ==
-               histograms::Value_map_type::INVALID) {
+    }
+
+    if (histograms::field_type_to_value_map_type(field) ==
+        histograms::Value_map_type::INVALID) {
       // Unsupported data type
-      results.emplace(column_name, Message::UNSUPPORTED_DATA_TYPE);
+      results.emplace((*settings)[i].column_name,
+                      Message::UNSUPPORTED_DATA_TYPE);
+      std::swap((*settings)[i], (*settings)[--j]);
       continue;
     }
 
-    /*
-      Check if this field is covered by a single-part unique index. If it is, we
-      don't want to create histogram statistics for it.
-    */
+    // Check if this field is covered by a single-part unique index. If it is,
+    // we don't want to create histogram statistics for it.
     if (covered_by_single_part_index(thd, field)) {
-      results.emplace(column_name,
+      results.emplace((*settings)[i].column_name,
                       Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX);
+      std::swap((*settings)[i], (*settings)[--j]);
       continue;
     }
-    resolved_fields.push_back(field);
 
-    bitmap_set_bit(tbl->read_set, field->field_index());
+    // The setting was successfully resolved.
+    (*settings)[i].field = field;
+
+    // Update read_set (and write_set in the case of generated columns) for the
+    // subsequent sampling of data from the table.
+    bitmap_set_bit(table->read_set, field->field_index());
     if (field->is_gcol()) {
-      bitmap_set_bit(tbl->write_set, field->field_index());
+      bitmap_set_bit(table->write_set, field->field_index());
       /*
         The base columns needs to be in the write set in case of nested
         generated columns:
@@ -1292,139 +1309,628 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
         If we are reading data from "col3", we also need to update the data in
         "col2" in order for the generated value to be correct.
       */
-      bitmap_union(tbl->write_set, &field->gcol_info->base_columns_map);
-      bitmap_union(tbl->read_set, &field->gcol_info->base_columns_map);
+      bitmap_union(table->write_set, &field->gcol_info->base_columns_map);
+      bitmap_union(table->read_set, &field->gcol_info->base_columns_map);
+    }
+    ++i;
+  }
+  settings->resize(j);
+
+  // We should only have a single column for UPDATE HISTOGRAM USING DATA.
+  if (std::any_of(settings->begin(), settings->end(), is_using_data)) {
+    if (settings->size() > 1) {
+      results.emplace("", Message::MULTIPLE_COLUMNS_SPECIFIED);
+      settings->clear();
     }
   }
+}
 
-  /*
-    If we don't have any fields, we just quit here. Return "true" so we don't
-    write empty transactions/statements to the binlog.
-  */
-  if (resolved_fields.empty()) {
+/**
+  Builds a histogram from a user-supplied JSON string and persists it to the
+  dictionary.
+
+  Errors from this function are reported both through calls to my_error() and by
+  placing messages in the passed-along results map. These errors and messages
+  are sent to the client as a result set, see send_histogram_results() in
+  sql_admin.cc.
+
+  The results map is a sink for histogram-specific messages and errors for which
+  we typically do not have a my_error() error code. In the context of this
+  function and its call to Histogram::json_to_histogram() any potential error
+  messages in the results map will primarily relate to JSON formatting errors.
+
+  Calls to my_error() is generally used to report more serious errors, but there
+  is no absolute rule for which type of error (e.g. fatal or non-fatal to the
+  execution of this function) that goes to which error sink (diagnostics area or
+  the results map).
+
+  We guarantee that if the function returns true there will be at least one
+  error (ER_UNABLE_TO_BUILD_HISTOGRAM) placed in the diagnostics area.
+
+  @param thd              Thread handle.
+  @param table            Opened table.
+  @param setting          Settings for the histogram to build.
+  @param results          A container for diagnostics information (error and
+                          completion messages) to the user.
+
+  @return True on error, false on success.
+*/
+static bool update_histogram_using_data(THD *thd, Table_ref *table,
+                                        const HistogramSetting &setting,
+                                        results_map &results) {
+  Field *field = setting.field;
+  LEX_STRING data = setting.data;
+  TABLE *tbl = table->table;
+
+  auto error_guard = create_scope_guard([&]() {
+    my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), field->field_name, table->db,
+             table->table_name);
+  });
+
+  // The column needs to be in the write set because Field::store() is used on
+  // the histogram Field to test value domain.
+  bitmap_set_bit(tbl->write_set, field->field_index());
+
+  // Parse the literal for a standard JSON object.
+  String parse_input{data.str, static_cast<uint32>(data.length),
+                     &my_charset_utf8mb4_bin};
+  Json_dom_ptr dom;
+  JsonParseDefaultErrorHandler parse_handler("UPDATE HISTOGRAM", 0);
+  if (parse_json(parse_input, &dom, true, parse_handler,
+                 JsonDepthErrorHandler)) {
+    results.emplace("", Message::JSON_FORMAT_ERROR);
     return true;
   }
-  if (data.str != nullptr) {
-    assert(!resolved_fields.empty());
-    if (resolved_fields.size() > 1) {
-      results.emplace("", Message::MULTIPLE_COLUMNS_SPECIFIED);
-      return true;
-    }
-
-    Field *field = resolved_fields.front();
-
-    /*
-      The column needs to be in the write set because Field::store()
-      is used on a copy of the histogram Field to test value domain.
-    */
-    bitmap_set_bit(tbl->write_set, field->field_index());
-
-    // Parse the literal for a standard JSON object.
-    String parse_input{data.str, static_cast<uint32>(data.length),
-                       &my_charset_utf8mb4_bin};
-    Json_dom_ptr dom;
-    {
-      Histogram_error_handler error_handler(thd);
-      JsonParseDefaultErrorHandler parse_handler("UPDATE HISTOGRAM", 0);
-      if (parse_json(parse_input, &dom, true, parse_handler,
-                     JsonDepthErrorHandler) ||
-          error_handler.has_error()) {
-        results.emplace("", Message::JSON_FORMAT_ERROR);
-        return true;
-      }
-      if (dom->json_type() != enum_json_type::J_OBJECT) {
-        results.emplace("", Message::JSON_NOT_AN_OBJECT);
-        return true;
-      }
-    }
-
-    MEM_ROOT local_mem_root;
-
-    // Create a histogram for the json object.
-    Error_context context(thd, field, &results);
-    std::string col_name(field->field_name);
-    // Convert JSON to histogram
-    histograms::Histogram *histogram = Histogram::json_to_histogram(
-        &local_mem_root, std::string(table->db, table->db_length),
-        std::string(table->table_name, table->table_name_length), col_name,
-        *down_cast<Json_object *>(dom.get()), &context);
-
-    // Store it to persistent storage.
-    if (histogram == nullptr || histogram->store_histogram(thd)) {
-      my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), field->field_name,
-               table->db, table->table_name);
-      return true;
-    }
-
-    results.emplace(col_name, Message::HISTOGRAM_CREATED);
-    return false;
+  if (dom->json_type() != enum_json_type::J_OBJECT) {
+    results.emplace("", Message::JSON_NOT_AN_OBJECT);
+    return true;
   }
 
-  /*
-    Prepare one Value_map for each field we are creating histogram statistics
-    for. Also, estimate how many bytes one row will consume so that we can
-    estimate how many rows we can fit into memory permitted by
-    histogram_generation_max_mem_size.
-  */
+  // Convert JSON to histogram.
+  MEM_ROOT local_mem_root;
+  std::string column_name(field->field_name);
+  Error_context context(thd, field, &results);
+  histograms::Histogram *histogram = Histogram::json_to_histogram(
+      &local_mem_root, std::string(table->db, table->db_length),
+      std::string(table->table_name, table->table_name_length), column_name,
+      *down_cast<Json_object *>(dom.get()), &context);
+
+  // Store it to persistent storage.
+  if (histogram == nullptr || histogram->store_histogram(thd)) return true;
+  results.emplace(column_name, Message::HISTOGRAM_CREATED);
+  error_guard.commit();
+  return false;
+}
+
+bool update_histograms(THD *thd, Table_ref *table,
+                       Mem_root_array<HistogramSetting> *settings,
+                       results_map &results) {
+  // At this point we should have metadata locks on the table and histograms,
+  // and the table should be opened.
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
+  assert(table->table != nullptr);
+  TABLE *tbl = table->table;
+
+  resolve_histogram_fields(thd, tbl, settings, results);
+  if (settings->empty()) return false;
+
+  // UPDATE HISTOGRAM ... USING DATA.
+  if (std::any_of(settings->begin(), settings->end(), is_using_data)) {
+    assert(settings->size() == 1);  // Checked in resolve_histogram_fields()
+    return update_histogram_using_data(thd, table, settings->at(0), results);
+  }
+
+  // Sample data, build, and store new histograms.
+
+  // Prepare one Value_map for each field we are creating histogram statistics
+  // for. Also, estimate how many bytes one row will consume so that we can
+  // estimate how many rows we can fit into memory permitted by
+  // histogram_generation_max_mem_size.
   size_t row_size_bytes = 0;
   value_map_collection value_maps;
-  if (prepare_value_maps(resolved_fields, value_maps, &row_size_bytes))
-    return true; /* purecov: deadcode */
+  if (prepare_value_maps(*settings, value_maps, &row_size_bytes)) return true;
 
-  /*
-    Caclulate how many rows we can fit into memory permitted by
-    histogram_generation_max_mem_size.
-  */
+  // Calculate how many rows we can fit into memory permitted by
+  // histogram_generation_max_mem_size.
   double rows_in_memory = thd->variables.histogram_generation_max_mem_size /
                           static_cast<double>(row_size_bytes);
 
-  /*
-    Ensure that we estimate at least one row in the table, so we avoid
-    division by zero error.
-
-    NOTE: We ignore errors from "fetch_number_of_rows()" on purpose, since we
-    don't consider it fatal not having the correct row estimate.
-  */
+  // Ensure that we estimate at least one row in the table, so we avoid
+  // division by zero error.
+  // NOTE: We ignore errors from "fetch_number_of_rows()" on purpose, since we
+  // don't consider it fatal not having the correct row estimate.
   table->fetch_number_of_rows();
   ha_rows rows_in_table = std::max(1ULL, tbl->file->stats.records);
-
-  double sample_percentage = rows_in_memory / rows_in_table * 100.0;
-  sample_percentage = std::min(sample_percentage, 100.0);
+  const double sample_percentage =
+      std::min(100.0 * (rows_in_memory / rows_in_table), 100.0);
 
   // Read data from the table into the Value_maps we have prepared.
-  if (fill_value_maps(resolved_fields, sample_percentage, tbl, value_maps))
-    return true; /* purecov: deadcode */
+  if (fill_value_maps(*settings, sample_percentage, tbl, value_maps))
+    return true;
 
-  // Create a histogram for each Value_map, and store it to persistent storage.
-  for (const Field *field : resolved_fields) {
-    /*
-      The MEM_ROOT is transferred to the dictionary object when
-      histogram->store_histogram is called.
-    */
+  // Build a histogram for each Value_map, and store it in the data dictionary.
+  for (const HistogramSetting &setting : *settings) {
     MEM_ROOT local_mem_root(key_memory_histograms, 256);
-
-    std::string col_name(field->field_name);
     histograms::Histogram *histogram =
-        value_maps.at(field->field_index())
+        value_maps.at(setting.field->field_index())
             ->build_histogram(
-                &local_mem_root, num_buckets,
+                &local_mem_root, setting.num_buckets,
                 std::string(table->db, table->db_length),
                 std::string(table->table_name, table->table_name_length),
-                col_name);
+                std::string(setting.field->field_name));
 
     if (histogram == nullptr) {
-      /* purecov: begin inspected */
-      my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), field->field_name,
+      my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), setting.field->field_name,
                table->db, table->table_name);
       return true;
-      /* purecov: end */
-    } else if (histogram->store_histogram(thd)) {
-      // errors have already been reported
-      return true; /* purecov: deadcode */
     }
 
-    results.emplace(col_name, Message::HISTOGRAM_CREATED);
+    histogram->set_auto_update(setting.auto_update);
+    if (histogram->store_histogram(thd)) {
+      return true;  // Errors have already been reported.
+    }
+    results.emplace(std::string(setting.field->field_name),
+                    Message::HISTOGRAM_CREATED);
   }
+
+  DBUG_EXECUTE_IF("update_histograms_failure", {
+    my_error(ER_UNABLE_TO_BUILD_HISTOGRAM, MYF(0), "field", "schema", "table");
+    return true;
+  });
+  return false;
+}
+
+bool update_share_histograms(THD *thd, Table_ref *table) {
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
+  assert(table->table != nullptr);
+
+  // If the table has a shadow copy in a secondary engine we must retrieve the
+  // TABLE_SHARE for the secondary engine as well.
+  TABLE_SHARE *share = table->table->s;
+  TABLE_SHARE *secondary_share = nullptr;
+  if (share->has_secondary_engine()) {
+    mysql_mutex_lock(&LOCK_open);
+    std::string secondary_key =
+        create_table_def_key_secondary(table->db, table->table_name);
+    secondary_share = get_table_share(
+        thd, table->db, table->table_name, secondary_key.c_str(),
+        secondary_key.length(), /*open_view=*/false, /*open_secondary=*/true);
+    mysql_mutex_unlock(&LOCK_open);
+  }
+  if (share->has_secondary_engine() && secondary_share == nullptr) return true;
+
+  auto share_guard = create_scope_guard([secondary_share]() {
+    if (secondary_share != nullptr) {
+      mysql_mutex_lock(&LOCK_open);
+      release_table_share(secondary_share);
+      mysql_mutex_unlock(&LOCK_open);
+    }
+  });
+
+  // Create Table_histograms objects for the primary and secondary share (if it
+  // exists) together with scope guards to clean up in case of failure.
+  Table_histograms *table_histograms =
+      Table_histograms::create(key_memory_table_share);
+  if (table_histograms == nullptr) return true;
+  auto table_histograms_guard =
+      create_scope_guard([table_histograms]() { table_histograms->destroy(); });
+
+  Table_histograms *table_histograms_secondary = nullptr;
+  if (secondary_share != nullptr) {
+    table_histograms_secondary =
+        Table_histograms::create(key_memory_table_share);
+    if (table_histograms_secondary == nullptr) return true;
+  }
+
+  auto table_histograms_secondary_guard =
+      create_scope_guard([table_histograms_secondary]() {
+        if (table_histograms_secondary != nullptr) {
+          table_histograms_secondary->destroy();
+        }
+      });
+
+  // Retrieve histograms from the data dictionary and add them to the
+  // TABLE_SHARE.
+  for (size_t i = 0; i < share->fields; ++i) {
+    const Field *field = share->field[i];
+    if (field->is_hidden_by_system()) continue;
+
+    const histograms::Histogram *histogram = nullptr;
+    if (histograms::find_histogram(thd, table->db, table->table_name,
+                                   field->field_name, &histogram)) {
+      return true;
+    }
+
+    if (histogram != nullptr) {
+      if (table_histograms->insert_histogram(field->field_index(), histogram)) {
+        return true;
+      }
+      if (table_histograms_secondary &&
+          table_histograms_secondary->insert_histogram(field->field_index(),
+                                                       histogram)) {
+        return true;
+      }
+    }
+  }
+
+  // Disable the scope guard that would release the secondary share and attempt
+  // to insert the new histogram snapshots and release the secondary share if it
+  // was acquired. Since acquiring/releasing shares and modifying the collection
+  // of histograms on the share is protected by LOCK_open we attempt to reduce
+  // the number of lock/unlock pairs by grouping these operations together.
+  share_guard.commit();
+
+  bool error = false;
+  mysql_mutex_lock(&LOCK_open);
+  if (share->m_histograms->insert(table_histograms)) {
+    error = true;
+  } else {
+    // If the insertion succeeded ownership responsibility was passed on, so we
+    // can disable the scope guard that would free the Table_histograms object.
+    table_histograms_guard.commit();
+  }
+
+  if (secondary_share != nullptr) {
+    if (secondary_share->m_histograms->insert(table_histograms_secondary)) {
+      error = true;
+    } else {
+      table_histograms_secondary_guard.commit();
+    }
+    release_table_share(secondary_share);
+  }
+  mysql_mutex_unlock(&LOCK_open);
+  return error;
+}
+
+/**
+  Acquire exclusive metadata locks on histograms for all columns. Does not check
+  whether a histogram exists or not, but simply acquires metadata locks on
+  histograms for all columns that are not hidden by the system.
+
+  @param thd Thread object for the statement.
+  @param table Opened table.
+
+  @returns True if error, false if success.
+*/
+static bool lock_table_histograms(THD *thd, TABLE *table) {
+  MDL_request_list mdl_requests;
+  for (size_t i = 0; i < table->s->fields; ++i) {
+    const Field *field = table->s->field[i];
+    if (field->is_hidden_by_system()) continue;
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(table->s->db.str,
+                                          table->s->table_name.str,
+                                          field->field_name, &mdl_key);
+    MDL_request *request = new (thd->mem_root) MDL_request;
+    if (request == nullptr) return true;  // OOM.
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_EXCLUSIVE, MDL_STATEMENT);
+    mdl_requests.push_front(request);
+  }
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+  A collection of checks to determine whether the session context and table
+  properties support histogram updates.
+
+  @param thd Thread handle.
+  @param table Table_ref with an open table attached.
+
+  @return True if histogram updates are supported, false otherwise.
+*/
+static bool supports_histogram_updates(THD *thd, Table_ref *table) {
+  TABLE *tbl = table->table;
+
+  // Read-only mode.
+  if (read_only || thd->tx_read_only) {
+    return false;
+  }
+
+  // Temporary table.
+  if (tbl->s->tmp_table != NO_TMP_TABLE) {
+    return false;
+  }
+
+  // View.
+  if (table->is_view()) {
+    return false;
+  }
+
+  // Encrypted table.
+  if (tbl->s->encrypt_type.length > 0 &&
+      my_strcasecmp(system_charset_info, "n", tbl->s->encrypt_type.str) != 0) {
+    return false;
+  }
+  return true;
+}
+
+/**
+  Collects the settings for automatically updated histograms on a table.
+
+  @param thd Thread handle.
+  @param table Table_ref with an open table attached.
+  @param[in,out] settings The vector of settings to be populated.
+
+  @return True if an error occured when retrieving the settings, false
+  otherwise.
+*/
+static bool retrieve_auto_update_histogram_settings(
+    THD *thd, Table_ref *table, Mem_root_array<HistogramSetting> *settings) {
+  assert(settings->empty());
+  TABLE *tbl = table->table;
+  for (uint i = 0; i < tbl->s->fields; ++i) {
+    const Field *field = tbl->s->field[i];
+    if (field->is_hidden_by_system()) continue;
+
+    const Histogram *histogram = nullptr;
+    if (find_histogram(thd, table->db, table->table_name, field->field_name,
+                       &histogram)) {
+      return true;
+    }
+
+    if (histogram != nullptr && histogram->get_auto_update()) {
+      HistogramSetting setting;
+      setting.auto_update = true;
+      setting.column_name = field->field_name;
+      setting.num_buckets = histogram->get_num_buckets_specified();
+      if (settings->push_back(setting)) return true;  // OOM.
+    }
+  }
+  return false;
+}
+
+bool auto_update_table_histograms(THD *thd, Table_ref *table) {
+  assert(table->table != nullptr);
+  if (!supports_histogram_updates(thd, table)) return false;
+  if (lock_table_histograms(thd, table->table)) return true;
+
+  Mem_root_array<HistogramSetting> settings(thd->mem_root);
+  if (retrieve_auto_update_histogram_settings(thd, table, &settings))
+    return true;
+  if (settings.empty()) return false;  // No histograms to update.
+
+  results_map results;  // Not used here.
+  return update_histograms(thd, table, &settings, results) ||
+         update_share_histograms(thd, table);
+}
+
+static loglevel log_level(const Sql_condition *condition) {
+  switch (condition->severity()) {
+    case Sql_condition::SL_ERROR:
+      return ERROR_LEVEL;
+    case Sql_condition::SL_WARNING:
+      return WARNING_LEVEL;
+    case Sql_condition::SL_NOTE:
+      return INFORMATION_LEVEL;
+    default:
+      assert(false);
+      return ERROR_LEVEL;
+  }
+}
+
+/**
+  Writes messages from the diagnostics area to the error log. Used by the
+  background histogram update operation to report diagnostics to the user
+  through the error log.
+
+  @note Follows the same approach to reporting as used by the event scheduler.
+  See event_scheduler.cc:print_warnings.
+
+  @param thd Thread handle.
+  @param db_name The database of the target table for the histogram update.
+  @param table_name The target table for the histogram update.
+*/
+static void write_diagnostics_area_to_error_log(THD *thd, std::string db_name,
+                                                std::string table_name) {
+  if (thd->get_stmt_da()->cond_count() == 0) return;
+
+  Diagnostics_area::Sql_condition_iterator it =
+      thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *condition = nullptr;
+  while ((condition = it++)) {
+    std::string message = "Background histogram update on " + db_name + "." +
+                          table_name + ": " +
+                          std::string(condition->message_text(),
+                                      condition->message_octet_length());
+    LogErr(log_level(condition), ER_BACKGROUND_HISTOGRAM_UPDATE,
+           static_cast<int>(message.length()), message.c_str());
+  }
+}
+
+/**
+  Prepare the session context for histogram updates.
+
+  @param thd Thread handle.
+*/
+static void prepare_session_context(THD *thd) {
+  thd->reset_for_next_command();
+  lex_start(thd);
+}
+
+/**
+  Clean up the session context following histogram updates.
+
+  @param thd Thread handle.
+*/
+static void cleanup_session_context(THD *thd) {
+  thd->lex->destroy();
+  thd->end_statement();  // Calls lex_end().
+  thd->cleanup_after_query();
+
+  constexpr size_t kTHDMemRootMaxSizeBytes = 1'000'000;
+  if (thd->mem_root->allocated_size() < kTHDMemRootMaxSizeBytes) {
+    thd->mem_root->ClearForReuse();
+  } else {
+    thd->mem_root->Clear();
+  }
+}
+
+/**
+  Custom error handling for histogram updates from the background thread.
+  Downgrades MDL timeout errors to warnings.
+*/
+class Background_error_handler : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
+    if (sql_errno == ER_LOCK_WAIT_TIMEOUT &&
+        *level == Sql_condition::SL_ERROR) {
+      *level = Sql_condition::SL_WARNING;
+    }
+    return false;
+  }
+};
+
+/**
+  Determine whether a column is hidden from the user.
+  Should be equivalent to field::is_hidden_by_system().
+
+  @param col Column definition.
+
+  @return True if the column is hidden from the user, false otherwise.
+*/
+static bool is_hidden_by_system(const dd::Column *col) {
+  return (col->hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
+          col->hidden() == dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+}
+
+bool auto_update_table_histograms_from_background_thread(
+    THD *thd, const std::string &db_name, const std::string &table_name) {
+  prepare_session_context(thd);
+
+  // We use a short MDL timeout to avoid blocking the background statistics
+  // thread.
+  const Timeout_type mdl_timeout_seconds = 5;
+
+  Disable_binlog_guard binlog_guard(thd);
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  auto session_guard = create_scope_guard([&]() {
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
+    write_diagnostics_area_to_error_log(thd, db_name, table_name);
+    cleanup_session_context(thd);
+    DEBUG_SYNC(thd, "background_histogram_update_done");
+  });
+
+  auto rollback_guard = create_scope_guard([&]() {
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+  });
+
+  Background_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+  auto error_handler_guard =
+      create_scope_guard([&]() { thd->pop_internal_handler(); });
+
+  // Lock the table metadata so we can check whether the table has any
+  // automatically updated histograms. We get the column names from the table
+  // definition in order to avoid opening the table until we know that it will
+  // be necessary in order to update histograms. Opening the table causes plan
+  // changes in an number of MTR tests (likely due to how statistics are
+  // loaded), so it is simplest to avoid opening tables for tests that are
+  // already stable.
+  MDL_request_list requests;
+  MDL_request schema_request;
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, db_name.c_str(), "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&table_request, MDL_key::TABLE, db_name.c_str(),
+                   table_name.c_str(), MDL_SHARED_READ, MDL_TRANSACTION);
+  requests.push_front(&schema_request);
+  requests.push_front(&table_request);
+  if (thd->mdl_context.acquire_locks(&requests, mdl_timeout_seconds))
+    return true;
+
+  // According to dd::table_exists(), the table exists if it can be acquired.
+  const dd::Table *table_def = nullptr;
+  if (thd->dd_client()->acquire(db_name.c_str(), table_name.c_str(),
+                                &table_def))
+    return true;
+  if (table_def == nullptr) return false;
+
+  // X-lock histograms on all columns.
+  MDL_request_list histogram_requests;
+  for (const auto &col : table_def->columns()) {
+    if (is_hidden_by_system(col)) continue;
+
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(db_name.c_str(), table_name.c_str(),
+                                          col->name().c_str(), &mdl_key);
+    MDL_request *request = new (thd->mem_root) MDL_request;
+    if (request == nullptr) return true;  // OOM.
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_EXCLUSIVE, MDL_TRANSACTION);
+    histogram_requests.push_front(request);
+  }
+
+  if (thd->mdl_context.acquire_locks(&histogram_requests, mdl_timeout_seconds))
+    return true;
+
+  // Get histogram settings.
+  Mem_root_array<HistogramSetting> settings(thd->mem_root);
+  for (const auto &col : table_def->columns()) {
+    if (is_hidden_by_system(col)) continue;
+
+    const Histogram *histogram = nullptr;
+    if (find_histogram(thd, db_name, table_name, col->name().c_str(),
+                       &histogram)) {
+      return true;
+    }
+
+    if (histogram != nullptr && histogram->get_auto_update()) {
+      HistogramSetting setting;
+      setting.auto_update = true;
+      setting.column_name = col->name().c_str();
+      setting.num_buckets = histogram->get_num_buckets_specified();
+      settings.push_back(setting);
+    }
+  }
+
+  if (settings.empty()) return false;  // No histograms to update.
+
+  Table_ref table(db_name.c_str(), table_name.c_str(), thr_lock_type::TL_UNLOCK,
+                  enum_mdl_type::MDL_SHARED_READ);
+  if (open_and_lock_tables(thd, &table, MYSQL_OPEN_HAS_MDL_LOCK)) return true;
+  error_handler_guard.commit();
+  thd->pop_internal_handler();
+
+  if (!supports_histogram_updates(thd, &table)) return false;
+
+  results_map results;  // Not used here.
+  if (update_histograms(thd, &table, &settings, results)) return true;
+
+  if (histograms::update_share_histograms(thd, &table) ||
+      trans_commit_stmt(thd) || trans_commit(thd)) {
+    // Something went wrong when trying to update the table share with the new
+    // histograms or when committing the modifications to the histograms to the
+    // dictionary. We rollback any modifications to the histograms and request
+    // that the share is re-initialized to ensure that the histograms on the
+    // share accurately reflect the dictionary.
+    //
+    // Note that flushing the table share has the potential to disrupt the
+    // server as new queries must wait for all existing queries to terminate
+    // (and all TABLE objects to be released) before a new TABLE_SHARE can be
+    // constructed and new queries can proceed.
+    tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table.db, table.table_name,
+                     false);
+    return true;
+  }
+  rollback_guard.commit();
+
+  // The update succeeded and has been committed. Mark cached TABLE objects for
+  // re-opening to ensure that they release their (stale) snapshot of the
+  // histograms and subsequent queries use an updated snapshot.
+  tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN, table.db, table.table_name,
+                   false);
   return false;
 }
 
@@ -1640,7 +2146,8 @@ bool find_histogram(THD *thd, const std::string &schema_name,
                     const Histogram **histogram) {
   assert(*histogram == nullptr);
 
-  if (schema_name == "mysql" || table_name == "column_statistics") return false;
+  // We do not support histograms on the system schema.
+  if (schema_name == "mysql") return false;
 
   dd::String_type dd_name = dd::Column_statistics::create_name(
       schema_name.c_str(), table_name.c_str(), column_name.c_str());

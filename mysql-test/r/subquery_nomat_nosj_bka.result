@@ -4667,11 +4667,11 @@ Variable_name	Value
 Handler_read_rnd_next	5
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
-flush status;
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
+FLUSH STATUS;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 oref	a	Z
 0	NULL	0
@@ -4681,7 +4681,7 @@ oref	a	Z
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	8
+Handler_read_key	5
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0

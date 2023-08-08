@@ -169,7 +169,7 @@ SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID = @ta
 
 OK: Handler_read_key
 
-OK: Result set: Non-empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
@@ -177,7 +177,7 @@ SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID = @ta
 
 OK: Handler_read_key
 
-OK: Result set: Non-empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
@@ -185,7 +185,7 @@ SELECT * FROM performance_schema.mutex_instances WHERE LOCKED_BY_THREAD_ID = @ta
 
 OK: Handler_read_key
 
-OK: Result set: Non-empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========

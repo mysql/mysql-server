@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+
+-- echo #
+-- echo # Errors during background histogram updates should show up in the error log.
+-- echo #
+
+# Note: this test is in a separate file because we want to use
+# the loose-debug='+d,update_histograms_failure' startup option
+# to trigger an error during histogram updates from the background thread.
+# If we instead use "SET GLOBAL DEBUG = ..." we run seem to run into some
+# flakiness in terms of when this setting is picked up by the background thread.
+
+CREATE TABLE t1 (x INT);
+SET SESSION DEBUG = '-d,update_histograms_failure';
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+--source include/save_error_log_position.inc
+INSERT INTO t1 VALUES (1), (2), (3);
+
+-- echo # Wait for an error to show up in the error log.
+let $wait_condition = SELECT COUNT(*) > 0 FROM performance_schema.error_log WHERE Prio = 'Error';
+let $wait_timeout = 15;
+--source include/wait_condition.inc
+
+-- echo # Verify that the error comes from the background histogram update.
+--let $error_pattern = Background histogram update on test.t1: Unable to build histogram statistics for column 'field' in table 'schema'.'table'
+--source include/assert_error_log.inc
+DROP TABLE t1;
+

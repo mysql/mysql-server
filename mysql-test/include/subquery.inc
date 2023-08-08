@@ -3400,8 +3400,10 @@ show status like '%Handler_read_rnd_next';
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 
-flush status;
+# ANALYZE TABLE makes handler calls when e.g. updating histograms,
+# so we FLUSH STATUS after calling ANALYZE TABLE.
 ANALYZE TABLE t1, t2;
+FLUSH STATUS;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 --skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';

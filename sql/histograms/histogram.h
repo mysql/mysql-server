@@ -93,6 +93,7 @@ enum class Message {
   HISTOGRAM_DELETED,
   SERVER_READ_ONLY,
   MULTIPLE_COLUMNS_SPECIFIED,
+  SYSTEM_SCHEMA_NOT_SUPPORTED,
 
   // JSON validation errors. See Error_context.
   JSON_FORMAT_ERROR,
@@ -357,6 +358,9 @@ class Histogram {
     return "number-of-buckets-specified";
   }
 
+  /// String representation of the JSON field "auto-update".
+  static constexpr const char *auto_update_str() { return "auto-update"; }
+
   /**
     Constructor.
 
@@ -443,6 +447,10 @@ class Histogram {
 
   /// Name of the column this histogram represents.
   LEX_CSTRING m_column_name;
+
+  /// True if the histogram was created with the AUTO UPDATE option, false if
+  /// MANUAL UPDATE.
+  bool m_auto_update;
 
   /**
     An internal function for getting a selectivity estimate prior to adustment.
@@ -581,6 +589,17 @@ class Histogram {
   size_t get_num_buckets_specified() const { return m_num_buckets_specified; }
 
   /**
+    @return True if automatic updates are enabled for the histogram, false
+    otherwise.
+  */
+  bool get_auto_update() const { return m_auto_update; }
+
+  /**
+    Sets the auto update property for the histogram.
+  */
+  void set_auto_update(bool auto_update) { m_auto_update = auto_update; }
+
+  /**
     Converts the histogram to a JSON object.
 
     @param[in,out] json_object output where the histogram is to be stored. The
@@ -622,7 +641,8 @@ class Histogram {
   virtual Histogram *clone(MEM_ROOT *mem_root) const = 0;
 
   /**
-    Store this histogram to persistent storage (data dictionary).
+    Store this histogram to persistent storage (data dictionary). The MEM_ROOT
+    that the histogram is allocated on is transferred to the dictionary.
 
     @param thd Thread handler.
 
@@ -706,24 +726,125 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
                            const std::string &col_name);
 
 /**
+  A simple struct containing the settings for a histogram to be built.
+*/
+struct HistogramSetting {
+  /// A null-terminated C-style string with the name of the column to build the
+  /// histogram for.
+  const char *column_name;
+
+  /// The target number of buckets for the histogram.
+  size_t num_buckets = 100;
+
+  /// Holds the JSON specification of the histogram for the UPDATE HISTOGRAM ...
+  /// USING DATA command, otherwise empty.
+  LEX_STRING data = {nullptr, 0};
+
+  /// True if AUTO UPDATE, false for MANUAL UPDATE.
+  bool auto_update = false;
+
+  /// A pointer to the field, used internally by update_histograms().
+  Field *field = nullptr;
+};
+
+/**
   Create or update histograms for a set of columns of a given table.
 
-  This function will try to create histogram statistics for all the columns
-  specified. If one of the columns fail, it will continue to the next one and
-  try.
+  This function will try to create a histogram for each HistogramSetting object
+  passed to it. It operates in two stages:
+
+  In the first stage it will attempt to resolve every HistogramSetting in
+  settings, verifying that the specified column exists and supports histograms.
+  If a setting cannot be resolved an error message will be generated (see note
+  below for details on error reporting), but the function will continue
+  executing. The collection of settings is modified in-place so that only the
+  resolved settings remain when the function returns.
+
+  In the second stage, after the settings have been resolved, the function
+  attempts to build a histogram for each resolved column. If an error is
+  encountered during this stage, the function will immediately abort and return
+  true. In other words, if the function returns true, it will have made an
+  attempt to update the histograms as specified in the output collection of
+  settings, but it could have failed halfway.
+
+  If no error occurs during the second stage the function will return false, and
+  the histograms specified in the output collection of settings will succesfully
+  have been updated.
 
   @param thd Thread handler.
   @param table The table where we should look for the columns/data.
-  @param columns Columns specified by the user.
-  @param num_buckets The maximum number of buckets to create in each
-         histogram.
-  @param data The histogram json literal for update
-  @param results A map where the result of each operation is stored.
+  @param[in,out] settings The settings for the histograms to be built.
+  @param[in,out] results A map where the result of each operation is stored.
 
-  @return false on success, true on error.
+  @return False on success, true if an error was encountered.
 */
-bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
-                      int num_buckets, LEX_STRING data, results_map &results);
+bool update_histograms(THD *thd, Table_ref *table,
+                       Mem_root_array<HistogramSetting> *settings,
+                       results_map &results);
+
+/**
+  Updates existing histograms on a table that were specified with the AUTO
+  UPDATE option. If any histograms were updated a new snapshot of the current
+  collection of histograms for the table is inserted on the TABLE_SHARE.
+
+  @note The caller must manually ensure that the table share is flushed or that
+  tables are evicted from the table cache to guarantee that new queries will use
+  the updated histograms. This can be done by calling tdc_remove_table() and
+  passing the TDC_RT_REMOVE_UNUSED or TDC_RT_MARK_FOR_REOPEN option,
+  respectively.
+
+  @param thd Thread handle.
+  @param table Table_ref for the table to update histograms on. The table should
+  already be opened.
+
+  @return False if all automatically updated histograms on the table
+  (potentially none) were updated without encountering an error. True otherwise.
+*/
+bool auto_update_table_histograms(THD *thd, Table_ref *table);
+
+/**
+  Retrieve an updated snapshot of the histograms on a table directly from the
+  dictionary (in an inefficient manner, querying all columns) and inserts this
+  snapshot in the Table_histograms_collection on the TABLE_SHARE. If the table
+  has a secondary engine we also insert a new snapshot on the secondary share.
+
+  @param thd The current thread.
+  @param table The table to retrieve updated histograms for.
+
+  @note This function assumes that the table is opened and generally depends on
+  the surrounding context. It also locks/unlocks LOCK_OPEN.
+
+  @return False on success. Returns true if an error occurred in which case it
+  can have happened that none of the shares were updated, or that only one of
+  the shares (primary and secondary) were updated, even though we intended to
+  update both. In other words if this function returns true we do not know to
+  what extent the share(s) reflect the dictionary state.
+*/
+bool update_share_histograms(THD *thd, Table_ref *table);
+
+/**
+  Updates existing histograms on a table that were specified with the AUTO
+  UPDATE option. Updated histograms are made available to the optimizer.
+
+  This function wraps auto_update_table_histograms()) in an appropriate
+  transaction-context for the background thread.
+
+  @note This function temporarily disables the binary log as we are not
+  interested in replicating or recovering updates to histograms that take place
+  in the background.
+
+  @note This function supresses some errors in order to avoid spamming the error
+  log, but unexpected errors are written to the error log, following the same
+  pattern as the event scheduler.
+
+  @param thd Background thread handle.
+  @param db_name Name of the database holding the table.
+  @param table_name Name of the table to update histograms for.
+
+  @return False on success, true on error.
+*/
+bool auto_update_table_histograms_from_background_thread(
+    THD *thd, const std::string &db_name, const std::string &table_name);
 
 /**
   Drop histograms for all columns in a given table.

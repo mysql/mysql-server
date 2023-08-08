@@ -6,16 +6,17 @@
 --let $col_name= col1
 --let $buckets= 4
 --let $comparison_value= 20
+--let $update = MANUAL
 
 CREATE TABLE tbl_int(col1 INT);
 INSERT INTO tbl_int VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
-let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo #
 --echo # json format error of missing closing brace in buckets array
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75], "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75], "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check if data is a json object
@@ -50,101 +51,110 @@ ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '[]';
 --echo #
 --echo # check attribute data-type
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": 1, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "blob", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": 1, "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "blob", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check attribute null-values [0.0, 1.0]
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": "0.25", "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": -0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 1.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": "0.25", "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": -0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 1.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+
+--echo #
+--echo # check attribute auto-update (true/false)
+--echo #
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": "true", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": 123, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": "yes", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+
 
 --echo #
 --echo # check attribute collation-id
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": "utf8mb3", "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 2048, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": -1, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 9300000000000000000, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": "utf8mb3", "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 2048, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": -1, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 9300000000000000000, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check attribute sampling-rate [0.0, 1.0]
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": "1.0", "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": -0.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": "1.0", "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": -0.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.1, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check attribute histogram-type
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": 1, "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "single", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": 1, "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "single", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check attribute number-of-buckets-specified [1, 1024]
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton"}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": "4"}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": -1}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1025}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton"}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": "4"}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": -1}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1025}';
 
 --echo #
 --echo # check attribute buckets array
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]]", "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]]", "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check bucket layout [v, cf] or none
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 0.25], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 0.25], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check if real number of buckets is less than specified
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check attribute cumulative frequency [0.0, 1.0]
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, "0.5"], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, -0.01], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 1.1]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, "0.5"], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, -0.01], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 1.1]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check if cumulative frequency sequence is in strict asc order
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.7], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.7], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check if total frequency is 1 or 0
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.26, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.24, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.26, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.24, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 3}';
 
 
 --echo #
 --echo # singleton histogram, INT column
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [9300000000000000000, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [2200000000, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [9300000000000000000, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [2200000000, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check if value sequence is in strict asc order
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_int;
 
@@ -158,81 +168,81 @@ DROP TABLE tbl_int;
 
 CREATE TABLE tbl_int(col1 INT);
 INSERT INTO tbl_int VALUES (4), (52), (12), (12), (4), (23);
-let $json_data= {"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo #
 --echo # check attribute data-type
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": 3, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "text", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": 3, "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "text", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check attribute buckets array
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]]", "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": "[[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]]", "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": null, "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 --echo #
 --echo # check bucket layout [l, u, cf, d] or none
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 4, 0.3333333333333333, 1], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.4, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [4, 4, 0.3333333333333333, 1], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.4, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check if real number of buckets is less than specified
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}';
 
 --echo #
 --echo # check attribute cumulative frequency [0.0, 1.0]
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, "0.6666666666666666", 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, -0.01, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, "0.6666666666666666", 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, -0.01, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.01, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check if cumulative frequency sequence is in strict asc order
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.7333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.7333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check if total frequency is 1
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.01, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check if equi-height has some buckets
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check attribute num distinct
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1.0], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 0], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, -1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1.0], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 0], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, -1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # equi-height histogram, INT column
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, "12", 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[9300000000000000000, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 9300000000000000000, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 2200000000, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 2200000000, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, "12", 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[9300000000000000000, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 9300000000000000000, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 2200000000, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 12, 0.6666666666666666, 1], [23, 2200000000, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 --echo #
 --echo # check if value sequence is in strict asc order
 --echo #
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [13, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 42, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [13, 12, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.3333333333333333, 1], [12, 42, 0.6666666666666666, 1], [23, 52, 1.0, 2]], "data-type": "int", "auto-update": false, "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_int;
 
@@ -246,15 +256,15 @@ DROP TABLE tbl_int;
 
 CREATE TABLE tbl_uint(col1 BIGINT UNSIGNED);
 INSERT INTO tbl_uint VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
-let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [20000000000000000000, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [-1, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23.0, 0.625], [52, 0.75]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [20000000000000000000, 0.75]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [-1, 0.75]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [32, 0.5], [23, 0.625], [52, 0.75]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_uint;
 
@@ -268,17 +278,17 @@ DROP TABLE tbl_uint;
 
 CREATE TABLE tbl_uint(col1 BIGINT UNSIGNED);
 INSERT INTO tbl_uint VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
-let $json_data= {"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12.0, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, "12", 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 20000000000000000000, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [13, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 42, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12.0, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, "12", 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 12, 0.5, 1], [23, 20000000000000000000, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [13, 12, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_uint UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4, 0.25, 1], [12, 42, 0.5, 1], [23, 52, 0.75, 2]], "data-type": "uint", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_uint;
 
@@ -293,15 +303,15 @@ DROP TABLE tbl_uint;
 
 CREATE TABLE tbl_double(col1 DOUBLE);
 INSERT INTO tbl_double VALUES (4.0), (52.0), (12.0), (12.0), (4.0), (23.0), (NULL), (NULL);
-let $json_data= {"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], ["23.0", 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e330, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [1E330, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [32.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], ["23.0", 0.625], [52.0, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e330, 0.25], [12.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [12.0, 0.5], [23.0, 0.625], [1E330, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 0.25], [32.0, 0.5], [23.0, 0.625], [52.0, 0.75]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_double;
 
@@ -316,15 +326,15 @@ DROP TABLE tbl_double;
 
 CREATE TABLE tbl_double(col1 DOUBLE);
 INSERT INTO tbl_double VALUES (4.0), (52.0), (12.0), (12.0), (4.0), (23.0), (NULL), (NULL);
-let $json_data= {"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, "12.0", 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [13.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 32.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 4.0, 0.25, 1], [12.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, "12.0", 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [13.0, 12.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_double UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.0, 4.0, 0.25, 1], [12.0, 32.0, 0.5, 1], [23.0, 52.0, 0.75, 2]], "data-type": "double", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_double;
 
@@ -339,16 +349,16 @@ DROP TABLE tbl_double;
 
 CREATE TABLE tbl_string(col1 VARCHAR(8));
 INSERT INTO tbl_string VALUES ("Charles"), ("Mark"), ("Bill"), ("Bill"), ("Charles"), ("Vincent"), (NULL), (NULL);
-let $json_data= {"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:Q2hhcmxlcw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:TWFyaw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 0.25], ["base64:type254:Q2hhcmxlcw==", 0.5], ["base64:type254:Q2hhcmxlcw==", 0.625], ["base64:type254:VmluY2VudA==", 0.75]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_string;
 
@@ -363,20 +373,20 @@ DROP TABLE tbl_string;
 
 CREATE TABLE tbl_string(col1 VARCHAR(8));
 INSERT INTO tbl_string VALUES ("Charles"), ("Mark"), ("Bill"), ("Bill"), ("Charles"), ("Vincent"), (NULL), (NULL);
-let $json_data= {"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 12345, 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:VmluY2VudA==", "base64:type254:TWFyaw==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:TWFyaw==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[12345, "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", 12345, 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsTWFyVmluY2VuQ2hhcmxlbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:QmlsbA==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:VmluY2VudA==", "base64:type254:TWFyaw==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_string UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["base64:type254:QmlsbA==", "base64:type254:TWFyaw==", 0.25, 1], ["base64:type254:Q2hhcmxlcw==", "base64:type254:Q2hhcmxlcw==", 0.5, 1], ["base64:type254:TWFyaw==", "base64:type254:VmluY2VudA==", 0.75, 2]], "data-type": "string", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_string;
 
@@ -391,16 +401,16 @@ DROP TABLE tbl_string;
 
 CREATE TABLE tbl_date(col1 DATE);
 INSERT INTO tbl_date VALUES ("2018-03-21"), ("2017-02-06"), ("2017-02-10"), ("2017-02-10"), ("2018-03-21"), ("2018-02-12"), (NULL), (NULL);
-let $json_data= {"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-04-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", 0.125], ["2017-02-10", 0.375], ["2018-02-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 0.125], ["2017-02-10", 0.375], ["2018-04-12", 0.5], ["2018-03-21", 0.75]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_date;
 
@@ -415,21 +425,21 @@ DROP TABLE tbl_date;
 
 CREATE TABLE tbl_date(col1 DATE);
 INSERT INTO tbl_date VALUES ("2018-03-21"), ("2017-02-06"), ("2017-02-10"), ("2017-02-10"), ("2018-03-21"), ("2018-02-12"), (NULL), (NULL);
-let $json_data= {"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "0000-00-00", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 20170210, 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12 14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-12", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2019-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "0000-00-00", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206, "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", 20170210, 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12 14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["14:48:11", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2017-02-10", 0.375, 2], ["2018-02-12", "14:48:11", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-12", "2017-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_date UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "2019-02-10", 0.375, 2], ["2018-02-12", "2018-02-12", 0.5, 1], ["2018-03-21", "2018-03-21", 0.75, 1]], "data-type": "date", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_date;
 
@@ -444,17 +454,17 @@ DROP TABLE tbl_date;
 
 CREATE TABLE tbl_time(col1 TIME);
 INSERT INTO tbl_time VALUES ("21:12:42"), ("16:22:23"), ("08:15:18"), ("08:15:18"), ("21:12:42"), ("07:04:18"), (NULL), (NULL);
-let $json_data= {"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["839:00:00.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["839:00:00.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", 0.125], ["08:15:18.000000", 0.375], ["16:22:23.000000", 0.5], ["21:12:42.000000", 0.75]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_time;
 
@@ -469,21 +479,21 @@ DROP TABLE tbl_time;
 
 CREATE TABLE tbl_time(col1 TIME);
 INSERT INTO tbl_time VALUES ("21:12:42"), ("16:22:23"), ("08:15:18"), ("08:15:18"), ("21:12:42"), ("07:04:18"), (NULL), (NULL);
-let $json_data= {"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 181518, 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "839:00:00.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "17:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[170418, "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", 181518, 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-10 07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["-839:00:00.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "839:00:00.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["09:04:18.000000", "08:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_time UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["07:04:18.000000", "17:15:18.000000", 0.375, 2], ["16:22:23.000000", "16:22:23.000000", 0.5, 1], ["21:12:42.000000", "21:12:42.000000", 0.75, 1]], "data-type": "time", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_time;
 
@@ -498,15 +508,15 @@ DROP TABLE tbl_time;
 
 CREATE TABLE tbl_datetime(col1 DATETIME);
 INSERT INTO tbl_datetime VALUES ("2018-03-21 21:12:42"), ("2017-02-06 16:22:23"), ("2017-02-10 08:15:18"), ("2017-02-10 08:15:18"), ("2018-03-21 21:12:42"), ("2018-02-12 07:04:18"), (NULL), (NULL);
-let $json_data= {"buckets": [["2017-02-06 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [["2017-02-06 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170216162223, 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170216162223, 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", 0.125], ["2017-02-10 08:15:18.000000", 0.375], ["2018-02-12 07:04:18.000000", 0.5], ["2018-03-21 21:12:42.000000", 0.75]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_datetime;
 
@@ -521,20 +531,20 @@ DROP TABLE tbl_datetime;
 
 CREATE TABLE tbl_datetime(col1 DATETIME);
 INSERT INTO tbl_datetime VALUES ("2018-03-21 21:12:42"), ("2017-02-06 16:22:23"), ("2017-02-10 08:15:18"), ("2017-02-10 08:15:18"), ("2018-03-21 21:12:42"), ("2018-02-12 07:04:18"), (NULL), (NULL);
-let $json_data= {"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206162223, "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", 20170210081518, 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "0000-00-00 00:00:00.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2019-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[20170206162223, "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", 20170210081518, 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["0000-00-00 00:00:00.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "0000-00-00 00:00:00.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-16 16:22:23.000000", "2017-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_datetime UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["2017-02-06 16:22:23.000000", "2019-02-10 08:15:18.000000", 0.375, 2], ["2018-02-12 07:04:18.000000", "2018-02-12 07:04:18.000000", 0.5, 1], ["2018-03-21 21:12:42.000000", "2018-03-21 21:12:42.000000", 0.75, 1]], "data-type": "datetime", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_datetime;
 
@@ -552,16 +562,16 @@ DROP TABLE tbl_datetime;
 
 CREATE TABLE tbl_decimal(col1 DECIMAL(5,2));
 INSERT INTO tbl_decimal VALUES (4.12), (52.12), (12.12), (12.12), (4.12), (23.12), (NULL), (NULL);
-let $json_data= {"buckets": [[4.12, 0.25], [12.12, 0.5], [23.12, 0.625], [52.12, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+let $json_data= {"buckets": [[4.12, 0.25], [12.12, 0.5], [23.12, 0.625], [52.12, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], ["12.00", 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [9300000000000000000, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [1e100, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [5555.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [32.00, 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], ["12.00", 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [9300000000000000000, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [1e100, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [12.00, 0.5], [23.00, 0.625], [5555.00, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 0.25], [32.00, 0.5], [23.00, 0.625], [52.00, 0.75]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 
 DROP TABLE tbl_decimal;
 
@@ -576,19 +586,19 @@ DROP TABLE tbl_decimal;
 
 CREATE TABLE tbl_decimal(col1 DECIMAL(5,2));
 INSERT INTO tbl_decimal VALUES (4.12), (52.12), (12.12), (12.12), (4.12), (23.12), (NULL), (NULL);
-let $json_data= {"buckets": [[4.12, 4.12, 0.25, 1], [12.12, 12.12, 0.5, 1], [23.12, 52.12, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
+let $json_data= {"buckets": [[4.12, 4.12, 0.25, 1], [12.12, 12.12, 0.5, 1], [23.12, 52.12, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3};
 --source include/store_histogram_and_check.inc
 
 --echo
 
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["4.00", 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, "12.00", 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e100, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1e100, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1000.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1000.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [13.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
-ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 32.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [["4.00", 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, "12.00", 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1e100, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1e100, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[-1000.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 12.00, 0.5, 1], [23.00, 1000.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [13.00, 12.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
+ANALYZE TABLE tbl_decimal UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4.00, 4.00, 0.25, 1], [12.00, 32.00, 0.5, 1], [23.00, 52.00, 0.75, 2]], "data-type": "decimal", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 3}';
 
 DROP TABLE tbl_decimal;
 
@@ -606,7 +616,7 @@ DROP TABLE tbl_decimal;
 CREATE TABLE tbl_enum (col1 ENUM('red', 'black', 'blue', 'green'));
 INSERT INTO tbl_enum VALUES ('red'), ('red'), ('black'), ('blue'), ('green'),
                             ('green'), (NULL), (NULL), (NULL), (NULL);
-let $json_data= {"buckets": [[1, 0.2], [2, 0.3], [3, 0.4], [4, 0.6]], "data-type": "enum", "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10};
+let $json_data= {"buckets": [[1, 0.2], [2, 0.3], [3, 0.4], [4, 0.6]], "data-type": "enum", "auto-update": false, "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10};
 --source include/store_histogram_and_check.inc
 
 --echo #
@@ -616,7 +626,7 @@ let $json_data= {"buckets": [[1, 0.2], [2, 0.3], [3, 0.4], [4, 0.6]], "data-type
 --let $buckets= 2
 --let $comparison_value='blue'
 
-let $json_data= {"buckets": [[1, 2, 0.3, 2], [3, 4, 0.6, 2]], "data-type": "enum", "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2};
+let $json_data= {"buckets": [[1, 2, 0.3, 2], [3, 4, 0.6, 2]], "data-type": "enum", "auto-update": false, "null-values": 0.4, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2};
 --source include/store_histogram_and_check.inc
 
 DROP TABLE tbl_enum;
@@ -635,7 +645,7 @@ INSERT INTO tbl_set VALUES ('red'), ('red,black'), ('black,green,blue'),
                            ('black,green,blue'), ('black,green,blue'),
                            ('green'), ('green,red'), ('red,green'),
                            (NULL), (NULL);
-let $json_data= {"buckets": [[1, 0.1], [3, 0.2], [8, 0.3], [9, 0.5], [14, 0.8]], "data-type": "set", "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10};
+let $json_data= {"buckets": [[1, 0.1], [3, 0.2], [8, 0.3], [9, 0.5], [14, 0.8]], "data-type": "set", "auto-update": false, "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10};
 --source include/store_histogram_and_check.inc
 
 --echo #
@@ -645,7 +655,30 @@ let $json_data= {"buckets": [[1, 0.1], [3, 0.2], [8, 0.3], [9, 0.5], [14, 0.8]],
 --let $buckets= 2
 --let $comparison_value='red,black'
 
-let $json_data= {"buckets": [[1, 9, 0.5, 4], [14, 14, 0.8, 1]], "data-type": "set", "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2};
+let $json_data= {"buckets": [[1, 9, 0.5, 4], [14, 14, 0.8, 1]], "data-type": "set", "auto-update": false, "null-values": 0.2, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2};
 --source include/store_histogram_and_check.inc
 
 DROP TABLE tbl_set;
+
+--echo #
+--echo # Singleton histogram, INT column.
+--echo # Auto update property.
+--echo #
+
+--let $tbl_name= tbl_int
+--let $col_name= col1
+--let $buckets= 4
+--let $comparison_value= 20
+--let $update = MANUAL
+
+CREATE TABLE tbl_int(col1 INT);
+INSERT INTO tbl_int VALUES (4), (52), (12), (12), (4), (23), (NULL), (NULL);
+let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": false, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+--source include/store_histogram_and_check.inc
+
+--let $update = AUTO
+
+let $json_data= {"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "auto-update": true, "null-values": 0.25, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4};
+--source include/store_histogram_and_check.inc
+
+DROP TABLE tbl_int;

@@ -1,0 +1,189 @@
+#
+# The [{AUTO|MANUAL} UPDATE] histogram option.
+#
+CREATE TABLE t1 (x INT);
+# Histograms are set to MANUAL UPDATE by default ("auto-update": false).
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+SELECT histogram->'$."auto-update"' AS should_be_false FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_false
+false
+# Histograms with MANUAL UPDATE have "auto-update": false.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x MANUAL UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+SELECT histogram->'$."auto-update"' AS should_be_false FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_false
+false
+# Histograms with AUTO UPDATE have "auto-update": true.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+SELECT histogram->'$."auto-update"' AS should_be_true FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_true
+true
+DROP TABLE t1;
+#
+# ANALYZE TABLE and the [{AUTO|MANUAL} UPDATE] histogram option.
+#
+# ANALYZE TABLE should only update histograms with AUTO UPDATE.
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, c4 INT) STATS_AUTO_RECALC=0;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1, c3 AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+test.t1	histogram	status	Histogram statistics created for column 'c3'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 MANUAL UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c2'.
+# Should have three empty histograms.
+SELECT COLUMN_NAME, histogram->'$."buckets"' FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+COLUMN_NAME	histogram->'$."buckets"'
+c1	[]
+c2	[]
+c3	[]
+INSERT INTO t1 VALUES (1, 1, 1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Histograms on c1 and c3 should be non-empty, c2 should still be empty.
+SELECT COLUMN_NAME, histogram->'$."buckets"' FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+COLUMN_NAME	histogram->'$."buckets"'
+c1	[[1, 1.0]]
+c2	[]
+c3	[[1, 1.0]]
+DROP TABLE t1;
+# Histograms with AUTO UPDATE preserve their number of specified buckets when updated.
+CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 3 BUCKETS AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT histogram->'$."histogram-type"' AS should_be_singleton FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_singleton
+"singleton"
+SELECT histogram->'$."number-of-buckets-specified"' AS should_be_3 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_3
+3
+# Add more values and rebuild the histogram. The histogram type should
+# change to equi-height, but the number of buckets should still be 3.
+INSERT INTO t1 VALUES (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT histogram->'$."histogram-type"' AS should_be_equiheight FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_equiheight
+"equi-height"
+SELECT histogram->'$."number-of-buckets-specified"' AS should_be_3 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_3
+3
+DROP TABLE t1;
+# After ANALYZE TABLE the updated histograms should be used for optimization.
+CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# With no histogram the default assumed selectivity when filtering a range is 0.333...
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_33;
+should_be_33
+"33.33"
+DROP TABLE t1;
+CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# With the updated histogram we should have a selectivity of 1.0.
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x > 0;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+should_be_100
+"100.00"
+DROP TABLE t1;
+#
+# Histogram updates from the InnoDB background statistics thread.
+#
+CREATE TABLE t1 (x INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1);
+# Wait for the automatic update to kick in.
+DO SLEEP(0.1);
+# Verify that the optimizer uses the new histogram.
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 1;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_100;
+should_be_100
+"100.00"
+# Insert values into the table and wait for the histogram to be updated in the background.
+INSERT INTO t1 VALUES (2), (2), (2), (2), (2);
+DO SLEEP(0.1);
+# Verify that the optimizer uses the new histogram.
+EXPLAIN FORMAT=JSON INTO @v SELECT x FROM t1 WHERE x = 2;
+SELECT JSON_EXTRACT(@v, '$.query_block.table.filtered') AS should_be_50;
+should_be_50
+"50.00"
+DROP TABLE t1;
+#
+# Test how failures are handled during histogram updates under ANALYZE TABLE.
+#
+CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT histogram->'$."buckets"' AS should_be_empty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+should_be_empty
+[]
+INSERT INTO t1 VALUES (1), (2), (3);
+SET DEBUG = '+d,update_histograms_failure';
+# Errors from the diagnostics area should be displayed when the histogram update fails.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Unable to build histogram statistics for column 'field' in table 'schema'.'table'
+test.t1	analyze	status	Operation failed
+# Verify that the histogram update is rolled back when it fails, i.e. the histogram should still be empty.
+SELECT histogram->'$."buckets"' AS should_be_empty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+should_be_empty
+[]
+# Without the failure the histogram should be updated.
+SET DEBUG = '-d,update_histograms_failure';
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT histogram->'$."buckets"' AS should_be_nonempty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+should_be_nonempty
+[[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]]
+DROP TABLE t1;
+#
+# ANALYZE TABLE t1, t2 should update histograms on both t1 and t2.
+#
+CREATE TABLE t1 (x INT) STATS_AUTO_RECALC=0;
+CREATE TABLE t2 (x INT) STATS_AUTO_RECALC=0;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'x'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON x AUTO UPDATE;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'x'.
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (4), (5), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT TABLE_NAME, histogram->'$."buckets"' AS should_be_nonempty FROM INFORMATION_SCHEMA.COLUMN_STATISTICS ORDER BY COLUMN_NAME;
+TABLE_NAME	should_be_nonempty
+t1	[[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]]
+t2	[[4, 0.3333333333333333], [5, 0.6666666666666666], [6, 1.0]]
+DROP TABLE t1;
+DROP TABLE t2;
