@@ -47,6 +47,7 @@
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
 #include "helper/string/contains.h"
+#include "helper/to_string.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -404,8 +405,6 @@ class RestRequestHandler : public BaseRequestHandler {
     }
   }
 
-  const char *to_cstr(bool b) { return b ? "true" : "false"; }
-
   void handle_request(HttpRequest &req) override {
     RequestContext request_ctxt{&req, auth_manager_};
 
@@ -661,6 +660,10 @@ class ParseOptions
       result_.metadata.gtid = to_bool(vt);
     } else if (key == "query.wait") {
       result_.query.wait = to_uint(vt);
+    } else if (key == "query.embed_wait") {
+      result_.query.embed_wait = to_bool(vt);
+    } else if (key == "cache.gtid") {
+      result_.cache.gtid_cache = to_bool(vt);
     } else if (key == "http.allowedOrigin") {
       if (mysql_harness::make_lower(cvt::to_string(vt)) == "auto")
         result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;

@@ -22,6 +22,12 @@
 
 #include "mrs/database/helper/query_gtid_executed.h"
 
+#include "mrs/database/helper/query_faults.h"
+
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace database {
 
@@ -35,12 +41,29 @@ static bool expect_single_bool_value(
   return default_value;
 }
 
+bool wait_gtid_executed(mysqlrouter::MySQLSession *session,
+                        const mysqlrouter::sqlstring &gtid, uint64_t timeout) {
+  mysqlrouter::sqlstring check_gtid{
+      "SELECT 0=WAIT_FOR_EXECUTED_GTID_SET(?, ?)"};
+  check_gtid << gtid << timeout;
+  log_debug("query: %s", check_gtid.str().c_str());
+  return expect_single_bool_value(session->query_one(check_gtid));
+}
+
 bool is_gtid_executed(mysqlrouter::MySQLSession *session,
                       const mysqlrouter::sqlstring &gtid) {
   mysqlrouter::sqlstring check_gtid{
-      "SELECT GTID_SUBSET(?, @@GLOBAL.gtid_executed) "};
+      "SELECT GTID_SUBSET(?, @@GLOBAL.gtid_executed)"};
   check_gtid << gtid;
+  log_debug("query: %s", check_gtid.str().c_str());
   return expect_single_bool_value(session->query_one(check_gtid));
+}
+
+void throw_if_not_gtid_executed(mysqlrouter::MySQLSession *session,
+                                const mysqlrouter::sqlstring &gtid) {
+  if (!is_gtid_executed(session, gtid)) {
+    throw_rest_error_asof_timeout(gtid.str());
+  }
 }
 
 }  // namespace database

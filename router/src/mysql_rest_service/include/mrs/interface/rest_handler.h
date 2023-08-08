@@ -108,7 +108,13 @@ class Options {
   class Query {
    public:
     uint64_t wait{1};
+    bool embed_wait{false};
   } query;
+
+  class Cache {
+   public:
+    bool gtid_cache{false};
+  } cache;
 };
 
 class RestHandler {

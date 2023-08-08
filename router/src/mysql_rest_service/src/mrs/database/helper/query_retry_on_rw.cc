@@ -41,10 +41,30 @@ static bool is_rw(collector::MySQLConnection connection) {
 
 QueryRetryOnRW::QueryRetryOnRW(collector::MysqlCacheManager *cache,
                                CachedSession &session,
-                               FilterObjectGenerator &fog)
-    : session_{session}, cache_{cache}, fog_{fog} {
+                               FilterObjectGenerator &fog,
+                               uint64_t wait_gtid_timeout,
+                               bool query_has_gtid_check)
+    : session_{session},
+      cache_{cache},
+      fog_{fog},
+      wait_gtid_timeout_{wait_gtid_timeout},
+      query_has_gtid_check_{query_has_gtid_check} {
   if (fog_.has_asof()) {
     gtid_ = fog_.get_asof();
+  }
+}
+
+void QueryRetryOnRW::before_query() {
+  if (query_has_gtid_check_) return;
+  if (!fog_.has_asof()) return;
+
+  if (!wait_gtid_executed(session_.get(), gtid_, wait_gtid_timeout_)) {
+    if (is_rw(cache_->get_type(session_))) throw_rest_error_asof_timeout();
+    session_ =
+        cache_->get_instance(collector::kMySQLConnectionUserdataRW, false);
+
+    is_retry_ = true;
+    before_query();
   }
 }
 
@@ -55,10 +75,9 @@ mysqlrouter::MySQLSession *QueryRetryOnRW::get_session() {
 const FilterObjectGenerator &QueryRetryOnRW::get_fog() { return fog_; }
 
 bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
-  if (!retry_ && !fog_.has_asof()) return false;
+  if (!query_has_gtid_check_) return false;
+  if (!is_retry_ && !fog_.has_asof()) return false;
   if (affected != 0) return false;
-
-  fog_.reset(FilterObjectGenerator::Clear::kAsof);
 
   // Check the timeout
   if (!is_gtid_executed(session_.get(), gtid_)) {
@@ -70,7 +89,7 @@ bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
     session_ =
         cache_->get_instance(collector::kMySQLConnectionUserdataRW, false);
 
-    retry_ = true;
+    is_retry_ = true;
 
     return !session_.empty();
   }

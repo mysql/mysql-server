@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
-#define ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_TO_STRING_H_
+#define ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_TO_STRING_H_
 
 #include <map>
 #include <string>
@@ -54,4 +54,4 @@ std::string to_string(const RapidJson &v) {
 }  // namespace json
 }  // namespace helper
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_TO_STRING_H_
