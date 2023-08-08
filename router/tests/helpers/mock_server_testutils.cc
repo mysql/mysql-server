@@ -55,7 +55,8 @@ std::vector<GRNode> classic_ports_to_gr_nodes(
   std::vector<GRNode> result;
 
   for (const auto [id, port] : stdx::views::enumerate(classic_ports)) {
-    result.emplace_back(port, "uuid-" + std::to_string(id + 1));
+    const std::string role = id == 0 ? "PRIMARY" : "SECONDARY";
+    result.emplace_back(port, "uuid-" + std::to_string(id + 1), "ONLINE", role);
   }
 
   return result;
@@ -65,7 +66,8 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
     const std::vector<uint16_t> &classic_ports) {
   std::vector<ClusterNode> result;
   for (const auto [id, port] : stdx::views::enumerate(classic_ports)) {
-    result.emplace_back(port, "uuid-" + std::to_string(id + 1));
+    const std::string role = id == 0 ? "PRIMARY" : "SECONDARY";
+    result.emplace_back(port, "uuid-" + std::to_string(id + 1), 0, "", role);
   }
 
   return result;
@@ -74,8 +76,8 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<GRNode> &gr_nodes,
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,
-    unsigned primary_id, uint64_t view_id, bool error_on_md_query,
-    const std::string &gr_node_host, const std::string &router_options,
+    uint64_t view_id, bool error_on_md_query, const std::string &gr_node_host,
+    const std::string &router_options,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     const std::string &cluster_name) {
   JsonValue json_doc(rapidjson::kObjectType);
@@ -98,6 +100,9 @@ JsonValue mock_GR_metadata_as_json(
     node.PushBack(JsonValue(gr_node.member_status.c_str(),
                             gr_node.member_status.length(), allocator),
                   allocator);
+    node.PushBack(JsonValue(gr_node.member_role.c_str(),
+                            gr_node.member_role.length(), allocator),
+                  allocator);
 
     gr_nodes_json.PushBack(node, allocator);
   }
@@ -112,6 +117,11 @@ JsonValue mock_GR_metadata_as_json(
     node.PushBack(JsonValue(cluster_node.attributes.c_str(),
                             cluster_node.attributes.length(), allocator),
                   allocator);
+    // The role (PRIMARY, SECONDARY) for ReplicaSet is in the static metadata as
+    // there is no GR there
+    node.PushBack(JsonValue(cluster_node.role.c_str(),
+                            cluster_node.role.length(), allocator),
+                  allocator);
 
     cluster_nodes_json.PushBack(node, allocator);
   }
@@ -119,7 +129,6 @@ JsonValue mock_GR_metadata_as_json(
   json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
   json_doc.AddMember("gr_pos", gr_pos, allocator);
   json_doc.AddMember("cluster_nodes", cluster_nodes_json, allocator);
-  json_doc.AddMember("primary_id", static_cast<int>(primary_id), allocator);
   if (view_id > 0) {
     json_doc.AddMember("view_id", view_id, allocator);
   }
@@ -145,15 +154,14 @@ JsonValue mock_GR_metadata_as_json(
 void set_mock_metadata(
     uint16_t http_port, const std::string &gr_id,
     const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
-    const std::vector<ClusterNode> &cluster_nodes, unsigned primary_id,
-    uint64_t view_id, bool error_on_md_query, const std::string &gr_node_host,
+    const std::vector<ClusterNode> &cluster_nodes, uint64_t view_id,
+    bool error_on_md_query, const std::string &gr_node_host,
     const std::string &router_options,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     const std::string &cluster_name) {
   const auto json_doc = mock_GR_metadata_as_json(
-      gr_id, gr_nodes, gr_pos, cluster_nodes, primary_id, view_id,
-      error_on_md_query, gr_node_host, router_options, metadata_version,
-      cluster_name);
+      gr_id, gr_nodes, gr_pos, cluster_nodes, view_id, error_on_md_query,
+      gr_node_host, router_options, metadata_version, cluster_name);
 
   const auto json_str = json_to_string(json_doc);
 

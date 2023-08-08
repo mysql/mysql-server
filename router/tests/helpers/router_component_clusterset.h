@@ -159,7 +159,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
                                  const unsigned this_cluster_id,
                                  const unsigned this_node_id);
 
-  void set_mock_metadata(
+  void set_mock_clusterset_metadata(
       uint64_t view_id, unsigned this_cluster_id, unsigned this_node_id,
       unsigned target_cluster_id, uint16_t http_port,
       const ClusterSetData &clusterset_data,

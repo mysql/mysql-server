@@ -472,12 +472,12 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
   const auto changed_target_cluster_id =
       GetParam().changed_target_cluster.target_cluster_id;
 
-  set_mock_metadata(view_id, /*this_cluster_id*/ 0, /*this_node_id*/ 0,
-                    changed_target_cluster_id,
-                    clusterset_data_.clusters[0].nodes[0].http_port,
-                    clusterset_data_,
-                    /*router_options*/ R"({"target_cluster" : ")" +
-                        changed_target_cluster + "\" }");
+  set_mock_clusterset_metadata(view_id, /*this_cluster_id*/ 0,
+                               /*this_node_id*/ 0, changed_target_cluster_id,
+                               clusterset_data_.clusters[0].nodes[0].http_port,
+                               clusterset_data_,
+                               /*router_options*/ R"({"target_cluster" : ")" +
+                                   changed_target_cluster + "\" }");
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 3));
@@ -1221,10 +1221,10 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   clusterset_data_.remove_node("00000000-0000-0000-0000-000000000033");
   EXPECT_EQ(8u, clusterset_data_.get_md_servers_classic_ports().size());
 
-  set_mock_metadata(view_id + 1, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
-                    target_cluster_id,
-                    clusterset_data_.clusters[1].nodes[0].http_port,
-                    clusterset_data_, router_options);
+  set_mock_clusterset_metadata(view_id + 1, /*this_cluster_id*/ 1,
+                               /*this_node_id*/ 0, target_cluster_id,
+                               clusterset_data_.clusters[1].nodes[0].http_port,
+                               clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1254,10 +1254,10 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   clusterset_data_.remove_node("00000000-0000-0000-0000-000000000023");
   EXPECT_EQ(7u, clusterset_data_.get_md_servers_classic_ports().size());
 
-  set_mock_metadata(view_id + 2, /*this_cluster_id*/ 2, /*this_node_id*/ 0,
-                    target_cluster_id,
-                    clusterset_data_.clusters[2].nodes[0].http_port,
-                    clusterset_data_, router_options);
+  set_mock_clusterset_metadata(view_id + 2, /*this_cluster_id*/ 2,
+                               /*this_node_id*/ 0, target_cluster_id,
+                               clusterset_data_.clusters[2].nodes[0].http_port,
+                               clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1335,12 +1335,13 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
   for (unsigned node_id = 0;
        node_id < clusterset_data_.clusters[kFirstReplicaClusterId].nodes.size();
        ++node_id) {
-    set_mock_metadata(view_id + 1, /*this_cluster_id*/ kFirstReplicaClusterId,
-                      /*this_node_id*/ node_id, kFirstReplicaClusterId,
-                      clusterset_data_.clusters[kFirstReplicaClusterId]
-                          .nodes[node_id]
-                          .http_port,
-                      clusterset_data_, router_options);
+    set_mock_clusterset_metadata(
+        view_id + 1, /*this_cluster_id*/ kFirstReplicaClusterId,
+        /*this_node_id*/ node_id, kFirstReplicaClusterId,
+        clusterset_data_.clusters[kFirstReplicaClusterId]
+            .nodes[node_id]
+            .http_port,
+        clusterset_data_, router_options);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1380,7 +1381,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
   for (unsigned node_id = 0;
        node_id < clusterset_data_.clusters[kPrimaryClusterId].nodes.size();
        ++node_id) {
-    set_mock_metadata(
+    set_mock_clusterset_metadata(
         view_id + 2, /*this_cluster_id*/ kPrimaryClusterId,
         /*this_node_id*/ node_id, kPrimaryClusterId,
         clusterset_data_.clusters[kPrimaryClusterId].nodes[node_id].http_port,
@@ -1457,13 +1458,14 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
   for (unsigned node_id = 0;
        node_id < clusterset_data_.clusters[kFirstReplicaClusterId].nodes.size();
        ++node_id) {
-    set_mock_metadata(view_id - 1, /*this_cluster_id*/ kFirstReplicaClusterId,
-                      /*this_node_id*/ node_id, kFirstReplicaClusterId,
-                      clusterset_data_.clusters[kFirstReplicaClusterId]
-                          .nodes[node_id]
-                          .http_port,
-                      clusterset_data_,
-                      /*router_options*/ "");
+    set_mock_clusterset_metadata(
+        view_id - 1, /*this_cluster_id*/ kFirstReplicaClusterId,
+        /*this_node_id*/ node_id, kFirstReplicaClusterId,
+        clusterset_data_.clusters[kFirstReplicaClusterId]
+            .nodes[node_id]
+            .http_port,
+        clusterset_data_,
+        /*router_options*/ "");
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1634,7 +1636,7 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
   size_t node_id = 0;
   for (const auto &node : second_replica.nodes) {
     const auto http_port = node.http_port;
-    set_mock_metadata(
+    set_mock_clusterset_metadata(
         view_id + 1, /*this_cluster_id*/ second_replica.id,
         /*this_node_id*/ node_id,
         /*target_cluster_id*/ kFirstReplicaClusterId, http_port,
@@ -1804,12 +1806,13 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
   clusterset_data_.remove_node("00000000-0000-0000-0000-000000000021");
   view_id++;
 
-  set_mock_metadata(view_id, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
-                    /*target_cluster_id*/ kPrimaryClusterId,
-                    original_clusterset_data.clusters[kFirstReplicaClusterId]
-                        .nodes[0]
-                        .http_port,
-                    clusterset_data_, router_options);
+  set_mock_clusterset_metadata(
+      view_id, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
+      /*target_cluster_id*/ kPrimaryClusterId,
+      original_clusterset_data.clusters[kFirstReplicaClusterId]
+          .nodes[0]
+          .http_port,
+      clusterset_data_, router_options);
   // wait for the Router to refresh the metadata
   EXPECT_TRUE(wait_for_transaction_count_increase(
       original_clusterset_data.clusters.at(kFirstReplicaClusterId)
@@ -1849,9 +1852,10 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
           original_clusterset_data.clusters[kFirstReplicaClusterId]
               .nodes[0]
               .http_port;
-      set_mock_metadata(view_id, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
-                        /*target_cluster_id*/ kPrimaryClusterId, http_port,
-                        clusterset_data_, router_options);
+      set_mock_clusterset_metadata(view_id, /*this_cluster_id*/ 1,
+                                   /*this_node_id*/ 0,
+                                   /*target_cluster_id*/ kPrimaryClusterId,
+                                   http_port, clusterset_data_, router_options);
     }
 
     // wait for the Router to refresh the metadata
@@ -1920,10 +1924,11 @@ TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
   for (const auto &node :
        clusterset_data_.clusters[kSecondReplicaClusterId].nodes) {
     const auto http_port = node.http_port;
-    set_mock_metadata(view_id, /*this_cluster_id*/ kSecondReplicaClusterId,
-                      /*this_node_id */ node_id,
-                      /*target_cluster_id*/ kPrimaryClusterId, http_port,
-                      clusterset_data_, router_options);
+    set_mock_clusterset_metadata(view_id,
+                                 /*this_cluster_id*/ kSecondReplicaClusterId,
+                                 /*this_node_id */ node_id,
+                                 /*target_cluster_id*/ kPrimaryClusterId,
+                                 http_port, clusterset_data_, router_options);
     node_id++;
   }
 
@@ -1989,8 +1994,9 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": true})";
 
-  set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_, router_options);
+  set_mock_clusterset_metadata(view_id, target_cluster_id, 0, target_cluster_id,
+                               primary_node_http_port, clusterset_data_,
+                               router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 
@@ -2022,8 +2028,9 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": false})";
 
-  set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_, router_options);
+  set_mock_clusterset_metadata(view_id, target_cluster_id, 0, target_cluster_id,
+                               primary_node_http_port, clusterset_data_,
+                               router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 
@@ -2093,8 +2100,9 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNodeIgnoredIfTargetPrimary) {
 
   const auto primary_node_http_port =
       clusterset_data_.clusters[0].nodes[0].http_port;
-  set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_, router_options);
+  set_mock_clusterset_metadata(view_id, target_cluster_id, 0, target_cluster_id,
+                               primary_node_http_port, clusterset_data_,
+                               router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 

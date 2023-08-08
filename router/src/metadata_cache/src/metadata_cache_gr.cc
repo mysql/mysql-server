@@ -54,11 +54,6 @@
  *
  * MDC = MD Cache, this plugin (the code that you're reading now).
  *
- * MM = multi-primary, a replication mode in which all GR members are RW.
- *
- * SM = single-primary, a replication mode in which only one GR member is RW,
- *      rest are RO.
- *
  * ATTOW = contraction for "at the time of writing".
  *
  * [xx] (where x is a digit) = reference to a note in Notes section.
@@ -210,27 +205,18 @@
  *
  * #### Stage 2.2: Extract GR status
  *
- * Implemented in: `fetch_group_replication_members()` and
- *                   `find_group_replication_primary_member()`
+ * Implemented in: `fetch_group_replication_members()`
  *
- * Two SQL queries are ran and combined to produce a status report of all nodes
- * seen by this node (which would be the entire cluster if it was in perfect
- * health, or its subset if some nodes became unavailable or the cluster was
- * experiencing a split-brain scenario):
+ * Single SQL query is ran to produce a status report of all nodes seen by this
+ * node (which would be the entire cluster if it was in perfect health, or its
+ * subset if some nodes became unavailable or the cluster was experiencing a
+ * split-brain scenario):
  *
- *   1. determine the PRIMARY member of the cluster (if there is more than
- *      one, such as in MM setups, the first one is returned and the rest are
- *      ignored)
- *
- *   2. get the membership and health status of all GR nodes, as seen by this
+ *   1. get the membership, health  and role of all GR nodes, as seen by this
  *      node
  *
  * If either SQL query fails to execute, Stage 2 iterates to next GR node.
  *
- * @note
- * ATTOW, 1st query is always ran, regardless of whether we're in MM mode or
- * not. As all nodes are PRIMARY in MM setups, we could optimise this query away
- * in MM setups.
  *
  *
  *

@@ -182,15 +182,17 @@ class MetadataHttpAuthTest : public RouterComponentTest {
         /*with_sudo=*/false, wait_for_notify_ready);
   }
 
-  void set_mock_metadata(
-      const std::vector<Auth_data> &auth_data_collection,
-      const uint16_t http_port, const std::string &gr_id,
-      const uint16_t cluster_node_port, const bool error_on_md_query = false,
-      const unsigned primary_id = 0, const uint64_t view_id = 0,
-      const mysqlrouter::MetadataSchemaVersion md_version = {2, 0, 3}) const {
-    auto json_doc = mock_GR_metadata_as_json(gr_id, {cluster_node_port}, 0,
-                                             {cluster_node_port}, primary_id,
-                                             view_id, error_on_md_query);
+  void set_mock_metadata(const std::vector<Auth_data> &auth_data_collection,
+                         const uint16_t http_port, const std::string &gr_id,
+                         const uint16_t cluster_node_port,
+                         const bool error_on_md_query = false,
+                         const uint64_t view_id = 0,
+                         const mysqlrouter::MetadataSchemaVersion md_version = {
+                             2, 0, 3}) const {
+    auto json_doc = mock_GR_metadata_as_json(
+        gr_id, classic_ports_to_gr_nodes({cluster_node_port}), 0,
+        classic_ports_to_cluster_nodes({cluster_node_port}), view_id,
+        error_on_md_query);
 
     JsonAllocator allocator;
     JsonValue nodes(rapidjson::kArrayType);
@@ -344,7 +346,7 @@ class BasicMetadataHttpAuthTest
 
 TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id);
+                    cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase);
@@ -364,7 +366,7 @@ TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
 
 TEST_F(BasicMetadataHttpAuthTest, UnsupportedMetadataSchemaVersion) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id, {1, 0, 0});
+                    cluster_node_port, false, view_id, {1, 0, 0});
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase);
@@ -385,7 +387,7 @@ TEST_P(BasicMetadataHttpAuthTest, BasicMetadataHttpAuth) {
   set_mock_metadata(
       {{GetParam().cached_info.credentials, GetParam().cached_info.privileges,
         GetParam().cached_info.auth_method}},
-      cluster_http_port, cluster_id, cluster_node_port, false, 0, view_id);
+      cluster_http_port, cluster_id, cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   const std::string metadata_cache_section =
@@ -497,7 +499,7 @@ TEST_F(FileAuthBackendWithMetadataAuthSettings, MixedBackendSettings) {
   EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
 
   set_mock_metadata({}, cluster_http_port, cluster_id, cluster_node_port, false,
-                    0, view_id);
+                    view_id);
 
   const std::string metadata_cache_section =
       get_metadata_cache_section(kTTL, kAuthCacheTTL, kAuthCacheRefreshRate);
@@ -513,7 +515,7 @@ class InvalidMetadataHttpAuthTimersTest
 
 TEST_P(InvalidMetadataHttpAuthTimersTest, InvalidMetadataHttpAuthTimers) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id);
+                    cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   auto &router =
@@ -542,7 +544,7 @@ class ValidMetadataHttpAuthTimersTest
 
 TEST_P(ValidMetadataHttpAuthTimersTest, ValidMetadataHttpAuthTimers) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id);
+                    cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase + "ttl=0.001\n" + GetParam());
@@ -566,7 +568,7 @@ class MetadataHttpAuthTestCustomTimers
 
 TEST_P(MetadataHttpAuthTestCustomTimers, MetadataHttpAuthCustomTimers) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id);
+                    cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase + GetParam());
@@ -596,7 +598,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(MetadataHttpAuthTest, ExpiredAuthCacheTTL) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, false, 0, view_id);
+                    cluster_node_port, false, view_id);
 
   std::chrono::milliseconds cache_ttl = kAuthCacheRefreshRate * 4;
   SCOPED_TRACE("// Launch the router with the initial state file");
@@ -619,7 +621,7 @@ TEST_F(MetadataHttpAuthTest, ExpiredAuthCacheTTL) {
   const bool fail_on_md_query = true;
   // Start to fail metadata cache updates
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
-                    cluster_node_port, fail_on_md_query, 0, view_id);
+                    cluster_node_port, fail_on_md_query, view_id);
 
   // wait long enough for the auth cache to expire
   std::this_thread::sleep_for(cache_ttl);
@@ -642,7 +644,7 @@ class MetadataAuthCacheUpdate
 
 TEST_P(MetadataAuthCacheUpdate, AuthCacheUpdate) {
   set_mock_metadata(GetParam().first_auth_cache_data_set, cluster_http_port,
-                    cluster_id, cluster_node_port, false, 0, view_id);
+                    cluster_id, cluster_node_port, false, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   const std::string metadata_cache_section =
@@ -663,7 +665,7 @@ TEST_P(MetadataAuthCacheUpdate, AuthCacheUpdate) {
 
   // Update authentication metadata
   set_mock_metadata(GetParam().second_auth_cache_data_set, cluster_http_port,
-                    cluster_id, cluster_node_port, false, 0, view_id);
+                    cluster_id, cluster_node_port, false, view_id);
 
   // auth_cache is updated
   EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);

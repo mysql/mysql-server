@@ -23,10 +23,6 @@ var options = {
   cluster_type: "gr",
 };
 
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
-
 var common_responses = common_stmts.prepare_statement_responses(
     [
       "router_set_session_options",
@@ -38,8 +34,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_type_v2",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_membership_with_primary_mode",
-      "router_select_group_replication_primary_member",
+      "router_select_group_membership",
       "router_update_last_check_in_v2",
       "router_clusterset_present",
     ],

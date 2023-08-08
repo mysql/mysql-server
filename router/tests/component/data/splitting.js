@@ -34,10 +34,6 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
-if (mysqld.global.primary_id === undefined) {
-  mysqld.global.primary_id = 0;
-}
-
 if (mysqld.global.mysqlx_wait_timeout_unsupported === undefined) {
   mysqld.global.mysqlx_wait_timeout_unsupported = 0;
 }
@@ -117,11 +113,6 @@ var options = {
   metadata_schema_version: mysqld.global.metadata_schema_version,
 };
 
-if (mysqld.global.primary_id >= 0) {
-  options.group_replication_primary_member =
-      options.group_replication_members[mysqld.global.primary_id][0];
-}
-
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
@@ -132,8 +123,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_replication_primary_member",
-      "router_select_group_membership_with_primary_mode",
+      "router_select_group_membership",
       "router_clusterset_present",
       "router_select_router_options_view",
     ],

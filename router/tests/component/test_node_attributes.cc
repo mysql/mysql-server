@@ -83,16 +83,21 @@ class NodeAttributesTest : public RouterComponentMetadataTest {
       ASSERT_TRUE(MockServerRestClient(node_http_ports[i])
                       .wait_for_rest_endpoint_ready());
 
-      const auto primary_id = no_primary ? -1 : 0;
       auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
+      if (no_primary && cluster_nodes.size() > 0) {
+        cluster_nodes[0].role = "SECONDARY";
+      }
       for (auto [i, attr] : stdx::views::enumerate(nodes_attributes)) {
         if (i < cluster_nodes.size()) {
           cluster_nodes[i].attributes = attr;
         }
       }
-      ::set_mock_metadata(node_http_ports[i], "uuid",
-                          classic_ports_to_gr_nodes(node_ports), i,
-                          cluster_nodes, primary_id, 0, false, node_hostname);
+      auto gr_nodes = classic_ports_to_gr_nodes(node_ports);
+      if (no_primary && gr_nodes.size() > 0) {
+        gr_nodes[0].member_role = "SECONDARY";
+      }
+      set_mock_metadata(node_http_ports[i], "uuid", gr_nodes, i, cluster_nodes,
+                        0, false, node_hostname);
     }
   }
 
@@ -125,19 +130,23 @@ class NodeAttributesTest : public RouterComponentMetadataTest {
 
   void set_nodes_attributes(const std::vector<std::string> &nodes_attributes,
                             const bool no_primary = false) {
-    const auto primary_id = no_primary ? -1 : 0;
-
     auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
+    if (no_primary && cluster_nodes.size() > 0) {
+      cluster_nodes[0].role = "SECONDARY";
+    }
     for (auto [i, attr] : stdx::views::enumerate(nodes_attributes)) {
       if (i < cluster_nodes.size()) {
         cluster_nodes[i].attributes = attr;
       }
     }
 
+    auto gr_nodes = classic_ports_to_gr_nodes(node_ports);
+    if (no_primary && gr_nodes.size() > 0) {
+      gr_nodes[0].member_role = "SECONDARY";
+    }
     ASSERT_NO_THROW({
-      ::set_mock_metadata(node_http_ports[0], "uuid",
-                          classic_ports_to_gr_nodes(node_ports), 0,
-                          cluster_nodes, primary_id, 0, false, node_hostname);
+      set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes,
+                        0, false, node_hostname);
     });
 
     try {
@@ -693,6 +702,8 @@ class NodesHiddenWithFallbackTest
       public ::testing::WithParamInterface<NodeAttributesTestParam> {};
 
 TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
+  using ::ClusterNode;
+
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
   setup_cluster(3, GetParam().tracefile);
 
@@ -716,38 +727,57 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
-  SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
-  ::set_mock_metadata(
-      node_http_ports[0], "uuid", {GRNode(node_ports[0], "uuid-1")}, 0,
-      {{node_ports[0], "uuid-1", 0, R"({"tags" : {"_hidden": true} })"}}, 0, 0,
-      false, node_hostname);
+  {
+    SCOPED_TRACE("// Remove secondary nodes, primary is hidden");
+    const std::vector<GRNode> gr_nodes{
+        {node_ports[0], "uuid-1", "ONLINE", "PRIMARY"}};
+    const std::vector<ClusterNode> cluster_nodes{
+        {node_ports[0], "uuid-1", 0, R"({"tags" : {"_hidden": true} })",
+         "PRIMARY"}};
+    set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes, 0,
+                      false, node_hostname);
+  }
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
-  SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
-  ::set_mock_metadata(
-      node_http_ports[0], "uuid",
-      {GRNode(node_ports[0], "uuid-1"), GRNode(node_ports[2], "uuid-3")}, 0,
-      {{node_ports[0], "uuid-1", 0, R"({"tags" : {"_hidden": true} })"},
-       {node_ports[2], "uuid-3", 0, ""}},
-      0, 0, false, node_hostname);
+  {
+    SCOPED_TRACE("// Bring back second secondary node, primary is hidden");
+    const std::vector<GRNode> gr_nodes{
+        {node_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {node_ports[2], "uuid-3", "ONLINE", "SECONDARY"}};
+    const std::vector<ClusterNode> cluster_nodes{
+        {node_ports[0], "uuid-1", 0, R"({"tags" : {"_hidden": true} })",
+         "PRIMARY"},
+        {node_ports[2], "uuid-3", 0, "", "SECONDARY"}};
+
+    set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes, 0,
+                      false, node_hostname);
+  }
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
-  SCOPED_TRACE("// Unhide primary node");
-  ::set_mock_metadata(
-      node_http_ports[0], "uuid",
-      {{node_ports[0], "uuid-1"}, {node_ports[2], "uuid-3"}}, 0,
-      {{node_ports[0], "uuid-1", 0, ""}, {node_ports[2], "uuid-3", 0, ""}}, 0,
-      0, false, node_hostname);
+  {
+    SCOPED_TRACE("// Unhide primary node");
+    const std::vector<GRNode> gr_nodes{
+        {node_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {node_ports[2], "uuid-3", "ONLINE", "SECONDARY"}};
+    const std::vector<ClusterNode> cluster_nodes{
+        {node_ports[0], "uuid-1", 0, "", "PRIMARY"},
+        {node_ports[2], "uuid-3", 0, "", "SECONDARY"}};
+
+    set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes, 0,
+                      false, node_hostname);
+  }
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 }
 
 TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
+  using ::ClusterNode;
+
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
   setup_cluster(3, GetParam().tracefile);
 
@@ -772,22 +802,34 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
-  SCOPED_TRACE("// Bring down first primary node");
-  ::set_mock_metadata(
-      node_http_ports[0], "uuid",
-      {{node_ports[0], "uuid-1"}, {node_ports[2], "uuid-3"}}, 0,
-      {{node_ports[0], "uuid-1"},
-       {node_ports[2], "uuid-3", 0, R"({"tags" : {"_hidden": true} })"}},
-      0, 0, false, node_hostname);
+  {
+    SCOPED_TRACE("// Bring down first secondary node");
+    const std::vector<GRNode> gr_nodes{
+        {node_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {node_ports[2], "uuid-3", "ONLINE", "SECONDARY"}};
+    const std::vector<ClusterNode> cluster_nodes{
+        {node_ports[0], "uuid-1", 0, "", "PRIMARY"},
+        {node_ports[2], "uuid-3", 0, R"({"tags" : {"_hidden": true} })",
+         "SECONDARY"}};
+
+    set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes, 0,
+                      false, node_hostname);
+  }
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
-  ::set_mock_metadata(node_http_ports[0], "uuid",
-                      {{node_ports[0], "uuid-1"}, {node_ports[2], "uuid-3"}}, 0,
-                      {{node_ports[0], "uuid-1"}, {node_ports[2], "uuid-3"}}, 0,
-                      0, false, node_hostname);
+  {
+    const std::vector<GRNode> gr_nodes{
+        {node_ports[0], "uuid-1", "ONLINE", "PRIMARY"},
+        {node_ports[2], "uuid-3", "ONLINE", "SECONDARY"}};
+    const std::vector<ClusterNode> cluster_nodes{
+        {node_ports[0], "uuid-1", 0, "", "PRIMARY"},
+        {node_ports[2], "uuid-3", 0, "", "SECONDARY"}};
+    set_mock_metadata(node_http_ports[0], "uuid", gr_nodes, 0, cluster_nodes, 0,
+                      false, node_hostname);
+  }
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -1027,7 +1069,8 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
       1);
   check_log_contains(
       *router,
-      "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
+      "Error parsing _disconnect_existing_sessions_when_hidden from "
+      "attributes "
       "JSON string: not a valid JSON object",
       1);
 
@@ -1042,7 +1085,8 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
       1);
   check_log_contains(
       *router,
-      "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
+      "Error parsing _disconnect_existing_sessions_when_hidden from "
+      "attributes "
       "JSON string: tags - not a valid JSON object",
       1);
 
@@ -1058,7 +1102,8 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
       1);
   check_log_contains(
       *router,
-      "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
+      "Error parsing _disconnect_existing_sessions_when_hidden from "
+      "attributes "
       "JSON string: tags._disconnect_existing_sessions_when_hidden not a "
       "boolean",
       1);
@@ -1092,7 +1137,8 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
       2);
   check_log_contains(
       *router,
-      "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
+      "Error parsing _disconnect_existing_sessions_when_hidden from "
+      "attributes "
       "JSON string: tags._disconnect_existing_sessions_when_hidden not a "
       "boolean",
       2);

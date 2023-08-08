@@ -1,13 +1,3 @@
-/**
- * run 1 node on the current host
- *
- * - 1 PRIMARY
- *
- * via HTTP interface
- *
- * - md_query_count
- */
-
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
@@ -122,7 +112,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_membership",
+      "router_select_group_membership_pre_8_0_2",
       "router_clusterset_present",
       "router_select_router_options_view",
     ],
@@ -146,7 +136,8 @@ var router_update_last_check_in_v2 =
     auth: {
       username: mysqld.global.user,
       password: mysqld.global.password,
-    }
+    },
+    greeting: {server_version: "5.7.22"}
   },
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
@@ -189,68 +180,6 @@ var router_update_last_check_in_v2 =
           rows: [[mysqld.session.ssl_session_cache_hits]]
         }
       }
-    } else if (stmt === "SELECT @@GLOBAL.super_read_only") {
-      // for splitting.
-      return {
-        result: {
-          columns: [{name: "super_read_only", type: "LONG"}],
-          rows:
-              [
-                [mysqld.global.gr_pos == 0 ? "0" : "1"],
-              ]
-        }
-      }
-    } else if (
-        stmt ===
-        "SELECT 'collation_connection', @@SESSION.`collation_connection` UNION SELECT 'character_set_client', @@SESSION.`character_set_client` UNION SELECT 'sql_mode', @@SESSION.`sql_mode`") {
-      // restore session state
-      return {
-        result: {
-          columns: [
-            {name: "collation_connection", type: "STRING"},
-            {name: "@@SESSION.collation_connection", type: "STRING"},
-          ],
-          rows: [
-            ["collation_connection", "utf8mb4_0900_ai_ci"],
-            ["character_set_client", "utf8mb4"],
-            ["sql_mode", "bar"],
-          ]
-        }
-      };
-    } else if (
-        stmt.indexOf('SET @@SESSION.session_track_system_variables = "*"') !==
-        -1) {
-      // the trackers that are needed for connection-sharing.
-      return {
-        ok: {
-          session_trackers: [
-            {
-              type: "system_variable",
-              name: "session_track_system_variables",
-              value: "*"
-            },
-            {
-              type: "system_variable",
-              name: "session_track_gtids",
-              value: "OWN_GTID"
-            },
-            {
-              type: "system_variable",
-              name: "session_track_transaction_info",
-              value: "CHARACTERISTICS"
-            },
-            {
-              type: "system_variable",
-              name: "session_track_state_change",
-              value: "ON"
-            },
-            {
-              type: "trx_characteristics",
-              value: "",
-            },
-          ]
-        }
-      };
     } else if (stmt === router_update_last_check_in_v2.stmt) {
       mysqld.global.update_last_check_in_count++;
       return router_update_last_check_in_v2;

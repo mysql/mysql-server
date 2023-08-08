@@ -9,6 +9,7 @@
  */
 
 var common_stmts = require("common_statements");
+var gr_memberships = require("gr_memberships");
 
 if (mysqld.global.gr_node_host === undefined) {
   mysqld.global.gr_node_host = "127.0.0.1";
@@ -28,10 +29,6 @@ if (mysqld.global.md_query_count === undefined) {
 
 if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
-}
-
-if (mysqld.global.primary_id === undefined) {
-  mysqld.global.primary_id = 0;
 }
 
 if (mysqld.global.view_id === undefined) {
@@ -66,25 +63,14 @@ if (mysqld.global.metadata_schema_version === undefined) {
   mysqld.global.metadata_schema_version = [2, 2, 0];
 }
 
-var nodes = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
-    return [
-      current_value[0], host, current_value[1], current_value[2],
-      current_value[3]
-    ];
-  });
-};
 
-var cluster_nodes_online =
-    nodes(mysqld.global.gr_node_host, mysqld.global.cluster_nodes);
+var cluster_nodes = gr_memberships.cluster_nodes(
+    mysqld.global.gr_node_host, mysqld.global.cluster_nodes)
 
 var options = {
-  innodb_cluster_instances: cluster_nodes_online,
+  innodb_cluster_instances: cluster_nodes,
   cluster_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
-  primary_port: (mysqld.global.primary_id >= 0) ?
-      cluster_nodes_online[mysqld.global.primary_id][2] :
-      mysqld.global.primary_id,
   cluster_type: mysqld.global.cluster_type,
   innodb_cluster_name: mysqld.global.cluster_name,
   router_options: mysqld.global.router_options,

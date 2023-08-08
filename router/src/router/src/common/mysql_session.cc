@@ -648,6 +648,10 @@ bool MySQLSession::is_ssl_session_reused() {
   return connection_ ? mysql_get_ssl_session_reused(connection_) : false;
 }
 
+unsigned long MySQLSession::server_version() {
+  return connection_ ? mysql_get_server_version(connection_) : 0;
+}
+
 void MySQLSession::LoggingStrategyDebugLogger::log(const std::string &msg) {
   log_debug("%s", msg.c_str());
 }

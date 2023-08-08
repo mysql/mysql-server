@@ -24,10 +24,6 @@ if (mysqld.global.md_query_count === undefined) {
   mysqld.global.md_query_count = 0;
 }
 
-if (mysqld.global.primary_id === undefined) {
-  mysqld.global.primary_id = 0;
-}
-
 if (mysqld.global.view_id === undefined) {
   mysqld.global.view_id = 0;
 }
@@ -105,7 +101,6 @@ var options = {
   innodb_cluster_instances: cluster_members_online,
   cluster_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
-  primary_port: cluster_members_online[mysqld.global.primary_id][2],
   cluster_type: "ar",
   innodb_cluster_name: "test",
   router_version: mysqld.global.router_version,

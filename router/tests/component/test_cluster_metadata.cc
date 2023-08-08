@@ -107,14 +107,15 @@ TEST_P(RouterComponenClustertMetadataTestInstanceListUnordered,
     nodes.push_back(
         &launch_mysql_server_mock(json_metadata, node_classic_ports[i],
                                   EXIT_SUCCESS, false, node_http_ports[i]));
+    const std::string role = (i == 0) ? "PRIMARY" : "SECONDARY";
     gr_nodes.emplace_back(node_classic_ports[i],
-                          "uuid-" + std::to_string(i + 1));
+                          "uuid-" + std::to_string(i + 1), "ONLINE", role);
     cluster_nodes.emplace_back(node_classic_ports[i],
                                "uuid-" + std::to_string(i + 1));
   }
 
   for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
-    ::set_mock_metadata(http_port, kGroupID, gr_nodes, i, cluster_nodes);
+    set_mock_metadata(http_port, kGroupID, gr_nodes, i, cluster_nodes);
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -134,8 +135,8 @@ TEST_P(RouterComponenClustertMetadataTestInstanceListUnordered,
   const std::vector<ClusterNode> cluster_nodes_reversed(cluster_nodes.rbegin(),
                                                         cluster_nodes.rend());
   for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
-    ::set_mock_metadata(http_port, kGroupID, gr_nodes_reversed, i,
-                        cluster_nodes_reversed, 1);
+    set_mock_metadata(http_port, kGroupID, gr_nodes_reversed, i,
+                      cluster_nodes_reversed);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
@@ -183,9 +184,11 @@ TEST_P(RouterComponenClustertMetadataTestInvalidMysqlXPort, InvalidMysqlXPort) {
 
   SCOPED_TRACE(
       "// let the metadata for our single node report invalid mysqlx port");
-  ::set_mock_metadata(node_http_port, "uuid", {{node_classic_port}}, 0,
-                      {{node_classic_port, kInvalidPort}}, 0, 0, false,
-                      "127.0.0.1");
+  auto cluster_nodes = classic_ports_to_cluster_nodes({node_classic_port});
+  cluster_nodes[0].x_port = kInvalidPort;
+  set_mock_metadata(node_http_port, "uuid",
+                    classic_ports_to_gr_nodes({node_classic_port}), 0,
+                    cluster_nodes, 0, false, "127.0.0.1");
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -245,8 +248,9 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals =
-      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
+  auto globals = mock_GR_metadata_as_json(
+      "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
+      classic_ports_to_cluster_nodes({md_server_port}));
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -347,8 +351,9 @@ TEST_F(RouterComponenClustertMetadataTest,
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals =
-      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
+  auto globals = mock_GR_metadata_as_json(
+      "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
+      classic_ports_to_cluster_nodes({md_server_port}));
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -421,9 +426,9 @@ TEST_F(RouterComponenClustertMetadataTest, LogWarningWhenMetadataIsDeprecated) {
         EXIT_SUCCESS, false, http_port);
 
     EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-    ::set_mock_metadata(http_port, "uuid",
-                        classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
-                        classic_ports_to_cluster_nodes(cluster_nodes_ports));
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
+                      classic_ports_to_cluster_nodes(cluster_nodes_ports));
   }
 
   // launch the router with metadata-cache configuration
@@ -472,8 +477,9 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us, also tell it to issue the "
       "permission error on the update attempt");
-  auto globals =
-      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
+  auto globals = mock_GR_metadata_as_json(
+      "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
+      classic_ports_to_cluster_nodes({md_server_port}));
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -557,8 +563,9 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
   /*auto &metadata_server = */ launch_mysql_server_mock(
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
-  ::set_mock_metadata(md_server_http_port, "uuid", {md_server_port}, 0,
-                      {md_server_port});
+  set_mock_metadata(md_server_http_port, "uuid",
+                    classic_ports_to_gr_nodes({md_server_port}), 0,
+                    classic_ports_to_cluster_nodes({md_server_port}));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -576,8 +583,9 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   auto client = make_new_connection_ok(router_port, md_server_port);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
-  auto globals =
-      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
+  auto globals = mock_GR_metadata_as_json(
+      "uuid", classic_ports_to_gr_nodes({md_server_port}), 0,
+      classic_ports_to_cluster_nodes({md_server_port}));
   JsonAllocator allocator;
   globals.AddMember("upgrade_in_progress", 1, allocator);
   globals.AddMember("md_query_count", 0, allocator);
@@ -660,9 +668,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   for (size_t i = 0; i < NUM_NODES; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
-    ::set_mock_metadata(node_http_ports[i], "uuid",
-                        classic_ports_to_gr_nodes(node_ports), i,
-                        classic_ports_to_cluster_nodes(node_ports));
+    set_mock_metadata(node_http_ports[i], "uuid",
+                      classic_ports_to_gr_nodes(node_ports), i,
+                      classic_ports_to_cluster_nodes(node_ports));
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -698,8 +706,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Tell the second node that it is a new Primary and the only member of "
       "the cluster");
-  ::set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]}, 0,
-                      {node_ports[1]});
+  set_mock_metadata(node_http_ports[1], "uuid",
+                    classic_ports_to_gr_nodes({node_ports[1]}), 0,
+                    classic_ports_to_cluster_nodes({node_ports[1]}));
 
   SCOPED_TRACE(
       "// Connect to the router primary port, the connection should be ok and "
@@ -745,10 +754,9 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
 
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    ::set_mock_metadata(
-        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
-        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
-        /*primary_id=*/0);
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports));
   }
 
   // launch the router with metadata-cache configuration
@@ -784,12 +792,23 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
                     md_servers_classic_ports[2]});
 
   // now promote first SECONDARY to become new PRIMARY
+  auto gr_nodes = classic_ports_to_gr_nodes(md_servers_classic_ports);
+  auto metadata_nodes =
+      classic_ports_to_cluster_nodes(md_servers_classic_ports);
+
+  if (GetParam().cluster_type != mysqlrouter::ClusterType::RS_V2) {
+    // For ReplicaSet there is no GR and role is determined directly in the
+    // metadata
+    gr_nodes[0].member_role = "SECONDARY";
+    gr_nodes[1].member_role = "PRIMARY";
+  } else {
+    metadata_nodes[0].role = "SECONDARY";
+    metadata_nodes[1].role = "PRIMARY";
+  }
+
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    ::set_mock_metadata(
-        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
-        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
-        /*primary_id=*/1);
+    set_mock_metadata(http_port, "uuid", gr_nodes, i, metadata_nodes);
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
@@ -956,9 +975,9 @@ TEST_P(SessionReuseTest, SessionReuse) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i], 0,
         "", "0.0.0.0", 30s, /*enable_ssl*/ test_params.server_ssl_enabled));
-    ::set_mock_metadata(http_ports[i], "uuid",
-                        classic_ports_to_gr_nodes(classic_ports), 0,
-                        classic_ports_to_cluster_nodes(classic_ports));
+    set_mock_metadata(http_ports[i], "uuid",
+                      classic_ports_to_gr_nodes(classic_ports), 0,
+                      classic_ports_to_cluster_nodes(classic_ports));
   }
 
   const auto router_rw_port = port_pool_.get_next_available();
@@ -1076,11 +1095,11 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
     launch_mysql_server_mock(tracefile, md_server_port, EXIT_SUCCESS, false,
                              primary_node_http_port);
 
-    ::set_mock_metadata(primary_node_http_port, "uuid",
-                        classic_ports_to_gr_nodes({md_server_port}), 0,
-                        classic_ports_to_cluster_nodes({md_server_port}), 0, 0,
-                        false, "127.0.0.1", GetParam().router_options_json,
-                        GetParam().metadata_version);
+    set_mock_metadata(primary_node_http_port, "uuid",
+                      classic_ports_to_gr_nodes({md_server_port}), 0,
+                      classic_ports_to_cluster_nodes({md_server_port}), 0,
+                      false, "127.0.0.1", GetParam().router_options_json,
+                      GetParam().metadata_version);
   }
 
   SCOPED_TRACE("// Launch the Router");

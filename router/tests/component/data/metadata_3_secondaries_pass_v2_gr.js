@@ -7,7 +7,6 @@
  * via HTTP interface
  *
  * - MD_asked
- * - primary_asked
  * - health_asked
  */
 
@@ -25,10 +24,6 @@ var options = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
-
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -51,18 +46,12 @@ var common_responses = common_stmts.prepare_statement_responses(
 // if they have been executed ("asked")
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
-var router_select_group_replication_primary_member =
-    common_stmts.get("router_select_group_replication_primary_member", options);
-var router_select_group_membership_with_primary_mode = common_stmts.get(
-    "router_select_group_membership_with_primary_mode", options);
+var router_select_group_membership =
+    common_stmts.get("router_select_group_membership", options);
 
 
 if (mysqld.global.MD_asked === undefined) {
   mysqld.global.MD_asked = false;
-}
-
-if (mysqld.global.primary_asked === undefined) {
-  mysqld.global.primary_asked = false;
 }
 
 if (mysqld.global.health_asked === undefined) {
@@ -76,12 +65,9 @@ if (mysqld.global.health_asked === undefined) {
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.MD_asked = true;
       return router_select_metadata;
-    } else if (stmt === router_select_group_replication_primary_member.stmt) {
-      mysqld.global.primary_asked = true;
-      return router_select_group_replication_primary_member;
-    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       mysqld.global.health_asked = true;
-      return router_select_group_membership_with_primary_mode;
+      return router_select_group_membership;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

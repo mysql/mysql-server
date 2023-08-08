@@ -25,10 +25,6 @@ if (mysqld.global.md_query_count === undefined) {
   mysqld.global.md_query_count = 0;
 }
 
-if (mysqld.global.primary_id === undefined) {
-  mysqld.global.primary_id = 0;
-}
-
 if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "gr";
 }
@@ -41,10 +37,6 @@ var options = {
   gr_id: mysqld.global.gr_id,
   cluster_type: mysqld.global.cluster_type,
 };
-
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -59,8 +51,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_membership_with_primary_mode",
-      "router_select_group_replication_primary_member",
+      "router_select_group_membership",
       "router_update_last_check_in_v2",
       "router_clusterset_present",
       "router_select_router_options_view",
@@ -89,9 +80,7 @@ var options_cluster_members = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: mysqld.global.cluster_type,
 };
-options_cluster_members.group_replication_primary_member =
-    options_cluster_members
-        .group_replication_members[mysqld.global.primary_id][0];
+
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options_cluster_members);
 

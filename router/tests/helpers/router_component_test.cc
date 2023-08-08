@@ -127,12 +127,13 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     const std::vector<std::string> &extra_router_options) {
   std::string cluster_name("mycluster");
 
-  std::vector<GRNode> gr_nodes;
-  std::vector<ClusterNode> cluster_nodes;
+  std::vector<uint16_t> classic_ports;
   for (const auto &mock_server_config : mock_server_configs) {
-    gr_nodes.emplace_back(mock_server_config.port);
-    cluster_nodes.emplace_back(mock_server_config.port);
+    classic_ports.emplace_back(mock_server_config.port);
   }
+
+  const auto cluster_nodes = classic_ports_to_cluster_nodes(classic_ports);
+  const auto gr_nodes = classic_ports_to_gr_nodes(classic_ports);
 
   std::vector<std::tuple<ProcessWrapper &, unsigned int>> mock_servers;
 
@@ -163,7 +164,7 @@ void RouterComponentBootstrapTest::bootstrap_failover(
                                  EXIT_SUCCESS, false, http_port),
         port);
     set_mock_metadata(http_port, mock_server_config.cluster_specific_id,
-                      gr_nodes, 0, cluster_nodes, 0, 0, false, "127.0.0.1", "",
+                      gr_nodes, 0, cluster_nodes, 0, false, "127.0.0.1", "",
                       metadata_version, cluster_name);
   }
 

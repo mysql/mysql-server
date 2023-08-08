@@ -24,10 +24,6 @@ var options_primary_unavailable = {
       })
 };
 
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
-
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
@@ -44,15 +40,14 @@ var common_responses = common_stmts.prepare_statement_responses(
     options);
 
 var router_select_group_membership_primary_unavailable = common_stmts.get(
-    "router_select_group_membership_with_primary_mode",
-    options_primary_unavailable);
+    "router_select_group_membership", options_primary_unavailable);
 
 
 ({
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       return router_select_group_membership_primary_unavailable;
     } else {
       return common_stmts.unknown_statement_response(stmt);

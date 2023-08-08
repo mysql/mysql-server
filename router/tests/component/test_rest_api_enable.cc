@@ -390,8 +390,9 @@ class TestRestApiEnable : public RouterComponentBootstrapTest {
 
  protected:
   void set_globals(std::string cluster_id = "") {
-    set_mock_metadata(cluster_http_port, cluster_id, {cluster_node_port}, 0,
-                      {cluster_node_port}, 0 /*primary_id*/, 0 /*view_id*/,
+    set_mock_metadata(cluster_http_port, cluster_id,
+                      classic_ports_to_gr_nodes({cluster_node_port}), 0,
+                      {cluster_node_port}, 0 /*view_id*/,
                       false /*error_on_md_query*/);
   }
 
@@ -945,11 +946,13 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
   }
 
   void setup_mocks(const bool failover_successful) {
+    std::vector<uint16_t> classic_ports;
     for (auto i = 0; i < k_node_count; ++i) {
-      const auto port = port_pool_.get_next_available();
-      gr_nodes.emplace_back(port);
-      cluster_nodes.emplace_back(port);
+      classic_ports.emplace_back(port_pool_.get_next_available());
     }
+
+    gr_nodes = classic_ports_to_gr_nodes(classic_ports);
+    cluster_nodes = classic_ports_to_cluster_nodes(classic_ports);
 
     for (auto i = 0; i < k_node_count; ++i) {
       cluster_http_port = port_pool_.get_next_available();
@@ -974,7 +977,7 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
                       .wait_for_rest_endpoint_ready());
 
       set_mock_metadata(cluster_http_port, cluster_id, gr_nodes, 0,
-                        cluster_nodes, 0, 0, false, gr_member_ip, "",
+                        cluster_nodes, 0, false, gr_member_ip, "",
                         metadata_version, cluster_name);
     }
 

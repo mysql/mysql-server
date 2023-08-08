@@ -163,10 +163,18 @@ class AsyncReplicasetTest : public RouterComponentTest {
     const auto gr_nodes = is_gr_cluster
                               ? classic_ports_to_gr_nodes(cluster_nodes_ports)
                               : std::vector<GRNode>{};
-    auto json_doc = mock_GR_metadata_as_json(
-        cluster_id, gr_nodes, gr_pos,
-        classic_ports_to_cluster_nodes(cluster_node_ports), primary_id, view_id,
-        error_on_md_query);
+    auto cluster_nodes = classic_ports_to_cluster_nodes(cluster_node_ports);
+    for (auto [i, node] : stdx::views::enumerate(cluster_nodes)) {
+      if (i == primary_id) {
+        node.role = "PRIMARY";
+      } else {
+        node.role = "SECONDARY";
+      }
+    }
+
+    auto json_doc =
+        mock_GR_metadata_as_json(cluster_id, gr_nodes, gr_pos, cluster_nodes,
+                                 view_id, error_on_md_query);
 
     // we can't allow this counter become undefined as that breaks the
     // wait_for_transaction_count_increase logic

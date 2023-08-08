@@ -49,18 +49,6 @@ if (mysqld.global.innodb_cluster_name === undefined) {
   mysqld.global.innodb_cluster_name = "test";
 }
 
-var gr_nodes = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
-    return [
-      current_value[0],  // uuid
-      host,
-      current_value[0],  // classic port
-      current_value[2],  // status
-      current_value[3],  // x port
-    ];
-  });
-};
-
 var cluster_nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
@@ -101,12 +89,6 @@ var options = {
   router_options: mysqld.global.router_options,
 };
 
-// first node is PRIMARY
-if (mysqld.global.primary_id >= 0) {
-  options.group_replication_primary_member =
-      options.group_replication_members[mysqld.global.primary_id][0];
-}
-
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
@@ -119,8 +101,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_replication_primary_member",
-      "router_select_group_membership_with_primary_mode",
+      "router_select_group_membership",
       "router_update_last_check_in_v2",
       "router_clusterset_present",
       "router_select_router_options_view",

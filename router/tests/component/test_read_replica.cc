@@ -137,6 +137,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
 
   struct NodeData {
     std::string gr_node_status{"ONLINE"};
+    std::string gr_member_role;
     std::string uuid;
     uint16_t classic_port{};
     uint16_t x_port{};
@@ -179,7 +180,6 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   };
 
   JsonValue mock_metadata_as_json(const std::string &gr_id, unsigned gr_pos,
-                                  unsigned primary_id,
                                   const std::vector<NodeData> &cluster_nodes,
                                   const std::string &router_options,
                                   const std::string &node_host = "127.0.0.1") {
@@ -203,6 +203,9 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       node.PushBack(JsonValue(cluster_node.gr_node_status.c_str(),
                               cluster_node.gr_node_status.length(), allocator),
                     allocator);
+      node.PushBack(JsonValue(cluster_node.gr_member_role.c_str(),
+                              cluster_node.gr_member_role.length(), allocator),
+                    allocator);
       gr_nodes_json.PushBack(node, allocator);
     }
     json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
@@ -225,7 +228,6 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     }
     json_doc.AddMember("cluster_nodes", cluster_nodes_json, allocator);
 
-    json_doc.AddMember("primary_id", static_cast<int>(primary_id), allocator);
     json_doc.AddMember(
         "gr_node_host",
         JsonValue(node_host.c_str(), node_host.length(), allocator), allocator);
@@ -241,12 +243,12 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   }
 
   void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                         unsigned gr_pos, unsigned primary_id,
+                         unsigned gr_pos,
                          const std::vector<NodeData> &cluster_nodes,
                          const std::string &router_options,
                          const std::string &node_host = "127.0.0.1") {
-    const auto json_doc = mock_metadata_as_json(
-        gr_id, gr_pos, primary_id, cluster_nodes, router_options, node_host);
+    const auto json_doc = mock_metadata_as_json(gr_id, gr_pos, cluster_nodes,
+                                                router_options, node_host);
 
     const auto json_str = json_to_string(json_doc);
 
@@ -287,6 +289,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
           i < gr_nodes_number ? "group-member" : "read-replica";
       node.classic_port = port_pool_.get_next_available();
       node.http_port = port_pool_.get_next_available();
+      node.gr_member_role = i == 0 ? "PRIMARY" : "SECONDARY";
 
       cluster_nodes_.emplace_back(node);
     }
@@ -557,7 +560,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       unsigned gr_pos{0};
       for (auto &cluster_node : cluster_nodes_) {
         if (cluster_node.instance_type == "read-replica") continue;
-        set_mock_metadata(cluster_node.http_port, "", gr_pos, 0, cluster_nodes_,
+        set_mock_metadata(cluster_node.http_port, "", gr_pos, cluster_nodes_,
                           router_options_);
         gr_pos++;
       }
@@ -567,7 +570,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       assert(*node_id < cluster_nodes_.size());
       for (unsigned i = 0; i < *node_id; i++)
         if (cluster_nodes_[*node_id].instance_type != "read-replica") gr_pos++;
-      set_mock_metadata(cluster_nodes_[*node_id].http_port, "", gr_pos, 0,
+      set_mock_metadata(cluster_nodes_[*node_id].http_port, "", gr_pos,
                         cluster_nodes_, router_options_);
     }
   }

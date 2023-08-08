@@ -48,31 +48,39 @@ using JsonStringBuffer =
     rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
 struct GRNode {
-  GRNode(uint32_t p_classic_port, const std::string &p_server_uuid = "",
-         const std::string &p_member_status = "ONLINE")
+  GRNode(uint32_t p_classic_port, const std::string &p_server_uuid,
+         const std::string &p_member_status, const std::string &p_member_role)
       : server_uuid(p_server_uuid.empty() ? std::to_string(p_classic_port)
                                           : p_server_uuid),
         classic_port(p_classic_port),
-        member_status(p_member_status) {}
+        member_status(p_member_status),
+        member_role(p_member_role) {}
 
   std::string server_uuid;
   uint32_t classic_port;
-  std::string member_status;
+  std::string member_status;  // ONLINE, ...
+  std::string member_role;    // PRIMARY, ...
 };
 
 struct ClusterNode {
   ClusterNode(uint32_t p_classic_port, const std::string &p_server_uuid = "",
-              uint32_t p_x_port = 0, const std::string &p_attributes = "{}")
+              uint32_t p_x_port = 0, const std::string &p_attributes = "{}",
+              const std::string &p_role = "")
       : server_uuid(p_server_uuid.empty() ? std::to_string(p_classic_port)
                                           : p_server_uuid),
         classic_port(p_classic_port),
         x_port(p_x_port),
-        attributes(p_attributes) {}
+        attributes(p_attributes),
+        role(p_role) {}
 
   std::string server_uuid;
   uint32_t classic_port;
   uint32_t x_port;
   std::string attributes;
+
+  // only relevant for ReplicaSet nodes, for GR-based Clusters the role is
+  // determined dynamically based on the GR status
+  std::string role;  // PRIMARY, SECONDARY
 };
 
 /**
@@ -95,7 +103,6 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
  * @param gr_nodes vector with the GR nodes
  * @param gr_pos this node's position in GR nodes table
  * @param cluster_nodes vector with cluster nodes as defined in the metadata
- * @param primary_id which node is the primary
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
  * handling the metadata query
@@ -109,8 +116,7 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
 JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<GRNode> &gr_nodes,
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,
-    unsigned primary_id = 0, uint64_t view_id = 0,
-    bool error_on_md_query = false,
+    uint64_t view_id = 0, bool error_on_md_query = false,
     const std::string &gr_node_host = "127.0.0.1",
     const std::string &router_options = "",
     const mysqlrouter::MetadataSchemaVersion &metadata_version =
@@ -125,7 +131,6 @@ JsonValue mock_GR_metadata_as_json(
  * @param gr_nodes vector with the GR nodes
  * @param gr_pos this node's position in GR nodes table
  * @param cluster_nodes vector with cluster nodes as defined in the metadata
- * @param primary_id which node is the primary
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
  * @param gr_node_host address of the host with the nodes handling the metadata
@@ -137,8 +142,8 @@ JsonValue mock_GR_metadata_as_json(
 void set_mock_metadata(
     uint16_t http_port, const std::string &gr_id,
     const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
-    const std::vector<ClusterNode> &cluster_nodes, unsigned primary_id = 0,
-    uint64_t view_id = 0, bool error_on_md_query = false,
+    const std::vector<ClusterNode> &cluster_nodes, uint64_t view_id = 0,
+    bool error_on_md_query = false,
     const std::string &gr_node_host = "127.0.0.1",
     const std::string &router_options = "",
     const mysqlrouter::MetadataSchemaVersion &metadata_version =

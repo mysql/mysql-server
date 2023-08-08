@@ -118,9 +118,9 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
   for (size_t i = 0; i < kClusterNodes; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i]));
-    ::set_mock_metadata(http_ports[i], "uuid",
-                        classic_ports_to_gr_nodes(classic_ports), 0,
-                        classic_ports_to_cluster_nodes(classic_ports));
+    set_mock_metadata(http_ports[i], "uuid",
+                      classic_ports_to_gr_nodes(classic_ports), 0,
+                      classic_ports_to_cluster_nodes(classic_ports));
   }
 
   const auto router_ro_port = port_pool_.get_next_available();
@@ -154,9 +154,9 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
   SCOPED_TRACE("// bring back the cluster node");
   cluster_nodes[1] = &launch_mysql_server_mock(
       json_metadata, classic_ports[1], EXIT_SUCCESS, false, http_ports[1]);
-  ::set_mock_metadata(http_ports[1], "uuid",
-                      classic_ports_to_gr_nodes(classic_ports), 0,
-                      classic_ports_to_cluster_nodes(classic_ports));
+  set_mock_metadata(http_ports[1], "uuid",
+                    classic_ports_to_gr_nodes(classic_ports), 0,
+                    classic_ports_to_cluster_nodes(classic_ports));
 
   SCOPED_TRACE("// .. and wait for it to be cleared by the quarantine");
   EXPECT_TRUE(wait_log_contains(

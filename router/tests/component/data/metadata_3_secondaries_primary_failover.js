@@ -8,7 +8,6 @@
  *
  * - primary_failover
  */
-
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
@@ -53,7 +52,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_schema_version",
       "router_select_metadata",
-      "router_select_group_membership_with_primary_mode",
+      "router_select_group_membership",
       "router_check_member_state",
       "router_select_members_count",
     ],

@@ -54,19 +54,13 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_select_cluster_type_v2",
       "router_select_metadata_v2_gr",
-      "router_select_group_membership_with_primary_mode",
+      "router_select_group_membership",
       "router_clusterset_present",
       "router_check_member_state",
       "router_select_members_count",
       "router_select_router_options_view",
     ],
     options);
-
-// allow to switch
-var router_select_group_replication_primary_member =
-    common_stmts.get("router_select_group_replication_primary_member", options);
-var router_select_group_replication_primary_member_failover = common_stmts.get(
-    "router_select_group_replication_primary_member", options_failover);
 
 if (mysqld.global.primary_failover === undefined) {
   mysqld.global.primary_failover = false;

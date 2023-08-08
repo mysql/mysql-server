@@ -76,11 +76,12 @@ void RouterComponentClusterSetTest::create_clusterset(
     }
 
     for (unsigned node_id = 0; node_id < gr_nodes_num; ++node_id) {
+      const std::string role = node_id == 0 ? "PRIMARY" : "SECONDARY";
       GRNode gr_node{cluster_data.nodes[node_id].classic_port,
                      "00000000-0000-0000-0000-0000000000" +
                          std::to_string(cluster_id + 1) +
                          std::to_string(node_id + 1),
-                     "ONLINE"};
+                     "ONLINE", role};
 
       cluster_data.gr_nodes.push_back(gr_node);
     }
@@ -100,10 +101,10 @@ void RouterComponentClusterSetTest::create_clusterset(
           tracefile_path, node.classic_port, EXIT_SUCCESS, false,
           node.http_port, node.x_port);
 
-      set_mock_metadata(view_id, cluster_id, node_id, target_cluster_id,
-                        node.http_port, clusterset_data, router_options,
-                        expected_target_cluster, metadata_version,
-                        simulate_cluster_not_found);
+      set_mock_clusterset_metadata(
+          view_id, cluster_id, node_id, target_cluster_id, node.http_port,
+          clusterset_data, router_options, expected_target_cluster,
+          metadata_version, simulate_cluster_not_found);
     }
   }
 
@@ -186,6 +187,7 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
       add_json_str_field(node_obj, "uuid", node_data.server_uuid);
       add_json_int_field(node_obj, "classic_port", node_data.classic_port);
       add_json_str_field(node_obj, "status", node_data.member_status);
+      add_json_str_field(node_obj, "role", node_data.member_role);
 
       gr_nodes_array.PushBack(node_obj, json_allocator);
     }
@@ -213,16 +215,16 @@ void RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
     for (size_t node_id = 0; node_id < cluster.nodes.size(); ++node_id) {
       const auto &node = cluster.nodes[node_id];
       const auto http_port = node.http_port;
-      set_mock_metadata(view_id, /*this_cluster_id*/ cluster.id,
-                        /*this_node_id*/ node_id, target_cluster_id, http_port,
-                        clusterset_data, router_options,
-                        expected_target_cluster, metadata_version,
-                        simulate_cluster_not_found);
+      set_mock_clusterset_metadata(view_id, /*this_cluster_id*/ cluster.id,
+                                   /*this_node_id*/ node_id, target_cluster_id,
+                                   http_port, clusterset_data, router_options,
+                                   expected_target_cluster, metadata_version,
+                                   simulate_cluster_not_found);
     }
   }
 }
 
-void RouterComponentClusterSetTest::set_mock_metadata(
+void RouterComponentClusterSetTest::set_mock_clusterset_metadata(
     uint64_t view_id, unsigned this_cluster_id, unsigned this_node_id,
     unsigned target_cluster_id, uint16_t http_port,
     const ClusterSetData &clusterset_data,

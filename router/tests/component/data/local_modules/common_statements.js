@@ -3,7 +3,6 @@ var defaults = {
   account_user: "root",
   metadata_schema_version: [2, 2, 0],
   exec_time: 0.0,
-  group_replication_single_primary_mode: 1,
   // array-of-array
   // - server-uuid
   // - hostname
@@ -95,7 +94,6 @@ var defaults = {
   user_host_pattern: ".*",
   cluster_type: "gr",
   view_id: 1,
-  primary_port: 0,
   router_id: 1,
   // let the test that uses it set it explicitly, going with some default would
   // mean failures each time the version is bumped up (which we don't even
@@ -226,43 +224,63 @@ function get_response(stmt_key, options) {
           rows: [options["metadata_schema_version"]]
         }
       };
-    case "router_select_group_membership_with_primary_mode":
+    case "router_select_group_membership":
       return {
         stmt:
-            "SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
+            "SELECT member_id, member_host, member_port, member_state, member_role, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
         exec_time: options["exec_time"],
         result: {
           columns: [
             {"name": "member_id", "type": "STRING"},
             {"name": "member_host", "type": "STRING"},
             {"name": "member_port", "type": "LONG"},
-            {"name": "member_state", "type": "STRING"}, {
+            {"name": "member_state", "type": "STRING"},
+            {"name": "member_role", "type": "STRING"},
+            {
               "name": "@@group_replication_single_primary_mode",
-              "type": "LONGLONG"
-            }
+              "type": "STRING"
+            },
           ],
           rows:
               options["group_replication_members"].map(function(currentValue) {
                 return [
-                  currentValue[0], currentValue[1], currentValue[2],
+                  currentValue[0],
+                  currentValue[1],
+                  currentValue[2],
                   currentValue[3],
-                  options["group_replication_single_primary_mode"]
+                  currentValue[4],
+                  "ON",
                 ];
               }),
         }
       };
-    case "router_select_group_replication_primary_member":
+    case "router_select_group_membership_pre_8_0_2":
       return {
-        "stmt": "show status like 'group_replication_primary_member'",
-        "result": {
-          "columns": [
-            {"name": "Variable_name", "type": "VAR_STRING"},
-            {"name": "Value", "type": "VAR_STRING"}
+        stmt:
+            "SELECT member_id, member_host, member_port, member_state, IF(g.primary_uuid = '' OR member_id = g.primary_uuid, 'PRIMARY', 'SECONDARY') as member_role, @@group_replication_single_primary_mode FROM (SELECT IFNULL(variable_value, '') AS primary_uuid FROM performance_schema.global_status WHERE variable_name = 'group_replication_primary_member') g, performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
+        result: {
+          columns: [
+            {"name": "member_id", "type": "STRING"},
+            {"name": "member_host", "type": "STRING"},
+            {"name": "member_port", "type": "LONG"},
+            {"name": "member_state", "type": "STRING"},
+            {"name": "member_role", "type": "STRING"},
+            {
+              "name": "@@group_replication_single_primary_mode",
+              "type": "STRING"
+            },
           ],
-          "rows": [[
-            "group_replication_primary_member",
-            options["group_replication_primary_member"]
-          ]]
+          rows:
+              options["group_replication_members"].map(function(currentValue) {
+                return [
+                  currentValue[0],
+                  currentValue[1],
+                  currentValue[2],
+                  currentValue[3],
+                  currentValue[4],
+                  "ON",
+                ];
+              }),
         }
       };
     case "router_select_metadata":
@@ -359,17 +377,18 @@ function get_response(stmt_key, options) {
             {"name": "I.member_role", "type": "VAR_STRING"},
             {"name": "I.attributes", "type": "VAR_STRING"}
           ],
-          rows: options["innodb_cluster_instances"].map(function(currentValue) {
+          rows: options["innodb_cluster_instances"].map(function(
+              currentValue, index) {
             var xport = currentValue[3] === undefined ? 0 : currentValue[3];
             var attributes =
                 currentValue[4] === undefined ? "" : currentValue[4];
+            var default_role = index == 0 ? "PRIMARY" : "SECONDARY";
+            var role =
+                currentValue[5] === undefined ? default_role : currentValue[5];
             return [
               options.cluster_id, options.innodb_cluster_name, currentValue[0],
               currentValue[1] + ":" + currentValue[2],
-              currentValue[1] + ":" + xport,
-              currentValue[2] === options.primary_port ? "PRIMARY" :
-                                                         "SECONDARY",
-              attributes
+              currentValue[1] + ":" + xport, role, attributes
             ]
           }),
         }
@@ -1376,54 +1395,28 @@ function get_response(stmt_key, options) {
           rows: []
         }
       };
-    case "router_clusterset_select_gr_primary_member":
-      return {
-        stmt: "show status like 'group_replication_primary_member'",
-        result: {
-          columns: [
-            {"name": "Variable_name", "type": "VAR_STRING"},
-            {"name": "Value", "type": "VAR_STRING"}
-          ],
-          rows:
-              [options.clusterset_data
-                       .clusters[options.clusterset_data.this_cluster_id]
-                       .nodes[options.clusterset_data
-                                  .clusters[options.clusterset_data
-                                                .this_cluster_id]
-                                  .primary_node_id] ?
-                   [
-                     "group_replication_primary_member",
-                     options.clusterset_data
-                         .clusters[options.clusterset_data.this_cluster_id]
-                         .nodes[options.clusterset_data
-                                    .clusters[options.clusterset_data
-                                                  .this_cluster_id]
-                                    .primary_node_id]
-                         .uuid
-                   ] :
-                   []]
-        }
-      };
     case "router_clusterset_select_gr_members_status":
       return {
         stmt:
-            "SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
+            "SELECT member_id, member_host, member_port, member_state, member_role, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
         result: {
           columns: [
             {"name": "member_id", "type": "STRING"},
             {"name": "member_host", "type": "STRING"},
             {"name": "member_port", "type": "LONG"},
-            {"name": "member_state", "type": "STRING"}, {
+            {"name": "member_state", "type": "STRING"},
+            {"name": "member_role", "type": "STRING"},
+            {
               "name": "@@group_replication_single_primary_mode",
-              "type": "LONGLONG"
-            }
+              "type": "STRING"
+            },
           ],
           rows: options.clusterset_data
                     .clusters[options.clusterset_data.this_cluster_id]
                     .gr_nodes.map(function(node) {
                       return [
                         node.uuid, "127.0.0.1", node.classic_port, node.status,
-                        1
+                        node.role, "ON"
                       ];
                     }),
         }

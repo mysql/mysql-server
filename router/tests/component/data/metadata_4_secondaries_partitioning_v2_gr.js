@@ -31,18 +31,14 @@ var options = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
 
-var router_select_group_membership_with_primary_mode = common_stmts.get(
-    "router_select_group_membership_with_primary_mode", options);
+var router_select_group_membership =
+    common_stmts.get("router_select_group_membership", options);
 
-var router_select_group_membership_with_primary_mode_partitioned =
-    common_stmts.get(
-        "router_select_group_membership_with_primary_mode",
-        Object.assign(options, {
-          group_replication_members: group_replication_members_partitioned
-        }));
+var router_select_group_membership_partitioned =
+    common_stmts.get("router_select_group_membership", Object.assign(options, {
+      group_replication_members: group_replication_members_partitioned
+    }));
 
 // common stmts
 
@@ -58,7 +54,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_metadata_v2_gr",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_replication_primary_member",
       "router_update_last_check_in_v2",
       "router_clusterset_present",
       "router_select_router_options_view",
@@ -84,11 +79,11 @@ if (mysqld.global.cluster_partition === undefined) {
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {
       return res;
-    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       if (!mysqld.global.cluster_partition) {
-        return router_select_group_membership_with_primary_mode;
+        return router_select_group_membership;
       } else {
-        return router_select_group_membership_with_primary_mode_partitioned;
+        return router_select_group_membership_partitioned;
       }
     } else {
       return {

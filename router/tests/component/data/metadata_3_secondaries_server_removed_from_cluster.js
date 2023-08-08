@@ -24,15 +24,11 @@ var options = {
   innodb_cluster_instances: cluster_nodes,
   metadata_schema_version: [1, 0, 2],
 };
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata", options);
-var router_select_group_replication_primary_member =
-    common_stmts.get("router_select_group_replication_primary_member", options);
-var router_select_group_membership_with_primary_mode = common_stmts.get(
-    "router_select_group_membership_with_primary_mode", options);
+var router_select_group_membership =
+    common_stmts.get("router_select_group_membership", options);
 
 
 // primary is removed, first secondary is the new PRIMARY
@@ -50,19 +46,11 @@ var options_removed_primary = {
   innodb_cluster_instances: cluster_nodes_removed_primary,
   metadata_schema_version: [1, 0, 2],
 };
-options_removed_primary.group_replication_primary_member =
-    options_removed_primary.group_replication_members[0][0];
 
 var router_select_metadata_removed_primary =
     common_stmts.get("router_select_metadata", options_removed_primary);
-var router_select_group_replication_primary_member_removed_primary =
-    common_stmts.get(
-        "router_select_group_replication_primary_member",
-        options_removed_primary);
-var router_select_group_membership_with_primary_mode_removed_primary =
-    common_stmts.get(
-        "router_select_group_membership_with_primary_mode",
-        options_removed_primary);
+var router_select_group_membership_removed_primary =
+    common_stmts.get("router_select_group_membership", options_removed_primary);
 
 
 // first secondary is removed, PRIMARY stays PRIMARY
@@ -80,19 +68,11 @@ var options_removed_secondary = {
   innodb_cluster_instances: cluster_nodes_removed_secondary,
   metadata_schema_version: [1, 0, 2],
 };
-options_removed_secondary.group_replication_primary_member =
-    options_removed_secondary.group_replication_members[0][0];
 
 var router_select_metadata_removed_secondary =
     common_stmts.get("router_select_metadata", options_removed_secondary);
-var router_select_group_replication_primary_member_removed_secondary =
-    common_stmts.get(
-        "router_select_group_replication_primary_member",
-        options_removed_secondary);
-var router_select_group_membership_with_primary_mode_removed_secondary =
-    common_stmts.get(
-        "router_select_group_membership_with_primary_mode",
-        options_removed_secondary);
+var router_select_group_membership_removed_secondary = common_stmts.get(
+    "router_select_group_membership", options_removed_secondary);
 
 
 // common queries
@@ -131,21 +111,13 @@ if (mysqld.global.secondary_removed === undefined) {
       } else {
         return router_select_metadata;
       }
-    } else if (stmt === router_select_group_replication_primary_member.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       if (mysqld.global.secondary_removed) {
-        return router_select_group_replication_primary_member_removed_secondary;
+        return router_select_group_membership_removed_secondary;
       } else if (mysqld.global.primary_removed) {
-        return router_select_group_replication_primary_member_removed_primary;
+        return router_select_group_membership_removed_primary;
       } else {
-        return router_select_group_replication_primary_member;
-      }
-    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
-      if (mysqld.global.secondary_removed) {
-        return router_select_group_membership_with_primary_mode_removed_secondary;
-      } else if (mysqld.global.primary_removed) {
-        return router_select_group_membership_with_primary_mode_removed_primary;
-      } else {
-        return router_select_group_membership_with_primary_mode;
+        return router_select_group_membership;
       }
     } else {
       return {

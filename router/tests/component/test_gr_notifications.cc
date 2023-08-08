@@ -159,6 +159,10 @@ class GrNotificationsTest : public RouterComponentTest {
       node.PushBack(JsonValue(static_cast<int>(gr_node)), allocator);
       node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
                     allocator);
+      const std::string member_role = i == 0 ? "PRIMARY" : "SECONDARY";
+      node.PushBack(
+          JsonValue(member_role.c_str(), member_role.length(), allocator),
+          allocator);
       gr_nodes_->PushBack(node, allocator);
     }
 

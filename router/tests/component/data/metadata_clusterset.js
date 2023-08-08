@@ -55,7 +55,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_bootstrap_target_type",
       "router_clusterset_select_cluster_info_by_primary_role",
       "router_clusterset_select_cluster_info_by_gr_uuid",
-      "router_clusterset_select_gr_primary_member",
       "router_clusterset_select_gr_members_status",
       "router_router_select_cs_options",
     ],

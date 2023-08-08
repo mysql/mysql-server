@@ -19,7 +19,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "select_port", "router_start_transaction", "router_commit",
       "router_select_schema_version", "router_select_cluster_type_v2",
       "router_select_metadata_v2_gr",
-      //  "router_select_group_membership_with_primary_mode",
+      //  "router_select_group_membership",
     ],
     options);
 

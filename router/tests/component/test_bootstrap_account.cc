@@ -313,15 +313,12 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
            "C.cluster_id where C.cluster_name = 'some_cluster_name'";
   }
   static std::string sql_val2() {
-    return "show status like 'group_replication_primary_member'";
+    return "SELECT member_id, member_host, member_port, member_state, "
+           "member_role, @@group_replication_single_primary_mode FROM "
+           "performance_schema.replication_group_members"
+           " WHERE channel_name = 'group_replication_applier'";
   }
   static std::string sql_val3() {
-    return "SELECT member_id, member_host, member_port, member_state, "
-           "@@group_replication_single_primary_mode FROM "
-           "performance_schema.replication_group_members WHERE channel_name = "
-           "'group_replication_applier'";
-  }
-  static std::string sql_val4() {
     return "select @@group_replication_group_name";
   }
 
@@ -2494,8 +2491,8 @@ TEST_F(AccountReuseReconfigurationTest,
   std::vector<std::string> unexp_sql = {
       "DROP USER",
       "GRANT",  // no new accounts were created
-      sql_val1(), sql_val2(),
-      sql_val3()  // shouldn't get that far due to conn failure
+      sql_val1(),
+      sql_val2()  // shouldn't get that far due to conn failure
   };
 
   // launch mock server and wait for it to start accepting connections
@@ -4079,8 +4076,8 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
   std::vector<std::string> exp_sql = cr.exp_sql;
   std::vector<std::string> unexp_sql = {
       "DROP USER",  // no CREATE USER revert
-      sql_val1(), sql_val2(),
-      sql_val3()  // shouldn't get that far due to conn failure
+      sql_val1(),
+      sql_val2()  // shouldn't get that far due to conn failure
   };
 
   // launch mock server and wait for it to start accepting connections
@@ -4144,8 +4141,8 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
   std::vector<std::string> exp_sql = cr.exp_sql;
   std::vector<std::string> unexp_sql = {
       "DROP USER",  // no CREATE USER revert
-      sql_val1(), sql_val2(),
-      sql_val3()  // shouldn't get that far due to conn failure
+      sql_val1(),
+      sql_val2()  // shouldn't get that far due to conn failure
   };
 
   // launch mock server and wait for it to start accepting connections
@@ -4211,8 +4208,8 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
   std::vector<std::string> exp_sql = cr.exp_sql;
   std::vector<std::string> unexp_sql = {
       "DROP USER",  // no CREATE USER revert
-      sql_val1(), sql_val2(),
-      sql_val3()  // shouldn't get that far due to conn failure
+      sql_val1(),
+      sql_val2()  // shouldn't get that far due to conn failure
   };
 
   // launch mock server and wait for it to start accepting connections
@@ -4273,8 +4270,8 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
   std::vector<std::string> exp_sql = cr.exp_sql;
   exp_sql.emplace_back("DROP USER");  // revert CREATE USER
   std::vector<std::string> unexp_sql = {
-      sql_val1(), sql_val2(),
-      sql_val3()  // shouldn't get that far due to conn failure
+      sql_val1(),
+      sql_val2(),  // shouldn't get that far due to conn failure
   };
 
   // launch mock server and wait for it to start accepting connections
@@ -4317,10 +4314,9 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
 TEST_F(AccountValidationTest, warn_on_query_failure) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
-      // skip sql_val4() because testing with it is more complicated due to
-      // query
-      // re-use, will behave the same anyway (same code flow)
-      sql_val1(), sql_val2(), sql_val3()};
+      // skip sql_val3() because testing with it is more complicated due to
+      // query re-use, will behave the same anyway (same code flow)
+      sql_val1(), sql_val2()};
   for (const std::string &failed_val_query : sql_val_stmts) {
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser,
@@ -4384,10 +4380,10 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
 TEST_F(AccountValidationTest, error_on_query_failure) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
-      // skip sql_val4() because testing with it is more complicated due to
+      // skip sql_val3() because testing with it is more complicated due to
       // query
       // re-use, will behave the same anyway (same code flow)
-      sql_val1(), sql_val2(), sql_val3()};
+      sql_val1(), sql_val2()};
   for (const std::string &failed_val_query : sql_val_stmts) {
     // test params
     const std::vector<std::string> args = {"--strict", "--account",
@@ -4455,10 +4451,10 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
 TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
-      // skip sql_val4() because testing with it is more complicated due to
+      // skip sql_val3() because testing with it is more complicated due to
       // query
       // re-use, will behave the same anyway (same code flow)
-      sql_val1(), sql_val2(), sql_val3()};
+      sql_val1(), sql_val2()};
   for (const std::string &failed_val_query : sql_val_stmts) {
     // test params
     const std::vector<std::string> args = {"--account", kAccountUser};
@@ -4526,10 +4522,10 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
 TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
   // inlining initializer_list inside the for loop segfauls on Solaris
   std::initializer_list<std::string> sql_val_stmts = {
-      // skip sql_val4() because testing with it is more complicated due to
+      // skip sql_val3() because testing with it is more complicated due to
       // query
       // re-use, will behave the same anyway (same code flow)
-      sql_val1(), sql_val2(), sql_val3()};
+      sql_val1(), sql_val2()};
   for (const std::string &failed_val_query : sql_val_stmts) {
     // test params
     const std::vector<std::string> args = {"--strict", "--account",

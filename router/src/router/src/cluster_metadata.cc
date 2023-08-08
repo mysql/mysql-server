@@ -1035,27 +1035,42 @@ static std::vector<std::string> do_get_routing_mode_queries(
             "WHERE F.cluster_name = " +
                 mysql->quote("some_cluster_name");
 
-  return {
-      // MDC startup
-      // source: mysqlrouter::get_group_replication_id(MySQLSession *mysql)
-      "select @@group_replication_group_name",
+  std::string gr_members_query;
+  // replication_group_members.member_role field was introduced in 8.0.2, otoh
+  // group_replication_primary_member gets removed in 8.3 so we need 2 different
+  // queries depending on a server version
+  const bool has_member_role_field = mysql->server_version() >= 80002;
+  if (has_member_role_field) {
+    gr_members_query =
+        "SELECT member_id, member_host, member_port, member_state, "
+        "member_role, @@group_replication_single_primary_mode FROM "
+        "performance_schema.replication_group_members"
+        " WHERE channel_name = 'group_replication_applier'";
+  } else {
+    gr_members_query =
+        "SELECT member_id, member_host, member_port, member_state, "
+        "IF(g.primary_uuid = '' OR member_id = g.primary_uuid, 'PRIMARY', "
+        "'SECONDARY') as member_role, @@group_replication_single_primary_mode "
+        "FROM (SELECT IFNULL(variable_value, '') AS primary_uuid FROM "
+        "performance_schema.global_status WHERE variable_name = "
+        "'group_replication_primary_member') g, "
+        "performance_schema.replication_group_members WHERE channel_name = "
+        "'group_replication_applier'";
+  }
 
-      /* next 3 are called during MDC Refresh; they access all tables that are
-       * GRANTed by bootstrap
-       */
+  return {// MDC startup
+          // source: mysqlrouter::get_group_replication_id(MySQLSession *mysql)
+          "select @@group_replication_group_name",
 
-      // source: ClusterMetadata::fetch_instances_from_metadata_server()
-      fetch_instances_query,
+          /* next 2 are called during MDC Refresh; they access all tables that
+           * are GRANTed by bootstrap
+           */
 
-      // source: find_group_replication_primary_member()
-      "show status like 'group_replication_primary_member'",
+          // source: ClusterMetadata::fetch_instances_from_metadata_server()
+          fetch_instances_query,
 
-      // source: fetch_group_replication_members()
-      "SELECT member_id, member_host, member_port, member_state, "
-      "@@group_replication_single_primary_mode FROM "
-      "performance_schema.replication_group_members WHERE channel_name = "
-      "'group_replication_applier'",
-  };
+          // source: fetch_group_replication_members()
+          gr_members_query};
 }
 
 std::vector<std::string> ClusterMetadataGRV1::get_routing_mode_queries() {

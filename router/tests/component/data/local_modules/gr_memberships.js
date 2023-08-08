@@ -8,20 +8,21 @@ var uuid_v4 = function() {
  * generated a single-host group-replication membership configuration
  *
  * all nodes are on a single host with ip/hostname 'host' listening
- * on 'port' and announce 'state'
+ * on 'port' and announce 'state' and 'role'
  *
  * @param {string} host hostname or ip-address of the host
- * @param {array} port_and_state port-number node is listening on,
+ * @param {array} port_state_role port-number node is listening on,
  *     node-state ("ONLINE", "ERROR", ....)
- *                and xport if available (or undefined otherwise)
+ *     node-role ("PRIMARY", "SECONDARY")
  * @returns group replication membership resultset
  */
-exports.single_host = function(host, port_and_state, gr_id) {
-  return port_and_state.map(function(current_value) {
+exports.single_host = function(host, port_state_role, gr_id) {
+  return port_state_role.map(function(current_value) {
     return [
       gr_id === undefined ? uuid_v4() : gr_id, host,
       current_value[0],  // classic port
-      current_value[1]   // member state
+      current_value[1],  // member state
+      current_value[2],  // member role
     ];
   });
 };
@@ -36,13 +37,14 @@ exports.single_host_cluster_nodes = function(host, classic_port, uuid) {
   });
 };
 
-exports.gr_members = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
+exports.gr_members = function(host, gr_instances) {
+  return gr_instances.map(function(current_value) {
     return [
       current_value[0],  // uuid
       host,
       current_value[1],  // port
-      current_value[2]   // member_state
+      current_value[2],  // member_state
+      current_value[3]   // member_role
     ];
   });
 };
@@ -55,6 +57,8 @@ exports.cluster_nodes = function(host, cluster_instances) {
       current_value[1],  // classic port
       current_value[2],  // x port
       current_value[3],  // attributes
+      current_value[4],  // role (for ReplicaSet it is in the nodes as there is
+                         // no GR)
     ];
   });
 };

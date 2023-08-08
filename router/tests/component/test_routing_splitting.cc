@@ -194,8 +194,11 @@ class RoutingSplittingTestBase : public RouterComponentTest {
     std::vector<ClusterNode> cluster_nodes;
 
     SCOPED_TRACE("// start mock-server");
+    std::vector<uint16_t> classic_ports;
     for (auto &node : nodes_) {
-      node.classic_port = port_pool_.get_next_available();
+      const auto classic_port = port_pool_.get_next_available();
+      node.classic_port = classic_port;
+      classic_ports.push_back(classic_port);
       node.x_port = port_pool_.get_next_available();
       node.http_port = port_pool_.get_next_available();
 
@@ -207,10 +210,10 @@ class RoutingSplittingTestBase : public RouterComponentTest {
           30s,  // wait notify.
           true  // enable-ssl
       );
-
-      gr_nodes.push_back(node.classic_port);
-      cluster_nodes.push_back(node.classic_port);
     }
+
+    gr_nodes = classic_ports_to_gr_nodes(classic_ports);
+    cluster_nodes = classic_ports_to_cluster_nodes(classic_ports);
 
     SCOPED_TRACE("// configure mock-servers");
     for (auto [ndx, node] : stdx::views::enumerate(nodes_)) {
@@ -222,7 +225,6 @@ class RoutingSplittingTestBase : public RouterComponentTest {
                         gr_nodes,       // gr-nodes
                         ndx,            // gr-pos
                         cluster_nodes,  // cluster-nodes
-                        0,              // primary-id
                         0,              // view-id
                         false,          // error-on-md-query
                         "127.0.0.1"     // gr-node-host
@@ -3323,8 +3325,11 @@ class RoutingSplittingConfigInvalid
     std::vector<ClusterNode> cluster_nodes;
 
     SCOPED_TRACE("// start mock-server");
+    std::vector<uint16_t> classic_ports;
     for (auto &node : nodes_) {
-      node.classic_port = port_pool_.get_next_available();
+      const auto classic_port = port_pool_.get_next_available();
+      node.classic_port = classic_port;
+      classic_ports.push_back(classic_port);
       node.x_port = port_pool_.get_next_available();
       node.http_port = port_pool_.get_next_available();
 
@@ -3336,10 +3341,10 @@ class RoutingSplittingConfigInvalid
           30s,  // wait notify.
           true  // enable-ssl
       );
-
-      gr_nodes.push_back(node.classic_port);
-      cluster_nodes.push_back(node.classic_port);
     }
+
+    gr_nodes = classic_ports_to_gr_nodes(classic_ports);
+    cluster_nodes = classic_ports_to_cluster_nodes(classic_ports);
 
     SCOPED_TRACE("// configure mock-servers");
     for (auto [ndx, node] : stdx::views::enumerate(nodes_)) {
@@ -3351,7 +3356,6 @@ class RoutingSplittingConfigInvalid
                         gr_nodes,       // gr-nodes
                         ndx,            // gr-pos
                         cluster_nodes,  // cluster-nodes
-                        0,              // primary-id
                         0,              // view-id
                         false,          // error-on-md-query
                         "127.0.0.1"     // gr-node-host

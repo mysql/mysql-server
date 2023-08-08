@@ -31,22 +31,16 @@ var options = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   metadata_schema_version: [1, 0, 2],
 };
-options.group_replication_primary_member =
-    options.group_replication_members[0][0];
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata", options);
-var router_select_group_replication_primary_member =
-    common_stmts.get("router_select_group_replication_primary_member", options);
-var router_select_group_membership_with_primary_mode = common_stmts.get(
-    "router_select_group_membership_with_primary_mode", options);
+var router_select_group_membership =
+    common_stmts.get("router_select_group_membership", options);
 
-var router_select_group_membership_with_primary_mode_partitioned =
-    common_stmts.get(
-        "router_select_group_membership_with_primary_mode",
-        Object.assign(options, {
-          group_replication_members: group_replication_members_partitioned
-        }));
+var router_select_group_membership_partitioned =
+    common_stmts.get("router_select_group_membership", Object.assign(options, {
+      group_replication_members: group_replication_members_partitioned
+    }));
 
 // common stmts
 
@@ -73,13 +67,11 @@ if (mysqld.global.cluster_partition === undefined) {
       return common_responses[stmt];
     } else if (stmt === router_select_metadata.stmt) {
       return router_select_metadata;
-    } else if (stmt === router_select_group_replication_primary_member.stmt) {
-      return router_select_group_replication_primary_member;
-    } else if (stmt === router_select_group_membership_with_primary_mode.stmt) {
+    } else if (stmt === router_select_group_membership.stmt) {
       if (!mysqld.global.cluster_partition) {
-        return router_select_group_membership_with_primary_mode;
+        return router_select_group_membership;
       } else {
-        return router_select_group_membership_with_primary_mode_partitioned;
+        return router_select_group_membership_partitioned;
       }
     } else {
       return {

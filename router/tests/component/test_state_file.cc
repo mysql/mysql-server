@@ -293,8 +293,9 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
     SCOPED_TRACE(
         "// Make our metadata server to return single node as a cluster "
         "member (meaning single metadata server)");
-    set_mock_metadata(cluster_http_ports[i], kGroupId, {cluster_nodes_ports[i]},
-                      i, {cluster_nodes_ports[i]}, 0, 0, false, node_host);
+    set_mock_metadata(cluster_http_ports[i], kGroupId,
+                      classic_ports_to_gr_nodes({cluster_nodes_ports[i]}), i,
+                      {cluster_nodes_ports[i]}, 0, false, node_host);
   }
 
   SCOPED_TRACE("// Create a router state file with a single metadata server");
@@ -329,7 +330,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     set_mock_metadata(cluster_http_ports[i], kGroupId,
                       classic_ports_to_gr_nodes(cluster_nodes_ports), i,
-                      classic_ports_to_cluster_nodes(cluster_nodes_ports), 0, 0,
+                      classic_ports_to_cluster_nodes(cluster_nodes_ports), 0,
                       false, node_host);
   }
 
@@ -360,12 +361,14 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "// Instrument the second and third metadata servers to return 2 "
       "servers: second and third");
   set_mock_metadata(cluster_http_ports[1], kGroupId,
-                    {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 1,
-                    {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0, 0,
+                    classic_ports_to_gr_nodes(
+                        {cluster_nodes_ports[1], cluster_nodes_ports[2]}),
+                    1, {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0,
                     false, node_host);
   set_mock_metadata(cluster_http_ports[2], kGroupId,
-                    {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 2,
-                    {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0, 0,
+                    classic_ports_to_gr_nodes(
+                        {cluster_nodes_ports[1], cluster_nodes_ports[2]}),
+                    2, {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0,
                     false, node_host);
 
   SCOPED_TRACE("// Kill first metada server");
@@ -427,8 +430,9 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       "// Make our metadata server return single node as a cluster "
       "member (meaning single metadata server)");
 
-  set_mock_metadata(cluster_http_port, kGroupId, {cluster_node_port}, 0,
-                    {cluster_node_port});
+  set_mock_metadata(cluster_http_port, kGroupId,
+                    classic_ports_to_gr_nodes({cluster_node_port}), 0,
+                    classic_ports_to_cluster_nodes({cluster_node_port}));
 
   SCOPED_TRACE("// Create a router state file with a single metadata server");
   const std::string state_file = create_state_file(
@@ -506,8 +510,9 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
       "// Make our metadata server to return single node as a cluster "
       "member (meaning single metadata server)");
 
-  set_mock_metadata(cluster_http_port, kClusterFileGroupId, {cluster_node_port},
-                    0, {cluster_node_port});
+  set_mock_metadata(cluster_http_port, kClusterFileGroupId,
+                    classic_ports_to_gr_nodes({cluster_node_port}), 0,
+                    {cluster_node_port});
 
   SCOPED_TRACE(
       "// Create a router state file with a single metadata server and "

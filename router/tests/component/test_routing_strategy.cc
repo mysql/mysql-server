@@ -1392,7 +1392,8 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
       http_port, "",
-      {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]},
+      classic_ports_to_gr_nodes({cluster_nodes_ports[0], cluster_nodes_ports[2],
+                                 cluster_nodes_ports[3]}),
       0,
       {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]});
 
@@ -1503,7 +1504,8 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
       http_port, "",
-      {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]},
+      classic_ports_to_gr_nodes({cluster_nodes_ports[0], cluster_nodes_ports[2],
+                                 cluster_nodes_ports[3]}),
       0,
       {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]});
   wait_for_transaction_count_increase(http_port, 2);

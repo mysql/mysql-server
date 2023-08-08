@@ -121,7 +121,7 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
   set_mock_metadata(http_port, "cluster-specific-id",
-                    {GRNode{server_port, "uuid-1"}}, 0,
+                    {GRNode{server_port, "uuid-1", "ONLINE", "PRIMARY"}}, 0,
                     {ClusterNode{server_port, "uuid-1", server_x_port}});
 
   SCOPED_TRACE("// launch router with bootstrapped config");
@@ -1687,8 +1687,9 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
                                                EXIT_SUCCESS, false, http_port);
 
-  set_mock_metadata(http_port, "cluster-specific-id", {server_port}, 0,
-                    {server_port}, 0, 0, false, "127.0.0.1", "",
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port},
+                    0, false, "127.0.0.1", "",
                     GetParam().metadata_schema_version);
 
   const auto router_port_rw = port_pool_.get_next_available();
@@ -1738,7 +1739,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
   set_mock_metadata(http_port, "cluster-specific-id",
-                    {GRNode{server_port, "uuid-1"}}, 0,
+                    {GRNode{server_port, "uuid-1", "ONLINE", "PRIMARY"}}, 0,
                     {ClusterNode{server_port, "uuid-1", server_x_port}});
 
   // check that the Router accepts the config file
@@ -2042,7 +2043,7 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
   launch_mysql_server_mock(json_stmts, bootstrap_server_port, EXIT_SUCCESS,
                            false, bootstrap_server_http_port);
   set_mock_metadata(bootstrap_server_http_port, "cluster-specific-id",
-                    {server_port}, 0, {server_port});
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
@@ -2077,8 +2078,9 @@ TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
   launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
 
-  set_mock_metadata(http_port, "cluster-specific-id", {server_port}, 0,
-                    {server_port}, 0, 0, false, "127.0.0.1", "", {1, 0, 0});
+  set_mock_metadata(http_port, "cluster-specific-id",
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port},
+                    0, false, "127.0.0.1", "", {1, 0, 0});
 
   const auto base_listening_port = port_pool_.get_next_available();
   std::vector<std::string> bootsrtap_params{
@@ -2526,7 +2528,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
                                                EXIT_SUCCESS, false, http_port);
 
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
-                    {server_port, server_port2}, 0,
+                    classic_ports_to_gr_nodes({server_port, server_port2}), 0,
                     {server_port, server_port2});
 
   const auto router_port_rw = port_pool_.get_next_available();
@@ -2584,7 +2586,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
-                    {server_port}, 0, {server_port});
+                    classic_ports_to_gr_nodes({server_port}), 0, {server_port});
 
   // check that the Router is running fine with this configuration file
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
@@ -2607,8 +2609,10 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusterNameChange) {
   launch_mysql_server_mock(json_stmts, classic_port, EXIT_SUCCESS, false,
                            http_port);
 
-  set_mock_metadata(http_port, "gr-uuid", {classic_port}, 0, {classic_port}, 0,
-                    0, false, "127.0.0.1", "", {2, 2, 0}, kInitialClusterName);
+  set_mock_metadata(http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({classic_port}), 0,
+                    {classic_port}, 0, false, "127.0.0.1", "", {2, 2, 0},
+                    kInitialClusterName);
 
   // do the first bootstrap
   std::vector<std::string> cmdline_bs = {"--bootstrap=root:"s + kRootPassword +
@@ -2620,8 +2624,10 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusterNameChange) {
   check_exit_code(router_bs1, EXIT_SUCCESS);
 
   // change the cluster name
-  set_mock_metadata(http_port, "gr-uuid", {classic_port}, 0, {classic_port}, 0,
-                    0, false, "127.0.0.1", "", {2, 2, 0}, kChangedClusterName);
+  set_mock_metadata(http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({classic_port}), 0,
+                    {classic_port}, 0, false, "127.0.0.1", "", {2, 2, 0},
+                    kChangedClusterName);
 
   // do the second bootstrap using the same directory
   auto &router_bs2 = launch_router_for_bootstrap(cmdline_bs);
@@ -2642,7 +2648,9 @@ TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
   launch_mysql_server_mock(json_stmts, classic_port, EXIT_SUCCESS, false,
                            http_port);
 
-  set_mock_metadata(http_port, "gr-uuid", {classic_port}, 0, {classic_port});
+  set_mock_metadata(http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({classic_port}), 0,
+                    {classic_port});
 
   // do the first bootstrap
   std::vector<std::string> cmdline_bs = {
@@ -2665,7 +2673,8 @@ TEST_F(RouterComponentBootstrapTest, ShowCipherInvalidResult) {
   launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false,
                            mock_http_port);
 
-  set_mock_metadata(mock_http_port, "gr-uuid", {mock_server_port}, 0,
+  set_mock_metadata(mock_http_port, "gr-uuid",
+                    classic_ports_to_gr_nodes({mock_server_port}), 0,
                     {mock_server_port});
 
   std::vector<std::string> cmdline = {

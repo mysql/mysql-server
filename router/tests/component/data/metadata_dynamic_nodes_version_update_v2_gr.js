@@ -25,10 +25,6 @@ if (mysqld.global.md_query_count === undefined) {
   mysqld.global.md_query_count = 0;
 }
 
-if (mysqld.global.primary_id === undefined) {
-  mysqld.global.primary_id = 0;
-}
-
 if (mysqld.global.update_attributes_count === undefined) {
   mysqld.global.update_attributes_count = 0;
 }
@@ -120,10 +116,6 @@ var options = {
   bootstrap_target_type: mysqld.global.bootstrap_target_type,
 };
 
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_members[mysqld.global.primary_id][0];
-
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
@@ -136,8 +128,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_type_v2",
       "router_check_member_state",
       "router_select_members_count",
-      "router_select_group_replication_primary_member",
-      "router_select_group_membership_with_primary_mode",
+      "router_select_group_membership",
       "router_update_last_check_in_v2",
       "router_clusterset_present",
       "router_bootstrap_target_type",
