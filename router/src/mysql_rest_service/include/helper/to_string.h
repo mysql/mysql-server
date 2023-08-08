@@ -1,5 +1,4 @@
-/*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+/*  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,30 +21,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_RETRY_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_RETRY_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
+#define ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
 
-#include "mrs/database/filter_object_generator.h"
-#include "mysqlrouter/mysql_session.h"
+namespace helper {
 
-namespace mrs {
-namespace interface {
+inline const char *to_cstr(const bool b) { return b ? "true" : "false"; }
 
-class QueryRetry {
- public:
-  using FilterObjectGenerator = mrs::database::FilterObjectGenerator;
+}  // namespace helper
 
- public:
-  virtual ~QueryRetry() = default;
-
-  virtual void before_query() = 0;
-  virtual mysqlrouter::MySQLSession *get_session() = 0;
-  virtual const FilterObjectGenerator &get_fog() = 0;
-
-  virtual bool should_retry(const uint64_t affected) const = 0;
-};
-
-}  // namespace interface
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_QUERY_RETRY_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_

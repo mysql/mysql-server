@@ -236,13 +236,17 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
     if (raw_value.empty()) {
       static const std::string empty;
       database::FilterObjectGenerator fog(object, true,
-                                          get_options().query.wait);
+                                          get_options().query.wait,
+                                          get_options().query.embed_wait);
       database::QueryRestTable rest{};
 
       fog.parse(uri_param.get_query_parameter("q"));
-      database::QueryRetryOnRW query_retry{route_->get_cache(), session, fog};
+      database::QueryRetryOnRW query_retry{route_->get_cache(), session, fog,
+                                           get_options().query.wait,
+                                           get_options().query.embed_wait};
 
       do {
+        query_retry.before_query();
         rest.query_entries(
             query_retry.get_session(), object, field_filter, offset, limit,
             route_->get_rest_url(), route_->get_on_page() == limit,
@@ -380,9 +384,18 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   } else {
     auto query = get_rest_query_parameter(requests_uri);
 
-    database::FilterObjectGenerator fog(object, false,
-                                        get_options().query.wait);
+    database::FilterObjectGenerator fog(object, false, get_options().query.wait,
+                                        get_options().query.embed_wait);
+
     fog.parse(query);
+
+    if (!get_options().query.embed_wait && fog.has_asof()) {
+      auto gtid = fog.get_asof();
+      if (!database::wait_gtid_executed(session.get(), gtid,
+                                        get_options().query.wait)) {
+        database::throw_rest_error_asof_timeout(gtid.str());
+      }
+    }
 
     auto result = fog.get_result();
     if (result.is_empty())
@@ -391,12 +404,11 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
       throw std::runtime_error(
           "Filter must not contain ordering informations.");
 
+    log_debug("rest.handle_delete");
     count = rest.handle_delete(session.get(), fog);
 
-    if (fog.has_asof() && 0 == count) {
-      if (!database::is_gtid_executed(session.get(), fog.get_asof())) {
-        database::throw_rest_error_asof_timeout();
-      }
+    if (get_options().query.embed_wait && fog.has_asof() && 0 == count) {
+      database::throw_if_not_gtid_executed(session.get(), fog.get_asof());
     }
   }
 

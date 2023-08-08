@@ -132,19 +132,18 @@ mysqlrouter::sqlstring to_sqlstring(Value *value) {
 
 FilterObjectGenerator::FilterObjectGenerator(
     std::shared_ptr<database::entry::Object> object, bool joins_allowed,
-    uint64_t wait_timeout)
+    uint64_t wait_timeout, bool use_wait_in_where)
     : object_metadata_{object},
       joins_allowed_{joins_allowed},
-      wait_timeout_{wait_timeout} {}
+      wait_timeout_{wait_timeout},
+      use_wait_in_where_{use_wait_in_where} {}
 
 mysqlrouter::sqlstring FilterObjectGenerator::get_result() const {
   mysqlrouter::sqlstring tmp;
   tmp.append_preformatted(where_);
-  if (has_where() && has_asof()) {
-    tmp.append_preformatted(" AND ");
-  }
+  if (has_asof() && use_wait_in_where_) {
+    if (has_where()) tmp.append_preformatted(" AND ");
 
-  if (has_asof()) {
     mysqlrouter::sqlstring wait{" 0=WAIT_FOR_EXECUTED_GTID_SET(?,?) "};
     wait << asof_gtid_;
     wait << wait_timeout_;

@@ -39,8 +39,10 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
 
  public:
   QueryRetryOnRW(collector::MysqlCacheManager *cache, CachedSession &session,
-                 FilterObjectGenerator &fog);
+                 FilterObjectGenerator &fog, uint64_t wait_gtid_timeout,
+                 bool query_has_gtid_check);
 
+  void before_query() override;
   mysqlrouter::MySQLSession *get_session() override;
   const FilterObjectGenerator &get_fog() override;
   bool should_retry(const uint64_t affected) const override;
@@ -49,8 +51,10 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
   CachedSession &session_;
   collector::MysqlCacheManager *cache_;
   FilterObjectGenerator &fog_;
-  mutable bool retry_{false};
+  mutable bool is_retry_{false};
   mysqlrouter::sqlstring gtid_;
+  uint64_t wait_gtid_timeout_;
+  bool query_has_gtid_check_;
 };
 
 }  // namespace database
