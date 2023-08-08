@@ -24,6 +24,10 @@
 
 #include <NdbSleep.h>
 #include "process_management.hpp"
+#include "storage/ndb/test/run-test/atrt.hpp"
+
+extern const char* opt_tls_search_path;
+extern unsigned long long opt_mgm_tls;
 
 bool ProcessManagement::startAllProcesses() {
   if (clusterProcessesStatus == ProcessesStatus::RUNNING) {
@@ -348,7 +352,14 @@ bool ProcessManagement::connectNdbMgm(atrt_process &proc) {
     return false;
   }
 
-  if (ndb_mgm_connect(handle, 30, 1, 0) != -1) {
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+  if(tlsKeyManager.ctx()) {
+    g_logger.debug("Connecting to ndb mgm using TLS");
+  }
+  ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
+
+  if (ndb_mgm_connect_tls(handle, 30, 1, 0, opt_mgm_tls) != -1) {
+    g_logger.debug("Connected to ndb mgm %s", tmp.c_str());
     proc.m_ndb_mgm_handle = handle;
     return true;
   }

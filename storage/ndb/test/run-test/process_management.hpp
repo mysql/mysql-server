@@ -25,6 +25,7 @@
 #ifndef PROCESS_MANAGEMENT_HPP_
 #define PROCESS_MANAGEMENT_HPP_
 
+#include "util/TlsKeyManager.hpp"
 #include "atrt.hpp"
 
 class ProcessManagement {
@@ -54,6 +55,7 @@ class ProcessManagement {
 
  private:
   const char *setup_progname;
+  TlsKeyManager tlsKeyManager;
 
   bool startClusters();
   bool shutdownProcesses(int types);
