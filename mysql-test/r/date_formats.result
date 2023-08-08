@@ -662,3 +662,26 @@ b	b in ('121314')	b in ('121314', 0)
 11:13:14	0	0
 12:13:14	1	1
 DROP TABLE t1, t2, t3;
+#
+# Bug#34704094: Mysql str_to_date can correct convert for '2022-11-30'
+#
+SELECT STR_TO_DATE('31/11/22', '%d/%m/%Y');
+STR_TO_DATE('31/11/22', '%d/%m/%Y')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '31/11/22' for function str_to_date
+SELECT STR_TO_DATE('2023-02-31','%Y-%m-%d');
+STR_TO_DATE('2023-02-31','%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2023-02-31' for function str_to_date
+SELECT STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T');
+STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2004.09.12 10:61:59' for function str_to_date
+SELECT STR_TO_DATE('0000-00-00','%Y-%m-%d');
+STR_TO_DATE('0000-00-00','%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-00-00' for function str_to_date

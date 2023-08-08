@@ -234,11 +234,11 @@ ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_dat
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '0.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect date value: '2004-09-31 15:30:00' for column 'col1' at row 1
+ERROR HY000: Incorrect datetime value: '31.9.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect date value: '2003-02-29 15:30:00' for column 'col1' at row 1
+ERROR HY000: Incorrect datetime value: '29.02.2003 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
@@ -250,11 +250,11 @@ ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_dat
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '0.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col2' at row 1
+ERROR HY000: Incorrect datetime value: '31.9.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col2' at row 1
+ERROR HY000: Incorrect datetime value: '29.02.2003 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
@@ -266,11 +266,11 @@ ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_dat
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '0.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col3' at row 1
+ERROR HY000: Incorrect datetime value: '31.9.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
-ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col3' at row 1
+ERROR HY000: Incorrect datetime value: '29.02.2003 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
@@ -1902,3 +1902,66 @@ SELECT * FROM t2;
 a
 2019-12-31 00:00:00.00
 DROP TABLE t1, t2, t3;
+#
+# Bug#34704094: Mysql str_to_date can correct convert for '2022-11-30'
+#
+SET sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+select str_to_date('0000-00-00', '%Y-%m-%d');
+str_to_date('0000-00-00', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-00-00' for function str_to_date
+# Not compliant with how CAST works
+select str_to_date('0000-01-00', '%Y-%m-%d');
+str_to_date('0000-01-00', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-01-00' for function str_to_date
+# Not compliant with how CAST works
+select str_to_date('0000-00-01', '%Y-%m-%d');
+str_to_date('0000-00-01', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-00-01' for function str_to_date
+select str_to_date('2023-02-31', '%Y-%m-%d');
+str_to_date('2023-02-31', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2023-02-31' for function str_to_date
+SET sql_mode='NO_ZERO_IN_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+select str_to_date('0000-00-00', '%Y-%m-%d');
+str_to_date('0000-00-00', '%Y-%m-%d')
+0000-00-00
+select str_to_date('0000-01-00', '%Y-%m-%d');
+str_to_date('0000-01-00', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-01-00' for function str_to_date
+select str_to_date('0000-00-01', '%Y-%m-%d');
+str_to_date('0000-00-01', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-00-01' for function str_to_date
+select str_to_date('2023-02-31', '%Y-%m-%d');
+str_to_date('2023-02-31', '%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2023-02-31' for function str_to_date
+SET sql_mode='ALLOW_INVALID_DATES';
+select str_to_date('0000-00-00', '%Y-%m-%d');
+str_to_date('0000-00-00', '%Y-%m-%d')
+0000-00-00
+select str_to_date('0000-01-00', '%Y-%m-%d');
+str_to_date('0000-01-00', '%Y-%m-%d')
+0000-01-00
+select str_to_date('0000-00-01', '%Y-%m-%d');
+str_to_date('0000-00-01', '%Y-%m-%d')
+0000-00-01
+select str_to_date('2023-02-31', '%Y-%m-%d');
+str_to_date('2023-02-31', '%Y-%m-%d')
+2023-02-31
+SET sql_mode=@org_mode;

@@ -321,3 +321,12 @@ SELECT b, b = '121314',
 SELECT b, b in ('121314'), b in ('121314', 0) FROM t3;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#34704094: Mysql str_to_date can correct convert for '2022-11-30'
+--echo #
+
+SELECT STR_TO_DATE('31/11/22', '%d/%m/%Y');
+SELECT STR_TO_DATE('2023-02-31','%Y-%m-%d');
+SELECT STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T');
+SELECT STR_TO_DATE('0000-00-00','%Y-%m-%d');
