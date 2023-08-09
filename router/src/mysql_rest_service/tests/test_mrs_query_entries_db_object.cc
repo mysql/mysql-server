@@ -49,7 +49,7 @@ class QueryEntriesDbObjectTests : public Test {
 
   void expectFetch(const char *audit_id_numeric) {
     InSequence seq;
-    EXPECT_CALL(mock_session, query(StrEq("START TRANSACTION"), _, _))
+    EXPECT_CALL(mock_session, execute(StrEq("START TRANSACTION")))
         .RetiresOnSaturation();
     EXPECT_CALL(
         mock_session,
@@ -65,8 +65,7 @@ class QueryEntriesDbObjectTests : public Test {
                                                "  o.id as id, s.id"),
                                     _, _))
         .RetiresOnSaturation();
-    EXPECT_CALL(mock_session, query(StrEq("COMMIT"), _, _))
-        .RetiresOnSaturation();
+    EXPECT_CALL(mock_session, execute(StrEq("COMMIT"))).RetiresOnSaturation();
   }
 
   StrictMock<MockMySQLSession> mock_session;

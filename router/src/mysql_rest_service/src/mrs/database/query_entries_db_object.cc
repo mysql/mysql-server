@@ -80,7 +80,8 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
   entries.clear();
 
   QueryAuditLogMaxId query_audit_id;
-  query(session, "START TRANSACTION");
+  MySQLSession::Transaction transaction(session);
+
   auto audit_log_id = query_audit_id.query_max_id(session);
   if (!query_.done()) query_ << mysqlrouter::sqlstring{""};
   execute(session);
@@ -95,7 +96,7 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
     e.fields = std::move(r);
   }
 
-  query(session, "COMMIT");
+  transaction.commit();
 
   audit_log_id_ = audit_log_id;
 }

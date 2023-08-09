@@ -28,11 +28,71 @@
 
 #include "mysql/harness/logging/logging.h"
 
+#include "helper/json/rapid_json_to_struct.h"
+#include "helper/json/text_to.h"
+#include "helper/string/contains.h"
 #include "mrs/object_factory.h"
+#include "mrs/rest/handler_string.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
+
+namespace cvt {
+using std::to_string;
+static const std::string &to_string(const std::string &str) { return str; }
+}  // namespace cvt
+
+namespace {
+class PluginOptions {
+ public:
+  std::map<std::string, std::string> default_content;
+};
+
+class ParsePluginOptions
+    : public helper::json::RapidReaderHandlerToStruct<PluginOptions> {
+ public:
+  template <typename ValueType>
+  void handle_object_value(const std::string &key, const ValueType &vt) {
+    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
+              cvt::to_string(vt).c_str());
+    static const std::string kHttpContent = "defaultContent.";
+    using std::to_string;
+
+    if (helper::starts_with(key, kHttpContent)) {
+      result_.default_content[key.substr(kHttpContent.length())] =
+          cvt::to_string(vt);
+    }
+  }
+
+  template <typename ValueType>
+  void handle_value(const ValueType &vt) {
+    const auto &key = get_current_key();
+    if (is_object_path()) {
+      handle_object_value(key, vt);
+    }
+  }
+
+  bool String(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool RawNumber(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool Bool(bool v) override {
+    handle_value(v);
+    return true;
+  }
+};
+
+PluginOptions parse_json_options(const std::string &options) {
+  return helper::json::text_to_handler<ParsePluginOptions>(options);
+}
+}  // namespace
 
 ObjectManager::ObjectManager(
     collector::MysqlCacheManager *cache, const bool is_ssl,
@@ -60,14 +120,19 @@ ObjectManager::~ObjectManager() {
   }
 }
 
-void ObjectManager::turn(const State state) {
-  // TODO(lkotula): Mutex required (Shouldn't be in review)
-  for (auto &pair : routes_) {
-    pair.second->turn(state);
+void ObjectManager::turn(const State state, const std::string &options) {
+  if (state_ != state) {
+    for (auto &pair : routes_) {
+      pair.second->turn(state);
+    }
+
+    for (auto &pair : schemas_) {
+      pair.second->turn(state);
+    }
   }
 
-  for (auto &pair : schemas_) {
-    pair.second->turn(state);
+  if (state == State::stateOn) {
+    update_options(options);
   }
 
   state_ = state;
@@ -207,6 +272,17 @@ void ObjectManager::schema_not_used(RouteSchema *route) {
   if (i == schemas_.end()) return;
 
   schemas_.erase(i);
+}
+
+void ObjectManager::update_options(const std::string &options) {
+  auto opt = parse_json_options(options);
+
+  custom_paths_.clear();
+
+  for (auto [k, v] : opt.default_content) {
+    custom_paths_.push_back(
+        std::make_shared<rest::HandlerString>(k, v, auth_manager_));
+  }
 }
 
 }  // namespace mrs

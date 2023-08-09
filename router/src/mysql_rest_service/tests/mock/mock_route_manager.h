@@ -29,7 +29,8 @@
 
 class MockRouteManager : public mrs::interface::ObjectManager {
  public:
-  MOCK_METHOD(void, turn, (const mrs::State state), (override));
+  MOCK_METHOD(void, turn, (const mrs::State state, const std::string &options),
+              (override));
   MOCK_METHOD(void, update, (const std::vector<DbObject> &paths), (override));
   MOCK_METHOD(void, update, (const std::vector<ContentFile> &contents),
               (override));

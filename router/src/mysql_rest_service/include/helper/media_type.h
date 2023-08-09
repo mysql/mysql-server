@@ -36,6 +36,7 @@ enum MediaType {
   typeCss,
   typePng,
   typeJpg,
+  typeIco,
   typeGif,
   typeBmp,
   typeAvi,

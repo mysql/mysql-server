@@ -177,7 +177,7 @@ using MyTypes = ::testing::Types<DbObject, ContentFile>;
 TYPED_TEST_SUITE(RouteManagerTests, MyTypes);
 
 TYPED_TEST(RouteManagerTests, turnon_on_empty_does_nothing) {
-  this->sut_->turn(mrs::stateOn);
+  this->sut_->turn(mrs::stateOn, {});
 }
 
 TYPED_TEST(RouteManagerTests, notexisting_schema_does_noting) {
@@ -286,7 +286,7 @@ TYPED_TEST(RouteManagerTests, db_object_by_default_disabled) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_enabled_before_start) {
-  this->sut_->turn(mrs::stateOn);
+  this->sut_->turn(mrs::stateOn, {});
 
   const mrs::UniversalId k_service_id{1};
   const mrs::UniversalId k_schema_id{2};
@@ -308,7 +308,7 @@ TYPED_TEST(RouteManagerTests, db_object_enabled_before_start) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
-  this->sut_->turn(mrs::stateOn);
+  this->sut_->turn(mrs::stateOn, {});
 
   const mrs::UniversalId k_service_id{1};
   const mrs::UniversalId k_schema_id{2};
@@ -338,7 +338,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
-  this->sut_->turn(mrs::stateOn);
+  this->sut_->turn(mrs::stateOn, {});
 
   const mrs::UniversalId k_service_id{1};
   const mrs::UniversalId k_schema_id{2};

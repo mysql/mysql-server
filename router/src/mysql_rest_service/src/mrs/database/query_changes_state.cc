@@ -22,29 +22,30 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
+#include "mrs/database/query_changes_state.h"
 
-#include "mrs/database/helper/query.h"
-#include "mrs/interface/state.h"
+#include "mrs/database/query_entries_audit_log.h"
 
 namespace mrs {
 namespace database {
 
-class QueryState : private Query {
- public:
-  void query_state(MySQLSession *session);
+QueryChangesState::QueryChangesState(const uint64_t last_audit_id) {
+  audit_log_id_ = last_audit_id;
+  changed_ = false;
+}
 
-  State get_state();
-  bool was_changed() const;
+void QueryChangesState::query_state(MySQLSession *session) {
+  MySQLSession::Transaction transaction(session);
+  QueryAuditLogEntries audit_entries;
 
- private:
-  State state_{stateOff};
-  bool changed_{true};
-  void on_row(const ResultRow &r) override;
-};
+  changed_ = false;
+  if (0 == audit_entries.count_entries(session, {"config"}, audit_log_id_))
+    return;
+
+  changed_ = true;
+
+  query_state_impl(session, &transaction);
+}
 
 }  // namespace database
 }  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_

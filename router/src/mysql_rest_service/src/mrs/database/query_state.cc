@@ -22,20 +22,24 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "mrs/database/helper/query_state.h"
+#include "mrs/database/query_state.h"
+
+#include "mrs/database/helper/query_audit_log_maxid.h"
 
 namespace mrs {
 namespace database {
 
 void QueryState::query_state(MySQLSession *session) {
-  query_ = "SELECT service_enabled FROM mysql_rest_service_metadata.config;";
-  execute(session);
+  MySQLSession::Transaction transaction(session);
+  query_state_impl(session, &transaction);
 }
 
-void QueryState::on_row(const ResultRow &r) {
-  if (r.size() < 1) return;
+uint64_t QueryState::get_last_update() { return audit_log_id_; }
 
+void QueryState::on_row(const ResultRow &r) {
+  if (r.size() < 2) return;
   auto state_new = atoi(r[0]) ? stateOn : stateOff;
+  json_data = r[1];
 
   if (state_ != state_new) {
     changed_ = true;
@@ -45,9 +49,22 @@ void QueryState::on_row(const ResultRow &r) {
 
 bool QueryState::was_changed() const { return changed_; }
 
+std::string QueryState::get_json_data() { return json_data; }
+
 State QueryState::get_state() {
   changed_ = false;
   return state_;
+}
+
+void QueryState::query_state_impl(MySQLSession *session,
+                                  MySQLSession::Transaction *transaction) {
+  QueryAuditLogMaxId query_audit_id;
+  auto audit_log_id = query_audit_id.query_max_id(session);
+  query_ =
+      "SELECT service_enabled,data FROM mysql_rest_service_metadata.config;";
+  execute(session);
+  transaction->commit();
+  audit_log_id_ = audit_log_id;
 }
 
 }  // namespace database
