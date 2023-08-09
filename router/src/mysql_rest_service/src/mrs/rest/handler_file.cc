@@ -89,19 +89,9 @@ UniversalId HandlerFile::get_service_id() const {
   return route_->get_service_id();
 }
 
-UniversalId HandlerFile::get_db_object_id() const {
-  // TODO(lkotula): id of file is not the same as db_object.
-  // It should be considered to return (Shouldn't be in
-  // review)
-  return {};
-}
+UniversalId HandlerFile::get_db_object_id() const { return {}; }
 
-UniversalId HandlerFile::get_schema_id() const {
-  // TODO(lkotula): id of file is not the same as db_object.
-  // It should be considered to return (Shouldn't be in
-  // review)
-  return {};
-}
+UniversalId HandlerFile::get_schema_id() const { return {}; }
 
 Handler::Authorization HandlerFile::requires_authentication() const {
   return route_->requires_authentication() ? Authorization::kRequires

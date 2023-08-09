@@ -49,8 +49,8 @@ QueryChangesDbObject::QueryChangesDbObject(const uint64_t last_audit_id) {
 
 void QueryChangesDbObject::query_entries(MySQLSession *session) {
   path_entries_fetched.clear();
-  query(session, "START TRANSACTION");
 
+  MySQLSession::Transaction transaction(session);
   QueryAuditLogEntries audit_entries;
   VectorOfPathEntries local_path_entries;
   uint64_t max_audit_log_id = audit_log_id_;
@@ -84,7 +84,7 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
 
   entries.swap(local_path_entries);
 
-  query(session, "COMMIT");
+  transaction.commit();
 
   audit_log_id_ = max_audit_log_id;
 }

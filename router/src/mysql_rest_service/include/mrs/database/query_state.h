@@ -22,43 +22,35 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_AUDIT_LOG_ENTRIES_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_AUDIT_LOG_ENTRIES_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
 
-#include <vector>
-
-#include "mrs/database/entry/audit_log.h"
 #include "mrs/database/helper/query.h"
+#include "mrs/interface/state.h"
 
 namespace mrs {
 namespace database {
 
-class QueryAuditLogEntries : private Query {
+class QueryState : public Query {
  public:
-  using VectorOfAuditEntries = std::vector<entry::AuditLog>;
+  virtual void query_state(MySQLSession *session);
+  virtual uint64_t get_last_update();
+  virtual bool was_changed() const;
 
- public:
-  virtual uint64_t query_entries(MySQLSession *session,
-                                 const std::vector<std::string> &allowed_tables,
-                                 const uint64_t audit_log_id);
-  virtual uint64_t count_entries(MySQLSession *session,
-                                 const std::vector<std::string> &allowed_tables,
-                                 const uint64_t audit_log_id);
-  VectorOfAuditEntries entries;
+  State get_state();
+  std::string get_json_data();
 
- private:
-  void build_query(const std::vector<std::string> &allowed_tables,
-                   const uint64_t audit_log_id, bool count_entries);
+ protected:
+  void query_state_impl(MySQLSession *session,
+                        MySQLSession::Transaction *transaction);
+  State state_{stateOff};
+  bool changed_{true};
+  std::string json_data;
+  uint64_t audit_log_id_{0};
   void on_row(const ResultRow &r) override;
-  void on_row_entries(const ResultRow &r);
-  void on_row_count(const ResultRow &r);
-
-  bool fetch_entries_;
-  uint64_t max_id_;
-  uint64_t no_of_entries_;
 };
 
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_AUDIT_LOG_ENTRIES_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_

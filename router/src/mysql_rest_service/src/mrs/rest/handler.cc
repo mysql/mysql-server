@@ -164,6 +164,8 @@ static const char *get_content_type(
       return "image/wav";
     case Handler::HttpResult::Type::typeSvg:
       return "image/svg+xml";
+    case Handler::HttpResult::Type::typeIco:
+      return "image/x-icon";
   }
 
   return "";

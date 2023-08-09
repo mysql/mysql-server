@@ -38,6 +38,7 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/query_entries_auth_privileges.cc
   mrs/database/query_changes_content_file.cc
   mrs/database/query_changes_db_object.cc
+  mrs/database/query_changes_state.cc
   mrs/database/query_entries_audit_log.cc
   mrs/database/query_entries_auth_app.cc
   mrs/database/query_entries_auth_role.cc
@@ -54,11 +55,11 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/query_rest_table_single_row.cc
   mrs/database/query_rest_sp.cc
   mrs/database/query_rest_sp_media.cc
+  mrs/database/query_rest_table_updater.cc
+  mrs/database/query_state.cc
   mrs/database/query_version.cc
   mrs/database/query_warnings.cc
-  mrs/database/query_rest_table_updater.cc
   mrs/database/helper/query.cc
-  mrs/database/helper/query_state.cc
   mrs/database/helper/query_table_columns.cc
   mrs/database/helper/query_audit_log_maxid.cc
   mrs/database/helper/object_query.cc
@@ -125,6 +126,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_file.cc
   mrs/rest/handler_user.cc
   mrs/rest/handler_table.cc
+  mrs/rest/handler_string.cc
   mrs/rest/handler_object_metadata.cc
   mrs/rest/handler_is_authorized.cc
   mrs/rest/handler_unauthorize.cc

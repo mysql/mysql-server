@@ -26,13 +26,14 @@
 
 #include "mysql/harness/logging/logging.h"
 
-#include "mrs/database/helper/query_state.h"
 #include "mrs/database/query_changes_auth_app.h"
 #include "mrs/database/query_changes_content_file.h"
 #include "mrs/database/query_changes_db_object.h"
+#include "mrs/database/query_changes_state.h"
 #include "mrs/database/query_entries_auth_app.h"
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
+#include "mrs/database/query_state.h"
 #include "mrs/database/query_statistics.h"
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
@@ -76,8 +77,8 @@ void SchemaMonitor::run() {
   // TODO(lkotula): Remove below log-entry (Shouldn't be in review)
   //  using RowProcessor = mysqlrouter::MySQLSession::RowProcessor;
   log_system("Starting monitor");
-  database::QueryState turn_state;
   bool full_fetch_compleated = false;
+  std::unique_ptr<database::QueryState> turn_state{new database::QueryState()};
   std::unique_ptr<database::QueryEntryDbObject> route_fetcher{
       new database::QueryEntryDbObject()};
   std::unique_ptr<database::QueryEntriesAuthApp> authentication_fetcher{
@@ -92,16 +93,17 @@ void SchemaMonitor::run() {
           cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
       session.set_dirty();
 
-      turn_state.query_state(session.get());
+      turn_state->query_state(session.get());
       authentication_fetcher->query_entries(session.get());
       route_fetcher->query_entries(session.get());
       content_file_fetcher->query_entries(session.get());
 
-      if (turn_state.was_changed()) {
-        dbobject_manager_->turn(turn_state.get_state());
+      if (turn_state->was_changed()) {
+        dbobject_manager_->turn(turn_state->get_state(),
+                                turn_state->get_json_data());
         log_debug("route turn=%s, changed=%s",
-                  (turn_state.get_state() == stateOn ? "on" : "off"),
-                  turn_state.was_changed() ? "yes" : "no");
+                  (turn_state->get_state() == stateOn ? "on" : "off"),
+                  turn_state->was_changed() ? "yes" : "no");
       }
 
       if (!authentication_fetcher->entries.empty()) {
@@ -124,6 +126,8 @@ void SchemaMonitor::run() {
 
       if (!full_fetch_compleated) {
         full_fetch_compleated = true;
+        turn_state.reset(
+            new database::QueryChangesState(turn_state->get_last_update()));
         route_fetcher.reset(new database::QueryChangesDbObject(
             route_fetcher->get_last_update()));
         authentication_fetcher.reset(new database::QueryChangesAuthApp(
@@ -133,7 +137,7 @@ void SchemaMonitor::run() {
             content_file_fetcher->get_last_update()));
       }
 
-      if (turn_state.get_state() == mrs::stateOn &&
+      if (turn_state->get_state() == mrs::stateOn &&
           configuration_.router_id_.has_value()) {
         auto socket_ops = mysql_harness::SocketOperations::instance();
 

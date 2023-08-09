@@ -40,7 +40,7 @@ void QueryChangesContentFile::query_entries(MySQLSession *session) {
   uint64_t max_audit_log_id = audit_log_id_;
 
   entries_fetched.clear();
-  query(session, "START TRANSACTION");
+  MySQLSession::Transaction transaction(session);
 
   audit_entries.query_entries(
       session, {"content_file", "content_set", "service", "url_host"},
@@ -60,7 +60,7 @@ void QueryChangesContentFile::query_entries(MySQLSession *session) {
 
   entries.swap(local_entries);
 
-  query(session, "COMMIT");
+  transaction.commit();
 
   audit_log_id_ = max_audit_log_id;
 }

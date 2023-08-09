@@ -39,6 +39,9 @@
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/state.h"
 
+// TODO(lkotula): Remove this (Shouldn't be in review)
+#include "mrs/interface/object_schema.h"
+
 namespace mrs {
 
 class ObjectManager : public mrs::interface::ObjectManager {
@@ -62,7 +65,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
                 mrs::interface::AuthorizeManager *auth_manager);
   ~ObjectManager() override;
 
-  void turn(const State state) override;
+  void turn(const State state, const std::string &options) override;
   void update(const std::vector<DbObject> &paths) override;
   void update(const std::vector<ContentFile> &contents) override;
   void schema_not_used(RouteSchema *route) override;
@@ -77,6 +80,8 @@ class ObjectManager : public mrs::interface::ObjectManager {
   RouteSchemaPtr handle_schema(const DbObject &pe);
   RouteSchemaPtr handle_schema(const ContentFile &pe);
 
+  void update_options(const std::string &options);
+
   std::map<EntryKey, RoutePtr> routes_;
   std::map<std::string, RouteSchemaPtr> schemas_;
   collector::MysqlCacheManager *cache_;
@@ -84,6 +89,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
   State state_{stateOff};
   mrs::interface::AuthorizeManager *auth_manager_;
   std::shared_ptr<mrs::interface::ObjectFactory> factory_;
+  std::vector<std::shared_ptr<interface::RestHandler>> custom_paths_;
 };
 
 }  // namespace mrs

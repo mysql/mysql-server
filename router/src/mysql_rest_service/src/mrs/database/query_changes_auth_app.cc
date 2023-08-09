@@ -39,7 +39,7 @@ void QueryChangesAuthApp::query_entries(MySQLSession *session) {
   uint64_t max_audit_log_id = audit_log_id_;
 
   entries_fetched.clear();
-  query(session, "START TRANSACTION");
+  MySQLSession::Transaction transaction(session);
 
   audit_entries.query_entries(
       session, {"service", "url_host", "auth_app", "auth_vendor"},
@@ -59,7 +59,7 @@ void QueryChangesAuthApp::query_entries(MySQLSession *session) {
 
   entries.swap(local_entries);
 
-  query(session, "COMMIT");
+  transaction.commit();
 
   audit_log_id_ = max_audit_log_id;
 }

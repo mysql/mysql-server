@@ -34,25 +34,51 @@ uint64_t QueryAuditLogEntries::query_entries(
     MySQLSession *session, const std::vector<std::string> &allowed_tables,
     const uint64_t audit_log_id) {
   max_id_ = audit_log_id;
-  build_query(allowed_tables, audit_log_id);
+  fetch_entries_ = true;
+  build_query(allowed_tables, audit_log_id, false);
   execute(session);
 
   return max_id_;
 }
 
-void QueryAuditLogEntries::build_query(
-    const std::vector<std::string> &allowed_tables,
+uint64_t QueryAuditLogEntries::count_entries(
+    MySQLSession *session, const std::vector<std::string> &allowed_tables,
     const uint64_t audit_log_id) {
+  fetch_entries_ = false;
+  build_query(allowed_tables, audit_log_id, true);
+  execute(session);
+  return no_of_entries_;
+}
+
+void QueryAuditLogEntries::build_query(
+    const std::vector<std::string> &allowed_tables, const uint64_t audit_log_id,
+    bool count_entries) {
+  static mysqlrouter::sqlstring columns{
+      count_entries ? "id,dml_type,table_name,old_row_id, new_row_id"
+                    : "count(*)"};
   query_ = {
-      "SELECT id,dml_type,table_name,old_row_id, new_row_id FROM "
+      "SELECT ! FROM "
       "mysql_rest_service_metadata.audit_log WHERE ID > ? AND table_name in "
       "(?) ORDER BY id"};
 
+  query_ << columns;
   query_ << audit_log_id;
   query_ << allowed_tables;
 }
 
 void QueryAuditLogEntries::on_row(const ResultRow &row) {
+  if (!fetch_entries_) {
+    on_row_count(row);
+    return;
+  }
+  on_row_entries(row);
+}
+
+void QueryAuditLogEntries::on_row_count(const ResultRow &row) {
+  no_of_entries_ = atoi(row[0]);
+}
+
+void QueryAuditLogEntries::on_row_entries(const ResultRow &row) {
   entries.emplace_back();
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
