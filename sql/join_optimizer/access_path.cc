@@ -875,9 +875,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                 ? &join->hash_table_generation
                 : nullptr;
 
-        const auto first_row_cost = [](const AccessPath &path) {
-          return path.init_cost +
-                 path.cost * 1.0 / std::max(path.num_output_rows(), 1.0);
+        const auto first_row_cost = [](const AccessPath &p) {
+          return p.init_cost + p.cost / std::max(p.num_output_rows(), 1.0);
         };
 
         // If the probe (outer) input is empty, the join result will be empty,
