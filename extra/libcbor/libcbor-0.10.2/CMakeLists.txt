@@ -1,7 +1,36 @@
-cmake_minimum_required(VERSION 3.0)
-project(libcbor)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/")
+#cmake_minimum_required(VERSION 3.0)
+
+DISABLE_MISSING_PROFILE_WARNING()
+
+set(VERSION "0.10.2")
+
+IF(POLICY CMP0048)
+  CMAKE_POLICY(SET CMP0048 NEW)
+  project(libcbor VERSION ${VERSION} LANGUAGES C)
+ELSE()
+  project(libcbor C)
+ENDIF()
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/${CBOR_BUNDLE_SRC_PATH}/CMakeModules/")
 include(CTest)
+
+# not all control paths return a value
+IF(WIN32)
+  STRING_APPEND(CMAKE_C_FLAGS " /wd4715")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wstrict-prototypes" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wreturn-type" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
 SET(CBOR_VERSION_MAJOR "0")
 SET(CBOR_VERSION_MINOR "10")
@@ -18,14 +47,7 @@ if(BIG_ENDIAN)
 endif()
 
 option(CBOR_CUSTOM_ALLOC "Custom, dynamically defined allocator support" OFF)
-if(CBOR_CUSTOM_ALLOC)
-    message(WARNING 
-        "CBOR_CUSTOM_ALLOC has been deprecated. Custom allocators are now enabled by default."
-        "The flag is a no-op and will be removed in the next version. "
-        "Please remove CBOR_CUSTOM_ALLOC from your build configuation.")
-endif(CBOR_CUSTOM_ALLOC)
-
-option(CBOR_PRETTY_PRINTER "Include a pretty-printing routine" ON)
+option(CBOR_PRETTY_PRINTER "Include a pretty-printing routine" OFF)
 set(CBOR_BUFFER_GROWTH "2" CACHE STRING "Factor for buffer growth & shrinking")
 set(CBOR_MAX_STACK_SIZE "2048" CACHE STRING "maximum size for decoding context stack")
 
@@ -50,8 +72,6 @@ option(PRINT_FUZZ "[TEST] Print the fuzzer input" OFF)
 if(PRINT_FUZZ)
     add_definitions(-DPRINT_FUZZ)
 endif(PRINT_FUZZ)
-
-option(SANITIZE "Enable ASan & a few compatible sanitizers in Debug mode" ON)
 
 set(CPACK_GENERATOR "DEB" "TGZ" "RPM")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
@@ -79,11 +99,6 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -Wall -g -ggdb -DDEBUG=true")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -Wall -DNDEBUG")
 
-    if(SANITIZE)
-        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} \
-            -fsanitize=undefined -fsanitize=address \
-            -fsanitize=bounds -fsanitize=alignment")
-    endif()
 endif()
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-g")
@@ -123,7 +138,7 @@ add_custom_target(llvm-coverage
 include_directories(src)
 
 
-option(c "Enable code coverage instrumentation" OFF)
+option(COVERAGE "Enable code coverage instrumentation" OFF)
 if (COVERAGE)
     message("Configuring code coverage instrumentation")
     if(CMAKE_C_COMPILER_ID MATCHES "GNU")
@@ -143,7 +158,6 @@ endif (COVERAGE)
 # path during both library build and installed header use, without littering the source dir.
 # Using cbor/configuration.h in the build dir works b/c headers will be installed to <prefix>/cbor
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/cbor/configuration.h.in ${PROJECT_BINARY_DIR}/cbor/configuration.h)
-install(FILES ${PROJECT_BINARY_DIR}/cbor/configuration.h DESTINATION include/cbor)
 # Make the header visible at compile time
 include_directories(${PROJECT_BINARY_DIR})
 
@@ -167,17 +181,3 @@ add_subdirectory(src)
 if(use_lto)
     set_property(DIRECTORY src PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif(use_lto)
-
-if (WITH_TESTS)
-    add_subdirectory(test)
-    if(use_lto)
-        set_property(DIRECTORY test PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    endif(use_lto)
-endif (WITH_TESTS)
-
-if (WITH_EXAMPLES)
-    add_subdirectory(examples)
-    if(use_lto)
-        set_property(DIRECTORY examples PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    endif(use_lto)
-endif (WITH_EXAMPLES)
