@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+#
+# 1) Suppression of error messages
+#
+include/suppress_messages.inc
+# Connection 1 suppresses message <Failed to start replica threads for channel ''.>.
+# Connection 1 suppresses message <Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.>.
+# Connection 2 suppresses message <Failed to start replica threads for channel ''.>.
+# Connection 2 suppresses message <Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.>.
+#
+# 2) SET IGNORED_SERVER_IDS
+#
+UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
+#
+# 3) Restart the server
+#
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start=false]
+#
+# 4) Assert the error is emitted while restarting the server.
+#
+include/assert_grep.inc [Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.]
+#
+# 5) Check the error on client side using START REPLICA command
+#
+START REPLICA;
+ERROR HY000: Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.
+#
+# 6) Reset the IGNORE_SERVER_IDS
+#
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
+#
+# 7) No error emitted on START command with VALID configuration
+#
+START REPLICA;
+#
+# 8) Set again IGNORED_SERVER_IDS
+#
+UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
+#
+# 9) Restart the server
+#
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start=true]
+#
+# 10) No error emitted on setting GTID_MODE!=ON in an INVALID configuration
+#
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, SOURCE_LOG_FILE = '', SOURCE_LOG_POS = 0, SOURCE_AUTO_POSITION = 0;
+SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 FOR CHANNEL '';
+SET @@GLOBAL.GTID_MODE=ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there is at least one replication channel with IGNORE_SEVER_IDS configured (i.e. not empty).Before you set @@GLOBAL.GTID_MODE = ON, ensure no channel has a configured value for IGNORE_SERVER_IDS.
+#
+# 11) Cleanup
+#
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
+SET @@GLOBAL.GTID_MODE=ON;
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.

@@ -12421,6 +12421,9 @@ ER_IB_WRONG_PAGEID_AFTER_SYNC_READ
 ER_IB_SYNC_READ_FAILED
   eng "Sync read to fix wrong page_id failed: buf_block_t[space_id=%zu, page_no=%zu], file=%s, err=%zu, retry=%zu"
 
+ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION_LOG
+  eng "Cannot start replication channel '%s' because %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

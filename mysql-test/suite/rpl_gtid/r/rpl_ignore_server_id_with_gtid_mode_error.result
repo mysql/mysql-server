@@ -1,0 +1,43 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+#
+# 1) Check that an error is emited when setting ignore_server_ids and GTID_MODE=ON
+#
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2,3);
+ERROR HY000: CHANGE REPLICATION SOURCE TO ... IGNORE_SERVER_IDS='...' when @@GLOBAL.GTID_MODE = ON cannot be performed on channel ''.
+#
+# 2) Attempt to create a second channel
+#
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+ERROR HY000: CHANGE REPLICATION SOURCE TO ... IGNORE_SERVER_IDS='...' when @@GLOBAL.GTID_MODE = ON cannot be performed on channel 'ch1'.
+#
+# 3) Change gtid_mode to ON_PERMISSIVE to allow setting IGNORE_SERVER_IDS
+#
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL '';
+SET @@global.gtid_mode=ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2) FOR CHANNEL '';
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=OFF;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+#
+# 4) Check that an error is emited when setting gtid_mode=on and
+# IGNORE_SERVER_IDS is also set (and that we only get one error
+# even though there are two channels configured to ignore server ids).
+#
+SET @@global.gtid_mode=ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there is at least one replication channel with IGNORE_SEVER_IDS configured (i.e. not empty).Before you set @@GLOBAL.GTID_MODE = ON, ensure no channel has a configured value for IGNORE_SERVER_IDS.
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+#
+# 5) Clean up
+#
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+SET @@global.gtid_mode=ON;
+include/start_slave.inc
+include/rpl_end.inc

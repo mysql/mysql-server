@@ -10098,6 +10098,8 @@ ER_BULK_READER_FILE_DOESNT_EXIST
 ER_BULK_READER_COULDNT_RESOLVE_HOST
   eng "Couldn't resolve host: %s"
 
+ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION
+  eng "Cannot start replication channel '%s' because %s."
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

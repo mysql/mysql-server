@@ -9888,30 +9888,6 @@ static bool change_applier_receiver_options(THD *thd, LEX_MASTER_INFO *lex_mi,
 }
 
 /**
-  This function shall issue a deprecation warning if
-  there are server ids tokenized from the CHANGE MASTER
-  TO command while @@global.gtid_mode=ON.
- */
-static void issue_deprecation_warnings_for_channel(THD *thd) {
-  LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
-
-  /*
-    Deprecation of GTID_MODE + IGNORE_SERVER_IDS
-
-    Generate deprecation warning when user executes CHANGE
-    MASTER TO IGNORE_SERVER_IDS if GTID_MODE=ON.
-  */
-  if (lex_mi->repl_ignore_server_ids.size() > 0 &&
-      global_gtid_mode.get() == Gtid_mode::ON) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX,
-                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                        "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
-                        "(when @@GLOBAL.GTID_MODE = ON)");
-  }
-}
-
-/**
   This function validates that change replication source options are
   valid according to the current GTID_MODE.
   This method assumes it will only be called when GTID_MODE != ON
@@ -10260,6 +10236,20 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
         return error;
       }
     }
+  }
+
+  /*
+    Emitting error after user executes CHANGE REPLICATION
+    SOURCE TO IGNORE_SERVER_IDS if GTID_MODE=ON.
+   */
+  if (lex_mi->repl_ignore_server_ids.size() > 0 &&
+      global_gtid_mode.get() == Gtid_mode::ON) {
+    error = ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED;
+    my_error(error, MYF(0),
+             "CHANGE REPLICATION SOURCE TO ... IGNORE_SERVER_IDS='...'"
+             " when @@GLOBAL.GTID_MODE = ON",
+             mi->get_channel());
+    return error;
   }
   return error;
 }
@@ -11057,12 +11047,6 @@ bool change_master_cmd(THD *thd) {
           goto err;
       }
 
-      /*
-        Issuing deprecation warnings after the change (we make
-        sure that we don't issue warning if there is an error).
-      */
-      issue_deprecation_warnings_for_channel(thd);
-
       my_ok(thd);
     }
   } else {
@@ -11327,5 +11311,22 @@ static bool check_replica_configuration_errors(Master_info *mi,
       return true;
     }
   }
+  // Emit error when IGNORE_SERVER_IDS are configured along with
+  // GTID_MODE = ON on server start
+  if (mi != nullptr && mi->is_ignore_server_ids_configured() &&
+      global_gtid_mode.get() == Gtid_mode::ON) {
+    if (current_thd)
+      my_error(ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION, MYF(0),
+               mi->rli->get_channel(),
+               "IGNORE_SERVER_IDS are configured along "
+               "with GTID MODE = ON");
+
+    LogErr(ERROR_LEVEL, ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION_LOG,
+           mi->rli->get_channel(),
+           "IGNORE_SERVER_IDS are configured along "
+           "with GTID MODE = ON");
+    return true;
+  }
+
   return false;
 }

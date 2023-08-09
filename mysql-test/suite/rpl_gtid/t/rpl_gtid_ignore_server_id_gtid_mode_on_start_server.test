@@ -1,0 +1,128 @@
+###############################################################################
+# === Purpose ===
+#
+# The purpose of this test is to verify that the error is emitted when the
+# replica server starts on boot or on command with the invalid configuration
+# i.e IGNORE_SERVER_IDS are configured along with GTID_MODE = ON.
+#
+# === Implementation ===
+#
+#  1) Suppression of error messages
+#  2) SET IGNORED_SERVER_IDS
+#  3) Restart the server
+#  4) Assert the error is emitted while restarting the server.
+#  5) Check the error on client side using START REPLICA command
+#  6) Reset the IGNORE_SERVER_IDS
+#  7) No error emitted on START command with VALID configuration
+#  8) Set again IGNORED_SERVER_IDS
+#  9) Restart the server
+#  10) No error emitted on setting GTID_MODE!=ON in an INVALID configuration
+#  11) Cleanup
+#
+# === Reference ===
+#
+# WL#11005 : Emit error for IGNORE_SERVER_IDS on CHANGE REPLICATION SOURCE TO
+# when GTID_MODE=ON
+#
+###############################################################################
+
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+
+# This line sets GTID_ONLY on the replica channel.
+# When GTID_ONLY is enabled we don't sync the replica info repositories unless an
+# explicit configuration command is used. We use this to force an invalid
+# configuration by changing the repository tables, ensuring they are not re-written
+# on server shutdown.
+--let $rpl_gtid_only=2:1
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--echo #
+--echo # 1) Suppression of error messages
+--echo #
+
+let $messages = Failed to start replica threads for channel ''.
+Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.;
+--source include/suppress_messages.inc
+
+--echo #
+--echo # 2) SET IGNORED_SERVER_IDS
+--echo #
+
+UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
+
+--echo #
+--echo # 3) Restart the server
+--echo #
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip-replica-start=false
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # 4) Assert the error is emitted while restarting the server.
+--echo #
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.
+--let $assert_text = Cannot start replication channel '' because IGNORE_SERVER_IDS are configured along with GTID MODE = ON.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 5) Check the error on client side using START REPLICA command
+--echo #
+
+--error ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION
+START REPLICA;
+
+--echo #
+--echo # 6) Reset the IGNORE_SERVER_IDS
+--echo #
+
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
+
+--echo #
+--echo # 7) No error emitted on START command with VALID configuration
+--echo #
+
+START REPLICA;
+
+--echo #
+--echo # 8) Set again IGNORED_SERVER_IDS
+--echo #
+
+UPDATE mysql.slave_master_info SET IGNORED_SERVER_IDS= "1 10";
+
+--echo #
+--echo # 9) Restart the server
+--echo #
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip-replica-start=true
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # 10) No error emitted on setting GTID_MODE!=ON in an INVALID configuration
+--echo #
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, SOURCE_LOG_FILE = '', SOURCE_LOG_POS = 0, SOURCE_AUTO_POSITION = 0;
+SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 FOR CHANNEL '';
+
+# Re enabling it is not possible
+--error ER_CANT_SET_GTID_MODE
+SET @@GLOBAL.GTID_MODE=ON;
+
+--echo #
+--echo # 11) Cleanup
+--echo #
+
+#Reset IGNORE_SERVER_IDS to set GTID_MODE=ON
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ();
+SET @@GLOBAL.GTID_MODE=ON;
+
+--source include/rpl_end.inc
+

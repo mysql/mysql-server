@@ -1,0 +1,89 @@
+###############################################################################
+# === Purpose ===
+#
+# The purpose of this test is to verify that the error is emitted when
+# IGNORE_SERVER_IDS are configured along with GTID_MODE = ON.
+#
+# === Implementation ===
+#
+#  1) Check that an error is emited when setting ignore_server_ids and GTID_MODE=ON
+#  2) Attempt to create a second channel
+#  3) Change gtid_mode to ON_PERMISSIVE to allow setting IGNORE_SERVER_IDS
+#  4) Check that an error is emited when setting gtid_mode=on and
+#     IGNORE_SERVER_IDS is also set (and that we only get one error
+#     even though there are two channels configured to ignore server ids
+#  5) Cleanup
+#
+# === Reference ===
+#
+# WL#11005 : Emit error for IGNORE_SERVER_IDS on CHANGE REPLICATION SOURCE TO
+# when GTID_MODE=ON
+#
+###############################################################################
+
+# no need to run multiple times
+--source include/have_binlog_format_row.inc
+
+--source include/have_slave_repository_type_table.inc
+--source include/not_rpl_gtid_only.inc
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+--echo #
+--echo # 1) Check that an error is emited when setting ignore_server_ids and GTID_MODE=ON
+--echo #
+
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2,3);
+
+--echo #
+--echo # 2) Attempt to create a second channel
+--echo #
+
+--error ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+
+--echo #
+--echo # 3) Change gtid_mode to ON_PERMISSIVE to allow setting IGNORE_SERVER_IDS
+--echo #
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL '';
+SET @@global.gtid_mode=ON_PERMISSIVE;
+
+# no error is emitted on setting IGNORE_SERVER_IDs when GTID_MODE != ON
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(1,2) FOR CHANNEL '';
+
+# Test that other changes to GTID_MODE  besides changing to ON are allowed.
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=OFF;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=ON_PERMISSIVE;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1 FOR CHANNEL '';
+
+# Attempt to create second channel
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+
+--echo #
+--echo # 4) Check that an error is emited when setting gtid_mode=on and
+--echo # IGNORE_SERVER_IDS is also set (and that we only get one error
+--echo # even though there are two channels configured to ignore server ids).
+--echo #
+
+--error ER_CANT_SET_GTID_MODE
+SET @@global.gtid_mode=ON;
+
+#  no error is emited when unsetting ignore_server_ids
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+
+--echo #
+--echo # 5) Clean up
+--echo #
+
+RESET REPLICA ALL FOR CHANNEL 'ch1';
+SET @@global.gtid_mode=ON;
+
+--source include/start_slave.inc
+
+--source include/rpl_end.inc
