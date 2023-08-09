@@ -36,6 +36,7 @@
 #include "mrs/database/query_factory.h"
 #include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
+#include "mysqlrouter/base64.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -58,6 +59,20 @@ static Type get_result_type_from_extension(const std::string &ext) {
   return i->second;
 }
 
+static bool get_is_text_type(Type type) {
+  static std::map<Type, bool> map{
+      {Type::typeGif, false},  {Type::typeJpg, false}, {Type::typePng, false},
+      {Type::typeJs, true},    {Type::typeJs, true},   {Type::typeHtml, true},
+      {Type::typeHtml, true},  {Type::typeCss, true},  {Type::typeSvg, true},
+      {Type::typePlain, true}, {Type::typeIco, false}};
+
+  auto i = map.find(type);
+
+  if (i == map.end()) return false;
+
+  return i->second;
+}
+
 namespace mrs {
 namespace rest {
 
@@ -65,12 +80,25 @@ using namespace std::string_literals;
 
 using HttpResult = Handler::HttpResult;
 
+template <typename T>
+static std::string as_string(const std::vector<T> &v) {
+  return std::string(v.begin(), v.end());
+}
+
 HandlerString::HandlerString(const std::string &path,
                              const std::string &content,
                              mrs::interface::AuthorizeManager *auth_manager)
     : Handler("url-not-set", {"^"s + path + "$"}, {}, auth_manager),
       path_{path},
-      content_{content} {}
+      content_{content} {
+  mysql_harness::Path p{path_};
+  type_ =
+      get_result_type_from_extension(mysql_harness::make_lower(p.extension()));
+
+  if (!get_is_text_type(type_)) {
+    content_ = as_string(Base64::decode(content_));
+  }
+}
 
 UniversalId HandlerString::get_service_id() const { return {}; }
 UniversalId HandlerString::get_db_object_id() const { return {}; }
@@ -87,9 +115,7 @@ uint32_t HandlerString::get_access_rights() const {
 void HandlerString::authorization(rest::RequestContext *) {}
 
 HttpResult HandlerString::handle_get(rest::RequestContext *) {
-  mysql_harness::Path path{path_};
-  return {content_, get_result_type_from_extension(
-                        mysql_harness::make_lower(path.extension()))};
+  return {content_, type_};
 }
 
 HttpResult HandlerString::handle_delete(rest::RequestContext *) {
