@@ -4,8 +4,11 @@
 if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
 {
   --disable_query_log
+  # Avoid warnings since binlog_format is deprecated
+  --disable_warnings
   SET @saved_binlog_format= @@SESSION.binlog_format;
   SET SESSION binlog_format= STATEMENT;
+  --enable_warnings
   --enable_query_log
 }
 
@@ -282,7 +285,9 @@ eval INSTALL PLUGIN example SONAME '$path';
 if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
 {
   --disable_query_log
+  --disable_warnings
   SET SESSION binlog_format= @saved_binlog_format;
+  --enable_warnings
   --enable_query_log
 }
 
