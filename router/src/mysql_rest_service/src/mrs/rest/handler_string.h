@@ -54,6 +54,7 @@ class HandlerString : public mrs::rest::Handler {
   HttpResult handle_get(rest::RequestContext *ctxt) override;
 
  private:
+  mrs::interface::RestHandler::HttpResult::Type type_;
   std::string path_;
   std::string content_;
 };
