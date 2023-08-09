@@ -7326,6 +7326,7 @@ uint Table_ref::get_hidden_field_count_for_derived() const {
 bool Table_ref::is_external() const {
   if (m_table_ref_type == TABLE_REF_BASE_TABLE && table != nullptr &&
       table->file != nullptr) {
+    if (is_placeholder()) return false;
     handler *primary_handler = table->get_primary_handler();
     return primary_handler != nullptr &&
            Overlaps(primary_handler->ht->flags,

@@ -1574,6 +1574,12 @@ static void check_secondary_engine_statement(THD *thd,
       if (thd->is_secondary_engine_forced()) {
         return;
       }
+      if (thd->lex->m_sql_cmd != nullptr &&
+          thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
+          has_external_table(thd->lex)) {
+        set_external_engine_fail_reason(thd->lex,
+                                        thd->get_stmt_da()->message_text());
+      }
       // Otherwise, retry the query in the primary engine.
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_ONLY);
