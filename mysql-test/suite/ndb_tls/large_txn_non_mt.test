@@ -1,0 +1,3 @@
+--source suite/ndb_tls/include/check_openssl.inc
+--source suite/ndb/t/large_txn_non_mt.test
+
