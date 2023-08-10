@@ -2020,8 +2020,12 @@ static void cleanup_tmp_tables(Table_ref *list) {
         tl->table = nullptr;
       } else {
         // Clear indexes added during optimization, keep possible unique index
-        tl->table->s->keys = tl->table->s->is_distinct ? 1 : 0;
-        tl->table->s->first_unused_tmp_key = 0;
+        TABLE *t = tl->table;
+        t->s->keys = t->s->is_distinct ? 1 : 0;
+        t->s->first_unused_tmp_key = 0;
+        t->keys_in_use_for_query.clear_all();
+        t->keys_in_use_for_group_by.clear_all();
+        t->keys_in_use_for_order_by.clear_all();
       }
     }
   }
