@@ -5663,11 +5663,24 @@ static mysql_state_machine_status authsm_begin_plugin_auth(
   }
 
   if (ctx->auth_plugin_name == nullptr || ctx->auth_plugin == nullptr) {
-    /*
-      If everything else fail we use the built in plugin
-    */
-    ctx->auth_plugin = &caching_sha2_password_client_plugin;
-    ctx->auth_plugin_name = ctx->auth_plugin->name;
+    auth_plugin_t *client_plugin{nullptr};
+    if (mysql->options.extension && mysql->options.extension->default_auth &&
+        (client_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+             mysql, mysql->options.extension->default_auth,
+             MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
+      // try default_auth again in case CLIENT_PLUGIN_AUTH wasn't on.
+      ctx->auth_plugin_name = mysql->options.extension->default_auth;
+      ctx->auth_plugin = client_plugin;
+    } else {
+      /*
+        If everything else fail we use the built in plugin: caching sha if the
+        server is new enough or native if not.
+      */
+      ctx->auth_plugin = (mysql->server_capabilities & CLIENT_PLUGIN_AUTH)
+                             ? &caching_sha2_password_client_plugin
+                             : &native_password_client_plugin;
+      ctx->auth_plugin_name = ctx->auth_plugin->name;
+    }
   }
 
   if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
