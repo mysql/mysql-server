@@ -677,6 +677,10 @@ Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
                               << thd->lex->current_query_block()->nest_level;
 
   bool ret = item->fix_fields(thd, &item);
+  // For items with params, propagate the default data type.
+  if (item->data_type() == MYSQL_TYPE_INVALID &&
+      item->propagate_type(thd, item->default_data_type()))
+    return nullptr;
   // Restore original state back
   thd->want_privilege = save_old_privilege;
   thd->lex->set_current_query_block(saved_current_query_block);

@@ -1421,3 +1421,54 @@ INSERT INTO t1 VALUES('å');
 SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) AS dt WHERE f1 = 'å';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35689804: Depending on the data inserted, the results of
+--echo #               the PREPARE and the general query run are different.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(30) COLLATE utf8mb4_bin NOT NULL);
+INSERT INTO t1(f2) VALUES ('680519363848');
+
+# Query from the bug report
+let query =
+SELECT *
+FROM (SELECT IF(f2 = ?, ?, CASE WHEN f2 IS NULL THEN ? ELSE ? END) AS case_f
+      FROM t1
+      UNION ALL
+      SELECT IF(f2 = ?, ?, CASE WHEN f2 IS NULL THEN ? ELSE ? END) AS case_f
+      FROM t1) AS dt1
+WHERE case_f = ?;
+
+SET @a1 = 'Y';
+SET @a2 = 'Y';
+SET @a3 = 'N';
+SET @a4 = 'Y';
+SET @a5 = 'Y';
+SET @a6 = 'Y';
+SET @a7 = 'N';
+SET @a8 = 'Y';
+SET @a9 = 'Y';
+
+eval PREPARE stmt FROM "$query";
+eval EXECUTE stmt USING @a1, @a2, @a3, @a4, @a5, @a6, @a7, @a8, @a9;
+eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXECUTE stmt USING @a1, @a2, @a3, @a4, @a5, @a6, @a7, @a8, @a9;
+
+# Simplified query
+SET optimizer_switch="derived_merge=off";
+let query =
+SELECT * FROM (SELECT ? AS case_f FROM t1) as dt1 WHERE case_f = 'Y';
+SET @a1 = 'Y';
+eval PREPARE stmt FROM "$query";
+eval EXECUTE stmt USING @a1;
+eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+eval EXECUTE stmt USING @a1;
+
+SET optimizer_switch=default;
+
+DROP TABLE t1;
