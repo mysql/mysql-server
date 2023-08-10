@@ -339,7 +339,8 @@ class Sql_cmd_insert_select : public Sql_cmd_insert_base {
   enum_sql_command sql_command_code() const override {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
-  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
+      THD *thd) const override;
 };
 
 #endif /* SQL_INSERT_INCLUDED */

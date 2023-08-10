@@ -3117,8 +3117,6 @@ bool THD::is_secondary_storage_engine_eligible() const {
   if ((in_multi_stmt_transaction_mode() &&
        lex->sql_command != SQLCOM_CREATE_TABLE))
     return false;
-  //  It is a sub-statement of a stored procedure
-  if (sp_runtime_ctx != nullptr) return false;
   return true;
 }
 

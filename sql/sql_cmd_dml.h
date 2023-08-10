@@ -212,7 +212,7 @@ class Sql_cmd_dml : public Sql_cmd {
 
     @return nullptr if not eligible or the name of the engine otherwise
   */
-  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine() const;
+  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine(THD *thd) const;
 
  protected:
   LEX *lex;              ///< Pointer to LEX for this statement

@@ -69,7 +69,8 @@ class Sql_cmd_create_table final : public Sql_cmd_ddl_table {
     return SQLCOM_CREATE_TABLE;
   }
 
-  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
+      THD *thd) const override;
 
   bool execute(THD *thd) override;
   bool prepare(THD *thd) override;

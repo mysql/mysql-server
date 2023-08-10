@@ -82,7 +82,8 @@ class Sql_cmd_select : public Sql_cmd_dml {
 
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
 
-  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
+      THD *thd) const override;
 
  protected:
   bool may_use_cursor() const override { return true; }

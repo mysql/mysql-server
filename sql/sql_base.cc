@@ -6697,11 +6697,10 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
       thd->is_secondary_engine_forced()) {
-    if ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
-         lex->table_count >= 1) ||  // 2
-        ((sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT ||
-          sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE) &&
-         lex->table_count >= 2)) {  // 3
+    if ((lex->sql_command == SQLCOM_SELECT && lex->table_count >= 1) ||
+        ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+          lex->sql_command == SQLCOM_CREATE_TABLE) &&
+         lex->table_count >= 2)) {
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::SECONDARY);
       mysql_thread_set_secondary_engine(true);
@@ -6711,7 +6710,6 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
           Secondary_engine_optimization::PRIMARY_ONLY);
     }
   }
-
   // Only open secondary engine tables if use of a secondary engine
   // has been requested.
   if (thd->secondary_engine_optimization() !=
@@ -6724,7 +6722,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // future executions of the statement, since these properties will
   // not change between executions.
   const LEX_CSTRING *secondary_engine =
-      sql_cmd->eligible_secondary_storage_engine();
+      sql_cmd->eligible_secondary_storage_engine(thd);
   const plugin_ref secondary_engine_plugin =
       secondary_engine == nullptr
           ? nullptr

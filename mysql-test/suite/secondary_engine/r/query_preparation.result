@@ -379,41 +379,38 @@ FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
 COUNT(*)
-3
+0
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 PREPARE ps1 FROM 'SELECT * FROM t1';
 EXECUTE ps1;
 id	x	y
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	2
 CREATE PROCEDURE p2() EXECUTE ps1;
 CREATE PROCEDURE p3() PREPARE ps2 FROM 'SELECT * FROM t1';
 FLUSH STATUS;
 CALL p2();
 id	x	y
-1	2	3
-4	5	6
-7	8	9
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 CALL p3();
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 EXECUTE ps1;
 id	x	y
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	2
 EXECUTE ps2;
 id	x	y
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	2
+Secondary_engine_execution_count	3
 DROP PREPARE ps1;
 DROP PREPARE ps2;
 DROP PROCEDURE p1;

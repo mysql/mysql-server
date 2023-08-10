@@ -3341,12 +3341,12 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
 }
 
 const MYSQL_LEX_CSTRING *
-Sql_cmd_insert_select::eligible_secondary_storage_engine() const {
+Sql_cmd_insert_select::eligible_secondary_storage_engine(THD *thd) const {
   // ON DUPLICATE KEY UPDATE cannot be offloaded
   if (!update_field_list.empty()) return nullptr;
 
   // Don't use secondary storage engines for REPLACE INTO SELECT statements
   if (is_replace) return nullptr;
 
-  return get_eligible_secondary_engine();
+  return get_eligible_secondary_engine(thd);
 }

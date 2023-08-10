@@ -28,7 +28,6 @@ CREATE PROCEDURE p()
 SELECT * FROM t;
 CALL p();
 x
-1
 SET DEBUG = '+d,secondary_engine_mock_prepare_error';
 CALL p();
 x
@@ -36,10 +35,9 @@ x
 SET DEBUG = '-d,secondary_engine_mock_prepare_error';
 CALL p();
 x
-1
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	2
 DROP PROCEDURE p;
 DROP TABLE t;
 #

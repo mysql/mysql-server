@@ -181,7 +181,8 @@ class Sql_cmd {
     the statement is not eligible for execution in a secondary storage
     engine
   */
-  virtual const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const {
+  virtual const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
+      THD *) const {
     return nullptr;
   }
 

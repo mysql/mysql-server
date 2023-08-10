@@ -40,7 +40,8 @@ class Sql_cmd_do final : public Sql_cmd_select {
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
 
-  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override {
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine(
+      THD *) const override {
     return nullptr;
   }
 };

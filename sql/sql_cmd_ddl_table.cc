@@ -471,7 +471,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 }
 
 const MYSQL_LEX_CSTRING *
-Sql_cmd_create_table::eligible_secondary_storage_engine() const {
+Sql_cmd_create_table::eligible_secondary_storage_engine(THD *) const {
   // Now check if the opened tables are available in a secondary
   // storage engine. Only use the secondary tables if all the tables
   // have a secondary tables, and they are all in the same secondary

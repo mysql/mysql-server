@@ -356,7 +356,10 @@ bool sp_lex_instr::execute_expression(THD *thd, uint *nextp) {
       return true;
     }
   }
-  if (open_and_lock_tables(thd, m_lex->query_tables, 0)) {
+  if (open_tables_for_query(thd, m_lex->query_tables, 0)) {
+    return true;
+  }
+  if (lock_tables(thd, m_lex->query_tables, m_lex->table_count, 0)) {
     return true;
   }
 
@@ -522,7 +525,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
   */
   const bool reprepare_error =
       error && thd->is_error() &&
-      thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+      (thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE ||
+       thd->get_stmt_da()->mysql_errno() == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+       thd->get_stmt_da()->mysql_errno() == ER_PREPARE_FOR_SECONDARY_ENGINE);
 
   // Unless there is an error, execution must have started (and completed)
   assert(error || m_lex->is_exec_started());
@@ -700,6 +705,10 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
+  // Remember if the general log was temporarily disabled when repreparing the
+  // statement for a secondary engine.
+  bool general_log_temporarily_disabled = false;
+
   Reprepare_observer reprepare_observer;
 
   thd->set_secondary_engine_optimization(
@@ -710,8 +719,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
     if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {
       free_lex();
       LEX *lex = parse_expr(thd, thd->sp_runtime_ctx->sp);
-
-      if (!lex) return true;
+      if (lex == nullptr) return true;
 
       set_lex(lex, true);
 
@@ -750,42 +758,110 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     thd->pop_reprepare_observer();
 
+    /*
+      Re-enable the general log if it was temporarily disabled while repreparing
+      and executing a statement for a secondary engine.
+    */
+    if (general_log_temporarily_disabled) {
+      thd->variables.option_bits &= ~OPTION_LOG_OFF;
+      general_log_temporarily_disabled = false;
+    }
+
     m_first_execution = false;
 
+    // Exit immediately if  execution is successful
     if (!rc) return false;
 
-    /*
-      Here is why we need all the checks below:
-        - if the reprepare observer is not set, we've got an error, which should
-          be raised to the user;
-        - if we've got fatal error, it should be raised to the user;
-        - if our thread got killed during execution, the error should be raised
-          to the user;
-        - if we've got an error, different from ER_NEED_REPREPARE, we need to
-          raise it to the user;
-    */
-    if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
-        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE) {
+    // Exit if a fatal error has occurred or statement execution was killed.
+    if (thd->is_fatal_error() || thd->is_killed()) {
+      // Make sure next execution is started with a clean statement:
+      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
+        invalidate();
+      }
       return true;
     }
-    /*
-      Reprepare_observer ensures that the statement is retried a maximum number
-      of times, to avoid an endless loop.
-    */
-    assert(stmt_reprepare_observer->is_invalidated());
-    if (!stmt_reprepare_observer->can_retry()) {
-      /*
-        Reprepare_observer sets error status in DA but Sql_condition is not
-        added. Please check Reprepare_observer::report_error(). Pushing
-        Sql_condition for ER_NEED_REPREPARE here.
-      */
-      Diagnostics_area *da = thd->get_stmt_da();
-      da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
-                       Sql_condition::SL_ERROR, da->message_text());
-      return true;
-    }
+    int my_errno = thd->get_stmt_da()->mysql_errno();
 
-    thd->clear_error();
+    if (my_errno != ER_NEED_REPREPARE &&
+        my_errno != ER_PREPARE_FOR_PRIMARY_ENGINE &&
+        my_errno != ER_PREPARE_FOR_SECONDARY_ENGINE) {
+      if (m_lex->m_sql_cmd != nullptr &&
+          thd->secondary_engine_optimization() ==
+              Secondary_engine_optimization::SECONDARY &&
+          !m_lex->unit->is_executed()) {
+        if (has_external_table(m_lex->query_tables)) {
+          set_external_engine_fail_reason(m_lex,
+                                          thd->get_stmt_da()->message_text());
+        }
+        if (!thd->is_secondary_engine_forced()) {
+          /*
+            Some error occurred during resolving or optimization in
+            the secondary engine, and secondary engine execution is not forced.
+            Retry execution of the statement in the primary engine.
+          */
+          thd->clear_error();
+          thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::PRIMARY_ONLY);
+          invalidate();
+          // Disable the general log. The query was written to the general log
+          // in the first attempt to execute it. No need to write it twice.
+          if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+            thd->variables.option_bits |= OPTION_LOG_OFF;
+            general_log_temporarily_disabled = true;
+          }
+          continue;
+        }
+      }
+      /*
+        If an error occurred before execution, make sure next execution is
+        started with a clean statement:
+      */
+      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
+        invalidate();
+      }
+      assert(thd->is_error());
+      return true;
+    }
+    if (my_errno == ER_NEED_REPREPARE) {
+      /*
+        Reprepare_observer ensures that the statement is retried
+        a maximum number of times, to avoid an endless loop.
+      */
+      assert(stmt_reprepare_observer != nullptr &&
+             stmt_reprepare_observer->is_invalidated());
+      if (!stmt_reprepare_observer->can_retry()) {
+        /*
+          Reprepare_observer sets error status in DA but Sql_condition is not
+          added. Please check Reprepare_observer::report_error(). Pushing
+          Sql_condition for ER_NEED_REPREPARE here.
+        */
+        Diagnostics_area *da = thd->get_stmt_da();
+        da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
+                         Sql_condition::SL_ERROR, da->message_text());
+        assert(thd->is_error());
+        return true;
+      }
+      thd->clear_error();
+    } else {
+      assert(my_errno == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+             my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE);
+      assert(thd->secondary_engine_optimization() ==
+             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+      thd->clear_error();
+      if (my_errno == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+        thd->set_secondary_engine_optimization(
+            Secondary_engine_optimization::SECONDARY);
+      } else {
+        thd->set_secondary_engine_optimization(
+            Secondary_engine_optimization::PRIMARY_ONLY);
+      }
+      // Disable the general log. The query was written to the general log in
+      // the first attempt to execute it. No need to write it twice.
+      if ((thd->variables.option_bits & OPTION_LOG_OFF) == 0) {
+        thd->variables.option_bits |= OPTION_LOG_OFF;
+        general_log_temporarily_disabled = true;
+      }
+    }
     invalidate();
   }
 }

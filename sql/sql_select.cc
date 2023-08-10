@@ -601,9 +601,9 @@ bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
 }
 
-const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
-    const {
-  return get_eligible_secondary_engine();
+const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine(
+    THD *thd) const {
+  return get_eligible_secondary_engine(thd);
 }
 
 /**
@@ -923,7 +923,7 @@ static bool retry_with_secondary_engine(THD *thd) {
 
   // Don't retry if there is a property of the statement that prevents use of
   // secondary engines.
-  if (sql_cmd->eligible_secondary_storage_engine() == nullptr) {
+  if (sql_cmd->eligible_secondary_storage_engine(thd) == nullptr) {
     sql_cmd->disable_secondary_storage_engine();
     return false;
   }
@@ -1231,8 +1231,9 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   return false;
 }
 
-const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
-  return get_eligible_secondary_engine_from(lex);
+const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine(
+    THD *thd) const {
+  return get_eligible_secondary_engine_from(thd->lex);
 }
 
 /*****************************************************************************
