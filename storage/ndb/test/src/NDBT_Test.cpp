@@ -1553,6 +1553,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::connectstring,
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::optimized_node_selection,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "backup-password", NDB_OPT_NOSHORT,
     "Password to use for encrypted backup files",
@@ -1828,6 +1830,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
