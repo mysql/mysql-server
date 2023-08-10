@@ -522,6 +522,11 @@ bool update_server_I_S_metadata(THD *thd) {
   const dd::Schema *sch_obj = ctx.info_schema();
   if (sch_obj == nullptr) return true;
 
+  LogErr(INFORMATION_LEVEL, ER_INFORMATION_SCHEMA_VERSION_CHANGE,
+         (actual_version > d->get_target_I_S_version() ? "Downgrading"
+                                                       : "Upgrading"),
+         actual_version, d->get_target_I_S_version());
+
   /*
     Stage 1:
     Remove all server I_S metadata from DD tables.

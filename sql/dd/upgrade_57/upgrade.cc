@@ -886,6 +886,14 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
       return true;
     }
 
+    // Safeguard against upgrading from 5.7 to 9.x
+    if (MYSQL_VERSION_ID >= 90000) {
+      LogErr(ERROR_LEVEL, ER_INVALID_SERVER_UPGRADE_NOT_LTS,
+             bootstrap::SERVER_VERSION_50700, MYSQL_VERSION_ID,
+             bootstrap::SERVER_VERSION_50700);
+      return true;
+    }
+
     // Create the file to track stages of upgrade.
     if (upgrade_status.create()) return true;
 

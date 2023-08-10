@@ -32,6 +32,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/thread_type.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bootstrap.h"                   // bootstrap::run_bootstrap_thread
@@ -107,7 +108,14 @@ bool check_perf_schema_has_correct_version(THD *thd) {
   DBUG_EXECUTE_IF("test_p_s_metadata_version",
                   { actual_version = UNKNOWN_P_S_VERSION; });
 
-  return d->get_target_P_S_version() == actual_version;
+  if (d->get_target_P_S_version() == actual_version) return true;
+
+  LogErr(INFORMATION_LEVEL, ER_PERFORMANCE_SCHEMA_VERSION_CHANGE,
+         (actual_version > d->get_target_P_S_version() ? "Downgrading"
+                                                       : "Upgrading"),
+         actual_version, d->get_target_P_S_version());
+
+  return false;
 }
 
 /**

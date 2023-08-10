@@ -57,6 +57,7 @@
 #include "sql/dd/impl/upgrade/dd.h"             // dd::upgrade::upgrade_tables
 #include "sql/dd/impl/upgrade/server.h"  // dd::upgrade::do_server_upgrade_checks
 #include "sql/dd/impl/utils.h"           // dd::execute_query
+#include "sql/dd/info_schema/metadata.h"  // IS_DD_VERSION
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/object_table.h"             // dd::Object_table
@@ -71,6 +72,7 @@
 #include "sql/mysqld.h"
 #include "sql/sd_notify.h"  // sysd::notify
 #include "sql/thd_raii.h"
+#include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
 using namespace dd;
 
@@ -778,8 +780,14 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
       }
       if (!DD_bootstrap_ctx::instance().supported_server_version(
               server_version)) {
-        LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED,
-               server_version);
+        if (server_version > MYSQL_VERSION_ID &&
+            !DD_bootstrap_ctx::instance().is_server_patch_downgrade(
+                server_version))
+          LogErr(ERROR_LEVEL, ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH,
+                 server_version, MYSQL_VERSION_ID);
+        else
+          LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED,
+                 server_version);
         return true;
       }
     }
@@ -1071,6 +1079,52 @@ bool create_dd_schema(THD *thd) {
                                     dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
 
+bool getprop(THD *thd, const char *key, uint *value, bool silent = false) {
+  bool exists = false;
+  if (dd::tables::DD_properties::instance().get(thd, key, value, &exists) ||
+      !exists) {
+    /* purecov: begin inspected */
+    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_GET_DD_PROPERTY, key);
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
+bool getprop(THD *thd, const char *key, String_type *value,
+             bool silent = false) {
+  bool exists = false;
+  if (dd::tables::DD_properties::instance().get(thd, key, value, &exists) ||
+      !exists) {
+    /* purecov: begin inspected */
+    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_GET_DD_PROPERTY, key);
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
+bool setprop(THD *thd, const char *key, const uint value, bool silent = false) {
+  if (dd::tables::DD_properties::instance().set(thd, key, value)) {
+    /* purecov: begin inspected */
+    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_SET_DD_PROPERTY, key);
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
+bool setprop(THD *thd, const char *key, const String_type &value,
+             bool silent = false) {
+  if (dd::tables::DD_properties::instance().set(thd, key, value)) {
+    /* purecov: begin inspected */
+    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_SET_DD_PROPERTY, key);
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
 bool initialize_dd_properties(THD *thd) {
   // Create the dd_properties table.
   const Object_table_definition *dd_properties_def =
@@ -1081,31 +1135,92 @@ bool initialize_dd_properties(THD *thd) {
     We can now decide which version number we will use for the DD, and
     initialize the DD_bootstrap_ctx with the relevant version number.
   */
-  uint actual_version = dd::DD_VERSION;
+  uint actual_dd_version = dd::DD_VERSION;
   uint actual_server_version = MYSQL_VERSION_ID;
   uint upgraded_server_version = MYSQL_VERSION_ID;
 
-  bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(actual_version);
+  bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
+      actual_dd_version);
   bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
       actual_server_version);
 
   if (!opt_initialize) {
+    /*
+      First get the DD version, the actual server version and the last
+      completed version upgrade (which may be older in case e.g. the
+      system table upgrade step failed).
+    */
     bool exists = false;
-    bool exists_server = false;
-    bool exists_upgraded_version = false;
-
-    // Check 'DD_version' too in order to catch an upgrade from 8.0.3.
-    if (dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
-                                                  &actual_version, &exists) ||
+    if (dd::tables::DD_properties::instance().get(
+            thd, "DD_VERSION", &actual_dd_version, &exists) ||
         !exists) {
       LogErr(ERROR_LEVEL, ER_DD_NO_VERSION_FOUND);
       return true;
     }
 
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQLD_VERSION", &actual_server_version, &exists) ||
+        !exists)
+      return true;
+
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQLD_VERSION_UPGRADED", &upgraded_server_version,
+            &exists) ||
+        !exists)
+      upgraded_server_version = actual_server_version;
+
+    /*
+      Get information from DD properties. Do this after 8.2.0 / 8.0.35.
+      Older versions do not have the required information available.
+    */
+    String_type mysql_version_stability{"INNOVATION"};
+    uint server_downgrade_threshold = 0;
+    uint server_upgrade_threshold = 0;
     /* purecov: begin inspected */
-    if (actual_version != dd::DD_VERSION) {
+    if (actual_server_version >= 80035 && actual_server_version != 80100 &&
+        (getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_stability) ||
+         getprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
+                 &server_downgrade_threshold) ||
+         getprop(thd, "SERVER_UPGRADE_THRESHOLD", &server_upgrade_threshold)))
+      return true;
+
+    /* Is there a server version change? */
+    if (MYSQL_VERSION_ID != actual_server_version) {
+      if (MYSQL_VERSION_ID > actual_server_version) {
+        // This is an upgrade attempt.
+        if ((MYSQL_VERSION_ID / 10000) != (actual_server_version / 10000) &&
+            (mysql_version_stability != "LTS" ||
+             actual_server_version / 100 == 800 ||
+             MYSQL_VERSION_ID / 10000 != actual_server_version / 10000 + 1)) {
+          LogErr(ERROR_LEVEL, ER_INVALID_SERVER_UPGRADE_NOT_LTS,
+                 actual_server_version, MYSQL_VERSION_ID,
+                 actual_server_version);
+          return true;
+        } else if (MYSQL_VERSION_ID < server_upgrade_threshold &&
+                   MYSQL_VERSION_ID / 100 != actual_server_version / 100) {
+          LogErr(ERROR_LEVEL, ER_BEYOND_SERVER_UPGRADE_THRESHOLD,
+                 actual_server_version, MYSQL_VERSION_ID,
+                 server_upgrade_threshold);
+          return true;
+        }
+      } else {
+        // This is a downgrade attempt.
+        if (MYSQL_VERSION_ID / 100 != actual_server_version / 100) {
+          LogErr(ERROR_LEVEL, ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH,
+                 actual_server_version, MYSQL_VERSION_ID);
+          return true;
+        } else if (MYSQL_VERSION_ID < server_downgrade_threshold) {
+          LogErr(ERROR_LEVEL, ER_BEYOND_SERVER_DOWNGRADE_THRESHOLD,
+                 actual_server_version, MYSQL_VERSION_ID,
+                 server_downgrade_threshold);
+          return true;
+        }
+      }
+    }
+
+    if (actual_dd_version != dd::DD_VERSION) {
       bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
-          actual_version);
+          actual_dd_version);
       if (opt_no_dd_upgrade) {
         push_deprecated_warn(thd, "--no-dd-upgrade", "--upgrade=NONE");
         LogErr(ERROR_LEVEL, ER_DD_UPGRADE_OFF);
@@ -1119,7 +1234,7 @@ bool initialize_dd_properties(THD *thd) {
         */
         if (!bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()) {
           LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VERSION_NOT_SUPPORTED,
-                 actual_version);
+                 actual_dd_version);
           return true;
         }
 
@@ -1129,26 +1244,22 @@ bool initialize_dd_properties(THD *thd) {
                 &exists) ||
             !exists || minor_downgrade_threshold > dd::DD_VERSION) {
           LogErr(ERROR_LEVEL, ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED,
-                 actual_version);
+                 actual_dd_version);
           return true;
         }
       }
     }
     /* purecov: end */
 
-    if (dd::tables::DD_properties::instance().get(
-            thd, "MYSQLD_VERSION", &actual_server_version, &exists_server) ||
-        !exists_server)
-      return true;
-
-    if (dd::tables::DD_properties::instance().get(
-            thd, "MYSQLD_VERSION_UPGRADED", &upgraded_server_version,
-            &exists_upgraded_version) ||
-        !exists_upgraded_version)
-      upgraded_server_version = actual_server_version;
     bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
         upgraded_server_version);
 
+    /*
+      If the previous upgrade was not completed, e.g. because system table
+      upgrade failed, then we will not accept a new upgrade attempt to an
+      even newer version. First, the previous upgrade must be completed so
+      that actual_server_version == upgraded_server_version.
+    */
     if (DBUG_EVALUATE_IF("simulate_mysql_upgrade_skip_pending", true,
                          actual_server_version != upgraded_server_version &&
                              actual_server_version != MYSQL_VERSION_ID)) {
@@ -1157,6 +1268,10 @@ bool initialize_dd_properties(THD *thd) {
       return true;
     }
 
+    /*
+      Check if we are doing a server upgrade or a server downgrade. An
+      upgrade of the DD will of course imply a server upgrade.
+    */
     if (upgraded_server_version != MYSQL_VERSION_ID) {
       /*
         This check is also done in DDSE_dict_init() based on the version
@@ -1195,15 +1310,15 @@ bool initialize_dd_properties(THD *thd) {
   else if (bootstrap::DD_bootstrap_ctx::instance().is_restart())
     LogErr(INFORMATION_LEVEL, ER_DD_RESTART, dd::DD_VERSION);
   else if (bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade())
-    LogErr(INFORMATION_LEVEL, ER_DD_MINOR_DOWNGRADE, actual_version,
+    LogErr(INFORMATION_LEVEL, ER_DD_MINOR_DOWNGRADE, actual_dd_version,
            dd::DD_VERSION);
   else {
     /*
-      If none of the above, then this must be DD upgrade or server
-      upgrade, or both.
+      If none of the above, then this must be DD upgrade, server
+      upgrade, or patch downgrade.
     */
     if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade()) {
-      LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
+      LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_dd_version, dd::DD_VERSION);
       sysd::notify("STATUS=Data Dictionary upgrade in progress\n");
     }
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
@@ -1214,9 +1329,20 @@ bool initialize_dd_properties(THD *thd) {
       }
       LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_FROM_VERSION,
              upgraded_server_version, MYSQL_VERSION_ID);
+    } else if (bootstrap::DD_bootstrap_ctx::instance()
+                   .is_server_patch_downgrade()) {
+      /* purecov: begin inspected */
+      if (opt_upgrade_mode == UPGRADE_NONE) {
+        LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_OFF);
+        return true;
+      }
+      LogErr(INFORMATION_LEVEL, ER_SERVER_DOWNGRADE_FROM_VERSION,
+             upgraded_server_version, MYSQL_VERSION_ID);
+      /* purecov: end */
     }
     assert(bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade() ||
-           bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade());
+           bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
+           bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade());
   }
 
   /*
@@ -1726,32 +1852,28 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     mysqld server version.
   */
   if (opt_initialize) {
-    if (dd::tables::DD_properties::instance().set(thd, "DD_VERSION",
-                                                  dd::DD_VERSION) ||
-        dd::tables::DD_properties::instance().set(
-            thd, "MINOR_DOWNGRADE_THRESHOLD",
-            dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD) ||
-        dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
-                                                  dd::SDI_VERSION) ||
-        dd::tables::DD_properties::instance().set(thd, "LCTN",
-                                                  lower_case_table_names) ||
-        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_LO",
-                                                  MYSQL_VERSION_ID) ||
-        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_HI",
-                                                  MYSQL_VERSION_ID) ||
-        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION",
-                                                  MYSQL_VERSION_ID))
+    if (setprop(thd, "DD_VERSION", dd::DD_VERSION) ||
+        setprop(thd, "MINOR_DOWNGRADE_THRESHOLD",
+                dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD) ||
+        setprop(thd, "SDI_VERSION", dd::SDI_VERSION) ||
+        setprop(thd, "LCTN", lower_case_table_names) ||
+        setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_STABILITY) ||
+        setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
+                SERVER_DOWNGRADE_THRESHOLD) ||
+        setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD) ||
+        setprop(thd, "MYSQLD_VERSION_LO", MYSQL_VERSION_ID) ||
+        setprop(thd, "MYSQLD_VERSION_HI", MYSQL_VERSION_ID) ||
+        setprop(thd, "MYSQLD_VERSION", MYSQL_VERSION_ID))
       return dd::end_transaction(thd, true);
 
     if (is_dd_upgrade_57) {
-      if (dd::tables::DD_properties::instance().set(
-              thd, "MYSQLD_VERSION_UPGRADED", bootstrap::SERVER_VERSION_50700))
+      if (setprop(thd, "MYSQLD_VERSION_UPGRADED",
+                  bootstrap::SERVER_VERSION_50700))
         return true;
       bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
           bootstrap::SERVER_VERSION_50700);
     } else {
-      if (dd::tables::DD_properties::instance().set(
-              thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID))
+      if (setprop(thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID))
         return true;
       bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
           MYSQL_VERSION_ID);
@@ -1761,42 +1883,30 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     uint mysqld_version_hi = 0;
     uint mysqld_version = 0;
     uint upgraded_server_version = 0;
-    bool exists_lo = false;
-    bool exists_hi = false;
-    bool exists = false;
-    bool exists_upgraded_version = false;
-    if ((dd::tables::DD_properties::instance().get(
-             thd, "MYSQLD_VERSION_LO", &mysqld_version_lo, &exists_lo) ||
-         !exists_lo) ||
-        (dd::tables::DD_properties::instance().get(
-             thd, "MYSQLD_VERSION_HI", &mysqld_version_hi, &exists_hi) ||
-         !exists_hi) ||
-        (dd::tables::DD_properties::instance().get(thd, "MYSQLD_VERSION",
-                                                   &mysqld_version, &exists) ||
-         !exists))
+
+    if (getprop(thd, "MYSQLD_VERSION_LO", &mysqld_version_lo) ||
+        getprop(thd, "MYSQLD_VERSION_HI", &mysqld_version_hi) ||
+        getprop(thd, "MYSQLD_VERSION", &mysqld_version))
       return dd::end_transaction(thd, true);
 
-    if (dd::tables::DD_properties::instance().get(
-            thd, "MYSQLD_VERSION_UPGRADED", &upgraded_server_version,
-            &exists_upgraded_version) ||
-        !exists_upgraded_version) {
-      if (dd::tables::DD_properties::instance().set(
-              thd, "MYSQLD_VERSION_UPGRADED", mysqld_version))
-        return true;
+    if (getprop(thd, "MYSQLD_VERSION_UPGRADED", &upgraded_server_version,
+                true)) {
+      if (setprop(thd, "MYSQLD_VERSION_UPGRADED", mysqld_version)) return true;
       upgraded_server_version = mysqld_version;
     }
     bootstrap::DD_bootstrap_ctx::instance().set_upgraded_server_version(
         upgraded_server_version);
 
     if ((mysqld_version_lo > MYSQL_VERSION_ID &&
-         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_LO",
-                                                   MYSQL_VERSION_ID)) ||
+         setprop(thd, "MYSQLD_VERSION_LO", MYSQL_VERSION_ID)) ||
         (mysqld_version_hi < MYSQL_VERSION_ID &&
-         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_HI",
-                                                   MYSQL_VERSION_ID)) ||
+         setprop(thd, "MYSQLD_VERSION_HI", MYSQL_VERSION_ID)) ||
         (mysqld_version != MYSQL_VERSION_ID &&
-         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION",
-                                                   MYSQL_VERSION_ID)))
+         (setprop(thd, "MYSQLD_VERSION", MYSQL_VERSION_ID) ||
+          setprop(thd, "MYSQL_VERSION_STABILITY", MYSQL_VERSION_STABILITY) ||
+          setprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
+                  SERVER_DOWNGRADE_THRESHOLD) ||
+          setprop(thd, "SERVER_UPGRADE_THRESHOLD", SERVER_UPGRADE_THRESHOLD))))
       return dd::end_transaction(thd, true);
 
     /*
@@ -1804,13 +1914,9 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
       Note that on downgrade, we keep the old SDI version.
     */
     uint stored_sdi_version = 0;
-    bool exists_sdi = false;
-    if ((dd::tables::DD_properties::instance().get(
-             thd, "SDI_VERSION", &stored_sdi_version, &exists_sdi) ||
-         !exists_sdi) ||
+    if (getprop(thd, "SDI_VERSION", &stored_sdi_version) ||
         (stored_sdi_version < dd::SDI_VERSION &&
-         dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
-                                                   dd::SDI_VERSION)))
+         setprop(thd, "SDI_VERSION", dd::SDI_VERSION)))
       return dd::end_transaction(thd, true);
 
     /*
@@ -1818,13 +1924,9 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
       Note that on downgrade, we keep the old DD version.
     */
     uint dd_version = 0;
-    bool exists_dd = false;
-    if ((dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
-                                                   &dd_version, &exists_dd) ||
-         !exists_dd) ||
+    if (getprop(thd, "DD_VERSION", &dd_version) ||
         (dd_version < dd::DD_VERSION &&
-         dd::tables::DD_properties::instance().set(thd, "DD_VERSION",
-                                                   dd::DD_VERSION)))
+         setprop(thd, "DD_VERSION", dd::DD_VERSION)))
       return dd::end_transaction(thd, true);
 
     /*
@@ -1833,9 +1935,8 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
       already present.
     */
     if (dd_version < dd::DD_VERSION &&
-        dd::tables::DD_properties::instance().set(
-            thd, "MINOR_DOWNGRADE_THRESHOLD",
-            dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD))
+        setprop(thd, "MINOR_DOWNGRADE_THRESHOLD",
+                dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD))
       return dd::end_transaction(thd, true);
   }
 
@@ -1847,7 +1948,8 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     do before committing.
   */
   handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
+  if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
+      bootstrap::DD_bootstrap_ctx::instance().is_server_patch_downgrade()) {
     if (ddse->dict_set_server_version == nullptr ||
         ddse->dict_set_server_version()) {
       LogErr(ERROR_LEVEL, ER_CANNOT_SET_SERVER_VERSION_IN_TABLESPACE_HEADER);

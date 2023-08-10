@@ -247,6 +247,75 @@ static_assert(DD_VERSION <= MYSQL_VERSION_ID,
 static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = DD_VERSION;
 static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
+
+/**
+  A new release model supporting Long Term Stability (LTS) and innovation
+  releases is being introduced. The LTS releases will be kept as stable as
+  possible, patch updates will be provided mostly for critical issues.
+  Innovation releases will be released regularly with new features.
+
+  When we start a new major version, e.g. 9.0.0, this is an innovation release.
+  Each consecutive release is a new innovation release where the minor version
+  number is incremented. The last minor version for a given major version is an
+  LTS release, this will normally have minor version 7, e.g. 9.7.0. The LTS
+  release will have regular CPU releases (critical patch update) where the major
+  and minor versions stay unchanged, and only the patch number is incremented
+  (e.g. 9.7.1, 9.7.2 etc.). In parallel with the CPU releases, a new major
+  version will also be released, starting with an incremented major version
+  number (e.g. 10.0.0). In some cases, the innovation releases may also have
+  CPU releases, e.g. 9.1.0, 9.1.1 etc.
+
+  With the release model supporting LTS releases, we will have to support
+  downgrade between patch releases. Normally, there will be no changes in
+  features in a patch release, and the disk image should have a similar format,
+  both in terms of record layout, data dictionary structure, system table
+  definitions, information schema, performance schema, etc. However, there might
+  be situations where changes that are not backwards compatible need to be made
+  within a patch release. For some server artifacts, we already have mechanisms
+  in place to allow older versions to reject a downgrade attempt (e.g. if the
+  data dictionary is changed, the older version will reject the downgrade
+  attempt). For other artifacts, there is no such mechanism. Thus, we introduce
+  the SERVER_DOWNGRADE_THRESHOLD which makes it possible to define how far back
+  the current version should be able to downgrade. On a downgrade attempt,
+  the target version will look at the threshold which has been stored
+  persistently by the actual server that we downgrade from. If the target server
+  version is lower than the threshold, it will reject the downgrade attempt.
+
+  The threshold defaults to 0. This means that downgrade back to the first patch
+  for the given version is possible. E.g. if LTS version 9.7.2 has the threshold
+  defined to 0, downgrades to 9.7.1 and 9.7.0 is possible. Then, if LTS version
+  9.7.3 is released with the threshold set to 9.7.2, then only downgrade to
+  9.7.2 is possible. Downgrades to or from innovation releases are never
+  supported, regardless of the downgrade threshold.
+*/
+constexpr uint SERVER_DOWNGRADE_THRESHOLD = 0;
+static_assert(SERVER_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
+              "This release can not use a version number from the future");
+
+/**
+  The new release model explained above will also open the possibility of
+  upgrading to a version that has been released in the past. I.e., we will
+  upgrade from an actual version to a target version with a higher version
+  number, but an earlier (older) GA release date.
+
+  Like for the patch downgrades mentioned above, we already have mechanisms in
+  place to allow older versions to reject an upgrade attempt (e.g. if the data
+  dictionary is changed, the older version will reject the upgrade attempt).
+  For other artifacts, there is no such mechanism. Thus, we introduce the
+  SERVER_UPGRADE_THRESHOLD which makes it possible to define how far back
+  the current version should be able to upgrade. On an upgrade attempt, the
+  target version will look at the threshold which has been stored persistently
+  by the actual server that we upgrade from. If the target server version is
+  lower than the threshold, it will reject the upgrade attempt.
+
+  The threshold defaults to 0. This means that for upgrades to any higher
+  version is possible (unless prohibited by other rules). E.g. if LTS version
+  9.7.2 has the threshold defined to 0, upgrades to 10.0.0, 10.1.0 etc. is
+  possible. Then, if LTS version 9.7.3 is released with the upgrade threshold
+  set to 10.2.0, then upograde from 9.7.3 is possible only to 10.2.0 or higher.
+*/
+constexpr uint SERVER_UPGRADE_THRESHOLD = 0;
+
 }  // namespace dd
 
 #endif /* DD__DD_VERSION_INCLUDED */

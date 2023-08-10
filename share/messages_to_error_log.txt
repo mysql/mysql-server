@@ -12246,6 +12246,36 @@ ER_CONVERT_MULTI_VALUE
 ER_IB_DDL_CONVERT_HEAP_NOT_FOUND
   eng "Heap required to convert columns is not present."
 
+ER_SERVER_DOWNGRADE_FROM_VERSION
+  eng "MySQL server downgrading from version '%u' to '%u'."
+
+ER_BEYOND_SERVER_DOWNGRADE_THRESHOLD
+  eng "Invalid MySQL server downgrade: Cannot downgrade from %u to %u. Target MySQL server version is lower than the server downgrade threshold %u."
+
+ER_BEYOND_SERVER_UPGRADE_THRESHOLD
+  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Target MySQL server version is lower than the server upgrade threshold %u."
+
+ER_INVALID_SERVER_UPGRADE_NOT_LTS
+  eng "Invalid MySQL server upgrade: Cannot upgrade from %u to %u. Upgrade to next major version is only allowed from the last LTS release, which version %u is not."
+
+ER_INVALID_SERVER_DOWNGRADE_NOT_PATCH
+  eng "Invalid MySQL server downgrade: Cannot downgrade from %u to %u. Downgrade is only permitted between patch releases."
+
+ER_FAILED_GET_DD_PROPERTY
+  eng "Failed to get the data dictionary property %s."
+
+ER_FAILED_SET_DD_PROPERTY
+  eng "Failed to set the data dictionary property %s."
+
+ER_SERVER_DOWNGRADE_STATUS
+  eng "Server downgrade from '%d' to '%d' %s."
+
+ER_INFORMATION_SCHEMA_VERSION_CHANGE
+  eng "%s information schema from version %u to %u."
+
+ER_PERFORMANCE_SCHEMA_VERSION_CHANGE
+  eng "%s performance schema from version %u to %u."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
