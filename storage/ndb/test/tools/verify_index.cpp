@@ -27,11 +27,11 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 #include <UtilTransactions.hpp>
- 
+
 
 int main(int argc, const char** argv){
   ndb_init();
@@ -45,7 +45,7 @@ int main(int argc, const char** argv){
   int _allsources = 1;
   int _skipindexes = 0;
   int _help = 0;
-  
+
   struct getargs args[] = {
     { "database", 'd', arg_string, &_dbname, "Name of database", "<database>" },
     { "findnulls", 0, arg_integer, &_findnulls, "Verify null values", "<0|(1)>" },
@@ -58,7 +58,7 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname [indexname]\n"\
     "This program will verify the index [indexname] and compare it to data\n"
     "in table [tablename]\n"
@@ -77,8 +77,8 @@ int main(int argc, const char** argv){
     "checking index consistency.  (skipindexes)\n"
     "\n"
     "Default values are in (brackets).\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || 
+
+  if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -106,7 +106,7 @@ int main(int argc, const char** argv){
   // Connect to Ndb and wait for it to become ready
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
   const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   if(pTab == NULL){
@@ -173,7 +173,7 @@ int main(int argc, const char** argv){
       }
     }
   }
-    
+
   return NDBT_ProgramExit(NDBT_OK);
 }
 

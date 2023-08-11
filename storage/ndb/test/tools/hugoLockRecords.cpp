@@ -27,7 +27,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 
@@ -43,7 +43,7 @@ int main(int argc, const char** argv){
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB" ;
   int _help = 0;
-  
+
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
@@ -54,12 +54,12 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will lock p% of the records in the table for x milliseconds\n"\
     "then it will lock the next 1% and continue to do so until it has locked \n"\
     "all records in the table\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _records == 0 || _help) {
     arg_printusage(args, num_args, argv[0], desc);
@@ -83,7 +83,7 @@ int main(int argc, const char** argv){
 
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
   const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   if(pTab == NULL){

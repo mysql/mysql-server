@@ -3143,27 +3143,27 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
   if (!le_handle)
     return NDBT_FAILED;
-  NdbLogEventHandle le_handle2 = 
+  NdbLogEventHandle le_handle2 =
     ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
   if (!le_handle2)
     return NDBT_FAILED;
- 
+
   for(int l=0; l<loops; l++)
   {
     g_info << "Calling ndb_log_event_get_next" << endl;
-  
+
     struct ndb_logevent le_event;
     int r = ndb_logevent_get_next(le_handle,
                                   &le_event,
                                   2000);
     g_info << "ndb_log_event_get_next returned " << r << endl;
-    
+
     struct ndb_logevent le_event2;
     int r2 = ndb_logevent_get_next2(le_handle2,
                                     &le_event2,
                                     2000);
     g_info << "ndb_log_event_get_next2 returned " << r2 << endl;
-    
+
     result = NDBT_OK;
     if ((r == 0) || (r2 == 0))
     {
@@ -3174,8 +3174,8 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
     {
       if(r>0)
       {
-        g_info << "next() ndb_logevent type : " << le_event.type 
-               << " category : " << le_event.category 
+        g_info << "next() ndb_logevent type : " << le_event.type
+               << " category : " << le_event.category
                << " " << ndb_mgm_get_event_category_string(le_event.category)
                << endl;
         if (isCategoryValid(&le_event))
@@ -3190,11 +3190,11 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
         g_err << "ERROR: ndb_logevent_get_next returned error: "
               << r << endl;
       }
-      
+
       if(r2>0)
-      {        
-        g_info << "next2() ndb_logevent type : " << le_event2.type 
-               << " category : " << le_event2.category 
+      {
+        g_info << "next2() ndb_logevent type : " << le_event2.type
+               << " category : " << le_event2.category
                << " " << ndb_mgm_get_event_category_string(le_event2.category)
                << endl;
 
@@ -3453,7 +3453,7 @@ int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
   printf("Stopping data node\n");
   // We only stop 1 data node, in this case NodeId=2
   int nodes[1] =  { nodeId };
-  int stopped = ndb_mgm_restart2(mgmd.handle(), NDB_ARRAY_SIZE(nodes), nodes, 
+  int stopped = ndb_mgm_restart2(mgmd.handle(), NDB_ARRAY_SIZE(nodes), nodes,
                                  0, 0, 1);
   if (stopped < 0)
   {

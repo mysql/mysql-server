@@ -35,7 +35,7 @@ struct Parameter {
   const char * name;
   unsigned value;
   unsigned min;
-  unsigned max; 
+  unsigned max;
 };
 
 #define P_BATCH   0
@@ -56,8 +56,8 @@ struct Parameter {
  * primary key
  */
 
-static 
-Parameter 
+static
+Parameter
 g_paramters[] = {
   { "batch",       0, 0, 1 }, // 0, 15
   { "parallelism", 0, 0, 1 }, // 0,  1
@@ -107,7 +107,7 @@ main(int argc, const char** argv){
     args[i+1].help = strdup(tmp.c_str());
     args[i+1].arg_help = 0;
   }
-  
+
   if(getarg(args, num_args, argc, argv, &optind)) {
     arg_printusage(args, num_args, argv[0], "tabname1 tabname2 ...");
     return NDBT_WRONGARGS;
@@ -187,14 +187,14 @@ create_table(){
   /* Obtain NdbRecord instances for the table and index */
   {
     NdbDictionary::RecordSpecification spec[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
-    
+
     Uint32 offset=0;
     Uint32 cols= g_table->getNoOfColumns();
     for (Uint32 colNum=0; colNum<cols; colNum++)
     {
       const NdbDictionary::Column* col= g_table->getColumn(colNum);
       Uint32 colLength= col->getLength();
-      
+
       spec[colNum].column= col;
       spec[colNum].offset= offset;
 
@@ -203,7 +203,7 @@ create_table(){
       spec[colNum].nullbit_byte_offset= offset++;
       spec[colNum].nullbit_bit_in_byte= 0;
     }
-  
+
     g_table_record= dict->createRecord(g_table,
                                        &spec[0],
                                        cols,
@@ -213,7 +213,7 @@ create_table(){
   }
   {
     NdbDictionary::RecordSpecification spec[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
-    
+
     Uint32 offset=0;
     Uint32 cols= g_index->getNoOfColumns();
     for (Uint32 colNum=0; colNum<cols; colNum++)
@@ -222,10 +222,10 @@ create_table(){
       // TODO : Add this mechanism to dict->createRecord
       // TODO : Add NdbRecord queryability methods so that an NdbRecord can
       // be easily built and later used to read out data.
-      const NdbDictionary::Column* col= 
+      const NdbDictionary::Column* col=
         g_table->getColumn(g_index->getColumn(colNum)->getName());
       Uint32 colLength= col->getLength();
-      
+
       spec[colNum].column= col;
       spec[colNum].offset= offset;
 
@@ -234,7 +234,7 @@ create_table(){
       spec[colNum].nullbit_byte_offset= offset++;
       spec[colNum].nullbit_bit_in_byte= 0;
     }
-  
+
     g_index_record= dict->createRecord(g_index,
                                        &spec[0],
                                        cols,
@@ -249,16 +249,16 @@ create_table(){
     int rows = g_paramters[P_ROWS].value;
     HugoTransactions hugoTrans(* g_table);
     if (hugoTrans.loadTable(g_ndb, rows)){
-      g_err.println("Failed to load %s with %d rows", 
+      g_err.println("Failed to load %s with %d rows",
 		    g_table->getName(), rows);
       return -1;
     }
   }
-  
+
   return 0;
 }
 
-inline 
+inline
 void err(NdbError e){
   ndbout << e << endl;
 }
@@ -310,7 +310,7 @@ run_scan(){
       err(g_ndb->getNdbError());
       return -1;
     }
-    
+
     int par = g_paramters[P_PARRA].value;
     int bat = g_paramters[P_BATCH].value;
     NdbScanOperation::LockMode lm;
@@ -331,7 +331,7 @@ run_scan(){
     NdbScanOperation::ScanOptions options;
     std::memset(&options, 0, sizeof(options));
 
-    options.optionsPresent= 
+    options.optionsPresent=
       NdbScanOperation::ScanOptions::SO_SCANFLAGS |
       NdbScanOperation::ScanOptions::SO_PARALLEL |
       NdbScanOperation::ScanOptions::SO_BATCH;
@@ -340,7 +340,7 @@ run_scan(){
     bool mrr= (g_paramters[P_ACCESS].value != 0) &&
       (g_paramters[P_BOUND].value == 3);
 
-    options.scan_flags|= 
+    options.scan_flags|=
       ( ord ? NdbScanOperation::SF_OrderBy:0 ) |
       ( mrr ? NdbScanOperation::SF_MultiRange:0 );
     options.parallel= par;
@@ -359,7 +359,7 @@ run_scan(){
       int tot = g_paramters[P_ROWS].value;
       int row = rand() % tot;
       NdbInterpretedCode* ic= new NdbInterpretedCode(g_table);
-      NdbScanFilter filter(ic);   
+      NdbScanFilter filter(ic);
       filter.begin(NdbScanFilter::AND);
       filter.eq(0, row);
       filter.end();
@@ -370,7 +370,7 @@ run_scan(){
 #endif
     }
     }
-    
+
     if(g_paramters[P_ACCESS].value == 0){
       pOp = pTrans->scanTable(g_table_record,
                               lm,
@@ -391,7 +391,7 @@ run_scan(){
         err(pTrans->getNdbError());
         abort();
       }
-        
+
       require(pIOp);
 
       switch(g_paramters[P_BOUND].value){
@@ -402,7 +402,7 @@ run_scan(){
         require(check == 0);
 	break;
       case 2: { // 1 row
-      default:  
+      default:
 	require(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
 	int tot = g_paramters[P_ROWS].value;
 	int row = rand() % tot;
@@ -432,7 +432,7 @@ run_scan(){
       }
     }
     require(pOp);
-    
+
     require(check == 0);
 
     int rows = 0;
@@ -463,12 +463,12 @@ run_scan(){
     pTrans = 0;
 
     stop = NdbTick_CurrentMillisecond();
-    
+
     int time_passed= (int)(stop - start1);
     sample_rows += rows;
     sum_time+= time_passed;
     tot_rows+= rows;
-    
+
     if(sample_rows >= tot)
     {
       int sample_time = (int)(stop - sample_start);
@@ -479,7 +479,7 @@ run_scan(){
       sample_start = stop;
     }
   }
-  
+
   g_err.println("Avg time: %d ms = %u rows/sec", sum_time/tot_rows,
                 (1000*tot_rows)/sum_time);
   return 0;

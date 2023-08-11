@@ -2856,7 +2856,7 @@ Set::setrow(uint i, const Row* src, bool force)
     delete m_row[i];
     m_row[i] = 0;
   }
-  
+
   Row* newRow= new Row(src->m_tab);
   newRow->copy(*src, true);
   m_row[i] = newRow;
@@ -4066,7 +4066,7 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
       results.reset();
       calcscanbounds(par, itab, *boundSets[n], set, results);
     } while ((*boundSets[n]).m_bvals == 0);
-  } 
+  }
 
   /* Define scan with bounds */
   LL3("scanreadindexmrr " << itab.m_name << " ranges= " << numBsets << " lockmode=" << par.m_lockmode << " ordered=" << par.m_ordered << " descending=" << par.m_descending << " verify=" << par.m_verify);
@@ -4104,7 +4104,7 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     /* Put value into set2 temporarily */
     CHK(set2.getkey(par, &i) == 0);
     CHK(set2.putval(i, false, -1) == 0);
-    
+
     /* Now move it to the correct set, based on the range no */
     int rangeNum= con.m_indexscanop->get_range_no();
     CHK(rangeNum < numBsets);
@@ -4174,7 +4174,7 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
   /* Verify that each set has the expected rows, and optionally, that
    * they're ordered
    */
-  if (par.m_verify) 
+  if (par.m_verify)
   {
     LL4("Verifying " << numBsets << " sets, " << rows_received << " rows");
     for (int n=0; n < numBsets; n++)
@@ -4188,7 +4188,7 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
       }
     }
   }
-  
+
   /* Cleanup */
   for (int n=0; n < numBsets; n++)
   {
@@ -4289,8 +4289,8 @@ scanreadindex(const Par& par, const ITab& itab)
       CHK(scanreadfilter(par, itab, bset, true) == 0);
       /* Single range or Multi range scan */
       if (randompct(g_opt.m_pctmrr))
-        CHK(scanreadindexmrr(par, 
-                             itab, 
+        CHK(scanreadindexmrr(par,
+                             itab,
                              1+urandom(g_opt.m_mrrmaxrng-1)) == 0);
       else
         CHK(scanreadindex(par, itab, bset, true) == 0);
@@ -5416,7 +5416,7 @@ runstep(Par par, const char* fname, TFunc func, uint mode)
 {
   LL2("step: " << fname);
   const int threads = (mode & ST ? 1 : par.m_usedthreads);
-  int n; 
+  int n;
   for (n = 0; n < threads; n++) {
     LL4("start " << n);
     Thr& thr = *g_thrlist[n];

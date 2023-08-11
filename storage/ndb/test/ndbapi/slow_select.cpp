@@ -84,32 +84,32 @@ main(void){
   while(true){
     g_trans = g_ndb.startTransaction();
     require(g_trans);
-  
+
     size_t i, j;
     const size_t cnt = sizeof(g_scans)/sizeof(g_scans[0]);
 
     start = NdbTick_CurrentMillisecond();
 
     for(i = 0; i<cnt; i++){
-      ndbout_c("starting scan on: %s %s", 
+      ndbout_c("starting scan on: %s %s",
 	       g_scans[i].m_table, g_scans[i].m_index);
-      g_scans[i].m_scan = g_trans->getNdbIndexScanOperation(g_scans[i].m_index, 
+      g_scans[i].m_scan = g_trans->getNdbIndexScanOperation(g_scans[i].m_index,
 							    g_scans[i].m_table);
       NdbIndexScanOperation* scan = g_scans[i].m_scan;
       require(scan);
-      require(scan->readTuples(NdbScanOperation::LM_CommittedRead, 
+      require(scan->readTuples(NdbScanOperation::LM_CommittedRead,
 			       0, 0, true) == 0);
     }
-  
-    require(!g_scans[0].m_scan->setBound((Uint32)0, 
-					 NdbIndexScanOperation::BoundEQ, 
-					 &g_affiliateid, 
+
+    require(!g_scans[0].m_scan->setBound((Uint32)0,
+					 NdbIndexScanOperation::BoundEQ,
+					 &g_affiliateid,
 					 sizeof(g_affiliateid)));
 #if 0
-    require(!g_scans[1].m_scan->setBound((Uint32)0, 
+    require(!g_scans[1].m_scan->setBound((Uint32)0,
 					 NdbIndexScanOperation::BoundLE,
 					 &g_formatids[0],
-					 sizeof(g_formatids[0])));  
+					 sizeof(g_formatids[0])));
 #endif
 
     NdbScanFilter sf(g_scans[1].m_scan);
@@ -127,17 +127,17 @@ main(void){
     require(g_scans[1].m_scan->getValue("path"));
     require(g_scans[1].m_scan->getValue("mediaid"));
     require(g_scans[1].m_scan->getValue("formatid"));
-  
+
     // meta
     require(g_scans[2].m_scan->getValue("name"));
     require(g_scans[2].m_scan->getValue("xml"));
 
     // artiststometamap
     require(g_scans[3].m_scan->getValue("artistid", (char*)&g_artistid));
-	  
+
     // subgenrestometamap
     require(g_scans[4].m_scan->getValue("subgenreid", (char*)&g_subgenreid));
-  
+
     for(i = 0; i<cnt; i++){
       g_scans[i].m_scan->getValue("metaid", (char*)&g_scans[i].metaid);
     }
@@ -146,7 +146,7 @@ main(void){
 
     Uint32 max_val = 0;
     Uint32 match_val = 0;
-  
+
     S_Scan * F [5], * Q [5], * nextF [5];
     Uint32 F_sz = 0, Q_sz = 0;
     for(i = 0; i<cnt; i++){
@@ -161,7 +161,7 @@ main(void){
       bool found = false;
       //for(i = 0; i<cnt; i++)
       //ndbout_c("%s - %d", g_scans[i].m_table, g_scans[i].metaid);
-    
+
       for(i = 0; i<prev_F_sz; i++){
 	int res = F[i]->m_scan->nextResult();
 	if(res == -1)
@@ -173,7 +173,7 @@ main(void){
 
 	Uint32 metaid = F[i]->metaid;
 	F[i]->row_count++;
-      
+
 	if(metaid == match_val){
 	  //ndbout_c("flera");
 	  nextF[F_sz++] = F[i];
@@ -220,10 +220,10 @@ main(void){
       for(i = 0; i<F_sz; i++)
 	F[i] = nextF[i];
     }
-  
+
     start = NdbTick_CurrentMillisecond() - start;
     ndbout_c("Elapsed: %lldms", start);
-  
+
     ndbout_c("rows: %d", match_count);
     for(i = 0; i<cnt; i++){
       ndbout_c("%s : %d", g_scans[i].m_table, g_scans[i].row_count);
@@ -242,7 +242,7 @@ lookup(){
     require2(op, op->equal("artistid", g_artistid) == 0);
     require2(op, op->getValue("name"));
   }
-  
+
   {
     NdbOperation* op = g_trans->getNdbOperation("subgenres");
     require2(g_trans, op);

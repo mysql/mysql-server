@@ -228,7 +228,7 @@ createNdbRecords()
   recSpec[0].offset= g_ndbrec_a_offset;
   recSpec[0].nullbit_byte_offset= ~(Uint32)0;
   recSpec[0].nullbit_bit_in_byte= ~(Uint32)0;
- 
+
   recSpec[1].column= g_tab->getColumn("b"); // 4 bytes
   recSpec[1].offset= g_ndbrec_b_offset;
   if (g_b_nullable) {
@@ -238,7 +238,7 @@ createNdbRecords()
     recSpec[1].nullbit_byte_offset= ~(Uint32)0;
     recSpec[1].nullbit_bit_in_byte= ~(Uint32)0;
   }
- 
+
   recSpec[2].column= g_tab->getColumn("c"); // Varchar(10) -> ~12 bytes
   recSpec[2].offset= g_ndbrec_c_offset;
   if (g_c_nullable) {
@@ -273,7 +273,7 @@ createNdbRecords()
                                  numIndexCols,
                                  sizeof(NdbDictionary::RecordSpecification),
                                  0);
-  
+
   chkdb(g_ind_rec != NULL);
   g_dic = 0;
 
@@ -1611,7 +1611,7 @@ queryscan(Rng& rng)
  * and is long enough to store the data
  */
 static int
-initialiseIndexBound(const Rng& rng, 
+initialiseIndexBound(const Rng& rng,
                      NdbIndexScanOperation::IndexBound& ib,
                      my_record* low_key, my_record* high_key)
 {
@@ -1651,7 +1651,7 @@ initialiseIndexBound(const Rng& rng,
         // Last column in bound, inclusive if GE or LE (or EQ)
         // i.e. bottom bit of boundtype is clear
         boundInclusive[j]= !(t & 1);
-      
+
       const Val& val = bnd[j].m_val;
       if (no == 0)
       {
@@ -1665,10 +1665,10 @@ initialiseIndexBound(const Rng& rng,
       {
         if (! val.c_null)
           memcpy(&keyBuf->m_c[0], (const void*)&val.c, 1+ g_charlen);
-        
+
         if (g_c_nullable)
           keyBuf->m_null_bm |= ((val.c_null?1:0) << g_ndbrec_c_nb_offset);
-      } 
+      }
       else if (no == 2)
       {
         if (! val.d_null)
@@ -1692,7 +1692,7 @@ initialiseIndexBound(const Rng& rng,
   ib.high_inclusive= boundInclusive[1];
   ib.range_no= 0;
 
-  ll3(" indexBound low_key_count=" << ib.low_key_count << 
+  ll3(" indexBound low_key_count=" << ib.low_key_count <<
       " low_inc=" << ib.low_inclusive <<
       " high_key_count=" << ib.high_key_count <<
       " high_inc=" << ib.high_inclusive);
@@ -1701,7 +1701,7 @@ initialiseIndexBound(const Rng& rng,
       " first byte=" << ib.low_key[0]);
   ll3(" high bound b=" << *((Uint32*) &ib.high_key[g_ndbrec_b_offset]) <<
       " d=" << *((Uint16*) &ib.high_key[g_ndbrec_d_offset]) <<
-      " first byte=" << ib.high_key[0]);  
+      " first byte=" << ib.high_key[0]);
 
   // verify by reverse
   {
@@ -1717,7 +1717,7 @@ static int
 querystat_v2(Rng& rng)
 {
   ll3("querystat_v2");
-  
+
   /* Create IndexBound and key storage space */
   NdbIndexScanOperation::IndexBound ib;
   my_record low_key;
@@ -1727,13 +1727,13 @@ querystat_v2(Rng& rng)
   chkrc(initialiseIndexBound(rng, ib, &low_key, &high_key) == 0);
 
   Uint64 count = ~(Uint64)0;
-  chkdb(g_is->records_in_range(g_ind, 
+  chkdb(g_is->records_in_range(g_ind,
                                  g_con,
                                  g_ind_rec,
                                  g_tab_rec,
                                  &ib,
                                  0,
-                                 &count, 
+                                 &count,
                                  0) == 0);
   g_ndb->closeTransaction(g_con);
   g_con = 0;

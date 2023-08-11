@@ -41,7 +41,7 @@ Arguments:
     -write Use writeTuple in insert and update
     -stdtables Use standard table names
     -no_table_create Don't create tables in db
-    -sleep Sleep a number of seconds before running the test, this 
+    -sleep Sleep a number of seconds before running the test, this
     can be used so that another flexBench have time to create tables
     -temp Use tables without logging
     -verify Verify inserts, updates and deletes
@@ -68,7 +68,7 @@ Arguments:
 
 #include <NdbTest.hpp>
 
-#define MAXSTRLEN 16 
+#define MAXSTRLEN 16
 #define MAXATTR 128
 #define MAXTABLES 128
 #define MAXATTRSIZE 1000
@@ -82,7 +82,7 @@ static int dropTables(Ndb*);
 static void sleepBeforeStartingTest(int seconds);
 static void input_error();
 
-enum StartType { 
+enum StartType {
   stIdle,
   stInsert,
   stVerify,
@@ -91,14 +91,14 @@ enum StartType {
   stDelete,
   stTryDelete,
   stVerifyDelete,
-  stStop 
+  stStop
 };
 
 struct ThreadData
 {
   int threadNo;
   NdbThread* threadLife;
-  int threadReady;  
+  int threadReady;
   StartType threadStart;
   int threadResult;
 };
@@ -245,7 +245,7 @@ statReport(enum StartType st, int ops)
 }
 #endif	// CEBIT_STAT
 
-static void 
+static void
 resetThreads(ThreadData* pt){
   for (unsigned int i = 0; i < tNoOfThreads; i++){
     pt[i].threadReady = 0;
@@ -254,7 +254,7 @@ resetThreads(ThreadData* pt){
   }
 }
 
-static int 
+static int
 checkThreadResults(ThreadData* pt){
   for (unsigned int i = 0; i < tNoOfThreads; i++){
     if(pt[i].threadResult != 0){
@@ -266,7 +266,7 @@ checkThreadResults(ThreadData* pt){
 }
 
 static
-void 
+void
 waitForThreads(ThreadData* pt)
 {
   int cont = 1;
@@ -274,7 +274,7 @@ waitForThreads(ThreadData* pt)
     NdbSleep_MilliSleep(100);
     cont = 0;
     for (unsigned int i = 0; i < tNoOfThreads; i++){
-      if (pt[i].threadReady == 0){ 
+      if (pt[i].threadReady == 0){
         // Found one thread not yet ready, continue waiting
         cont = 1;
         break;
@@ -283,10 +283,10 @@ waitForThreads(ThreadData* pt)
   }
 }
 
-static void 
+static void
 tellThreads(ThreadData* pt, StartType what)
 {
-  for (unsigned int i = 0; i < tNoOfThreads; i++) 
+  for (unsigned int i = 0; i < tNoOfThreads; i++)
     pt[i].threadStart = what;
 }
 
@@ -298,7 +298,7 @@ int main(int argc, char** argv)
   ThreadData*           pThreadsData;
   int                   tLoops = 0;
   int                   returnValue = NDBT_OK;
-    
+
   if (readArguments(argc, argv) != 0){
     input_error();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -312,9 +312,9 @@ int main(int argc, char** argv)
       sprintf(longKeyAttrName[i], "KEYATTR%i", i);
     }
   }
-  
+
   pThreadsData = new ThreadData[tNoOfThreads];
- 
+
   ndbout << endl << "FLEXBENCH - Starting normal mode" << endl;
   ndbout << "Perform benchmark of insert, update and delete transactions"<< endl;
   ndbout << "  " << tNoOfThreads << " thread(s) " << endl;
@@ -324,19 +324,19 @@ int main(int argc, char** argv)
   ndbout << "  " << tNoOfOperations << " transaction(s) per thread and round " << endl;
   ndbout << "  " << tAttributeSize << " is the number of 32 bit words per attribute "<< endl;
   ndbout << "  " << "Table(s) without logging: " << (Uint32)theTempTable << endl;
-  
+
   if(useLongKeys)
-    ndbout << "  " << "Using long keys with " << tNoOfLongPK << " keys a' " << 
+    ndbout << "  " << "Using long keys with " << tNoOfLongPK << " keys a' " <<
       tSizeOfLongPK * 4 << " bytes each." << endl;
-  
-  ndbout << "  " << "Verification is " ; 
+
+  ndbout << "  " << "Verification is " ;
   if(VerifyFlag) {
       ndbout << "enabled" << endl ;
   }else{
       ndbout << "disabled" << endl ;
   }
   theErrorData.printSettings(ndbout);
-  
+
   NdbThread_SetConcurrencyLevel(tNoOfThreads + 2);
 
   Ndb_cluster_connection con;
@@ -349,13 +349,13 @@ int main(int argc, char** argv)
   g_cluster_connection= &con;
 
   Ndb* pNdb;
-  pNdb = new Ndb(&con, "TEST_DB" );  
+  pNdb = new Ndb(&con, "TEST_DB" );
   pNdb->init();
 
   tNodeId = pNdb->getNodeId();
   ndbout << "  NdbAPI node with id = " << tNodeId << endl;
   ndbout << endl;
-  
+
   ndbout << "Waiting for ndb to become ready..." <<endl;
   if (pNdb->waitUntilReady(2000) != 0){
     ndbout << "NDB is not ready" << endl;
@@ -372,13 +372,13 @@ int main(int argc, char** argv)
   if(returnValue == NDBT_OK){
 
     sleepBeforeStartingTest(tSleepTime);
-    
+
     /****************************************************************
      *  Create threads.                                           *
      ****************************************************************/
     resetThreads(pThreadsData);
-    
-    for (int i = 0; i < (int)tNoOfThreads; i++){  
+
+    for (int i = 0; i < (int)tNoOfThreads; i++){
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
@@ -386,20 +386,20 @@ int main(int argc, char** argv)
                                                     "flexBenchThread",
                                                     NDB_THREAD_PRIO_LOW);
     }
-    
+
     waitForThreads(pThreadsData);
-    
+
     ndbout << endl <<  "All threads started" << endl << endl;
-    
+
     /****************************************************************
      * Execute program.                                             *
      ****************************************************************/
-  
+
     for(;;){
 
       int loopCount = tLoops + 1;
       ndbout << endl << "Loop # " << loopCount  << endl << endl;
-      
+
       /****************************************************************
        * Perform inserts.                                             *
        ****************************************************************/
@@ -413,7 +413,7 @@ int main(int argc, char** argv)
         ndbout << "Error: Threads failed in performing insert" << endl;
         returnValue = NDBT_FAILED;
         break;
-      }        
+      }
       // stop timer and print results.
       STOP_TIMER;
       PRINT_TIMER("insert", tNoOfOperations*tNoOfThreads, tNoOfTables);
@@ -433,11 +433,11 @@ int main(int argc, char** argv)
           ndbout << "\t\tOK" << endl << endl ;
       }
       }
-      
+
       /****************************************************************
        * Perform read.                                                *
        ****************************************************************/
-      // Reset and start timer 
+      // Reset and start timer
       START_TIMER;
       // Give read-command to all threads
       resetThreads(pThreadsData);
@@ -451,7 +451,7 @@ int main(int argc, char** argv)
       // stop timer and print results.
       STOP_TIMER;
       PRINT_TIMER("read", tNoOfOperations*tNoOfThreads, tNoOfTables);
-      
+
       /****************************************************************
        * Perform update.                                              *
        ****************************************************************/
@@ -469,7 +469,7 @@ int main(int argc, char** argv)
       // stop timer and print results.
       STOP_TIMER;
       PRINT_TIMER("update", tNoOfOperations*tNoOfThreads, tNoOfTables);
-      
+
       /****************************************************************
       * Verify updates.                                             *
       ****************************************************************/
@@ -486,7 +486,7 @@ int main(int argc, char** argv)
           ndbout << "\t\tOK" << endl << endl ;
       }
       }
-      
+
       /****************************************************************
        * Perform read.                                             *
        ****************************************************************/
@@ -535,7 +535,7 @@ int main(int argc, char** argv)
           ndbout << "Error: Threads failed in verifying deletes" << endl;
           returnValue = NDBT_FAILED;
           break;
-      }else{ 
+      }else{
           ndbout << "\t\tOK" << endl << endl ;
       }
       }
@@ -544,11 +544,11 @@ int main(int argc, char** argv)
 
       tLoops++;
 
-      if ( 0 != tNoOfLoops && tNoOfLoops <= tLoops ) 
+      if ( 0 != tNoOfLoops && tNoOfLoops <= tLoops )
         break;
       theErrorData.printErrorCounters();
     }
-    
+
     resetThreads(pThreadsData);
     tellThreads(pThreadsData, stStop);
     waitForThreads(pThreadsData);
@@ -604,7 +604,7 @@ static void* flexBenchThread(void* pArg)
   unsigned int      threadNo, threadBase;
   Ndb*              pNdb = NULL ;
   NdbConnection     *pTrans = NULL ;
-  const NdbOperation**    
+  const NdbOperation**
                     pOps = NULL ;
   StartType         tType ;
   StartType         tSaveType ;
@@ -617,9 +617,9 @@ static void* flexBenchThread(void* pArg)
   int               tResult = 0;
   int               tSpecialTrans = 0;
   int               nRefLocalOpOffset = 0 ;
-  int               nReadBuffSize = 
+  int               nReadBuffSize =
     tNoOfTables * tNoOfAttributes * sizeof(int) * tAttributeSize ;
-  int               nRefBuffSize = 
+  int               nRefBuffSize =
     tNoOfOperations * tNoOfAttributes * sizeof(int) * tAttributeSize ;
   unsigned**        longKeyAttrValue = nullptr;
   NdbRecord**       pRec= NULL;
@@ -640,7 +640,7 @@ static void* flexBenchThread(void* pArg)
   pNdb = new Ndb(g_cluster_connection, "TEST_DB" );
   pRec= (NdbRecord **)calloc(tNoOfTables*3, sizeof(*pRec));
   pAttrSet= (unsigned char **)calloc(tNoOfTables, sizeof(*pAttrSet));
-  
+
   if (!attrValue || !attrRefValue || !pOps || !pNdb || !pRec || !pAttrSet)
   {
     // Check allocations to make sure we got all the memory we asked for
@@ -650,14 +650,14 @@ static void* flexBenchThread(void* pArg)
     tResult = 13 ;
     goto end;
   }
-  
+
   pNdb->init();
   pNdb->waitUntilReady();
 
   // To make sure that two different threads doesn't operate on the same record
   // Calculate an "unique" number to use as primary key
   threadBase = (threadNo * 2000000) + (tNodeId * 260000000);
-  
+
   /* Set up NdbRecord's for the tables. */
   dict= pNdb->getDictionary();
   for (int tab= 0; tab<(int)tNoOfTables; tab++)
@@ -784,7 +784,7 @@ static void* flexBenchThread(void* pArg)
       for (Uint32 i = 0; i < tNoOfLongPK ; i++) {
 	for(Uint32 j = 0; j < tSizeOfLongPK; j++) {
 	  // Repeat the unique value to fill up the long key.
-	  longKeyAttrValue[n][i*tSizeOfLongPK+j]= threadBase + n; 
+	  longKeyAttrValue[n][i*tSizeOfLongPK+j]= threadBase + n;
 	}
       }
     }
@@ -794,10 +794,10 @@ static void* flexBenchThread(void* pArg)
   //Assign reference attribute values to memory
   for(Uint32 ops = 1 ; ops < tNoOfOperations ; ops++){
     // Calculate offset value before going into the next loop
-    nRefOpOffset = tAttributeSize*tNoOfAttributes*(ops-1) ; 
+    nRefOpOffset = tAttributeSize*tNoOfAttributes*(ops-1) ;
     for(Uint32 a = 0 ; a < tNoOfAttributes ; a++)
       for(Uint32 b= 0; b<(Uint32)tAttributeSize; b++)
-        attrRefValue[nRefOpOffset + tAttributeSize*a + b] = 
+        attrRefValue[nRefOpOffset + tAttributeSize*a + b] =
           (int)(threadBase + ops + a) ;
   }
 
@@ -806,7 +806,7 @@ static void* flexBenchThread(void* pArg)
   int statOps = 0;
 #endif
   for (;;) {
-    pThreadData->threadResult = tResult; // Report error to main thread, 
+    pThreadData->threadResult = tResult; // Report error to main thread,
     // normally tResult is set to 0
     pThreadData->threadReady = 1;
 
@@ -968,18 +968,18 @@ static void* flexBenchThread(void* pArg)
       }//if
       tSpecialTrans = 0;
       if (check == -1) {
-	if ((stVerifyDelete == tType) && 
+	if ((stVerifyDelete == tType) &&
 	    (626 == pTrans->getNdbError().code)) {
 	  // ----------------------------------------------
-	  // It's good news - the deleted tuple is gone, 
+	  // It's good news - the deleted tuple is gone,
 	  // so reset "check" flag
 	  // ----------------------------------------------
 	  check = 0 ;
 	} else {
-	  int retCode = 
+	  int retCode =
 	    theErrorData.handleErrorCommon(pTrans->getNdbError());
 	  if (retCode == 1) {
-	    ndbout_c("execute: %d, %d, %s", count, tType, 
+	    ndbout_c("execute: %d, %d, %s", count, tType,
 		     pTrans->getNdbError().message );
 	    ndbout_c("Error code = %d", pTrans->getNdbError().code );
 	    tResult = 20;
@@ -1012,7 +1012,7 @@ static void* flexBenchThread(void* pArg)
 	  ndbout << ": too many errors reported" << endl;
 	  tResult = 10;
 	  break;
-	}//if            
+	}//if
       }//if
 
       if (check == 0){
@@ -1046,7 +1046,7 @@ static void* flexBenchThread(void* pArg)
 	  }//for
 	}//for
       }// if(stVerify ... )
-      pNdb->closeTransaction(pTrans) ;  
+      pNdb->closeTransaction(pTrans) ;
     }// operations loop
 #ifdef CEBIT_STAT
     // report remaining successful ops
@@ -1102,28 +1102,28 @@ static int readArguments(int argc, char** argv)
   while (argc > 1){
     if (strcmp(argv[i], "-t") == 0){
       tNoOfThreads = atoi(argv[i+1]);
-      if ((tNoOfThreads < 1)) 
+      if ((tNoOfThreads < 1))
         return -1;
       argc -= 1;
       i++;
     }else if (strcmp(argv[i], "-o") == 0){
       tNoOfOperations = atoi(argv[i+1]);
-      if (tNoOfOperations < 1) 
+      if (tNoOfOperations < 1)
         return -1;;
       argc -= 1;
       i++;
     }else if (strcmp(argv[i], "-a") == 0){
       tNoOfAttributes = atoi(argv[i+1]);
-      if ((tNoOfAttributes < 2) || (tNoOfAttributes > MAXATTR)) 
+      if ((tNoOfAttributes < 2) || (tNoOfAttributes > MAXATTR))
         return -1;
       argc -= 1;
       i++;
     }else if (strcmp(argv[i], "-lkn") == 0){
      tNoOfLongPK = atoi(argv[i+1]);
      useLongKeys = true;
-      if ((tNoOfLongPK < 1) || (tNoOfLongPK > MAXNOLONGKEY) || 
+      if ((tNoOfLongPK < 1) || (tNoOfLongPK > MAXNOLONGKEY) ||
 	  (tNoOfLongPK * tSizeOfLongPK) > MAXLONGKEYTOTALSIZE){
-      	ndbout << "Argument -lkn is not in the proper range." << endl;  
+      	ndbout << "Argument -lkn is not in the proper range." << endl;
 	return -1;
       }
       argc -= 1;
@@ -1132,7 +1132,7 @@ static int readArguments(int argc, char** argv)
       tSizeOfLongPK = atoi(argv[i+1]);
       useLongKeys = true;
       if ((tSizeOfLongPK < 1) || (tNoOfLongPK * tSizeOfLongPK) > MAXLONGKEYTOTALSIZE){
-	ndbout << "Argument -lks is not in the proper range 1 to " << 
+	ndbout << "Argument -lks is not in the proper range 1 to " <<
 	  MAXLONGKEYTOTALSIZE << endl;
         return -1;
       }
@@ -1140,7 +1140,7 @@ static int readArguments(int argc, char** argv)
       i++;
     }else if (strcmp(argv[i], "-c") == 0){
       tNoOfTables = atoi(argv[i+1]);
-      if ((tNoOfTables < 1) || (tNoOfTables > MAXTABLES)) 
+      if ((tNoOfTables < 1) || (tNoOfTables > MAXTABLES))
         return -1;
       argc -= 1;
       i++;
@@ -1148,19 +1148,19 @@ static int readArguments(int argc, char** argv)
       theStdTableNameFlag = 1;
     }else if (strcmp(argv[i], "-l") == 0){
       tNoOfLoops = atoi(argv[i+1]);
-      if ((tNoOfLoops < 0) || (tNoOfLoops > 100000)) 
+      if ((tNoOfLoops < 0) || (tNoOfLoops > 100000))
         return -1;
       argc -= 1;
       i++;
     }else if (strcmp(argv[i], "-s") == 0){
       tAttributeSize = atoi(argv[i+1]);
-      if ((tAttributeSize < 1) || (tAttributeSize > MAXATTRSIZE)) 
+      if ((tAttributeSize < 1) || (tAttributeSize > MAXATTRSIZE))
         return -1;
       argc -= 1;
       i++;
     }else if (strcmp(argv[i], "-sleep") == 0){
       tSleepTime = atoi(argv[i+1]);
-      if ((tSleepTime < 1) || (tSleepTime > 3600)) 
+      if ((tSleepTime < 1) || (tSleepTime > 3600))
         return -1;
       argc -= 1;
       i++;
@@ -1200,7 +1200,7 @@ static int readArguments(int argc, char** argv)
       argc -= 1;
       i++;
 #endif
-    }else{       
+    }else{
       return -1;
     }
     argc -= 1;
@@ -1228,20 +1228,20 @@ createTables(Ndb* pMyNdb){
   // so that we can look at the tables with SQL
   for (Uint32 i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i,
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
     } else {
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     }
   }
-  
+
   for(Uint32 i = 0; i < tNoOfTables; i++){
     ndbout << "Creating " << tableName[i] << "... ";
-    
+
     NdbDictionary::Table tmpTable(tableName[i]);
-    
+
     tmpTable.setStoredTable(!theTempTable);
-    
+
     if(useLongKeys){
       for(Uint32 i = 0; i < tNoOfLongPK; i++) {
 	NdbDictionary::Column col(longKeyAttrName[i]);
@@ -1257,8 +1257,8 @@ createTables(Ndb* pMyNdb){
       col.setPrimaryKey(true);
       tmpTable.addColumn(col);
     }
-    
-    
+
+
     NdbDictionary::Column col;
     col.setType(NdbDictionary::Column::Unsigned);
     col.setLength(tAttributeSize);
@@ -1266,13 +1266,13 @@ createTables(Ndb* pMyNdb){
       col.setName(attrName[j]);
       tmpTable.addColumn(col);
     }
-    
+
     if(pMyNdb->getDictionary()->createTable(tmpTable) == -1){
       return -1;
     }
     ndbout << "done" << endl;
   }
-  
+
   return 0;
 }
 
@@ -1287,11 +1287,11 @@ dropTables(Ndb* pMyNdb){
     pMyNdb->getDictionary()->dropTable(tableName[i]);
     ndbout << "done" << endl;
   }
-  
+
   return 0;
 }
 
-      
+
 static void input_error(){
   ndbout << endl << "Invalid argument!" << endl;
   ndbout << endl << "Arguments:" << endl;

@@ -647,7 +647,7 @@ int main(int argc, char** argv)
       ok = false;
       goto out;
     }
-    
+
     for (i = 1; 0 == loopcnt || i <= loopcnt; i++) {
 	ndbout << "=== loop " << i << " ===" << endl;
 	for (int flag = 0; flag < (1<<testbits); flag++) {
@@ -660,7 +660,7 @@ int main(int argc, char** argv)
 	    dict->dropTable(tab);
 	}
     }
-    
+
 out:
     delete ndb;
     return NDBT_ProgramExit(ok ? NDBT_OK : NDBT_FAILED);

@@ -27,7 +27,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 
@@ -57,11 +57,11 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     " tabname\n"\
     "This program will scan read all records in one table in Ndb.\n"\
     "It will verify every column read by calculating the expected value.\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) || argv[optind] == NULL || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -84,7 +84,7 @@ int main(int argc, const char** argv){
 
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
   const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   if(pTab == NULL){
@@ -105,14 +105,14 @@ int main(int argc, const char** argv){
 	pIdx = 0;
       }
   }
-  
+
   HugoTransactions hugoTrans(*pTab);
   int i = 0;
   while (i<_loops || _loops==0) {
     ndbout << i << ": ";
     if(!pIdx)
     {
-      if(hugoTrans.scanReadRecords(&MyNdb, 
+      if(hugoTrans.scanReadRecords(&MyNdb,
 				   0,
 				   _abort,
 				   _parallelism,
@@ -123,7 +123,7 @@ int main(int argc, const char** argv){
     }
     else
     {
-      if(hugoTrans.scanReadRecords(&MyNdb, pIdx, 
+      if(hugoTrans.scanReadRecords(&MyNdb, pIdx,
 				   0,
 				   _abort,
 				   _parallelism,

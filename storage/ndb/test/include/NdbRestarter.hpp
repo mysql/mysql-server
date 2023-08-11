@@ -47,9 +47,9 @@ public:
     NRRF_FORCE   = 0x8
   };
 
-  int restartOneDbNode(int _nodeId, 
-		       bool initial = false, 
-		       bool nostart = false, 
+  int restartOneDbNode(int _nodeId,
+		       bool initial = false,
+		       bool nostart = false,
 		       bool abort = false,
                        bool force = false,
                        bool captureError = false);
@@ -64,11 +64,11 @@ public:
                             captureError);
   }
 
-  int restartAll(bool initial = false, 
-		 bool nostart = false, 
+  int restartAll(bool initial = false,
+		 bool nostart = false,
 		 bool abort = false,
                  bool force = false);
-  
+
   int restartAll2(Uint32 flags){
     return restartAll(flags & NRRF_INITIAL,
                       flags & NRRF_NOSTART,
@@ -85,20 +85,20 @@ public:
                    int num_nodes,
                    Uint32 flags,
                    bool captureError = false);
-  
+
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);
   int waitConnected(unsigned int _timeout = 120);
   int waitClusterStarted(unsigned int _timeout = 120);
   int waitClusterSingleUser(unsigned int _timeout = 120);
   int waitClusterStartPhase(int _startphase, unsigned int _timeout = 120);
-  int waitClusterNoStart(unsigned int _timeout = 120);  
+  int waitClusterNoStart(unsigned int _timeout = 120);
   int waitNodesStarted(const int * _nodes, int _num_nodes,
 		       unsigned int _timeout = 120);
-  int waitNodesStartPhase(const int * _nodes, int _num_nodes, 
+  int waitNodesStartPhase(const int * _nodes, int _num_nodes,
 			  int _startphase, unsigned int _timeout = 120);
   int waitNodesNoStart(const int * _nodes, int _num_nodes,
-		       unsigned int _timeout = 120); 
+		       unsigned int _timeout = 120);
 
   bool checkClusterState(const int * deadnodes, int num_nodes);
 
@@ -135,7 +135,7 @@ public:
 
   int getMasterNodeVersion(int& version);
   int getNodeTypeVersionRange(ndb_mgm_node_type type, int& minVer, int& maxVer);
-  
+
   int getNodeStatus(int nodeId); // return NDB_MGM_NODE_STATUS_*
 
   /**
@@ -165,7 +165,7 @@ protected:
 
   int waitClusterState(ndb_mgm_node_status _status,
 		       unsigned int _timeout,
-		       int _startphase = -1);  
+		       int _startphase = -1);
 
   int waitNodesState(const int * _nodes, int _num_nodes,
 		     ndb_mgm_node_status _status,
@@ -179,7 +179,7 @@ protected:
 
   Vector<ndb_mgm_node_state> mgmNodes;
   Vector<ndb_mgm_node_state> apiNodes;
-  
+
   bool connected;
   BaseString addr;
   ndb_mgm::config_ptr m_config;

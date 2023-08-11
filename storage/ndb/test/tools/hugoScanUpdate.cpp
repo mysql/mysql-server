@@ -27,7 +27,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 
@@ -43,7 +43,7 @@ int main(int argc, const char** argv){
   const char* _tabname = NULL, *db = 0;
   int _help = 0;
   int abort= 0;
-  
+
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     { "parallelism", 'p', arg_integer, &_parallelism, "parallelism(1-240)", "para" },
@@ -56,10 +56,10 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will scan update all records in one table in Ndb\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _help) {
     arg_printusage(args, num_args, argv[0], desc);
@@ -80,7 +80,7 @@ int main(int argc, const char** argv){
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   Ndb MyNdb( &con, db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
@@ -101,14 +101,14 @@ int main(int argc, const char** argv){
   while (i<_loops || _loops==0) {
     ndbout << i << ": ";
     if (_ver2 == 0){
-      res = hugoTrans.scanUpdateRecords(&MyNdb, 
+      res = hugoTrans.scanUpdateRecords(&MyNdb,
 					_records,
-					abort % 101, 
+					abort % 101,
 					_parallelism);
     } else{
-      res = hugoTrans.scanUpdateRecords2(&MyNdb, 
+      res = hugoTrans.scanUpdateRecords2(&MyNdb,
 					 _records,
-					 abort % 101, 
+					 abort % 101,
 					 _parallelism);
     }
     if (res != NDBT_OK ){
@@ -117,6 +117,6 @@ int main(int argc, const char** argv){
     i++;
     //NdbSleep_MilliSleep(300);
   }
-  
+
   return NDBT_ProgramExit(NDBT_OK);
 }

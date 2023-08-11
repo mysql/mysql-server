@@ -27,8 +27,8 @@
 #define NDB_TEST_HPP
 
 /**
- * NdbTest.hpp 
- * This is the main include file to include in test programs 
+ * NdbTest.hpp
+ * This is the main include file to include in test programs
  * It will include all the other include files in the NDBT-toolkit
  *
  */

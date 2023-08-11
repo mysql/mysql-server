@@ -27,7 +27,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NDBT_Thread.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
@@ -76,11 +76,11 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will read 'r' records from one table in Ndb. \n"\
     "It will verify every column read by calculating the expected value.\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _records == 0 || _batch == 0 || _help) {
     arg_printusage(args, num_args, argv[0], desc);
@@ -106,7 +106,7 @@ int main(int argc, const char** argv){
 
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-   
+
   // Check if table exists in db
   const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   if(pTab == NULL){

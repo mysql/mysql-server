@@ -152,7 +152,7 @@ printusage()
     << "  -skip xxx   skip given tests (see list) [no tests]" << endl
     << "  -test xxx   only given tests (see list) [all tests]" << endl
     << "  -nodrop     don't drop tables at end of test" << endl
-    << "  -timeoutretries N Number of times to retry in deadlock situations [" 
+    << "  -timeoutretries N Number of times to retry in deadlock situations ["
     << d.m_timeout_retries << "]" << endl
     << "  -version N  blob version 1 or 2 [" << d.m_blob_version << "]" << endl
     << "metadata" << endl
@@ -415,7 +415,7 @@ createDefaultTableSpace()
       uf.setPath("undofile01.dat");
       uf.setSize(32*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
-      
+
       res = g_dic->createUndofile(uf, true);
       if(res != 0){
 	DBG("Failed to create undofile:"
@@ -431,7 +431,7 @@ createDefaultTableSpace()
       uf.setPath("undofile02.dat");
       uf.setSize(32*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
-      
+
       res = g_dic->createUndofile(uf, true);
       if(res != 0){
 	DBG("Failed to create undofile:"
@@ -446,7 +446,7 @@ createDefaultTableSpace()
     ts.setName(g_tsName);
     ts.setExtentSize(1024*1024);
     ts.setDefaultLogfileGroup("DEFAULT-LG");
-    
+
     res = g_dic->createTablespace(ts);
     if(res != 0){
       DBG("Failed to create tablespace:"
@@ -454,7 +454,7 @@ createDefaultTableSpace()
       return -1;
     }
   }
-  
+
   {
     NdbDictionary::Datafile df = g_dic->getDatafile(0, "datafile01.dat");
     if (strcmp(df.getPath(), "datafile01.dat") != 0)
@@ -462,7 +462,7 @@ createDefaultTableSpace()
       df.setPath("datafile01.dat");
       df.setSize(64*1024*1024);
       df.setTablespace(g_tsName);
-      
+
       res = g_dic->createDatafile(df, true);
       if(res != 0){
 	DBG("Failed to create datafile:"
@@ -479,7 +479,7 @@ createDefaultTableSpace()
       df.setPath("datafile02.dat");
       df.setSize(64*1024*1024);
       df.setTablespace(g_tsName);
-      
+
       res = g_dic->createDatafile(df, true);
       if(res != 0){
 	DBG("Failed to create datafile:"
@@ -488,7 +488,7 @@ createDefaultTableSpace()
       }
     }
   }
-  
+
   return 0;
 }
 
@@ -534,24 +534,24 @@ createTable(int storageType)
 {
   /* No logging for memory tables */
   bool loggingRequired=(storageType == STORAGE_DISK);
-  NdbDictionary::Column::StorageType blobStorageType= 
+  NdbDictionary::Column::StorageType blobStorageType=
     (storageType == STORAGE_MEM)?
-    NdbDictionary::Column::StorageTypeMemory : 
+    NdbDictionary::Column::StorageTypeMemory :
     NdbDictionary::Column::StorageTypeDisk;
 
   NdbDictionary::Table tab(g_opt.m_tname);
   if (storageType == STORAGE_DISK)
     tab.setTablespaceName(g_tsName);
   tab.setLogging(loggingRequired);
-  
+
   /* Choose from the interesting fragmentation types :
    * DistrKeyHash, DistrKeyLin, UserDefined, HashMapPartitioned
-   * Others are obsolete fragment-count setting variants 
+   * Others are obsolete fragment-count setting variants
    * of DistrKeyLin
    * For UserDefined partitioning, we need to set the partition
    * id for all PK operations.
    */
-  Uint32 fragTypeRange= 1 + (NdbDictionary::Object::HashMapPartition - 
+  Uint32 fragTypeRange= 1 + (NdbDictionary::Object::HashMapPartition -
                              NdbDictionary::Object::DistrKeyHash);
   Uint32 fragType= NdbDictionary::Object::DistrKeyHash + urandom(fragTypeRange);
 
@@ -564,7 +564,7 @@ createTable(int storageType)
   if (fragType == NdbDictionary::Object::UserDefined)
   {
     /* Need to set the FragmentCount and fragment to NG mapping
-     * for this partitioning type 
+     * for this partitioning type
      */
     NdbRestarter restarter;
     Vector<int> node_groups;
@@ -646,7 +646,7 @@ createTable(int storageType)
   { NdbDictionary::Column col("PK3");
     col.setType(NdbDictionary::Column::Smallunsigned);
     col.setPrimaryKey(true);
-    
+
     tab.addColumn(col);
   }
   // create table
@@ -861,15 +861,15 @@ setUDpartId(const Tup& tup, NdbOperation* op)
   if (tab->getFragmentType() == NdbDictionary::Object::UserDefined)
   {
     Uint32 partId= tup.getPartitionId(tab->getFragmentCount());
-    DBG("Setting partition id to " << partId << " out of " << 
+    DBG("Setting partition id to " << partId << " out of " <<
         tab->getFragmentCount());
     op->setPartitionId(partId);
   }
 }
 
 static void
-setUDpartIdNdbRecord(const Tup& tup, 
-                     const NdbDictionary::Table* tab, 
+setUDpartIdNdbRecord(const Tup& tup,
+                     const NdbDictionary::Table* tab,
                      NdbOperation::OperationOptions& opts)
 {
   opts.optionsPresent= 0;
@@ -877,7 +877,7 @@ setUDpartIdNdbRecord(const Tup& tup,
   {
     opts.optionsPresent= NdbOperation::OperationOptions::OO_PARTITION_ID;
     opts.partitionId= tup.getPartitionId(tab->getFragmentCount());
-  } 
+  }
 }
 
 static void
@@ -918,12 +918,12 @@ conHasTimeoutError()
    */
   // 296 == Application timeout waiting for SCAN_NEXTREQ from API
   // 297 == Error code in response to SCAN_NEXTREQ for timed-out scan
-  bool isTimeout= ((code == 274) || // General TC connection timeout 
+  bool isTimeout= ((code == 274) || // General TC connection timeout
                    (code == 266));  // TC Scan frag timeout
   if (!isTimeout)
     ndbout << "Connection error is not timeout, but is "
            << code << endl;
-  
+
   return isTimeout;
 }
 
@@ -995,27 +995,27 @@ static void setBatchSizes()
 {
   if (g_opt.m_rbatch != 0)
   {
-    Uint32 byteSize = (g_opt.m_rbatch == -1) ? 
+    Uint32 byteSize = (g_opt.m_rbatch == -1) ?
       urandom(~Uint32(0)) :
       g_opt.m_rbatch;
-    
-    DBG("Setting read batch size to " << byteSize 
+
+    DBG("Setting read batch size to " << byteSize
         << " bytes.");
     g_con->setMaxPendingBlobReadBytes(byteSize);
   }
-  
+
   if (g_opt.m_wbatch != 0)
   {
-    Uint32 byteSize = (g_opt.m_wbatch == -1) ? 
+    Uint32 byteSize = (g_opt.m_wbatch == -1) ?
       urandom(~Uint32(0)) :
       g_opt.m_wbatch;
-    
-    DBG("Setting write batch size to " << byteSize 
+
+    DBG("Setting write batch size to " << byteSize
         << " bytes.");
     g_con->setMaxPendingBlobWriteBytes(byteSize);
   }
 }
-    
+
 
 // blob handle ops
 // const version for NdbRecord defined operations
@@ -1118,21 +1118,21 @@ getBlobValue(const Tup& tup)
   return 0;
 }
 
-/* 
+/*
  * presetBH1
- * This method controls how BL1 is pre-set (using setValue()) for 
- * inserts and writes that later use writeData to set the correct 
+ * This method controls how BL1 is pre-set (using setValue()) for
+ * inserts and writes that later use writeData to set the correct
  * value.
  * Sometimes it is set to length zero, other times to the value
  * for some other row in the dataset.  This tests that the writeData()
- * functionality correctly overwrites values written in the 
+ * functionality correctly overwrites values written in the
  * prepare phase.
  */
 static int presetBH1(int rowNumber)
 {
   unsigned int variant = urandom(2);
   DBG("presetBH1 - Variant=" << variant);
-  if (variant==0) 
+  if (variant==0)
     CHK(g_bh1->setValue("", 0) == 0);
   else
   {
@@ -1349,7 +1349,7 @@ tryRowLock(Tup& tup, bool exclusive)
     CHK(testOp->equal("PK3", tup.m_pk3) == 0);
   }
   setUDpartId(tup, testOp);
-  
+
   if (testTrans->execute(Commit, AbortOnError) == 0)
   {
     /* Successfully claimed lock */
@@ -1373,7 +1373,7 @@ tryRowLock(Tup& tup, bool exclusive)
     }
   }
 }
-  
+
 
 static int
 verifyRowLocked(Tup& tup)
@@ -1439,7 +1439,7 @@ verifyHeadInline(Tup& tup)
       CHK(verifyHeadInline(g_blob2, tup.m_bval2, ra2) == 0);
     }
   } else {
-    CHK(g_con->execute(Commit, AbortOnError) == -1 && 
+    CHK(g_con->execute(Commit, AbortOnError) == -1 &&
 	g_con->getNdbError().code == 626);
   }
   g_ndb->closeTransaction(g_con);
@@ -1475,7 +1475,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
     opState= Normal;
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
-    CHK(g_ops->readTuples(NdbScanOperation::LM_Read, 
+    CHK(g_ops->readTuples(NdbScanOperation::LM_Read,
                           g_scanFlags,
                           g_batchSize,
                           g_parallel) == 0);
@@ -1492,7 +1492,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
       CHK((ra_part = g_ops->getValue("NDB$PART")) != 0);
       CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
     }
-    
+
     /* No partition id set on Blob part table scan so that we
      * find any misplaced parts in other partitions
      */
@@ -1512,7 +1512,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
       {
         /* Timeout? */
         CHK(conHasTimeoutError());
-        
+
         /* Break out and restart scan unless we've
          * run out of attempts
          */
@@ -1520,7 +1520,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
              << conError() <<").  Retries left : "
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
-        
+
         opState= Retrying;
         NdbSleep_SecSleep(1);
         break;
@@ -1566,7 +1566,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
         }
       }
       CHK(memcmp(data, v.m_val + n, m) == 0);
-      if (b.m_version == 1 || 
+      if (b.m_version == 1 ||
           g_usingDisk ) { // Blob v2 stored on disk is currently
         // fixed size, so we do these tests.
         char fillchr;
@@ -1584,7 +1584,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
       if (b.m_stripe == 0)
         CHK(frag == frag2);
     }
-    
+
     if (opState == Normal)
     {
       for (unsigned i = 0; i < partcount; i++)
@@ -1594,7 +1594,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
     g_ops->close();
     g_ndb->closeTransaction(g_con);
   } while (opState == Retrying);
-  
+
   g_ops = 0;
   g_con = 0;
   return 0;
@@ -1626,10 +1626,10 @@ rowIsLocked(Tup& tup)
 {
   NdbTransaction* testTrans;
   CHK((testTrans = g_ndb->startTransaction()) != 0);
-  
+
   NdbOperation* testOp;
   CHK((testOp = testTrans->getNdbOperation(g_opt.m_tname)) != 0);
-  
+
   CHK(testOp->readTuple(NdbOperation::LM_Exclusive) == 0);
   CHK(testOp->equal("PK1", tup.m_pk1) == 0);
   if (g_opt.m_pk2chr.m_len != 0)
@@ -1639,12 +1639,12 @@ rowIsLocked(Tup& tup)
   }
   setUDpartId(tup, testOp);
   CHK(testOp->getValue("PK1") != 0);
-  
+
   CHK(testTrans->execute(Commit) == -1);
   CHK(testTrans->getNdbError().code == 266);
-  
+
   testTrans->close();
-  
+
   return 0;
 }
 
@@ -1692,7 +1692,7 @@ insertPk(int style, int api)
         setUDpartIdNdbRecord(tup,
                              g_ndb->getDictionary()->getTable(g_opt.m_tname),
                              opts);
-        CHK((g_const_opr = g_con->insertTuple(g_full_record, 
+        CHK((g_const_opr = g_con->insertTuple(g_full_record,
                                               tup.m_row,
                                               NULL,
                                               &opts,
@@ -1736,7 +1736,7 @@ insertPk(int style, int api)
              << " Retries left : "
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
-        
+
         k = k - n;
         n = 0;
         opState= Retrying;
@@ -1868,7 +1868,7 @@ readPk(int style, int api)
       {
         // verify lock mode upgrade
         CHK((g_opr?g_opr:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
-            
+
         if (style == 0 || style == 1) {
           CHK(verifyBlobValue(tup) == 0);
         }
@@ -1969,7 +1969,7 @@ readLockPk(int style, int api)
       {
         if (g_con->execute(NoCommit) == 0)
         {
-          /* Ok, read executed ok, now 
+          /* Ok, read executed ok, now
            * - Verify the Blob data
            * - Verify the row is locked
            * - Close the Blob handles
@@ -1978,7 +1978,7 @@ readLockPk(int style, int api)
           NdbOperation::LockMode lmused = (g_opr?g_opr:g_const_opr)->getLockMode();
           CHK((lmused == NdbOperation::LM_Read) ||
               (lmused == NdbOperation::LM_Exclusive));
-          
+
           if (style == 0 || style == 1) {
             CHK(verifyBlobValue(tup) == 0);
           }
@@ -1986,7 +1986,7 @@ readLockPk(int style, int api)
           /* Occasionally check that we are locked */
           if (urandom(200) == 0)
             CHK(verifyRowLocked(tup) == 0);
-          
+
           /* Close Blob handles */
           CHK(g_bh1->close() == 0);
           CHK(g_bh1->getState() == NdbBlob::Closed);
@@ -2010,8 +2010,8 @@ readLockPk(int style, int api)
             CHK(g_bh2->close() != 0);
             CHK(g_bh2->getNdbError().code == 4554);
           }
-          
-          
+
+
           if (manualUnlock)
           {
             /* All Blob handles closed, now we can issue an
@@ -2024,14 +2024,14 @@ readLockPk(int style, int api)
             const NdbOperation* unlockOp = g_con->unlock(lh);
             CHK(unlockOp != NULL);
           }
-          
+
           /* All Blob handles closed - manual or automatic
            * unlock op has been enqueued.  Now execute and
            * check that the row is unlocked.
            */
           CHK(g_con->execute(NoCommit) == 0);
           CHK(verifyRowNotLocked(tup) == 0);
-          
+
           if (g_con->execute(Commit) != 0)
           {
             CHK((timeout= conHasTimeoutError()) == true);
@@ -2158,7 +2158,7 @@ updatePk(int style, int api)
              << conError() <<")  Retries left : "
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
-        
+
         opState= Retrying;
         NdbSleep_SecSleep(1);
       }
@@ -2183,7 +2183,7 @@ writePk(int style, int api)
     Tup& tup = g_tups[k];
     Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
     enum OpState opState;
-    
+
     do
     {
       opState= Normal;
@@ -2281,7 +2281,7 @@ deletePk(int api)
         CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
         CHK(g_opr->deleteTuple() == 0);
         /* Must set explicit partitionId before equal() calls as that's
-         * where implicit Blob handles are created which need the 
+         * where implicit Blob handles are created which need the
          * partitioning info
          */
         setUDpartId(tup, g_opr);
@@ -2315,14 +2315,14 @@ deletePk(int api)
                << conError() <<")  Retries left : "
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
-          
+
           opState= Retrying;
           k= k - (n-1);
           n= 0;
           NdbSleep_SecSleep(1);
           break; // Out of for
         }
-          
+
         g_ndb->closeTransaction(g_con);
         CHK((g_con = g_ndb->startTransaction()) != 0);
         n = 0;
@@ -2344,7 +2344,7 @@ deletePk(int api)
           NdbSleep_SecSleep(1);
           opState= Retrying;
           k= k- (n-1);
-        } 
+        }
         n = 0;
       }
     }
@@ -2410,7 +2410,7 @@ readIdx(int style, int api)
     Tup& tup = g_tups[k];
     Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
     enum OpState opState;
-    
+
     do
     {
       opState= Normal;
@@ -2479,7 +2479,7 @@ readIdx(int style, int api)
              << conError() <<")  Retries left : "
              << opTimeoutRetries -1);
         CHK(--opTimeoutRetries);
-        
+
         opState= Retrying;
         NdbSleep_SecSleep(1);
       }
@@ -2567,7 +2567,7 @@ writeIdx(int style, int api)
     Tup& tup = g_tups[k];
     Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
     enum OpState opState;
-    
+
     do
     {
       opState= Normal;
@@ -2757,7 +2757,7 @@ readScan(int style, int api, bool idx)
         CHK(g_ops->getValue("PK3", (char *) &tup.m_pk3) != 0);
       }
       /* Don't bother setting UserDefined partitions for scan tests */
-      CHK(getBlobHandles(g_ops) == 0);   
+      CHK(getBlobHandles(g_ops) == 0);
     }
     else
     {
@@ -2765,7 +2765,7 @@ readScan(int style, int api, bool idx)
       if (! idx)
         CHK((g_ops= g_con->scanTable(g_full_record,
                                      lm)) != 0);
-      else 
+      else
         CHK((g_ops= g_con->scanIndex(g_ord_record, g_full_record,
                                      lm)) != 0);
       CHK(getBlobHandles(g_ops) == 0);
@@ -2788,7 +2788,7 @@ readScan(int style, int api, bool idx)
       g_ndb->closeTransaction(g_con);
       continue;
     }
-    
+
     // verify lock mode upgrade
     CHK(g_ops->getLockMode() == NdbOperation::LM_Read);
     unsigned rows = 0;
@@ -2816,7 +2816,7 @@ readScan(int style, int api, bool idx)
           }
         }
       }
-  
+
       if (ret == -1)
       {
         /* Timeout? */
@@ -2826,7 +2826,7 @@ readScan(int style, int api, bool idx)
            * run out of attempts
            */
           DISP("Scan read failed due to deadlock timeout ("
-               << conError() <<") retries left :" 
+               << conError() <<") retries left :"
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
 
@@ -2942,10 +2942,10 @@ updateScan(int style, int api, bool idx)
           if (g_opt.m_pk2chr.m_len != 0) {
             memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
             memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
-          }    
+          }
         }
       }
-      
+
       if (ret == -1)
       {
         /* Timeout? */
@@ -2955,7 +2955,7 @@ updateScan(int style, int api, bool idx)
            * run out of attempts
            */
           DISP("Scan update failed due to deadlock timeout ("
-               << conError() <<"), retries left :" 
+               << conError() <<"), retries left :"
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
 
@@ -2967,7 +2967,7 @@ updateScan(int style, int api, bool idx)
       CHK(opState == Normal);
       CHK((ret == 0) || (ret == 1));
       if (ret == 1)
-        break;      
+        break;
 
       DBG("updateScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
       Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
@@ -3045,7 +3045,7 @@ lockUnlockScan(int style, int api, bool idx)
     NdbOperation::LockMode lm = NdbOperation::LM_Read;
     if (urandom(2) == 0)
       lm = NdbOperation::LM_Exclusive;
-    
+
     Uint32 scanFlags = g_scanFlags | NdbScanOperation::SF_KeyInfo;
 
     if (api == API_RECATTR)
@@ -3072,7 +3072,7 @@ lockUnlockScan(int style, int api, bool idx)
       NdbScanOperation::ScanOptions opts;
       opts.optionsPresent = NdbScanOperation::ScanOptions::SO_SCANFLAGS;
       opts.scan_flags = scanFlags;
-      
+
       /* Don't bother setting UserDefined partitions for scan tests */
       if (! idx)
         CHK((g_ops= g_con->scanTable(g_key_record,
@@ -3103,10 +3103,10 @@ lockUnlockScan(int style, int api, bool idx)
           if (g_opt.m_pk2chr.m_len != 0) {
             memcpy(tup.m_pk2, &out_row[g_pk2_offset], g_opt.m_pk2chr.m_totlen);
             memcpy(&tup.m_pk3, &out_row[g_pk3_offset], sizeof(tup.m_pk3));
-          }    
+          }
         }
       }
-      
+
       if (ret == -1)
       {
         /* Timeout? */
@@ -3116,7 +3116,7 @@ lockUnlockScan(int style, int api, bool idx)
            * run out of attempts
            */
           DISP("Scan failed due to deadlock timeout ("
-               << conError() <<"), retries left :" 
+               << conError() <<"), retries left :"
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
 
@@ -3128,14 +3128,14 @@ lockUnlockScan(int style, int api, bool idx)
       CHK(opState == Normal);
       CHK((ret == 0) || (ret == 1));
       if (ret == 1)
-        break;      
+        break;
 
       DBG("lockUnlockScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
       /* Get tuple info for current row */
       Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
       CHK(k < g_opt.m_rows && g_tups[k].m_exists);
       tup.copyfrom(g_tups[k]);
-      
+
       if (api == API_RECATTR)
       {
         CHK((g_opr = g_ops->lockCurrentTuple()) != 0);
@@ -3181,12 +3181,12 @@ lockUnlockScan(int style, int api, bool idx)
           /* Occasionally check that we are locked */
           if (urandom(200) == 0)
             CHK(verifyRowLocked(tup) == 0);
-          
+
           /* Close Blob handles */
           CHK(g_bh1->close() == 0);
           if (! g_opt.m_oneblob)
             CHK(g_bh2->close() == 0);
-          
+
           if (lm != NdbOperation::LM_CommittedRead)
           {
             /* All Blob handles closed, now we can issue an
@@ -3199,9 +3199,9 @@ lockUnlockScan(int style, int api, bool idx)
             const NdbOperation* unlockOp = g_con->unlock(lh);
             CHK(unlockOp != NULL);
           }
-          
+
           /* All Blob handles closed - manual or automatic
-           * unlock op has been enqueued.  Now execute 
+           * unlock op has been enqueued.  Now execute
            */
           CHK(g_con->execute(NoCommit) == 0);
         }
@@ -3255,13 +3255,13 @@ deleteScan(int api, bool idx)
   Uint32 opTimeoutRetries= g_opt.m_timeout_retries;
   enum OpState opState;
   unsigned rows = 0;
-  
+
   do
   {
     opState= Normal;
-    
+
     CHK((g_con = g_ndb->startTransaction()) != 0);
-    
+
     if (api == API_RECATTR)
     {
       if (! idx) {
@@ -3295,7 +3295,7 @@ deleteScan(int api, bool idx)
     unsigned n = 0;
     while (1) {
       int ret;
-      
+
       if (api == API_RECATTR)
       {
         tup.m_pk1 = (Uint32)-1;
@@ -3306,7 +3306,7 @@ deleteScan(int api, bool idx)
       else
       {
         const char *out_row= NULL;
-        
+
         if (0 == (ret = g_ops->nextResult(&out_row, true, false)))
         {
           memcpy(&tup.m_pk1, &out_row[g_pk1_offset], sizeof(tup.m_pk1));
@@ -3327,10 +3327,10 @@ deleteScan(int api, bool idx)
            * run out of attempts
            */
           DISP("Scan delete failed due to deadlock timeout ("
-               << conError() <<") retries left :" 
+               << conError() <<") retries left :"
                << opTimeoutRetries -1);
           CHK(--opTimeoutRetries);
-          
+
           opState= Retrying;
           NdbSleep_SecSleep(1);
           break;
@@ -3340,7 +3340,7 @@ deleteScan(int api, bool idx)
       CHK((ret == 0) || (ret == 1));
       if (ret == 1)
         break;
-      
+
       while (1) {
         DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
         Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
@@ -3356,7 +3356,7 @@ deleteScan(int api, bool idx)
         if (api == API_RECATTR)
           ret = g_ops->nextResult(false);
         else
-        {      
+        {
           const char *out_row= NULL;
           ret = g_ops->nextResult(&out_row, false, false);
           if (ret == 0)
@@ -3369,7 +3369,7 @@ deleteScan(int api, bool idx)
             }
           }
         }
-        
+
         if (ret == -1)
         {
           /* Timeout? */
@@ -3379,10 +3379,10 @@ deleteScan(int api, bool idx)
              * run out of attempts
              */
             DISP("Scan delete failed due to deadlock timeout ("
-                 << conError() <<") retries left :" 
+                 << conError() <<") retries left :"
                  << opTimeoutRetries -1);
             CHK(--opTimeoutRetries);
-            
+
             opState= Retrying;
             NdbSleep_SecSleep(1);
             break;
@@ -3390,7 +3390,7 @@ deleteScan(int api, bool idx)
         }
         CHK(opState == Normal);
         CHK((ret == 0) || (ret == 1) || (ret == 2));
-        
+
         if (++n == g_opt.m_batch || ret == 2) {
           DBG("execute batch: n=" << n << " ret=" << ret);
           if (! g_opt.m_fac) {
@@ -3415,7 +3415,7 @@ deleteScan(int api, bool idx)
       CHK(g_opt.m_rows == rows);
     }
     g_ndb->closeTransaction(g_con);
-    
+
   } while (opState == Retrying);
   g_con = 0;
   g_ops = 0;
@@ -3423,7 +3423,7 @@ deleteScan(int api, bool idx)
 }
 
 
-enum OpTypes { 
+enum OpTypes {
   PkRead,
   PkInsert,
   PkUpdate,
@@ -3474,14 +3474,14 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
 {
   bool pkop;
   switch(optype){
-  case PkRead: case PkInsert : case PkUpdate: 
+  case PkRead: case PkInsert : case PkUpdate:
   case PkWrite : case PkDelete :
     pkop=true;
     break;
   default:
     pkop= false;
   }
-  
+
   if (pkop)
     CHK((op= g_con->getNdbOperation(g_opt.m_tname)) != 0);
   else
@@ -3511,7 +3511,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
     CHK(false);
     return -1;
   }
-  
+
   /**
    * Use function, returns different case variants
    * when case-insensitive collation used
@@ -3533,7 +3533,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
     CHK(op->equal("PK2", pk2ptr) == 0);
     CHK(op->equal("PK3", tup.m_pk3) == 0);
   }
-  
+
   DBG("SetupOperation : "
       << operationName(optype)
       << " pk1=" << hex << tup.m_pk1);
@@ -3545,7 +3545,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
   }
 
   CHK(getBlobHandles(op) == 0);
-  
+
   switch(optype){
   case PkRead:
   case UkRead:
@@ -3576,7 +3576,7 @@ bugtest_36756()
 {
   /* Transaction which had accessed a Blob table was ignoring
    * abortOption passed in the execute() call.
-   * Check that option passed in execute() call overrides 
+   * Check that option passed in execute() call overrides
    * default / manually set operation abortOption, even in the
    * presence of Blobs in the transaction
    */
@@ -3591,10 +3591,10 @@ bugtest_36756()
    * UkUpdate          NoDataFound              NoDataFound*
    * UkWrite           NoDataFound              NoDataFound*
    * UkDelete          NoDataFound              NoDataFound*
-   * 
+   *
    * * Are interesting, where non-default behaviour is requested.
    */
-  
+
   struct ExpectedOutcome
   {
     int executeRc;
@@ -3608,7 +3608,7 @@ bugtest_36756()
    * but not the Operation error codes
    * IgnoreError sets the transaction error and the
    * failing operation error code(s)
-   * Odd cases : 
+   * Odd cases :
    *   Pk Write : Can't fail due to key presence, just
    *              incorrect NULLs etc.
    *   Uk Write : Key must exist, so not really different
@@ -3651,16 +3651,16 @@ bugtest_36756()
 
   for (int iterations=0; iterations < 50; iterations++)
   {
-    /* Recalculate and insert different tuple every time to 
+    /* Recalculate and insert different tuple every time to
      * get different keys(and therefore nodes), and
      * different length Blobs, including zero length
      * and NULL
      */
     calcTups(true);
-    
+
     Tup& tupExists = g_tups[0];
     Tup& tupDoesNotExist = g_tups[1];
-    
+
     /* Setup table with just 1 row present */
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
@@ -3673,12 +3673,12 @@ bugtest_36756()
     }
     setUDpartId(tupExists, g_opr);
     CHK(getBlobHandles(g_opr) == 0);
-    
+
     CHK(setBlobValue(tupExists) == 0);
-    
+
     CHK(g_con->execute(Commit) == 0);
     g_con->close();
-    
+
     DBG("Iteration : " << iterations);
     for (int optype=PkRead; optype <= UkDelete; optype++)
     {
@@ -3703,19 +3703,19 @@ bugtest_36756()
         DBG("    " << aoName(abortOption));
         NdbOperation *opr1, *opr2;
         NdbOperation::AbortOption ao= (abortOption==0)?
-          NdbOperation::AbortOnError : 
+          NdbOperation::AbortOnError :
           NdbOperation::AO_IgnoreError;
-        
+
         CHK((g_con= g_ndb->startTransaction()) != 0);
-        
+
         /* Operation 1 */
         CHK(setupOperation(opr1, (OpTypes)optype, *tup1) == 0);
-        
+
         /* Operation2 */
         CHK(setupOperation(opr2, (OpTypes)optype, *tup2) == 0);
 
         ExpectedOutcome eo= outcomes[optype][abortOption];
-        
+
         int rc = g_con->execute(NdbTransaction::NoCommit, ao);
 
         DBG("execute returned " << rc <<
@@ -3724,16 +3724,16 @@ bugtest_36756()
             " Opr2 err " << opr2->getNdbError().code <<
             " CommitStatus " << g_con->commitStatus());
 
-        CHK(rc == eo.executeRc);        
+        CHK(rc == eo.executeRc);
         CHK(g_con->getNdbError().code == eo.transactionErrorCode);
         CHK(opr1->getNdbError().code == eo.opr1ErrorCode);
         CHK(opr2->getNdbError().code == eo.opr2ErrorCode);
         CHK(g_con->commitStatus() == eo.commitStatus);
-        
+
         g_con->close();
       }
     }
-    
+
     /* Now delete the 'existing'row */
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
@@ -3761,30 +3761,30 @@ bugtest_36756()
 static int
 bugtest_45768()
 {
-  /* Transaction inserting using blobs has an early error 
+  /* Transaction inserting using blobs has an early error
      resulting in kernel-originated rollback.
      Api then calls execute(Commit) which chokes on Blob
      objects
-     
+
    */
   DBG("bugtest_45768 : Batched blob transaction with abort followed by commit");
-  
+
   const int numIterations = 5;
 
   for (int iteration=0; iteration < numIterations; iteration++)
   {
-    /* Recalculate and insert different tuple every time to 
+    /* Recalculate and insert different tuple every time to
      * get different keys(and therefore nodes), and
      * different length Blobs, including zero length
      * and NULL
      */
     calcTups(true);
-    
-    const Uint32 totalRows = 100; 
+
+    const Uint32 totalRows = 100;
     const Uint32 preExistingTupNum =  totalRows / 2;
-    
+
     Tup& tupExists = g_tups[ preExistingTupNum ];
-    
+
     /* Setup table with just 1 row present */
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
@@ -3797,14 +3797,14 @@ bugtest_45768()
     }
     setUDpartId(tupExists, g_opr);
     CHK(getBlobHandles(g_opr) == 0);
-    
+
     CHK(setBlobValue(tupExists) == 0);
-    
+
     CHK(g_con->execute(Commit) == 0);
     g_con->close();
 
     DBG("Iteration : " << iteration);
-    
+
     /* Now do batched insert, including a TUP which already
      * exists
      */
@@ -3814,7 +3814,7 @@ bugtest_45768()
     do
     {
       CHK((g_con = g_ndb->startTransaction()) != 0);
-      
+
       for (Uint32 tupNum = 0; tupNum < totalRows ; tupNum++)
       {
         Tup& tup = g_tups[ tupNum ];
@@ -3831,24 +3831,24 @@ bugtest_45768()
         CHK(getBlobHandles(g_opr) == 0);
         CHK(setBlobValue(tup) == 0);
       }
-      
+
       /* Now execute NoCommit */
       int rc = g_con->execute(NdbTransaction::NoCommit);
-      
+
       CHK(rc == -1);
 
       if (g_con->getNdbError().code == 630)
         break; /* Expected */
-      
+
       CHK(g_con->getNdbError().code == 1218); // Send buffers overloaded
-     
+
       DBG("Send Buffers overloaded, retrying");
       NdbSleep_SecSleep(1);
       g_con->close();
     } while (retries--);
 
     CHK(g_con->getNdbError().code == 630);
-            
+
     /* Now execute Commit */
     rc = g_con->execute(NdbTransaction::Commit);
 
@@ -3857,7 +3857,7 @@ bugtest_45768()
     CHK(g_con->getNdbError().code == 4350);
 
     g_con->close();
-    
+
     /* Now delete the 'existing'row */
     CHK((g_con= g_ndb->startTransaction()) != 0);
     CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
@@ -3883,8 +3883,8 @@ bugtest_45768()
 
 static int bugtest_48040()
 {
-  /* When batch of operations triggers unique index 
-   * maint triggers (which fire back to TC) and 
+  /* When batch of operations triggers unique index
+   * maint triggers (which fire back to TC) and
    * TC is still receiving ops in batch from the API
    * TC uses ContinueB to self to defer trigger
    * processing until all operations have been
@@ -3896,11 +3896,11 @@ static int bugtest_48040()
    *
    * This testcase sets an ERROR INSERT to detect
    * the excessive ContinueB use in 1 transaction,
-   * and runs bugtest_bug45768 to generate the 
+   * and runs bugtest_bug45768 to generate the
    * scenario
    */
   NdbRestarter restarter;
-  
+
   DBG("bugtest 48040 - Infinite ContinueB loop in TC abort + unique");
 
   restarter.waitConnected();
@@ -3908,7 +3908,7 @@ static int bugtest_48040()
   int rc = restarter.insertErrorInAllNodes(8082);
 
   DBG(" Initial error insert rc" << rc << endl);
-  
+
   rc = bugtest_45768();
 
   /* Give time for infinite loop to build */
@@ -4709,7 +4709,7 @@ testmain()
 
   // Create tablespace if we're going to use disk based data
   if (testcase('h'))
-    createDefaultTableSpace(); 
+    createDefaultTableSpace();
 
   if (g_opt.m_seed == -1)
     g_opt.m_seed = NdbHost_GetProcessId();
@@ -4722,13 +4722,13 @@ testmain()
     for (int storage= 0; storage < 2; storage++) {
       if (!testcase(storageSymbol[storage]))
         continue;
-      
+
       DBG("Create table " << storageName[storage]);
       CHK(dropTable() == 0);
       CHK(createTable(storage) == 0);
       { /* Dump created table information */
         Bcol& b1 = g_blob1;
-        DBG("FragType: " << g_dic->getTable(g_opt.m_tname)->getFragmentType()); 
+        DBG("FragType: " << g_dic->getTable(g_opt.m_tname)->getFragmentType());
         CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
         DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
         if (! g_opt.m_oneblob) {
@@ -4773,7 +4773,7 @@ testmain()
         // test some bug# instead
         CHK((*g_opt.m_bugtest)() == 0);
         continue;
-      }    
+      }
       /* Loop over API styles */
       for (api = 0; api <=1; api++) {
         // pk
@@ -4824,7 +4824,7 @@ testmain()
             }
           }
         }
-        
+
         // hash index
         for (style = 0; style <= 2; style++) {
           if (! testcase('i') || ! testcase(style))
@@ -5431,7 +5431,7 @@ bugtest_27370()
   Uint32 pk1_value= 27370;
 
   const NdbDictionary::Table* t= g_ndb->getDictionary()->getTable(g_opt.m_tname);
-  bool isUserDefined= (t->getFragmentType() == NdbDictionary::Object::UserDefined); 
+  bool isUserDefined= (t->getFragmentType() == NdbDictionary::Object::UserDefined);
   Uint32 partCount= t->getFragmentCount();
   Uint32 udPartId= pk1_value % partCount;
   NdbOperation::OperationOptions opts;

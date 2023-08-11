@@ -38,18 +38,18 @@ int main(int argc, const char** argv){
 
   int _temp = false;
   int _help = 0;
-  
+
   struct getargs args[] = {
     { "temp", 't', arg_flag, &_temp, "Temporary table", "temp" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "This program will create all standard tables in Ndb.\n"\
     "The tables is  selected from a fixed list of tables\n"\
     "defined in NDBT_Tables class\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -63,12 +63,12 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   Ndb MyNdb(&con, "TEST_DB" );
-  
+
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
 

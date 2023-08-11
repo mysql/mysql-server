@@ -75,7 +75,7 @@ public:
   int m_scanLength; // m_scanLength==0 implies 'lookupJoin'.
   /** Specifies how many times a query definition should be reused before.
    * It is recreated. Setting this to 0 means that the definition is never
-   * recreated.*/ 
+   * recreated.*/
   int m_queryDefReuse;
   bool m_useLinkedOperations;
   /** If true, run an equivalent SQL query.*/
@@ -103,7 +103,7 @@ private:
     Uint32 a;
     Uint32 b;
   };
-  
+
   struct KeyRow{
     Uint32 a;
   };
@@ -112,12 +112,12 @@ private:
   Ndb m_ndb;
   enum {State_Active, State_Stopping, State_Stopped} m_state;
   pthread_t m_posixThread;
-  pthread_mutex_t m_mutex;  
+  pthread_mutex_t m_mutex;
   pthread_cond_t m_condition;
   const NdbDictionary::Table* m_tab;
   const NdbDictionary::Index* m_index;
   const NdbRecord* m_resultRec;
-  const NdbRecord* m_keyRec; 
+  const NdbRecord* m_keyRec;
   const NdbRecord* m_indexRec;
   MYSQL m_mysql;
 
@@ -151,9 +151,9 @@ static void mySQLExec(MYSQL& mysql, const char* stmt){
 }
 
 // TestThread methods.
-TestThread::TestThread(Ndb_cluster_connection& con, 
-                       const char* host, 
-                       int port): 
+TestThread::TestThread(Ndb_cluster_connection& con,
+                       const char* host,
+                       int port):
   m_params(NULL),
   m_ndb(&con, databaseName),
   m_state(State_Active)
@@ -179,7 +179,7 @@ TestThread::TestThread(Ndb_cluster_connection& con,
   NdbDictionary::RecordSpecification spec = {
     col1, 0, 0, 0, 0
   };
-  
+
   m_keyRec = dict->createRecord(m_tab, &spec, 1, sizeof spec);
   require(m_keyRec != NULL);
 
@@ -239,7 +239,7 @@ void TestThread::run(){
       // Exit thread.
       return;
     }
-    
+
     if(m_params->m_useSQL){
       doSQLTest();
     }else{
@@ -258,16 +258,16 @@ void TestThread::run(){
 
 void TestThread::doLinkedAPITest(){
   NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-      
+
   const NdbQueryDef* queryDef = NULL;
   const Row** resultPtrs = new const Row*[m_params->m_depth+1];
-      
+
   NdbTransaction* trans = NULL;
 
   for(int iterNo = 0; iterNo<m_params->m_iterations; iterNo++){
     //ndbout << "Starting next iteration " << endl;
     // Build query definition if needed.
-    if(iterNo==0 || (m_params->m_queryDefReuse>0 && 
+    if(iterNo==0 || (m_params->m_queryDefReuse>0 &&
                      iterNo%m_params->m_queryDefReuse==0)){
       if(queryDef != NULL){
         queryDef->destroy();
@@ -275,7 +275,7 @@ void TestThread::doLinkedAPITest(){
       const NdbQueryOperationDef* parentOpDef = NULL;
       if(m_params->m_scanLength==0){
         // Root is lookup
-        const NdbQueryOperand* rootKey[] = {  
+        const NdbQueryOperand* rootKey[] = {
           builder->constValue(0), //a
           NULL
         };
@@ -298,10 +298,10 @@ void TestThread::doLinkedAPITest(){
         const NdbQueryIndexBound bound(NULL, false, highKey, false);
         parentOpDef = builder->scanIndex(m_index, m_tab, &bound);
       }
-          
+
       // Add child lookup operations.
       for(int i = 0; i<m_params->m_depth; i++){
-        const NdbQueryOperand* key[] = {  
+        const NdbQueryOperand* key[] = {
           builder->linkedValue(parentOpDef, "b"),
           NULL
         };
@@ -309,7 +309,7 @@ void TestThread::doLinkedAPITest(){
       }
       queryDef = builder->prepare(&m_ndb);
     }
-        
+
     if (!trans) {
       trans = m_ndb.startTransaction();
     }
@@ -327,7 +327,7 @@ void TestThread::doLinkedAPITest(){
     require(res == 0);
     int cnt=0;
     while(true){
-      const NdbQuery::NextResultOutcome outcome 
+      const NdbQuery::NextResultOutcome outcome
         = query->nextResult(true, false);
       if(outcome ==  NdbQuery::NextResult_scanComplete){
         break;
@@ -369,10 +369,10 @@ void TestThread::doNonLinkedAPITest(){
           true, // High key inclusive.
           0
         };
-          
-        scanOp = 
-          trans->scanIndex(m_indexRec, 
-                           m_resultRec, 
+
+        scanOp =
+          trans->scanIndex(m_indexRec,
+                           m_resultRec,
                            NdbOperation::LM_Dirty,
                            NULL, // Result mask
                            &bound);
@@ -387,10 +387,10 @@ void TestThread::doNonLinkedAPITest(){
           false, // High key inclusive.
           0
         };
-          
-        scanOp = 
-          trans->scanIndex(m_indexRec, 
-                           m_resultRec, 
+
+        scanOp =
+          trans->scanIndex(m_indexRec,
+                           m_resultRec,
                            NdbOperation::LM_Dirty,
                            NULL, // Result mask
                            &bound);
@@ -398,14 +398,14 @@ void TestThread::doNonLinkedAPITest(){
       require(scanOp != NULL);
 
       require(trans->execute(NoCommit) == 0);
-          
+
       // Iterate over scan result
       int cnt = 0;
       while(true){
         const Row* scanRow = NULL;
-        const int retVal = 
-          scanOp->nextResult(reinterpret_cast<const char**>(&scanRow), 
-                             true, 
+        const int retVal =
+          scanOp->nextResult(reinterpret_cast<const char**>(&scanRow),
+                             true,
                              false);
         if(retVal==1){
           break;
@@ -413,12 +413,12 @@ void TestThread::doNonLinkedAPITest(){
         require(retVal== 0);
         //ndbout << "ScanRow: " << scanRow->a << " " << scanRow->b << endl;
         row = *scanRow;
-            
+
         // Do a chain of lookups for each scan row.
         for(int i = 0; i < m_params->m_depth; i++){
           const KeyRow key = {row.b};
-          const NdbOperation* const lookupOp = 
-            trans->readTuple(m_keyRec, 
+          const NdbOperation* const lookupOp =
+            trans->readTuple(m_keyRec,
                              reinterpret_cast<const char*>(&key),
                              m_resultRec,
                              reinterpret_cast<char*>(&row),
@@ -433,12 +433,12 @@ void TestThread::doNonLinkedAPITest(){
       }
       require(cnt== m_params->m_scanLength);
       scanOp->close(false,true);
-    }else{ 
+    }else{
       // Root is lookup.
       for(int i = 0; i < m_params->m_depth+1; i++){
         const KeyRow key = {row.b};
-        const NdbOperation* const lookupOp = 
-          trans->readTuple(m_keyRec, 
+        const NdbOperation* const lookupOp =
+          trans->readTuple(m_keyRec,
                            reinterpret_cast<const char*>(&key),
                            m_resultRec,
                            reinterpret_cast<char*>(&row),
@@ -503,7 +503,7 @@ void TestThread::doSQLTest(){
   if(printQuery){
     ndbout << text.m_buffer << endl;
   }
-          
+
   for(int i = 0; i < m_params->m_iterations; i++){
     mySQLExec(m_mysql, text.m_buffer);
   }
@@ -535,12 +535,12 @@ static void makeDatabase(const char* host, int port, int rowCount){
   mySQLExec(mysql, text);
   sprintf(text, "drop table if exists %s", tableName);
   mySQLExec(mysql, text);
-  sprintf(text, "create table %s(a int not null," 
+  sprintf(text, "create table %s(a int not null,"
           "b int not null,"
           "primary key(a)) ENGINE=NDB", tableName);
   mySQLExec(mysql, text);
   for(int i = 0; i<rowCount; i++){
-    sprintf(text, "insert into %s values(%d, %d)", tableName, 
+    sprintf(text, "insert into %s values(%d, %d)", tableName,
             i, (i+1)%rowCount);
     mySQLExec(mysql, text);
   }
@@ -558,7 +558,7 @@ static void printHeading(){
 }
 
 
-void runTest(TestThread** threads, int threadCount, 
+void runTest(TestThread** threads, int threadCount,
              TestParameters& param){
   //ndbout << "Doing test " << name << endl;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
@@ -583,13 +583,13 @@ void runTest(TestThread** threads, int threadCount,
     tupPerSec = -1;
   }else{
     if(param.m_scanLength==0){
-      tupPerSec = threadCount * 
-        param.m_iterations * 
+      tupPerSec = threadCount *
+        param.m_iterations *
         (param.m_depth+1) * 1000 / duration;
     }else{
-      tupPerSec = threadCount * 
-        param.m_iterations * 
-        param.m_scanLength * 
+      tupPerSec = threadCount *
+        param.m_iterations *
+        param.m_scanLength *
         (param.m_depth+1) * 1000 / duration;
     }
   }
@@ -694,8 +694,8 @@ void testScanScanDepth(int scanLength, bool useSQL=true){
 int main(int argc, char* argv[]){
   NDB_INIT(argv[0]);
   if(argc!=4 && argc!=5){
-    ndbout << "Usage: " << argv[0] << " [--print-query]" 
-           << " <mysql IP address> <mysql port> <cluster connect string>" 
+    ndbout << "Usage: " << argv[0] << " [--print-query]"
+           << " <mysql IP address> <mysql port> <cluster connect string>"
            << endl;
     return -1;
   }
@@ -738,4 +738,4 @@ int main(int argc, char* argv[]){
   ndb_end(0);
   return 0;
 }
-    
+

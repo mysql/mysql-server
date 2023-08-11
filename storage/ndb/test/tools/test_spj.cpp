@@ -60,7 +60,7 @@ static struct my_option my_long_options[] =
 class NdbScanFilterImpl
 {
 public:
-  
+
 
   static void set(NdbScanOperation* op, const Uint32 * src, Uint32 len) {
     op->theTotalCurrAI_Len = 0;
@@ -142,14 +142,14 @@ int main(int argc, char** argv)
   }
 
   NdbTransaction * pTrans = MyNdb.startTransaction();
-  NdbScanOperation * pOp = pTrans->scanTable(pTab->getDefaultRecord(), 
+  NdbScanOperation * pOp = pTrans->scanTable(pTab->getDefaultRecord(),
                                              NdbOperation::LM_CommittedRead);
 
   bool scanindexchild = false;
 #if 0
   /**
      select STRAIGHT_JOIN *
-     from t1 join t1 as t2 
+     from t1 join t1 as t2
      where t2.a = t1.b and t1.b <= 100 and t2.b <= 3;
    *
    * - ScanFrag
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
     0x00000002, // len user projection
     0xfff00002, // read all
     0xffe90000, // read any value
-    
+
     // LookupParameters
     0x000d0001, // type/len
     0x00000009, // bits
@@ -212,7 +212,7 @@ int main(int argc, char** argv)
   /**
    * EXECUTE ?1 = 3
    *   select STRAIGHT_JOIN *
-   *   from t1 join t1 as t2 
+   *   from t1 join t1 as t2
    *   where t2.a = t1.b and t1.b <= 100 and t2.b <= ?1;
    *
    * - ScanFrag
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
     0x00000002, // len user projection
     0xfff00002, // read all
     0xffe90000, // read any value
-        
+
     // LookupParameters
     0x00080001, // type/len
     DABits::PI_ATTR_LIST | DABits::PI_ATTR_PARAMS, // bits
@@ -277,7 +277,7 @@ int main(int argc, char** argv)
   /**
    *
    * select STRAIGHT_JOIN *
-   * from t1 join t1 as t2 
+   * from t1 join t1 as t2
    * where t2.a = t1.b and t1.b <= 100 and t2.b <= t1.b;
    *
    * - ScanFrag
@@ -327,7 +327,7 @@ int main(int argc, char** argv)
     0x00000002, // len user projection
     0xfff00002, // read all
     0xffe90000, // read any value
-        
+
     // LookupParameters
     0x00060001, // type/len
     DABits::PI_ATTR_LIST, // bits
@@ -345,7 +345,7 @@ int main(int argc, char** argv)
   scanindexchild = true;
   Uint32 request[] = {
     // pos: 0
-    0x000d0002, 
+    0x000d0002,
 
     // pos: 1 ScanFragNode
     0x00050002, // len-type
@@ -409,7 +409,7 @@ int main(int argc, char** argv)
 
   NdbScanFilterImpl::setIsLinkedFlag(pOp);
   NdbScanFilterImpl::set(pOp, request, NDB_ARRAY_SIZE(request));
-                         
+
   pTrans->execute(NoCommit);
   while (true) NdbSleep_SecSleep(1);
 

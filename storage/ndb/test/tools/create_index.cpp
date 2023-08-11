@@ -33,7 +33,7 @@
 
 
 
-int 
+int
 main(int argc, const char** argv){
   ndb_init();
 
@@ -44,7 +44,7 @@ main(int argc, const char** argv){
   char* _tname= NULL;
 
   struct getargs args[] = {
-    { "database", 'd', arg_string, &_dbname, "dbname", 
+    { "database", 'd', arg_string, &_dbname, "dbname",
       "Name of database table is in"},
     { "ordered", 'o', arg_flag, &_ordered, "Create ordered index", "" },
     { "pk", 'p', arg_flag, &_pk, "Create index on primary key", "" },
@@ -55,17 +55,17 @@ main(int argc, const char** argv){
 
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "<tabname>+\n"\
     "This program will create one unique hash index named ind_<tabname> "
     " for each table. The index will contain all columns in the table";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) || _help ||
      argv[optind] == NULL){
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  
+
   Ndb_cluster_connection con;
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
@@ -78,12 +78,12 @@ main(int argc, const char** argv){
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-  
+
   NdbDictionary::Dictionary * dict = MyNdb.getDictionary();
-  
+
   for(int i = optind; i<argc; i++){
     const char* tabName= (_tname)? _tname : argv[i];
     const NdbDictionary::Table * tab = dict->getTable(tabName);
@@ -93,7 +93,7 @@ main(int argc, const char** argv){
         return NDBT_ProgramExit(NDBT_FAILED);
       continue;
     }
-    
+
     NdbDictionary::Index ind;
     if(_ordered){
       ind.setType(NdbDictionary::Index::OrderedIndex);
@@ -104,7 +104,7 @@ main(int argc, const char** argv){
     char buf[512];
     if (!_iname)
     {
-      sprintf(buf, "IND_%s_%s_%c", 
+      sprintf(buf, "IND_%s_%s_%c",
               argv[i], (_pk ? "PK" : "FULL"), (_ordered ? 'O' : 'U'));
       ind.setName(buf);
     }
@@ -155,8 +155,8 @@ main(int argc, const char** argv){
 
     if (_tname) // Just create a single index
       return NDBT_ProgramExit(NDBT_OK);
-  }  
-  
+  }
+
   return NDBT_ProgramExit(NDBT_OK);
 }
 

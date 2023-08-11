@@ -28,28 +28,28 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 #include "Bank.hpp"
- 
+
 
 int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
   int _wait = 30;
   const char * _database="BANK";
-  
+
   struct getargs args[] = {
     { "wait", 'w', arg_integer, &_wait, "Max time to wait between days", "secs" },
-    { "database", 'd', arg_string, &_database, "Database name", ""}, 
+    { "database", 'd', arg_string, &_database, "Database name", ""},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "This program will increase time in the bank\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||  _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -66,7 +66,7 @@ int main(int argc, const char** argv){
 
   if (bank.performIncreaseTime(_wait) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
-  
+
   return NDBT_ProgramExit(NDBT_OK);
 
 }

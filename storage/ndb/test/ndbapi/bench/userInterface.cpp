@@ -102,22 +102,22 @@ double userGetTimeSync(void)
 // 0 - OK
 // 1 - Retry transaction
 // 2 - Permanent
-int 
+int
 userDbCommit(UserHandle *uh){
   if(uh->pCurrTrans != 0){
-    /* int check = */ uh->pCurrTrans->execute( Commit ); 
+    /* int check = */ uh->pCurrTrans->execute( Commit );
     NdbError err = uh->pCurrTrans->getNdbError();
     uh->pNDB->closeTransaction(uh->pCurrTrans);
     uh->pCurrTrans = 0;
-    
+
     if(err.status != NdbError::Success)
       ndbout << err << endl;
-    
-    if(err.status == NdbError::TemporaryError && 
+
+    if(err.status == NdbError::TemporaryError &&
        err.classification == NdbError::OverloadError){
       NdbSleep_SecSleep(3);
     }
-    
+
     return err.status;
   }
   return 2;
@@ -135,11 +135,11 @@ create_table_server(Ndb * pNdb){
   NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
     error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
-  
-  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
-  if( MySchemaOp == NULL ) 
+
+  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
+  if( MySchemaOp == NULL )
     error_handler("getNdbSchemaOp", MySchemaTransaction->getNdbError(), 0);
-  
+
   // Create table
   check = MySchemaOp->createTable( SERVER_TABLE,
 				   8,	     	// Table size
@@ -152,87 +152,87 @@ create_table_server(Ndb * pNdb){
 				   1,
 				   useTableLogging
                                    );
-  if( check == -1 ) 
+  if( check == -1 )
     error_handler("createTable", MySchemaTransaction->getNdbError(), 0);
-  
+
   check = MySchemaOp->createAttribute
     ( SERVER_SUBSCRIBER_SUFFIX,
-      TupleKey, 
+      TupleKey,
       sizeof(char) << 3,
       SUBSCRIBER_NUMBER_SUFFIX_LENGTH,
-      String, 
+      String,
       MMBased,
       NotNullAttribute,
       0,
       0,
       1,
       16);
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber suffix)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber suffix)",
 		  MySchemaTransaction->getNdbError(), 0);
 
-  // Create first column, primary key 
+  // Create first column, primary key
   check = MySchemaOp->createAttribute( SERVER_ID,
-				       TupleKey, 
+				       TupleKey,
 				       sizeof(ServerId) << 3,
 				       1,
-				       UnSigned, 
+				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (serverid)", 
+  if( check == -1 )
+    error_handler("createAttribute (serverid)",
 		  MySchemaTransaction->getNdbError(), 0);
 
 
   check = MySchemaOp->createAttribute( SERVER_NAME,
-				       NoKey, 
+				       NoKey,
 				       sizeof(char) << 3,
 				       SERVER_NAME_LENGTH,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (server name)", 
+  if( check == -1 )
+    error_handler("createAttribute (server name)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
 
   check = MySchemaOp->createAttribute( SERVER_READS,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Counter) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (server reads)", 
+  if( check == -1 )
+    error_handler("createAttribute (server reads)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( SERVER_INSERTS,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Counter) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (server inserts)", 
+  if( check == -1 )
+    error_handler("createAttribute (server inserts)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( SERVER_DELETES,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Counter) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (server deletes)", 
+  if( check == -1 )
+    error_handler("createAttribute (server deletes)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   if( MySchemaTransaction->execute() == -1 ) {
-    error_handler("schemaTransaction->execute()", 
+    error_handler("schemaTransaction->execute()",
 		  MySchemaTransaction->getNdbError(), 0);
-  }    
+  }
   NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
@@ -244,11 +244,11 @@ create_table_group(Ndb * pNdb){
   NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
     error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
-  
-  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
-  if( MySchemaOp == NULL ) 
+
+  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
+  if( MySchemaOp == NULL )
     error_handler("getNdbSchemaOp", MySchemaTransaction->getNdbError(), 0);
-  
+
   // Create table
   check = MySchemaOp->createTable( GROUP_TABLE,
 				   8,	     	// Table size
@@ -262,71 +262,71 @@ create_table_group(Ndb * pNdb){
 				   useTableLogging
                                    );
 
-  if( check == -1 ) 
+  if( check == -1 )
     error_handler("createTable", MySchemaTransaction->getNdbError(), 0);
-  
-  // Create first column, primary key 
+
+  // Create first column, primary key
   check = MySchemaOp->createAttribute( GROUP_ID,
-				       TupleKey, 
+				       TupleKey,
 				       sizeof(GroupId) << 3,
 				       1,
-				       UnSigned, 
+				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (group id)", 
+  if( check == -1 )
+    error_handler("createAttribute (group id)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( NDB_GROUP_NAME,
 				       NoKey,
 				       sizeof(char) << 3,
 				       GROUP_NAME_LENGTH,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (group name)", 
+  if( check == -1 )
+    error_handler("createAttribute (group name)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
 
   check = MySchemaOp->createAttribute( GROUP_ALLOW_READ,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Permission) << 3,
 				       1,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (group read)", 
+  if( check == -1 )
+    error_handler("createAttribute (group read)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
 
   check = MySchemaOp->createAttribute( GROUP_ALLOW_INSERT,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Permission) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (group insert)", 
+  if( check == -1 )
+    error_handler("createAttribute (group insert)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( GROUP_ALLOW_DELETE,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Permission) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (group delete)", 
+  if( check == -1 )
+    error_handler("createAttribute (group delete)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   if( MySchemaTransaction->execute() == -1 ) {
-    error_handler("schemaTransaction->execute()", 
+    error_handler("schemaTransaction->execute()",
 		  MySchemaTransaction->getNdbError(), 0);
-  }    
+  }
   NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
@@ -337,11 +337,11 @@ create_table_subscriber(Ndb * pNdb){
   NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
     error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
-  
-  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
-  if( MySchemaOp == NULL ) 
+
+  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
+  if( MySchemaOp == NULL )
     error_handler("getNdbSchemaOp", MySchemaTransaction->getNdbError(), 0);
-  
+
   // Create table
   check = MySchemaOp->createTable( SUBSCRIBER_TABLE,
 				   8,	     	// Table size
@@ -354,98 +354,98 @@ create_table_subscriber(Ndb * pNdb){
 				   1,
 				   useTableLogging
                                    );
-  if( check == -1 ) 
+  if( check == -1 )
     error_handler("createTable", MySchemaTransaction->getNdbError(), 0);
-  
-  // Create first column, primary key 
+
+  // Create first column, primary key
   check = MySchemaOp->createAttribute
     ( SUBSCRIBER_NUMBER,
-      TupleKey, 
+      TupleKey,
       sizeof(char) << 3,
       SUBSCRIBER_NUMBER_LENGTH,
-      String, 
+      String,
       MMBased,
       NotNullAttribute,
       0,
       0,
       1,
       16);
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber number)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber number)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   check = MySchemaOp->createAttribute( SUBSCRIBER_NAME,
-				       NoKey, 
+				       NoKey,
 				       sizeof(char) << 3,
 				       SUBSCRIBER_NAME_LENGTH,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber name)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber name)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
 
   check = MySchemaOp->createAttribute( SUBSCRIBER_GROUP,
-				       NoKey, 
+				       NoKey,
 				       sizeof(GroupId) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber_group)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber_group)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
 
   check = MySchemaOp->createAttribute( SUBSCRIBER_LOCATION,
-				       NoKey, 
+				       NoKey,
 				       sizeof(Location) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (server reads)", 
+  if( check == -1 )
+    error_handler("createAttribute (server reads)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( SUBSCRIBER_SESSIONS,
-				       NoKey, 
+				       NoKey,
 				       sizeof(ActiveSessions) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber_sessions)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber_sessions)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( SUBSCRIBER_CHANGED_BY,
-				       NoKey, 
+				       NoKey,
 				       sizeof(char) << 3,
 				       CHANGED_BY_LENGTH,
 				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber_changed_by)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber_changed_by)",
 		  MySchemaTransaction->getNdbError(), 0);
 
   check = MySchemaOp->createAttribute( SUBSCRIBER_CHANGED_TIME,
-				       NoKey, 
+				       NoKey,
 				       sizeof(char) << 3,
 				       CHANGED_TIME_LENGTH,
 				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (subscriber_changed_time)", 
+  if( check == -1 )
+    error_handler("createAttribute (subscriber_changed_time)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   if( MySchemaTransaction->execute() == -1 ) {
-    error_handler("schemaTransaction->execute()", 
+    error_handler("schemaTransaction->execute()",
 		  MySchemaTransaction->getNdbError(), 0);
-  }    
+  }
   NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
@@ -456,12 +456,12 @@ create_table_session(Ndb * pNdb){
   NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
     error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
-  
-  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
-  if( MySchemaOp == NULL ) 
-    error_handler("getNdbSchemaOp", 
+
+  NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
+  if( MySchemaOp == NULL )
+    error_handler("getNdbSchemaOp",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   // Create table
   check = MySchemaOp->createTable( SESSION_TABLE,
 				   8,	     	// Table size
@@ -474,57 +474,57 @@ create_table_session(Ndb * pNdb){
 				   1,
 				   useTableLogging
                                    );
-  if( check == -1 ) 
+  if( check == -1 )
     error_handler("createTable", MySchemaTransaction->getNdbError(), 0);
-  
+
   check = MySchemaOp->createAttribute( SESSION_SUBSCRIBER,
-				       TupleKey, 
+				       TupleKey,
 				       sizeof(char) << 3,
 				       SUBSCRIBER_NUMBER_LENGTH,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute,
 				       0,
 				       0,
 				       1,
 				       16);
-  if( check == -1 ) 
-    error_handler("createAttribute (session_subscriber)", 
+  if( check == -1 )
+    error_handler("createAttribute (session_subscriber)",
 		  MySchemaTransaction->getNdbError(), 0);
 
-  // Create first column, primary key 
+  // Create first column, primary key
   check = MySchemaOp->createAttribute( SESSION_SERVER,
-				       TupleKey, 
+				       TupleKey,
 				       sizeof(ServerId) << 3,
 				       1,
 				       UnSigned,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (session_server)", 
+  if( check == -1 )
+    error_handler("createAttribute (session_server)",
 		  MySchemaTransaction->getNdbError(), 0);
 
 
   check = MySchemaOp->createAttribute( SESSION_DATA,
-				       NoKey, 
+				       NoKey,
 				       sizeof(char) << 3,
 				       SESSION_DETAILS_LENGTH,
-				       String, 
+				       String,
 				       MMBased,
 				       NotNullAttribute );
-  if( check == -1 ) 
-    error_handler("createAttribute (session_data)", 
+  if( check == -1 )
+    error_handler("createAttribute (session_data)",
 		  MySchemaTransaction->getNdbError(), 0);
-  
+
   if( MySchemaTransaction->execute() == -1 ) {
-    error_handler("schemaTransaction->execute()", 
+    error_handler("schemaTransaction->execute()",
 		  MySchemaTransaction->getNdbError(), 0);
-  }    
+  }
   NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
 
-void 
+void
 create_table(const char * name, int (* function)(Ndb * pNdb), Ndb* pNdb){
   printf("creating table %s...", name);
   if(pNdb->getDictionary()->getTable(name) != 0){
@@ -567,19 +567,19 @@ userDbConnect(uint32 createDb, const char *dbName)
   }
 
   Ndb * pNdb = new Ndb(con, dbName);
-  
+
   //printf("Initializing...\n");
   pNdb->init();
-  
+
   //printf("Waiting...");
   while(pNdb->waitUntilReady() != 0){
     //printf("...");
   }
   //  printf("done\n");
-  
+
   if( createDb )
     dbCreate(pNdb);
-  
+
 
   UserHandle * uh = new UserHandle;
   uh->pNCC       = con;
@@ -611,32 +611,32 @@ int userDbInsertServer(UserHandle       *uh,
   } else {
     uh->pCurrTrans = MyTransaction = uh->pNDB->startTransaction();
   }
-  if (MyTransaction == NULL)	  
+  if (MyTransaction == NULL)
     error_handler("startTranscation", uh->pNDB->getNdbError(), 0);
-  
+
   NdbOperation *MyOperation = MyTransaction->getNdbOperation(SERVER_TABLE);
   CHECK_NULL(MyOperation, "getNdbOperation", MyTransaction);
-  
+
   check = MyOperation->insertTuple();
-  CHECK_MINUS_ONE(check, "insert tuple", MyTransaction);  
-  
+  CHECK_MINUS_ONE(check, "insert tuple", MyTransaction);
+
   check = MyOperation->equal(SERVER_ID, (char*)&serverId);
-  CHECK_MINUS_ONE(check, "setValue id", MyTransaction);  
-  
+  CHECK_MINUS_ONE(check, "setValue id", MyTransaction);
+
   check = MyOperation->setValue(SERVER_SUBSCRIBER_SUFFIX, suffix);
-  CHECK_MINUS_ONE(check, "setValue suffix", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue suffix", MyTransaction);
 
   check = MyOperation->setValue(SERVER_NAME, name);
-  CHECK_MINUS_ONE(check, "setValue name", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue name", MyTransaction);
 
   check = MyOperation->setValue(SERVER_READS, (char*)&noOfRead);
-  CHECK_MINUS_ONE(check, "setValue reads", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue reads", MyTransaction);
 
   check = MyOperation->setValue(SERVER_INSERTS, (char*)&noOfInsert);
-  CHECK_MINUS_ONE(check, "setValue inserts", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue inserts", MyTransaction);
 
   check = MyOperation->setValue(SERVER_DELETES, (char*)&noOfDelete);
-  CHECK_MINUS_ONE(check, "setValue deletes", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue deletes", MyTransaction);
 
   return 0;
 }
@@ -660,15 +660,15 @@ int userDbInsertSubscriber(UserHandle      *uh,
   } else {
     uh->pCurrTrans = MyTransaction = uh->pNDB->startTransaction();
   }
-  if (MyTransaction == NULL)	  
+  if (MyTransaction == NULL)
     error_handler("startTranscation", uh->pNDB->getNdbError(), 0);
-  
+
   NdbOperation *MyOperation = MyTransaction->getNdbOperation(SUBSCRIBER_TABLE);
   CHECK_NULL(MyOperation, "getNdbOperation", MyTransaction);
-  
+
   check = MyOperation->insertTuple();
   CHECK_MINUS_ONE(check, "insertTuple", MyTransaction);
-  
+
   check = MyOperation->equal(SUBSCRIBER_NUMBER, number);
   CHECK_MINUS_ONE(check, "equal", MyTransaction);
 
@@ -694,44 +694,44 @@ int userDbInsertSubscriber(UserHandle      *uh,
 }
 
 int userDbInsertGroup(UserHandle *uh,
-		      GroupId    groupId, 
+		      GroupId    groupId,
 		      GroupName  name,
 		      Permission allowRead,
 		      Permission allowInsert,
 		      Permission allowDelete)
 {
   int check;
-  
+
   NdbConnection * MyTransaction = 0;
   if(uh->pCurrTrans != 0){
     MyTransaction = uh->pCurrTrans;
   } else {
     uh->pCurrTrans = MyTransaction = uh->pNDB->startTransaction();
   }
-  if (MyTransaction == NULL)	  
+  if (MyTransaction == NULL)
     error_handler("startTranscation", uh->pNDB->getNdbError(), 0);
 
   NdbOperation *MyOperation = MyTransaction->getNdbOperation(GROUP_TABLE);
-  CHECK_NULL(MyOperation, "getNdbOperation", MyTransaction);  
-  
+  CHECK_NULL(MyOperation, "getNdbOperation", MyTransaction);
+
   check = MyOperation->insertTuple();
-  CHECK_MINUS_ONE(check, "insertTuple", MyTransaction);  
-  
+  CHECK_MINUS_ONE(check, "insertTuple", MyTransaction);
+
   check = MyOperation->equal(GROUP_ID, (char*)&groupId);
-  CHECK_MINUS_ONE(check, "equal", MyTransaction);  
-  
+  CHECK_MINUS_ONE(check, "equal", MyTransaction);
+
   check = MyOperation->setValue(NDB_GROUP_NAME, name);
-  CHECK_MINUS_ONE(check, "setValue name", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue name", MyTransaction);
 
   check = MyOperation->setValue(GROUP_ALLOW_READ, (char*)&allowRead);
-  CHECK_MINUS_ONE(check, "setValue allowRead", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue allowRead", MyTransaction);
 
   check = MyOperation->setValue(GROUP_ALLOW_INSERT, (char*)&allowInsert);
-  CHECK_MINUS_ONE(check, "setValue allowInsert", MyTransaction);  
+  CHECK_MINUS_ONE(check, "setValue allowInsert", MyTransaction);
 
   check = MyOperation->setValue(GROUP_ALLOW_DELETE, (char*)&allowDelete);
-  CHECK_MINUS_ONE(check, "setValue allowDelete", MyTransaction);  
-  
+  CHECK_MINUS_ONE(check, "setValue allowDelete", MyTransaction);
+
   return 0;
 }
 

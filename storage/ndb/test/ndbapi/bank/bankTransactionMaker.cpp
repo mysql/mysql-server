@@ -28,18 +28,18 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 #include "Bank.hpp"
- 
+
 
 int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
   int _wait = 20;
   const char * _database = "BANK";
-  
+
   struct getargs args[] = {
     { "wait", 'w', arg_integer, &_wait, "Time to wait between transactions", "ms" },
     { "database", 'd', arg_string, &_database, "Database name", ""},
@@ -47,9 +47,9 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "This program will perform transactions in the bank\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||  _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -66,7 +66,7 @@ int main(int argc, const char** argv){
 
   if (bank.performTransactions(_wait) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
-  
+
   return NDBT_ProgramExit(NDBT_OK);
 
 }

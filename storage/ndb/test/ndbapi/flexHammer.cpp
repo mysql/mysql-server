@@ -24,7 +24,7 @@
 
 /* ***************************************************
        FLEXHAMMER
-       Hammer ndb with read, insert, update and delete transactions. 
+       Hammer ndb with read, insert, update and delete transactions.
 
        Arguments:
         -t Number of threads to start, default 1
@@ -40,7 +40,7 @@
         -no_table_create Don't create tables in db
         -regulate To be able to regulate the load flexHammer produces.
         -stdtables Use standard table names
-	-sleep Sleep a number of seconds before running the test, this 
+	-sleep Sleep a number of seconds before running the test, this
 	       can be used so that another flexProgram have tome to create tables
 
        Returns:
@@ -72,7 +72,7 @@ Revision history:
 ErrorData * flexHammerErrorData;
 
 
-#define MAXSTRLEN 16 
+#define MAXSTRLEN 16
 #define MAXATTR 64
 #define MAXTABLES 64
 #define NDB_MAXTHREADS 256
@@ -85,7 +85,7 @@ ErrorData * flexHammerErrorData;
 #undef MAXTHREADS
 #define MAXATTRSIZE 100
 // Max number of retries if something fails
-#define MaxNoOfAttemptsC 10 
+#define MaxNoOfAttemptsC 10
 
 enum StartType {
   stIdle,
@@ -125,7 +125,7 @@ static int checkThreadResults(ThreadNdb *threadArrayP, const char* phase);
 //  otLast };
 
 enum ReadyType {
-	stReady, 
+	stReady,
 	stRunning
 } ;
 static int			tNoOfThreads;
@@ -147,11 +147,11 @@ static unsigned int tSleepTime = 0;
 
 #define START_TIMER { NdbTimer timer; timer.doStart();
 #define STOP_TIMER timer.doStop();
-#define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); }; 
+#define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); };
 
 
 // Initialise thread data
-void 
+void
 resetThreads(ThreadNdb *threadArrayP) {
 
   for (int i = 0; i < tNoOfThreads ; i++)
@@ -162,7 +162,7 @@ resetThreads(ThreadNdb *threadArrayP) {
   }
 } // resetThreads
 
-void 
+void
 waitForThreads(ThreadNdb *threadArrayP)
 {
   int cont = 1;
@@ -180,17 +180,17 @@ waitForThreads(ThreadNdb *threadArrayP)
   } // while
 } // waitForThreads
 
-void 
+void
 tellThreads(ThreadNdb* threadArrayP, const StartType what)
 {
-  for (int i = 0; i < tNoOfThreads ; i++) 
+  for (int i = 0; i < tNoOfThreads ; i++)
     {
     threadArrayP[i].threadStart = what;
     } // for
 } // tellThreads
 
 static Ndb_cluster_connection *g_cluster_connection= 0;
- 
+
 int main(int argc, char** argv)
 {
   ndb_init();
@@ -199,7 +199,7 @@ int main(int argc, char** argv)
   int tLoops = 0;
   int returnValue = 0;
   int check = 0;
-  
+
   flexHammerErrorData = new ErrorData;
 
   flexHammerErrorData->resetErrorCounters();
@@ -254,10 +254,10 @@ int main(int argc, char** argv)
     } // if
     else {
       sleepBeforeStartingTest(tSleepTime);
-      
+
       // Create threads.                                           *
       resetThreads(pThreads);
-      for (int i = 0; i < tNoOfThreads ; i++) {  
+      for (int i = 0; i < tNoOfThreads ; i++) {
 	pThreads[i].threadNo = i;
 	pThreads[i].threadLife = NdbThread_Create(flexHammerThread,
 						  (void**)&pThreads[i],
@@ -265,66 +265,66 @@ int main(int argc, char** argv)
 						  "flexHammerThread",
                                                   NDB_THREAD_PRIO_LOW);
       } // for
-      
+
       // And wait until they are ready
       waitForThreads(pThreads);
       if (checkThreadResults(pThreads, "init") != 0) {
         returnValue = NDBT_FAILED;
       } // if
-      
-      
+
+
       if (returnValue == NDBT_OK) {
 	ndbout << endl <<  "All threads started" << endl << endl;
-	
+
 	for(;;) {
-	  
+
 	  // Check if it's time to exit program
 	  if((tNoOfLoops != 0) && (tNoOfLoops <= tLoops))
 	    break;
-	  
+
 	  // Tell all threads to start hammer
 	  ndbout << "Hammering..." << endl;
-	  
+
 	  resetThreads(pThreads);
-	  
+
 	  START_TIMER;
 	  tellThreads(pThreads, stHammer);
-	  
+
 	  waitForThreads(pThreads);
 	  ndbout << "Threads ready to continue..." << endl;
 	  STOP_TIMER;
-	  
+
 	  // Check here if anything went wrong
 	  if (checkThreadResults(pThreads, "hammer") != 0) {
 	    ndbout << "Thread(s) failed." << endl;
 	    returnValue = NDBT_FAILED;
 	  } // if
-	  
+
 	  PRINT_TIMER("hammer", tNoOfOperations*tNoOfThreads, tNoOfTables*6);
-	  
+
 	  ndbout << endl;
-	  
+
 	  tLoops++;
-	  
+
 	} // for
       } // if
 
-      // Signaling threads to stop 
+      // Signaling threads to stop
       resetThreads(pThreads);
       tellThreads(pThreads, stStop);
-      
+
       // Wait for threads to stop
       waitForThreads(pThreads);
-      
+
       ndbout << "----------------------------------------------" << endl << endl;
       ndbout << "Benchmark completed" << endl;
     } // else
   } // else
-  // Clean up 
+  // Clean up
 
   flexHammerErrorData->printErrorCounters(ndbout);
 
-  // Kill them all! 
+  // Kill them all!
   void* tmp;
   for(int i = 0; i < tNoOfThreads; i++){
     NdbThread_WaitFor(pThreads[i].threadLife, &tmp);
@@ -339,7 +339,7 @@ int main(int argc, char** argv)
 
   // Exit via NDBT
   return NDBT_ProgramExit(returnValue);
-  
+
 } //main
 
 extern "C"
@@ -368,9 +368,9 @@ flexHammerThread(void* pArg)
   int attrValue[MAXATTRSIZE];
   NdbRecAttr* tTmp = NULL;
   int tNoOfAttempts = 0;
- 
+
   for (i = 0; i < MAXATTRSIZE; i++)
-    attrValue[i] = 0; 
+    attrValue[i] = 0;
   // Ndb object for each thread
   pMyNdb = new Ndb(g_cluster_connection, "TEST_DB" );
   pMyNdb->init();
@@ -380,37 +380,37 @@ flexHammerThread(void* pArg)
     // Go to idle directly
     pThreadData->threadStart = stIdle;
   } // if
-  
+
   for(;;) {
     pThreadData->threadResult = tThreadResult;
     pThreadData->threadReady = 1; // Signalling ready to main
-    
+
     // If Idle just wait to be stopped from main
     while (pThreadData->threadStart == stIdle) {
-      NdbSleep_MilliSleep(100);   
+      NdbSleep_MilliSleep(100);
     } // while
-    
+
     // Check if signal to exit is received
     if (pThreadData->threadStart == stStop) {
       pThreadData->threadReady = 1;
       // break out of eternal loop
       break;
     } // if
-    
+
     // Set to Idle to prepare for possible error break
     pThreadData->threadStart = stIdle;
-    
+
     // Prepare transaction
     loop_count_ops = tNoOfOperations;
     loop_count_tables = tNoOfTables;
     loop_count_attributes = tNoOfAttributes;
-    
+
     for (count=0 ; count < loop_count_ops ; count++) {
-      
+
       //pkValue = (int)(count + thread_base);
       // This limits the number of records used in this test
-      pkValue = count % tNoOfRecords; 
-      
+      pkValue = count % tNoOfRecords;
+
       for (count_round = 0; count_round < 5; ) {
 	switch (count_round) {
 	case 0:       // Insert
@@ -420,7 +420,7 @@ flexHammerThread(void* pArg)
 	    attrValue[i]++;
 	  }
 	  break;
-	case 1: 
+	case 1:
 	case 3:       // Read and verify
 	  tMyOpType = otRead;
 	  break;
@@ -438,7 +438,7 @@ flexHammerThread(void* pArg)
 	  require(false);
 	  break;
 	} // switch
-	    
+
 	// Get transaction object
 	pMyTransaction = pMyNdb->startTransaction();
 	if (pMyTransaction == NULL) {
@@ -448,17 +448,17 @@ flexHammerThread(void* pArg)
 	  break;
 	} // if
 
-	for (count_tables = 0; count_tables < loop_count_tables; 
+	for (count_tables = 0; count_tables < loop_count_tables;
 	     count_tables++) {
-	  pMyOperation[count_tables] = 
-	    pMyTransaction->getNdbOperation(tableName[count_tables]);	
+	  pMyOperation[count_tables] =
+	    pMyTransaction->getNdbOperation(tableName[count_tables]);
 	  if (pMyOperation[count_tables] == NULL) {
 	    //Fatal error
 	    tThreadResult = 2;
 	    // break out of inner for count_tables loop
 	    break;
 	  } // if
-		
+
 	  switch (tMyOpType) {
 	  case otInsert:			// Insert case
 	    if (theWriteFlag == 1 && theDirtyFlag == 1) {
@@ -503,7 +503,7 @@ flexHammerThread(void* pArg)
 	    break;
 	  } // if
 
-	  check = pMyOperation[count_tables]->equal( (char*)attrName[0], 
+	  check = pMyOperation[count_tables]->equal( (char*)attrName[0],
 						    (char*)&pkValue );
 
 	  if (check == -1) {
@@ -513,7 +513,7 @@ flexHammerThread(void* pArg)
 	    // break out of inner for count_tables loop
 	    break;
 	  } // if
-	  
+
 	  check = -1;
 	  tTmp = NULL;
 	  switch (tMyOpType) {
@@ -521,15 +521,15 @@ flexHammerThread(void* pArg)
 	  case otUpdate:			// Update Case
 	    for (count_attributes = 1; count_attributes < loop_count_attributes;
 		 count_attributes++) {
-	      check = 
+	      check =
 		pMyOperation[count_tables]->setValue((char*)attrName[count_attributes], (char*)&attrValue[0]);
 	    } // for
 	    break;
 	  case otRead:			// Read Case
-	    for (count_attributes = 1; count_attributes < loop_count_attributes; 
+	    for (count_attributes = 1; count_attributes < loop_count_attributes;
 		 count_attributes++) {
 	      tTmp = pMyOperation[count_tables]->
-		getValue( (char*)attrName[count_attributes], 
+		getValue( (char*)attrName[count_attributes],
 			  (char*)&readValue[count_attributes][0] );
 	    } // for
 	    break;
@@ -545,7 +545,7 @@ flexHammerThread(void* pArg)
 	    break;
 	  } // if
 	} // for count_tables
-	    
+
 	// Only execute if everything is OK
 	if (tThreadResult != 0) {
 	  // Close transaction (below)
@@ -634,13 +634,13 @@ flexHammerThread(void* pArg)
   } // for (;;)
 
   // Clean up
-  delete pMyNdb; 
+  delete pMyNdb;
   pMyNdb = NULL;
 
   flexHammerErrorData->resetErrorCounters();
 
   return  NULL; // thread exits
-  
+
 } // flexHammerThread
 
 
@@ -648,7 +648,7 @@ int
 readArguments (int argc, char** argv)
 {
   int i = 1;
-  
+
   tNoOfThreads = 5;		// Default Value
   tNoOfOperations = 500;	// Default Value
   tNoOfRecords = 1;             // Default Value
@@ -658,7 +658,7 @@ readArguments (int argc, char** argv)
   tNoOfBackups = 0;		// Default Value
   tAttributeSize = 1;		// Default Value
   theTableCreateFlag = 0;
-  
+
   while (argc > 1) {
     if (strcmp(argv[i], "-t") == 0) {
       tNoOfThreads = atoi(argv[i+1]);
@@ -728,14 +728,14 @@ readArguments (int argc, char** argv)
     else {
       return(1);
     }
-    
+
     argc -= 2;
     i = i + 2;
   } // while
-  
+
   ndbout << endl << "FLEXHAMMER - Starting normal mode" << endl;
   ndbout << "Hammer ndb with read, insert, update and delete transactions"<< endl << endl;
-  
+
   ndbout << "  " << tNoOfThreads << " thread(s) " << endl;
   ndbout << "  " << tNoOfLoops << " iterations " << endl;
   ndbout << "  " << tNoOfTables << " table(s) and " << 1 << " operation(s) per transaction " << endl;
@@ -765,7 +765,7 @@ createTables(Ndb* pMyNdb)
   NdbSchemaCon *MySchemaTransaction = NULL;
   NdbSchemaOp *MySchemaOp = NULL;
 
-  //	Create Table and Attributes. 	                          
+  //	Create Table and Attributes.
   if (theTableCreateFlag == 0) {
 
     for (i = 0; i < tNoOfTables; i++) {
@@ -779,37 +779,37 @@ createTables(Ndb* pMyNdb)
 	continue;
       } // if
       ndbout << endl;
-      
+
       MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
       if (MySchemaTransaction == NULL) {
 	return(-1);
       } // if
-      
-      MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
+
+      MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
       if (MySchemaOp == NULL) {
 	// Clean up opened schema transaction
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
-      
+
       // Create tables, rest of parameters are default right now
       check = MySchemaOp->createTable(tableName[i],
 				      8,		// Table Size
 				      TupleKey,	// Key Type
 				      40);		// Nr of Pages
 
-      if (check == -1) { 
+      if (check == -1) {
 	// Clean up opened schema transaction
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
-      
+
       // Primary key
       //ndbout << "  pk " << (char*)&attrName[0] << "..." << endl;
       check = MySchemaOp->createAttribute( (char*)attrName[0], TupleKey, 32,
 					   1, UnSigned, MMBased,
 					   NotNullAttribute );
-      if (check == -1) { 
+      if (check == -1) {
 	// Clean up opened schema transaction
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
@@ -818,8 +818,8 @@ createTables(Ndb* pMyNdb)
       // Rest of attributes
       for (j = 1; j < tNoOfAttributes ; j++) {
 	//ndbout << "    " << (char*)attrName[j] << "..." << endl;
-	check = MySchemaOp->createAttribute( (char*)attrName[j], NoKey, 32, 
-					     tAttributeSize, UnSigned, MMBased, 
+	check = MySchemaOp->createAttribute( (char*)attrName[j], NoKey, 32,
+					     tAttributeSize, UnSigned, MMBased,
 					     NotNullAttribute );
 	if (check == -1) {
 	  // Clean up opened schema transaction
@@ -827,7 +827,7 @@ createTables(Ndb* pMyNdb)
 	  return(-1);
 	} // if
       } // for
-  
+
       // Execute creation
       check = MySchemaTransaction->execute();
       if (check == -1) {
@@ -835,14 +835,14 @@ createTables(Ndb* pMyNdb)
 	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return(-1);
       } // if
-      
+
       NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
     } // for
   } // if
 
   return(0);
 
-} // createTables 
+} // createTables
 
 static int
 dropTables(Ndb* pMyNdb)
@@ -861,7 +861,7 @@ dropTables(Ndb* pMyNdb)
 
   return(0);
 
-} // createTables 
+} // createTables
 
 
 static int setAttrNames()
@@ -889,9 +889,9 @@ static int setTableNames()
 
   for (i = 0; i < MAXTABLES ; i++) {
     if (theStandardTableNameFlag == 0) {
-      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i, 
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i,
                                     (Uint32)(NdbTick_CurrentMillisecond()/1000));
-    } // if 
+    } // if
     else {
       retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     } // else
@@ -910,7 +910,7 @@ static int checkThreadResults(ThreadNdb *threadArrayP, const char* phase)
 
   for (i = 0; i < tNoOfThreads; i++) {
     if (threadArrayP[i].threadResult != 0) {
-      ndbout << "Thread " << i << " reported fatal error " 
+      ndbout << "Thread " << i << " reported fatal error "
 	     << threadArrayP[i].threadResult << " during " << phase << endl;
       return(-1);
     } // if

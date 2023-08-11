@@ -41,13 +41,13 @@
   g_err << "ERR: "<< step->getName() \
          << " failed on line " << __LINE__ << endl; \
   result = NDBT_FAILED; break;\
-} 
+}
 
 #define CHECKRET(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
          << " failed on line " << __LINE__ << endl; \
   return NDBT_FAILED;                             \
-} 
+}
 
 
 struct Attrib {
@@ -68,7 +68,7 @@ public:
       delete attriblist[i];
     }
   }
-  void buildAttribList(const NdbDictionary::Table* pTab); 
+  void buildAttribList(const NdbDictionary::Table* pTab);
   Vector<Attrib*> attriblist;
 };
 
@@ -123,15 +123,15 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
-    attriblist.push_back(attr); 
-  }  
+    attriblist.push_back(attr);
+  }
   for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
-    attriblist.push_back(attr); 
-  }  
+    attriblist.push_back(attr);
+  }
   for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = 2;
@@ -141,7 +141,7 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
     attriblist.push_back(attr);
   }
 
-  // Last 
+  // Last
   attr = new Attrib;
   attr->numAttribs = 1;
   attr->attribs[0] = pTab->getNoOfColumns()-1;
@@ -152,14 +152,14 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   attr->numAttribs = 2;
   attr->attribs[0] = pTab->getNoOfColumns()-1;
   attr->attribs[1] = 0;
-  attriblist.push_back(attr); 
+  attriblist.push_back(attr);
 
   // First and last
   attr = new Attrib;
   attr->numAttribs = 2;
   attr->attribs[0] = 0;
   attr->attribs[1] = pTab->getNoOfColumns()-1;
-  attriblist.push_back(attr);  
+  attriblist.push_back(attr);
 
 #if 0
   for(size_t i = 0; i < attriblist.size(); i++){
@@ -208,8 +208,8 @@ char pkIdxName[255];
 
 static const int SKIP_INDEX = 99;
 
-int create_index(NDBT_Context* ctx, int indxNum, 
-		 const NdbDictionary::Table* pTab, 
+int create_index(NDBT_Context* ctx, int indxNum,
+		 const NdbDictionary::Table* pTab,
 		 Ndb* pNdb, Attrib* attr, bool logged){
   bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
   bool notOnlyPkId = ctx->getProperty("NotOnlyPkId", (unsigned)0);
@@ -218,14 +218,14 @@ int create_index(NDBT_Context* ctx, int indxNum,
 
   HugoCalculator calc(*pTab);
 
-  if (attr->numAttribs == 1 && 
+  if (attr->numAttribs == 1 &&
       calc.isUpdateCol(attr->attribs[0]) == true){
     // Don't create index for the Hugo update column
     // since it's not unique
     return SKIP_INDEX;
   }
 
-  // Create index    
+  // Create index
   BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "<<idxName << " (";
@@ -238,7 +238,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
     pIdx.setType(NdbDictionary::Index::OrderedIndex);
   else
     pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
-  
+
   bool includesOnlyPkIdCols = true;
   for (int c = 0; c< attr->numAttribs; c++){
     int attrNo = attr->attribs[c];
@@ -331,10 +331,10 @@ int create_index(NDBT_Context* ctx, int indxNum,
       NDB_ERR(err);
       if (err.classification == NdbError::ApplicationError)
         return SKIP_INDEX;
-      
+
       if (err.status == NdbError::TemporaryError)
         return SKIP_INDEX;
-      
+
       return NDBT_FAILED;
     } else {
       ndbout << "OK!" << endl;
@@ -345,15 +345,15 @@ int create_index(NDBT_Context* ctx, int indxNum,
 }
 
 
-int drop_index(int indxNum, Ndb* pNdb, 
+int drop_index(int indxNum, Ndb* pNdb,
 	       const NdbDictionary::Table* pTab, Attrib* attr){
   int result = NDBT_OK;
 
   if (attr->indexCreated == false)
-    return NDBT_OK;	
+    return NDBT_OK;
 
   BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
-  
+
   // Drop index
   ndbout << "Dropping index "<<idxName<<"(" << pTab->getName() << ") ";
   if (pNdb->getDictionary()->dropIndex(idxName, pTab->getName()) != 0){
@@ -362,7 +362,7 @@ int drop_index(int indxNum, Ndb* pNdb,
     result = NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
-  }	
+  }
   return result;
 }
 
@@ -386,23 +386,23 @@ int runCreateIndexes(NDBT_Context* ctx, NDBT_Step* step){
   while (l < loops && result == NDBT_OK){
     unsigned int i;
     for (i = 0; i < attrList.attriblist.size(); i++){
-      
+
       // Try to create index
       if (create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], logged) == NDBT_FAILED)
-	result = NDBT_FAILED;      
+	result = NDBT_FAILED;
     }
-    
+
     // Now drop all indexes that where created
     for (i = 0; i < attrList.attriblist.size(); i++){
-            
+
       // Try to drop index
       if (drop_index(i, pNdb, pTab, attrList.attriblist[i]) != NDBT_OK)
-	result = NDBT_FAILED;      		     
+	result = NDBT_FAILED;
     }
-    
+
     l++;
   }
-  
+
   return result;
 }
 
@@ -417,7 +417,7 @@ int createRandomIndex(NDBT_Context* ctx, NDBT_Step* step){
   int retries = 100;
   while(retries > 0){
     const Uint32 i = rand() % attrList.attriblist.size();
-    int res = create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], 
+    int res = create_index(ctx, i, pTab, pNdb, attrList.attriblist[i],
 			   logged);
     if (res == SKIP_INDEX){
       retries--;
@@ -427,13 +427,13 @@ int createRandomIndex(NDBT_Context* ctx, NDBT_Step* step){
     if (res == NDBT_FAILED){
       return NDBT_FAILED;
     }
-    
+
     ctx->setProperty("createRandomIndex", i);
     // Now drop all indexes that where created
-    
+
     return NDBT_OK;
   }
-  
+
   return NDBT_FAILED;
 }
 
@@ -441,20 +441,20 @@ int createRandomIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   Uint32 i = ctx->getProperty("createRandomIndex");
-  
+
   BaseString::snprintf(idxName, 255, "IDC%d", i);
-  
+
   // Drop index
   ndbout << "Dropping index " << idxName << " ";
-  if (pNdb->getDictionary()->dropIndex(idxName, 
+  if (pNdb->getDictionary()->dropIndex(idxName,
 				       ctx->getTab()->getName()) != 0){
     ndbout << "FAILED!" << endl;
     NDB_ERR(pNdb->getDictionary()->getNdbError());
     return NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
-  }	
-  
+  }
+
   return NDBT_OK;
 }
 
@@ -466,8 +466,8 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
 
   bool logged = ctx->getProperty("LoggedIndexes", 1);
   bool noddl= ctx->getProperty("NoDDL");
-  
-  // Create index    
+
+  // Create index
   BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
@@ -489,14 +489,14 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
       ndbout << col->getName() <<" ";
     }
   }
-  
+
   pIdx.setStoredIndex(logged);
   ndbout << ") ";
   if (noddl)
   {
     const NdbDictionary::Index* idx= pNdb->
       getDictionary()->getIndex(pkIdxName, pTab->getName());
-    
+
     if (!idx)
     {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
@@ -532,7 +532,7 @@ int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
   if (!noddl)
   {
     ndbout << "Dropping index " << pkIdxName << " ";
-    if (pNdb->getDictionary()->dropIndex(pkIdxName, 
+    if (pNdb->getDictionary()->dropIndex(pkIdxName,
                                          pTab->getName()) != 0){
       ndbout << "FAILED!" << endl;
       NDB_ERR(pNdb->getDictionary()->getNdbError());
@@ -541,13 +541,13 @@ int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
       ndbout << "OK!" << endl;
     }
   }
-  
+
   return NDBT_OK;
 }
 
 int
 runVerifyIndex(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   UtilTransactions utilTrans(*ctx->getTab());
@@ -565,7 +565,7 @@ runVerifyIndex(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -576,17 +576,17 @@ runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
     if (hugoTrans.pkUpdateRecords(pNdb, rows, batchSize) != 0){
       g_err << "Updated table failed" << endl;
       return NDBT_FAILED;
-    }    
+    }
 
     ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
-    
+
     if (hugoTrans.scanUpdateRecords(pNdb, rows, batchSize) != 0){
       g_err << "Updated table failed" << endl;
       return NDBT_FAILED;
-    }    
-    
+    }
+
     ctx->sync_down("PauseThreads");
   }
   return NDBT_OK;
@@ -594,7 +594,7 @@ runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runTransactions2(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -624,7 +624,7 @@ runTransactions2(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -645,26 +645,26 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
     if (hugoTrans.pkUpdateRecords(pNdb, rows, batchSize) != 0){
       g_err << "Updated table failed" << endl;
       return NDBT_FAILED;
-    }    
+    }
 
     ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
-    
+
     if (hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, batchSize) != 0){
       g_err << "Index read failed" << endl;
       return NDBT_FAILED;
     }
-    
+
     ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
-    
+
     if (hugoTrans.indexUpdateRecords(pNdb, pkIdxName, rows, batchSize) != 0){
       g_err << "Index update failed" << endl;
       return NDBT_FAILED;
     }
-    
+
     ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
@@ -694,7 +694,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
     ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
-    
+
     int count = -1;
     if(utilTrans.selectCount(pNdb, 64, &count) != 0 || count != 0)
       return NDBT_FAILED;
@@ -717,7 +717,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Failed to executeRestart(" <<pCase->getName() <<")" << endl;
       result = NDBT_FAILED;
       break;
-    }    
+    }
     ctx->sync_up_and_wait("PauseThreads", sync_threads);
     i++;
   }
@@ -743,39 +743,39 @@ int runCreateLoadDropIndex(NDBT_Context* ctx, NDBT_Step* step){
   attrList.buildAttribList(pTab);
 
   for (unsigned int i = 0; i < attrList.attriblist.size(); i++){
-        
+
     while (l < loops && result == NDBT_OK){
 
       if ((l % 2) == 0){
 	// Create index first and then load
-	
+
 	// Try to create index
 	if (create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], logged) == NDBT_FAILED){
-	  result = NDBT_FAILED;      
+	  result = NDBT_FAILED;
 	}
-	
+
 	// Load the table with data
 	ndbout << "Loading data after" << endl;
 	CHECK(hugoTrans.loadTable(pNdb, records, batchSize) == 0);
-	
-	
+
+
       } else {
 	// Load table then create index
-	
+
 	// Load the table with data
 	ndbout << "Loading data before" << endl;
 	CHECK(hugoTrans.loadTable(pNdb, records, batchSize) == 0);
-	
+
 	// Try to create index
 	if (create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], logged) == NDBT_FAILED)
-	  result = NDBT_FAILED;      
-	
+	  result = NDBT_FAILED;
+
       }
-      
-      // Verify that data in index match 
+
+      // Verify that data in index match
       // table data
       CHECK(utilTrans.verifyIndex(pNdb, idxName, parallelism) == 0);
-      
+
       // Do it all...
       ndbout <<"Doing it all"<<endl;
       int count;
@@ -807,33 +807,33 @@ int runCreateLoadDropIndex(NDBT_Context* ctx, NDBT_Step* step){
 
       if ((l % 2) == 0){
 	// Drop index first and then clear
-	
+
 	// Try to create index
 	if (drop_index(i, pNdb, pTab, attrList.attriblist[i]) != NDBT_OK){
-	  result = NDBT_FAILED;      
+	  result = NDBT_FAILED;
 	}
-	
+
 	// Clear table
 	ndbout << "Clearing table after" << endl;
 	CHECK(hugoTrans.clearTable(pNdb, records, parallelism) == 0);
-	
-	
+
+
       } else {
 	// Clear table then drop index
-	
+
 	//Clear table
 	ndbout << "Clearing table before" << endl;
 	CHECK(hugoTrans.clearTable(pNdb, records, parallelism) == 0);
-	
+
 	// Try to drop index
 	if (drop_index(i, pNdb, pTab, attrList.attriblist[i]) != NDBT_OK)
-	  result = NDBT_FAILED;      	
+	  result = NDBT_FAILED;
       }
-      
+
       ndbout << "  Done!" << endl;
       l++;
     }
-      
+
     // Make sure index is dropped
     drop_index(i, pNdb, pTab, attrList.attriblist[i]);
 
@@ -854,32 +854,32 @@ int runInsertDelete(NDBT_Context* ctx, NDBT_Step* step){
   bool logged = ctx->getProperty("LoggedIndexes", 1);
 
   HugoTransactions hugoTrans(*pTab);
-  UtilTransactions utilTrans(*pTab);  
+  UtilTransactions utilTrans(*pTab);
 
   AttribList attrList;
   attrList.buildAttribList(pTab);
 
   for (unsigned int i = 0; i < attrList.attriblist.size(); i++){
-    
-    Attrib* attr = attrList.attriblist[i]; 
+
+    Attrib* attr = attrList.attriblist[i];
     // Create index
     if (create_index(ctx, i, pTab, pNdb, attr, logged) == NDBT_OK){
       int l = 1;
       while (l <= loops && result == NDBT_OK){
-  
+
 	CHECK(hugoTrans.loadTable(pNdb, records, batchSize) == 0);
 	CHECK(utilTrans.verifyIndex(pNdb, idxName, parallelism) == 0);
 	CHECK(utilTrans.clearTable(pNdb, records, parallelism) == 0);
 	CHECK(utilTrans.verifyIndex(pNdb, idxName, parallelism) == 0);
-	l++;	    
-      }            
-      
+	l++;
+      }
+
       // Drop index
       if (drop_index(i, pNdb, pTab, attr) != NDBT_OK)
-	result = NDBT_FAILED;      		     
-    }    
+	result = NDBT_FAILED;
+    }
   }
-  
+
   return result;
 }
 
@@ -892,7 +892,7 @@ int tryAddUniqueIndex(Ndb* pNdb,
   for(int c = 0; c < pTab->getNoOfColumns(); c++)
   {
     const NdbDictionary::Column* col = pTab->getColumn(c);
-    
+
     if (!col->getPrimaryKey() &&
         !calc.isUpdateCol(c) &&
         !col->getNullable() &&
@@ -902,12 +902,12 @@ int tryAddUniqueIndex(Ndb* pNdb,
       break;
     }
   }
-  
+
   if (chosenCol == -1)
   {
     return 1;
   }
-  
+
 
   /* Create unique index on chosen column */
 
@@ -918,7 +918,7 @@ int tryAddUniqueIndex(Ndb* pNdb,
   NdbDictionary::Index idxDef(idxName);
   idxDef.setTable(pTab->getName());
   idxDef.setType(NdbDictionary::Index::UniqueHashIndex);
-  
+
   idxDef.addIndexColumn(colName);
   idxDef.setStoredIndex(false);
 
@@ -943,7 +943,7 @@ int tryInsertUniqueRecord(NDBT_Step* step,
     CHECKRET(hugoOps.startTransaction(pNdb) == 0);
     CHECKRET(hugoOps.pkInsertRecord(pNdb,
                                     recordNum,
-                                    1,  // NumRecords 
+                                    1,  // NumRecords
                                     0)  // UpdatesValue
              == 0);
     if (hugoOps.execute_Commit(pNdb) != 0)
@@ -964,14 +964,14 @@ int tryInsertUniqueRecord(NDBT_Step* step,
         return NDBT_FAILED;
       }
     }
-    
+
     hugoOps.closeTransaction(pNdb);
     break;
   } while (true);
 
   return NDBT_OK;
 }
-                     
+
 
 int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -995,7 +995,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
 
   int chosenCol = -1;
   const char* idxName = "constraintCheck";
-  
+
   int rc = tryAddUniqueIndex(pNdb, pTab, idxName, calc, chosenCol);
 
   if (rc)
@@ -1008,7 +1008,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  const NdbDictionary::Index* pIdx = 
+  const NdbDictionary::Index* pIdx =
     pNdb->getDictionary()->getIndex(idxName, pTab->getName());
   CHECKRET(pIdx != 0);
 
@@ -1022,8 +1022,8 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
   CHECKRET(tryInsertUniqueRecord(step, hugoOps, secondRecordNum) == NDBT_OK);
 
 
-  /* Now we'll attempt to insert/update records 
-   * in various sized batches and check the errors which 
+  /* Now we'll attempt to insert/update records
+   * in various sized batches and check the errors which
    * are returned
    */
 
@@ -1031,22 +1031,22 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
   int recordOffset = secondRecordNum + 1;
   char buff[NDB_MAX_TUPLE_SIZE];
   Uint32 real_len;
-  CHECKRET(calc.calcValue(firstRecordNum, chosenCol, 0, &buff[0], 
-                          pTab->getColumn(chosenCol)->getSizeInBytes(), 
+  CHECKRET(calc.calcValue(firstRecordNum, chosenCol, 0, &buff[0],
+                          pTab->getColumn(chosenCol)->getSizeInBytes(),
                           &real_len) != 0);
-  
+
   for (int optype = 0; optype < 2; optype ++)
   {
     bool useInsert = (optype == 0);
-    ndbout << "Verifying constraint violation for " 
+    ndbout << "Verifying constraint violation for "
            << (useInsert?"Insert":"Update")
            << " operations" << endl;
-      
+
     for (int batchSize = 1; batchSize <= maxBatchSize; batchSize++)
     {
       NdbTransaction* trans = pNdb->startTransaction();
       CHECKRET(trans != 0);
-      
+
       for (int rows = 0; rows < batchSize; rows ++)
       {
         int rowId = recordOffset + rows;
@@ -1055,9 +1055,9 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
         if (useInsert)
         {
           CHECKRET(op->insertTuple() == 0);
-          
+
           CHECKRET(hugoOps.setValues(op, rowId, 0) == 0);
-          
+
           /* Now override setValue for the indexed column to cause
            * constraint violation
            */
@@ -1070,19 +1070,19 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
            */
           CHECKRET(op->updateTuple() == 0);
           CHECKRET(hugoOps.equalForRow(op, secondRecordNum) == 0);
-          
+
           CHECKRET(op->setValue(chosenCol, &buff[0], real_len) == 0);
         }
       }
-      
+
       CHECKRET(trans->execute(Commit) == -1);
-      
+
       NdbError err = trans->getNdbError();
-      
+
       NDB_ERR(err);
-      
+
       CHECKRET(err.code == 893);
-      
+
       /* Ugliness - current NdbApi puts index schema object id
        * as abs. value of char* in NdbError struct
        */
@@ -1090,9 +1090,9 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
       int idxObjId = (int) ((UintPtr) err.details - UintPtr(0));
       char detailsBuff[100];
       const char* errIdxName = NULL;
-      
+
       ndbout_c("Got details column val of %p and string of %s\n",
-               err.details, pNdb->getNdbErrorDetail(err, 
+               err.details, pNdb->getNdbErrorDetail(err,
                                                     &detailsBuff[0],
                                                     100));
       if (idxObjId == pIdx->getObjectId())
@@ -1107,10 +1107,10 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
          * Check that the failing constraint contains our column
          */
         NdbDictionary::Dictionary::List tableIndices;
-        
+
         CHECKRET(pNdb->getDictionary()->listIndexes(tableIndices,
                                                     pTab->getName()) == 0);
-        
+
         bool ok = false;
         for (unsigned ind = 0; ind < tableIndices.count; ind ++)
         {
@@ -1118,11 +1118,11 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
           {
             const char* otherIdxName = tableIndices.elements[ind].name;
             ndbout << "Found other violated constraint : " << otherIdxName << endl;
-            const NdbDictionary::Index* otherIndex = 
+            const NdbDictionary::Index* otherIndex =
               pNdb->getDictionary()->getIndex(otherIdxName,
                                               pTab->getName());
             CHECKRET(otherIndex != NULL);
-            
+
             for (unsigned col = 0; col < otherIndex->getNoOfColumns(); col++)
             {
               if (strcmp(otherIndex->getColumn(col)->getName(),
@@ -1134,7 +1134,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
                 break;
               }
             }
-            
+
             if (ok)
             {
               ndbout << "  Constraint contains unique column " << endl;
@@ -1144,7 +1144,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
             CHECKRET(false);
           }
         }
-        
+
         if (!ok)
         {
           ndbout << "Did not find violated constraint" << endl;
@@ -1153,7 +1153,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       /* Finally verify the name returned is :
-       * <db>/<schema>/<table>/<index> 
+       * <db>/<schema>/<table>/<index>
        */
       BaseString expected;
 
@@ -1170,13 +1170,13 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
       trans->close();
     }
   }
-  
+
   return NDBT_OK;
 }
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
-  
+
   HugoTransactions hugoTrans(*ctx->getTab());
   int batchSize = ctx->getProperty("BatchSize", 1);
   if(hugoTrans.loadTable(GETNDB(step), records, batchSize) != 0){
@@ -1188,7 +1188,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
-  
+
   UtilTransactions utilTrans(*ctx->getTab());
   if (utilTrans.clearTable(GETNDB(step),  records) != 0){
     return NDBT_FAILED;
@@ -1228,7 +1228,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Loading records..." << endl;
     CHECK(hugoTrans.loadTable(pNdb, records, 1) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName, 16, false) == 0);
-    
+
     ndbout << "Restarting cluster" << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
@@ -1254,7 +1254,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == records);
     CHECK(utilTrans.verifyIndex(pNdb, idxName, 16, false) == 0);
-    
+
     ndbout << "Deleting 50% of records..." << endl;
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
     CHECK(utilTrans.verifyIndex(pNdb, idxName, 16, false) == 0);
@@ -1328,12 +1328,12 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
     CHECK(pNdb->waitUntilReady(timeout) == 0);
-    
+
     i++;
   }
 
   ctx->stopTest();
-  ndbout << "runSystemRestart1 finished" << endl;  
+  ndbout << "runSystemRestart1 finished" << endl;
 
   return result;
 }
@@ -1353,7 +1353,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runMixed1(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
@@ -1376,7 +1376,7 @@ runMixed1(NDBT_Context* ctx, NDBT_Step* step){
     CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0) == 0, "indexReadRecords");
     CHECK2(hugoOps.execute_Commit(pNdb) == 0, "executeCommit");
     CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
-    
+
 
     // TC2
     g_err << "pkRead, indexRead, NoCommit, Commit" << endl;
@@ -1436,7 +1436,7 @@ runMixedUpdateInterleaved(Ndb* pNdb,
   {
     execRc= 626;
   }
-  
+
   bool updateViaPk= whatToUpdate & 1;
   bool updateViaIx= whatToUpdate & 2;
 
@@ -1455,7 +1455,7 @@ runMixedUpdateInterleaved(Ndb* pNdb,
        */
       int indxKey= ((i == ixFailRec)^invertFail)? outOfRangeRec : i;
       int pkKey= ((i == pkFailRec)^invertFail)? outOfRangeRec : i;
-      
+
       for (int opNum=0; opNum < 2; opNum++)
       {
         if (opNum == ixOpNum)
@@ -1470,12 +1470,12 @@ runMixedUpdateInterleaved(Ndb* pNdb,
             CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, indxKey) == 0, "indexReadRecords");
           }
         }
-        
+
         if (opNum == pkOpNum)
         {
           if (updateViaPk)
           {
-            CHECK2(hugoOps.pkUpdateRecord(pNdb, pkKey, 1, updatesValue) == 0, 
+            CHECK2(hugoOps.pkUpdateRecord(pNdb, pkKey, 1, updatesValue) == 0,
                    "pkUpdateRecord");
           }
           else
@@ -1523,7 +1523,7 @@ runMixedUpdateInterleaved(Ndb* pNdb,
       }
     }
     CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
-    
+
     return 1;
   }
 
@@ -1556,7 +1556,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
   g_err << "rowSize= " << rowSize << endl;
 
   int updatesValue= 1;
-  const int maxTimeoutRetries= 3; 
+  const int maxTimeoutRetries= 3;
 
   do {
     // TC0
@@ -1571,14 +1571,14 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
         CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecord");
         CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
         CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
-        
+
         ok= true;
         break;
       }
       if (!ok) { break; };
     }
-    
-    
+
+
     // TC1
     {
       bool ok= false;
@@ -1591,13 +1591,13 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
         CHECK2(hugoOps.indexReadRecords(pNdb, pkIdxName, 0, false, testSize) == 0, "indexReadRecords");
         CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
         CHECK2(hugoOps.closeTransaction(pNdb) == 0, "closeTransaction");
-        
+
         ok= true;
         break;
       }
       if (!ok) { break; };
     }
-    
+
     // TC2
     {
       bool ok= false;
@@ -1617,7 +1617,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC3
     {
       bool ok= false;
@@ -1635,7 +1635,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC4
     {
       bool ok= false;
@@ -1653,7 +1653,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC5
     {
       bool ok= false;
@@ -1671,7 +1671,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC6
     {
       bool ok= false;
@@ -1689,7 +1689,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC7
     {
       bool ok= false;
@@ -1708,7 +1708,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       }
       if (!ok) { break; };
     }
-    
+
     // TC8
     {
       bool ok= false;
@@ -1717,7 +1717,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
       {
         g_err << "TC8 : indexUpdate, pkRead, Commit" << endl;
         CHECK2(hugoOps.startTransaction(pNdb) == 0, "startTransaction ");
-        CHECK2(hugoOps.indexUpdateRecord(pNdb, pkIdxName, 0, testSize, updatesValue++) == 0, 
+        CHECK2(hugoOps.indexUpdateRecord(pNdb, pkIdxName, 0, testSize, updatesValue++) == 0,
                "indexReadRecords ");
         CHECK2(hugoOps.pkReadRecord(pNdb, 0, testSize) == 0, "pkReadRecords ");
         CHECKOKORTIMEOUT(hugoOps.execute_Commit(pNdb), "executeCommit");
@@ -1731,16 +1731,16 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
     for (int ao=0; ao < 2; ao++)
     {
       AbortOption abortOption= ao?AO_IgnoreError:AbortOnError;
-      
+
       for (int exType=0; exType < 3; exType++)
       {
         bool commit= (exType == 1);
         bool abort= (exType == 2);
-        
-        const char* exTypeStr= ((exType == 0) ? "NoCommit" : 
-                                (exType == 1) ? "Commit" : 
+
+        const char* exTypeStr= ((exType == 0) ? "NoCommit" :
+                                (exType == 1) ? "Commit" :
                                 "Abort");
-        
+
         for (int failType= 0; failType < 4; failType++)
         {
           for (int failPos= 0; failPos < 2; failPos++)
@@ -1755,18 +1755,18 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
               if (failType & 2)
                 ixFailRec= failRec;
             }
-            
-            for (int invFail= 0; 
-                 invFail < ((failType==0)?1:2); 
+
+            for (int invFail= 0;
+                 invFail < ((failType==0)?1:2);
                  invFail++)
             {
               bool invertFail= (invFail)?true:false;
-              const char* failTypeStr= ((failType==0)? "None" : 
-                                        ((failType==1)? "Pk": 
+              const char* failTypeStr= ((failType==0)? "None" :
+                                        ((failType==1)? "Pk":
                                          ((failType==2)?"Ix": "Both")));
               for (int updateVia= 0; updateVia < 3; updateVia++)
               {
-                const char* updateViaStr= ((updateVia == 0)? "None" : 
+                const char* updateViaStr= ((updateVia == 0)? "None" :
                                            (updateVia == 1)? "Pk" :
                                            (updateVia == 2)? "Ix" :
                                            "Both");
@@ -1785,9 +1785,9 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
                   do
                   {
                     g_err << "Mixed read/update interleaved" << endl;
-                    CHECK2(runMixedUpdateInterleaved(pNdb, hugoOps, numRecordsInTable, testSize, 
-                                                     commit,  // Commit 
-                                                     abort, // Abort 
+                    CHECK2(runMixedUpdateInterleaved(pNdb, hugoOps, numRecordsInTable, testSize,
+                                                     commit,  // Commit
+                                                     abort, // Abort
                                                      pkFailRec,    // PkFail
                                                      ixFailRec,   // IxFail
                                                      invertFail, // Invertfail
@@ -1796,10 +1796,10 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
                                                      updatesValue++,
                                                      updateIxFirst),
                          "TC4");
-                    
+
                     ok= true;
                   } while (false);
-                  
+
                   if (!ok)
                   {
                     hugoOps.closeTransaction(pNdb);
@@ -1815,7 +1815,7 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
 
     return NDBT_OK;
   } while (false);
-  
+
   hugoOps.closeTransaction(pNdb);
   return NDBT_FAILED;
 }
@@ -1890,7 +1890,7 @@ int runRefreshTupleAbort(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
-  // Verify that data in index match 
+  // Verify that data in index match
   // table data
   const int Threads = ctx->getProperty("Threads", (Uint32)0);
   const int loops = ctx->getNumLoops();
@@ -1941,7 +1941,7 @@ runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
 
     if(ctx->isTestStopped())
       break;
-    
+
 #if 1
     if(createRandomIndex_Drop(ctx, step) != NDBT_OK){
       g_err << "Failed to drop index" << endl;
@@ -1982,8 +1982,8 @@ runTransactions4(NDBT_Context* ctx, NDBT_Step* step){
   g_lock.lock();
   const int ThreadId = threadCounter++;
   g_lock.unlock();
-  
-  // Verify that data in index match 
+
+  // Verify that data in index match
   // table data
   Ndb* pNdb = GETNDB(step);
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -2006,13 +2006,13 @@ runTransactions4(NDBT_Context* ctx, NDBT_Step* step){
     if (hugoTrans.pkUpdateRecords(pNdb, rows, batchSize) != 0){
       g_err << "Updated table failed" << endl;
       return NDBT_FAILED;
-    }    
+    }
 
     wait_paused(ctx, ThreadId);
-    
+
     if(ctx->isTestStopped())
       break;
-    
+
     if (hugoTrans.scanUpdateRecords(pNdb, rows, 5, parallel) != 0){
       g_err << "Scan updated table failed" << endl;
       return NDBT_FAILED;
@@ -2040,7 +2040,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   NdbConnection * pTrans = 0;
 
   const NdbDictionary::Table* pTab = ctx->getTab();
-  // Create index    
+  // Create index
   char nullIndex[255];
   BaseString::snprintf(nullIndex, 255, "IDC_PK_%s_NULL", pTab->getName());
   if (orderedIndex)
@@ -2065,7 +2065,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
       ndbout << col->getName() <<" ";
     }
   }
-  
+
   int colId = -1;
   for (c = 0; c< pTab->getNoOfColumns(); c++){
     const NdbDictionary::Column * col = pTab->getColumn(c);
@@ -2079,16 +2079,16 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << ") ";
 
   if(colId == -1){
-    ndbout << endl << "No nullable column found -> NDBT_FAILED" << endl; 
+    ndbout << endl << "No nullable column found -> NDBT_FAILED" << endl;
     return NDBT_FAILED;
   }
-  
+
   bool noddl= ctx->getProperty("NoDDL");
   if (noddl)
   {
     const NdbDictionary::Index* idx= pNdb->
       getDictionary()->getIndex(pIdx.getName(), pTab->getName());
-    
+
     if (!idx)
     {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
@@ -2121,7 +2121,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Updated table failed" << endl;
       result = NDBT_FAILED;
       goto done;
-    }    
+    }
   }
 
   if(ctx->isTestStopped()){
@@ -2152,7 +2152,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
     eof = pTrans->execute(Commit);
     if(eof == -1) goto done;
   }
-  
+
  done:
   if(pTrans) pNdb->closeTransaction(pTrans);
   pNdb->getDictionary()->dropIndex(nullIndex, pTab->getName());
@@ -2162,7 +2162,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
 int runLQHKEYREF(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops() * 100;
   NdbRestarter restarter;
-  
+
   myRandom48Init((long)NdbTick_CurrentMillisecond());
 
 #if 0
@@ -2178,29 +2178,29 @@ int runLQHKEYREF(NDBT_Context* ctx, NDBT_Step* step){
     int nodeId = restarter.getDbNodeId(randomId);
 
     const Uint32 error = 5031 + (i % 3);
-    
+
     if(restarter.insertErrorInNode(nodeId, error) != 0){
       g_err << "Failed to error insert( " << error << ") in node "
 	    << nodeId << endl;
       return NDBT_FAILED;
     }
   }
-  
+
   ctx->stopTest();
   return NDBT_OK;
 }
 
-int 
+int
 runBug21384(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   HugoTransactions hugoTrans(*ctx->getTab());
   NdbRestarter restarter;
-  
+
   int loops = ctx->getNumLoops();
   const int rows = ctx->getNumRecords();
   const int batchsize = ctx->getProperty("BatchSize", 50);
-  
+
   while (loops--)
   {
     if(restarter.insertErrorInAllNodes(8037) != 0)
@@ -2208,25 +2208,25 @@ runBug21384(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "Failed to error insert(8037)" << endl;
       return NDBT_FAILED;
     }
-    
+
     if (hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, batchsize) == 0)
     {
       g_err << "Index succeded (it should have failed" << endl;
       return NDBT_FAILED;
     }
-    
+
     if(restarter.insertErrorInAllNodes(0) != 0)
     {
       g_err << "Failed to error insert(0)" << endl;
       return NDBT_FAILED;
     }
-    
+
     if (hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, batchsize) != 0){
       g_err << "Index read failed" << endl;
       return NDBT_FAILED;
     }
   }
-  
+
   return NDBT_OK;
 }
 
@@ -2243,20 +2243,20 @@ runReadIndexUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int 
+int
 runBug25059(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
-  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName,
 						    ctx->getTab()->getName());
 
   HugoOperations ops(*ctx->getTab(), idx);
-  
+
   int res = NDBT_OK;
   int loops = ctx->getNumLoops();
   const int rows = ctx->getNumRecords();
-  
+
   while (res == NDBT_OK && loops--)
   {
     ops.startTransaction(pNdb);
@@ -2272,7 +2272,7 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
     }
     ops.closeTransaction(pNdb);
   }
-  
+
   loops = ctx->getNumLoops();
   while (res == NDBT_OK && loops--)
   {
@@ -2298,8 +2298,8 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
 	  res = NDBT_FAILED;
     }
     ops.closeTransaction(pNdb);
-  }  
-  
+  }
+
   return res;
 }
 
@@ -2310,14 +2310,14 @@ runBug25059(NDBT_Context* ctx, NDBT_Step* step)
 // Testing of segment exhaustion when accumulating from
 // signal trains cannot be tested from 7.0 as we cannot
 // generate short signal trains.
-// TODO : Execute testcase as part of upgrade testing - 
+// TODO : Execute testcase as part of upgrade testing -
 // 6.3 to 7.0?
 int tcSaveINDX_test(NDBT_Context* ctx, NDBT_Step* step, int inject_err)
 {
   int result= NDBT_OK;
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
-  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName, 
+  const NdbDictionary::Index * idx = dict->getIndex(pkIdxName,
                                                     ctx->getTab()->getName());
 
   HugoOperations ops(*ctx->getTab(), idx);
@@ -2540,20 +2540,20 @@ runTrigOverload(NDBT_Context* ctx, NDBT_Step* step)
           << endl;
     return NDBT_FAILED;
   }
-  
+
   hugoOps.closeTransaction(pNdb);
 
   for(unsigned i = 0 ; i < iterations; i++)
   {
     unsigned scenario = i % numScenarios;
     unsigned errorVal = errorInserts[ scenario ];
-    g_err << "Iteration :" << i 
+    g_err << "Iteration :" << i
           << " inserting error " << errorVal
           << " expecting result : " << results[scenario]
           << endl;
     restarter.insertErrorInAllNodes(errorVal);
     //    NdbSleep_MilliSleep(500); // Error insert latency?
-    
+
     CHECKRET(hugoOps.startTransaction(pNdb) == 0);
 
     CHECKRET(hugoOps.pkInsertRecord(pNdb, iterations + i, 1) == 0);
@@ -2561,60 +2561,60 @@ runTrigOverload(NDBT_Context* ctx, NDBT_Step* step)
     hugoOps.execute_Commit(pNdb);
 
     int errorCode = hugoOps.getTransaction()->getNdbError().code;
-    
+
     if (errorCode != results[scenario])
     {
-      g_err << "For Insert in scenario " << scenario 
+      g_err << "For Insert in scenario " << scenario
             << " expected code " << results[scenario]
             << " but got " << hugoOps.getTransaction()->getNdbError()
             << endl;
       return NDBT_FAILED;
     }
-    
+
     hugoOps.closeTransaction(pNdb);
-    
+
     CHECKRET(hugoOps.startTransaction(pNdb) == 0);
-    
+
     CHECKRET(hugoOps.pkUpdateRecord(pNdb, i, 1, iterations) == 0);
-    
+
     hugoOps.execute_Commit(pNdb);
 
     errorCode = hugoOps.getTransaction()->getNdbError().code;
-    
+
     if (errorCode != results[scenario])
     {
-      g_err << "For Update in scenario " << scenario 
+      g_err << "For Update in scenario " << scenario
             << " expected code " << results[scenario]
             << " but got " << hugoOps.getTransaction()->getNdbError()
             << endl;
       return NDBT_FAILED;
     }
-    
+
     hugoOps.closeTransaction(pNdb);
 
     CHECKRET(hugoOps.startTransaction(pNdb) == 0);
-    
+
     CHECKRET(hugoOps.pkDeleteRecord(pNdb, i, 1) == 0);
-    
+
     hugoOps.execute_Commit(pNdb);
 
     errorCode = hugoOps.getTransaction()->getNdbError().code;
-    
+
     if (errorCode != results[scenario])
     {
-      g_err << "For Delete in scenario " << scenario 
+      g_err << "For Delete in scenario " << scenario
             << " expected code " << results[scenario]
             << " but got " << hugoOps.getTransaction()->getNdbError()
             << endl;
       return NDBT_FAILED;
     }
-    
+
     hugoOps.closeTransaction(pNdb);
 
   }
 
   restarter.insertErrorInAllNodes(0);
-  
+
   return NDBT_OK;
 }
 
@@ -3479,7 +3479,7 @@ runRandomIndexScan(NDBT_Context* ctx, NDBT_Step* step)
 
 
 NDBT_TESTSUITE(testIndex);
-TESTCASE("CreateAll", 
+TESTCASE("CreateAll",
 	 "Test that we can create all various indexes on each table\n"
 	 "Then drop the indexes\n"){
   INITIALIZER(runCreateIndexes);
@@ -3491,7 +3491,7 @@ TESTCASE("CreateAll_O",
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runCreateIndexes);
 }
-TESTCASE("InsertDeleteGentle", 
+TESTCASE("InsertDeleteGentle",
 	 "Create one index, then perform insert and delete in the table\n"
 	 "loop number of times. Use batch size 1."){
   TC_PROPERTY("BatchSize", 1);
@@ -3507,7 +3507,7 @@ TESTCASE("InsertDeleteGentle_O",
   INITIALIZER(runInsertDelete);
   FINALIZER(runClearTable);
 }
-TESTCASE("InsertDelete", 
+TESTCASE("InsertDelete",
 	 "Create one index, then perform insert and delete in the table\n"
 	 "loop number of times. Use batchsize 512 to stress db more"){
   TC_PROPERTY("BatchSize", 512);
@@ -3515,7 +3515,7 @@ TESTCASE("InsertDelete",
   FINALIZER(runClearTable);
 
 }
-TESTCASE("InsertDelete_O", 
+TESTCASE("InsertDelete_O",
 	 "Create one index, then perform insert and delete in the table\n"
 	 "loop number of times. Use batchsize 512 to stress db more"){
   TC_PROPERTY("OrderedIndex", 1);
@@ -3525,13 +3525,13 @@ TESTCASE("InsertDelete_O",
   FINALIZER(runClearTable);
 
 }
-TESTCASE("CreateLoadDropGentle", 
+TESTCASE("CreateLoadDropGentle",
 	 "Try to create, drop and load various indexes \n"
 	 "on table loop number of times.Usa batch size 1.\n"){
   TC_PROPERTY("BatchSize", 1);
   INITIALIZER(runCreateLoadDropIndex);
 }
-TESTCASE("CreateLoadDropGentle_O", 
+TESTCASE("CreateLoadDropGentle_O",
 	 "Try to create, drop and load various indexes \n"
 	 "on table loop number of times.Usa batch size 1.\n"){
   TC_PROPERTY("OrderedIndex", 1);
@@ -3539,13 +3539,13 @@ TESTCASE("CreateLoadDropGentle_O",
   TC_PROPERTY("BatchSize", 1);
   INITIALIZER(runCreateLoadDropIndex);
 }
-TESTCASE("CreateLoadDrop", 
+TESTCASE("CreateLoadDrop",
 	 "Try to create, drop and load various indexes \n"
 	 "on table loop number of times. Use batchsize 512 to stress db more\n"){
   TC_PROPERTY("BatchSize", 512);
   INITIALIZER(runCreateLoadDropIndex);
 }
-TESTCASE("CreateLoadDrop_O", 
+TESTCASE("CreateLoadDrop_O",
 	 "Try to create, drop and load various indexes \n"
 	 "on table loop number of times. Use batchsize 512 to stress db more\n"){
   TC_PROPERTY("OrderedIndex", 1);
@@ -3553,8 +3553,8 @@ TESTCASE("CreateLoadDrop_O",
   TC_PROPERTY("BatchSize", 512);
   INITIALIZER(runCreateLoadDropIndex);
 }
-TESTCASE("NFNR1", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR1",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
@@ -3567,8 +3567,8 @@ TESTCASE("NFNR1",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR1_O", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR1_O",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 2);
@@ -3582,8 +3582,8 @@ TESTCASE("NFNR1_O",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR2", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR2",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
@@ -3598,8 +3598,8 @@ TESTCASE("NFNR2",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR2_O", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR2_O",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 1);
@@ -3615,8 +3615,8 @@ TESTCASE("NFNR2_O",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR3", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR3",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
@@ -3629,8 +3629,8 @@ TESTCASE("NFNR3",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR3_O", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR3_O",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 2);
@@ -3644,8 +3644,8 @@ TESTCASE("NFNR3_O",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR4", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR4",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 4);
   INITIALIZER(runClearTable);
@@ -3662,8 +3662,8 @@ TESTCASE("NFNR4",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR4_O", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR4_O",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("PauseThreads", 4);
@@ -3681,8 +3681,8 @@ TESTCASE("NFNR4_O",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR5", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR5",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("BatchSize", (unsigned)1);
   INITIALIZER(runClearTable);
@@ -3699,8 +3699,8 @@ TESTCASE("NFNR5",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("NFNR5_O", 
-	 "Test that indexes are correctly maintained during node fail and node restart"){ 
+TESTCASE("NFNR5_O",
+	 "Test that indexes are correctly maintained during node fail and node restart"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("BatchSize", (unsigned)1);
@@ -3718,8 +3718,8 @@ TESTCASE("NFNR5_O",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("SR1", 
-	 "Test that indexes are correctly maintained during SR"){ 
+TESTCASE("SR1",
+	 "Test that indexes are correctly maintained during SR"){
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -3729,8 +3729,8 @@ TESTCASE("SR1",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("MixedTransaction", 
-	 "Test mixing of index and normal operations"){ 
+TESTCASE("MixedTransaction",
+	 "Test mixing of index and normal operations"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runClearTable);
   INITIALIZER(createPkIndex);
@@ -3739,8 +3739,8 @@ TESTCASE("MixedTransaction",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("MixedTransaction2", 
-	 "Test mixing of index and normal operations with batching"){ 
+TESTCASE("MixedTransaction2",
+	 "Test mixing of index and normal operations with batching"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runClearTable);
   INITIALIZER(createPkIndex);
@@ -3749,8 +3749,8 @@ TESTCASE("MixedTransaction2",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("SR1_O", 
-	 "Test that indexes are correctly maintained during SR"){ 
+TESTCASE("SR1_O",
+	 "Test that indexes are correctly maintained during SR"){
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runClearTable);
@@ -3762,8 +3762,8 @@ TESTCASE("SR1_O",
   FINALIZER(createRandomIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("BuildDuring", 
-	 "Test that index build when running transactions work"){ 
+TESTCASE("BuildDuring",
+	 "Test that index build when running transactions work"){
   TC_PROPERTY("OrderedIndex", (unsigned)0);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("Threads", 1); // # runTransactions4
@@ -3785,8 +3785,8 @@ TESTCASE("BuildDuring2",
   STEPS(runMixedDML, 3);
   FINALIZER(runClearTable);
 }
-TESTCASE("BuildDuring_O", 
-	 "Test that index build when running transactions work"){ 
+TESTCASE("BuildDuring_O",
+	 "Test that index build when running transactions work"){
   TC_PROPERTY("OrderedIndex", (unsigned)1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("Threads", 1); // # runTransactions4
@@ -3796,8 +3796,8 @@ TESTCASE("BuildDuring_O",
   //STEP(runTransactions4);
   FINALIZER(runClearTable);
 }
-TESTCASE("UniqueNull", 
-	 "Test that unique indexes and nulls"){ 
+TESTCASE("UniqueNull",
+	 "Test that unique indexes and nulls"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
@@ -3811,8 +3811,8 @@ TESTCASE("UniqueNull",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug21384", 
-	 "Test that unique indexes and nulls"){ 
+TESTCASE("Bug21384",
+	 "Test that unique indexes and nulls"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(runClearTable);
   INITIALIZER(createPkIndex);
@@ -3821,8 +3821,8 @@ TESTCASE("Bug21384",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug25059", 
-	 "Test that unique indexes and nulls"){ 
+TESTCASE("Bug25059",
+	 "Test that unique indexes and nulls"){
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   INITIALIZER(createPkIndex);
   INITIALIZER(runLoadTable);

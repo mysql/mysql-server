@@ -81,7 +81,7 @@ namespace SPJSanityTest{
       return "INT";
     }
 
-    IntField(int i=0): 
+    IntField(int i=0):
       m_val(i)
     {}
 
@@ -89,7 +89,7 @@ namespace SPJSanityTest{
       sprintf(buff, "%d", m_val);
       return buff;
     }
-    
+
     int compare(const IntField& other) const{
       if (m_val > other.m_val)
         return 1;
@@ -127,7 +127,7 @@ namespace SPJSanityTest{
       sprintf(buff, "'%s'", getValue());
       return buff;
     }
-    
+
     int compare(const StrField& other) const{
       return strcmp(getValue(), other.getValue());
     }
@@ -147,7 +147,7 @@ namespace SPJSanityTest{
     mutable char m_val[10];
   };
 
-  
+
   /* Key class.*/
   template <typename FieldType>
   class GenericKey{
@@ -155,7 +155,7 @@ namespace SPJSanityTest{
     static const int size = 2;
     FieldType m_values[size];
 
-    NdbConstOperand* makeConstOperand(NdbQueryBuilder& builder, 
+    NdbConstOperand* makeConstOperand(NdbQueryBuilder& builder,
                                       int fieldNo) const {
       require(fieldNo<size);
       //return builder.constValue(m_values[fieldNo]);
@@ -172,7 +172,7 @@ namespace SPJSanityTest{
     FieldType m_values[size];
 
     explicit GenericRow<FieldType>(int rowNo){
-      /* Attribute values are chosen such that rows are sorted on 
+      /* Attribute values are chosen such that rows are sorted on
        * all attributes, and that any pair of consecutive columns can be
        * used as a foreign key to the table itself.*/
       for(int i = 0; i<size; i++){
@@ -184,7 +184,7 @@ namespace SPJSanityTest{
       //return "INT";
       return FieldType::getType();
     }
-   
+
     static void makeSQLValues(char* buffer, int rowNo){
       const GenericRow<FieldType> row(rowNo);
       sprintf(buffer, "values(");
@@ -199,24 +199,24 @@ namespace SPJSanityTest{
         }
         tail = buffer+strlen(buffer);
       }
-    } 
+    }
 
     GenericKey<FieldType> getPrimaryKey() const;
-    
+
     GenericKey<FieldType> getIndexKey() const;
-    
+
     GenericKey<FieldType> getForeignKey(int keyNo) const;
 
     void makeLessThanCond(NdbScanFilter& scanFilter){
-      //require(scanFilter.lt(0, m_values[0].getValue())==0); 
-      require(scanFilter.cmp(NdbScanFilter::COND_LT, 0, m_values, m_values[0].getSize())==0); 
+      //require(scanFilter.lt(0, m_values[0].getValue())==0);
+      require(scanFilter.cmp(NdbScanFilter::COND_LT, 0, m_values, m_values[0].getSize())==0);
     }
 
-    /** Get the row column number that corresponds to the n'th column 
+    /** Get the row column number that corresponds to the n'th column
      * of the index.*/
     static int getIndexKeyColNo(int indexCol);
 
-    /** Get the row column number that corresponds to the n'th column 
+    /** Get the row column number that corresponds to the n'th column
      * of the m'th foreign key..*/
     static int getForeignKeyColNo(int keyNo, int keyCol);
   };
@@ -225,7 +225,7 @@ namespace SPJSanityTest{
   GenericKey<FieldType> GenericRow<FieldType>::getPrimaryKey() const {
     GenericKey<FieldType> key;
     for(int i = 0; i<GenericKey<FieldType>::size; i++){
-      key.m_values[i] = m_values[i];    
+      key.m_values[i] = m_values[i];
     }
     return key;
   }
@@ -240,7 +240,7 @@ namespace SPJSanityTest{
     require(keyNo<=1);
     GenericKey<FieldType> key;
     for(int i = 0; i<GenericKey<FieldType>::size; i++){
-      key.m_values[i] = m_values[getForeignKeyColNo(keyNo,i)];    
+      key.m_values[i] = m_values[getForeignKeyColNo(keyNo,i)];
     }
     return key;
   }
@@ -315,7 +315,7 @@ namespace SPJSanityTest{
     require(static_cast<unsigned int>(colNo)< sizeof names/sizeof names[0]);
     return names[colNo];
   };
-  
+
   static void printMySQLError(MYSQL& mysql, const char* before=NULL){
     if(before!=NULL){
       ndbout << before;
@@ -363,7 +363,7 @@ namespace SPJSanityTest{
     Uint32 m_operationId;
     // Number among siblings.
     const Uint32 m_childNo;
-    
+
     /** Check that result of this op and descendans is ok.*/
     void verifyRow();
 
@@ -371,7 +371,7 @@ namespace SPJSanityTest{
     virtual void verifyOwnRow() = 0;
 
     /** Build operation definition.*/
-    virtual void buildThis(NdbQueryBuilder& builder, 
+    virtual void buildThis(NdbQueryBuilder& builder,
                            const NdbDictionary::Table& tab) = 0;
 
     /** Build this and descendants.*/
@@ -380,8 +380,8 @@ namespace SPJSanityTest{
     /** Set up result retrieval before execution.*/
     virtual void submit()=0;
 
-    void compareRows(const char* text, 
-                     const Row* expected, 
+    void compareRows(const char* text,
+                     const Row* expected,
                      const Row* actual) const;
   };
 
@@ -408,7 +408,7 @@ namespace SPJSanityTest{
 
     void setRoot(Operation& root){ m_root = &root;}
 
-    NdbQuery::NextResultOutcome nextResult(){ 
+    NdbQuery::NextResultOutcome nextResult(){
       return m_query->nextResult(true, false);
     }
 
@@ -417,7 +417,7 @@ namespace SPJSanityTest{
       m_root->verifyRow();
     }
 
-    Uint32 allocOperationId(){ 
+    Uint32 allocOperationId(){
       return m_operationCount++;
     }
 
@@ -425,8 +425,8 @@ namespace SPJSanityTest{
       return m_query->getQueryOperation(ident);
     }
 
-    int getTableSize() const { 
-      return m_tableSize; 
+    int getTableSize() const {
+      return m_tableSize;
     }
 
     const NdbRecord* getNdbRecord() const {
@@ -451,23 +451,23 @@ namespace SPJSanityTest{
     const NdbRecord* m_ndbRecord;
   };
 
-  
+
   class LookupOperation: public Operation{
   public:
-    explicit LookupOperation(Query& query, 
+    explicit LookupOperation(Query& query,
                              Operation* parent = NULL);
     virtual void verifyOwnRow();
 
     /** Set up result retrieval before execution.*/
     virtual void submit();
   protected:
-    virtual void buildThis(NdbQueryBuilder& builder, 
+    virtual void buildThis(NdbQueryBuilder& builder,
                            const NdbDictionary::Table& tab);
   };
 
   class IndexLookupOperation: public Operation{
   public:
-    explicit IndexLookupOperation(Query& query, 
+    explicit IndexLookupOperation(Query& query,
                                   const char* indexName,
                                   Operation* parent = NULL);
     virtual void verifyOwnRow();
@@ -475,7 +475,7 @@ namespace SPJSanityTest{
     /** Set up result retrieval before execution.*/
     virtual void submit();
   protected:
-    virtual void buildThis(NdbQueryBuilder& builder, 
+    virtual void buildThis(NdbQueryBuilder& builder,
                            const NdbDictionary::Table& tab);
   private:
     const char* const m_indexName;
@@ -488,7 +488,7 @@ namespace SPJSanityTest{
 
     virtual ~TableScanOperation() {
       delete[] m_rowFound;
-    } 
+    }
 
     virtual void verifyOwnRow();
 
@@ -496,7 +496,7 @@ namespace SPJSanityTest{
     virtual void submit();
 
   protected:
-    virtual void buildThis(NdbQueryBuilder& builder, 
+    virtual void buildThis(NdbQueryBuilder& builder,
                            const NdbDictionary::Table& tab);
   private:
     bool* m_rowFound;
@@ -508,13 +508,13 @@ namespace SPJSanityTest{
 
     explicit IndexScanOperation(Query& query,
                                 const char* indexName,
-                                int lowerBoundRowNo, 
+                                int lowerBoundRowNo,
                                 int upperBoundRowNo,
                                 NdbQueryOptions::ScanOrdering ordering);
 
     virtual ~IndexScanOperation() {
       delete[] m_rowFound;
-    } 
+    }
 
     virtual void verifyOwnRow();
 
@@ -522,7 +522,7 @@ namespace SPJSanityTest{
     virtual void submit();
 
   protected:
-    virtual void buildThis(NdbQueryBuilder& builder, 
+    virtual void buildThis(NdbQueryBuilder& builder,
                            const NdbDictionary::Table& tab);
   private:
     const char* const m_indexName;
@@ -578,7 +578,7 @@ namespace SPJSanityTest{
   }
 
   // Operation methods.
-  Operation::Operation(class Query& query, 
+  Operation::Operation(class Query& query,
                                  Operation* parent):
     m_query(query),
     m_parent(parent),
@@ -612,8 +612,8 @@ namespace SPJSanityTest{
 
   typedef const char* constCharPtr;
 
-  void Operation::compareRows(const char* text, 
-                                   const Row* expected, 
+  void Operation::compareRows(const char* text,
+                                   const Row* expected,
                                    const Row* actual) const{
     if(expected==NULL){
       if(actual==NULL){
@@ -643,11 +643,11 @@ namespace SPJSanityTest{
       }
     }
   };
-  
+
   // LookupOperation methods.
 
   LookupOperation
-  ::LookupOperation(Query& query, 
+  ::LookupOperation(Query& query,
                     Operation* parent):
     Operation(query, parent){
   }
@@ -662,18 +662,18 @@ namespace SPJSanityTest{
       }
     }else{
       // Negative testing
-      require(builder.linkedValue(m_parent->m_operationDef, 
+      require(builder.linkedValue(m_parent->m_operationDef,
                                         "unknown_col") == NULL);
       require(builder.getNdbError().code == QRY_UNKNOWN_COLUMN);
 
       for(int i = 0; i<Key::size; i++){
-        keyOperands[i] = 
-          builder.linkedValue(m_parent->m_operationDef, 
+        keyOperands[i] =
+          builder.linkedValue(m_parent->m_operationDef,
                               colName(Row::getForeignKeyColNo(
                                         m_childNo, i)));
         require(keyOperands[i]!=NULL);
-        /*Row::makeLinkedKey(builder, keyOperands, 
-                         Operation::m_parent->m_operationDef, 
+        /*Row::makeLinkedKey(builder, keyOperands,
+                         Operation::m_parent->m_operationDef,
                          Operation::m_childNo);*/
       }
     }
@@ -702,27 +702,27 @@ namespace SPJSanityTest{
   }
 
   void LookupOperation::submit(){
-    NdbQueryOperation* queryOp 
+    NdbQueryOperation* queryOp
       = m_query.getOperation(m_operationId);
     // Negative testing
-    require(queryOp->setResultRowRef(NULL, 
+    require(queryOp->setResultRowRef(NULL,
                                            m_resultCharPtr,
                                            NULL) == -1);
-    require(queryOp->getQuery().getNdbError().code == 
+    require(queryOp->getQuery().getNdbError().code ==
             QRY_REQ_ARG_IS_NULL);
     require(
       queryOp->setOrdering(NdbQueryOptions::ScanOrdering_ascending) == -1);
     require(
       queryOp->getQuery().getNdbError().code == QRY_WRONG_OPERATION_TYPE);
 
-    require(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+    require(queryOp->setResultRowRef(m_query.getNdbRecord(),
                                      m_resultCharPtr,
                                      NULL) == 0);
     // Negative testing
-    require(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+    require(queryOp->setResultRowRef(m_query.getNdbRecord(),
                                      m_resultCharPtr,
                                      NULL) == -1);
-    require(queryOp->getQuery().getNdbError().code == 
+    require(queryOp->getQuery().getNdbError().code ==
             QRY_RESULT_ROW_ALREADY_DEFINED);
   }
 
@@ -730,14 +730,14 @@ namespace SPJSanityTest{
     if(m_parent==NULL){
       const Row expected(0);
       compareRows("lookup root operation",
-                                  &expected, 
+                                  &expected,
                                   m_resultPtr);
     }else{
-      NdbQueryOperation* queryOp 
+      NdbQueryOperation* queryOp
         = m_query
         .getOperation(m_operationId);
       if(!queryOp->getParentOperation(0)->isRowNULL()){
-        const Key key = 
+        const Key key =
           m_parent->m_resultPtr
           ->getForeignKey(m_childNo);
         bool found = false;
@@ -746,7 +746,7 @@ namespace SPJSanityTest{
           if(row.getPrimaryKey() == key){
             found = true;
             compareRows("lookup child operation",
-                                        &row, 
+                                        &row,
                                         m_resultPtr);
           }
         }
@@ -762,8 +762,8 @@ namespace SPJSanityTest{
   // IndexLookupOperation methods.
 
   IndexLookupOperation
-  ::IndexLookupOperation(Query& query, 
-                         const char* indexName, 
+  ::IndexLookupOperation(Query& query,
+                         const char* indexName,
                          Operation* parent):
     Operation(query, parent),
     m_indexName(indexName){
@@ -772,7 +772,7 @@ namespace SPJSanityTest{
   void IndexLookupOperation
   ::buildThis(NdbQueryBuilder& builder,
               const NdbDictionary::Table& tab){
-    const NdbDictionary::Dictionary* const dict 
+    const NdbDictionary::Dictionary* const dict
       = m_query.getDictionary();
     char fullName[200];
     sprintf(fullName, "%s$unique", m_indexName);
@@ -788,14 +788,14 @@ namespace SPJSanityTest{
       }
     }else{
       for(int i = 0; i<Key::size; i++){
-        keyOperands[i] = 
+        keyOperands[i] =
           builder.linkedValue(m_parent->m_operationDef,
                               colName(Row::getForeignKeyColNo(
                                         m_childNo, i)));
         require(keyOperands[i]!=NULL);
       }
-      /*Row::makeLinkedKey(builder, keyOperands, 
-                         Operation::m_parent->m_operationDef, 
+      /*Row::makeLinkedKey(builder, keyOperands,
+                         Operation::m_parent->m_operationDef,
                          Operation::m_childNo);*/
     }
     keyOperands[Key::size] = NULL;
@@ -811,9 +811,9 @@ namespace SPJSanityTest{
   }
 
   void IndexLookupOperation::submit(){
-    NdbQueryOperation* queryOp 
+    NdbQueryOperation* queryOp
       = m_query.getOperation(m_operationId);
-    queryOp->setResultRowRef(m_query.getNdbRecord(), 
+    queryOp->setResultRowRef(m_query.getNdbRecord(),
                              m_resultCharPtr,
                              NULL);
   }
@@ -822,14 +822,14 @@ namespace SPJSanityTest{
     if(m_parent==NULL){
       const Row expected(0);
       compareRows("index lookup root operation",
-                                  &expected, 
+                                  &expected,
                                   m_resultPtr);
     }else{
-      NdbQueryOperation* queryOp 
+      NdbQueryOperation* queryOp
         = m_query
         .getOperation(m_operationId);
       if(!queryOp->getParentOperation(0)->isRowNULL()){
-        const Key key = 
+        const Key key =
           m_parent->m_resultPtr
           ->getForeignKey(m_childNo);
         bool found = false;
@@ -838,7 +838,7 @@ namespace SPJSanityTest{
           if(row.getIndexKey() == key){
             found = true;
             compareRows("index lookup child operation",
-                                        &row, 
+                                        &row,
                                         m_resultPtr);
           }
         }
@@ -870,9 +870,9 @@ namespace SPJSanityTest{
   }
 
   void TableScanOperation::submit(){
-    NdbQueryOperation* queryOp 
+    NdbQueryOperation* queryOp
       = m_query.getOperation(m_operationId);
-    queryOp->setResultRowRef(m_query.getNdbRecord(), 
+    queryOp->setResultRowRef(m_query.getNdbRecord(),
                              m_resultCharPtr,
                              NULL);
     if(m_lessThanRow!=-1){
@@ -887,8 +887,8 @@ namespace SPJSanityTest{
 
   void TableScanOperation::verifyOwnRow(){
     bool found = false;
-    const int upperBound = 
-      m_lessThanRow==-1 ? 
+    const int upperBound =
+      m_lessThanRow==-1 ?
       m_query.getTableSize() :
       m_lessThanRow;
     for(int i = 0; i<upperBound; i++){
@@ -896,7 +896,7 @@ namespace SPJSanityTest{
       if(Row(i) == *m_resultPtr){
         found = true;
         if(m_rowFound[i]){
-          ndbout << "Root table scan operation: " 
+          ndbout << "Root table scan operation: "
                  << *m_resultPtr
                  << "appeared twice." << endl;
           require(false);
@@ -905,11 +905,11 @@ namespace SPJSanityTest{
       }
     }
     if(!found){
-      ndbout << "Root table scan operation. Unexpected row: " 
+      ndbout << "Root table scan operation. Unexpected row: "
              << *m_resultPtr << endl;
       require(false);
     }else{
-      ndbout << "Root table scan operation. Got row: " 
+      ndbout << "Root table scan operation. Got row: "
              << *m_resultPtr
              << " as expected." << endl;
     }
@@ -918,9 +918,9 @@ namespace SPJSanityTest{
     // IndexScanOperation methods.
 
   IndexScanOperation
-  ::IndexScanOperation(Query& query, 
+  ::IndexScanOperation(Query& query,
                        const char* indexName,
-                       int lowerBoundRowNo, 
+                       int lowerBoundRowNo,
                        int upperBoundRowNo,
                        NdbQueryOptions::ScanOrdering ordering):
     Operation(query, NULL),
@@ -934,7 +934,7 @@ namespace SPJSanityTest{
 
   void IndexScanOperation::buildThis(NdbQueryBuilder& builder,
                                                const NdbDictionary::Table& tab){
-    const NdbDictionary::Dictionary* const dict 
+    const NdbDictionary::Dictionary* const dict
       = m_query.getDictionary();
     const NdbDictionary::Index* const index
       = dict->getIndex(m_indexName, tab.getName());
@@ -948,7 +948,7 @@ namespace SPJSanityTest{
      we therefore get m_upperBoundRowNo - m_lowerBoundRowNo +1 rows.*/
     const Key& lowKey = *new Key(Row(m_lowerBoundRowNo).getPrimaryKey());
     const Key& highKey = *new Key(Row(m_upperBoundRowNo).getPrimaryKey());
-    
+
     for(int i = 0; i<Key::size; i++){
       low[i] = lowKey.makeConstOperand(builder, i);
       high[i] = highKey.makeConstOperand(builder, i);
@@ -959,7 +959,7 @@ namespace SPJSanityTest{
     NdbQueryOptions options;
     options.setOrdering(m_ordering);
     const NdbQueryIndexBound bound(low, high);
-    const NdbQueryIndexScanOperationDef* opDef 
+    const NdbQueryIndexScanOperationDef* opDef
       = builder.scanIndex(index, &tab, &bound, &options);
     m_operationDef = opDef;
     require(m_operationDef!=NULL);
@@ -970,9 +970,9 @@ namespace SPJSanityTest{
   }
 
   void IndexScanOperation::submit(){
-    NdbQueryOperation* queryOp 
+    NdbQueryOperation* queryOp
       = m_query.getOperation(m_operationId);
-    queryOp->setResultRowRef(m_query.getNdbRecord(), 
+    queryOp->setResultRowRef(m_query.getNdbRecord(),
                              m_resultCharPtr,
                              NULL);
 
@@ -996,7 +996,7 @@ namespace SPJSanityTest{
       if(row == *m_resultPtr){
         found = true;
         if(m_rowFound[i]){
-          ndbout << "Root index scan operation: " 
+          ndbout << "Root index scan operation: "
                  << *m_resultPtr
                  << "appeared twice." << endl;
           require(false);
@@ -1005,7 +1005,7 @@ namespace SPJSanityTest{
       }
     }
     if(!found){
-      ndbout << "Root index scan operation. Unexpected row: " 
+      ndbout << "Root index scan operation. Unexpected row: "
              << *m_resultPtr << endl;
       require(false);
     }else{
@@ -1035,7 +1035,7 @@ namespace SPJSanityTest{
       }
       m_hasPreviousRow = true;
       m_previousRow = *m_resultPtr;
-      ndbout << "Root index scan operation. Got row: " 
+      ndbout << "Root index scan operation. Got row: "
              << *m_resultPtr
              << " as expected." << endl;
     }
@@ -1083,16 +1083,16 @@ namespace SPJSanityTest{
 
 
   /* Execute a test for a give operation graph.*/
-  void runCase(MYSQL& mysql, 
-               Ndb& ndb, 
+  void runCase(MYSQL& mysql,
+               Ndb& ndb,
                Query& query,
-               const char* tabName, 
+               const char* tabName,
                int tabSize,
                int rowCount){
     // Populate test table.
     makeTable(mysql, tabName, tabSize);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
-    const NdbDictionary::Table* const tab = dict->getTable(tabName);    
+    const NdbDictionary::Table* const tab = dict->getTable(tabName);
     require(tab!=NULL);
     // Build generic query definition.
     query.build(*tab, tabSize);
@@ -1105,7 +1105,7 @@ namespace SPJSanityTest{
     for(int i = 0; i<rowCount; i++){
       require(query.nextResult() ==  NdbQuery::NextResult_gotRow);
       query.verifyRow();
-      if(false && i>3){ 
+      if(false && i>3){
         // Enable to test close of incomplete scan.
         query.close();
         ndb.closeTransaction(trans);
@@ -1124,7 +1124,7 @@ namespace SPJSanityTest{
       char tabName[20];
       sprintf(tabName, "t%d", caseNo);
       Query query(ndb);
-      
+
       switch(caseNo){
       case 0:
         {
@@ -1171,7 +1171,7 @@ namespace SPJSanityTest{
         break;
       case 5:
         {
-          IndexScanOperation root(query, "PRIMARY", 0, 10, 
+          IndexScanOperation root(query, "PRIMARY", 0, 10,
                                  NdbQueryOptions::ScanOrdering_descending);
           LookupOperation child(query, &root);
           runCase(mysql, ndb, query, tabName, 10, 10);
@@ -1188,7 +1188,7 @@ namespace SPJSanityTest{
       default:
         //case 6:
         {
-          IndexScanOperation root(query, "PRIMARY", 0, 1000, 
+          IndexScanOperation root(query, "PRIMARY", 0, 1000,
                                  NdbQueryOptions::ScanOrdering_descending);
           LookupOperation child(query, &root);
           runCase(mysql, ndb, query, tabName, 10*(caseNo-6), 10*(caseNo-6));
@@ -1206,8 +1206,8 @@ using namespace SPJSanityTest;
 
 int main(int argc, char* argv[]){
   if(argc!=4){
-    ndbout << "Usage: " << argv[0] 
-           << " <mysql IP address> <mysql port> <cluster connect string>" 
+    ndbout << "Usage: " << argv[0]
+           << " <mysql IP address> <mysql port> <cluster connect string>"
            << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
@@ -1232,7 +1232,7 @@ int main(int argc, char* argv[]){
       ndbout << "Unable to connect to management server." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    
+
     int res = con.wait_until_ready(30,30);
     if (res != 0){
       ndbout << "Cluster nodes not ready in 30 seconds." << endl;

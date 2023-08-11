@@ -70,14 +70,14 @@ int main(int argc, const char** argv){
     { "print", 'p', arg_flag, &_print, "Print table(s) instead of creating it", 0},
     { "temp", 't', arg_flag, &_temp, "Temporary table", 0 },
     { "trans", 'x', arg_flag, &_trans, "Use single schema trans", 0 },
-    { "connstr", 'c', arg_string, &_connectstr, "Connect string", "cs" }, 
+    { "connstr", 'c', arg_string, &_connectstr, "Connect string", "cs" },
     { "diskbased", 0, arg_flag, &_diskbased, "Store attrs on disk if possible", 0 },
     { "tsname", 0, arg_string, &_tsname, "Tablespace name", "ts" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will create one table in Ndb.\n"\
     "The tables may be selected from a fixed list of tables\n"\
@@ -112,7 +112,7 @@ int main(int argc, const char** argv){
     /**
      * Creating
      */
-    
+
     // Connect to Ndb
     Ndb_cluster_connection con(_connectstr);
     con.configure_tls(opt_tls_search_path, opt_mgm_tls);
@@ -121,17 +121,17 @@ int main(int argc, const char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     Ndb MyNdb(&con, "TEST_DB" );
-    
+
     if(MyNdb.init() != 0){
       NDB_ERR(MyNdb.getNdbError());
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    
+
     while(MyNdb.waitUntilReady() != 0)
       ndbout << "Waiting for ndb to become ready..." << endl;
 
     NdbDictionary::Dictionary* MyDic = MyNdb.getDictionary();
-    
+
     if (_trans) {
       if (MyDic->beginSchemaTrans() == -1) {
         NDB_ERR(MyDic->getNdbError());
@@ -149,8 +149,8 @@ int main(int argc, const char** argv){
                                            g_create_hook)) != 0)
 	  res = tmp;
       }
-    } 
-    
+    }
+
     if (_trans) {
       if (MyDic->endSchemaTrans() == -1) {
         NDB_ERR(MyDic->getNdbError());
@@ -158,7 +158,7 @@ int main(int argc, const char** argv){
       }
     }
   }
-  
+
   if(res != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
   else

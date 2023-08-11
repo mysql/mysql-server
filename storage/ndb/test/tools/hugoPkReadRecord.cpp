@@ -44,11 +44,11 @@ int main(int argc, const char** argv)
   const char* _tableName = NULL;
 
   struct getargs args[] = {
-    { "row", 'r', 
+    { "row", 'r',
       arg_integer, &_row, "The row number", "row" },
-    { "primarykey", 'p', 
+    { "primarykey", 'p',
       arg_integer, &_primaryKey, "The primary key", "primarykey" },
-    { "hex", 'h', 
+    { "hex", 'h',
       arg_flag, &_hex, "Print hex", "hex" }
   };
 
@@ -60,7 +60,7 @@ int main(int argc, const char** argv)
     return NDBT_WRONGARGS;
   }
   // Check if table name is supplied
-  if (argv[optind] != NULL) 
+  if (argv[optind] != NULL)
     _tableName = argv[optind];
 
 
@@ -107,7 +107,7 @@ int main(int argc, const char** argv)
       else
       {
 	data[i] = op->getValue(c->getName(), NULL);
-      }      
+      }
     }
     if (conn->execute(Commit) == 0)
     {
@@ -115,10 +115,10 @@ int main(int argc, const char** argv)
       for (i = 0; i < table->getNoOfColumns(); i++)
       {
 	const NdbDictionary::Column* c = table->getColumn(i);
-	
-	g_info 
+
+	g_info
 	  << c->getName()
-	  << "[" << c->getType() << "]   ";	  
+	  << "[" << c->getType() << "]   ";
       }
       g_info << endl;
 
@@ -130,24 +130,24 @@ int main(int argc, const char** argv)
       {
 	NdbRecAttr* a = data[i];
 	ndbout << (* a) << " ";
-      } // for   
-      g_info << endl;   
+      } // for
+      g_info << endl;
     } // if (conn
     else
     {
-      g_info << "Failed to commit read transaction... " 
+      g_info << "Failed to commit read transaction... "
 	     << conn->getNdbError()
 	     << ", commitStatus = " << conn->commitStatus()
 	     << endl;
     }
 
     delete[] data;
-    
+
     ndb->closeTransaction(conn);
   } // if (ndb.init
   else
   {
-    g_info << "ERROR: Unable to connect to NDB, " 
+    g_info << "ERROR: Unable to connect to NDB, "
 	   << ndb->getNdbError() << endl;
   }
   delete ndb;

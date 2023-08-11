@@ -56,21 +56,21 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will load one table in Ndb with calculated data. \n"\
     "This means that it is possible to check the validity of the data \n"\
     "at a later time. The last column in each table is used as an update \n"\
     "counter, it's initialised to zero and should be incremented for each \n"\
     "update of the record. \n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _records == 0 || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  
-  
+
+
   // Connect to Ndb
   Ndb_cluster_connection con;
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
@@ -84,7 +84,7 @@ int main(int argc, const char** argv){
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   Ndb MyNdb( &con, db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
@@ -96,26 +96,26 @@ int main(int argc, const char** argv){
   {
     const char* _tabname = argv[i];
     // Check if table exists in db
-    const NdbDictionary::Table* pTab = 
+    const NdbDictionary::Table* pTab =
       NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
     if(pTab == NULL){
       ndbout << " Table " << _tabname << " does not exist!" << endl;
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
-    
+
     HugoTransactions hugoTrans(*pTab);
-loop:    
+loop:
     int rows = (_rand ? rand() % _records : _records);
     int abort = (rand() % 100) < _abort ? 1 : 0;
     if (abort)
       ndbout << "load+abort" << endl;
-    if (hugoTrans.loadTable(&MyNdb, 
+    if (hugoTrans.loadTable(&MyNdb,
 			    rows,
 			    _batch,
 			    true, 0, _onetrans, _loops, abort) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    
+
     if(_loops > 0)
     {
       ndbout << "clearing..." << endl;

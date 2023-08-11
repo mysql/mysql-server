@@ -932,7 +932,7 @@ struct NdbapiAB::BufIndexScanOp : IndexScanOp< xMode > {
     vector< ElementT > obuf; // result buffer per scan op, managed by NDBAPI
     vector< ElementT > buf; // cloned scan result row, content managed by app
     typename vector< ElementT >::iterator pos; // consumed elements in buf
-    
+
     BufIndexScanOp(string name, NdbapiAB& load, const D::Index* index,
                    int width)
         : IndexScanOp< xMode >(name, load, index), width(width) {

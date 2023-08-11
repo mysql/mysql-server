@@ -519,7 +519,7 @@ int main(int argc, char** argv)
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   g_cluster_connection= &con;
-  
+
   if ((strchr(g_opt.m_scan, 't') != 0 && wl1822_main('t') == -1) ||
       (strchr(g_opt.m_scan, 'x') != 0 && wl1822_main('x') == -1))
   {

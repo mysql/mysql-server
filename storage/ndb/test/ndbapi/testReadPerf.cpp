@@ -34,7 +34,7 @@ struct Parameter {
   const char * name;
   unsigned value;
   unsigned min;
-  unsigned max; 
+  unsigned max;
 };
 
 #define P_OPER    0
@@ -50,13 +50,13 @@ struct Parameter {
  * operation
  * 0 - serial pk
  * 1 - batch pk
- * 2 - serial uniq 
+ * 2 - serial uniq
  * 3 - batch uniq
  * 4 - index eq
  * 5 - range scan
  * 6 - ordered range scan
  * 7 - interpreted scan
- */ 
+ */
 static const char * g_ops[] = {
   "serial pk",
   "batch pk",
@@ -71,10 +71,10 @@ static const char * g_ops[] = {
 #define P_OP_TYPES 8
 static Uint64 g_times[P_OP_TYPES];
 
-static 
-Parameter 
+static
+Parameter
 g_paramters[] = {
-  { "operation",   0, 0, 6 }, // 0 
+  { "operation",   0, 0, 6 }, // 0
   { "range",    1000, 1, UINT_MAX },// 1 no of rows to read
   { "size",  1000000, 1, UINT_MAX },// 2 rows in tables
   { "iterations",  3, 1, UINT_MAX },// 3
@@ -102,7 +102,7 @@ main(int argc, const char** argv){
   ndb_init();
   int verbose = 1;
   int optind = 0;
-  
+
   struct getargs args[1+P_MAX] = {
     { "verbose", 'v', arg_flag, &verbose, "Print verbose status", "verbose" }
   };
@@ -118,12 +118,12 @@ main(int argc, const char** argv){
     args[i+1].help = strdup(tmp.c_str());
     args[i+1].arg_help = 0;
   }
-  
+
   if(getarg(args, num_args, argc, argv, &optind)) {
     arg_printusage(args, num_args, argv[0], "tabname1 tabname2 ...");
     return NDBT_WRONGARGS;
   }
-  
+
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   memset(g_times, 0, sizeof(g_times));
 
@@ -162,7 +162,7 @@ main(int argc, const char** argv){
     }
     print_result();
   }
-  
+
   if(g_ndb) delete g_ndb;
   return NDBT_OK;
 error:
@@ -231,7 +231,7 @@ int
 load_table(){
   if(!g_paramters[P_LOAD].value)
     return 0;
-  
+
   int rows = g_paramters[P_ROWS].value;
   HugoTransactions hugoTrans(* g_tab);
   if (hugoTrans.loadTable(g_ndb, rows)){
@@ -246,7 +246,7 @@ clear_table(){
   if(!g_paramters[P_LOAD].value)
     return 0;
   int rows = g_paramters[P_ROWS].value;
-  
+
   UtilTransactions utilTrans(* g_tab);
   if (utilTrans.clearTable(g_ndb,  rows) != 0){
     g_err.println("Failed to clear table %s", g_tab->getName());
@@ -255,7 +255,7 @@ clear_table(){
   return 0;
 }
 
-inline 
+inline
 void err(NdbError e){
   ndbout << e << endl;
 }
@@ -265,10 +265,10 @@ run_read(){
   //int iter = g_paramters[P_LOOPS].value;
   Uint64 start1, stop;
   //int sum_time= 0;
-  
+
   const Uint32 rows = g_paramters[P_ROWS].value;
   const Uint32 range = g_paramters[P_RANGE].value;
-  
+
   start1 = NdbTick_CurrentMillisecond();
   NdbConnection * pTrans = g_ndb->startTransaction();
   if(!pTrans){
@@ -276,18 +276,18 @@ run_read(){
     err(g_ndb->getNdbError());
     return -1;
   }
-  
+
   NdbOperation * pOp = nullptr;
   NdbScanOperation * pSp = nullptr;
   NdbIndexScanOperation * pIp;
-  
+
   Uint32 start_row = rand() % (rows - range);
   Uint32 stop_row = start_row + range;
 
   /**
    * 0 - serial pk
    * 1 - batch pk
-   * 2 - serial uniq 
+   * 2 - serial uniq
    * 3 - batch uniq
    * 4 - index eq
    * 5 - range scan
@@ -353,7 +353,7 @@ run_read(){
     case 7:
       pOp = pSp = pTrans->getNdbScanOperation(g_table);
       pSp->readTuples(NdbScanOperation::LM_CommittedRead, 0, 0);
-      NdbScanFilter filter(pOp) ;   
+      NdbScanFilter filter(pOp) ;
       filter.begin(NdbScanFilter::AND);
       filter.ge(pk, start_row);
       filter.lt(pk, stop_row);
@@ -361,7 +361,7 @@ run_read(){
       start_row = stop_row;
       break;
     }
-      
+
     require(res);
     if(check != 0){
       ndbout << pOp->getNdbError() << endl;
@@ -373,7 +373,7 @@ run_read(){
       res = pOp->getValue(j);
       require(res);
     }
-      
+
     check = pTrans->execute(NoCommit);
     if(check != 0){
       ndbout << pTrans->getNdbError() << endl;
@@ -383,7 +383,7 @@ run_read(){
       while((check = pSp->nextResult(true)) == 0){
 	cnt++;
       }
-	
+
       if(check == -1){
 	err(pTrans->getNdbError());
 	return -1;
@@ -393,9 +393,9 @@ run_read(){
     }
   }
   require(g_paramters[P_OPER].value < 4 || (cnt == range));
-  
+
   pTrans->close();
-  
+
   stop = NdbTick_CurrentMillisecond();
   g_times[g_paramters[P_OPER].value] += (stop - start1);
   return 0;
@@ -410,7 +410,7 @@ print_result(){
   for(int i = 0; i<P_OP_TYPES; i++){
     g_err << g_ops[i] << " avg: "
 	  << (int)((1000*g_times[i])/tmp)
-	  << " us/row (" 
+	  << " us/row ("
 	  << (1000 * tmp)/g_times[i] << " rows / sec)" << endl;
   }
 }

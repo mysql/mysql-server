@@ -1148,7 +1148,7 @@ compop(const Op* op1, const Op* op2, Op* op3) // op1 o op2 = op3
     // UPD o DEL
     copydata(op2->data[0], res_op->data[0], true, false); // PK only
     copydata(op1->data[1], res_op->data[1], true, true); // PK + non-PK
-  } 
+  }
   if (res_op->type == Op::UPD && op1->type == Op::DEL) {
     // DEL o INS
     copydata(op2->data[0], res_op->data[0], true, true);

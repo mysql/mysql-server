@@ -34,7 +34,7 @@
 #include <getarg.h>
 #include <InputStream.hpp>
 
-struct CASE 
+struct CASE
 {
   bool start_row;
   bool end_row;
@@ -88,22 +88,22 @@ static int commit();
 static int restart();
 static int validate();
 
-int 
+int
 main(int argc, char ** argv){
   ndb_init();
   require(!init_ndb(argc, argv));
   if(parse_args(argc, argv))
     return -1;
   require(!connect_ndb());
-  
+
   if(g_setup_tables){
     require(!drop_all_tables());
-    
+
     if(NDBT_Tables::createTable(g_ndb, g_tablename) != 0){
       exit(-1);
     }
   }
-  
+
   g_table = g_ndb->getDictionary()->getTable(g_tablename);
   if(g_table == 0){
     g_err << "Failed to retreive table: " << g_tablename << endl;
@@ -111,9 +111,9 @@ main(int argc, char ** argv){
   }
   require((g_hugo_ops = new HugoOperations(* g_table)) != 0);
   require(!g_hugo_ops->startTransaction(g_ndb));
-  
+
   g_ops= new CASE[g_rows];
-  
+
   const int use_ops = g_use_ops;
   for(size_t i = 0; i<OP_COUNT; i++)
   {
@@ -126,13 +126,13 @@ main(int argc, char ** argv){
     } else {
       i = OP_COUNT - 1;
     }
-    
+
     size_t test_case = 0;
     if((1 << test_case++) & g_cases)
     {
       for(size_t tl = 0; tl<(size_t)g_case_loop; tl++){
 	g_info << "Performing all ops wo/ inteference of LCP" << endl;
-	
+
 	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
 	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is "
 	  " finished before SAVE_PAGES" << endl;
@@ -146,9 +146,9 @@ main(int argc, char ** argv){
 	require(!pause_lcp(5900));
 	require(!restart());
 	require(!validate());
-      }  
+      }
     }
-    
+
     if((1 << test_case++) & g_cases)
     {
       for(int tl = 0; tl<g_case_loop; tl++){
@@ -165,7 +165,7 @@ main(int argc, char ** argv){
 	require(!pause_lcp(5900));
 	require(!restart());
 	require(!validate());
-      }    
+      }
     }
 
     if((1 << test_case++) & g_cases)
@@ -185,7 +185,7 @@ main(int argc, char ** argv){
 	require(!validate());
       }
     }
-    
+
     if((1 << test_case++) & g_cases)
     {
       for(int tl = 0; tl < g_case_loop; tl++){
@@ -224,20 +224,20 @@ static int parse_args(int argc, char** argv)
     { 0, 't', arg_flag, &g_setup_tables, "Create table", 0 },
     { 0, 'u', arg_negative_flag, &g_setup_tables, "Dont create table", 0 }
   };
-  
+
   int optind= 0;
   const int num_args = sizeof(args)/sizeof(args[0]);
   if(getarg(args, num_args, argc, (const char**)argv, &optind)) {
     arg_printusage(args, num_args, argv[0], " tabname1\n");
     ndbout_c("\n -- Operations [a-%c] = ", int('a'+OP_COUNT-1));
     for(i = 0; i<OP_COUNT; i++){
-      ndbout_c("\t%c = %s %s", 
+      ndbout_c("\t%c = %s %s",
 	       int('a'+i), g_op_types[i].op1,
 	       g_op_types[i].op2 ? g_op_types[i].op2 : "");
     }
     return -1;
   }
-  
+
   if(ops != 0){
     g_use_ops = 0;
     char * s = ops;
@@ -251,20 +251,20 @@ static int parse_args(int argc, char** argv)
     while(* s)
       g_cases |= (1 << ((* s++) - 'a'));
   }
-  
+
   ndbout_c("table: %s", g_tablename);
   printf("operations: ");
   for(i = 0; i<OP_COUNT; i++)
     if(g_use_ops & (1 << i))
       printf("%c", int('a'+i));
   printf("\n");
-  
+
   printf("test cases: ");
   for(i = 0; i<3; i++)
     if(g_cases & (1 << i))
       printf("%c", int('1'+i));
   printf("\n");
-  printf("-------------\n");  
+  printf("-------------\n");
   return 0;
 }
 
@@ -319,7 +319,7 @@ static int drop_all_tables()
       g_ndb->setDatabaseName(elt.database);
       g_ndb->setSchemaName(elt.schema);
       if(dict->dropTable(elt.name) != 0){
-	g_err << "Failed to drop table: " 
+	g_err << "Failed to drop table: "
 	      << elt.database << "/" << elt.schema << "/" << elt.name <<endl;
 	g_err << dict->getNdbError() << endl;
 	return -1;
@@ -335,10 +335,10 @@ static int drop_all_tables()
       break;
     }
   }
-  
+
   g_ndb->setDatabaseName(db.c_str());
   g_ndb->setSchemaName(schema.c_str());
-  
+
   return 0;
 }
 
@@ -346,7 +346,7 @@ static int load_table()
 {
   UtilTransactions clear(* g_table);
   require(!clear.clearTable(g_ndb));
-  
+
   HugoOperations ops(* g_table);
   require(!ops.startTransaction(g_ndb));
   size_t op = 0;
@@ -393,7 +393,7 @@ static int pause_lcp(int error)
   require(!g_restarter.insertErrorInAllNodes(error));
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   require(!g_restarter.dumpStateAllNodes(dump, 1));
-  
+
   char *tmp;
   char buf[1024];
   SocketInputStream in(my_fd, 1000);
@@ -410,7 +410,7 @@ static int pause_lcp(int error)
       }
     }
   } while(count++ < 30);
-  
+
   ndb_socket_close(my_fd);
   return -1;
 }
@@ -428,13 +428,13 @@ static int do_op(int row)
     g_ops[row].val = rand();
     require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
   } else if(strcmp(g_ops[row].op1, "DEL") == 0){
-    require(g_ops[row].curr_row);    
+    require(g_ops[row].curr_row);
     g_ops[row].curr_row = false;
     require(!ops.pkDeleteRecord(g_ndb, row, 1));
   }
 
   require(!ops.execute_NoCommit(g_ndb));
-  
+
   if(g_ops[row].op2 == 0){
   } else if(strcmp(g_ops[row].op2, "INS") == 0){
     require(!g_ops[row].curr_row);
@@ -446,13 +446,13 @@ static int do_op(int row)
     g_ops[row].val = rand();
     require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
   } else if(strcmp(g_ops[row].op2, "DEL") == 0){
-    require(g_ops[row].curr_row);    
-    g_ops[row].curr_row = false;    
+    require(g_ops[row].curr_row);
+    g_ops[row].curr_row = false;
     require(!ops.pkDeleteRecord(g_ndb, row, 1));
   }
-  
+
   if(g_ops[row].op2 != 0)
-    require(!ops.execute_NoCommit(g_ndb));  
+    require(!ops.execute_NoCommit(g_ndb));
 
   if(g_ops[row].op3 == 0){
   } else if(strcmp(g_ops[row].op3, "INS") == 0){
@@ -465,13 +465,13 @@ static int do_op(int row)
     g_ops[row].val = rand();
     require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
   } else if(strcmp(g_ops[row].op3, "DEL") == 0){
-    require(g_ops[row].curr_row);    
-    g_ops[row].curr_row = false;    
+    require(g_ops[row].curr_row);
+    g_ops[row].curr_row = false;
     require(!ops.pkDeleteRecord(g_ndb, row, 1));
   }
-  
+
   if(g_ops[row].op3 != 0)
-    require(!ops.execute_NoCommit(g_ndb));  
+    require(!ops.execute_NoCommit(g_ndb));
 
   return 0;
 }
@@ -490,7 +490,7 @@ static int continue_lcp(int error)
   int args[] = { DumpStateOrd::LCPContinue };
   if(g_restarter.dumpStateAllNodes(args, 1) != 0)
     return -1;
-  
+
   if(error){
     char *tmp;
     char buf[1024];
@@ -509,7 +509,7 @@ static int continue_lcp(int error)
 	}
       }
     } while(count++ < 30);
-    
+
     ndb_socket_close(my_fd);
   }
   return 0;
@@ -517,7 +517,7 @@ static int continue_lcp(int error)
 
 static int commit()
 {
-  HugoOperations & ops = * g_hugo_ops;  
+  HugoOperations & ops = * g_hugo_ops;
   int res = ops.execute_Commit(g_ndb);
   if(res == 0){
     return ops.getTransaction()->restart();
@@ -531,11 +531,11 @@ static int restart()
   g_hugo_ops->closeTransaction(g_ndb);
   disconnect_ndb();
   delete g_hugo_ops;
-  
+
   require(!g_restarter.restartAll());
   require(!g_restarter.waitClusterStarted(30));
   require(!connect_ndb());
-  
+
   g_table = g_ndb->getDictionary()->getTable(g_tablename);
   require(g_table);
   require((g_hugo_ops = new HugoOperations(* g_table)) != 0);
@@ -562,7 +562,7 @@ static int validate()
   for(int j = 0; j<10; j++){
     UtilTransactions clear(* g_table);
     require(!clear.clearTable(g_ndb));
-    
+
     HugoTransactions trans(* g_table);
     require(trans.loadTable(g_ndb, 1024) == 0);
   }

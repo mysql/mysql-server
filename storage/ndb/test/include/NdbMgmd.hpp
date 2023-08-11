@@ -52,7 +52,7 @@ class NdbMgmd {
   unsigned int m_timeout;
   unsigned int m_version;
   ndb_socket_t m_event_socket;
-  
+
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
     if (!m_verbose)
@@ -446,8 +446,8 @@ public:
       error("subscribe_to_events: not connected");
       return false;
     }
-    
-    int filter[] = 
+
+    int filter[] =
     {
       15, NDB_MGM_EVENT_CATEGORY_STARTUP,
       15, NDB_MGM_EVENT_CATEGORY_SHUTDOWN,
@@ -463,7 +463,7 @@ public:
     };
 
     m_event_socket = ndb_socket_create_from_native(ndb_mgm_listen_event(m_handle, filter));
-    
+
     return ndb_socket_valid(m_event_socket);
   }
 
@@ -475,7 +475,7 @@ public:
       error("get_next_event_line: not connected");
       return false;
     }
-    
+
     if (!ndb_socket_valid(m_event_socket))
     {
       error("get_next_event_line: not subscribed");
@@ -483,7 +483,7 @@ public:
     }
 
     SocketInputStream stream(m_event_socket, timeout_millis);
-    
+
     const char* result = stream.gets(buff, bufflen);
     if (result && strlen(result))
     {
@@ -497,7 +497,7 @@ public:
         return false;
       }
     }
-    
+
     error("get_next_event_line: error from stream.gets()");
     return false;
   }
@@ -560,7 +560,7 @@ public:
 
     return true;
   }
-   
+
   bool change_config32(Uint32 new_value, Uint32 *saved_old_value,
                      unsigned type_of_section, unsigned config_variable)
   {

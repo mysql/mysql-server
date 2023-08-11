@@ -40,29 +40,29 @@ int main(int argc, const char** argv){
   const char* _connectstr = NULL;
   int _copy_data = true;
   int _help = 0;
-  
+
   struct getargs args[] = {
-    { "database", 'd', arg_string, &_dbname, "dbname", 
-      "Name of database table is in"}, 
-    { "connstr", 'c', arg_string, &_connectstr, "connect string", 
-      "How to connect to NDB"}, 
-    { "copy-data", '\0', arg_negative_flag, &_copy_data, "Don't copy data to new table", 
-      "How to connect to NDB"}, 
+    { "database", 'd', arg_string, &_dbname, "dbname",
+      "Name of database table is in"},
+    { "connstr", 'c', arg_string, &_connectstr, "connect string",
+      "How to connect to NDB"},
+    { "copy-data", '\0', arg_negative_flag, &_copy_data, "Don't copy data to new table",
+      "How to connect to NDB"},
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "srctab desttab\n"\
     "This program will copy one table in Ndb\n";
 
-  if(getarg(args, num_args, argc, argv, &optind) || 
+  if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || argv[optind + 1] == NULL || _help){
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   _tabname = argv[optind];
-  
+
   Ndb_cluster_connection con(_connectstr);
   con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
@@ -74,7 +74,7 @@ int main(int argc, const char** argv){
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
 
@@ -95,7 +95,7 @@ int main(int argc, const char** argv){
     }
     for (unsigned i = 0; i<list.count; i++)
     {
-      const NdbDictionary::Index* idx = 
+      const NdbDictionary::Index* idx =
         MyNdb.getDictionary()->getIndex(list.elements[i].name,
                                         _tabname);
       if (idx)
@@ -136,12 +136,12 @@ int main(int argc, const char** argv){
       int res = MyNdb.getDictionary()->createIndex(*idx);
       if (res != 0)
       {
-        ndbout << "Failed to create index: " << idx->getName() << " : " 
+        ndbout << "Failed to create index: " << idx->getName() << " : "
                << MyNdb.getDictionary()->getNdbError() << endl;
         return NDBT_ProgramExit(NDBT_FAILED);
       }
     }
-    
+
     if (MyNdb.getDictionary()->endSchemaTrans() != 0)
     {
       ndbout << endl << MyNdb.getDictionary()->getNdbError() << endl;
@@ -151,11 +151,11 @@ int main(int argc, const char** argv){
     ndbout << "OK" << endl;
     if (_copy_data){
       ndbout << "Copying data..."<<endl;
-      const NdbDictionary::Table * tab3 = 
-        NDBT_Table::discoverTableFromDb(&MyNdb, 
+      const NdbDictionary::Table * tab3 =
+        NDBT_Table::discoverTableFromDb(&MyNdb,
                                         _tabname);
       UtilTransactions util(*tab3);
-      
+
       if(util.copyTableData(&MyNdb,
                             _to_tabname) != NDBT_OK){
         return NDBT_ProgramExit(NDBT_FAILED);
@@ -163,7 +163,7 @@ int main(int argc, const char** argv){
       ndbout << "OK" << endl;
     }
   }
-  
+
   for (unsigned j = 0; j<indexes.size(); j++)
   {
     delete indexes[j];

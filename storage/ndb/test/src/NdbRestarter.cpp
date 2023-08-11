@@ -71,7 +71,7 @@ int NdbRestarter::getDbNodeId(int _i){
   if (getStatus() != 0)
     return -1;
 
-  for(unsigned i = 0; i < ndbNodes.size(); i++){     
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
     if (i == (unsigned)_i){
       return ndbNodes[i].node_id;
     }
@@ -115,7 +115,7 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
     /**
      * ndb_mgm_restart4 returned error, one reason could
      * be that the node have not stopped fast enough!
-     * Check status of the node to see if it's on the 
+     * Check status of the node to see if it's on the
      * way down. If that's the case ignore the error.
      *
      * Bug #11757421 is a special case where the
@@ -123,7 +123,7 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
      * the test case. The call to getStatus()
      * overwrites the error and is thus avoided
      * by adding an option to capture the error.
-     */ 
+     */
 
     if (!captureError && getStatus() != 0)
       return -1;
@@ -166,10 +166,10 @@ int
 NdbRestarter::getMasterNodeId(){
   if (!isConnected())
     return -1;
-  
+
   if (getStatus() != 0)
     return -1;
-  
+
   int min = 0;
   int node = -1;
   for(unsigned i = 0; i < ndbNodes.size(); i++){
@@ -300,10 +300,10 @@ int
 NdbRestarter::getNextMasterNodeId(int nodeId){
   if (!isConnected())
     return -1;
-  
+
   if (getStatus() != 0)
     return -1;
-  
+
   unsigned i;
   for(i = 0; i < ndbNodes.size(); i++)
   {
@@ -321,21 +321,21 @@ NdbRestarter::getNextMasterNodeId(int nodeId){
   for (i = 0; i<ndbNodes.size(); i++)
     if (ndbNodes[i].dynamic_id > minid)
       minid = ndbNodes[i].dynamic_id;
-  
+
   for (i = 0; i<ndbNodes.size(); i++)
-    if (ndbNodes[i].dynamic_id > dynid && 
+    if (ndbNodes[i].dynamic_id > dynid &&
 	ndbNodes[i].dynamic_id < minid)
     {
       minid = ndbNodes[i].dynamic_id;
     }
-  
+
   if (minid != ~0)
   {
     for (i = 0; i<ndbNodes.size(); i++)
       if (ndbNodes[i].dynamic_id == minid)
 	return ndbNodes[i].node_id;
   }
-  
+
   return getMasterNodeId();
 }
 
@@ -349,7 +349,7 @@ NdbRestarter::getRandomNotMasterNodeId(int rand){
   rand = rand % ndbNodes.size();
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_id == master)
     rand = (rand + 1) % ndbNodes.size();
-  
+
   if(ndbNodes[rand].node_id != master)
     return ndbNodes[rand].node_id;
   return -1;
@@ -359,10 +359,10 @@ int
 NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
   if (!isConnected())
     return -1;
-  
+
   if (getStatus() != 0)
     return -1;
-  
+
   int node_group = -1;
 
   // find nodegroup corresponding to nodeId
@@ -385,7 +385,7 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
   // find random node not belonging to node_group
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_group == node_group)
     rand = (rand + 1) % ndbNodes.size();
-  
+
   if(ndbNodes[rand].node_group != node_group)
     return ndbNodes[rand].node_id;
 
@@ -396,10 +396,10 @@ int
 NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
   if (!isConnected())
     return -1;
-  
+
   if (getStatus() != 0)
     return -1;
-  
+
   int node_group = -1;
   // find nodegroup corresponding to nodeId
   for(unsigned i = 0; i < ndbNodes.size(); i++){
@@ -416,15 +416,15 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
   rand = rand % ndbNodes.size();
 
   // find random node which is not nodeId, belonging to node_group
-  while(counter++ < ndbNodes.size() && 
-	(ndbNodes[rand].node_id == nodeId || 
+  while(counter++ < ndbNodes.size() &&
+	(ndbNodes[rand].node_id == nodeId ||
 	 ndbNodes[rand].node_group != node_group))
     rand = (rand + 1) % ndbNodes.size();
-  
+
   if(ndbNodes[rand].node_group == node_group &&
      ndbNodes[rand].node_id != nodeId)
     return ndbNodes[rand].node_id;
-  
+
   return -1;
 }
 
@@ -450,7 +450,7 @@ NdbRestarter::waitConnected(unsigned int _timeout){
   return 0;
 }
 
-int 
+int
 NdbRestarter::waitClusterStarted(unsigned int _timeout){
   int res = waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
   if (res == 0)
@@ -460,22 +460,22 @@ NdbRestarter::waitClusterStarted(unsigned int _timeout){
   return res;
 }
 
-int 
+int
 NdbRestarter::waitClusterStartPhase(int _startphase, unsigned int _timeout){
   return waitClusterState(NDB_MGM_NODE_STATUS_STARTING, _timeout, _startphase);
 }
 
-int 
+int
 NdbRestarter::waitClusterSingleUser(unsigned int _timeout){
   return waitClusterState(NDB_MGM_NODE_STATUS_SINGLEUSER, _timeout);
 }
 
-int 
+int
 NdbRestarter::waitClusterNoStart(unsigned int _timeout){
   return waitClusterState(NDB_MGM_NODE_STATUS_NOT_STARTED, _timeout);
 }
 
-int 
+int
 NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
 			       unsigned int _timeout,
 			       int _startphase){
@@ -487,7 +487,7 @@ NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
     g_err << "waitClusterStat: getStatus != 0" << endl;
     return -1;
   }
-  
+
   // Collect all nodes into nodes
   for (unsigned i = 0; i < ndbNodes.size(); i++){
     nodes[i] = ndbNodes[i].node_id;
@@ -496,14 +496,14 @@ NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
 
   return waitNodesState(nodes, numNodes, _status, _timeout, _startphase);
 }
- 
 
-int 
+
+int
 NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 			     ndb_mgm_node_status _status,
 			     unsigned int _timeout,
 			     int _startphase){
-  
+
   if (!isConnected()){
     g_err << "!isConnected"<<endl;
     return -1;
@@ -512,7 +512,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
   unsigned int attempts = 0;
   unsigned int resetAttempts = 0;
   const unsigned int MAX_RESET_ATTEMPTS = 10;
-  bool allInState = false;    
+  bool allInState = false;
   while (allInState == false){
     if (_timeout > 0 && attempts > _timeout){
       /**
@@ -520,8 +520,8 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
        * the state we want
        */
       bool waitMore = false;
-      /** 
-       * Make special check if we are waiting for 
+      /**
+       * Make special check if we are waiting for
        * cluster to become started
        */
       if(_status == NDB_MGM_NODE_STATUS_STARTED){
@@ -540,7 +540,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
           }
 
 	}
-      } 
+      }
 
       if (!waitMore || resetAttempts > MAX_RESET_ATTEMPTS){
 	g_err << "waitNodesState("
@@ -548,7 +548,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 	      <<", "<<_startphase<<")"
 	      << " timeout after " << attempts <<" attemps" << endl;
 	return -1;
-      } 
+      }
 
       g_err << "waitNodesState("
 	    << ndb_mgm_get_node_status_string(_status)
@@ -557,7 +557,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 	    << resetAttempts << endl;
       attempts = 0;
       resetAttempts++;
-      
+
     }
 
     allInState = true;
@@ -592,30 +592,30 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 
       require(ndbNode != NULL);
 
-      if(_status == NDB_MGM_NODE_STATUS_STARTING && 
-	 ((ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTING && 
+      if(_status == NDB_MGM_NODE_STATUS_STARTING &&
+	 ((ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTING &&
 	   ndbNode->start_phase >= _startphase) ||
 	  (ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTED)))
 	continue;
 
       if (_status == NDB_MGM_NODE_STATUS_STARTING){
-	g_info << "status = "  
+	g_info << "status = "
 	       << ndb_mgm_get_node_status_string(ndbNode->node_status)
 	       <<", start_phase="<<ndbNode->start_phase<<endl;
 	if (ndbNode->node_status !=  _status) {
 	  if (ndbNode->node_status < _status)
 	    allInState = false;
-	  else 
+	  else
 	    g_info << "node_status(" << ndbNode->node_status
 		   <<") != _status("<<_status<<")"<<endl;
 	} else if (ndbNode->start_phase < _startphase)
 	  allInState = false;
       } else {
-	if (ndbNode->node_status !=  _status) 
+	if (ndbNode->node_status !=  _status)
 	  allInState = false;
       }
     }
-    g_info << "Waiting for cluster enter state" 
+    g_info << "Waiting for cluster enter state"
 	    << ndb_mgm_get_node_status_string(_status)<< endl;
     NdbSleep_SecSleep(1);
     attempts++;
@@ -635,27 +635,27 @@ int NdbRestarter::waitNodesStarted(const int * _nodes, int _num_nodes,
   return res;
 }
 
-int NdbRestarter::waitNodesStartPhase(const int * _nodes, int _num_nodes, 
+int NdbRestarter::waitNodesStartPhase(const int * _nodes, int _num_nodes,
 			int _startphase, unsigned int _timeout){
-  return waitNodesState(_nodes, _num_nodes, 
+  return waitNodesState(_nodes, _num_nodes,
 			  NDB_MGM_NODE_STATUS_STARTING, _timeout,
-			  _startphase);  
+			  _startphase);
 }
 
 int NdbRestarter::waitNodesNoStart(const int * _nodes, int _num_nodes,
 		     unsigned int _timeout){
-  return waitNodesState(_nodes, _num_nodes, 
-			  NDB_MGM_NODE_STATUS_NOT_STARTED, _timeout);  
+  return waitNodesState(_nodes, _num_nodes,
+			  NDB_MGM_NODE_STATUS_NOT_STARTED, _timeout);
 }
 
-bool 
+bool
 NdbRestarter::isConnected(){
   if (connected == true)
     return true;
   return connect() == 0;
 }
 
-int 
+int
 NdbRestarter::connect(){
   disconnect();
   handle = ndb_mgm_create_handle();
@@ -685,7 +685,7 @@ NdbRestarter::connect(){
   return 0;
 }
 
-void 
+void
 NdbRestarter::disconnect(){
   if (handle != NULL){
     ndb_mgm_disconnect(handle);
@@ -694,19 +694,19 @@ NdbRestarter::disconnect(){
   connected = false;
 }
 
-int 
+int
 NdbRestarter::getStatus(){
   int retries = 0;
   struct ndb_mgm_cluster_state * status;
   struct ndb_mgm_node_state * node;
-  
+
   ndbNodes.clear();
   mgmNodes.clear();
   apiNodes.clear();
 
   if (!isConnected())
     return -1;
-  
+
   while(retries < 10){
     status = ndb_mgm_get_status(handle);
     if (status == NULL){
@@ -730,7 +730,7 @@ NdbRestarter::getStatus(){
       continue;
     }
     for (int i = 0; i < status->no_of_nodes; i++){
-      node = &status->node_states[i];      
+      node = &status->node_states[i];
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
 	ndbNodes.push_back(*node);
@@ -748,7 +748,7 @@ NdbRestarter::getStatus(){
 	  ndbNodes.clear();
 	  mgmNodes.clear();
 	  apiNodes.clear();
-	  free(status); 
+	  free(status);
 	  status = NULL;
 	  i = status->no_of_nodes;
 
@@ -766,7 +766,7 @@ NdbRestarter::getStatus(){
     free(status);
     return 0;
   }
-   
+
   g_err  << "getStatus failed" << endl;
   return -1;
 }
@@ -797,12 +797,12 @@ int NdbRestarter::restartAll(bool initial,
     g_err  << "Could not restart(stop) all nodes " << endl;
     // return -1; Continue anyway - Magnus
   }
-  
+
   if (waitClusterNoStart(60) != 0){
     g_err << "Cluster didnt enter STATUS_NOT_STARTED within 60s" << endl;
     return -1;
   }
-  
+
   if(nostart){
     g_debug << "restartAll: nostart == true" << endl;
     return 0;
@@ -813,7 +813,7 @@ int NdbRestarter::restartAll(bool initial,
     g_err  << "Could not restart(start) all nodes " << endl;
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -857,21 +857,21 @@ int NdbRestarter::startAll(){
     g_err  << "Could not start all nodes " << endl;
     return -1;
   }
-  
+
   return 0;
-  
+
 }
 
 int NdbRestarter::startNodes(const int * nodes, int num_nodes){
   if (!isConnected())
     return -1;
-  
+
   if (ndb_mgm_start(handle, num_nodes, nodes) != num_nodes) {
     MGMERR(handle);
     g_err  << "Could not start all nodes " << endl;
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -919,8 +919,8 @@ int NdbRestarter::insertErrorInAllNodes(int _error){
     return -1;
 
   int result = 0;
- 
-  for(unsigned i = 0; i < ndbNodes.size(); i++){     
+
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
     g_debug << "inserting error in node " << ndbNodes[i].node_id << endl;
     if (insertErrorInNode(ndbNodes[i].node_id, _error) == -1)
       result = -1;
@@ -1001,7 +1001,7 @@ int NdbRestarter::dumpStateOneNode(int _nodeId, const int * _args, int _num_args
   if(reply.return_code != 0){
     g_err << "Error: " << reply.message << endl;
   }
-  return reply.return_code;  
+  return reply.return_code;
 }
 
 int NdbRestarter::dumpStateAllNodes(const int * _args, int _num_args){
@@ -1012,8 +1012,8 @@ int NdbRestarter::dumpStateAllNodes(const int * _args, int _num_args){
    return -1;
 
  int result = 0;
- 
- for(unsigned i = 0; i < ndbNodes.size(); i++){     
+
+ for(unsigned i = 0; i < ndbNodes.size(); i++){
    g_debug << "dumping state in node " << ndbNodes[i].node_id << endl;
    if (dumpStateOneNode(ndbNodes[i].node_id, _args, _num_args) == -1)
      result = -1;
@@ -1034,12 +1034,12 @@ int NdbRestarter::enterSingleUserMode(int _nodeId){
     MGMERR(handle);
     g_err << "Could not enter single user mode api node = "<< _nodeId << endl;
   }
-  
+
   if(reply.return_code != 0){
     g_err << "Error: " << reply.message << endl;
   }
-  
-  return reply.return_code;  
+
+  return reply.return_code;
 }
 
 
@@ -1058,7 +1058,7 @@ int NdbRestarter::exitSingleUserMode(){
   if(reply.return_code != 0){
     g_err << "Error: " << reply.message << endl;
   }
-  return reply.return_code;  
+  return reply.return_code;
 }
 
 /*
@@ -1140,11 +1140,11 @@ NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
 {
   if (getStatus() != 0)
     return -1;
-  
+
   NdbNodeBitmask mask;
   for (int i = 0; i<num_nodes; i++)
     mask.set(deadnodes[i]);
-  
+
   for (unsigned n = 0; n < ndbNodes.size(); n++)
   {
     if (mask.get(ndbNodes[n].node_id))
@@ -1153,7 +1153,7 @@ NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
     if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
       return ndbNodes[n].node_id;
   }
-  
+
   return 0;
 }
 
@@ -1162,12 +1162,12 @@ NdbRestarter::rollingRestart(Uint32 flags)
 {
   if (getStatus() != 0)
     return -1;
-  
+
   NdbNodeBitmask ng_mask;
   NdbNodeBitmask restart_nodes;
   Vector<int> nodes;
   for(unsigned i = 0; i < ndbNodes.size(); i++)
-  { 
+  {
     if (ng_mask.get(ndbNodes[i].node_group) == false)
     {
       ng_mask.set(ndbNodes[i].node_group);
@@ -1176,15 +1176,15 @@ NdbRestarter::rollingRestart(Uint32 flags)
     }
   }
 
-loop:  
+loop:
   if (ndb_mgm_restart2(handle, nodes.size(), nodes.getBase(),
-                       (flags & NRRF_INITIAL) != 0, 
+                       (flags & NRRF_INITIAL) != 0,
                        (flags & NRRF_NOSTART) != 0,
                        (flags & NRRF_ABORT) != 0 || true) <= 0)
   {
     return -1;
   }
-  
+
   if (waitNodesNoStart(nodes.getBase(), nodes.size()))
     return -1;
 
@@ -1205,7 +1205,7 @@ loop:
   }
   if (nodes.size())
     goto loop;
-  
+
   return 0;
 }
 
@@ -1237,10 +1237,10 @@ NdbRestarter::getNodeTypeVersionRange(ndb_mgm_node_type type,
 {
   if (!isConnected())
     return -1;
-  
+
   if (getStatus() != 0)
     return -1;
-  
+
   Vector<ndb_mgm_node_state>* nodeVec = NULL;
 
   switch (type)
@@ -1267,14 +1267,14 @@ NdbRestarter::getNodeTypeVersionRange(ndb_mgm_node_type type,
 
   minVer = 0;
   maxVer = 0;
-  
+
   for(unsigned i = 0; i < nodeVec->size(); i++)
   {
     int nodeVer = (*nodeVec)[i].version;
     if ((minVer == 0) ||
         (nodeVer < minVer))
       minVer = nodeVer;
-    
+
     if (nodeVer > maxVer)
       maxVer = nodeVer;
   }

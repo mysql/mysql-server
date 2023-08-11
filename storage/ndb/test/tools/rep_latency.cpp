@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* 
+/*
  * Update on master wait for update on slave
  *
  */
@@ -166,7 +166,7 @@ prepare_master_or_slave(Ndb &myNdb,
     APIERROR(myNdb.getNdbError());
   const NdbDictionary::Dictionary* myDict = myNdb.getDictionary();
   const NdbDictionary::Table *myTable = myDict->getTable(table);
-  if (myTable == NULL) 
+  if (myTable == NULL)
     APIERROR(myDict->getNdbError());
   const NdbDictionary::Column *myPkCol = myTable->getColumn(pk);
   if (myPkCol == NULL)

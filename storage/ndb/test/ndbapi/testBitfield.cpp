@@ -50,7 +50,7 @@ static int node_restart(Ndb*, const NdbDictionary::Table* tab);
 static int system_restart(Ndb*, const NdbDictionary::Table* tab);
 static int testBitmask();
 
-int 
+int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
@@ -66,7 +66,7 @@ main(int argc, char** argv){
     if (NDBT_OK != (res= testBitmask()))
       return NDBT_ProgramExit(res);
   }
-  
+
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   extern const char* opt_tls_search_path;
   extern unsigned long long opt_mgm_tls;
@@ -75,10 +75,10 @@ main(int argc, char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
 
   Ndb* pNdb;
-  pNdb = new Ndb(&con, _dbname);  
+  pNdb = new Ndb(&con, _dbname);
   pNdb->init();
   while (pNdb->waitUntilReady() != 0) {};
 
@@ -98,14 +98,14 @@ main(int argc, char** argv){
       NDBT_Tables::createTable(pNdb, argv[i]);
       pTab = dict->getTable(argv[i]);
     }
-    
+
     if (pTab == 0)
     {
       ndbout << "Failed to create table" << endl;
       ndbout << dict->getNdbError() << endl;
       break;
     }
-    
+
     if(transactions(pNdb, pTab))
       break;
 
@@ -114,10 +114,10 @@ main(int argc, char** argv){
 
     if(ordered_indexes(pNdb, pTab))
       break;
-    
+
     if(node_restart(pNdb, pTab))
       break;
-    
+
     if(system_restart(pNdb, pTab))
       break;
 
@@ -129,13 +129,13 @@ main(int argc, char** argv){
   {
     dict->dropTable(pTab->getName());
   }
-  
+
   delete pNdb;
   return NDBT_ProgramExit(res);
 }
 
-static 
-const NdbDictionary::Table* 
+static
+const NdbDictionary::Table*
 create_random_table(Ndb* pNdb)
 {
   do {
@@ -146,8 +146,8 @@ create_random_table(Ndb* pNdb)
     const Uint32 maxLength = 4090;
     Uint32 length = maxLength;
     Uint8  defbuf[(maxLength + 7)/8];
-    
-    BaseString name; 
+
+    BaseString name;
     name.assfmt("TAB_%d", rand() & 65535);
     tab.setName(name.c_str());
     for(Uint32 i = 0; i<cols && length > 2; i++)
@@ -158,15 +158,15 @@ create_random_table(Ndb* pNdb)
       if(i == 0 || i == 1)
       {
 	col.setType(NdbDictionary::Column::Unsigned);
-	col.setLength(1); 
+	col.setLength(1);
 	col.setNullable(false);
 	col.setPrimaryKey(i == 0);
 	tab.addColumn(col);
 	continue;
       }
-      
+
       col.setType(NdbDictionary::Column::Bit);
-      
+
       Uint32 len = 1 + (rand() % (length - 1));
       memset(defbuf, 0, (length + 7)/8);
       for (Uint32 j = 0; j < len/8; j++)
@@ -178,7 +178,7 @@ create_random_table(Ndb* pNdb)
       col.setPrimaryKey(false);
       tab.addColumn(col);
     }
-    
+
     pNdb->getDictionary()->dropTable(tab.getName());
     if(pNdb->getDictionary()->createTable(tab) == 0)
     {
@@ -189,14 +189,14 @@ create_random_table(Ndb* pNdb)
   return 0;
 }
 
-static 
+static
 int
 transactions(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   int i = 0;
   HugoTransactions trans(* tab);
   i |= trans.loadTable(pNdb, 1000);
-  i |= trans.pkReadRecords(pNdb, 1000, 13); 
+  i |= trans.pkReadRecords(pNdb, 1000, 13);
   i |= trans.scanReadRecords(pNdb, 1000, 25);
   i |= trans.pkUpdateRecords(pNdb, 1000, 37);
   i |= trans.scanUpdateRecords(pNdb, 1000, 25);
@@ -205,29 +205,29 @@ transactions(Ndb* pNdb, const NdbDictionary::Table* tab)
   return i;
 }
 
-static 
-int 
+static
+int
 unique_indexes(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   return 0;
 }
 
-static 
-int 
+static
+int
 ordered_indexes(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   return 0;
 }
 
-static 
-int 
+static
+int
 node_restart(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   return 0;
 }
 
-static 
-int 
+static
+int
 system_restart(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   return 0;
@@ -286,17 +286,17 @@ int checkCopyField(const Uint32 totalTests)
 
   const Uint32 numWords= 95;
   const Uint32 maxBitsToCopy= (numWords * 32);
-  
+
   Uint32 sourceBuf[numWords];
   Uint32 targetTest[numWords];
   Uint32 targetCopy[numWords];
 
   rand(sourceBuf, maxBitsToCopy);
-  
+
   /* Set both target buffers to the same random values */
   rand(targetTest, maxBitsToCopy);
   for (Uint32 i=0; i<maxBitsToCopy; i++)
-    BitmaskImpl::set(numWords, targetCopy, i, 
+    BitmaskImpl::set(numWords, targetCopy, i,
                      BitmaskImpl::get(numWords, targetTest, i));
 
   if (!cmp(targetTest, targetCopy, maxBitsToCopy))
@@ -333,7 +333,7 @@ int checkCopyField(const Uint32 totalTests)
           BitmaskImpl::get(numWords, targetTest, i))
       {
         ndbout_c("copyField :: Mismatch at bit %u, should be %u but is %u",
-                 i, 
+                 i,
                  BitmaskImpl::get(numWords, targetTest, i),
                  BitmaskImpl::get(numWords, targetCopy, i));
         fail=true;

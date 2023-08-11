@@ -141,7 +141,7 @@ static void do_insert(struct Trans_arg &trans_arg, NdbEventOperation *pOp)
   if (trans_arg.bytes_batched > BATCH_SIZE)
   {
     trans_arg.trans->execute(NdbTransaction::NoCommit);
-    trans_arg.bytes_batched = 0; 
+    trans_arg.bytes_batched = 0;
   }
 }
 static void do_update(struct Trans_arg &trans_arg, NdbEventOperation *pOp)
@@ -160,7 +160,7 @@ static void do_update(struct Trans_arg &trans_arg, NdbEventOperation *pOp)
   if (trans_arg.bytes_batched > BATCH_SIZE)
   {
     trans_arg.trans->execute(NdbTransaction::NoCommit);
-    trans_arg.bytes_batched = 0; 
+    trans_arg.bytes_batched = 0;
   }
 }
 static void do_delete(struct Trans_arg &trans_arg, NdbEventOperation *pOp)
@@ -178,7 +178,7 @@ static void do_delete(struct Trans_arg &trans_arg, NdbEventOperation *pOp)
   if (trans_arg.bytes_batched > BATCH_SIZE)
   {
     trans_arg.trans->execute(NdbTransaction::NoCommit);
-    trans_arg.bytes_batched = 0; 
+    trans_arg.bytes_batched = 0;
   }
 }
 static void do_commit(struct Trans_arg &trans_arg)
@@ -189,11 +189,11 @@ static void do_commit(struct Trans_arg &trans_arg)
   trans_arg.ndb->closeTransaction(trans_arg.trans);
 }
 
-int 
+int
 main(int argc, const char** argv){
   ndb_init();
 
-  
+
   int _help = 0;
   const char* db = 0;
   const char* connectstring1 = 0;
@@ -209,9 +209,9 @@ main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0, i;
-  char desc[] = 
+  char desc[] =
     "<tabname>+ \nThis program listen to events on specified tables\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _help) {
     arg_printusage(args, num_args, argv[0], desc);
@@ -260,7 +260,7 @@ main(int argc, const char** argv){
   }
 
   int result = 0;
-  
+
   NdbDictionary::Dictionary *myDict = MyNdb.getDictionary();
   Vector<NdbDictionary::Event*> events;
   Vector<NdbEventOperation*> event_ops;
@@ -278,7 +278,7 @@ main(int argc, const char** argv){
     name.appfmt("EV-%s", argv[i]);
     NdbDictionary::Event *myEvent= new NdbDictionary::Event(name.c_str());
     myEvent->setTable(table->getName());
-    myEvent->addTableEvent(NdbDictionary::Event::TE_ALL); 
+    myEvent->addTableEvent(NdbDictionary::Event::TE_ALL);
     for(int a = 0; a < table->getNoOfColumns(); a++){
       myEvent->addEventColumn(a);
     }
@@ -288,7 +288,7 @@ main(int argc, const char** argv){
 
     if (myDict->createEvent(* myEvent))
     {
-      if(myDict->getNdbError().classification == NdbError::SchemaObjectExists) 
+      if(myDict->getNdbError().classification == NdbError::SchemaObjectExists)
       {
 	g_info << "Event creation failed event exists. Removing...\n";
 	if (myDict->dropEvent(name.c_str()))
@@ -298,7 +298,7 @@ main(int argc, const char** argv){
 	  goto end;
 	}
 	// try again
-	if (myDict->createEvent(* myEvent)) 
+	if (myDict->createEvent(* myEvent))
 	{
 	  g_err << "Failed to create event: " << myDict->getNdbError() << endl;
 	  result = 1;
@@ -312,7 +312,7 @@ main(int argc, const char** argv){
 	goto end;
       }
     }
-    
+
     events.push_back(myEvent);
 
     NdbEventOperation* pOp = MyNdb.createEventOperation(name.c_str());
@@ -324,7 +324,7 @@ main(int argc, const char** argv){
 
     event_values.push_back(Vector<NdbRecAttr *>());
     event_pre_values.push_back(Vector<NdbRecAttr *>());
-    for (int a = 0; a < table->getNoOfColumns(); a++) 
+    for (int a = 0; a < table->getNoOfColumns(); a++)
     {
       event_values[sz].
         push_back(pOp->getValue(table->getColumn(a)->getName()));
@@ -344,7 +344,7 @@ main(int argc, const char** argv){
   for(i= 0; i<(int)event_ops.size(); i++)
   {
     if (event_ops[i]->execute())
-    { 
+    {
       g_err << "operation execution failed: " << event_ops[i]->getNdbError()
 	    << endl;
       result = 1;
@@ -358,7 +358,7 @@ main(int argc, const char** argv){
   while(true)
   {
     while(MyNdb.pollEvents(100) == 0);
-    
+
     NdbEventOperation* pOp= MyNdb.nextEvent();
     while(pOp)
     {
@@ -403,7 +403,7 @@ main(int argc, const char** argv){
 	  break;
 	default:
 	  /* We should REALLY never get here. */
-	  ndbout_c("Error: unknown event type: %u", 
+	  ndbout_c("Error: unknown event type: %u",
 		   (Uint32)pOp->getEventType());
 	  abort();
 	}

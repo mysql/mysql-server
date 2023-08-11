@@ -33,16 +33,16 @@
 
 int main(int argc, const char** argv){
   ndb_init();
-  
+
   int _help = 0;
   struct getargs args[] = {
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "This program will drop all Ndb standard tables from NDB\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) || _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -57,15 +57,15 @@ int main(int argc, const char** argv){
   }
 
   Ndb MyNdb(&con, "TEST_DB" );
-  
+
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
-  
+
   return NDBT_Tables::dropAllTables(&MyNdb);
 
  }

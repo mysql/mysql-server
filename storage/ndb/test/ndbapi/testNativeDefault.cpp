@@ -29,9 +29,9 @@ static Ndb_cluster_connection *g_cluster_connection= 0;
 static Ndb* g_ndb = 0;
 static const char* g_tablename1 = "T_DEF1"; //The normal table with default values
 static const char* g_tablename2 = "T_DEF2"; //The table for Test that maximum length defaults work
-//The table for Test that an attempt to insert to a table containing defaults 
+//The table for Test that an attempt to insert to a table containing defaults
 //without supplying a value for a not-null, non-defaulted column still fails
-static const char* g_tablename3 = "T_DEF3"; 
+static const char* g_tablename3 = "T_DEF3";
 static NdbDictionary::Dictionary* g_dict = 0;
 static const unsigned int column_count_table1 = 8;
 static const unsigned int column_count_table2 = 2;
@@ -73,7 +73,7 @@ disconnect_ndb()                                            {
   ndbout << error_msg << " at line " << __LINE__ << endl; \
   return NDBT_FAILED
 
-static const int            tab1_c1_default= 6; 
+static const int            tab1_c1_default= 6;
 static const float          tab1_c2_default= float(1234.56);
 static const double         tab1_c3_default= 4567.89;
 static const char           tab1_c4_default[]= "aaaaaa      ";
@@ -89,7 +89,7 @@ static const int            tab2_c1_default_len= 8052 - 4 - 2;
 /* Max row length minus 4 bytes for key, minus 2 bytes for length info */
 static const char           tab2_c1_default_char= 'V';
 
-static int 
+static int
 create_table()
 {
   g_dict = g_ndb->getDictionary();
@@ -116,7 +116,7 @@ create_table()
 
   NdbDictionary::Table tab(g_tablename1);
   tab.setLogging(false);
-  
+
   NdbDictionary::Table tab2(g_tablename2);
   tab2.setLogging(false);
 
@@ -132,29 +132,29 @@ create_table()
     col.setDefaultValue(NULL);
     tab.addColumn(col);
   }
- 
-  { 
+
+  {
     NdbDictionary::Column col("C1");
     col.setType(NdbDictionary::Column::Int);
     col.setDefaultValue(&tab1_c1_default,sizeof(int));
     tab.addColumn(col);
   }
-  
-  { 
+
+  {
     NdbDictionary::Column col("C2");
     col.setType(NdbDictionary::Column::Float);
     col.setDefaultValue(&tab1_c2_default, sizeof(float));
     tab.addColumn(col);
   }
 
-  { 
+  {
     NdbDictionary::Column col("C3");
     col.setType(NdbDictionary::Column::Double);
     col.setDefaultValue(&tab1_c3_default, sizeof(double));
     tab.addColumn(col);
   }
 
-  { 
+  {
     NdbDictionary::Column col("C4");
     col.setType(NdbDictionary::Column::Char);
     col.setLength(12);
@@ -162,7 +162,7 @@ create_table()
     tab.addColumn(col);
   }
 
-  { 
+  {
     NdbDictionary::Column col("C5");
     col.setType(NdbDictionary::Column::Varchar);
     col.setLength(199);
@@ -171,7 +171,7 @@ create_table()
   }
 
 
-  { 
+  {
     /* Test non-null pointer passed, but with zero length? */
     NdbDictionary::Column col("C6");
     col.setType(NdbDictionary::Column::Char);
@@ -182,7 +182,7 @@ create_table()
   }
 
   //Test that a zero-length VARCHAR default works
-  { 
+  {
     NdbDictionary::Column col("C7");
     col.setType(NdbDictionary::Column::Varchar);
     col.setLength(10);
@@ -201,7 +201,7 @@ create_table()
   }
 
   //Test that maximum length defaults work
-  { 
+  {
     char default_data[tab2_c1_default_len + 2];
     default_data[0] = (tab2_c1_default_len >> 0) & 0xff;
     default_data[1] = (tab2_c1_default_len >> 8) & 0xff;
@@ -230,7 +230,7 @@ create_table()
     col.setDefaultValue(NULL, 0);
     tab3.addColumn(col);
   }
-  
+
   // create table
   if(g_dict->createTable(tab) != 0)
   {
@@ -306,7 +306,7 @@ create_table_error()
   {
     FAIL("Create table should not have succeeded");
   }
-  
+
   //for too short default value
   NdbDictionary::Table tab2("T_DEF_TEST2");
   tab2.setLogging(false);
@@ -401,7 +401,7 @@ create_table_error()
     PRINT_ERROR(g_dict->getNdbError());
     return NDBT_FAILED;
   }
- 
+
   /*
    * 4. The following test case is for Var-type columns that
    *    there are too long default values, where the passed
@@ -444,7 +444,7 @@ create_table_error()
   return NDBT_OK;
 }
 
-static int 
+static int
 drop_table()
 {
   if ((g_dict != 0) && ( g_dict->getTable(g_tablename1) != 0))
@@ -475,10 +475,10 @@ static int do_insert()
   if (myTable == NULL)
   {
     PRINT_ERROR(g_dict->getNdbError());
-    return NDBT_FAILED; 
+    return NDBT_FAILED;
   }
 
-  NdbTransaction *myTransaction= g_ndb->startTransaction(); 
+  NdbTransaction *myTransaction= g_ndb->startTransaction();
   if (myTransaction == NULL)
   {
     PRINT_ERROR(g_ndb->getNdbError());
@@ -486,8 +486,8 @@ static int do_insert()
   }
 
   NdbOperation *myOperation= myTransaction->getNdbOperation(myTable);
-  NdbOperation *myOperation1= myTransaction->getNdbOperation(myTable); 
-  if (myOperation == NULL || myOperation1 == NULL) 
+  NdbOperation *myOperation1= myTransaction->getNdbOperation(myTable);
+  if (myOperation == NULL || myOperation1 == NULL)
   {
     PRINT_ERROR(myTransaction->getNdbError());
     g_ndb->closeTransaction(myTransaction);
@@ -520,7 +520,7 @@ static int do_insert()
 
 
   /* Test insert of max length tuple with max length default
-   * Could theoretically expose kernel overflow with default 
+   * Could theoretically expose kernel overflow with default
    * + supplied value
    */
   myOperation2=myTransaction->getNdbOperation(myTable2);
@@ -530,7 +530,7 @@ static int do_insert()
     g_ndb->closeTransaction(myTransaction);
     return NDBT_FAILED;
   }
-  
+
   myOperation2->insertTuple();
   myOperation2->equal("PK", 2);
 
@@ -539,7 +539,7 @@ static int do_insert()
     default_data[0] = (tab2_c1_default_len >> 0) & 0xff;
     default_data[1] = (tab2_c1_default_len >> 8) & 0xff;
     memset(default_data + 2, tab2_c1_default_char, tab2_c1_default_len);
-    
+
     myOperation2->setValue("C1", default_data);
   }
 
@@ -549,7 +549,7 @@ static int do_insert()
     g_ndb->closeTransaction(myTransaction);
     return NDBT_FAILED;
   }
-  
+
   g_ndb->closeTransaction(myTransaction);
 
   //The following insert should fail, and return error code
@@ -579,13 +579,13 @@ static int do_insert()
   myOperation3->equal("PK", 1);
 
   /* It should return error code 839 ( msg: Illegal null attribute)
-   * for an attempt to insert to a table containing defaults 
+   * for an attempt to insert to a table containing defaults
    * without supplying a value for a not-null, non-defaulted column
   */
   if (myTransaction3->execute(NdbTransaction::Commit) == -1)
   {
     PRINT_ERROR(myTransaction3->getNdbError());
-    
+
     if (myTransaction3->getNdbError().code != 839)
     {
       ndbout << "Expected error 839" << endl;
@@ -609,7 +609,7 @@ static int do_insert()
     if (memcmp((ref), (test), (len))) {         \
       ndbout << "Bytes differ at line " << __LINE__ << "\n"; \
       return NDBT_FAILED;                                    \
-    }} 
+    }}
 
 
 
@@ -695,7 +695,7 @@ static int do_read()
     return NDBT_FAILED;
   }
 
-  //Define Scan Operation for T_DEF3  
+  //Define Scan Operation for T_DEF3
   NdbScanOperation *myScanOp3 = myTransaction->getNdbScanOperation(myTable3);
   if (myScanOp3 == NULL)
   {
@@ -740,7 +740,7 @@ static int do_read()
 //       for (Uint32 i = 0; i < column_count_table1; i++)
 //         ndbout << *myRecAttr[i] << "\t";
 //       ndbout << endl;
-      
+
       for (Uint32 i = 0; i < column_count_table1; i++)
       {
         /* Check that all columns are non NULL except c6 */
@@ -751,14 +751,14 @@ static int do_read()
       CHECK_VAL_EQ(tab1_c2_default, myRecAttr[2]->float_value());
       CHECK_VAL_EQ(tab1_c3_default, myRecAttr[3]->double_value());
       CHECK_BYTES_EQ(tab1_c4_default, (const char*) myRecAttr[4]->aRef(), tab1_c4_default_siglen);
-      CHECK_BYTES_EQ(tab1_c5_default, (const char*) myRecAttr[5]->aRef(), tab1_c5_default_siglen); 
+      CHECK_BYTES_EQ(tab1_c5_default, (const char*) myRecAttr[5]->aRef(), tab1_c5_default_siglen);
       CHECK_BYTES_EQ(tab1_c6_default, (const char*) myRecAttr[6]->aRef(), tab1_c6_default_siglen);
       CHECK_BYTES_EQ(tab1_c7_default, (const char*) myRecAttr[7]->aRef(), tab1_c7_default_siglen);
     } while((check = myScanOp->nextResult(false)) == 0);
 
     if(check == -1)
     {
-      ndbout << "Error with transaction " << check << " " 
+      ndbout << "Error with transaction " << check << " "
              << myTransaction->getNdbError().code << "\n";
       return NDBT_FAILED;
     }

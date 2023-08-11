@@ -43,10 +43,10 @@
 #include <NdbLockCpuUtil.h>
 #include <ndb_limits.h>
 
-#define MAX_PARTS 4 
-#define MAX_SEEK 16 
-#define MAXSTRLEN 16 
-#define MAXATTR 511 
+#define MAX_PARTS 4
+#define MAX_SEEK 16
+#define MAXSTRLEN 16
+#define MAXATTR 511
 #define MAXTABLES 128
 #define MAXINDEXES 16
 #define NDB_MAXTHREADS 384
@@ -66,7 +66,7 @@
 #define MAXATTRSIZE 1000
 #define PKSIZE 2
 
-enum StartType { 
+enum StartType {
   stIdle = 0,
   stInsert = 1,
   stRead = 2,
@@ -138,7 +138,7 @@ static void setTableNames(void);
 static int readArguments(int argc, char** argv);
 static void dropTables(Ndb* pMyNdb);
 static int createTables(Ndb*);
-static void defineOperation(NdbConnection* aTransObject, StartType aType, 
+static void defineOperation(NdbConnection* aTransObject, StartType aType,
                             Uint32 base, Uint32 aIndex);
 static void defineNdbRecordOperation(char*,
                                      Uint32 table_id,
@@ -164,8 +164,8 @@ static void run_old_flexAsynch(ThreadNdb *pThreadData, NdbTimer & timer);
 
 static int                              retry_opt = 3 ;
 static int                              failed = 0 ;
-                
-ErrorData * flexAsynchErrorData;                        
+
+ErrorData * flexAsynchErrorData;
 
 static NdbThread*                       threadLife[MAX_REAL_THREADS];
 static int                              tNodeId;
@@ -243,7 +243,7 @@ print(const char * name, NDBT_Stats& s)
          (unsigned)(100*s.getStddev() / s.getMean()));
 }
 
-static void 
+static void
 resetThreads(){
 
   for (unsigned i = 0; i < tNoOfThreads ; i++) {
@@ -252,7 +252,7 @@ resetThreads(){
   }//for
 }
 
-static void 
+static void
 waitForThreads(Uint32 num_threads_to_wait_for)
 {
   int cont = 0;
@@ -269,10 +269,10 @@ waitForThreads(Uint32 num_threads_to_wait_for)
   } while (cont == 1);
 }
 
-static void 
+static void
 tellThreads(StartType what)
 {
-  for (unsigned i = 0; i < tNoOfThreads ; i++) 
+  for (unsigned i = 0; i < tNoOfThreads ; i++)
     ThreadStart[i] = what;
 }
 
@@ -369,14 +369,14 @@ int main(int argc, char** argv)
     printf("\n");
     fflush(stdout);
   }
-  
-  Ndb * pNdb = new Ndb(g_cluster_connection[0], "TEST_DB");      
+
+  Ndb * pNdb = new Ndb(g_cluster_connection[0], "TEST_DB");
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
   ndbout << "  NdbAPI node with id = " << pNdb->getNodeId() << endl;
   ndbout << endl;
-  
+
   ndbout << "Waiting for ndb to become ready..." <<endl;
   if (pNdb->waitUntilReady(10000) != 0){
     ndbout << "NDB is not ready" << endl;
@@ -539,7 +539,7 @@ threadLoop(void* ThreadData)
   localNdb->waitUntilReady(10000);
   unsigned int threadBase = threadNo;
 
-  
+
   for (;;){
     while (ThreadStart[threadNo] == stIdle) {
       NdbSleep_MilliSleep(10);
@@ -656,7 +656,7 @@ executeTrans(ThreadNdb* pThread,
         ndbout << endl << "Unable to recover! Quitting now" << endl ;
         return -1;
       }//if
-   
+
       if (nodeId != 0 &&
           tConArray[num_ops]->getConnectedNodeId() != nodeId)
       {
@@ -686,7 +686,7 @@ executeTrans(ThreadNdb* pThread,
                           threadBaseLoc2,
                           (tBase2 + k));
       }//for
-    
+
       tConArray[num_ops]->executeAsynchPrepare(Commit,
                                                &executeCallback,
                                                (void*)&tConArray[num_ops]);
@@ -721,9 +721,9 @@ executeTrans(ThreadNdb* pThread,
   return Tcomp;
 }
 
-static 
+static
 bool
-executeTransLoop(ThreadNdb* pThread, 
+executeTransLoop(ThreadNdb* pThread,
                  StartType aType,
                  Ndb* aNdbObject,
                  unsigned int threadBase,
@@ -799,9 +799,9 @@ executeTransLoop(ThreadNdb* pThread,
   return true;
 }//executeTransLoop()
 
-static 
+static
 bool
-executeThread(ThreadNdb* pThread, 
+executeThread(ThreadNdb* pThread,
 	      StartType aType,
               Ndb* aNdbObject,
               unsigned int threadBase) {
@@ -879,7 +879,7 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
   for (unsigned k = 2; k < loopCountAttributes; k++) {
     attrValue[k] = aIndex;
   }//for
-  localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);        
+  localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);
   if (localNdbOperation == NULL) {
     error_handler(localNdbConnection->getNdbError());
   }//if
@@ -921,7 +921,7 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
     break;
   }//case
   default: {
-    error_handler(localNdbOperation->getNdbError()); 
+    error_handler(localNdbOperation->getNdbError());
   }//default
   }//switch
 
@@ -974,7 +974,7 @@ defineNdbRecordOperation(char *record,
   * (Uint32*)(record + offset) = threadBase;
   NdbDictionary::getOffset(ndb_record, 1, offset);
   * (Uint32*)(record + offset) = aIndex;
- 
+
   //-------------------------------------------------------
   // Set-up the attribute values for this operation.
   //-------------------------------------------------------
@@ -994,7 +994,7 @@ defineNdbRecordOperation(char *record,
       * (Uint32*)(record + offset) = aIndex + rand_val;
     }//for
   }
-  
+
   const NdbOperation* op;
   switch (aType) {
   case stInsert: {   // Insert case
@@ -1045,7 +1045,7 @@ defineNdbRecordOperation(char *record,
     ndbout << "Operation is null " << pTrans->getNdbError() << endl;
     abort();
   }
-    
+
   require(op != 0);
 }
 
@@ -1068,7 +1068,7 @@ static void setTableNames()
   {
     if (theStdTableNameFlag==0)
     {
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%u_%u", i, 
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%u_%u", i,
                (unsigned)(NdbTick_CurrentMillisecond()+rand()));
       for (j = 0; j < tNumIndexes; j++)
       {
@@ -1168,7 +1168,7 @@ get_my_node_id(Uint32 tableNo, Uint32 threadNo)
 }
 
 static
-int 
+int
 createTables(Ndb* pMyNdb)
 {
   NdbDictionary::Dictionary* pDict = pMyNdb->getDictionary();
@@ -1273,8 +1273,8 @@ createTables(Ndb* pMyNdb)
         off += (r0.column->getSizeInBytes() + 3) & ~(Uint32)3;
         spec.push_back(r0);
       }
-      g_record[i] = 
-	  pDict->createRecord(pTab, spec.getBase(), 
+      g_record[i] =
+	  pDict->createRecord(pTab, spec.getBase(),
 			      spec.size(),
 			      sizeof(NdbDictionary::RecordSpecification));
       require(g_record[i]);
@@ -2323,9 +2323,9 @@ too_large_number_error:
 }
 
 static
-int 
+int
 readArguments(int argc, char** argv){
-  
+
   int i = 1;
   while (argc > 1){
     if (strcmp(argv[i], "-t") == 0){
@@ -2544,7 +2544,7 @@ readArguments(int argc, char** argv){
       ndbout_c("No such parameter: %s", argv[i]);
       return -1;
     }
-    
+
     argc -= 2;
     i = i + 2;
   }//while
@@ -2609,7 +2609,7 @@ input_error(){
   ndbout_c("   -receive_cpus A set of CPUs for receive threads, one per connection,"
            " comma separated list with ranges, e.g. 0-2,4");
 }
-  
+
 static void
 run_old_flexAsynch(ThreadNdb *pThreadData,
                    NdbTimer & timer)

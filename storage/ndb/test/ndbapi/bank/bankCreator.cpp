@@ -27,11 +27,11 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NdbSleep.h>
 #include <getarg.h>
 #include "Bank.hpp"
- 
+
 
 int main(int argc, const char** argv){
   ndb_init();
@@ -48,9 +48,9 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "This program will create and load the tables for bank\n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||  _help) {
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);

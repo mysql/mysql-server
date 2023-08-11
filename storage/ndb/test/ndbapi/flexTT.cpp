@@ -38,9 +38,9 @@
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
 
-#define MAX_PARTS 4 
-#define MAX_SEEK 16 
-#define MAXSTRLEN 16 
+#define MAX_PARTS 4
+#define MAX_SEEK 16
+#define MAXSTRLEN 16
 #define MAXATTR 64
 #define MAXTABLES 64
 #define NDB_MAXTHREADS 128
@@ -61,13 +61,13 @@ inline long lrand48(void) { return rand(); };
 #endif
 
 
-enum StartType { 
-  stIdle, 
+enum StartType {
+  stIdle,
   stInsert,
   stRead,
   stUpdate,
-  stDelete, 
-  stStop 
+  stDelete,
+  stStop
 } ;
 
 struct ThreadNdb
@@ -113,7 +113,7 @@ static void executeCallback(int result, NdbConnection* NdbObject,
 static bool error_handler(const NdbError & err) ;
 static Uint32 getKey(Uint32, Uint32) ;
 static void input_error();
-                                      
+
 ErrorData * flexTTErrorData;
 
 static NdbThread*                       threadLife[NDB_MAXTHREADS];
@@ -150,9 +150,9 @@ static int                              theTableCreateFlag = 1;
 #define STOP_REAL_TIME
 #define START_TIMER { NdbTimer timer; timer.doStart();
 #define STOP_TIMER timer.doStop();
-#define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); }; 
+#define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); };
 
-static void 
+static void
 resetThreads(){
 
   for (int i = 0; i < (int)tNoOfThreads ; i++) {
@@ -161,7 +161,7 @@ resetThreads(){
   }//for
 }
 
-static void 
+static void
 waitForThreads(void)
 {
   int cont = 0;
@@ -178,10 +178,10 @@ waitForThreads(void)
   } while (cont == 1);
 }
 
-static void 
+static void
 tellThreads(StartType what)
 {
-  for (int i = 0; i < (int)tNoOfThreads ; i++) 
+  for (int i = 0; i < (int)tNoOfThreads ; i++)
     ThreadStart[i] = what;
 }
 
@@ -251,13 +251,13 @@ int main(int argc, char** argv)
   }
   g_cluster_connection= &con;
 
-  Ndb * pNdb = new Ndb(g_cluster_connection, "TEST_DB");      
+  Ndb * pNdb = new Ndb(g_cluster_connection, "TEST_DB");
   pNdb->init();
   tNodeId = pNdb->getNodeId();
 
   ndbout << "  NdbAPI node with id = " << pNdb->getNodeId() << endl;
   ndbout << endl;
-  
+
   ndbout << "Waiting for ndb to become ready..." <<endl;
   if (pNdb->waitUntilReady(2000) != 0){
     ndbout << "NDB is not ready" << endl;
@@ -293,7 +293,7 @@ int main(int argc, char** argv)
     /****************************************************************
      * Perform inserts.                                             *
      ****************************************************************/
-          
+
     if (tInsert == true) {
       tInsert = false;
       tReadUpdate = false;
@@ -305,17 +305,17 @@ int main(int argc, char** argv)
     /****************************************************************
      * Perform read + updates.                                      *
      ****************************************************************/
-      
+
     if (tReadUpdate == true) {
       START_TIMER;
       execute(stRead);
       STOP_TIMER;
       PRINT_TIMER("update + read", noOfTransacts, 1);
-    }//if  
+    }//if
     /****************************************************************
      * Perform delete.                                              *
      ****************************************************************/
-                
+
     if (tDelete == true) {
       tDelete = false;
       START_TIMER;
@@ -324,14 +324,14 @@ int main(int argc, char** argv)
       PRINT_TIMER("delete", noOfTransacts, 1);
     }//if
     ndbout << "--------------------------------------------------" << endl;
-        
+
     execute(stStop);
     void * tmp;
     for(int i = 0; i<(int)tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }
-  } 
+  }
   delete [] pThreadData;
   delete pNdb;
 
@@ -375,11 +375,11 @@ threadLoop(void* ThreadData)
   tabThread->threadLoopStop = tNoOfLoops;
   Uint32 i, j;
   for (i = 0; i < tNoOfParallelTrans; i++) {
-    pTransData[i].transNdb = localNdb;    
-    pTransData[i].transThread = tabThread;    
-    pTransData[i].transOperation = NULL;    
-    pTransData[i].transStartType = stIdle;    
-    pTransData[i].vpn_number = tabThread->threadBase;    
+    pTransData[i].transNdb = localNdb;
+    pTransData[i].transThread = tabThread;
+    pTransData[i].transOperation = NULL;
+    pTransData[i].transStartType = stIdle;
+    pTransData[i].vpn_number = tabThread->threadBase;
     pTransData[i].vpn_identity = 0;
     pTransData[i].transErrorCount = 0;
     for (j = 0; j < 128; j++) {
@@ -397,9 +397,9 @@ threadLoop(void* ThreadData)
       break;
     }//if
 
-    tabThread->threadStartType = ThreadStart[loc_threadNo];  
+    tabThread->threadStartType = ThreadStart[loc_threadNo];
     tabThread->threadLoopCounter = 0;
-    tabThread->threadCompleted = false;  
+    tabThread->threadCompleted = false;
     tabThread->threadNoCompleted = 0;
     tabThread->threadNextStart = 0;
 
@@ -417,7 +417,7 @@ threadLoop(void* ThreadData)
   return NULL; // Thread exits
 }//threadLoop()
 
-static 
+static
 bool
 executeThread(ThreadNdb* tabThread, TransNdb* atransDataArrayPtr) {
   Uint32 i;
@@ -473,7 +473,7 @@ bool executeTransaction(TransNdb* transNdbRef)
 }//executeTransaction()
 
 
-static 
+static
 Uint32
 getKey(Uint32 aBase, Uint32 aThreadBase) {
   Uint32 Tfound = aBase;
@@ -565,7 +565,7 @@ checkCompleted:
   if (tabThread->threadNoCompleted == tNoOfParallelTrans) {
     tabThread->threadCompleted = true;
   }//if
-  return;      
+  return;
 }//executeCallback()
 
 static
@@ -592,7 +592,7 @@ defineOperation(NdbConnection* localNdbConnection, TransNdb* transNdbRef,
   //-------------------------------------------------------
   // Set-up the attribute values for this operation.
   //-------------------------------------------------------
-  localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);        
+  localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);
   if (localNdbOperation == NULL) {
     error_handler(localNdbConnection->getNdbError());
     return false;
@@ -657,7 +657,7 @@ defineOperation(NdbConnection* localNdbConnection, TransNdb* transNdbRef,
   default:
     error_handler(localNdbOperation->getNdbError());
   }//switch
-  localNdbConnection->executeAsynchPrepare(Commit, &executeCallback, 
+  localNdbConnection->executeAsynchPrepare(Commit, &executeCallback,
                                            (void*)transNdbRef);
   return true;
 }//defineOperation()
@@ -679,7 +679,7 @@ static void setTableNames()
 }
 
 static
-int 
+int
 createTables(Ndb* pMyNdb){
 
   NdbSchemaCon          *MySchemaTransaction;
@@ -689,16 +689,16 @@ createTables(Ndb* pMyNdb){
   if (theTableCreateFlag == 0) {
     ndbout << "Creating Table: vpn_users " << "..." << endl;
     MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
-      
-    if(MySchemaTransaction == NULL && 
+
+    if(MySchemaTransaction == NULL &&
        (!error_handler(pMyNdb->getNdbError())))
       return -1;
-      
-    MySchemaOp = MySchemaTransaction->getNdbSchemaOp();       
+
+    MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
     if(MySchemaOp == NULL &&
        (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     check = MySchemaOp->createTable( tableName[0]
                                        ,8                       // Table Size
                                        ,TupleKey                // Key Type
@@ -710,11 +710,11 @@ createTables(Ndb* pMyNdb){
                                        ,1
                                        ,!tempTable
                                        );
-      
+
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     check = MySchemaOp->createAttribute( (char*)attrName[0],
                                          TupleKey,
                                          32,
@@ -722,7 +722,7 @@ createTables(Ndb* pMyNdb){
                                          UnSigned,
                                          MMBased,
                                          NotNullAttribute );
-      
+
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
@@ -733,7 +733,7 @@ createTables(Ndb* pMyNdb){
                                          UnSigned,
                                          MMBased,
                                          NotNullAttribute );
-      
+
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
@@ -747,7 +747,7 @@ createTables(Ndb* pMyNdb){
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     check = MySchemaOp->createAttribute( (char*)attrName[3],
                                              NoKey,
                                              8,
@@ -758,7 +758,7 @@ createTables(Ndb* pMyNdb){
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     check = MySchemaOp->createAttribute( (char*)attrName[4],
                                              NoKey,
                                              8,
@@ -769,14 +769,14 @@ createTables(Ndb* pMyNdb){
     if (check == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     if (MySchemaTransaction->execute() == -1 &&
         (!error_handler(MySchemaTransaction->getNdbError())))
       return -1;
-      
+
     NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   }//if
-  
+
   return 0;
 }
 
@@ -810,9 +810,9 @@ bool error_handler(const char* error_string, int error_int) {
 #endif
 
 static
-int 
+int
 readArguments(int argc, char** argv){
-  
+
   int i = 1;
   while (argc > 1){
     if (strcmp(argv[i], "-t") == 0){
@@ -913,7 +913,7 @@ readArguments(int argc, char** argv){
     } else {
       return -1;
     }
-    
+
     argc -= 2;
     i = i + 2;
   }//while
@@ -928,7 +928,7 @@ readArguments(int argc, char** argv){
 static
 void
 input_error(){
-  
+
   ndbout_c("FLEXTT");
   ndbout_c("   Perform benchmark of insert, update and delete transactions");
   ndbout_c(" ");

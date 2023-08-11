@@ -99,14 +99,14 @@ static int copy_events(Ndb *ndb)
 	DBUG_RETURN(-1);
       }
       r++;
-      
+
       Uint32 gci= pOp->getGCI();
 
       if (!pOp->isConsistent()) {
 	g_err << "A node failure has occurred and events might be missing\n";
 	DBUG_RETURN(-1);
       }
-	
+
       int noRetries= 0;
       do
       {
@@ -118,7 +118,7 @@ static int copy_events(Ndb *ndb)
 		<< ndb->getNdbError().message << endl;
 	  DBUG_RETURN(-1);
 	}
-	
+
 	NdbOperation *op= trans->getNdbOperation(table);
 	if (op == 0)
 	{
@@ -127,7 +127,7 @@ static int copy_events(Ndb *ndb)
 		<< trans->getNdbError().message << endl;
 	  DBUG_RETURN(-1);
 	}
-	
+
 	switch (pOp->getEventType()) {
 	case NdbDictionary::Event::TE_INSERT:
 	  if (op->insertTuple())
@@ -159,7 +159,7 @@ static int copy_events(Ndb *ndb)
 	default:
 	  abort();
 	}
-	
+
 	{
 	  for (const NdbRecAttr *pk= pOp->getFirstPkAttr(); pk; pk= pk->next())
 	  {
@@ -178,7 +178,7 @@ static int copy_events(Ndb *ndb)
 	    }
 	  }
 	}
-	
+
 	switch (pOp->getEventType()) {
 	case NdbDictionary::Event::TE_INSERT:
 	{
@@ -289,7 +289,7 @@ main(int argc, char** argv)
   {
     DBUG_RETURN(NDBT_ProgramExit(NDBT_FAILED));
   }
-  
+
 
   Ndb ndb(&con,_dbname);
   ndb.init();

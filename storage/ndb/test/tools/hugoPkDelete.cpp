@@ -27,7 +27,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp> 
+#include <NDBT.hpp>
 #include <NDBT_Thread.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
@@ -59,7 +59,7 @@ int main(int argc, const char** argv){
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
   int _help = 0;
-  
+
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     { "threads", 't', arg_integer, &_threads, "number of threads (default 1)", "threads" },
@@ -71,10 +71,10 @@ int main(int argc, const char** argv){
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
-  char desc[] = 
+  char desc[] =
     "tabname\n"\
     "This program will delete all records in a table using PK \n";
-  
+
   if(getarg(args, num_args, argc, argv, &optind) ||
      argv[optind] == NULL || _records == 0 || _help) {
     arg_printusage(args, num_args, argv[0], desc);
@@ -95,7 +95,7 @@ int main(int argc, const char** argv){
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
 
   Ndb MyNdb(&con, _dbname );
 

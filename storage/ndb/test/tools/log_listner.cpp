@@ -52,7 +52,7 @@ void catch_signal(int signum)
 {
 }
 
-int 
+int
 main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -78,7 +78,7 @@ main(int argc, char** argv)
   NdbMgmHandle handle= ndb_mgm_create_handle();
   ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
   ndb_mgm_set_connectstring(handle, opt_ndb_connectstring);
-  
+
   while (true)
   {
     if (ndb_mgm_connect_tls(handle,0,0,0,opt_mgm_tls) == -1)
@@ -86,14 +86,14 @@ main(int argc, char** argv)
       ndbout_c("Failed to connect");
       exit(0);
     }
-    
+
     NdbLogEventHandle le = ndb_mgm_create_logevent_handle(handle, filter);
     if (le == 0)
     {
       ndbout_c("Failed to create logevent handle");
       exit(0);
     }
-    
+
     struct ndb_logevent event;
     while (true)
     {
@@ -109,7 +109,7 @@ main(int argc, char** argv)
       }
       ndbout_c("Got event: %d", event.type);
     }
-    
+
     ndb_mgm_destroy_logevent_handle(&le);
     ndb_mgm_disconnect(handle);
   }
