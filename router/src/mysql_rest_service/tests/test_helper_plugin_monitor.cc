@@ -114,7 +114,8 @@ class PluginMonitorExTest : public PluginMonitorTests,
     EXPECT_CALL(mock_plugin_state_, push_back_observer(_))
         .WillOnce(DoAll(Invoke([this](ObserverPtr o) {
                           observer_ = o.lock();
-                          observer_->on_begin_observation(default_services_);
+                          observer_->on_begin_observation(default_services_,
+                                                          {});
                         }),
                         Return(k_id_)));
     make_sut();

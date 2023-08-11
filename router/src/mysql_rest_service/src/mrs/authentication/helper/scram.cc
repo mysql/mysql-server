@@ -47,11 +47,6 @@ std::string as_string(const std::vector<T> &v) {
   return std::string(v.begin(), v.end());
 }
 
-template <typename T = uint8_t>
-std::vector<T> as_vector(const std::string &v) {
-  return std::vector<T>(v.begin(), v.end());
-}
-
 int64_t as_int64(const char *s) {
   int64_t i;
   if (1 == sscanf(s, "%" SCNd64, &i)) {

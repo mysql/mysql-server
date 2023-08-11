@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,7 @@ class HARNESS_EXPORT PluginState {
   mutable std::mutex mutex_guard_listeners_;
   MapOfListeners listeners_;
   Plugins running_plugins_;
+  Plugins stopped_plugins_;
   Plugins loaded_plugins_;
   std::shared_ptr<PluginStateObserver> default_observer_;
 };

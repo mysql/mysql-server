@@ -23,7 +23,10 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_WAIT_VARIABLE_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_WAIT_VARIABLE_H_
 
+#include <initializer_list>
+
 #include "helper/container/generic.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/monitor.h"
 
 template <typename ValueType>
@@ -34,8 +37,45 @@ class WaitableVariable {
 
   class DoNothing {
    public:
-    void operator()() {}
+    void operator()() const {}
   };
+
+  template <typename Callback = DoNothing>
+  bool exchange(const std::initializer_list<ValueType> expected,
+                const ValueType &v,
+                const Callback &after_set_callback = DoNothing()) {
+    bool result{false};
+    monitor_with_value_.serialize_with_cv([this, &expected, &v,
+                                           &after_set_callback,
+                                           &result](auto &value, auto &cv) {
+      if (helper::container::has(expected, value)) {
+        value = v;
+        result = true;
+        after_set_callback();
+        cv.notify_all();
+      }
+    });
+
+    return result;
+  }
+
+  template <typename Callback = DoNothing>
+  bool exchange(const ValueType &expected, const ValueType &v,
+                const Callback &after_set_callback = DoNothing()) {
+    bool result{false};
+    monitor_with_value_.serialize_with_cv([this, &expected, &v,
+                                           &after_set_callback,
+                                           &result](auto &value, auto &cv) {
+      if (expected == value) {
+        value = v;
+        result = true;
+        after_set_callback();
+        cv.notify_all();
+      }
+    });
+
+    return result;
+  }
 
   template <typename Callback = DoNothing>
   void set(const ValueType &v,
@@ -48,8 +88,8 @@ class WaitableVariable {
         });
   }
 
-  template <typename Container, typename Callback = DoNothing>
-  bool is(const Container &expected_values,
+  template <typename Callback = DoNothing>
+  bool is(std::initializer_list<ValueType> expected_values,
           const Callback &after_set_callback = Callback()) {
     bool result{false};
     monitor_with_value_.serialize_with_cv(
@@ -87,17 +127,21 @@ class WaitableVariable {
         });
   }
 
-  template <typename Container, typename Callback = DoNothing>
-  void wait(const Container &expected_values,
-            const Callback &callback = Callback()) {
-    monitor_with_value_.wait(
-        [this, &expected_values, &callback](const auto &current_value) {
-          if (helper::container::has(expected_values, current_value)) {
-            callback();
-            return true;
-          }
-          return false;
-        });
+  template <typename Callback = DoNothing>
+  ValueType wait(std::initializer_list<ValueType> expected_values,
+                 const Callback &callback = Callback()) {
+    ValueType result;
+    monitor_with_value_.wait([this, &expected_values, &callback,
+                              &result](const auto &current_value) {
+      if (helper::container::has(expected_values, current_value)) {
+        result = current_value;
+        callback();
+        return true;
+      }
+      return false;
+    });
+
+    return result;
   }
 
   template <class Rep, class Period, typename Callback = DoNothing>
@@ -114,13 +158,26 @@ class WaitableVariable {
         });
   }
 
-  template <class Rep, class Period, typename Container>
-  bool wait_for(const std::chrono::duration<Rep, Period> &rel_time,
-                const Container &expected_values) {
-    return monitor_with_value_.wait_for(
-        [this, &expected_values](const auto &current_value) {
-          return helper::container::has(expected_values, current_value);
-        });
+  template <class Rep, class Period, typename Callback = DoNothing>
+  stdx::expected<ValueType, bool> wait_for(
+      const std::chrono::duration<Rep, Period> &rel_time,
+      std::initializer_list<ValueType> expected_values,
+      const Callback &callback = Callback()) {
+    ValueType result;
+    if (monitor_with_value_.wait_for(
+            rel_time, [this, &expected_values, &result,
+                       &callback](const auto &current_value) {
+              if (helper::container::has(expected_values, current_value)) {
+                result = current_value;
+                callback();
+                return true;
+              }
+              return false;
+            })) {
+      return {result};
+    }
+
+    return {stdx::unexpect, true};
   }
 
  private:
