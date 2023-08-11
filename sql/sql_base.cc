@@ -6671,8 +6671,21 @@ err:
   statement, and if so, replace the opened tables with their secondary
   counterparts.
 
+  The secondary engine state is set according to these rules:
+  - If secondary engine operation is turned off, set state PRIMARY_ONLY
+  - If secondary engine operation is forced:
+      If operation can be evaluated in secondary engine, set state SECONDARY,
+      otherwise set state PRIMARY_ONLY.
+  - Otherwise, secondary engine state remains unchanged.
+
+  If state is SECONDARY, secondary engine tables are opened, unless there
+  is some property about the query or the environment that prevents this,
+  in which case the primary tables remain open. The caller must notice this
+  and issue exceptions according to its policy.
+
   @param thd       thread handler
   @param flags     bitmap of flags to pass to open_table
+
   @return true if an error is raised, false otherwise
 */
 static bool open_secondary_engine_tables(THD *thd, uint flags) {
@@ -6682,18 +6695,25 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // The previous execution context should have been destroyed.
   assert(lex->secondary_engine_execution_context() == nullptr);
 
-  // If use of secondary engines has been disabled for the statement,
-  // there is nothing to do.
-  if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
-    return false;
-
   // Save value of forced secondary engine, as it is not sufficiently persistent
   thd->set_secondary_engine_forced(thd->variables.use_secondary_engine ==
                                    SECONDARY_ENGINE_FORCED);
 
-  // If the user has requested the use of a secondary storage engine
-  // for this statement, skip past the initial optimization for the
-  // primary storage engine and go straight to the secondary engine.
+  // If use of primary engine is requested, set state accordingly
+  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
+    thd->set_secondary_engine_optimization(
+        Secondary_engine_optimization::PRIMARY_ONLY);
+    return false;
+  }
+  // Statements without Sql_cmd representations are for primary engine only:
+  if (sql_cmd == nullptr) {
+    thd->set_secondary_engine_optimization(
+        Secondary_engine_optimization::PRIMARY_ONLY);
+    return false;
+  }
+  // If use of a secondary storage engine is requested for this statement,
+  // skip past the initial optimization for the primary storage engine and
+  // go straight to the secondary engine.
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
       thd->is_secondary_engine_forced()) {
@@ -6711,9 +6731,10 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     }
   }
   // Only open secondary engine tables if use of a secondary engine
-  // has been requested.
-  if (thd->secondary_engine_optimization() !=
-      Secondary_engine_optimization::SECONDARY)
+  // has been requested, and access has not been disabled previously.
+  if (sql_cmd->secondary_storage_engine_disabled() ||
+      thd->secondary_engine_optimization() !=
+          Secondary_engine_optimization::SECONDARY)
     return false;
 
   // If the statement cannot be executed in a secondary engine because

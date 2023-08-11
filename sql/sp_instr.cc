@@ -774,10 +774,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     // Exit if a fatal error has occurred or statement execution was killed.
     if (thd->is_fatal_error() || thd->is_killed()) {
-      // Make sure next execution is started with a clean statement:
-      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
-        invalidate();
-      }
       return true;
     }
     int my_errno = thd->get_stmt_da()->mysql_errno();
@@ -811,13 +807,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           }
           continue;
         }
-      }
-      /*
-        If an error occurred before execution, make sure next execution is
-        started with a clean statement:
-      */
-      if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
-        invalidate();
       }
       assert(thd->is_error());
       return true;
