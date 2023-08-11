@@ -446,53 +446,6 @@ TCP_Transporter::doSend(bool need_wakeup)
                            remoteNodeId, nBytesSent, ndb_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
-      if (err == ENOMEM)
-      {
-        if (sum_sent != 0)
-        {
-          /**
-           * We've successfully sent something, so no need to stop the
-           * connection. Simply return as from a successful call that
-           * didn't succeed to send everything.
-           */
-          break;
-        }
-        /**
-         * ENOMEM means that the OS is out of memory buffers to handle
-         * the request. The manual on the OS calls says that one in this
-         * case should change the parameters, thus try to send less. One
-         * reason could be that the OS accessible memory is fragmented and
-         * it can find memory but not the size requested. If we fail with
-         * 2 kBytes there is no reason to proceed, the error is treated
-         * as a permanent error.
-         */
-        if (sum >= (IO_SIZE / 4))
-        {
-#ifdef VM_TRACE
-          g_eventLogger->info("send to node %u failed with ENOMEM",
-                              remoteNodeId);
-#endif
-          if (cnt > 1)
-          {
-            cnt = 1;
-            iov[0].iov_len = MIN(iov[0].iov_len, IO_SIZE);
-            continue;
-          }
-          else
-          {
-            if (iov[0].iov_len > IO_SIZE)
-            {
-              iov[0].iov_len = IO_SIZE;
-              continue;
-            }
-            else if (iov[0].iov_len >= (IO_SIZE / 2))
-            {
-              iov[0].iov_len /= 2;
-              continue;
-            }
-          }
-        }
-      }
       if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
         remain = 0;                    //Will stop retries of this send.
@@ -623,44 +576,9 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
           err,
           (char*)ndbstrerror(err));
 #endif
-        if (err == ENOMEM)
-        {
-          /**
-           * The OS had issues with the size, try with smaller sizes, but if
-           * not even sizes below 1 kB works then we will report it as a
-           * permanent error.
-           *
-           * At least in one version of Linux we have seen this error turn up
-           * even when lots of memory is available. One reason could be that
-           * memory in Linux kernel is too fragmented to be accessible and in
-           * one version of Linux it will return ENOMEM with the intention
-           * that the user should retry with a new set of parameters in the
-           * write call (meaning sending with a size that fits into one
-           * kernel page). This we start a resend with size set to 4 kByte,
-           * next try with 2 kByte and finally with 1 kByte. If even the
-           * attempt with 1 kByte fails, we will treat it as a permanent
-           * error.
-           */
-#ifdef VM_TRACE
-          g_eventLogger->info("recv from node %u failed with ENOMEM,"
-                              " size: %u",
-                              remoteNodeId,
-                              size);
-#endif
-          if (size > IO_SIZE)
-          {
-            size = IO_SIZE;
-            continue;
-          }
-          else if (size >= (IO_SIZE / 2))
-          {
-            size /= 2;
-            continue;
-          }
-        }
         if(DISCONNECT_ERRNO(err, nBytesRead))
         {
-	  if (!do_disconnect(err, false))
+          if (!do_disconnect(err, false))
           {
             return 0;
           }
