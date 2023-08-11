@@ -32,11 +32,11 @@ include/rpl_sync.inc
 # Registred SERVICE at path: /svc
 
 #
-## 1. GTID synchronization using SELECT WAIT_FOR..
-# Registred DB_SCHEMA at path: /svc/basic
-# Registred DB_OBJECT at path: /svc/basic/t1
-# Registred DB_OBJECT at path: /svc/basic/t2
-GET /svc/basic/t1
+## 1. GTID synchronization using WHERE WAIT_FOR..
+# Registred DB_SCHEMA at path: /svc/basic_where
+# Registred DB_OBJECT at path: /svc/basic_where/t1
+# Registred DB_OBJECT at path: /svc/basic_where/t2
+GET /svc/basic_where/t1
 {
     "items": [
         {
@@ -44,7 +44,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/1"
+                    "href": "/svc/basic_where/t1/1"
                 }
             ],
             "_metadata": {
@@ -56,7 +56,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/20"
+                    "href": "/svc/basic_where/t1/20"
                 }
             ],
             "_metadata": {
@@ -68,7 +68,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/30"
+                    "href": "/svc/basic_where/t1/30"
                 }
             ],
             "_metadata": {
@@ -80,7 +80,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/31"
+                    "href": "/svc/basic_where/t1/31"
                 }
             ],
             "_metadata": {
@@ -92,7 +92,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/50"
+                    "href": "/svc/basic_where/t1/50"
                 }
             ],
             "_metadata": {
@@ -104,7 +104,7 @@ GET /svc/basic/t1
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t1/100"
+                    "href": "/svc/basic_where/t1/100"
                 }
             ],
             "_metadata": {
@@ -119,18 +119,18 @@ GET /svc/basic/t1
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t1/"
+            "href": "/svc/basic_where/t1/"
         }
     ]
 }
 OK
-GET /svc/basic/t1/1
+GET /svc/basic_where/t1/1
 {
     "id": 1,
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t1/1"
+            "href": "/svc/basic_where/t1/1"
         }
     ],
     "_metadata": {
@@ -138,13 +138,13 @@ GET /svc/basic/t1/1
     }
 }
 OK
-GET /svc/basic/t1/20
+GET /svc/basic_where/t1/20
 {
     "id": 20,
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t1/20"
+            "href": "/svc/basic_where/t1/20"
         }
     ],
     "_metadata": {
@@ -152,7 +152,7 @@ GET /svc/basic/t1/20
     }
 }
 OK
-GET /svc/basic/t1/2
+GET /svc/basic_where/t1/2
 {
     "message": "Not Found",
     "status": 404
@@ -163,7 +163,7 @@ OK
     "count": 0
 }
 OK
-GET /svc/basic/t2
+GET /svc/basic_where/t2
 {
     "items": [
         {
@@ -173,7 +173,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/1"
+                    "href": "/svc/basic_where/t2/1"
                 }
             ],
             "comments": "First comment",
@@ -188,7 +188,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/2"
+                    "href": "/svc/basic_where/t2/2"
                 }
             ],
             "comments": null,
@@ -203,7 +203,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/3"
+                    "href": "/svc/basic_where/t2/3"
                 }
             ],
             "comments": null,
@@ -218,7 +218,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/4"
+                    "href": "/svc/basic_where/t2/4"
                 }
             ],
             "comments": "This row was inserted as forth row.",
@@ -233,7 +233,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/5"
+                    "href": "/svc/basic_where/t2/5"
                 }
             ],
             "comments": "",
@@ -248,7 +248,7 @@ GET /svc/basic/t2
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/6"
+                    "href": "/svc/basic_where/t2/6"
                 }
             ],
             "comments": "...",
@@ -264,12 +264,12 @@ GET /svc/basic/t2
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t2/"
+            "href": "/svc/basic_where/t2/"
         }
     ]
 }
 OK
-GET /svc/basic/t2/1
+GET /svc/basic_where/t2/1
 {
     "id": 1,
     "date": "1977-01-21 00:00:00.000000",
@@ -277,7 +277,7 @@ GET /svc/basic/t2/1
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t2/1"
+            "href": "/svc/basic_where/t2/1"
         }
     ],
     "comments": "First comment",
@@ -286,7 +286,7 @@ GET /svc/basic/t2/1
     }
 }
 OK
-GET /svc/basic/t2/200
+GET /svc/basic_where/t2/200
 {
     "message": "Not Found",
     "status": 404
@@ -302,7 +302,7 @@ OK
             "links": [
                 {
                     "rel": "self",
-                    "href": "/svc/basic/t2/3000"
+                    "href": "/svc/basic_where/t2/3000"
                 }
             ],
             "comments": null,
@@ -318,7 +318,7 @@ OK
     "links": [
         {
             "rel": "self",
-            "href": "/svc/basic/t2/"
+            "href": "/svc/basic_where/t2/"
         }
     ]
 }
