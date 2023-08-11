@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,9 @@ class PluginStateObserver {
  public:
   virtual ~PluginStateObserver() = default;
 
-  virtual void on_begin_observation([
-      [maybe_unused]] const std::vector<std::string> &active_plugins) {}
+  virtual void on_begin_observation(
+      [[maybe_unused]] const std::vector<std::string> &active_plugins,
+      [[maybe_unused]] const std::vector<std::string> &stopped_plugins) {}
   virtual void on_end_observation() {}
 
   virtual void on_plugin_register_waitable(

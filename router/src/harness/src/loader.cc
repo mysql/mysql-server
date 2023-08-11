@@ -901,6 +901,9 @@ void Loader::start_all() {
         call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
                              section->name.c_str(), section->key.c_str());
 
+        PluginState::get_instance()->dispatch_shutdown(
+            (section->name + ":" + section->key).c_str());
+
         // notify the signal-handler's cond-var about the plugin's exit-status
         ProcessStateComponent::get_instance()
             .shutdown_pending()

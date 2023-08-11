@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,18 +37,21 @@ namespace observers {
 
 class RecordActivePluginsObserver : public PluginStateObserver {
  public:
-  RecordActivePluginsObserver(Plugins &plugins) : plugins_{plugins} {}
+  RecordActivePluginsObserver(Plugins &active_plugins, Plugins &stopped_plugins)
+      : active_plugins_{active_plugins}, stopped_plugins_{stopped_plugins} {}
 
   void on_plugin_startup(const PluginState *,
                          const std::string &name) override {
-    plugins_.push_back(name);
+    active_plugins_.push_back(name);
   }
   void on_plugin_shutdown(const PluginState *,
                           const std::string &name) override {
-    std::remove(plugins_.begin(), plugins_.end(), name);
+    std::remove(active_plugins_.begin(), active_plugins_.end(), name);
+    stopped_plugins_.push_back(name);
   }
 
-  Plugins &plugins_;
+  Plugins &active_plugins_;
+  Plugins &stopped_plugins_;
 };
 
 }  // namespace observers
@@ -81,7 +84,7 @@ PluginState *PluginState::get_instance() {
 
 PluginState::PluginState() {
   default_observer_ = std::make_shared<observers::RecordActivePluginsObserver>(
-      running_plugins_);
+      running_plugins_, stopped_plugins_);
   push_back_observer(default_observer_);
 }
 
@@ -103,7 +106,7 @@ ObserverId PluginState::push_back_observer(
   listeners_[id] = psl;
   auto ptr = psl.lock();
   if (ptr) {
-    ptr->on_begin_observation(running_plugins_);
+    ptr->on_begin_observation(running_plugins_, stopped_plugins_);
   }
   return id;
 }

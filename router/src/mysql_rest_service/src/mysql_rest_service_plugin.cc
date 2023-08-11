@@ -137,6 +137,7 @@ static std::unique_ptr<mrs::PluginConfig> g_mrs_configuration;
 static std::unique_ptr<MrdsModule> g_mrds_module;
 
 static void init(mysql_harness::PluginFuncEnv *env) {
+  log_debug("init");
   const mysql_harness::AppInfo *info = get_app_info(env);
   std::vector<std::string> routing_instances;
   std::vector<std::string> meta_instances;
@@ -180,8 +181,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void run(mysql_harness::PluginFuncEnv *env) {
+  log_debug("run");
   try {
-    helper::PluginMonitor service_monitor;
     std::set<std::string> service_names;
     auto routing_plugins =
         g_mrs_configuration->get_waiting_for_routing_plugins();
@@ -189,9 +190,11 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     for (const auto &el : routing_plugins)
       service_names.insert("routing:" + el);
 
-    service_monitor.wait_for_services(service_names);
-    g_mrs_configuration->init_runtime_configuration(service_monitor);
-    g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
+    if (g_mrs_configuration->service_monitor_.wait_for_services(
+            service_names) &&
+        g_mrs_configuration->init_runtime_configuration()) {
+      g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
+    }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
@@ -203,6 +206,8 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  log_debug("deinit");
+  if (g_mrs_configuration) g_mrs_configuration->service_monitor_.abort();
   g_mrds_module.reset();
 }
 

@@ -26,7 +26,10 @@
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_CONTAINER_FIND_H_
 
 #include <algorithm>
+#include <cstdint>
+#include <set>
 #include <utility>
+#include <vector>
 
 namespace helper {
 namespace container {
@@ -110,6 +113,26 @@ void copy_if(const Container &input, Find_if &&find_if, Container &output) {
   for (auto &e : input) {
     if (find_if(e)) output.push_back(e);
   }
+}
+
+template <typename Container, typename Value = typename Container::value_type>
+std::vector<Value> as_vector(const Container &v) {
+  return std::vector<Value>(v.begin(), v.end());
+}
+
+template <typename Value = uint8_t, typename Container>
+std::vector<Value> as_vector_t(const Container &v) {
+  return as_vector<Container, Value>(v);
+}
+
+template <typename Container, typename Value = typename Container::value_type>
+std::set<Value> as_set(const Container &v) {
+  return std::set<Value>(v.begin(), v.end());
+}
+
+template <typename Value = uint8_t, typename Container>
+std::set<Value> as_set_t(const Container &v) {
+  return as_set<Container, Value>(v);
 }
 
 }  // namespace container

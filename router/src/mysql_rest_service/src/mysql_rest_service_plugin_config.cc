@@ -24,6 +24,7 @@
 
 #include <optional>
 
+#include "helper/container/generic.h"
 #include "helper/plugin_monitor.h"
 #include "helper/wait_variable.h"
 #include "mysql/harness/logging/logging.h"
@@ -93,17 +94,19 @@ class DestinationDynamic : public DestinationStatic {
               static_cast<int>(nodes_for_new_connections.size()));
 
     if (is_valid) {
-      state_.set(kOk, [this, &nodes_for_new_connections]() {
-        nodes_.resize(nodes_for_new_connections.size());
-        int idx{0};
-        for (auto &node : nodes_for_new_connections) {
-          nodes_[idx++] = node.address;
-        }
-      });
+      state_.exchange({kOk, kNoValidNodes}, kOk,
+                      [this, &nodes_for_new_connections]() {
+                        nodes_.resize(nodes_for_new_connections.size());
+                        int idx{0};
+                        for (auto &node : nodes_for_new_connections) {
+                          nodes_[idx++] = node.address;
+                        }
+                      });
       return;
     }
 
-    state_.set(kNoValidNodes, [this]() { nodes_.clear(); });
+    state_.exchange({kOk, kNoValidNodes}, kNoValidNodes,
+                    [this]() { nodes_.clear(); });
   }
 
  public:
@@ -122,15 +125,7 @@ class DestinationDynamic : public DestinationStatic {
     }
   }
 
-  ~DestinationDynamic() override {
-    if (it_.has_value()) {
-      DestinationNodesStateNotifier *notifier{nullptr};
-      auto routing = get_notifier(&notifier);
-      if (notifier) {
-        notifier->unregister_allowed_nodes_change_callback(it_.value());
-      }
-    }
-  }
+  ~DestinationDynamic() override { stop(); }
 
   class CopyNodes {
    public:
@@ -149,10 +144,10 @@ class DestinationDynamic : public DestinationStatic {
         state_.is(kOk, copy_nodes);
         break;
       case WaitingOp::kWaitUntilAvaiable:
-        state_.wait(kOk, copy_nodes);
+        state_.wait({kOk, kStopped}, copy_nodes);
         break;
       case WaitingOp::kWaitUntilTimeout:
-        state_.wait_for(std::chrono::seconds(1), kOk, copy_nodes);
+        state_.wait_for(std::chrono::seconds(1), {kOk, kStopped}, copy_nodes);
         break;
     }
 
@@ -171,12 +166,23 @@ class DestinationDynamic : public DestinationStatic {
     return result;
   }
 
+  void stop() {
+    if (!state_.is(kStopped)) {
+      DestinationNodesStateNotifier *notifier{nullptr};
+      auto routing = get_notifier(&notifier);
+      if (notifier) {
+        notifier->unregister_allowed_nodes_change_callback(it_.value());
+      }
+      state_.set(kStopped, [this]() { nodes_.clear(); });
+    }
+  }
+
  private:
-  enum State { kNotInitialized, kOk, kNoValidNodes };
+  enum State { kOk, kNoValidNodes, kStopped };
 
   std::string routing_plugin_name_;
   // Keep state, allow application to synchronize using the variable.
-  WaitableVariable<State> state_{kNotInitialized};
+  WaitableVariable<State> state_{kNoValidNodes};
   std::optional<AllowedNodesChangeCallbacksListIterator> it_;
 };
 
@@ -289,7 +295,7 @@ std::set<std::string> PluginConfig::get_waiting_for_routing_plugins() {
   return result;
 }
 
-void PluginConfig::init_runtime_configuration(helper::PluginMonitor &pm) {
+bool PluginConfig::init_runtime_configuration() {
   std::set<std::string> waiting_for_metadatacache_plugin;
   provider_rw_ =
       create_destination(routing_rw_, waiting_for_metadatacache_plugin);
@@ -301,7 +307,8 @@ void PluginConfig::init_runtime_configuration(helper::PluginMonitor &pm) {
   log_debug("provider_rw_=%p", provider_rw_.get());
   log_debug("provider_ro_=%p", provider_ro_.get());
 
-  pm.wait_for_services(waiting_for_metadatacache_plugin);
+  if (!service_monitor_.wait_for_services(waiting_for_metadatacache_plugin))
+    return false;
 
   if (!provider_ro_) provider_ro_ = provider_rw_;
 
@@ -311,6 +318,7 @@ void PluginConfig::init_runtime_configuration(helper::PluginMonitor &pm) {
   //    }
 
   is_https_ = HttpServerComponent::get_instance().is_ssl_configured();
+  return true;
 }
 
 bool PluginConfig::is_required(const std::string &option) const {
