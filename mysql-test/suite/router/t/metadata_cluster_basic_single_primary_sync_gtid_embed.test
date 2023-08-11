@@ -12,9 +12,9 @@
 
 --echo
 --echo #
---echo ## 1. GTID synchronization using SELECT WAIT_FOR..
---let $test_schema=basic
---let $test_options='{"query":{"wait":5}}'
+--echo ## 1. GTID synchronization using WHERE WAIT_FOR..
+--let $test_schema=basic_where
+--let $test_options='{"query":{"wait":5, "embed_wait":true}}'
 --let $test_obj1=t1
 --let $test_obj2=t2
 --source ../include/test_metadata_cluster_basic_single_primary_gtid.inc

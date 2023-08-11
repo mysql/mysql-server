@@ -8,29 +8,41 @@
 # --source ../include/predefined_setup/configure_router_mrs_root_with_gr.inc
 #
 
+if (!$dont_init_gr)
+{
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_server_count= 3
 --source include/group_replication.inc
 
 --source include/start_and_bootstrap_group_replication.inc
+}
 
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---let $s1_uuid=`SELECT @@GLOBAL.server_uuid`
---let $s1_port=$SERVER_MYPORT_1
+if (!$s1_port)
+{
+  --let $rpl_connection_name= server1
+  --source include/rpl_connection.inc
+  --let $s1_uuid=`SELECT @@GLOBAL.server_uuid`
+  --let $s1_port=$SERVER_MYPORT_1
+}
 
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
---source include/start_group_replication.inc
---let $s2_uuid=`SELECT @@GLOBAL.server_uuid`
---let $s2_port=$SERVER_MYPORT_2
+if (!$s2_port)
+{
+  --let $rpl_connection_name= server2
+  --source include/rpl_connection.inc
+  --source include/start_group_replication.inc
+  --let $s2_uuid=`SELECT @@GLOBAL.server_uuid`
+  --let $s2_port=$SERVER_MYPORT_2
+}
 
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
---source include/start_group_replication.inc
---let $s3_uuid=`SELECT @@GLOBAL.server_uuid`
---let $s3_port=$SERVER_MYPORT_3
+if (!$s3_port)
+{
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+  --source include/start_group_replication.inc
+  --let $s3_uuid=`SELECT @@GLOBAL.server_uuid`
+  --let $s3_port=$SERVER_MYPORT_3
+}
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -51,10 +63,13 @@ INSERT INTO mysql_innodb_cluster_metadata.async_cluster_members() VALUES(1,1,1,1
 --enable_result_log
 echo # * insert three RW and RO nodes into MySQL InnoDB Cluster.;
 
---source include/rpl_sync.inc
+if (!$dont_init_gr)
+{
+  --source include/rpl_sync.inc
+}
 
---let $extra_route_rw_port=`SELECT $ROUTER_PORT + 3000`
---let $extra_route_ro_port=`SELECT $ROUTER_PORT + 3001`
+--let $extra_route_rw_port=`SELECT $ROUTER_PORT + 10`
+--let $extra_route_ro_port=`SELECT $ROUTER_PORT + 11`
 --let $extra_rw_route=inno_rw
 --let $extra_ro_route=inno_ro
 --let $extra_metadata_user=root
@@ -64,7 +79,10 @@ echo # * insert three RW and RO nodes into MySQL InnoDB Cluster.;
 --let $extra_mrs_read_only_route=inno_ro
 --source ./configure_router_mrs_root_inner.inc
 
---source include/rpl_sync.inc
+if (!$dont_init_gr)
+{
+  --source include/rpl_sync.inc
+}
 
 --source ../mysqlrouter_mysql_connection.inc
 

@@ -49,7 +49,7 @@ if (! $extra_route_rw_port)
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"router_id=1\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"address=127.0.0.1\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"auth_cache_refresh_interval=4\n");
---eval SET @variable_extra_config = CONCAT(@variable_extra_config,"ttl=4\n");
+--eval SET @variable_extra_config = CONCAT(@variable_extra_config,"ttl=10\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"bootstrap_server_addresses=mysql://127.0.0.1:$SERVER_MYPORT_1\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"user=$extra_metadata_user\n");
 --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"metadata_cluster=my_cluster\n");
