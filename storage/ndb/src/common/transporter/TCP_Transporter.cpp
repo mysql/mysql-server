@@ -495,11 +495,13 @@ TCP_Transporter::doSend(bool need_wakeup)
       }
       if ((DISCONNECT_ERRNO(err, nBytesSent)))
       {
+        remain = 0;                    //Will stop retries of this send.
         if (!do_disconnect(err, true)) //Initiate pending disconnect
         {
-          return true;
+          // We are 'DISCONNECTING' asynch -> We may still attempt more sends.
+          // -> The send buffers still need to be maintained with the 'sum_sent'
+          // Fall through to break the send loop below.
         }
-        remain = 0;
       }
       break;
     }
