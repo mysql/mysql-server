@@ -142,7 +142,13 @@ ENDIF()
 ADD_LIBRARY(edit STATIC ${LIBEDIT_SOURCES})
 TARGET_LINK_LIBRARIES(edit ${CURSES_LIBRARY})
 ADD_DEPENDENCIES(edit libedit_vi libedit_emacs libedit_common libedit_fcns libedit_help libedit_func)
-
+# src/chared.c:679:2:
+# error: for loop initial declarations are only allowed in C99 mode
+# Do not extend CMAKE_C_FLAGS, as that will affect feature tests.
+ADD_COMPILE_FLAGS(
+  ${LIBEDIT_SOURCES}
+  COMPILE_FLAGS "-std=c99"
+  )
 
 # clang may complain:
 # converts between pointers to integer types with different sign
