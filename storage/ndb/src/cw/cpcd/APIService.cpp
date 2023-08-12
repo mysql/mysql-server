@@ -172,7 +172,6 @@ void CPCDAPISession::runSession() {
     }
   }
   m_secure_socket.close();
-  m_secure_socket.invalidate();
 }
 
 void CPCDAPISession::stopSession() {

@@ -397,7 +397,6 @@ MgmApiSession::~MgmApiSession()
   if(m_secure_socket.is_valid())
   {
     m_secure_socket.close();
-    m_secure_socket.invalidate();
   }
   if(m_stopSelf < 0)
     g_RestartServer= true;
@@ -492,7 +491,6 @@ MgmApiSession::runSession()
   if(m_secure_socket.is_valid())
   {
     m_secure_socket.close();
-    m_secure_socket.invalidate();
   }
   NdbMutex_Unlock(m_mutex);
 
@@ -1860,7 +1858,6 @@ done:
   {
     m_mgmsrv.m_event_listner.add_listener(le);
     m_stop = true;
-    m_secure_socket.invalidate();
   }
 }
 
@@ -1908,7 +1905,6 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
     }
     // Close the socket to indicate failure to client
     m_secure_socket.close_with_reset(close_with_reset);
-    m_secure_socket.invalidate(); // Already closed
   }
   else
   {

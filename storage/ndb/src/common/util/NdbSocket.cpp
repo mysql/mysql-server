@@ -177,7 +177,6 @@ bool NdbSocket::ssl_handshake() {
 
   log_ssl_error(desc);
   close();
-  invalidate();
   return false;
 }
 

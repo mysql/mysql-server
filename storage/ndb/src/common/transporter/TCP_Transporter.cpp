@@ -485,7 +485,6 @@ TCP_Transporter::shutdown()
     DEB_MULTI_TRP(("Close socket for trp %u",
                    getTransporterIndex()));
     theSocket.close();
-    theSocket.invalidate();
   }
   else
   {

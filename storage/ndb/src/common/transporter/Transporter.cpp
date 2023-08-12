@@ -183,7 +183,6 @@ bool Transporter::do_disconnect(int err, bool send_source)
       DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
                      getTransporterIndex()));
       theSocket.close();
-      theSocket.invalidate();
     }
     else
     {

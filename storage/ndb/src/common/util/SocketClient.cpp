@@ -226,7 +226,6 @@ SocketClient::authenticate(NdbSocket & secureSocket)
     g_eventLogger->error("Socket authentication failed: %s\n",
                          m_auth->error(r));
     secureSocket.close();
-    secureSocket.invalidate();
   }
   return r;
 }

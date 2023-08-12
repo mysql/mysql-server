@@ -48,7 +48,6 @@ public:
 
   void init_from_new(ndb_socket_t);
   void init_from_native(socket_t fd) { ndb_socket_init_from_native(s, fd); }
-  void invalidate();
   int is_valid() const               { return ndb_socket_valid(s); }
   bool has_tls() const               { return ssl; }
   ndb_socket_t ndb_socket() const    { return s; }
@@ -169,6 +168,8 @@ public:
   bool check_hup() const;
 
 private:
+  void invalidate_socket_handle();
+
   ssize_t ssl_recv(char * buf, size_t len) const;
   ssize_t ssl_peek(char * buf, size_t len) const;
   ssize_t ssl_send(const char * buf, size_t len) const;
@@ -229,9 +230,10 @@ NdbSocket& NdbSocket::operator=(NdbSocket && oth) {
 }
 
 inline
-void NdbSocket::invalidate() {
-  assert(ssl == nullptr);         // call close() before invalidate()
-  assert(mutex == nullptr);       // call close() before invalidate()
+void NdbSocket::invalidate_socket_handle() {
+  // call close() before invalidate_socket_handle()
+  assert(ssl == nullptr);
+  assert(mutex == nullptr);
   ndb_socket_invalidate(&s);
 }
 
@@ -268,13 +270,17 @@ inline
 int NdbSocket::close() {
   if(ssl) ssl_close();
   disable_locking();
-  return ndb_socket_close(s);
+  int r = ndb_socket_close(s);
+  invalidate_socket_handle();
+  return r;
 }
 
 inline
 void NdbSocket::close_with_reset(bool with_reset) {
   if(ssl) ssl_close();
+  disable_locking();
   ndb_socket_close_with_reset(s, with_reset);
+  invalidate_socket_handle();
 }
 
 /* ndb_socket_poller.h */
