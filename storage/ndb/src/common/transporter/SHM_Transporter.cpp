@@ -623,7 +623,6 @@ SHM_Transporter::disconnect_socket()
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
-  theSocket.invalidate();
   setupBuffersUndone();
   get_callback_obj()->unlock_transporter(m_transporter_index);
 }

@@ -319,11 +319,11 @@ Client::Client(const char * hostname) : SocketClient(nullptr),
 }
 
 NdbSocket & Client::connect_plain() {
+  require(!m_plain_socket.is_valid());
   ndb_sockaddr server_addr;
   if (Ndb_getAddr(&server_addr, m_server_host))
   {
     puts("Plain connection lookup server address failed.");
-    m_plain_socket.invalidate();
     return m_plain_socket;
   }
   server_addr.set_port(opt_port);
@@ -335,11 +335,11 @@ NdbSocket & Client::connect_plain() {
 }
 
 NdbSocket & Client::connect_tls() {
+  require(!m_tls_socket.is_valid());
   ndb_sockaddr server_addr;
   if (Ndb_getAddr(&server_addr, m_server_host))
   {
     puts("TLS connection lookup server address failed.");
-    m_tls_socket.invalidate();
     return m_tls_socket;
   }
   server_addr.set_port(opt_port + 1);
@@ -357,7 +357,7 @@ NdbSocket & Client::connect_tls() {
     }
     else NdbSocket::free_ssl(ssl);
     puts("TLS connection failed.");
-    m_tls_socket.invalidate();
+    m_tls_socket.close();
   }
   ndb_setsockopt(m_tls_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
                  & opt_tcp_no_delay);

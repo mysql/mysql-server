@@ -413,7 +413,6 @@ MgmApiSession::~MgmApiSession()
   if(m_secure_socket.is_valid())
   {
     m_secure_socket.close();
-    m_secure_socket.invalidate();
   }
   if(m_cert)
   {
@@ -514,7 +513,6 @@ MgmApiSession::runSession()
   if(m_secure_socket.is_valid())
   {
     m_secure_socket.close();
-    m_secure_socket.invalidate();
   }
   NdbMutex_Unlock(m_mutex);
 
@@ -2037,7 +2035,6 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
     }
     // Close the socket to indicate failure to client
     m_secure_socket.close_with_reset(close_with_reset);
-    m_secure_socket.invalidate(); // Already closed
   }
   else
   {

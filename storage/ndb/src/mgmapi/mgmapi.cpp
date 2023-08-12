@@ -721,7 +721,6 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
     {
       handle->connected= 0;
       handle->socket.close();
-      handle->socket.invalidate();
     }
   }
   return handle->connected;
@@ -1062,7 +1061,6 @@ int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
   handle->socket.close();
-  handle->socket.invalidate();
   handle->connected = 0;
 
   return 0;

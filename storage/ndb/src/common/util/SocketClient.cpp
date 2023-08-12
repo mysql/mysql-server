@@ -229,7 +229,6 @@ SocketClient::authenticate(NdbSocket & secureSocket)
                           m_auth->error(r));
     }
     secureSocket.close();
-    secureSocket.invalidate();
   }
   return r;
 }

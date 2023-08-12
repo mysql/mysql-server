@@ -74,20 +74,19 @@ err:
 void
 Loopback_Transporter::disconnectImpl()
 {
-  ndb_socket_t pair[] = { theSocket.ndb_socket(), m_send_socket };
-
   get_callback_obj()->lock_transporter(m_transporter_index);
 
-  theSocket.invalidate();
+  NdbSocket recv_sock = std::move(theSocket);
+  ndb_socket_t send_sock = m_send_socket;
   ndb_socket_invalidate(&m_send_socket);
 
   get_callback_obj()->unlock_transporter(m_transporter_index);
 
-  if (ndb_socket_valid(pair[0]))
-    ndb_socket_close(pair[0]);
+  if (recv_sock.is_valid())
+    recv_sock.close();
 
-  if (ndb_socket_valid(pair[1]))
-    ndb_socket_close(pair[1]);
+  if (ndb_socket_valid(send_sock))
+    ndb_socket_close(send_sock);
 }
 
 bool
