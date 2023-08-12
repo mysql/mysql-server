@@ -202,7 +202,7 @@ done:
   ndb_socket_get_port(m_sockfd, &m_last_used_port);
 
   // Transfer the fd to the NdbSocket
-  NdbSocket secureSocket{m_sockfd, NdbSocket::From::New};
+  NdbSocket secureSocket{m_sockfd};
   ndb_socket_invalidate(&m_sockfd);
   return secureSocket;
 }
