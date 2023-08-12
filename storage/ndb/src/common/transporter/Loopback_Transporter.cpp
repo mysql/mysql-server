@@ -59,7 +59,7 @@ Loopback_Transporter::connect_client()
     goto err;
   }
 
-  theSocket.init_from_new(pair[0]);
+  theSocket = NdbSocket{pair[0]};
   m_send_socket = pair[1];
 
   m_connected = true;

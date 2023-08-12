@@ -215,7 +215,7 @@ SocketServer::doAccept()
     ServiceInstance & si = m_services[i];
     assert(m_services_poller.is_socket_equal(i, si.m_socket));
 
-    NdbSocket childSock{ndb_accept(si.m_socket, nullptr), NdbSocket::From::New};
+    NdbSocket childSock{ndb_accept(si.m_socket, nullptr)};
     if (!childSock.is_valid())
     {
       // Could not 'accept' socket(maybe at max fds), indicate error

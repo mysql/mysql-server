@@ -72,7 +72,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   parse_mask.cpp
   random.cpp
   require.cpp
-  ssl_socket_table.cpp
   socket_io.cpp
   version.cpp
   LINK_LIBRARIES ndbtrace ndbportlib ext::zlib mysys

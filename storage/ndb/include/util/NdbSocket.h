@@ -29,25 +29,18 @@
 #include "portlib/ndb_socket.h"
 #include "portlib/ndb_socket_poller.h"
 #include "portlib/NdbMutex.h"
-#include "util/ssl_socket_table.h"
 
 static constexpr int TLS_BUSY_TRY_AGAIN = -2;
 
 class NdbSocket {
 public:
-  enum class From { New, Existing };
-
   NdbSocket() = default;
   NdbSocket(NdbSocket&& oth);
-  NdbSocket(ndb_socket_t ndbsocket, From fromType = From::New) {
-    ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
-    init_from_native(ndbsocket.s);
-  }
+  // TODO: move ndb_socket_t into NdbSocket
+  NdbSocket(ndb_socket_t ndbsocket): s(ndbsocket) {}
   ~NdbSocket()                       { disable_locking(); }
   NdbSocket& operator=(NdbSocket &&);
 
-  void init_from_new(ndb_socket_t);
-  void init_from_native(socket_t fd) { ndb_socket_init_from_native(s, fd); }
   int is_valid() const               { return ndb_socket_valid(s); }
   bool has_tls() const               { return ssl; }
   ndb_socket_t ndb_socket() const    { return s; }
@@ -196,12 +189,6 @@ private:
   NdbMutex * mutex{nullptr};
   ndb_socket_t s{INVALID_SOCKET};
 };
-
-inline
-void NdbSocket::init_from_new(ndb_socket_t ndbsocket) {
-  assert(! socket_table_get_ssl(ndbsocket.s, false));
-  init_from_native(ndbsocket.s);
-}
 
 /*
  * There must not be any concurrent operations on the source object (oth) while
