@@ -49,7 +49,7 @@ void xlog::reset_duration() {
 
 xlog::xlog():
 num_log_files_(NUM_LOG_FILES),
-num_uring_entries_(NUM_URING_SQES),
+num_uring_sqe_(NUM_URING_SQES),
 use_uring_(USE_URING),
 init_(false),
 next_lsn_(0),
@@ -67,13 +67,13 @@ xlog::~xlog() {
 
 }
 
-void xlog::init(
+void xlog::init_log(
   int num_log_file, 
-  int num_uring_entries,
+  int num_uring_sqe,
   bool use_iouring
 ) {
   num_log_files_ = num_log_file;
-  num_uring_entries_ = num_uring_entries;
+  num_uring_sqe_ = num_uring_sqe;
   use_uring_ = use_iouring;
   {
     std::unique_lock l(mutex_init_);
@@ -108,7 +108,7 @@ void xlog::start() {
   iouring_context_.params.flags |= IORING_SETUP_SQPOLL;
   iouring_context_.params.sq_thread_idle = SQ_THD_IDLE;
   
-  int ret = io_uring_queue_init_params(num_uring_entries_, &iouring_context_.ring, &iouring_context_.params);
+  int ret = io_uring_queue_init_params(num_uring_sqe_, &iouring_context_.ring, &iouring_context_.params);
   if (ret < 0) {
     panic("io_uring initialize parameter fail");
     return;
@@ -163,12 +163,24 @@ int xlog::append(void *buf, size_t size) {
   return 0;
 }
 
+
+uint64_t xlog::last_lsn() {
+  uint64_t lsn = next_lsn_.load();
+  if (lsn > 1) {
+    lsn -= 1;
+  }
+  return lsn;
+}
+
 int xlog::sync(size_t lsn) {
   auto start = std::chrono::high_resolution_clock::now();
   if (use_uring_) {
     io_event* e = new_io_event();
     e->type_ = EVENT_TYPE_FSYNC;
     e->event_.index_ = 0;
+    if (lsn == 0) {
+      lsn = last_lsn();
+    }
     e->event_.lsn_ = lsn;
     add_event(e);
     std::unique_lock<std::mutex> l(mutex_cond_);
@@ -233,7 +245,7 @@ int xlog::handle_event_list() {
           break;
         }
         num_events++;
-        if (num_events * 2 > (int) num_uring_entries_) {
+        if (num_events * 2 > (int) num_uring_sqe_) {
           break;
         }
       }
@@ -417,17 +429,6 @@ void log_uring_thread() {
   __global_xlog.start();
 }
 
-void log_uring_create(
-  int num_log_file, 
-  int num_uring_entries,
-  bool use_iouring
-) {
-  __global_xlog.init(
-      num_log_file, 
-      num_uring_entries,
-      use_iouring
-  );
-}
 
 xlog *get_xlog() {
   return &__global_xlog;

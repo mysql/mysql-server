@@ -87,5 +87,6 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   mytap
   server_unittest_library
   boost_thread
+  uring
   ${MYSQLD_EXTRA_LIBRARIES}
   )

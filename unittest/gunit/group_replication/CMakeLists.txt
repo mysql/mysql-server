@@ -54,6 +54,7 @@ FOREACH(test ${TESTS})
     mysqlclient
     mysqlgcs
     boost_thread
+    uring
     )
 ENDFOREACH()
 

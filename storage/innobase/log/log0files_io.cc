@@ -75,6 +75,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* srv_redo_log_encrypt */
 #include "srv0srv.h"
 
+
+#include "log_uring/duration.h"
+#include "log_uring/log_uring.h"
+
 Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
 
 bool log_header_checksum_is_ok(const byte *buf) {
@@ -309,6 +313,9 @@ void Log_file_handle::fsync() {
     return;
   }
 
+  log_sync_count_inc();
+  log_uring_sync(0);
+
   s_total_fsyncs.fetch_add(1, std::memory_order_relaxed);
   s_fsyncs_in_progress.fetch_add(1);
 
@@ -380,6 +387,9 @@ dberr_t Log_file_handle::write(os_offset_t write_offset, os_offset_t write_size,
   if (s_on_before_write) {
     s_on_before_write(m_file_id, m_file_type, write_offset, write_size);
   }
+  
+  log_append_count_inc();
+  log_uring_append((void*)buf, write_size);
 
   m_is_modified = true;
 

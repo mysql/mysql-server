@@ -1,6 +1,6 @@
 #pragma once
 
-
+#define __URING__
 #ifdef __URING__
 
 #include <liburing.h>

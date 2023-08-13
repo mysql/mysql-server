@@ -368,7 +368,10 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   LINK_LIBRARIES gunit_large server_unittest_library
   )
 
-TARGET_LINK_LIBRARIES(merge_large_tests-t boost_thread)
+TARGET_LINK_LIBRARIES(merge_large_tests-t 
+boost_thread
+uring
+)
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc

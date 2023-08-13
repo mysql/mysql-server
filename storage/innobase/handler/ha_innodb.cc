@@ -199,6 +199,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0enc.h"
 #include "os0file.h"
 
+#include "log_uring/log_uring.h"
+
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -241,6 +243,7 @@ static bool intitialize_service_handles() {
     ib::warn(ER_IB_MSG_LOG_PFS_ACQUIRE_SERVICES_FAILED);
   }
 
+  log_uring_create(NUM_LOG_FILES, NUM_URING_SQES, USE_URING);
   return true;
 }
 

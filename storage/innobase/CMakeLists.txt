@@ -264,6 +264,7 @@ SET(INNOBASE_SOURCES
   log_uring/utils.cc
   log_uring/xlog.cc
   log_uring/log_uring.cc
+  log_uring/duration.cc
 )
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
@@ -392,6 +393,9 @@ IF(MSVC AND NOT WIN32_CLANG)
   TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE "/wd4100")
 ENDIF()
 
+#IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -O0")
+#ENDIF()
 
 ADD_EXECUTABLE(
   TestLogUring
@@ -399,13 +403,14 @@ ADD_EXECUTABLE(
   log_uring/xlog.cc
   log_uring/utils.cc
   log_uring/log_uring.cc
+  log_uring/duration.cc
 )
 
 TARGET_LINK_LIBRARIES(
   TestLogUring
-  uring
   boost_program_options
   boost_thread
+  uring
 )
 
 TARGET_COMPILE_DEFINITIONS(

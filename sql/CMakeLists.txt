@@ -1122,6 +1122,11 @@ MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
 
+TARGET_COMPILE_DEFINITIONS(
+  mysqld
+  PUBLIC __URING__
+)
+
 # We depend on protobuf because of the mysqlx plugin and replication.
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
   ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqld)
@@ -1427,4 +1432,7 @@ ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
 
-TARGET_LINK_LIBRARIES(mysqld boost_thread)
+TARGET_LINK_LIBRARIES(mysqld 
+boost_thread
+uring
+)

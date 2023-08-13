@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <chrono>
 #include <sstream>
+#include <string>
 
 class op_duration {
   std::chrono::duration<double> duration_;
@@ -77,3 +78,8 @@ public:
     return ssm.str();
   }
 };
+
+
+void log_append_count_inc();
+void log_sync_count_inc();
+std::string log_stat_period();

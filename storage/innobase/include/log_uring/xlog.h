@@ -28,9 +28,9 @@ public:
   virtual ~xlog();
   
 
-  void init(
+  void init_log(
     int num_log_file, 
-    int num_uring_entries,
+    int num_uring_sqe,
     bool use_iouring
   );
 
@@ -77,8 +77,11 @@ private:
   // delete the io event
   static void delete_io_event(io_event*);
 
+
+  uint64_t last_lsn();
+
   size_t num_log_files_;
-  size_t num_uring_entries_;
+  size_t num_uring_sqe_;
   bool use_uring_;
   bool init_;
   std::mutex mutex_init_;
@@ -119,9 +122,7 @@ private:
 
 
 void log_uring_thread();
-void log_uring_create(  
-  int num_log_file, 
-  int num_uring_entries,
-  bool use_iouring
-);
+
+
+
 xlog *get_xlog();
