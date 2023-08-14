@@ -166,7 +166,7 @@ int xlog::append(void *buf, size_t size) {
 
 uint64_t xlog::last_lsn() {
   uint64_t lsn = next_lsn_.load();
-  if (lsn > 1) {
+  if (lsn >= 1) {
     lsn -= 1;
   }
   return lsn;

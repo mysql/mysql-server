@@ -2,6 +2,8 @@
 #include "log_uring/xlog.h"
 #include "log_uring/iouring.h"
 #include "log_uring/duration.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 #include <thread>
 #include <iostream>
 
@@ -9,7 +11,7 @@ void log_stat_thread() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     auto s = log_stat_period();
-    // std::cout << s << std::endl;
+    LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
   }
 }
 

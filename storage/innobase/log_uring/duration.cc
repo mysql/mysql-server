@@ -4,6 +4,8 @@
 struct log_stat {
 
   log_stat() {
+    append_count = 0;
+    sync_count = 0;
     start = std::chrono::steady_clock::now();
   }
 
@@ -33,5 +35,8 @@ std::string log_stat_period() {
     _stat.start = end;
     std::chrono::duration<double> duration = end - start;
     std::stringstream ssm;
-    ssm << "append/s: " << append / duration.count() << ", sync/s: " << sync / duration.count();
+    if (duration.count() > 0.000001) {
+      ssm << "append/s: " << append / duration.count() << ", sync/s: " << sync / duration.count();
+    }
+    return ssm.str();
 }
