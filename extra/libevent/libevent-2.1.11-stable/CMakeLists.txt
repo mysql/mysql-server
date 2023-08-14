@@ -19,6 +19,10 @@
 #       start libevent.sln
 #
 
+IF(APPLE)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-shorten-64-to-32")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wdangling-pointer" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")

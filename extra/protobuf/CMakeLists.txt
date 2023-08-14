@@ -32,6 +32,7 @@ ENDIF()
 # Xcode >= 14 makes noise about sprintf, so silence:
 IF(APPLE)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-shorten-64-to-32")
 ENDIF()
 
 # Inhibit warning messages
