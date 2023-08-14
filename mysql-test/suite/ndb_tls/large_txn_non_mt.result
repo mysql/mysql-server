@@ -1,0 +1,85 @@
+create table t1 (a int primary key) engine=ndb;
+create table t2 (a int primary key) engine=ndb;
+create procedure do_insert(count int)
+begin
+set @x = 0;
+repeat
+insert into t1 values
+(@x+0),  (@x+1),  (@x+2),  (@x+3),
+(@x+4),  (@x+5),  (@x+6),  (@x+7),
+(@x+8),  (@x+9),  (@x+10), (@x+11),
+(@x+12), (@x+13), (@x+14), (@x+15),
+(@x+16), (@x+17), (@x+18), (@x+19),
+(@x+20), (@x+21), (@x+22), (@x+23),
+(@x+24), (@x+25), (@x+26), (@x+27),
+(@x+28), (@x+29), (@x+30), (@x+31);
+set @x = @x + 32;
+until @x >= count
+end repeat;
+end %
+begin;
+call do_insert(500000);
+rollback;
+begin;
+call do_insert(500000);
+commit;
+begin;
+insert into t2 select * from t1;
+rollback;
+begin;
+insert into t2 select * from t1;
+commit;
+begin;
+delete from t2;
+commit;
+begin;
+delete from t1;
+commit;
+drop procedure do_insert;
+drop table t1,t2;
+##############################
+#
+# Bug#34189965
+#   DbAcc Validate(WITH_DEBUG) of Unique Key locks has
+#   exponential overhead.
+#
+# In order to guarante read consistency when using an unique index,
+# shared read locks are set (and held) on the rows. When e.g. a
+# join query join in the *same* row multiple times, each access
+# results in additional locks being set. Such locks are all added
+# to the same 'parallel queue' the the ACC block, which can end up
+# with thousands of locks in the same parallel queue.
+#
+# When debug compiled, ACC validates the consistency of the queues,
+# iterating the entire queue. The overhead of that may become so
+# huge that the block thread scheduler starts complaining about
+# being 'struck in thread', 'oversleept' and 'sleeploop 10!'
+create table t (
+pk int primary key,
+uq int,
+i int,
+unique key (uq),
+key(i)
+) engine = ndbcluster;
+create table t100000 (
+i int
+) engine = ndbcluster;
+insert into t values
+(0,0,1), (1,1,1), (2,2,1), (3,3,1), (4,4,1),
+(5,5,1), (6,6,1), (7,7,1), (8,8,1), (9,9,1);
+insert into t100000
+select t1.i from
+t as t1
+straight_join t as t2 on t2.i=t1.i
+straight_join t as t3 on t3.i=t2.i
+straight_join t as t4 on t4.i=t3.i
+straight_join t as t5 on t5.i=t4.i;
+set ndb_join_pushdown=off;
+select /*+ BKA(t) */ count(*) from
+t100000 as t1
+straight_join t on t.uq=t1.i;
+count(*)
+100000
+set ndb_join_pushdown=default;
+drop table t;
+drop table t100000;

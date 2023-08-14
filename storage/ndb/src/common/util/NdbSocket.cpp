@@ -188,7 +188,11 @@ static ssize_t handle_ssl_error(int err, const char * fn) {
       return 0;           // caller should close the socket
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
-      return TLS_BUSY_TRY_AGAIN;
+      // FIXME Bug#3569340:
+      //
+      // Note that for upper transporter layers we expect either 0 or -1
+      // to be returned in case of failures.
+      return TLS_BUSY_TRY_AGAIN;  // <- return -1;
     case SSL_ERROR_SYSCALL:
       return -1;          // caller should check errno and close the socket
     case SSL_ERROR_ZERO_RETURN:

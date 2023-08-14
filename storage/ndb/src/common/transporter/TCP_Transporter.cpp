@@ -413,19 +413,13 @@ TCP_Transporter::doSend(bool need_wakeup)
       }
     }
 
-    if (Uint32(nBytesSent) == remain)  //Completed this send
+    if (likely(Uint32(nBytesSent) == remain))  //Completed this send
     {
       sum_sent += nBytesSent;
       assert(sum >= sum_sent);
       remain = sum - sum_sent;
       //g_eventLogger->info("Sent %d bytes on trp %u", nBytesSent, getTransporterIndex());
       break;
-    }
-    else if (nBytesSent == TLS_BUSY_TRY_AGAIN)
-    {
-      // TLS is doing protocol layer stuff. We need to keep polling and
-      // trying to send until it is done.
-      return true;
     }
     else if (nBytesSent > 0)           //Sent some, more pending
     {
@@ -453,9 +447,15 @@ TCP_Transporter::doSend(bool need_wakeup)
         iov[pos].iov_base = ((char*)(iov[pos].iov_base))+nBytesSent;
       }
     }
-    else                               //Send failed, terminate
+    else                               //Send failed, handle or disconnect?
     {
       const int err = ndb_socket_errno();
+
+      if (nBytesSent == TLS_BUSY_TRY_AGAIN)
+      {
+        // In case TLS was 'BUSY' TransporterRegistry will send-retry later.
+        break;
+      }
 
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
@@ -584,7 +584,7 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 
       if(nBytesRead == TLS_BUSY_TRY_AGAIN) return TLS_BUSY_TRY_AGAIN;
 
-      if (nBytesRead > 0)
+      if (likely(nBytesRead > 0))
       {
         receiveBuffer.sizeOfData += nBytesRead;
         receiveBuffer.insertPtr  += nBytesRead;
