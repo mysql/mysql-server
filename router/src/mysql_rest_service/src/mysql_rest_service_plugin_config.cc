@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <initializer_list>
 #include <optional>
 
 #include "helper/container/generic.h"
@@ -71,6 +72,8 @@ class DestinationStatic : public collector::DestinationProvider {
 
 class DestinationDynamic : public DestinationStatic {
  private:
+  enum State { kOk, kNoValidNodes, kStopped };
+
   MySQLRoutingAPI get_notifier(DestinationNodesStateNotifier **out_notifier) {
     assert(out_notifier);
     auto &routing_component = MySQLRoutingComponent::get_instance();
@@ -83,30 +86,48 @@ class DestinationDynamic : public DestinationStatic {
     return routing;
   }
 
+  static auto get_address(const AvailableDestination &dest) {
+    return dest.address;
+  }
+  static auto get_address(const mysql_harness::TCPAddress &dest) {
+    return dest;
+  }
+
+  static const std::set<State> &get_expected_state(
+      bool apply_only_when_its_first_request = false) {
+    static std::set<State> for_first_request{kNoValidNodes};
+    static std::set<State> for_other_requests{kOk, kNoValidNodes};
+
+    if (apply_only_when_its_first_request) return for_first_request;
+    return for_other_requests;
+  }
+
+  template <typename Nodes>
   void callback_allowed_nodes_change(
-      const AllowedNodes &nodes_for_existing_connections [[maybe_unused]],
-      const AllowedNodes &nodes_for_new_connections,
+      const Nodes &nodes_for_existing_connections [[maybe_unused]],
+      const Nodes &nodes_for_new_connections,
       const bool disconnected [[maybe_unused]],
-      const std::string &res [[maybe_unused]]) {
+      const std::string &res [[maybe_unused]],
+      bool apply_only_when_its_first_request = false) {
     auto is_valid = !nodes_for_new_connections.empty();
 
     log_debug("Received destination addresses update: %i",
               static_cast<int>(nodes_for_new_connections.size()));
 
     if (is_valid) {
-      state_.exchange({kOk, kNoValidNodes}, kOk,
-                      [this, &nodes_for_new_connections]() {
+      state_.exchange(get_expected_state(apply_only_when_its_first_request),
+                      kOk, [this, &nodes_for_new_connections]() {
                         nodes_.resize(nodes_for_new_connections.size());
                         int idx{0};
                         for (auto &node : nodes_for_new_connections) {
-                          nodes_[idx++] = node.address;
+                          nodes_[idx++] = get_address(node);
                         }
                       });
       return;
     }
 
-    state_.exchange({kOk, kNoValidNodes}, kNoValidNodes,
-                    [this]() { nodes_.clear(); });
+    state_.exchange(get_expected_state(apply_only_when_its_first_request),
+                    kNoValidNodes, [this]() { nodes_.clear(); });
   }
 
  public:
@@ -122,6 +143,12 @@ class DestinationDynamic : public DestinationStatic {
             callback_allowed_nodes_change(for_existing_con, for_new_con, disc,
                                           reason);
           });
+      auto dest = routing.get_destinations();
+      if (!dest.empty()) {
+        std::string reason;
+        const bool k_first_init = true;
+        callback_allowed_nodes_change({}, dest, false, reason, k_first_init);
+      }
     }
   }
 
@@ -178,8 +205,6 @@ class DestinationDynamic : public DestinationStatic {
   }
 
  private:
-  enum State { kOk, kNoValidNodes, kStopped };
-
   std::string routing_plugin_name_;
   // Keep state, allow application to synchronize using the variable.
   WaitableVariable<State> state_{kNoValidNodes};

@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "keyring/keyring_manager.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -181,7 +182,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void run(mysql_harness::PluginFuncEnv *env) {
+  my_thread_self_setname("MRS main");
   log_debug("run");
+  using namespace std::chrono_literals;
   try {
     std::set<std::string> service_names;
     auto routing_plugins =
@@ -190,6 +193,7 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     for (const auto &el : routing_plugins)
       service_names.insert("routing:" + el);
 
+    std::this_thread::sleep_for(20s);
     if (g_mrs_configuration->service_monitor_.wait_for_services(
             service_names) &&
         g_mrs_configuration->init_runtime_configuration()) {

@@ -40,9 +40,9 @@ class WaitableVariable {
     void operator()() const {}
   };
 
-  template <typename Callback = DoNothing>
-  bool exchange(const std::initializer_list<ValueType> expected,
-                const ValueType &v,
+  template <typename Container = std::initializer_list<ValueType>,
+            typename Callback = DoNothing>
+  bool exchange(const Container &expected, const ValueType &v,
                 const Callback &after_set_callback = DoNothing()) {
     bool result{false};
     monitor_with_value_.serialize_with_cv([this, &expected, &v,
@@ -78,6 +78,18 @@ class WaitableVariable {
   }
 
   template <typename Callback = DoNothing>
+  ValueType get(const Callback &after_get_callback = DoNothing()) {
+    ValueType result;
+    monitor_with_value_.serialize_with_cv(
+        [this, &result, &after_get_callback](auto &current_value, auto &) {
+          result = current_value;
+          after_get_callback();
+        });
+
+    return result;
+  }
+
+  template <typename Callback = DoNothing>
   void set(const ValueType &v,
            const Callback &after_set_callback = DoNothing()) {
     monitor_with_value_.serialize_with_cv(
@@ -90,26 +102,26 @@ class WaitableVariable {
 
   template <typename Callback = DoNothing>
   bool is(std::initializer_list<ValueType> expected_values,
-          const Callback &after_set_callback = Callback()) {
+          const Callback &after_is_callback = Callback()) {
     bool result{false};
     monitor_with_value_.serialize_with_cv(
-        [this, &result, &expected_values, &after_set_callback](
+        [this, &result, &expected_values, &after_is_callback](
             auto &current_value, auto &) {
           result = helper::container::has(expected_values, current_value);
-          if (result) after_set_callback();
+          if (result) after_is_callback();
         });
     return result;
   }
 
   template <typename Callback = DoNothing>
   bool is(const ValueType &expected_value,
-          const Callback &after_set_callback = Callback()) {
+          const Callback &after_is_callback = Callback()) {
     bool result{false};
     monitor_with_value_.serialize_with_cv(
-        [this, &result, &expected_value, &after_set_callback](
+        [this, &result, &expected_value, &after_is_callback](
             auto &current_value, auto &) {
           result = (expected_value == current_value);
-          if (result) after_set_callback();
+          if (result) after_is_callback();
         });
     return result;
   }
