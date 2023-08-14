@@ -1344,17 +1344,19 @@ static std::optional<size_t> target_cluster_pos(
 
 std::optional<metadata_cache::metadata_server_t>
 GRClusterSetMetadataBackend::find_rw_server() {
-  for (auto &cluster : (*cluster_topology_).clusters_data) {
-    if (!cluster.is_primary) continue;
+  if (cluster_topology_) {
+    for (auto &cluster : (*cluster_topology_).clusters_data) {
+      if (!cluster.is_primary) continue;
 
-    log_debug("Updating the status of cluster '%s' to find the writable node",
-              cluster.name.c_str());
+      log_debug("Updating the status of cluster '%s' to find the writable node",
+                cluster.name.c_str());
 
-    // we need to connect to the Primary Cluster and query its GR status to
-    // figure out the current Primary node
-    metadata_->update_cluster_status(cluster);
+      // we need to connect to the Primary Cluster and query its GR status to
+      // figure out the current Primary node
+      metadata_->update_cluster_status(cluster);
 
-    return metadata_->find_rw_server(cluster.members);
+      return metadata_->find_rw_server(cluster.members);
+    }
   }
 
   return std::nullopt;
