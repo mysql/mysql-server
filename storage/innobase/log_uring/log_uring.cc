@@ -11,7 +11,11 @@ void log_stat_thread() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     auto s = log_stat_period();
+  #ifdef __MYSQLD__
     LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
+  #else
+    std::cout << s << std::endl;
+  #endif
   }
 }
 

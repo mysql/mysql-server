@@ -1124,7 +1124,7 @@ MYSQL_ADD_EXECUTABLE(mysqld
 
 TARGET_COMPILE_DEFINITIONS(
   mysqld
-  PUBLIC __URING__
+  PUBLIC __URING__ __MYSQLD__
 )
 
 # We depend on protobuf because of the mysqlx plugin and replication.
