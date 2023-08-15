@@ -2204,20 +2204,25 @@ Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
   }
 
   /* Look for already available events without polling transporter. */
-  const int found = theEventBuffer->pollEvents(highestQueuedEpoch);
-  if (found)
-    return found;
+  int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (!found)
+  {
+    /**
+     * We need to poll the transporter, and possibly wait, to make sure
+     * that arrived events are delivered to their clients as soon as possible.
+     * ::trp_deliver_signal() will wakeup the client when event arrives.
+     */
+    PollGuard poll_guard(* theImpl);
+    poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+    // PollGuard ends here
 
-  /**
-   * We need to poll the transporter, and possibly wait, to make sure
-   * that arrived events are delivered to their clients as soon as possible.
-   * ::trp_deliver_signal() will wakeup the client when event arrives.
-   */
-  PollGuard poll_guard(* theImpl);
-  poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
-  // PollGuard ends here
+    found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  }
 
-  return theEventBuffer->pollEvents(highestQueuedEpoch);
+  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+    *highestQueuedEpoch = NDB_FAILURE_GCI;
+
+  return found;
 }
 
 bool
