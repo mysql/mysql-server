@@ -949,6 +949,11 @@ EXPLAIN
 -> Filter: (t1.c = floor(rand(0)))  (rows=16) (actual rows=16 loops=1)
     -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
 
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))=c;
+EXPLAIN
+-> Filter: (floor(rand(0)) = t1.c)  (rows=16) (actual rows=16 loops=1)
+    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE d=FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.d = floor(rand(0)))  (rows=4) (actual rows=16 loops=1)
@@ -997,6 +1002,11 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>FLOOR(RAND(0));
 EXPLAIN
 -> Filter: (t1.c <> floor(rand(0)))  (rows=240) (actual rows=240 loops=1)
+    -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
+
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))<>c;
+EXPLAIN
+-> Filter: (floor(rand(0)) <> t1.c)  (rows=240) (actual rows=240 loops=1)
     -> Table scan on t1  (rows=256) (actual rows=256 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b<>(SELECT MIN(b) FROM t1);

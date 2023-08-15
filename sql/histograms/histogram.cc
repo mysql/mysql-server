@@ -1964,12 +1964,13 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
       assert(item_count == 2);
       /*
         Verify that one side of the predicate is a column/field, and that the
-        other side is a constant value.
+        other side is a constant value (except for EQUALS_TO and NOT_EQUALS_TO).
 
-        Make sure that we have the constant item as the right side argument of
+        Make sure that we have the field item as the left side argument of
         the predicate internally.
       */
-      if (items[0]->const_item() && items[1]->type() == Item::FIELD_ITEM) {
+      if (items[0]->type() != Item::FIELD_ITEM &&
+          items[1]->type() == Item::FIELD_ITEM) {
         // Flip the operators as well as the operator itself.
         switch (op) {
           case enum_operator::GREATER_THAN:
@@ -1991,10 +1992,9 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
         items_flipped[0] = items[1];
         items_flipped[1] = items[0];
         return get_selectivity(items_flipped, item_count, op, selectivity);
-      } else if ((items[0]->type() != Item::FIELD_ITEM ||
-                  !items[1]->const_item()) &&
-                 op != enum_operator::EQUALS_TO &&
-                 op != enum_operator::NOT_EQUALS_TO) {
+      } else if (items[0]->type() != Item::FIELD_ITEM ||
+                 (!items[1]->const_item() && op != enum_operator::EQUALS_TO &&
+                  op != enum_operator::NOT_EQUALS_TO)) {
         return true;
       }
       break;

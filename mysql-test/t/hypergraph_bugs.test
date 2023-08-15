@@ -781,6 +781,11 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b=FLOOR(RAND(0));
 --replace_regex $elide_costs_and_time
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c=FLOOR(RAND(0));
 
+# Make estimate from histogram, even if value is unknown. Note that the field
+# is on the right hand side of '='.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))=c;
+
 # Make estimate from second field of index. Since 'b' and 'd' are independent,
 # the estimate will be too low.
 --replace_regex $elide_costs_and_time
@@ -823,6 +828,11 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b<>FLOOR(RAND(0));
 # Make estimate from histogram, even if value is unknown.
 --replace_regex $elide_costs_and_time
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE c<>FLOOR(RAND(0));
+
+# Make estimate from histogram, even if value is unknown. Note that the field
+# is on the right hand side of '<>'.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE FLOOR(RAND(0))<>c;
 
 # Make estimate from index, even if value is unknown.
 --replace_regex $elide_costs_and_time
