@@ -27,6 +27,7 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <memory>
 
 #include "field_types.h"
 #include "m_string.h"
@@ -109,7 +110,7 @@ IndexRangeScanIterator::~IndexRangeScanIterator() {
                  ("Freeing separate handler %p (free: %d)", file, free_file));
       file->ha_external_lock(thd(), F_UNLCK);
       file->ha_close();
-      destroy(file);
+      ::destroy_at(file);
     }
   }
   my_free(mrr_buf_desc);

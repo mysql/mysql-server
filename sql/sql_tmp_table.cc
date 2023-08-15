@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <new>
 #include <utility>
 #include <vector>
@@ -570,7 +571,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   HEAP_MAX_KEY_LENGTH = handler->max_key_length();
   HEAP_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   HEAP_MAX_KEY_PARTS = handler->max_key_parts();
-  destroy(handler);
+  ::destroy_at(handler);
   plugin_unlock(nullptr, db_plugin);
   // Cache TempTable engine's
   db_plugin = ha_lock_engine(nullptr, temptable_hton);
@@ -579,7 +580,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   TEMPTABLE_MAX_KEY_LENGTH = handler->max_key_length();
   TEMPTABLE_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   TEMPTABLE_MAX_KEY_PARTS = handler->max_key_parts();
-  destroy(handler);
+  ::destroy_at(handler);
   plugin_unlock(nullptr, db_plugin);
   // Cache INNODB engine's
   db_plugin = ha_lock_engine(nullptr, innodb_hton);
@@ -598,7 +599,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   */
   INNODB_MAX_KEY_PART_LENGTH = 3072;
   INNODB_MAX_KEY_PARTS = handler->max_key_parts();
-  destroy(handler);
+  ::destroy_at(handler);
   plugin_unlock(nullptr, db_plugin);
 }
 
@@ -2026,7 +2027,9 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
 
   return table;
 error:
-  for (reg_field = table->field; *reg_field; ++reg_field) destroy(*reg_field);
+  for (reg_field = table->field; *reg_field != nullptr; ++reg_field) {
+    ::destroy_at(*reg_field);
+  }
   return nullptr;
 }
 
@@ -2163,7 +2166,7 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
   table->file->change_table_ptr(table, share);
 
   if (table->file->set_ha_share_ref(&share->ha_share)) {
-    destroy(table->file);
+    ::destroy_at(table->file);
     return true;
   }
 
@@ -2465,7 +2468,7 @@ void close_tmp_table(TABLE *table) {
     table->set_deleted();
   }
 
-  destroy(table->file);
+  ::destroy_at(table->file);
   table->file = nullptr;
 
   if (--share->tmp_handler_count == 0 && share->db_plugin != nullptr) {
@@ -2511,7 +2514,7 @@ void free_tmp_table(TABLE *table) {
   if (share->decrement_ref_count() == 0)  // no more TABLE objects
   {
     MEM_ROOT own_root = std::move(share->mem_root);
-    destroy(table);
+    ::destroy_at(table);
     own_root.Clear();
   }
 }
@@ -2813,7 +2816,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       Replace the guts of the old table with the new one, although keeping
       most members.
     */
-    destroy(table->file);
+    ::destroy_at(table->file);
     table->s = new_table.s;
     table->file = new_table.file;
     table->db_stat = new_table.db_stat;
@@ -2881,7 +2884,7 @@ err_after_open:
 err_after_create:
   new_table.file->ha_delete_table(new_table.s->table_name.str, nullptr);
 err_after_alloc:
-  destroy(new_table.file);
+  ::destroy_at(new_table.file);
 err_after_proc_info:
   thd_proc_info(thd, save_proc_info);
   // New share took control of old share mem_root; regain control:

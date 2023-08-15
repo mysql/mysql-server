@@ -34,6 +34,7 @@
 #include <cmath>
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>  // std::forward
@@ -853,7 +854,10 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator) {
     return false;
   }
 
-  destroy(aggr);
+  if (aggr != nullptr) {
+    ::destroy_at(aggr);
+    aggr = nullptr;
+  }
   switch (aggregator) {
     case Aggregator::DISTINCT_AGGREGATOR:
       aggr = new (*THR_MALLOC) Aggregator_distinct(this);
@@ -867,7 +871,7 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator) {
 
 void Item_sum::cleanup() {
   if (aggr != nullptr) {
-    destroy(aggr);
+    ::destroy_at(aggr);
     aggr = nullptr;
   }
   Item_result_field::cleanup();
@@ -2114,8 +2118,8 @@ bool Aggregator_distinct::unique_walk_function(void *element) {
 }
 
 Aggregator_distinct::~Aggregator_distinct() {
-  if (tree) {
-    destroy(tree);
+  if (tree != nullptr) {
+    ::destroy_at(tree);
     tree = nullptr;
   }
   if (table) {
@@ -2124,8 +2128,8 @@ Aggregator_distinct::~Aggregator_distinct() {
     free_tmp_table(table);
     table = nullptr;
   }
-  if (tmp_table_param) {
-    destroy(tmp_table_param);
+  if (tmp_table_param != nullptr) {
+    ::destroy_at(tmp_table_param);
     tmp_table_param = nullptr;
   }
 }
@@ -4296,10 +4300,12 @@ void Item_func_group_concat::cleanup() {
     to original item from which was made copy => it own its objects )
   */
   if (original == nullptr) {
-    destroy(tmp_table_param);
-    tmp_table_param = nullptr;
+    if (tmp_table_param != nullptr) {
+      ::destroy_at(tmp_table_param);
+      tmp_table_param = nullptr;
+    }
     if (table != nullptr) {
-      if (table->blob_storage) destroy(table->blob_storage);
+      if (table->blob_storage != nullptr) ::destroy_at(table->blob_storage);
       close_tmp_table(table);
       free_tmp_table(table);
       table = nullptr;
@@ -4307,8 +4313,8 @@ void Item_func_group_concat::cleanup() {
         delete_tree(tree);
         tree = nullptr;
       }
-      if (unique_filter) {
-        destroy(unique_filter);
+      if (unique_filter != nullptr) {
+        ::destroy_at(unique_filter);
         unique_filter = nullptr;
       }
     }
@@ -4877,7 +4883,7 @@ void Item_rank::clear() {
 
 Item_rank::~Item_rank() {
   for (Cached_item *ci : m_previous) {
-    destroy(ci);
+    ::destroy_at(ci);
   }
   m_previous.clear();
 }

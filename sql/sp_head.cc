@@ -1905,9 +1905,9 @@ sp_head::~sp_head() {
   // Parsing of SP-body must have been already finished.
   assert(!m_parser_data.is_parsing_sp_body());
 
-  for (uint ip = 0; (i = get_instr(ip)); ip++) ::destroy(i);
+  for (uint ip = 0; (i = get_instr(ip)) != nullptr; ip++) ::destroy_at(i);
 
-  ::destroy(m_root_parsing_ctx);
+  ::destroy_at(m_root_parsing_ctx);
 
   /*
     If we have non-empty LEX stack then we just came out of parser with
@@ -1991,7 +1991,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
     }
   }
 
-  ::destroy(field);
+  ::destroy_at(field);
 }
 
 bool sp_head::execute(THD *thd, bool merge_da_on_success) {
@@ -2560,7 +2560,7 @@ err_with_cleanup:
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
-  ::destroy(trigger_runtime_ctx);
+  ::destroy_at(trigger_runtime_ctx);
   call_arena.free_items();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
@@ -2790,7 +2790,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   m_security_ctx.restore_security_context(thd, save_security_ctx);
 
 err_with_cleanup:
-  ::destroy(func_runtime_ctx);
+  ::destroy_at(func_runtime_ctx);
   call_arena.free_items();
   call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
@@ -2843,7 +2843,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   if (!proc_runtime_ctx) {
     thd->sp_runtime_ctx = sp_runtime_ctx_saved;
 
-    if (!sp_runtime_ctx_saved) ::destroy(parent_sp_runtime_ctx);
+    if (sp_runtime_ctx_saved != nullptr) ::destroy_at(parent_sp_runtime_ctx);
 
     return true;
   }
@@ -3011,9 +3011,10 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   if (save_security_ctx)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
 
-  if (!sp_runtime_ctx_saved) ::destroy(parent_sp_runtime_ctx);
+  if (sp_runtime_ctx_saved == nullptr && parent_sp_runtime_ctx != nullptr)
+    ::destroy_at(parent_sp_runtime_ctx);
 
-  ::destroy(proc_runtime_ctx);
+  ::destroy_at(proc_runtime_ctx);
   thd->sp_runtime_ctx = sp_runtime_ctx_saved;
   thd->pop_lock_usec(lock_usec_before_sp_exec);
 
@@ -3193,7 +3194,7 @@ void sp_head::optimize() {
   src = dst = 0;
   while ((i = get_instr(src))) {
     if (!i->opt_is_marked()) {
-      ::destroy(i);
+      ::destroy_at(i);
       src += 1;
     } else {
       if (src != dst) {

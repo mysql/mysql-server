@@ -24,6 +24,7 @@
 
 #include <stdarg.h>
 #include <boost/graph/properties.hpp>
+#include <memory>
 #include <new>
 
 #include "m_string.h"  // LEX_CSTRING
@@ -2451,13 +2452,13 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         LogErr(WARNING_LEVEL,
                ER_AUTHCACHE_PROCS_PRIV_ENTRY_IGNORED_BAD_ROUTINE_TYPE,
                mem_check->tname);
-        destroy(mem_check);
+        ::destroy_at(mem_check);
         goto next_record;
       }
 
       mem_check->privs = fix_rights_for_procedure(mem_check->privs);
       if (!mem_check->ok()) {
-        destroy(mem_check);
+        ::destroy_at(mem_check);
       } else {
         hash->emplace(mem_check->hash_key,
                       unique_ptr_destroy_only<GRANT_NAME>(mem_check));
@@ -2550,7 +2551,7 @@ static bool grant_load(THD *thd, Table_ref *tables) {
       }
 
       if (mem_check->init(c_table)) {
-        destroy(mem_check);
+        ::destroy_at(mem_check);
         goto end_unlock;
       }
 
@@ -2564,7 +2565,7 @@ static bool grant_load(THD *thd, Table_ref *tables) {
       }
 
       if (!mem_check->ok()) {
-        destroy(mem_check);
+        ::destroy_at(mem_check);
       } else {
         column_priv_hash->emplace(
             mem_check->hash_key,

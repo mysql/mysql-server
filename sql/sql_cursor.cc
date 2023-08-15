@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <memory>
 #include <utility>  // move
 
 #include "memory_debugging.h"
@@ -112,7 +113,9 @@ class Query_result_materialize final : public Query_result_union {
  public:
   Query_result_materialize(Query_result *result_arg)
       : Query_result_union(), m_result(result_arg) {}
-  ~Query_result_materialize() override { destroy(m_cursor); }
+  ~Query_result_materialize() override {
+    if (m_cursor != nullptr) ::destroy_at(m_cursor);
+  }
   void set_result(Query_result *result_arg) {
     m_result = result_arg;
     if (m_cursor != nullptr) {
@@ -472,7 +475,7 @@ bool Query_result_materialize::prepare(THD *thd,
   if (create_result_table(thd, *unit->get_unit_column_types(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", false, false)) {
-    destroy(m_cursor);
+    ::destroy_at(m_cursor);
     return true;
   }
   m_cursor->set_table(table);

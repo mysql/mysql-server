@@ -36,6 +36,7 @@
 #include <bitset>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <random>  // std::mt19937
 #include <set>
@@ -3658,7 +3659,9 @@ class Alter_inplace_info {
         handler_trivial_ctx(0),
         unsupported_reason(nullptr) {}
 
-  ~Alter_inplace_info() { destroy(handler_ctx); }
+  ~Alter_inplace_info() {
+    if (handler_ctx != nullptr) ::destroy_at(handler_ctx);
+  }
 
   /**
     Used after check_if_supported_inplace_alter() to report

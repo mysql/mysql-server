@@ -23,6 +23,7 @@
 #include "sql/sp_rcontext.h"
 
 #include <atomic>
+#include <memory>
 #include <new>
 
 #include "my_alloc.h"
@@ -64,9 +65,9 @@ sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
       m_ccount(0) {}
 
 sp_rcontext::~sp_rcontext() {
-  if (m_var_table) {
+  if (m_var_table != nullptr) {
     free_blobs(m_var_table);
-    destroy(m_var_table);
+    ::destroy_at(m_var_table);
   }
 
   delete_container_pointers(m_activated_handlers);
@@ -86,7 +87,7 @@ sp_rcontext *sp_rcontext::create(THD *thd, const sp_pcontext *root_parsing_ctx,
 
   if (ctx->alloc_arrays(thd) || ctx->init_var_table(thd) ||
       ctx->init_var_items(thd)) {
-    destroy(ctx);
+    ::destroy_at(ctx);
     return nullptr;
   }
 

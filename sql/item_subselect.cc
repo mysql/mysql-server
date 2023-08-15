@@ -34,6 +34,7 @@
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -314,9 +315,9 @@ void Item_subselect::cleanup() {
   Item_result_field::cleanup();
   if (m_query_result != nullptr) m_query_result->cleanup();
 
-  if (indexsubquery_engine) {
+  if (indexsubquery_engine != nullptr) {
     indexsubquery_engine->cleanup();
-    destroy(indexsubquery_engine);
+    ::destroy_at(indexsubquery_engine);
     indexsubquery_engine = nullptr;
   }
   reset();
@@ -525,7 +526,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
       Delete all materialization-related objects, and return error.
     */
     new_engine->cleanup();
-    destroy(new_engine);
+    ::destroy_at(new_engine);
     return true;
   }
   indexsubquery_engine = new_engine;
@@ -538,7 +539,7 @@ void Item_in_subselect::cleanup() {
   DBUG_TRACE;
   if (m_left_expr_cache != nullptr) {
     m_left_expr_cache->destroy_elements();
-    destroy(m_left_expr_cache);
+    ::destroy_at(m_left_expr_cache);
     m_left_expr_cache = nullptr;
   }
   m_left_expr_cache_filled = false;
@@ -3564,7 +3565,7 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine() {
   /* Assure that cleanup has been called for this engine. */
   assert(!table);
 
-  destroy(result);
+  if (result != nullptr) ::destroy_at(result);
 }
 
 /**

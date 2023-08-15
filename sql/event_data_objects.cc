@@ -23,6 +23,7 @@
 #include "sql/event_data_objects.h"
 
 #include <string.h>
+#include <memory>
 
 #include "lex_string.h"
 #include "my_dbug.h"
@@ -135,7 +136,7 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
     return nullptr;
   }
 
-  void delete_backup_ctx() override { destroy(this); }
+  void delete_backup_ctx() override { ::destroy_at(this); }
 
  private:
   Event_creation_ctx(const CHARSET_INFO *client_cs,

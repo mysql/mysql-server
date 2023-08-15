@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -486,7 +487,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       share->primary_key = MAX_KEY;  // we do not have a primary key
   } else
     share->primary_key = MAX_KEY;
-  destroy(handler_file);
+  ::destroy_at(handler_file);
 
   if (share->found_next_number_field) {
     Field *reg_field = *share->found_next_number_field;

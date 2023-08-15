@@ -1951,10 +1951,10 @@ void JOIN::destroy() {
       }
       close_tmp_table(cleanup.table);
       free_tmp_table(cleanup.table);
-      ::destroy(cleanup.temp_table_param);
+      ::destroy_at(cleanup.temp_table_param);
     }
     for (Filesort *filesort : filesorts_to_cleanup) {
-      ::destroy(filesort);
+      if (filesort != nullptr) ::destroy_at(filesort);
     }
     temp_tables.clear();
     filesorts_to_cleanup.clear();
@@ -1997,7 +1997,7 @@ void JOIN::destroy() {
 
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
   Semijoin_mat_exec *sjm;
-  while ((sjm = sjm_list_it++)) ::destroy(sjm);
+  while ((sjm = sjm_list_it++) != nullptr) ::destroy_at(sjm);
   sjm_exec_list.clear();
 
   keyuse_array.clear();
@@ -3533,7 +3533,7 @@ void JOIN_TAB::cleanup() {
 
 void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
-  destroy(filesort);
+  if (filesort != nullptr) ::destroy_at(filesort);
   filesort = nullptr;
 
   TABLE *const t = table();
@@ -3556,7 +3556,7 @@ void QEP_TAB::cleanup() {
       close_tmp_table(t);
       free_tmp_table(t);
     }
-    destroy(tmp_table_param);
+    ::destroy_at(tmp_table_param);
     tmp_table_param = nullptr;
   }
   if (table_ref != nullptr && table_ref->uses_materialization()) {
@@ -3584,7 +3584,7 @@ void QEP_shared_owner::qs_cleanup() {
       table_ref->derived_key_list.clear();
     }
   }
-  destroy(range_scan());
+  if (range_scan() != nullptr) ::destroy_at(range_scan());
 }
 
 uint QEP_TAB::sjm_query_block_id() const {

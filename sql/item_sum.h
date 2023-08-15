@@ -2839,12 +2839,11 @@ class Item_sum_collect : public Item_sum {
        In contrast to Item_sum, Item_sum_collect always uses Aggregator_simple,
        and only needs to reset its aggregator when called.
        */
-    if (aggr) {
+    if (aggr != nullptr) {
       aggr->clear();
       return false;
     }
 
-    destroy(aggr);
     aggr = new (*THR_MALLOC) Aggregator_simple(this);
     return aggr ? false : true;
   }

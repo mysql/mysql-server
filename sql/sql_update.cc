@@ -501,7 +501,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   join_type type = JT_UNKNOWN;
 
   auto cleanup = create_scope_guard([&range_scan, table] {
-    destroy(range_scan);
+    if (range_scan != nullptr) ::destroy_at(range_scan);
     table->set_keyread(false);
     table->file->ha_index_or_rnd_end();
     free_io_cache(table);
@@ -685,8 +685,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           Filesort has already found and selected the rows we want to update,
           so we don't need the where clause
         */
-        destroy(range_scan);
-        range_scan = nullptr;
+        if (range_scan != nullptr) {
+          ::destroy_at(range_scan);
+          range_scan = nullptr;
+        }
         conds = nullptr;
       } else {
         /*
@@ -814,8 +816,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
 
-        destroy(range_scan);
-        range_scan = nullptr;
+        if (range_scan != nullptr) {
+          ::destroy_at(range_scan);
+          range_scan = nullptr;
+        }
         conds = nullptr;
       }
     } else {

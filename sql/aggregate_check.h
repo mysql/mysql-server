@@ -571,9 +571,7 @@ class Group_check : public Item_tree_walker {
         mat_tables(root),
         failed_ident(nullptr) {}
 
-  ~Group_check() {
-    for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
-  }
+  ~Group_check() { std::destroy_n(mat_tables.data(), mat_tables.size()); }
   Group_check(const Group_check &) = delete;
   Group_check &operator=(const Group_check &) = delete;
 

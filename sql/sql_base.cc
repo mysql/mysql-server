@@ -1147,10 +1147,10 @@ void intern_close_table(TABLE *table) {  // Free all structures
     table->histograms = nullptr;
   }
   free_io_cache(table);
-  destroy(table->triggers);
+  if (table->triggers != nullptr) ::destroy_at(table->triggers);
   if (table->file)                // Not true if placeholder
     (void)closefrm(table, true);  // close file
-  destroy(table);
+  ::destroy_at(table);
   my_free(table);
 }
 
@@ -2439,7 +2439,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share,
 
   if (free_share) {
     free_table_share(table->s);
-    destroy(table);
+    ::destroy_at(table);
     my_free(table);
   }
 }
@@ -3422,7 +3422,7 @@ share_found:
         EXTRA_RECORD, thd->open_options, table, false, table_def);
 
     if (error) {
-      destroy(table);
+      ::destroy_at(table);
       my_free(table);
 
       if (error == 7)
@@ -3444,7 +3444,7 @@ share_found:
           break;
         default:
           closefrm(table, false);
-          destroy(table);
+          ::destroy_at(table);
           my_free(table);
           my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
           goto err_lock;
@@ -3453,7 +3453,7 @@ share_found:
 
     if (open_table_entry_fini(thd, share, table_def, table)) {
       closefrm(table, false);
-      destroy(table);
+      ::destroy_at(table);
       my_free(table);
       goto err_lock;
     }
@@ -3822,7 +3822,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
     Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(entry);
 
     if (!d || d->check_n_load(thd, *table)) {
-      destroy(d);
+      ::destroy_at(d);
       return true;
     }
 
@@ -3861,7 +3861,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
         LogErr(ERROR_LEVEL,
                ER_BINLOG_OOM_WRITING_DELETE_WHILE_OPENING_HEAP_TABLE,
                share->db.str, share->table_name.str);
-        destroy(entry->triggers);
+        ::destroy_at(entry->triggers);
         return true;
       }
       /*
@@ -4064,7 +4064,7 @@ static bool fix_row_type(THD *thd, Table_ref *table_list) {
     if (file != nullptr) {
       const row_type correct_row_type = file->get_real_row_type(&create_info);
       bool result = dd::fix_row_type(thd, table_def, correct_row_type);
-      destroy(file);
+      ::destroy_at(file);
 
       if (result) {
         trans_rollback_stmt(thd);
@@ -7290,7 +7290,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   if (open_table_def(thd, share, table_def)) {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
-    destroy(tmp_table);
+    ::destroy_at(tmp_table);
     my_free(tmp_table);
     return nullptr;
   }
@@ -7314,7 +7314,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
           (open_in_engine ? false : true), &table_def)) {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
-    destroy(tmp_table);
+    ::destroy_at(tmp_table);
     my_free(tmp_table);
     return nullptr;
   }
@@ -7374,7 +7374,7 @@ bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
     error = true;
     LogErr(WARNING_LEVEL, ER_FAILED_TO_REMOVE_TEMP_TABLE, path, my_errno());
   }
-  destroy(file);
+  ::destroy_at(file);
   return error;
 }
 

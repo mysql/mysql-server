@@ -2076,7 +2076,7 @@ void Query_block::cleanup(bool full) {
     if (full) {
       assert(join->query_block == this);
       join->destroy();
-      ::destroy(join);
+      ::destroy_at(join);
       join = nullptr;
     } else
       join->cleanup();

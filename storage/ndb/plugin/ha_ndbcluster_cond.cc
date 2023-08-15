@@ -28,6 +28,8 @@
 
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
 
+#include <memory>
+
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"          // Item
@@ -340,7 +342,7 @@ class Ndb_expect_stack {
                     MAX_EXPECT_FIELD_RESULTS);
   }
   ~Ndb_expect_stack() {
-    if (next) destroy(next);
+    if (next != nullptr) ::destroy_at(next);
     next = nullptr;
   }
   void push(Ndb_expect_stack *expect_next) { next = expect_next; }
@@ -354,7 +356,7 @@ class Ndb_expect_stack {
       other_field = next->other_field;
       collation = next->collation;
       next = next->next;
-      destroy(expect_next);
+      ::destroy_at(expect_next);
     }
   }
 
@@ -466,7 +468,7 @@ class Ndb_rewrite_context {
   Ndb_rewrite_context(const Item_func *func)
       : func_item(func), left_hand_item(nullptr), count(0) {}
   ~Ndb_rewrite_context() {
-    if (next) destroy(next);
+    if (next != nullptr) ::destroy_at(next);
   }
   const Item_func *func_item;
   const Item *left_hand_item;
@@ -494,7 +496,7 @@ class Ndb_cond_traverse_context {
         skip(0),
         rewrite_stack(nullptr) {}
   ~Ndb_cond_traverse_context() {
-    if (rewrite_stack) destroy(rewrite_stack);
+    if (rewrite_stack != nullptr) ::destroy_at(rewrite_stack);
   }
 
   inline void expect_field_from_table(table_map tables) {
@@ -724,7 +726,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           // Pop rewrite stack
           context->rewrite_stack = rewrite_context->next;
           rewrite_context->next = nullptr;
-          destroy(rewrite_context);
+          ::destroy_at(rewrite_context);
         }
       }
       DBUG_PRINT("info",

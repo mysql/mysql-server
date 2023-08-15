@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <memory>
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/dictionary_impl.h"
@@ -117,9 +118,10 @@ class SchemaTest : public ::testing::Test {
     delete ctx;
 
     // Must destroy fields and handler explicitly to avoid gmock warning
-    for (uint i = 0; i < table->s->fields; ++i) destroy(table->field[i]);
-
-    destroy(table->file);
+    for (uint i = 0; i < table->s->fields; ++i) {
+      ::destroy_at(table->field[i]);
+    }
+    ::destroy_at(table->file);
     delete[] table->s->default_values;
     delete[] table->record[1];
     delete table;

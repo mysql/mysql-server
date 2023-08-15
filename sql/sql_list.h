@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <type_traits>
 
 #include "my_alloc.h"
@@ -213,7 +214,7 @@ class base_list {
       last = &first;
     else if (last == &(*prev)->next)
       last = prev;
-    destroy(*prev);
+    ::destroy_at(*prev);
     *prev = node;
   }
   inline void concat(base_list *list) {
@@ -478,7 +479,7 @@ class List : public base_list {
     list_node *element, *next;
     for (element = first; element != &end_of_list; element = next) {
       next = element->next;
-      destroy((T *)element->info);
+      ::destroy_at((T *)element->info);
     }
     clear();
   }

@@ -42,7 +42,8 @@
 
 #include <cstddef>  // size_t
 #include <functional>
-#include <map>      // std::map
+#include <map>  // std::map
+#include <memory>
 #include <set>      // std::set
 #include <string>   // std::string
 #include <utility>  // std::pair
@@ -203,7 +204,7 @@ class Error_context {
    Destructor. Destroy the copy of the Field and set all pointers to nullptr
    **/
   ~Error_context() {
-    if (m_field) destroy(m_field);
+    if (m_field != nullptr) ::destroy_at(m_field);
     m_thd = nullptr;
     m_field = nullptr;
     m_results = nullptr;

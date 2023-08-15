@@ -35,6 +35,7 @@
 #include <unistd.h>
 #endif
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "lex_string.h"
@@ -511,7 +512,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
       will be done in parse_triggers().
     */
     if (triggers->push_back(t, mem_root)) {
-      destroy(t);
+      ::destroy_at(t);
       return true;
     }
   }
@@ -680,7 +681,7 @@ class Table_upgrade_guard {
 
     free_table_share(m_table->s);
 
-    destroy(m_handler);
+    if (m_handler != nullptr) ::destroy_at(m_handler);
   }
 };
 

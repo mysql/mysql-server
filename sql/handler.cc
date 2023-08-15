@@ -2588,7 +2588,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     thd->pop_internal_handler();
   }
 
-  destroy(file);
+  ::destroy_at(file);
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0)) {
@@ -2703,7 +2703,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
   return new_handler;
 
 err:
-  destroy(new_handler);
+  ::destroy_at(new_handler);
   return nullptr;
 }
 
@@ -5258,7 +5258,7 @@ int ha_create_table(THD *thd, const char *path, const char *db,
 #endif
 
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
-  destroy(&table);
+  ::destroy_at(&table);
   if (open_table_from_share(thd, &share, "", 0, (uint)READ_ALL, 0, &table, true,
                             nullptr)) {
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -6744,7 +6744,7 @@ error:
   h2->ha_index_or_rnd_end();
   h2->ha_external_lock(thd, F_UNLCK);
   h2->ha_close();
-  destroy(h2);
+  ::destroy_at(h2);
   h2 = nullptr;
   assert(retval != 0);
   return retval;
@@ -6770,7 +6770,7 @@ void DsMrr_impl::reset() {
 
     // Close and delete the h2 handler
     h2->ha_close();
-    destroy(h2);
+    ::destroy_at(h2);
     h2 = nullptr;
   }
 }
@@ -8511,7 +8511,7 @@ int handler::ha_extra(enum ha_extra_function operation) {
         (!(m_unique = new (*THR_MALLOC) Unique_on_insert(ref_length)) ||
          m_unique->init())) {
       /* purecov: begin inspected */
-      destroy(m_unique);
+      ::destroy_at(m_unique);
       return HA_ERR_OUT_OF_MEM;
       /* purecov: end */
     }
@@ -8520,7 +8520,7 @@ int handler::ha_extra(enum ha_extra_function operation) {
   } else if (operation == HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER) {
     if (m_unique) {
       m_unique->cleanup();
-      destroy(m_unique);
+      ::destroy_at(m_unique);
       m_unique = nullptr;
     }
   }

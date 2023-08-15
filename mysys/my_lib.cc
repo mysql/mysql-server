@@ -36,6 +36,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <memory>
 #include <new>
 
 #include "m_string.h"
@@ -67,12 +68,13 @@ typedef Prealloced_array<FILEINFO, 100> Entries_array;
 
 void my_dirend(MY_DIR *buffer) {
   DBUG_TRACE;
-  if (buffer) {
+  if (buffer != nullptr) {
     Entries_array *array = pointer_cast<Entries_array *>(
-        (char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)));
+        pointer_cast<char *>(buffer) + ALIGN_SIZE(sizeof(MY_DIR)));
     array->~Entries_array();
-    destroy((MEM_ROOT *)((char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                         ALIGN_SIZE(sizeof(Entries_array))));
+    ::destroy_at(pointer_cast<MEM_ROOT *>(pointer_cast<char *>(buffer) +
+                                          ALIGN_SIZE(sizeof(MY_DIR)) +
+                                          ALIGN_SIZE(sizeof(Entries_array))));
     my_free(buffer);
   }
 } /* my_dirend */

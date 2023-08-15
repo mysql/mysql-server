@@ -117,7 +117,7 @@ static TableCollection CreateTenTableJoin(
 
 static void DestroyFakeTables(const TableCollection &table_collection) {
   for (const pack_rows::Table &table : table_collection.tables())
-    destroy(pointer_cast<Fake_TABLE *>(table.table));
+    ::destroy_at(pointer_cast<Fake_TABLE *>(table.table));
 }
 
 static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {

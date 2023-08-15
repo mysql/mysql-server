@@ -29,6 +29,7 @@
 #include <climits>
 #include <cstdlib>
 #include <initializer_list>
+#include <memory>
 
 #include "field_types.h"
 #include "m_string.h"
@@ -5180,7 +5181,8 @@ void binlog_unsafe_map_init() {
 void LEX::set_secondary_engine_execution_context(
     Secondary_engine_execution_context *context) {
   assert(m_secondary_engine_context == nullptr || context == nullptr);
-  ::destroy(m_secondary_engine_context);
+  if (m_secondary_engine_context != nullptr)
+    ::destroy_at(m_secondary_engine_context);
   m_secondary_engine_context = context;
 }
 

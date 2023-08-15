@@ -23,6 +23,7 @@
 #include "storage/ndb/plugin/ndb_dd_upgrade_table.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <unordered_set>
 
@@ -123,7 +124,7 @@ class Table_upgrade_guard {
 
     free_table_share(m_table->s);
 
-    destroy(m_handler);
+    ::destroy_at(m_handler);
   }
 };
 

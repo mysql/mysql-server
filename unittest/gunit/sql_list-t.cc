@@ -30,6 +30,8 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
+#include <memory>
+
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "sql/sql_error.h"
@@ -83,7 +85,7 @@ TEST_F(SqlListTest, ConstructAndDestruct) {
   EXPECT_TRUE(m_int_list.is_empty());
   List<int> *p_int_list = new (*THR_MALLOC) List<int>;
   EXPECT_TRUE(p_int_list->is_empty());
-  destroy(p_int_list);
+  ::destroy_at(p_int_list);
 }
 
 // Tests basic operations push and pop.

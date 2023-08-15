@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <memory>
 #include <random>
 #include <vector>
 
@@ -110,7 +111,7 @@ TEST_F(JTSortTest, SortFoundRecordsTest) {
     EXPECT_TRUE(arr[i]->found_records > arr[i - 1]->found_records);
 
   for (int i = 0; i < num_tables; i++) {
-    destroy(arr[i]);
+    ::destroy_at(arr[i]);
   }
 }
 
@@ -142,7 +143,7 @@ TEST_F(JTSortTest, SortDependsTest) {
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
   for (int i = 0; i < num_tables; i++) {
-    destroy(arr[i]);
+    ::destroy_at(arr[i]);
   }
 }
 
@@ -172,7 +173,7 @@ TEST_F(JTSortTest, SortKeyDependsTest) {
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
-  for (int i = 0; i < num_tables; i++) destroy(arr[i]);
+  for (int i = 0; i < num_tables; i++) ::destroy_at(arr[i]);
 }
 
 /*

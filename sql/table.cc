@@ -547,8 +547,8 @@ void TABLE_SHARE::destroy() {
     delete ha_share;
     ha_share = nullptr;
   }
-  if (m_part_info) {
-    ::destroy(m_part_info);
+  if (m_part_info != nullptr) {
+    ::destroy_at(m_part_info);
     m_part_info = nullptr;
   }
   /* The mutex is initialized only for shares that are part of the TDC */
@@ -2277,14 +2277,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
-  destroy(handler_file);
+  ::destroy_at(handler_file);
   my_free(extra_segment_buff);
   return 0;
 
 err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
-  destroy(handler_file);
+  if (handler_file != nullptr) ::destroy_at(handler_file);
 
   open_table_error(thd, share, error, my_errno());
   return error;
@@ -3299,7 +3299,7 @@ err:
     outparam->histograms = nullptr;
   }
   if (!error_reported) open_table_error(thd, share, error, my_errno());
-  destroy(outparam->file);
+  ::destroy_at(outparam->file);
   if (outparam->part_info) free_items(outparam->part_info->item_list);
   if (outparam->vfield) {
     for (Field **vfield = outparam->vfield; *vfield; vfield++)
@@ -3341,7 +3341,7 @@ int closefrm(TABLE *table, bool free_share) {
       if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);
       if ((*ptr)->m_default_val_expr)
         free_items((*ptr)->m_default_val_expr->item_list);
-      destroy(*ptr);
+      ::destroy_at(*ptr);
     }
     table->field = nullptr;
   }
@@ -3350,7 +3350,7 @@ int closefrm(TABLE *table, bool free_share) {
       free_items(table_cc.value_generator()->item_list);
     }
   }
-  destroy(table->file);
+  if (table->file != nullptr) ::destroy_at(table->file);
   table->file = nullptr; /* For easier errorchecking */
   if (table->part_info) {
     /* Allocated through table->mem_root, freed below */
@@ -3461,7 +3461,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                  : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
                                         : ER_SERVER_CANT_OPEN_FILE,
              buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
-      destroy(file);
+      ::destroy_at(file);
       break;
     }
     default: /* Better wrong error than none */
@@ -7463,7 +7463,9 @@ struct Partial_update_info {
   }
 
   ~Partial_update_info() {
-    for (auto v : m_logical_diff_vectors) destroy(v);
+    for (auto *v : m_logical_diff_vectors) {
+      if (v != nullptr) ::destroy_at(v);
+    }
   }
 
   /**
@@ -7611,7 +7613,7 @@ bool TABLE::has_columns_marked_for_partial_update() const {
 
 void TABLE::cleanup_partial_update() {
   DBUG_TRACE;
-  destroy(m_partial_update_info);
+  if (m_partial_update_info != nullptr) ::destroy_at(m_partial_update_info);
   m_partial_update_info = nullptr;
 }
 

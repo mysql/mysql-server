@@ -2370,9 +2370,9 @@ Prepared_statement::~Prepared_statement() {
   if (m_used_as_cursor) {
     close_cursor();
   }
-  if (m_regular_result != nullptr) destroy(m_regular_result);
-  if (m_cursor_result != nullptr) destroy(m_cursor_result);
-  if (m_aux_result != nullptr) destroy(m_aux_result);
+  if (m_regular_result != nullptr) ::destroy_at(m_regular_result);
+  if (m_cursor_result != nullptr) ::destroy_at(m_cursor_result);
+  if (m_aux_result != nullptr) ::destroy_at(m_aux_result);
   m_cursor = nullptr;
   m_cursor_result = nullptr;
   m_regular_result = nullptr;
@@ -3609,7 +3609,7 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
       if (new_result == nullptr) return true;  // OOM
       m_cursor_result = new_cursor_result(m_arena.mem_root, new_result);
       if (m_cursor_result == nullptr) {
-        destroy(new_result);
+        ::destroy_at(new_result);
         return true;
       }
       // Saved result for proper destruction

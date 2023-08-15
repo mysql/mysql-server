@@ -110,7 +110,7 @@ class DestroyNodes {
   explicit DestroyNodes(const JoinHypergraph *graph) : m_graph(graph) {}
   void operator()() const {
     for (const JoinHypergraph::Node &node : m_graph->nodes) {
-      destroy(static_cast<Fake_TABLE *>(node.table));
+      ::destroy_at(static_cast<Fake_TABLE *>(node.table));
     }
   }
 

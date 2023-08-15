@@ -230,7 +230,7 @@ TEST_F(MyAllocTest, ArrayAllocInitialization) {
   for (int i = 0; i < 10; ++i) {
     EXPECT_EQ("abcdefghijklmnopqrstuvwxyz", string_array1[i]);
   }
-  destroy_array(string_array1, 10);
+  std::destroy_n(string_array1, 10);
 
   // Should be allowed to create an array of a class which is not
   // copy-constructible.

@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <memory>
 
 #include "my_inttypes.h"
 #include "mysql/strings/m_ctype.h"
@@ -298,7 +299,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
   EXPECT_EQ(123400, tv.m_tv_usec);
 
-  destroy(field);
+  ::destroy_at(field);
 }
 
 TEST_F(FieldTest, FieldTimefCompare) {

@@ -871,8 +871,10 @@ void Arg_comparator::cleanup() {
       comparators[i].cleanup();
     }
   }
-  destroy(json_scalar);
-  json_scalar = nullptr;
+  if (json_scalar != nullptr) {
+    ::destroy_at(json_scalar);
+    json_scalar = nullptr;
+  }
   value1.mem_free();
   value2.mem_free();
 }
@@ -4158,8 +4160,10 @@ void Item_func_case::print(const THD *thd, String *str,
 
 Item_func_case::~Item_func_case() {
   for (uint i = 0; i <= (uint)DECIMAL_RESULT; i++) {
-    destroy(cmp_items[i]);
-    cmp_items[i] = nullptr;
+    if (cmp_items[i] != nullptr) {
+      ::destroy_at(cmp_items[i]);
+      cmp_items[i] = nullptr;
+    }
   }
 }
 
@@ -4714,7 +4718,7 @@ cmp_item_row::~cmp_item_row() {
   DBUG_PRINT("enter", ("this: %p", this));
   if (comparators) {
     for (uint i = 0; i < n; i++) {
-      if (comparators[i]) destroy(comparators[i]);
+      if (comparators[i] != nullptr) ::destroy_at(comparators[i]);
     }
   }
 }
@@ -5448,11 +5452,13 @@ bool Item_func_in::populate_bisection(THD *) {
 
 void Item_func_in::cleanup_arrays() {
   m_populated = false;
-  destroy(m_const_array);
+  if (m_const_array != nullptr) ::destroy_at(m_const_array);
   m_const_array = nullptr;
   for (uint i = 0; i <= (uint)DECIMAL_RESULT + 1; i++) {
-    destroy(cmp_items[i]);
-    cmp_items[i] = nullptr;
+    if (cmp_items[i] != nullptr) {
+      ::destroy_at(cmp_items[i]);
+      cmp_items[i] = nullptr;
+    }
   }
 }
 
@@ -7090,8 +7096,10 @@ longlong Item_equal::val_int() {
 }
 
 Item_equal::~Item_equal() {
-  destroy(eval_item);
-  eval_item = nullptr;
+  if (eval_item != nullptr) {
+    ::destroy_at(eval_item);
+    eval_item = nullptr;
+  }
 }
 
 bool Item_equal::resolve_type(THD *thd) {

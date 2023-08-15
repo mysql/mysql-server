@@ -5189,7 +5189,7 @@ err_exit:
   row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
   ut_ad(ctx->trx == ctx->prebuilt->trx);
 
-  destroy(ctx);
+  ::destroy_at(ctx);
   ha_alter_info->handler_ctx = nullptr;
 
   return true;
@@ -8018,7 +8018,7 @@ class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
   ~ha_innopart_inplace_ctx() override {
     if (ctx_array) {
       for (uint i = 0; i < m_tot_parts; i++) {
-        destroy(ctx_array[i]);
+        if (ctx_array[i] != nullptr) ::destroy_at(ctx_array[i]);
       }
       ut::free(ctx_array);
     }

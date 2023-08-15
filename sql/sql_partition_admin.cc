@@ -718,7 +718,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
         When db_stat is 0, we can pass nullptr as dd::Table since it
         won't be used.
       */
-      destroy(&table);
+      ::destroy_at(&table);
       error = open_table_from_share(thd, &share, "", 0, (uint)READ_ALL, 0,
                                     &table, true, nullptr);
 

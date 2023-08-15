@@ -79,7 +79,7 @@ inline void SetJoinConditions(const mem_root_deque<Table_ref *> &join_list);
 inline void DestroyFakeTables(
     const std::unordered_map<string, Fake_TABLE *> &fake_tables) {
   for (const auto &[name, table] : fake_tables) {
-    destroy(table);
+    ::destroy_at(table);
   }
 }
 

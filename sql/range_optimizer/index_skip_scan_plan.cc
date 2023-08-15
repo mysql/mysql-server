@@ -27,6 +27,7 @@
 #include <math.h>
 #include <string.h>
 #include <algorithm>
+#include <memory>
 
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -543,7 +544,7 @@ bool find_skip_scans(
                                      cur_skip_scan_info)) {
         skip_scan_info_list->push_back(cur_skip_scan_info);
       } else {
-        destroy(cur_skip_scan_info);
+        ::destroy_at(cur_skip_scan_info);
       }
     } else if (cur_read_cost < (best_read_cost - min_diff_cost)) {
       best_index = cur_index;
@@ -586,7 +587,7 @@ bool find_skip_scans(
                                    best_skip_scan_info)) {
       skip_scan_info_list->push_back(best_skip_scan_info);
     } else {
-      destroy(best_skip_scan_info);
+      ::destroy_at(best_skip_scan_info);
     }
   }
   trace_indices.end();

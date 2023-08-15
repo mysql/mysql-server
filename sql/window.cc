@@ -29,6 +29,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <unordered_set>
 
 #include "field_types.h"
@@ -1336,7 +1337,7 @@ void Window::cleanup() {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
     close_tmp_table(m_frame_buffer);
     free_tmp_table(m_frame_buffer);
-    ::destroy(m_frame_buffer_param);
+    ::destroy_at(m_frame_buffer_param);
   }
 
   m_frame_buffer_positions.clear();
@@ -1349,13 +1350,13 @@ void Window::cleanup() {
 void Window::destroy()  // called only at stmt destruction
 {
   for (Cached_item *ci : m_order_by_items) {
-    ::destroy(ci);
+    ::destroy_at(ci);
   }
   for (Cached_item *ci : m_partition_items) {
-    ::destroy(ci);
+    ::destroy_at(ci);
   }
-  destroy_array(m_comparators[0].data(), m_comparators[0].size());
-  destroy_array(m_comparators[1].data(), m_comparators[1].size());
+  std::destroy_n(m_comparators[0].data(), m_comparators[0].size());
+  std::destroy_n(m_comparators[1].data(), m_comparators[1].size());
 }
 
 void Window::reset_lead_lag() {

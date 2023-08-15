@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <atomic>
+#include <memory>
 
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -111,4 +112,4 @@ Object_creation_ctx *Trigger_creation_ctx::create_backup_ctx(THD *thd) const {
   return new (thd->mem_root) Trigger_creation_ctx(thd);
 }
 
-void Trigger_creation_ctx::delete_backup_ctx() { destroy(this); }
+void Trigger_creation_ctx::delete_backup_ctx() { ::destroy_at(this); }

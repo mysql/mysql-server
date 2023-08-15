@@ -251,7 +251,7 @@ Object_creation_ctx *Stored_routine_creation_ctx::create_backup_ctx(
   return new (thd->mem_root) Stored_routine_creation_ctx(thd);
 }
 
-void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
+void Stored_routine_creation_ctx::delete_backup_ctx() { ::destroy_at(this); }
 
 /**
   Acquire Shared MDL lock on the routine object.

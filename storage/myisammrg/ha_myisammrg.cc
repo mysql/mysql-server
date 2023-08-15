@@ -97,6 +97,7 @@
 
 #include <mysql/plugin.h>
 #include <algorithm>
+#include <memory>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -675,13 +676,13 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root) {
   */
   if (!(new_handler->ref =
             (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2))) {
-    destroy(new_handler);
+    ::destroy_at(new_handler);
     return nullptr;
   }
 
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, nullptr)) {
-    destroy(new_handler);
+    ::destroy_at(new_handler);
     return nullptr;
   }
 

@@ -455,22 +455,10 @@ inline void operator delete[](void *, MEM_ROOT *,
 }
 
 template <class T>
-inline void destroy(T *ptr) {
-  if (ptr != nullptr) {
-    ptr->~T();
-    TRASH(const_cast<std::remove_const_t<T> *>(ptr), sizeof(T));
-  }
-}
-
-template <class T>
-inline void destroy_array(T *ptr, size_t count) {
-  static_assert(!std::is_pointer<T>::value,
-                "You're trying to destroy an array of pointers, "
-                "not an array of objects. This is probably not "
-                "what you intended.");
-  if (ptr != nullptr) {
-    for (size_t i = 0; i < count; ++i) destroy(&ptr[i]);
-  }
+inline void destroy_at(T *ptr) {
+  assert(ptr != nullptr);
+  std::destroy_at(ptr);
+  TRASH(const_cast<std::remove_const_t<T> *>(ptr), sizeof(T));
 }
 
 /*
@@ -480,7 +468,7 @@ inline void destroy_array(T *ptr, size_t count) {
 template <class T>
 class Destroy_only {
  public:
-  void operator()(T *ptr) const { destroy(ptr); }
+  void operator()(T *ptr) const { ::destroy_at(ptr); }
 };
 
 /** std::unique_ptr, but only destroying. */

@@ -16105,7 +16105,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
 
   if (alter_data->dbname_guard.change_database_failed()) {
     thd_ndb->set_ndb_error(ndb->getNdbError(), "Failed to change database");
-    destroy(alter_data);
+    ::destroy_at(alter_data);
     return true;
   }
 
@@ -16116,7 +16116,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
 
   if (!alter_data->schema_dist_client.prepare(dbname, tabname)) {
     // Release alter_data early as there is nothing to abort
-    destroy(alter_data);
+    ::destroy_at(alter_data);
     ha_alter_info->handler_ctx = nullptr;
     print_error(HA_ERR_NO_CONNECTION, MYF(0));
     return true;
@@ -16545,7 +16545,7 @@ bool ha_ndbcluster::abort_inplace_alter_table(
   // NOTE! There is nothing informing participants that the prepared
   // schema distribution has been aborted
 
-  destroy(alter_data);
+  ::destroy_at(alter_data);
   ha_alter_info->handler_ctx = nullptr;
 
   // Unpin the NDB_SHARE of the altered table
@@ -16572,7 +16572,7 @@ void ha_ndbcluster::notify_table_changed(Alter_inplace_info *alter_info) {
                   name);
   }
 
-  destroy(alter_data);
+  ::destroy_at(alter_data);
   alter_info->handler_ctx = nullptr;
 }
 

@@ -62,6 +62,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <time.h>
 
 #include <algorithm>
+#include <memory>
 
 #include <sql_table.h>
 #include "mysql/components/services/system_variable_source.h"
@@ -1770,7 +1771,7 @@ static handler *innobase_create_handler(handlerton *hton, TABLE_SHARE *table,
   if (partitioned) {
     ha_innopart *file = new (mem_root) ha_innopart(hton, table);
     if (file && file->init_partitioning(mem_root)) {
-      destroy(file);
+      ::destroy_at(file);
       return (nullptr);
     }
     return (file);

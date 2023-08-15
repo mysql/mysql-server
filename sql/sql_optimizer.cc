@@ -2524,7 +2524,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             3 - constructed right above
           In this case we drop quick #2 as #3 is expected to be better.
         */
-        destroy(tab->range_scan());
+        ::destroy_at(tab->range_scan());
         tab->set_range_scan(nullptr);
       }
       /*
@@ -2730,11 +2730,12 @@ fix_ICP:
     }
 
     // Keep current (ordered) tab->range_scan()
-    if (save_range_scan != tab->range_scan()) destroy(save_range_scan);
+    if (save_range_scan != nullptr && save_range_scan != tab->range_scan())
+      ::destroy_at(save_range_scan);
   } else {
     // Restore original save_range_scan
     if (tab->range_scan() != save_range_scan) {
-      destroy(tab->range_scan());
+      if (tab->range_scan() != nullptr) ::destroy_at(tab->range_scan());
       tab->set_range_scan(save_range_scan);
     }
   }
@@ -2902,14 +2903,14 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 &tab->needed_reg, recheck_range, tab->join()->query_block,
                 &range_scan) > 0) {
           if (length < get_max_used_key_length(range_scan)) {
-            destroy(tab->range_scan());
+            if (tab->range_scan() != nullptr) ::destroy_at(tab->range_scan());
             tab->set_range_scan(range_scan);
             return true;
           }
           Opt_trace_object(trace, "access_type_unchanged")
               .add("ref_key_length", length)
               .add("range_key_length", get_max_used_key_length(range_scan));
-          destroy(range_scan);
+          ::destroy_at(range_scan);
         }
       } else
         return length < get_max_used_key_length(tab->range_scan());  // 5)
@@ -2982,8 +2983,10 @@ void JOIN::adjust_access_methods() {
         tab->position()->filter_effect = COND_FILTER_STALE;
       } else {
         // Cleanup quick, REF/REF_OR_NULL/EQ_REF, will be clarified later
-        ::destroy(tab->range_scan());
-        tab->set_range_scan(nullptr);
+        if (tab->range_scan() != nullptr) {
+          ::destroy_at(tab->range_scan());
+          tab->set_range_scan(nullptr);
+        }
       }
     }
     // Ensure AM consistency
@@ -3189,7 +3192,7 @@ bool JOIN::get_best_combination() {
           We must use the duplicate-eliminating index, so this QUICK is not
           an option.
         */
-        ::destroy(tab->range_scan());
+        ::destroy_at(tab->range_scan());
         tab->set_range_scan(nullptr);
       }
       if (table->is_intersect() || table->is_except()) {
@@ -9670,7 +9673,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               get_quick_record_count().
             */
           } else {
-            destroy(tab->range_scan());
+            ::destroy_at(tab->range_scan());
             tab->set_range_scan(nullptr);
           }
         }
@@ -9832,7 +9835,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             bool search_if_impossible = recheck_reason != DONT_RECHECK;
             if (search_if_impossible) {
               if (tab->range_scan()) {
-                destroy(tab->range_scan());
+                ::destroy_at(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
               AccessPath *range_scan;
@@ -9863,7 +9866,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               const Opt_trace_object trace_without_on(trace,
                                                       "without_ON_clause");
               if (tab->range_scan()) {
-                destroy(tab->range_scan());
+                ::destroy_at(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
               AccessPath *range_scan;

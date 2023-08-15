@@ -234,7 +234,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     }
     ~Context_handler() {
       m_thd->variables.sql_mode = m_sql_mode;
-      destroy(m_file);
+      if (m_file != nullptr) ::destroy_at(m_file);
     }
 
    private:

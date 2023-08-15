@@ -483,8 +483,10 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
 
 DynamicRangeIterator::~DynamicRangeIterator() {
   // This is owned by our MEM_ROOT.
-  destroy(m_qep_tab->range_scan());
-  m_qep_tab->set_range_scan(nullptr);
+  if (m_qep_tab->range_scan() != nullptr) {
+    ::destroy_at(m_qep_tab->range_scan());
+    m_qep_tab->set_range_scan(nullptr);
+  }
 }
 
 bool DynamicRangeIterator::Init() {

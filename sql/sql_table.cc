@@ -10772,7 +10772,7 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error,
                my_strerror(errbuf, sizeof(errbuf), error));
     }
-    destroy(file);
+    ::destroy_at(file);
     return true;
   }
 
@@ -10817,10 +10817,10 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     if (!(flags & NO_DD_COMMIT))
       (void)file->ha_rename_table(to_base, from_base, to_table_def,
                                   const_cast<dd::Table *>(from_table_def));
-    destroy(file);
+    ::destroy_at(file);
     return true;
   }
-  destroy(file);
+  ::destroy_at(file);
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   /*
@@ -18508,12 +18508,12 @@ static int copy_data_between_tables(
 
   if (!(gen_fields = thd->mem_root->ArrayAlloc<Field *>(
             to->s->gen_def_field_count + to->s->vfields))) {
-    destroy_array(copy, to->s->fields);
+    std::destroy_n(copy, to->s->fields);
     return -1;
   }
 
   if (to->file->ha_external_lock(thd, F_WRLCK)) {
-    destroy_array(copy, to->s->fields);
+    std::destroy_n(copy, to->s->fields);
     return -1;
   }
 
@@ -18761,7 +18761,7 @@ static int copy_data_between_tables(
     error = 1;
 
 err:
-  destroy_array(copy, to->s->fields);
+  std::destroy_n(copy, to->s->fields);
   thd->variables.sql_mode = save_sql_mode;
   free_io_cache(from);
   *copied = found_count;

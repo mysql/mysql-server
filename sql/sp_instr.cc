@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <memory>
 
 #include "debug_sync.h"  // DEBUG_SYNC
 #include "my_command.h"
@@ -871,7 +872,7 @@ void sp_lex_instr::free_lex() {
   /* Prevent endless recursion. */
   m_lex->sphead = nullptr;
   lex_end(m_lex);
-  destroy(m_lex->result);
+  if (m_lex->result != nullptr) ::destroy_at(m_lex->result);
   m_lex->destroy();
   delete (st_lex_local *)m_lex;
 

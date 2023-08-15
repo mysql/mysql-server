@@ -95,7 +95,7 @@ bool Cached_item_str::cmp() {
 Cached_item_json::Cached_item_json(Item *item_arg)
     : Cached_item(item_arg), m_value(new (*THR_MALLOC) Json_wrapper()) {}
 
-Cached_item_json::~Cached_item_json() { destroy(m_value); }
+Cached_item_json::~Cached_item_json() { ::destroy_at(m_value); }
 
 /**
   Compare the new JSON value in member 'item' with the previous value.

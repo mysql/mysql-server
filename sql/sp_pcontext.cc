@@ -23,6 +23,8 @@
 #include "sql/sp_pcontext.h"
 
 #include <assert.h>
+#include <memory>
+
 #include "my_alloc.h"
 
 #include "my_inttypes.h"
@@ -148,7 +150,7 @@ sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
 }
 
 sp_pcontext::~sp_pcontext() {
-  for (size_t i = 0; i < m_children.size(); ++i) destroy(m_children.at(i));
+  std::destroy_n(m_children.data(), m_children.size());
 }
 
 sp_pcontext *sp_pcontext::push_context(THD *thd,
