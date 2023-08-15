@@ -2567,11 +2567,18 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   Ndb * ndb= GETNDB(step);
   NdbRestarter restarter;
   const NdbDictionary::Table* pTab = ctx->getTab();
+  const bool usePollEvents2 = ((rand() % 2) == 0);
+  const char* method = (usePollEvents2?
+                        "PollEvents2":
+                        "PollEvents");
+
   NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
   int result = NDBT_OK;
   int res;
   bool connected = true;
   uint retries = 100;
+
+  ndbout_c("errorInjectStalling using %s", method);
 
   if (pOp == 0)
   {
@@ -2588,11 +2595,18 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   Uint64 curr_gci;
   for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
+    if (usePollEvents2)
+    {
+      res = ndb->pollEvents2(5000, &curr_gci) > 0;
+    }
+    else
+    {
+      res = ndb->pollEvents(5000, &curr_gci) > 0;
+    }
 
     if (ndb->getNdbError().code != 0)
     {
-      g_err << "pollEvents failed: \n";
+      g_err << method << " failed: \n";
       g_err << ndb->getNdbError().code << " "
             << ndb->getNdbError().message << endl;
       result = NDBT_FAILED;
@@ -2602,7 +2616,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
 
   if (curr_gci != NDB_FAILURE_GCI)
   {
-    g_err << "pollEvents failed to detect cluster failure: \n";
+    g_err << method << " failed to detect cluster failure: \n";
     result = NDBT_FAILED;
     goto cleanup;
   } 
@@ -2683,11 +2697,18 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   // Check that we receive events again
   for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
   {
-    res = ndb->pollEvents(5000, &curr_gci) > 0;
+    if (usePollEvents2)
+    {
+      res = ndb->pollEvents(5000, &curr_gci) > 0;
+    }
+    else
+    {
+      res = ndb->pollEvents(5000, &curr_gci) > 0;
+    }
 
     if (ndb->getNdbError().code != 0)
     {
-      g_err << "pollEvents failed: \n";
+      g_err << method << " failed: \n";
       g_err << ndb->getNdbError().code << " "
             << ndb->getNdbError().message << endl;
       result = NDBT_FAILED;
@@ -2696,7 +2717,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   }
   if (curr_gci == NDB_FAILURE_GCI)
   {
-    g_err << "pollEvents after restart failed res " << res << " curr_gci " << curr_gci << endl;
+    g_err << method << " after restart failed res " << res << " curr_gci " << curr_gci << endl;
     result =  NDBT_FAILED;
   }
 
