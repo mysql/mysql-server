@@ -37,6 +37,7 @@
 #include <my_sys.h>
 #include "../../src/ndbapi/SignalSender.hpp"
 #include <GlobalSignalNumbers.h>
+#include <ndb_opts.h>
 
 #define MAX_NDB_OBJECTS 32678
 
@@ -1940,6 +1941,7 @@ int runNdbClusterConnectionDelete_connection_owner(NDBT_Context* ctx,
   // Create a new cluster connection, connect it and assign
   // to pointer so the other thread can access it.
   Ndb_cluster_connection* con = new Ndb_cluster_connection(constr);
+  con->configure_tls(opt_tls_search_path, opt_mgm_tls);
 
   const int retries = 12;
   const int retry_delay = 5;
@@ -3556,7 +3558,8 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Connection is null" << endl;
     return NDBT_FAILED;
   }
-  
+
+  otherConnection->configure_tls(opt_tls_search_path, opt_mgm_tls);
   int rc= otherConnection->connect();
   
   if (rc!= 0)
@@ -4053,7 +4056,8 @@ int setupOtherConnection(NDBT_Context* ctx, NDBT_Step* step)
     g_err.println("otherConnection is null");
     return NDBT_FAILED;
   }
-  
+
+  otherConnection->configure_tls(opt_tls_search_path, opt_mgm_tls);
   int rc= otherConnection->connect();
   
   if (rc!= 0)
@@ -5412,6 +5416,7 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
       ndbout_c("thread %u waiting complete", step_no);
     }
     Ndb_cluster_connection con(constr);
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
 
     const int retries = 12;
     const int retry_delay = 5;
@@ -5628,6 +5633,7 @@ check_connect_no_such_host()
   {
     const char* no_such_host = "no_such_host:1186";
     Ndb_cluster_connection con(no_such_host);
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
 
     const int verbose = 1;
     int res = con.connect(i, i, verbose);
@@ -5654,6 +5660,7 @@ check_connect_until_no_more_nodeid(const char* constr)
   while(true)
   {
     Ndb_cluster_connection* con = new Ndb_cluster_connection(constr);
+    con->configure_tls(opt_tls_search_path, opt_mgm_tls);
     if (!con)
     {
       g_err << "Failed to create another Ndb_cluster_connection" << endl;
@@ -6675,6 +6682,7 @@ int testSchemaObjectOwnerCheck(NDBT_Context* ctx, NDBT_Step* step)
       result = NDBT_FAILED;
       break;
     }
+    otherConnection->configure_tls(opt_tls_search_path, opt_mgm_tls);
     int rc= otherConnection->connect();
     if (rc != 0)
     {
@@ -8248,6 +8256,7 @@ testSlowConnectEnable(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
 
+    otherConnection->configure_tls(opt_tls_search_path, opt_mgm_tls);
     int rc = otherConnection->connect();
     if (rc != 0)
     {

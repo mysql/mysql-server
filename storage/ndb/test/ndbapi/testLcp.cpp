@@ -271,6 +271,7 @@ static int parse_args(int argc, char** argv)
 static int connect_ndb()
 {
   g_cluster_connection = new Ndb_cluster_connection();
+  g_cluster_connection->configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(g_cluster_connection->connect(12, 5, 1) != 0)
   {
     return 1;

@@ -50,6 +50,7 @@ int main(int argc, const char** argv){
 
   // Connect to Ndb
   Ndb_cluster_connection con;
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
   {
     return NDBT_ProgramExit(NDBT_FAILED);

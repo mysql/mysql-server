@@ -2144,6 +2144,7 @@ doconnect()
 {
   g_ncc = new Ndb_cluster_connection();
   require(g_ncc != 0);
+  g_ncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
   chkdb(g_ncc->connect(30) == 0);
   g_ndb = new Ndb(g_ncc, "TEST_DB");
   require(g_ndb != 0);

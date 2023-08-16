@@ -554,6 +554,7 @@ UserHandle*
 userDbConnect(uint32 createDb, const char *dbName)
 {
   Ndb_cluster_connection *con= new Ndb_cluster_connection();
+  con->configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con->connect(12, 5, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;

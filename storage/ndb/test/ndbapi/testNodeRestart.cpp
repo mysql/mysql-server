@@ -8973,6 +8973,7 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
    * 1. connect new api node
    */
   Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  cluster_connection->configure_tls(opt_tls_search_path, opt_mgm_tls);
   if (cluster_connection->connect() != 0)
   {
     g_err << "ERROR: connect failure." << endl;
@@ -10692,6 +10693,7 @@ int runApiDetectNoFirstHeartbeat(NDBT_Context* ctx, NDBT_Step* step)
 
   g_err << "Connect new API Node." << endl;
   Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  cluster_connection->configure_tls(opt_tls_search_path, opt_mgm_tls);
   if (cluster_connection->connect() != 0)
   {
     g_err << "ERROR: connect failure." << endl;

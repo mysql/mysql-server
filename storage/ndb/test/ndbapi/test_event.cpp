@@ -2805,6 +2805,7 @@ int
 cc(Ndb_cluster_connection** ctx, Ndb** ndb)
 {
   Ndb_cluster_connection* xncc = new Ndb_cluster_connection;
+  xncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
   int ret;
   if ((ret = xncc->connect(30, 1, 0)) != 0)
   {

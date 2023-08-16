@@ -46,6 +46,8 @@ static const char* _dbname = "TEST_DB";
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("spj_test"),
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   { "database", 'd', "Name of database table is in",
     &_dbname, &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -96,6 +98,7 @@ int main(int argc, char** argv)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   Ndb_cluster_connection con(opt_ndb_connectstring);
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;

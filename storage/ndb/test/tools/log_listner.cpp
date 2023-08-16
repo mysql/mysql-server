@@ -26,10 +26,13 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
+#include "util/TlsKeyManager.hpp"
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("eventlog"),
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -69,12 +72,16 @@ main(int argc, char** argv)
   if ((ho_error=opts.handle_options()))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle handle= ndb_mgm_create_handle();
+  ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
   ndb_mgm_set_connectstring(handle, opt_ndb_connectstring);
   
   while (true)
   {
-    if (ndb_mgm_connect(handle,0,0,0) == -1)
+    if (ndb_mgm_connect_tls(handle,0,0,0,opt_mgm_tls) == -1)
     {
       ndbout_c("Failed to connect");
       exit(0);

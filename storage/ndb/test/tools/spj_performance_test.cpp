@@ -711,6 +711,7 @@ int main(int argc, char* argv[]){
   makeDatabase(host, port, 200);
   {
     Ndb_cluster_connection con(connectString);
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
     require(con.connect(12, 5, 1) == 0);
     require(con.wait_until_ready(30,30) == 0);
 

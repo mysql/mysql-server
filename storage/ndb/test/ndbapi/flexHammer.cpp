@@ -65,7 +65,6 @@ Revision history:
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include <NdbTimer.hpp>
-#include <NdbTick.h>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
 #include <NdbSchemaCon.hpp>
@@ -233,6 +232,7 @@ int main(int argc, char** argv)
   }
   // Create and init Ndb object
   Ndb_cluster_connection con;
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
   {
     return NDBT_ProgramExit(NDBT_FAILED);

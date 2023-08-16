@@ -26,13 +26,19 @@
 
 #include <mgmapi.h>
 #include <NdbSleep.h>
+#include <ndb_opts.h>
+#include "util/TlsKeyManager.hpp"
 
 int main()
 {
   NdbMgmHandle handle= ndb_mgm_create_handle();
+  TlsKeyManager tlsKeyManager;
+
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+  ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
 
   while(1==1){
-    if (ndb_mgm_connect(handle,0,0,0) == -1){
+    if (ndb_mgm_connect_tls(handle,0,0,0, opt_mgm_tls) == -1){
       printf("connect failed, error: '%d: %s'\n",
              ndb_mgm_get_latest_error(handle),
              ndb_mgm_get_latest_error_desc(handle));

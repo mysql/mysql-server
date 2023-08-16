@@ -6327,6 +6327,7 @@ int main(int argc, char** argv)
   }
   ndbout << cmdline << endl;
   g_ncc = new Ndb_cluster_connection();
+  g_ncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
   if (g_ncc->connect(30) != 0 || testmain() == -1 || testperf() == -1) {
     ndbout << "line " << __LINE__ << " FAIL loop=" << g_loop << endl;
     return NDBT_ProgramExit(NDBT_FAILED);

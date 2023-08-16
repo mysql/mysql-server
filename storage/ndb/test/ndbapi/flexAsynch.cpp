@@ -351,6 +351,7 @@ int main(int argc, char** argv)
   for (int i = 0; i < tConnections; i++)
   {
     g_cluster_connection[i] = new Ndb_cluster_connection();
+    g_cluster_connection[i]->configure_tls(opt_tls_search_path, opt_mgm_tls);
     ndbout_c("CPU for this connection: %u", receiveCPUArray[i]);
   }
   for (int i = 0; i < tConnections; i++)

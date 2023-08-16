@@ -33,6 +33,7 @@
 #include <signaldata/EventReport.hpp>
 #include <NdbRestarter.hpp>
 #include <random.h>
+#include "util/TlsKeyManager.hpp"
 
 /*
   Tests that only need the mgmd(s) started
@@ -47,10 +48,14 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmd mgmd;
   Uint64 session_id= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
-  ndb_mgm_connect(h,0,0,0);
+  ndb_mgm_connect_tls(h,0,0,0, opt_mgm_tls);
   socket_t s = ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
   ndbout << "MGM Session id: " << session_id << endl;
@@ -63,7 +68,8 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
-  ndb_mgm_connect(h,0,0,0);
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
+  ndb_mgm_connect_tls(h,0,0,0, opt_mgm_tls);
 
   NdbSleep_SecSleep(1);
 
@@ -133,9 +139,13 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   int mgmd_nodeid= 0;
   ndb_mgm_reply reply;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
   ndbout << "TEST timout check_connection" << endl;
   int errs[] = { 1, 2, 3, -1};
@@ -144,7 +154,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   {
     int error_ins= errs[error_ins_no];
     ndbout << "trying error " << error_ins << endl;
-    ndb_mgm_connect(h,0,0,0);
+    ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
     if(ndb_mgm_check_connection(h) < 0)
     {
@@ -185,7 +195,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   ndbout << "TEST get_mgmd_nodeid" << endl;
-  ndb_mgm_connect(h,0,0,0);
+  ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
   if(ndb_mgm_insert_error(h, mgmd_nodeid, 0, &reply)< 0)
   {
@@ -205,7 +215,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
     result= NDBT_OK;
 
   ndbout << "TEST end_session" << endl;
-  ndb_mgm_connect(h,0,0,0);
+  ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
   if(ndb_mgm_insert_error(h, mgmd_nodeid, 4, &reply)< 0)
   {
@@ -251,16 +261,20 @@ int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
   int errs[] = { 0, 5, 6, 7, 8, 9, -1 };
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
     int error_ins= errs[error_ins_no];
-    ndb_mgm_connect(h,0,0,0);
+    ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
     if(ndb_mgm_check_connection(h) < 0)
     {
@@ -338,16 +352,20 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
   int errs[] = { 0, 1, 2, 3, -1 };
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
     int error_ins= errs[error_ins_no];
-    ndb_mgm_connect(h,0,0,0);
+    ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
     if(ndb_mgm_check_connection(h) < 0)
     {
@@ -416,16 +434,20 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
   int errs[] = { 10000, 0, -1 };
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
     int error_ins= errs[error_ins_no];
-    ndb_mgm_connect(h,0,0,0);
+    ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
     if(ndb_mgm_check_connection(h) < 0)
     {
@@ -532,16 +554,20 @@ int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
   int errs[] = { 10000, 0, -1 };
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
   {
     int error_ins= errs[error_ins_no];
-    ndb_mgm_connect(h,0,0,0);
+    ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
     if(ndb_mgm_check_connection(h) < 0)
     {
@@ -642,11 +668,15 @@ int runTestMgmApiReadErrorRestart(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmd mgmd;
   int mgmd_nodeid= 0;
 
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_ssl_ctx(h, tlsKeyManager.ctx());
 
-  ndb_mgm_connect(h,0,0,0);
+  ndb_mgm_connect_tls(h,0,0,0,opt_mgm_tls);
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
                    0};
@@ -3723,6 +3753,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
      */
 
     Ndb_cluster_connection con(mgmd.getConnectString());
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
 
     const int retries = 12;
     const int retry_delay = 5;

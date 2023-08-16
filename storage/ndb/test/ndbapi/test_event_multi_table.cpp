@@ -284,6 +284,7 @@ main(int argc, char** argv)
 
   DBUG_ENTER("main");
   Ndb_cluster_connection con(opt_connect_str);
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1))
   {
     DBUG_RETURN(NDBT_ProgramExit(NDBT_FAILED));

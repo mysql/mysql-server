@@ -628,6 +628,7 @@ int main(int argc, char** argv)
     unsigned ok = true;
 
     Ndb_cluster_connection con;
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
     if(con.connect(12, 5, 1))
     {
       return NDBT_ProgramExit(NDBT_FAILED);

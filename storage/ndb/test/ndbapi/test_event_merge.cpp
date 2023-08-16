@@ -2377,6 +2377,7 @@ static int
 doconnect()
 {
   g_ncc = new Ndb_cluster_connection();
+  g_ncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
   chkdb(g_ncc->connect(30) == 0);
   g_ndb = new Ndb(g_ncc, "TEST_DB");
   chkdb(g_ndb->init() == 0 && g_ndb->waitUntilReady(30) == 0);

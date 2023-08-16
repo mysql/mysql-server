@@ -29,6 +29,7 @@
 #include "mgmcommon/NdbMgm.hpp"
 #include <Vector.hpp>
 #include <BaseString.hpp>
+#include "util/TlsKeyManager.hpp"
 
 #define NDBT_NO_NODE_GROUP_ID (int(-256))
 
@@ -143,7 +144,8 @@ public:
    */
   Vector<Vector<int> > splitNodes();
 
-  NdbMgmHandle handle;  
+  NdbMgmHandle handle;
+  TlsKeyManager tlsKeyManager;
 
   enum NodeSelector
   {

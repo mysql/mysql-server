@@ -33,6 +33,10 @@
  *
  */
 
+// ndb_opts.h contains declaration of opt_tls_search_path and opt_mgm_tls
+// including this file will help to enable TLS support in test programs
+#include <ndb_opts.h>
+
 #include "NDBT_ReturnCodes.h"
 
 #ifdef __cplusplus

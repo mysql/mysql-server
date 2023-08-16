@@ -28,6 +28,7 @@
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
+#include <ndb_opts.h>
 
 struct
 S_Scan {
@@ -69,6 +70,7 @@ main(void){
   ndb_init();
 
   Ndb_cluster_connection con;
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1) != 0)
   {
     return 1;

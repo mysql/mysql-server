@@ -68,6 +68,9 @@ main(int argc, char** argv){
   }
   
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
+  extern const char* opt_tls_search_path;
+  extern unsigned long long opt_mgm_tls;
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
