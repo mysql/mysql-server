@@ -29,13 +29,6 @@
 #               START OF binlog_expire_logs_seconds TESTS              #
 ########################################################################
 
-SET @start_value = @@global.expire_logs_days;
-SELECT @start_value;
-
-# Set expire_logs_days to 0 in order to test binlog_expire_logs_seconds
-# or we will get error while setting binlog_expire_logs_seconds
-SET @@global.expire_logs_days = 0;
-
 SET @start_value_sec = @@global.binlog_expire_logs_seconds;
 SELECT @start_value_sec;
 ########################################################################
@@ -151,6 +144,3 @@ SELECT @@session.binlog_expire_logs_seconds;
 
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
 SELECT @@global.binlog_expire_logs_seconds;
-
-SET @@global.expire_logs_days = @start_value;
-SELECT @@global.expire_logs_days;

@@ -1,10 +1,10 @@
 Test binlog purging, especially 'automatic' purging
-Test expire-log-days handling as part of normal operation
-Logs are rotated as part of transaction COMMIT (to avoid
-a transaction being split across 2 files), rotation checks
-expire-logs-days to decide whether to purge, and purging
-calls into the Ndb handler to think about deleting rows
-from ndb_binlog_index.
+Test binlog-expire-logs-seconds handling as part of normal
+operation. Logs are rotated as part of transaction COMMIT (to
+avoid a transaction being split across 2 files), rotation
+checks binlog-expire-logs-seconds to decide whether to purge,
+and purging calls into the Ndb handler to think about
+deleting rows from ndb_binlog_index.
 The delete from ndb_binlog_index is itself a SQL statement
 executing *during* the COMMIT of some other transaction,
 potentially in some other engine.  Don't want to think

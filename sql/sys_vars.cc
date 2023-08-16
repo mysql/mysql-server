@@ -2192,49 +2192,14 @@ static Sys_var_enum Sys_event_scheduler(
     NOT_IN_BINLOG, ON_CHECK(event_scheduler_check),
     ON_UPDATE(event_scheduler_update));
 
-static bool check_expire_logs_days(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_days_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days_value && binlog_expire_logs_seconds) {
-    my_error(ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER, MYF(0));
-    return true;
-  }
-  return false;
-}
-
-static bool check_expire_logs_seconds(sys_var *, THD *, set_var *var) {
-  const ulonglong expire_logs_seconds_value = var->save_result.ulonglong_value;
-
-  if (expire_logs_days && expire_logs_seconds_value) {
-    my_error(ER_DA_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
-    return true;
-  }
-  return false;
-}
-
-static Sys_var_ulong Sys_expire_logs_days(
-    "expire_logs_days",
-    "If non-zero, binary logs will be purged after expire_logs_days "
-    "days; If this option alone is set on the command line or in a "
-    "configuration file, it overrides the default value for "
-    "binlog-expire-logs-seconds. If both options are set to nonzero values, "
-    "binlog-expire-logs-seconds takes priority. Possible purges happen at "
-    "startup and at binary log rotation.",
-    GLOBAL_VAR(expire_logs_days), CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS),
-    VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("binlog_expire_logs_seconds"));
-
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     "binlog_expire_logs_seconds",
     "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
-    " seconds; If both this option and expire_logs_days are set to non-zero"
-    "  values, this option takes priority. Purges happen at"
-    " startup and at binary log rotation.",
+    " seconds; Purges happen at startup and at binary log rotation.",
     GLOBAL_VAR(binlog_expire_logs_seconds),
     CMD_LINE(REQUIRED_ARG, OPT_BINLOG_EXPIRE_LOGS_SECONDS),
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
     "binlog_expire_logs_auto_purge",

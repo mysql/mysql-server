@@ -10,12 +10,12 @@
 
 
 
---echo Test expire-log-days handling as part of normal operation
---echo Logs are rotated as part of transaction COMMIT (to avoid
---echo a transaction being split across 2 files), rotation checks
---echo expire-logs-days to decide whether to purge, and purging
---echo calls into the Ndb handler to think about deleting rows
---echo from ndb_binlog_index.
+--echo Test binlog-expire-logs-seconds handling as part of normal
+--echo operation. Logs are rotated as part of transaction COMMIT (to
+--echo avoid a transaction being split across 2 files), rotation
+--echo checks binlog-expire-logs-seconds to decide whether to purge,
+--echo and purging calls into the Ndb handler to think about
+--echo deleting rows from ndb_binlog_index.
 --echo The delete from ndb_binlog_index is itself a SQL statement
 --echo executing *during* the COMMIT of some other transaction,
 --echo potentially in some other engine.  Don't want to think

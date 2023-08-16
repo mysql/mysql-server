@@ -37,10 +37,8 @@ CREATE TABLE t1 (c1 INT);
 --source include/rpl_connection_master.inc
 
 # Save global variables to be changed during the test case
-SET @saved_expire_logs_days= @@GLOBAL.expire_logs_days;
 SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
 
-SET @@GLOBAL.expire_logs_days= 0;
 SET @@GLOBAL.binlog_expire_logs_seconds= 1;
 
 # Prevent removal of files (among other restrictions)
@@ -128,6 +126,5 @@ DROP TABLE t1;
 
 # Restore changed global variables
 SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
-SET @@GLOBAL.expire_logs_days= @saved_expire_logs_days;
 
 --source include/rpl_end.inc

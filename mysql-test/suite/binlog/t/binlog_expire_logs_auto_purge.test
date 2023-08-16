@@ -19,13 +19,10 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`
---let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
 --let $saved_binlog_expire_logs_auto_purge= `SELECT @@GLOBAL.binlog_expire_logs_auto_purge`
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --let $retention_time_in_seconds = 3
 --let $sleep_time_in_seconds = `SELECT $retention_time_in_seconds * 2`
-
-SET @@global.expire_logs_days = 0;
 
 #
 # ASSERT: If binlog_expire_logs_auto_purge is set to OFF, then the server
@@ -69,9 +66,9 @@ FLUSH LOGS;
 --file_exists $MYSQLD_DATADIR/$second_binlog_file
 
 #
-# ASSERT: If binlog_expire_logs_auto_purge is set to ON and both
-#         binlog_expire_logs_seconds and expire_logs_days are set to 0,
-#         then binary log files SHALL NOT be automatically purged.
+# ASSERT: If binlog_expire_logs_auto_purge is set to ON and
+#         binlog_expire_logs_seconds is set to 0, then binary
+#         log files SHALL NOT be automatically purged.
 #
 
 # Set automatic purge period to 0 and verify that files
@@ -156,5 +153,4 @@ FLUSH LOGS;
 # clean up
 --eval SET GLOBAL binlog_expire_logs_seconds=$saved_binlog_expire_logs_seconds
 --eval SET GLOBAL binlog_expire_logs_auto_purge=$saved_binlog_expire_logs_auto_purge
---eval SET GLOBAL expire_logs_days=$saved_expire_logs_days
 RESET BINARY LOGS AND GTIDS;

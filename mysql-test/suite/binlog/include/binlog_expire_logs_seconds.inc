@@ -1,21 +1,19 @@
 #
 # WL#9237: Add a new variable binlog_expire_logs_seconds
 
-# Here we will test purging of binary logs when either one or both of these variables are set
-# - binlog_expire_logs_seconds
-# - expire_logs_days
+# Here we will test purging of binary logs when - binlog_expire_logs_seconds
+# is set.
 
 # The three scenarios being tested for are:
 # 1. FLUSH LOGS
 # 2. Rotation of logs because of binlog growing bigger than max_binlog_size
 # 3. Server restart
 #
-# Usuage: --let $binlog_expire_logs_seconds=
-#         --let $expire_logs_days=
+# Usage: --let $binlog_expire_logs_seconds=
 #
 # --source suite/binlog/include/binlog_expire_logs_seconds.inc
 
---let $expire_logs_seconds= `SELECT @@global.binlog_expire_logs_seconds + @@global.expire_logs_days * 24 * 60 * 60`
+--let $expire_logs_seconds= `SELECT @@global.binlog_expire_logs_seconds`
 
 CREATE TABLE t1(s LONGBLOB );
 

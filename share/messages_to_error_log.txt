@@ -3293,7 +3293,7 @@ ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE
 ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY
   eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
 
-ER_EXPIRE_LOGS_DAYS_IGNORED
+OBSOLETE_ER_EXPIRE_LOGS_DAYS_IGNORED
   eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. Therefore, value of expire_logs_days is ignored."
 
 ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG

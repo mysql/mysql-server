@@ -130,10 +130,8 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-binlog-expire-logs-auto-purge to disable.)
  --binlog-expire-logs-seconds=# 
  If non-zero, binary logs will be purged after
- binlog_expire_logs_seconds seconds; If both this option
- and expire_logs_days are set to non-zero  values, this
- option takes priority. Purges happen at startup and at
- binary log rotation.
+ binlog_expire_logs_seconds seconds; Purges happen at
+ startup and at binary log rotation.
  --binlog-format=name 
  The format used when writing the binary log. ROW writes
  each changed row in a binary format. STATEMENT writes SQL
@@ -363,14 +361,6 @@ The following options may be given as the first argument:
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
- --expire-logs-days=# 
- If non-zero, binary logs will be purged after
- expire_logs_days days; If this option alone is set on the
- command line or in a configuration file, it overrides the
- default value for binlog-expire-logs-seconds. If both
- options are set to nonzero values,
- binlog-expire-logs-seconds takes priority. Possible
- purges happen at startup and at binary log rotation.
  --explain-format[=name] 
  The default format in which the EXPLAIN statement
  displays information. Valid values are TRADITIONAL
@@ -1757,7 +1747,6 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler ON
-expire-logs-days 0
 explain-format TRADITIONAL
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE

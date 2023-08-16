@@ -328,12 +328,11 @@ static std::pair<bool, int> check_purge_conditions(const MYSQL_BIN_LOG &log) {
   NOTE: This function and part of the purge validation functions should
         really move to a retention policy class that abstracts the
         retention policy altogether and its controls. Perhaps we
-        can do that once expire_logs_days is removed and a refactoring
-        is done to also include retention based on storage space
-        occupied. Then we can uses the same retention abstraction
-        for binary and relay logs and possibly extend the options
-        to retain (binary) log files not only based on time, but
-        also on space used.
+        can do that once a refactoring is done to also include
+        retention based on storage space occupied. Then we can use
+        the same retention abstraction for binary and relay logs
+        and possibly extend the options to retain (binary) log files
+        not only based on time, but also on space used.
 
   @return time_t the time after which log files are considered expired.
 */
@@ -345,17 +344,14 @@ static time_t calculate_auto_purge_lower_time_bound() {
 
   if (binlog_expire_logs_seconds > 0)
     expiration_time = current_time - binlog_expire_logs_seconds;
-  else if (expire_logs_days > 0)
-    expiration_time =
-        current_time - expire_logs_days * static_cast<int64>(SECONDS_IN_24H);
 
   // check for possible overflow conditions (4 bytes time_t)
   if (expiration_time < std::numeric_limits<time_t>::min())
     expiration_time = std::numeric_limits<time_t>::min();
 
   // This function should only be called if binlog_expire_logs_seconds
-  // or expire_logs_days are greater than 0
-  assert(binlog_expire_logs_seconds > 0 || expire_logs_days > 0);
+  // is greater than 0
+  assert(binlog_expire_logs_seconds > 0);
 
   return static_cast<time_t>(expiration_time);
 }
@@ -371,7 +367,7 @@ static bool check_auto_purge_conditions() {
   if (!opt_binlog_expire_logs_auto_purge) return true;
 
   // no retention window configured
-  if (binlog_expire_logs_seconds == 0 && expire_logs_days == 0) return true;
+  if (binlog_expire_logs_seconds == 0) return true;
 
   // go ahead, validations checked successfully
   return false;

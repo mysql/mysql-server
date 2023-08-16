@@ -32,7 +32,6 @@ drop table t1, t2;
 
 # coverage for WL#14930 - run some statements with the binlog disabled.
 
---let $saved_binlog_expire_logs_days=`SELECT @@global.expire_logs_days`
 --let $saved_binlog_expire_logs_seconds=`SELECT @@global.binlog_expire_logs_seconds`
 --let $saved_binlog_expire_logs_auto_purge=`SELECT @@global.binlog_expire_logs_auto_purge`
 

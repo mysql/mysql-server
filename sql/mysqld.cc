@@ -1417,7 +1417,6 @@ ulong current_pid;
 uint sync_binlog_period = 0, sync_relaylog_period = 0,
      sync_relayloginfo_period = 0, sync_masterinfo_period = 0,
      opt_mta_checkpoint_period, opt_mta_checkpoint_group;
-ulong expire_logs_days = 0;
 ulong binlog_expire_logs_seconds = 0;
 bool opt_binlog_expire_logs_auto_purge{true};
 /**
@@ -1680,11 +1679,6 @@ bool log_replica_updates_supplied = false;
 bool replica_preserve_commit_order_supplied = false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
-/*
-  True if expire_logs_days and binlog_expire_logs_seconds are set
-  explicitly.
-*/
-bool expire_logs_days_supplied = false;
 bool binlog_expire_logs_seconds_supplied = false;
 /* Static variables */
 
@@ -8721,26 +8715,9 @@ static int init_server_components() {
     mysql_mutex_unlock(log_lock);
   }
 
-  /*
-    When we pass non-zero values for both expire_logs_days and
-    binlog_expire_logs_seconds at the server start-up, the value of
-    expire_logs_days will be ignored and only binlog_expire_logs_seconds
-    will be used.
-  */
-  if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied) {
-    if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0) {
-      LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
-      expire_logs_days = 0;
-    }
-  } else if (expire_logs_days_supplied)
-    binlog_expire_logs_seconds = 0;
-  assert(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
-
   if (!opt_bin_log) {
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
-    if (expire_logs_days_supplied)
-      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
   }
 
   if (opt_myisam_log) (void)mi_log(1);
@@ -9824,7 +9801,7 @@ int mysqld_main(int argc, char **argv)
     //   this mysql_bin_log.auto_purge_at_server_startup() runs
     if (DBUG_EVALUATE_IF("expire_logs_always_at_start", false, true))
       mysql_bin_log.auto_purge_at_server_startup();
-    else if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0)
+    else if (binlog_expire_logs_seconds > 0)
       mysql_bin_log.purge_logs_before_date(time(nullptr), true);
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
@@ -12250,11 +12227,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--binlog_max_flush_queue_time");
-      break;
-    case OPT_EXPIRE_LOGS_DAYS:
-      push_deprecated_warn(nullptr, "expire-logs-days",
-                           "binlog_expire_logs_seconds");
-      expire_logs_days_supplied = true;
       break;
     case OPT_BINLOG_EXPIRE_LOGS_SECONDS:
       binlog_expire_logs_seconds_supplied = true;
