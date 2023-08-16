@@ -206,10 +206,11 @@ INSTANTIATE_TEST_SUITE_P(Trx, SharingAllowedTest,
                          ::testing::ValuesIn(transaction_and_locking));
 
 const SharingAllowedParam replication_source[] = {
-    {"purge binary logs", Allowed::Never},     // instance
-    {"reset master", Allowed::Never},          // instance
-                                               //
-    {"set sql_log_bin = 1", Allowed::Always},  // session
+    {"purge binary logs", Allowed::Never},             // instance
+    {"reset master", Allowed::Never},                  // instance
+    {"reset binary logs and gtids ", Allowed::Never},  // instance
+                                                       //
+    {"set sql_log_bin = 1", Allowed::Always},          // session
 };
 
 INSTANTIATE_TEST_SUITE_P(ReplicationSource, SharingAllowedTest,
@@ -349,6 +350,7 @@ const SharingAllowedParam show_statements[] = {
     {"SHOW index from tbl", Allowed::Always},               //
     {"SHOW master logs", Allowed::OnlyReadWrite},           //
     {"SHOW master status", Allowed::OnlyReadWrite},         //
+    {"SHOW binary log status", Allowed::OnlyReadWrite},     //
     {"SHOW open tables", Allowed::InTransaction},           //
     {"SHOW plugins", Allowed::Always},                      //
     {"SHOW procedure code", Allowed::Always},               //
