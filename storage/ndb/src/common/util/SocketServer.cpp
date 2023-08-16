@@ -414,11 +414,6 @@ sessionThread_C(void* _sc){
 
   if(!si->m_stop)
     si->runSession();
-  else
-  {
-    ndb_socket_close(si->m_socket);
-    ndb_socket_invalidate(&si->m_socket);
-  }
 
   // Mark the thread as stopped to allow the
   // session resources to be released

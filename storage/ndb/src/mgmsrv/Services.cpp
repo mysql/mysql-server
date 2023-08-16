@@ -2019,11 +2019,9 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
-  bool close_with_reset = true;
   bool log_failure = false;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_secure_socket,
-                                    errormsg, close_with_reset, log_failure))
+  if (!m_mgmsrv.transporter_connect(m_secure_socket, errormsg, log_failure))
   {
     // Connection not allowed or failed
     if (log_failure)
@@ -2033,18 +2031,6 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
                              name(),
                              errormsg.c_str());
     }
-    // Close the socket to indicate failure to client
-    m_secure_socket.close_with_reset(close_with_reset);
-  }
-  else
-  {
-    /*
-      Conversion to transporter succeeded
-      Stop this session thread and release resources
-      but don't close the socket, it's been taken over
-      by the transporter
-    */
-    NdbSocket s = std::move(m_secure_socket);
   }
 
   m_stop= true; // Stop the session

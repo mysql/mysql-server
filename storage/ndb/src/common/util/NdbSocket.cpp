@@ -109,7 +109,7 @@ X509 * NdbSocket::peer_certificate() const {
   return SSL_get_peer_certificate(ssl);
 }
 
-int NdbSocket::set_nonblocking(int on) {
+int NdbSocket::set_nonblocking(int on) const {
   if(ssl) {
     if(on) {
       SSL_clear_mode(ssl, SSL_MODE_AUTO_RETRY);
@@ -227,6 +227,19 @@ bool NdbSocket::key_update_pending() const {
   if(SSL_version(ssl) == TLS1_3_VERSION)
     return (SSL_get_key_update_type(ssl) != SSL_KEY_UPDATE_NONE);
   return (bool) SSL_renegotiate_pending(ssl);
+}
+
+int NdbSocket::ssl_shutdown() const {
+  int err;
+  {
+    Guard2 guard(mutex);
+    set_nonblocking(false);
+    int r = SSL_shutdown(ssl);
+    if (r) return 0;
+    err = SSL_get_error(ssl, r);
+  }
+  Debug_Log("SSL_shutdown(): ERR %d", err);
+  return handle_ssl_error(err, "SSL_shutdown");
 }
 
 ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
