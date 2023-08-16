@@ -2005,10 +2005,9 @@ struct Purge_groups_t {
 
     /* Initialize the grouping vector. */
     for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
-      void *ptr;
       purge_node_t::Recs *recs;
 
-      ptr = mem_heap_alloc(m_heap, sizeof(purge_node_t::Recs));
+      void* __restrict ptr = mem_heap_alloc(m_heap, sizeof(purge_node_t::Recs));
 
       /* Call the destructor explicitly in row_purge_end() */
       recs = new (ptr)

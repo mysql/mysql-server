@@ -122,7 +122,7 @@ class Key_part_spec {
     @return If out of memory, 0 is returned and an error is set in
     THD.
   */
-  Key_part_spec *clone(MEM_ROOT *mem_root) const {
+  Key_part_spec *clone(MEM_ROOT* __restrict mem_root) const {
     return new (mem_root) Key_part_spec(*this);
   }
 

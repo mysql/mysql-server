@@ -593,7 +593,7 @@ class SEL_ARG {
     return sel_cmp(field, max_value, arg->min_value, max_flag, arg->min_flag);
   }
   SEL_ARG *clone_and(SEL_ARG *arg,
-                     MEM_ROOT *mem_root) {  // Get intersection of ranges.
+      MEM_ROOT* __restrict mem_root) {  // Get intersection of ranges.
     uchar *new_min, *new_max;
     uint8 flag_min, flag_max;
     if (cmp_min_to_min(arg) >= 0) {
@@ -616,14 +616,14 @@ class SEL_ARG {
                 min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_first(SEL_ARG *arg,
-                       MEM_ROOT *mem_root) {  // arg->min <= X < arg->min
+      MEM_ROOT* __restrict mem_root) {  // arg->min <= X < arg->min
     return new (mem_root) SEL_ARG(
         field, part, min_value, arg->min_value, min_flag,
         arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX, maybe_flag || arg->maybe_flag,
         is_ascending, min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_last(SEL_ARG *arg,
-                      MEM_ROOT *mem_root) {  // arg->min <= X <= key_max
+      MEM_ROOT* __restrict mem_root) {  // arg->min <= X <= key_max
     return new (mem_root)
         SEL_ARG(field, part, min_value, arg->max_value, min_flag, arg->max_flag,
                 maybe_flag || arg->maybe_flag, is_ascending,

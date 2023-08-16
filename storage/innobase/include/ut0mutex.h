@@ -232,7 +232,7 @@ Add the mutex instance to the global mutex list.
 @param[in]      file_name       Filename from where it was called
 @param[in]      line            Line number in filename from where called */
 template <typename Mutex>
-void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
+void mutex_init(Mutex* __restrict mutex, latch_id_t id, const char *file_name,
                 uint32_t line) {
   new (mutex) Mutex();
 

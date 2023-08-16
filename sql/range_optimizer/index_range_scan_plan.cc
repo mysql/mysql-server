@@ -1057,11 +1057,12 @@ static inline std::basic_string_view<uchar> make_string_view(const uchar *start,
 */
 
 static bool get_ranges_from_tree_given_base(
-    THD *thd, MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
-    SEL_ROOT *key_tree, uchar *const base_min_key, uchar *min_key,
-    uint min_key_flag, uchar *const base_max_key, uchar *max_key,
-    uint max_key_flag, bool first_keypart_is_asc, uint num_key_parts,
-    uint *used_key_parts, uint *num_exact_key_parts, Quick_ranges *ranges) {
+    THD *thd, MEM_ROOT* __restrict return_mem_root, const KEY *table_key,
+    KEY_PART *key, SEL_ROOT *key_tree, uchar *const base_min_key,
+    uchar *min_key, uint min_key_flag, uchar *const base_max_key,
+    uchar *max_key, uint max_key_flag, bool first_keypart_is_asc,
+    uint num_key_parts, uint *used_key_parts, uint *num_exact_key_parts,
+    Quick_ranges *ranges) {
   const uint part = key_tree->root->part;
   const bool asc = key_tree->root->is_ascending;
 

@@ -33,7 +33,7 @@ Glue code for registering the TempTable plugin at MySQL. */
 struct MEM_ROOT;
 
 static handler *create_handler(handlerton *hton, TABLE_SHARE *table_share, bool,
-                               MEM_ROOT *mem_root) {
+                               MEM_ROOT *__restrict mem_root) {
   return new (mem_root) temptable::Handler(hton, table_share);
 }
 

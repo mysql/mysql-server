@@ -571,7 +571,7 @@ Parallel_reader::Scan_ctx::create_persistent_cursor(
     return (iter);
   }
 
-  void *ptr = mem_heap_alloc(iter->m_heap, sizeof(btr_pcur_t));
+  void* __restrict ptr = mem_heap_alloc(iter->m_heap, sizeof(btr_pcur_t));
 
   ::new (ptr) btr_pcur_t();
 

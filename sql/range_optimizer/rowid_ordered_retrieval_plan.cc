@@ -673,7 +673,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 
 static AccessPath *MakeAccessPath(ROR_SCAN_INFO *scan, TABLE *table,
                                   KEY_PART *used_key_part, bool reuse_handler,
-                                  MEM_ROOT *mem_root) {
+                                  MEM_ROOT* __restrict mem_root) {
   AccessPath *path = new (mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
 

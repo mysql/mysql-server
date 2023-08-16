@@ -218,8 +218,9 @@ class TimingIterator final : public RowIterator {
 // instantiations of iterators should go through this function.
 
 template <class RealIterator, class... Args>
-unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd, MEM_ROOT *mem_root,
-                                                 Args &&... args) {
+unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd,
+                                                 MEM_ROOT* __restrict mem_root,
+                                                 Args &&...args) {
   if (thd->lex->is_explain_analyze) {
     return unique_ptr_destroy_only<RowIterator>(
         new (mem_root)

@@ -236,7 +236,8 @@ Uncommitted_tables_guard::~Uncommitted_tables_guard() {
 template <typename T>
 static bool prepare_view_tables_list(THD *thd, const char *db,
                                      const char *tbl_or_sf_name,
-                                     bool skip_same_db, MEM_ROOT *mem_root,
+                                     bool skip_same_db,
+                                     MEM_ROOT* __restrict mem_root,
                                      std::vector<Table_ref *> *views) {
   DBUG_TRACE;
   std::vector<dd::Object_id> view_ids;
@@ -362,7 +363,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
                                    const char *tbl_or_sf_name,
                                    const std::vector<Table_ref *> *views_list,
                                    bool skip_same_db, bool commit_dd_changes,
-                                   MEM_ROOT *mem_root) {
+                                   MEM_ROOT* __restrict mem_root) {
   DBUG_TRACE;
   assert(!views_list->empty());
 

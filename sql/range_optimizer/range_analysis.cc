@@ -1161,8 +1161,8 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
 */
 static bool save_value_and_handle_conversion(
     SEL_ROOT **tree, Item *value, const Item_func::Functype comp_op,
-    Field *field, const char **impossible_cond_cause, MEM_ROOT *memroot,
-    Query_block *query_block, bool *inexact) {
+    Field *field, const char **impossible_cond_cause,
+    MEM_ROOT* __restrict memroot, Query_block *query_block, bool *inexact) {
   // A SEL_ARG should not have been created for this predicate yet.
   assert(*tree == nullptr);
 

@@ -7561,7 +7561,7 @@ void Field_json::sql_type(String &str) const {
 }
 
 /// Create a shallow clone of this field in the specified MEM_ROOT.
-Field_json *Field_json::clone(MEM_ROOT *mem_root) const {
+Field_json *Field_json::clone(MEM_ROOT* __restrict mem_root) const {
   assert(type() == MYSQL_TYPE_JSON);
   return new (mem_root) Field_json(*this);
 }
@@ -9274,7 +9274,7 @@ size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
   return pack_length;
 }
 
-Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
+Field *make_field(MEM_ROOT* __restrict mem_root, TABLE_SHARE *share, uchar *ptr,
                   size_t field_length, uchar *null_pos, uchar null_bit,
                   enum_field_types field_type,
                   const CHARSET_INFO *field_charset,
@@ -9770,7 +9770,8 @@ uint32 Field_typed_array::key_length() const {
                          0);
 }
 
-Field_typed_array *Field_typed_array::clone(MEM_ROOT *mem_root) const {
+Field_typed_array *Field_typed_array::clone(
+    MEM_ROOT* __restrict mem_root) const  {
   assert(is_array());
   return new (mem_root) Field_typed_array(*this);
 }

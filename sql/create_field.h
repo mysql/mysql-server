@@ -201,7 +201,7 @@ class Create_field {
   Create_field(Field *field, Field *orig_field);
 
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
-  Create_field *clone(MEM_ROOT *mem_root) const {
+  Create_field *clone(MEM_ROOT* __restrict mem_root) const {
     return new (mem_root) Create_field(*this);
   }
   bool is_gcol() const { return gcol_info; }

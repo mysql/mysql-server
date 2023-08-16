@@ -2725,7 +2725,7 @@ The caller must take care of relocating bpage->list.
 @param[in,out]  bpage   control block being relocated, buf_page_get_state()
                         must be BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE
 @param[in,out]  dpage   destination control block */
-static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
+static void buf_relocate(buf_page_t *bpage, buf_page_t* __restrict dpage) {
   buf_page_t *b;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 

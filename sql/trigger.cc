@@ -301,7 +301,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
 */
 
 Trigger *Trigger::create_from_dd(
-    MEM_ROOT *mem_root, const LEX_CSTRING &trigger_name,
+    MEM_ROOT* __restrict mem_root, const LEX_CSTRING &trigger_name,
     const LEX_CSTRING &db_name, const LEX_CSTRING &subject_table_name,
     const LEX_CSTRING &definition, const LEX_CSTRING &definition_utf8,
     sql_mode_t sql_mode, const LEX_CSTRING &definer_user,

@@ -67,7 +67,7 @@ static int heap_init(void *p) {
 }
 
 static handler *heap_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
-                                    MEM_ROOT *mem_root) {
+                                    MEM_ROOT* __restrict mem_root) {
   return new (mem_root) ha_heap(hton, table);
 }
 

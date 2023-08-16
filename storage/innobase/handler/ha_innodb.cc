@@ -1757,7 +1757,8 @@ static int innobase_commit_concurrency_validate(
 @param[in]      partitioned     Indicates whether table is partitioned
 @param[in]      mem_root        memory context */
 static handler *innobase_create_handler(handlerton *hton, TABLE_SHARE *table,
-                                        bool partitioned, MEM_ROOT *mem_root) {
+                                        bool partitioned,
+                                        MEM_ROOT* __restrict mem_root) {
   if (partitioned) {
     ha_innopart *file = new (mem_root) ha_innopart(hton, table);
     if (file && file->init_partitioning(mem_root)) {

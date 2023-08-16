@@ -645,7 +645,7 @@ void dtuple_convert_back_big_rec(dtuple_t *entry, big_rec_t *vector) {
 }
 
 big_rec_t *big_rec_t::alloc(mem_heap_t *heap, ulint n_fld) {
-  big_rec_t *rec =
+  big_rec_t* __restrict rec =
       static_cast<big_rec_t *>(mem_heap_alloc(heap, sizeof(big_rec_t)));
 
   new (rec) big_rec_t(n_fld);

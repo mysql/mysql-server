@@ -118,7 +118,7 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
                                         Stored_program_creation_ctx **ctx);
 
  public:
-  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override {
+  Stored_program_creation_ctx *clone(MEM_ROOT* __restrict mem_root) override {
     return new (mem_root)
         Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
   }

@@ -100,7 +100,8 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
       Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }
 
-Stored_program_creation_ctx *Trigger_creation_ctx::clone(MEM_ROOT *mem_root) {
+Stored_program_creation_ctx *Trigger_creation_ctx::clone(
+    MEM_ROOT* __restrict mem_root) {
   return new (mem_root)
       Trigger_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
 }

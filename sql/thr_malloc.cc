@@ -42,7 +42,8 @@ using std::min;
 
 extern "C" void sql_alloc_error_handler(void);
 
-void init_sql_alloc(PSI_memory_key key, MEM_ROOT *mem_root, size_t block_size) {
+void init_sql_alloc(PSI_memory_key key, MEM_ROOT* __restrict mem_root,
+                    size_t block_size) {
   ::new ((void *)mem_root) MEM_ROOT(key, block_size);
   mem_root->set_error_handler(sql_alloc_error_handler);
 }

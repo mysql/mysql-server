@@ -1973,7 +1973,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
     A list of item tree changes of an average query should be short.
   */
 
-  void *change_mem = mem_root->Alloc(sizeof(*change));
+  void* __restrict change_mem = mem_root->Alloc(sizeof(*change));
   if (change_mem == nullptr) {
     /*
       OOM, thd->fatal_error() is called by the error handler of the

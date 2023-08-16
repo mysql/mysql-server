@@ -486,7 +486,7 @@ void ACL_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
   set_hostname(&host, host_arg, mem);
 }
 
-void ACL_USER::set_mfa(MEM_ROOT *mem, I_multi_factor_auth *m) {
+void ACL_USER::set_mfa(MEM_ROOT* __restrict mem, I_multi_factor_auth *m) {
   if (mem && m) {
     m_mfa = new (mem) Multi_factor_auth_list(mem);
     Multi_factor_auth_list *auth_list = m->get_multi_factor_auth_list();

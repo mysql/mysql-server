@@ -456,9 +456,10 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
     use key_length= 0 as neither table_cache_key or key_length will be used).
 */
 
-void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          size_t key_length, const char *table_name,
-                          const char *path, MEM_ROOT *mem_root) {
+void init_tmp_table_share(THD *thd, TABLE_SHARE* __restrict share,
+                          const char *key, size_t key_length,
+                          const char *table_name, const char *path,
+                          MEM_ROOT *mem_root) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
@@ -2865,7 +2866,7 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table,
+                          TABLE* __restrict outparam, bool is_create_table,
                           const dd::Table *table_def_param) {
   int error;
   uint records, i, bitmap_size;

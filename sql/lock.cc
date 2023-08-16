@@ -792,7 +792,8 @@ bool lock_schema_name(THD *thd, const char *db) {
   @return false - On Success.
 */
 bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
-                           ulong lock_wait_timeout, MEM_ROOT *mem_root) {
+                           ulong lock_wait_timeout,
+                           MEM_ROOT* __restrict mem_root) {
   // Stop if we have nothing to lock
   if (tablespace_set->empty()) return false;
 

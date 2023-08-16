@@ -349,7 +349,7 @@ static bool ModifyAccessPathCost(THD *thd [[maybe_unused]],
 }
 
 static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
-                       MEM_ROOT *mem_root) {
+                       MEM_ROOT *__restrict mem_root) {
   return new (mem_root) mock::ha_mock(hton, table_share);
 }
 

@@ -122,7 +122,7 @@ static void unlock_pfs_external_table_shares() {
 }
 
 static handler *pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
-                                   MEM_ROOT *mem_root) {
+                                   MEM_ROOT *__restrict mem_root) {
   return new (mem_root) ha_perfschema(hton, table);
 }
 

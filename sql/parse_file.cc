@@ -58,7 +58,8 @@ File_parser_dummy_hook file_parser_dummy_hook;
     parser object
 */
 
-File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
+File_parser *sql_parse_prepare(const LEX_STRING *file_name,
+                               MEM_ROOT* __restrict mem_root,
                                bool bad_format_errors) {
   MY_STAT stat_info;
   size_t len;

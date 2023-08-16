@@ -251,7 +251,7 @@ struct TrxFactory {
   with trx_start_if_not_started() before using it. The default isolation
   level is TRX_ISO_REPEATABLE_READ.
   @param trx Transaction instance to initialise */
-  static void init(trx_t *trx) {
+  static void init(trx_t* __restrict trx) {
     /* Explicitly call the constructor of the already
     allocated object. trx_t objects are allocated by
     ut::zalloc_withkey() in Pool::Pool() which would not call
@@ -3182,7 +3182,7 @@ static bool get_table_name_info(st_handler_tablename *table,
 
 static bool get_info_about_prepared_transaction(XA_recover_txn *txn_list,
                                                 const trx_t *trx,
-                                                MEM_ROOT *mem_root) {
+                                                MEM_ROOT* __restrict mem_root) {
   txn_list->id = *trx->xid;
   txn_list->mod_tables = new (mem_root) List<st_handler_tablename>();
   if (!txn_list->mod_tables) return true;

@@ -403,7 +403,7 @@ static void ndbcluster_pre_dd_shutdown(handlerton *);
 
 static handler *ndbcluster_create_handler(handlerton *hton, TABLE_SHARE *table,
                                           bool /* partitioned */,
-                                          MEM_ROOT *mem_root) {
+                                          MEM_ROOT *__restrict mem_root) {
   return new (mem_root) ha_ndbcluster(hton, table);
 }
 

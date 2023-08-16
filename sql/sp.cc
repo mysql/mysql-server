@@ -239,7 +239,7 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
 }
 
 Stored_program_creation_ctx *Stored_routine_creation_ctx::clone(
-    MEM_ROOT *mem_root) {
+    MEM_ROOT* __restrict mem_root) {
   return new (mem_root)
       Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
 }

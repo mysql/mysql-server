@@ -2692,7 +2692,8 @@ bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
+Item_row *Item_func_interval::alloc_row(const POS &pos,
+                                        MEM_ROOT* __restrict mem_root,
                                         Item *expr1, Item *expr2,
                                         PT_item_list *opt_expr_list) {
   mem_root_deque<Item *> *list =
@@ -4580,7 +4581,7 @@ cmp_item_json::cmp_item_json(unique_ptr_destroy_only<Json_wrapper> wrapper,
 cmp_item_json::~cmp_item_json() = default;
 
 /// Create a cmp_item_json object on a MEM_ROOT.
-static cmp_item_json *make_cmp_item_json(MEM_ROOT *mem_root) {
+static cmp_item_json *make_cmp_item_json(MEM_ROOT *__restrict mem_root) {
   auto wrapper = make_unique_destroy_only<Json_wrapper>(mem_root);
   if (wrapper == nullptr) return nullptr;
   auto holder = make_unique_destroy_only<Json_scalar_holder>(mem_root);
@@ -7757,7 +7758,7 @@ bool Item_eq_base::append_join_key_for_hash_join(
   return is_null;
 }
 
-Item *Item_eq_base::create_cast_if_needed(MEM_ROOT *mem_root,
+Item *Item_eq_base::create_cast_if_needed(MEM_ROOT* __restrict mem_root,
                                           Item *argument) const {
   // We wrap the argument in a typecast node in two cases:
   // a) If the comparison is done in a DECIMAL context.

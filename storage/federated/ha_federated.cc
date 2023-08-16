@@ -436,7 +436,7 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all);
 /* Federated storage engine handlerton */
 
 static handler *federated_create_handler(handlerton *hton, TABLE_SHARE *table,
-                                         bool, MEM_ROOT *mem_root) {
+                                         bool, MEM_ROOT* __restrict mem_root) {
   return new (mem_root) ha_federated(hton, table);
 }
 

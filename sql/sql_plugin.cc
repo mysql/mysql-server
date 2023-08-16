@@ -3517,7 +3517,7 @@ static int test_plugin_options(
     but tmp->root is not always properly freed, so it will cause leaks in
     Valgrind (e.g. the main.validate_password_plugin test).
   */
-  MEM_ROOT *mem_root = &plugin_mem_root;
+  MEM_ROOT *__restrict mem_root = &plugin_mem_root;
   SYS_VAR **opt;
   my_option *opts = nullptr;
   LEX_CSTRING plugin_name;

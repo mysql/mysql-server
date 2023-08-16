@@ -91,7 +91,7 @@ TEST(OnlineCycleFinderTest, Transitive) {
 
 static void AddEdge(THD *thd, RelationalExpression::Type join_type,
                     NodeMap left, NodeMap right, double selectivity,
-                    MEM_ROOT *mem_root, JoinHypergraph *graph) {
+                    MEM_ROOT *__restrict mem_root, JoinHypergraph *graph) {
   JoinPredicate pred;
   pred.selectivity = selectivity;
   pred.expr = new (mem_root) RelationalExpression(thd);
@@ -123,7 +123,8 @@ using NodeGuard = Scope_guard<DestroyNodes>;
 
 }  // namespace
 
-[[nodiscard]] static NodeGuard AddNodes(int num_nodes, MEM_ROOT *mem_root,
+[[nodiscard]] static NodeGuard AddNodes(int num_nodes,
+                                        MEM_ROOT *__restrict mem_root,
                                         JoinHypergraph *g) {
   for (int i = 0; i < num_nodes; ++i) {
     TABLE *table =

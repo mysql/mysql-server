@@ -157,7 +157,7 @@ static bool ndbcluster_is_disabled(void) {
 }
 
 static handler *create_handler(handlerton *hton, TABLE_SHARE *table, bool,
-                               MEM_ROOT *mem_root) {
+                               MEM_ROOT *__restrict mem_root) {
   return new (mem_root) ha_ndbinfo(hton, table);
 }
 

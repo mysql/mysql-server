@@ -61,7 +61,7 @@ Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
 
 // Public factory method
 template <class T>
-Equi_height<T> *Equi_height<T>::create(MEM_ROOT *mem_root,
+Equi_height<T> *Equi_height<T>::create(MEM_ROOT* __restrict mem_root,
                                        const std::string &db_name,
                                        const std::string &tbl_name,
                                        const std::string &col_name,
@@ -673,7 +673,7 @@ bool Equi_height<T>::add_bucket_from_json(const Json_array *json_bucket,
 }
 
 template <class T>
-Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const {
+Histogram *Equi_height<T>::clone(MEM_ROOT* __restrict mem_root) const {
   DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
   bool error = false;
   Histogram *equi_height =

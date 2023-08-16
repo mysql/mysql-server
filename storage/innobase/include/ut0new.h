@@ -748,7 +748,7 @@ inline void free(void *ptr) noexcept {
  */
 template <typename T, typename... Args>
 inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
-  auto mem = ut::malloc_withkey(key, sizeof(T));
+  auto __restrict mem = ut::malloc_withkey(key, sizeof(T));
   if (unlikely(!mem)) throw std::bad_alloc();
   try {
     new (mem) T(std::forward<Args>(args)...);
@@ -1592,7 +1592,7 @@ inline void aligned_free(void *ptr) noexcept {
 template <typename T, typename... Args>
 inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
                               Args &&... args) {
-  auto mem = aligned_alloc_withkey(key, sizeof(T), alignment);
+  auto __restrict mem = aligned_alloc_withkey(key, sizeof(T), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
   try {
     new (mem) T(std::forward<Args>(args)...);
@@ -1777,7 +1777,8 @@ inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
 template <typename T>
 inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
                                   Count count) {
-  auto mem = aligned_alloc_withkey(key, sizeof(T) * count(), alignment);
+  auto __restrict mem =
+      aligned_alloc_withkey(key, sizeof(T) * count(), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
 
   size_t offset = 0;

@@ -241,7 +241,8 @@ bool check_privileges(THD *thd, const Import_target &t) {
   return false;
 }
 
-MDL_request *mdl_request(const Import_target &t, MEM_ROOT *mem_root) {
+MDL_request *mdl_request(const Import_target &t,
+                         MEM_ROOT* __restrict mem_root) {
   MDL_request *req = new (mem_root) MDL_request;
   MDL_REQUEST_INIT(req, MDL_key::TABLE, t.can_schema_name()->c_str(),
                    t.can_table_name()->c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);

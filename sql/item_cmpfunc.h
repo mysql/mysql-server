@@ -1648,7 +1648,8 @@ class in_string final : public in_vector {
 
  public:
   in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs);
-  Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
+  Item_basic_constant *create_item(
+      MEM_ROOT* __restrict mem_root) const override {
     return new (mem_root) Item_string(collation);
   }
   void value_to_item(uint pos, Item_basic_constant *item) const override {
@@ -1676,7 +1677,8 @@ class in_longlong : public in_vector {
  public:
   in_longlong(MEM_ROOT *mem_root, uint elements)
       : in_vector(elements), base(mem_root, elements) {}
-  Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
+  Item_basic_constant *create_item(
+      MEM_ROOT* __restrict mem_root) const override {
     /*
       We've created a signed INT, this may not be correct in the
       general case (see BUG#19342).
@@ -1698,7 +1700,7 @@ class in_longlong : public in_vector {
 
 class in_datetime_as_longlong final : public in_longlong {
  public:
-  in_datetime_as_longlong(MEM_ROOT *mem_root, uint elements)
+  in_datetime_as_longlong(MEM_ROOT* __restrict mem_root, uint elements)
       : in_longlong(mem_root, elements) {}
   Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
     return new (mem_root) Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
@@ -1710,7 +1712,7 @@ class in_datetime_as_longlong final : public in_longlong {
 
 class in_time_as_longlong final : public in_longlong {
  public:
-  in_time_as_longlong(MEM_ROOT *mem_root, uint elements)
+  in_time_as_longlong(MEM_ROOT* __restrict mem_root, uint elements)
       : in_longlong(mem_root, elements) {}
   Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
     return new (mem_root) Item_temporal(MYSQL_TYPE_TIME, 0LL);
@@ -1731,7 +1733,8 @@ class in_datetime final : public in_longlong {
  public:
   in_datetime(MEM_ROOT *mem_root, Item *warn_item_arg, uint elements)
       : in_longlong(mem_root, elements), warn_item(warn_item_arg) {}
-  Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
+  Item_basic_constant *create_item(
+      MEM_ROOT* __restrict mem_root) const override {
     return new (mem_root) Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
 
@@ -1746,7 +1749,8 @@ class in_double final : public in_vector {
  public:
   in_double(MEM_ROOT *mem_root, uint elements)
       : in_vector(elements), base(mem_root, elements) {}
-  Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
+  Item_basic_constant *create_item(
+      MEM_ROOT* __restrict mem_root) const override {
     return new (mem_root) Item_float(0.0, 0);
   }
   void value_to_item(uint pos, Item_basic_constant *item) const override {
@@ -1766,7 +1770,8 @@ class in_decimal final : public in_vector {
  public:
   in_decimal(MEM_ROOT *mem_root, uint elements)
       : in_vector(elements), base(mem_root, elements) {}
-  Item_basic_constant *create_item(MEM_ROOT *mem_root) const override {
+  Item_basic_constant *create_item(
+      MEM_ROOT* __restrict mem_root) const override {
     return new (mem_root) Item_decimal(0, false);
   }
   void value_to_item(uint pos, Item_basic_constant *item) const override {

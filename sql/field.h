@@ -1901,7 +1901,7 @@ class Create_field_wrapper final : public Field {
     assert(false);
     return 0;
   }
-  Field *clone(MEM_ROOT *mem_root) const final {
+  Field *clone(MEM_ROOT* __restrict mem_root) const final {
     return new (mem_root) Create_field_wrapper(*this);
   }
   /* purecov: end */
@@ -2076,7 +2076,7 @@ class Field_decimal final : public Field_real {
   void overflow(bool negative);
   bool zero_pack() const final { return false; }
   void sql_type(String &str) const final;
-  Field_decimal *clone(MEM_ROOT *mem_root) const final {
+  Field_decimal *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_DECIMAL);
     return new (mem_root) Field_decimal(*this);
   }
@@ -2150,7 +2150,7 @@ class Field_new_decimal : public Field_num {
   bool compatible_field_size(uint field_metadata, Relay_log_info *, uint16,
                              int *order_var) const final;
   uint is_equal(const Create_field *new_field) const final;
-  Field_new_decimal *clone(MEM_ROOT *mem_root) const final {
+  Field_new_decimal *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_NEWDECIMAL);
     return new (mem_root) Field_new_decimal(*this);
   }
@@ -2190,7 +2190,7 @@ class Field_tiny : public Field_num {
   uint32 pack_length() const final { return 1; }
   void sql_type(String &str) const override;
   uint32 max_display_length() const final { return 4; }
-  Field_tiny *clone(MEM_ROOT *mem_root) const override {
+  Field_tiny *clone(MEM_ROOT* __restrict mem_root) const override {
     assert(type() == MYSQL_TYPE_TINY);
     return new (mem_root) Field_tiny(*this);
   }
@@ -2242,7 +2242,7 @@ class Field_short final : public Field_num {
   uint32 pack_length() const final { return 2; }
   void sql_type(String &str) const final;
   uint32 max_display_length() const final { return 6; }
-  Field_short *clone(MEM_ROOT *mem_root) const final {
+  Field_short *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_SHORT);
     return new (mem_root) Field_short(*this);
   }
@@ -2290,7 +2290,7 @@ class Field_medium final : public Field_num {
   uint32 pack_length() const final { return 3; }
   void sql_type(String &str) const final;
   uint32 max_display_length() const final { return 8; }
-  Field_medium *clone(MEM_ROOT *mem_root) const final {
+  Field_medium *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_INT24);
     return new (mem_root) Field_medium(*this);
   }
@@ -2333,7 +2333,7 @@ class Field_long : public Field_num {
   uint32 max_display_length() const final {
     return MY_INT32_NUM_DECIMAL_DIGITS;
   }
-  Field_long *clone(MEM_ROOT *mem_root) const final {
+  Field_long *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_LONG);
     return new (mem_root) Field_long(*this);
   }
@@ -2383,7 +2383,7 @@ class Field_longlong : public Field_num {
   void sql_type(String &str) const final;
   bool can_be_compared_as_longlong() const final { return true; }
   uint32 max_display_length() const final { return 20; }
-  Field_longlong *clone(MEM_ROOT *mem_root) const final {
+  Field_longlong *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_LONGLONG);
     return new (mem_root) Field_longlong(*this);
   }
@@ -2427,7 +2427,7 @@ class Field_float final : public Field_real {
   size_t make_sort_key(uchar *buff, size_t length) const final;
   uint32 pack_length() const final { return sizeof(float); }
   void sql_type(String &str) const final;
-  Field_float *clone(MEM_ROOT *mem_root) const final {
+  Field_float *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_FLOAT);
     return new (mem_root) Field_float(*this);
   }
@@ -2482,7 +2482,7 @@ class Field_double final : public Field_real {
   size_t make_sort_key(uchar *buff, size_t length) const final;
   uint32 pack_length() const final { return sizeof(double); }
   void sql_type(String &str) const final;
-  Field_double *clone(MEM_ROOT *mem_root) const final {
+  Field_double *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_DOUBLE);
     return new (mem_root) Field_double(*this);
   }
@@ -2530,7 +2530,7 @@ class Field_null final : public Field_str {
   uint32 pack_length() const final { return 0; }
   void sql_type(String &str) const final;
   uint32 max_display_length() const final { return 4; }
-  Field_null *clone(MEM_ROOT *mem_root) const final {
+  Field_null *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_NULL);
     return new (mem_root) Field_null(*this);
   }
@@ -2941,7 +2941,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
   bool get_timestamp(my_timeval *tm, int *warnings) const final;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
-  Field_timestamp *clone(MEM_ROOT *mem_root) const final {
+  Field_timestamp *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_TIMESTAMP);
     return new (mem_root) Field_timestamp(*this);
   }
@@ -3002,7 +3002,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   */
   Field_timestampf(bool is_nullable_arg, const char *field_name_arg,
                    uint8 dec_arg);
-  Field_timestampf *clone(MEM_ROOT *mem_root) const final {
+  Field_timestampf *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_TIMESTAMP);
     return new (mem_root) Field_timestampf(*this);
   }
@@ -3063,7 +3063,7 @@ class Field_year final : public Field_tiny {
   bool send_to_protocol(Protocol *protocol) const final;
   void sql_type(String &str) const final;
   bool can_be_compared_as_longlong() const final { return true; }
-  Field_year *clone(MEM_ROOT *mem_root) const final {
+  Field_year *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_YEAR);
     return new (mem_root) Field_year(*this);
   }
@@ -3102,7 +3102,7 @@ class Field_newdate : public Field_temporal_with_date {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return true; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
-  Field_newdate *clone(MEM_ROOT *mem_root) const final {
+  Field_newdate *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_DATE);
     assert(real_type() == MYSQL_TYPE_NEWDATE);
     return new (mem_root) Field_newdate(*this);
@@ -3190,7 +3190,7 @@ class Field_time final : public Field_time_common {
   uint32 pack_length() const final { return 3; }
   void sql_type(String &str) const final;
   bool zero_pack() const final { return true; }
-  Field_time *clone(MEM_ROOT *mem_root) const final {
+  Field_time *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_TIME);
     return new (mem_root) Field_time(*this);
   }
@@ -3234,7 +3234,7 @@ class Field_timef final : public Field_time_common {
       : Field_time_common(nullptr,
                           is_nullable_arg ? &dummy_null_buffer : nullptr, 0,
                           NONE, field_name_arg, dec_arg) {}
-  Field_timef *clone(MEM_ROOT *mem_root) const final {
+  Field_timef *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_TIME);
     return new (mem_root) Field_timef(*this);
   }
@@ -3315,7 +3315,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
   void sql_type(String &str) const final;
   bool zero_pack() const final { return true; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
-  Field_datetime *clone(MEM_ROOT *mem_root) const final {
+  Field_datetime *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_DATETIME);
     return new (mem_root) Field_datetime(*this);
   }
@@ -3366,7 +3366,7 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
       : Field_temporal_with_date_and_timef(
             nullptr, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE,
             field_name_arg, dec_arg) {}
-  Field_datetimef *clone(MEM_ROOT *mem_root) const final {
+  Field_datetimef *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_DATETIME);
     return new (mem_root) Field_datetimef(*this);
   }
@@ -3450,7 +3450,7 @@ class Field_string : public Field_longstr {
   bool has_charset() const final {
     return charset() == &my_charset_bin ? false : true;
   }
-  Field_string *clone(MEM_ROOT *mem_root) const final {
+  Field_string *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(real_type() == MYSQL_TYPE_STRING);
     return new (mem_root) Field_string(*this);
   }
@@ -3512,7 +3512,7 @@ class Field_varstring : public Field_longstr {
   Field *new_field(MEM_ROOT *root, TABLE *new_table) const final;
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                        uchar *new_null_ptr, uint new_null_bit) const final;
-  Field_varstring *clone(MEM_ROOT *mem_root) const final {
+  Field_varstring *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_VARCHAR);
     assert(real_type() == MYSQL_TYPE_VARCHAR);
     return new (mem_root) Field_varstring(*this);
@@ -3747,7 +3747,7 @@ class Field_blob : public Field_longstr {
   void set_key_image(const uchar *buff, size_t length) final;
   void sql_type(String &str) const override;
   bool copy();
-  Field_blob *clone(MEM_ROOT *mem_root) const override {
+  Field_blob *clone(MEM_ROOT* __restrict mem_root) const override {
     assert(type() == MYSQL_TYPE_BLOB);
     return new (mem_root) Field_blob(*this);
   }
@@ -3917,7 +3917,7 @@ class Field_geom final : public Field_blob {
   }
 
   geometry_type get_geometry_type() const final { return geom_type; }
-  Field_geom *clone(MEM_ROOT *mem_root) const final {
+  Field_geom *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(type() == MYSQL_TYPE_GEOMETRY);
     return new (mem_root) Field_geom(*this);
   }
@@ -4326,7 +4326,7 @@ class Field_enum : public Field_str {
   bool has_charset() const override { return true; }
   /* enum and set are sorted as integers */
   const CHARSET_INFO *sort_charset() const final { return &my_charset_bin; }
-  Field_enum *clone(MEM_ROOT *mem_root) const override {
+  Field_enum *clone(MEM_ROOT* __restrict mem_root) const override {
     assert(real_type() == MYSQL_TYPE_ENUM);
     return new (mem_root) Field_enum(*this);
   }
@@ -4371,7 +4371,7 @@ class Field_set final : public Field_enum {
   void sql_type(String &str) const final;
   enum_field_types real_type() const final { return MYSQL_TYPE_SET; }
   bool has_charset() const final { return true; }
-  Field_set *clone(MEM_ROOT *mem_root) const final {
+  Field_set *clone(MEM_ROOT* __restrict mem_root) const final {
     assert(real_type() == MYSQL_TYPE_SET);
     return new (mem_root) Field_set(*this);
   }
@@ -4480,7 +4480,7 @@ class Field_bit : public Field {
     if (bit_ptr != nullptr) bit_ptr += ptr_diff;
   }
   void hash(ulong *nr, ulong *nr2) const final;
-  Field_bit *clone(MEM_ROOT *mem_root) const override {
+  Field_bit *clone(MEM_ROOT* __restrict mem_root) const override {
     assert(type() == MYSQL_TYPE_BIT);
     return new (mem_root) Field_bit(*this);
   }
@@ -4512,7 +4512,7 @@ class Field_bit_as_char final : public Field_bit {
   // Inherit the store() overloads that have not been overridden.
   using Field_bit::store;
   void sql_type(String &str) const final;
-  Field_bit_as_char *clone(MEM_ROOT *mem_root) const final {
+  Field_bit_as_char *clone(MEM_ROOT* __restrict mem_root) const final {
     return new (mem_root) Field_bit_as_char(*this);
   }
 };

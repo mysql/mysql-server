@@ -413,7 +413,7 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
 }
 
 Vio *internal_vio_create(uint flags) {
-  void *rawmem = my_malloc(key_memory_vio, sizeof(Vio), MYF(MY_WME));
+  void* __restrict rawmem = my_malloc(key_memory_vio, sizeof(Vio), MYF(MY_WME));
   if (rawmem == nullptr) return nullptr;
   return new (rawmem) Vio(flags);
 }

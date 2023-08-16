@@ -205,8 +205,8 @@ To *item_cond_cast(Item *const from) {
   @return resulting parse tree Item
 */
 template <class Class, Item_func::Functype Tag>
-Item *flatten_associative_operator(MEM_ROOT *mem_root, const POS &pos,
-                                   Item *left, Item *right) {
+Item *flatten_associative_operator(MEM_ROOT* __restrict mem_root,
+                                   const POS &pos, Item *left, Item *right) {
   if (left == nullptr || right == nullptr) return nullptr;
   Class *left_func = item_cond_cast<Class, Tag>(left);
   Class *right_func = item_cond_cast<Class, Tag>(right);

@@ -135,7 +135,8 @@ class Query_result_materialize final : public Query_result_union {
   Query_result *m_result;
 };
 
-Query_result *new_cursor_result(MEM_ROOT *mem_root, Query_result *result) {
+Query_result *new_cursor_result(MEM_ROOT* __restrict mem_root,
+                                Query_result *result) {
   return new (mem_root) Query_result_materialize(result);
 }
 

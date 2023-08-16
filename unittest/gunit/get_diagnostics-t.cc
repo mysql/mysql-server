@@ -99,7 +99,7 @@ TEST_F(GetDiagnosticsTest, Cmd) {
   MockDiagInfo *info;
   MockDiagInfoItem *diag_info_item;
   List<MockDiagInfoItem> items;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   // set var1 item
   var = new (mem_root) Item_func_get_user_var(var_name1);
@@ -141,7 +141,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem) {
   MockDiagInfo *info;
   MockDiagInfoItem *diag_info_item;
   List<MockDiagInfoItem> items;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
@@ -178,7 +178,7 @@ class MockDiagInfoError : public Diagnostics_information {
 TEST_F(GetDiagnosticsTest, Error) {
   Sql_cmd *cmd;
   MockDiagInfoError *info;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   // Pre-existing warning
   push_warning_printf(thd(), Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
@@ -213,7 +213,7 @@ TEST_F(GetDiagnosticsTest, Error) {
 TEST_F(GetDiagnosticsTest, FatalError) {
   Sql_cmd *cmd;
   MockDiagInfoError *info;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   // Pre-existing warning
   push_warning_printf(thd(), Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
@@ -248,7 +248,7 @@ TEST_F(GetDiagnosticsTest, StatementInformation) {
   Statement_information *info;
   Statement_information_item *diag_info_item;
   List<Statement_information_item> items;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   // NUMBER = 1 warning
   thd()->raise_warning(ER_UNKNOWN_ERROR);
@@ -294,7 +294,7 @@ TEST_F(GetDiagnosticsTest, ConditionInformation) {
   Condition_information *info;
   Condition_information_item *diag_info_item;
   List<Condition_information_item> items;
-  MEM_ROOT *mem_root = thd()->mem_root;
+  MEM_ROOT *__restrict mem_root = thd()->mem_root;
 
   // Pre-existing error
   my_message_sql(ER_UNKNOWN_ERROR, "Unknown error", MYF(0));
@@ -345,7 +345,7 @@ static Item *get_cond_info_item(THD *thd, uint number,
   Condition_information *info;
   Condition_information_item *diag_info_item;
   List<Condition_information_item> items;
-  MEM_ROOT *mem_root = thd->mem_root;
+  MEM_ROOT *__restrict mem_root = thd->mem_root;
   LEX_CSTRING var_name = {STRING_WITH_LEN("get_cond_info_item")};
 
   // Simulate GET DIAGNOSTICS as a new command

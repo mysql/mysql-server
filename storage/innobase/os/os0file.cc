@@ -981,9 +981,7 @@ file::Block *os_alloc_block() noexcept {
     /* After go through the block cache for 3 times,
     allocate a new temporary block. */
     if (retry == MAX_BLOCKS * 3) {
-      byte *ptr;
-
-      ptr = static_cast<byte *>(ut::malloc_withkey(
+      byte* __restrict ptr = static_cast<byte *>(ut::malloc_withkey(
           UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block) + BUFFER_BLOCK_SIZE));
 
       block = new (ptr) file::Block();

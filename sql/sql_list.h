@@ -177,7 +177,7 @@ class base_list {
     }
     return true;
   }
-  inline bool push_back(void *info, MEM_ROOT *mem_root) {
+  inline bool push_back(void *info, MEM_ROOT* __restrict mem_root) {
     *last = new (mem_root) list_node(info, &end_of_list);
     if (*last) {
       last = &(*last)->next;
@@ -196,7 +196,7 @@ class base_list {
     }
     return true;
   }
-  inline bool push_front(void *info, MEM_ROOT *mem_root) {
+  inline bool push_front(void *info, MEM_ROOT* __restrict mem_root) {
     list_node *node = new (mem_root) list_node(info, first);
     if (node) {
       if (last == &first) last = &node->next;
@@ -323,7 +323,7 @@ class base_list {
     elements++;
     if (last == &(node->next)) last = &new_node->next;
   }
-  bool after(void *info, list_node *node, MEM_ROOT *mem_root) {
+  bool after(void *info, list_node *node, MEM_ROOT* __restrict mem_root) {
     list_node *new_node = new (mem_root) list_node(info, node->next);
     if (!new_node) return true;  // OOM
 

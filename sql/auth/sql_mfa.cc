@@ -536,13 +536,14 @@ my_vector<I_multi_factor_auth *> &Multi_factor_auth_list::get_mfa_list() {
 
 size_t Multi_factor_auth_list::get_mfa_list_size() { return m_factor.size(); }
 
-Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT *mem_root)
+Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT* __restrict mem_root)
     : m_mem_root(mem_root) {
   m_multi_factor_auth = new (m_mem_root) LEX_MFA;
   m_multi_factor_auth->reset();
 }
 
-Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT *mem_root, LEX_MFA *m)
+Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT* __restrict mem_root,
+                                               LEX_MFA *m)
     : m_mem_root(mem_root) {
   m_multi_factor_auth = new (m_mem_root) LEX_MFA;
   m_multi_factor_auth->reset();

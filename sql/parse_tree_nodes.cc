@@ -4632,7 +4632,7 @@ class PT_attribute : public BASE {
    @return PT_alter_tablespace_option_base* to PT_attribute object.
  */
 PT_alter_tablespace_option_base *make_tablespace_engine_attribute(
-    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+    MEM_ROOT* __restrict mem_root, LEX_CSTRING attr) {
   return new (mem_root)
       PT_attribute<LEX_CSTRING, PT_alter_tablespace_option_base>(
           attr, +[](LEX_CSTRING a, Alter_tablespace_parse_context *pc) {
@@ -4652,8 +4652,8 @@ PT_alter_tablespace_option_base *make_tablespace_engine_attribute(
    @return PT_alter_tablespace_option_base* to PT_attribute object.
 
  */
-PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
-                                                    LEX_CSTRING attr) {
+PT_create_table_option *make_table_engine_attribute(
+    MEM_ROOT* __restrict mem_root, LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
       attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
         pc->create_info->engine_attribute = a;
@@ -4676,7 +4676,7 @@ PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
 
  */
 PT_create_table_option *make_table_secondary_engine_attribute(
-    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+    MEM_ROOT* __restrict mem_root, LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
       attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
         pc->create_info->secondary_engine_attribute = a;
@@ -4698,7 +4698,7 @@ PT_create_table_option *make_table_secondary_engine_attribute(
    @return PT_create_table_option* to PT_attribute object.
 
  */
-PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT* __restrict mem_root,
                                                   LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
       attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
@@ -4728,8 +4728,8 @@ PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
    @return PT_column_attr_base* to PT_attribute object.
 
  */
-PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
-                                                            LEX_CSTRING attr) {
+PT_column_attr_base *make_column_secondary_engine_attribute(
+    MEM_ROOT* __restrict mem_root, LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
       attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
         // Note that a std::function is created from the lambda and constructed
@@ -4757,7 +4757,7 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
    @return PT_base_index_option* to PT_attribute object.
 
  */
-PT_base_index_option *make_index_engine_attribute(MEM_ROOT *mem_root,
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT* __restrict mem_root,
                                                   LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
       attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
@@ -4777,8 +4777,8 @@ PT_base_index_option *make_index_engine_attribute(MEM_ROOT *mem_root,
 
    @return PT_base_index_option* to PT_attribute object.
  */
-PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
-                                                            LEX_CSTRING attr) {
+PT_base_index_option *make_index_secondary_engine_attribute(
+    MEM_ROOT* __restrict mem_root, LEX_CSTRING attr) {
   return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
       attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
         pc->key_create_info->m_secondary_engine_attribute = a;

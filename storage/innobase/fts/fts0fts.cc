@@ -5427,12 +5427,13 @@ fts_t::~fts_t() {
  @return instance of fts_t */
 fts_t *fts_create(dict_table_t *table) /*!< in/out: table with FTS indexes */
 {
-  fts_t *fts;
+  
   mem_heap_t *heap;
 
   heap = mem_heap_create(512, UT_LOCATION_HERE);
 
-  fts = static_cast<fts_t *>(mem_heap_alloc(heap, sizeof(*fts)));
+  fts_t *__restrict fts =
+      static_cast<fts_t *>(mem_heap_alloc(heap, sizeof(*fts)));
 
   new (fts) fts_t(table, heap);
 

@@ -469,7 +469,7 @@ static my_off_t find_eoln_buff(Transparent_file *data_buff, my_off_t begin,
 }
 
 static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
-                                    MEM_ROOT *mem_root) {
+                                    MEM_ROOT* __restrict mem_root) {
   return new (mem_root) ha_tina(hton, table);
 }
 

@@ -388,7 +388,7 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, const dd::Table &table) {
 */
 
 Trigger_chain *Table_trigger_dispatcher::create_trigger_chain(
-    MEM_ROOT *mem_root, enum_trigger_event_type event,
+    MEM_ROOT* __restrict mem_root, enum_trigger_event_type event,
     enum_trigger_action_time_type action_time) {
   assert(event != TRG_EVENT_MAX);
   assert(action_time != TRG_ACTION_MAX);

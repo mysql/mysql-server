@@ -56,7 +56,7 @@ Singleton<T>::Singleton(MEM_ROOT *mem_root, const std::string &db_name,
 
 // Public factory method
 template <class T>
-Singleton<T> *Singleton<T>::create(MEM_ROOT *mem_root,
+Singleton<T> *Singleton<T>::create(MEM_ROOT* __restrict mem_root,
                                    const std::string &db_name,
                                    const std::string &tbl_name,
                                    const std::string &col_name,
@@ -394,7 +394,7 @@ bool Singleton<T>::json_to_histogram(const Json_object &json_object,
 }
 
 template <class T>
-Histogram *Singleton<T>::clone(MEM_ROOT *mem_root) const {
+Histogram *Singleton<T>::clone(MEM_ROOT* __restrict mem_root) const {
   DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
   bool error = false;
   Histogram *singleton = new (mem_root) Singleton<T>(mem_root, *this, &error);

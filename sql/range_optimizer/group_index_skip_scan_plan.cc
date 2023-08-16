@@ -1651,7 +1651,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
                       (ulong)*records, num_blocks));
 }
 
-static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
+static bool add_range(MEM_ROOT* __restrict return_mem_root, SEL_ARG *sel_range,
                       uint key_length, Quick_ranges *range_array) {
   uint range_flag = sel_range->min_flag | sel_range->max_flag;
 

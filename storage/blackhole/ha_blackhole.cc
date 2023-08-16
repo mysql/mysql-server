@@ -49,7 +49,7 @@ static bool is_slave_applier(THD *thd) {
 /* Static declarations for handlerton */
 
 static handler *blackhole_create_handler(handlerton *hton, TABLE_SHARE *table,
-                                         bool, MEM_ROOT *mem_root) {
+                                         bool, MEM_ROOT* __restrict mem_root) {
   return new (mem_root) ha_blackhole(hton, table);
 }
 
@@ -254,7 +254,7 @@ int ha_blackhole::index_last(uchar *) {
 }
 
 FT_INFO *ha_blackhole::ft_init_ext(uint, uint, String *) {
-  MEM_ROOT *mem_root = ha_thd()->mem_root;
+  MEM_ROOT* __restrict mem_root = ha_thd()->mem_root;
 
   _ft_vft *vft = new (mem_root) _ft_vft{
       /*read_next=*/nullptr,

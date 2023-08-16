@@ -69,7 +69,8 @@ AccessPath MakeZeroRows(AccessPath *child) {
   return path;
 }
 
-AccessPath MakeAppend(MEM_ROOT *mem_root, AccessPath *c1, AccessPath *c2) {
+AccessPath MakeAppend(MEM_ROOT *__restrict mem_root, AccessPath *c1,
+                      AccessPath *c2) {
   AccessPath path;
   path.type = AccessPath::APPEND;
 

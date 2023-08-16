@@ -207,7 +207,7 @@ MEM_ROOT *Recovered_xa_transactions::get_allocated_memroot() {
 }
 
 static bool xarecover_create_mdl_backup(XA_recover_txn &txn,
-                                        MEM_ROOT *mem_root) {
+                                        MEM_ROOT* __restrict mem_root) {
   MDL_request_list mdl_requests;
   List_iterator<st_handler_tablename> table_list_it(*txn.mod_tables);
   st_handler_tablename *tbl_name;
