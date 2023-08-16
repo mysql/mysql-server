@@ -11,7 +11,7 @@
 drop table if exists t1;
 --enable_warnings
 
-reset master;
+reset binary logs and gtids;
 
 create table t1 (a int);
 insert into t1 values (1);
@@ -23,7 +23,7 @@ flush logs;
 drop table t1;
 
 # Reset GTIDs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Run statements
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/bug36099.sql"
 

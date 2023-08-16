@@ -89,7 +89,7 @@ COMMIT;
 
 # assert that SHOW BINLOG EVENTS shows the correct output
 --echo BINLOG EVENTS on master [$compression_type]
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $keep_transaction_payload_events = 1
 --source include/show_binlog_events.inc
 
@@ -123,7 +123,7 @@ COMMIT;
 
 # assert that SHOW BINLOG EVENTS shows the correct output
 --echo BINLOG EVENTS on slave contain compressed events
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $keep_transaction_payload_events = 1
 --source include/show_binlog_events.inc
 

@@ -67,7 +67,7 @@ include/wait_for_slave_to_stop.inc
 include/start_slave.inc
 # Clean up
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=MASTER_POS;
 START SLAVE;
@@ -80,7 +80,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.*");

@@ -158,7 +158,7 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin= 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1

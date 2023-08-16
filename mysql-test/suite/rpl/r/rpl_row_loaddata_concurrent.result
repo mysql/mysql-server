@@ -63,7 +63,7 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 stop slave;
 reset slave;
 include/check_slave_no_error.inc
-reset master;
+reset binary logs and gtids;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
 load data CONCURRENT infile '../../std_data/rpl_loaddata2.dat' into table t2 fields

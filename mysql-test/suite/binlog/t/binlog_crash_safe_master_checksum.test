@@ -29,7 +29,7 @@ call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 
@@ -37,8 +37,8 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 -- echo #             then set DBUG POINT to casue the master crash.
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',1));

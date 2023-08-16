@@ -48,10 +48,10 @@ SET DEBUG_SYNC = 'RESET';
 #
 # 8. Cleanup
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
-RESET MASTER;
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
+RESET BINARY LOGS AND GTIDS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

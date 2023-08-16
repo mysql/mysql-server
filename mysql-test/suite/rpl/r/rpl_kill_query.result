@@ -49,10 +49,10 @@ include/stop_slave_io.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP DATABASE db1;
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/start_slave.inc
 [connection master]

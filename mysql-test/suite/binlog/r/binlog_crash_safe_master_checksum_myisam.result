@@ -2,7 +2,7 @@ call mtr.add_suppression("Attempting backtrace");
 call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 # Test case5: Inject wrong value of crc for a log event, and
 #             then set DBUG POINT to casue the master crash.

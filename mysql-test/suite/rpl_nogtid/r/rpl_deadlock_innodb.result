@@ -61,7 +61,7 @@ a
 *** Test lock wait timeout ***
 include/stop_slave.inc
 DELETE FROM t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=MASTER_POS_BEGIN;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
@@ -91,7 +91,7 @@ SET @my_max_relay_log_size= @@global.max_relay_log_size;
 SET global max_relay_log_size=0;
 include/stop_slave.inc
 DELETE FROM t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=MASTER_POS_BEGIN;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;

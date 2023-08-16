@@ -83,7 +83,7 @@ while ($iteration <= 6)
 #
 --source include/rpl_connection_slave.inc
 --let $SLAVE_MYSQLD_DATADIR= `SELECT @@DATADIR`
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --copy_file $SLAVE_MYSQLD_DATADIR/$binlog_file $MYSQL_TMP_DIR/$binlog_file
 
 # Slave's binlog will be replied one by one later through mysql. The table is
@@ -98,7 +98,7 @@ CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
 if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 {
   --disable_query_log
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   SET @@global.gtid_purged= @gtid_set_before_insert;
   --enable_query_log
 }

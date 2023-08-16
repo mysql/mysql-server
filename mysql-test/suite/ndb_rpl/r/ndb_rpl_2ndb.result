@@ -54,7 +54,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -154,7 +154,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -270,7 +270,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -368,7 +368,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/stop_slave.inc
 SELECT repeat('x',8192) INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data';
 SELECT repeat('x',10) INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug_46166-2.data';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #1
 FLUSH LOGS;
 # assert: must show two binlogs
@@ -18,7 +18,7 @@ Log_name	File_size	Encrypted
 master-bin.000001	#	#
 master-bin.000002	#	#
 ###################### TEST #2
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 FLUSH LOGS;
 ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
@@ -26,13 +26,13 @@ ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
 # assert: must show one binlog
 master-bin.000001
 include/rpl_restart_server.inc [server_number=1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #3
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a VARCHAR(16383)) Engine=InnoDB;
 CREATE TABLE t4 (a VARCHAR(16383)) Engine=MyISAM;
 INSERT INTO t1 VALUES (1);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data' INTO TABLE t2;
 # assert: must show three binlog
 show binary logs;
@@ -40,7 +40,7 @@ Log_name	File_size	Encrypted
 master-bin.000001	#	#
 master-bin.000002	#	#
 DELETE FROM t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #4
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SELECT count(*) FROM t2;
@@ -55,7 +55,7 @@ count(*)
 1
 DELETE FROM t2;
 include/rpl_restart_server.inc [server_number=1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #5
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166-2.data' INTO TABLE t2;
 # assert: must show one entry
@@ -63,7 +63,7 @@ SELECT count(*) FROM t2;
 count(*)
 1
 DELETE FROM t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #6
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 # Table should be empty
@@ -84,7 +84,7 @@ count(*)
 SET AUTOCOMMIT= 1;
 DELETE FROM t2;
 include/rpl_restart_server.inc [server_number=1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #7
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SELECT count(*) FROM t4;
@@ -99,7 +99,7 @@ count(*)
 1
 DELETE FROM t4;
 include/rpl_restart_server.inc [server_number=1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###################### TEST #8
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @xxx = REPEAT('xxx', 1000);
@@ -191,7 +191,7 @@ SET SQL_LOG_BIN=1;
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 include/rpl_restart_server.inc [server_number=1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SHOW WARNINGS;
 Level	Code	Message
 FLUSH LOGS;
@@ -208,7 +208,7 @@ DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 FLUSH LOGS;
 ERROR HY000: Can't open file: 'master-bin.index' (errno: 1 - Operation not permitted)
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
 INSERT INTO t2 VALUES ('aaaaa');
@@ -219,7 +219,7 @@ include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 FLUSH LOGS;
 ERROR HY000: Error writing file 'master-bin' (errno: 2 - No such file or directory)
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
 INSERT INTO t2 VALUES ('aaaaa');
@@ -228,7 +228,7 @@ DELETE FROM t2;
 DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 DROP TABLE t1, t2, t4;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 #######################################################################
 ####################### PART 2: SLAVE TESTS ###########################
@@ -289,5 +289,5 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_end.inc

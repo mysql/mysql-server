@@ -31,7 +31,7 @@ END//
 delimiter ;//
 
 begin;
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 insert into t1(a,b) values(1,1),(2,1);
 insert into t3(a,b) values(1,1),(2,1);
 update t1 set a = a + 5 where b = 1;

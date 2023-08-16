@@ -168,7 +168,7 @@ if (!$have_xcom_stack){
 --source include/rpl_connection.inc
 
 # to clean old transactions and be able to join new group
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --disable_query_log

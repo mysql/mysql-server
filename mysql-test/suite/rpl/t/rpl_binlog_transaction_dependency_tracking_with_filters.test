@@ -93,7 +93,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 }
 
 SELECT @@binlog_transaction_dependency_tracking;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;12 14;12 15;12 16;16 17;17 18;18 19;19 20;20 21;21 22
 if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
@@ -109,7 +109,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --echo [On Slave]
 --echo ######## 2.1. COMMIT_ORDER with SLAVE ########
 SELECT @@binlog_transaction_dependency_tracking;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15
 if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
@@ -121,7 +121,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 # Clean up logs to test with WRITESET in next step.
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo ######## 2.2. WRITESET with SLAVE ########
@@ -130,7 +130,7 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 --connection master
 --source include/sync_slave_sql_with_master.inc
 SELECT @@binlog_transaction_dependency_tracking;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;4 6;4 7;4 8;4 9;4 10;4 11;4 12;12 13;13 14;14 15
 if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
@@ -142,7 +142,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 # Clean up logs to test with WRITESET_SESSION in next step.
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo ######## 2.3. WRITESET_SESSION with SLAVE ########
@@ -151,7 +151,7 @@ SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
 --connection master
 --source include/sync_slave_sql_with_master.inc
 SELECT @@binlog_transaction_dependency_tracking;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $dont_print_logical_timestamps= 1
 --let $logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15
 if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )

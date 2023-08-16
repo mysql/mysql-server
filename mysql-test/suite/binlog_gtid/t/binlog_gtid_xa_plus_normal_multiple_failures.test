@@ -90,7 +90,7 @@ let $messages = .*Crash recovery finished in InnoDB engine.*
 .*Storage engines failed to recover one or more transactions*;
 --source include/suppress_messages.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t (a INT);
 

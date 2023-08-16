@@ -1,0 +1,127 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Create the database/table for testing
+[connection master]
+CREATE DATABASE mysqldump_test_db;
+CREATE TABLE mysqldump_test_db.t1 (a INT);
+INSERT INTO mysqldump_test_db.t1 VALUES (1);
+#
+# Test the output of --source-data
+#
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= SOURCE
+# Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_2_0
+# Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_0_23
+# Output on dump: CHANGE MASTER / MASTER_LOG_FILE & MASTER_LOG_POS
+include/assert_grep.inc [Check for CHANGE MASTER]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Case settings:
+#   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+#   Mysqldump setting --output-as-version= SERVER
+# Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+include/save_sysvars.inc [ "GLOBAL.terminology_use_previous" ]
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+INSERT INTO mysqldump_test_db.t1 VALUES (2);
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Test application of dumps with either terminology
+[connection slave]
+include/assert.inc ["CHANGE MASTER set the valid position"]
+include/assert.inc ["CHANGE REPLICATION SOURCE set the valid position"]
+#
+# Mid test cleanup
+[connection master]
+include/restore_sysvars.inc
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+#
+# Test the output of --dump-replica, --apply-replica-statements and --include-source-host-port
+#
+[connection slave]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= SERVER
+# Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for START REPLICA]
+include/assert_grep.inc [Check for STOP REPLICA]
+include/assert_grep.inc [Check for SOURCE_PORT]
+include/assert_grep.inc [Check for SOURCE_HOST]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_2_0
+# Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for START REPLICA]
+include/assert_grep.inc [Check for STOP REPLICA]
+include/assert_grep.inc [Check for SOURCE_PORT]
+include/assert_grep.inc [Check for SOURCE_HOST]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_0_23
+# Output on dump: CHANGE MASTER / START & STOP SLAVE / MASTER_ HOST, PORT, LOG & POS
+include/assert_grep.inc [Check for CHANGE MASTER]
+include/assert_grep.inc [Check for START SLAVE]
+include/assert_grep.inc [Check for STOP SLAVE]
+include/assert_grep.inc [Check for MASTER_PORT]
+include/assert_grep.inc [Check for MASTER_HOST]
+include/assert_grep.inc [Check for MASTER_LOG_FILE]
+include/assert_grep.inc [Check for MASTER_LOG_POS]
+#
+# Case settings:
+#   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+#   Mysqldump setting --output-as-version= SERVER
+# Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+include/save_sysvars.inc [ "GLOBAL.terminology_use_previous" ]
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+include/assert_grep.inc [Check for CHANGE REPLICATION SOURCE]
+include/assert_grep.inc [Check for START REPLICA]
+include/assert_grep.inc [Check for STOP REPLICA]
+include/assert_grep.inc [Check for SOURCE_PORT]
+include/assert_grep.inc [Check for SOURCE_HOST]
+include/assert_grep.inc [Check for SOURCE_LOG_FILE]
+include/assert_grep.inc [Check for SOURCE_LOG_POS]
+#
+# Test application of dumps with either terminology
+[connection slave]
+include/stop_slave.inc
+[connection master]
+INSERT INTO mysqldump_test_db.t1 VALUES (3);
+[connection slave]
+#
+# Cleanup
+include/restore_sysvars.inc
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+[connection master]
+DROP DATABASE mysqldump_test_db;
+include/rpl_end.inc

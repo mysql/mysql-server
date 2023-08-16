@@ -171,7 +171,7 @@ if ($commands == 'configure')
 
   DELIMITER ;|
 
-  let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+  let $pos_trans_command= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 
   let $trans_id= 7;
   let $tb_id= 1;
@@ -231,7 +231,7 @@ while ($commands != '')
   if ($verbose)
   {
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $command << -b-b-b-b-b-b-b-b-b-b-b-
-    let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+    let $pos_command= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
   }
   --enable_query_log
   if ($command == 'B')
@@ -615,7 +615,7 @@ while ($commands != '')
   inc $stmt_id;
 
   --let $binlog_start = $pos_command
-  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
   if ($verbose)
   {
     # Use other connection because query show binlog events
@@ -636,7 +636,7 @@ while ($commands != '')
     --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo
-    let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+    let $pos_trans_command= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
     let $stmt_id= 1;
     inc $trans_id;
   }

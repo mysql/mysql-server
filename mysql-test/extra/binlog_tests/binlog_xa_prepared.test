@@ -48,7 +48,7 @@
 # to conduct verification at the end of the test.
 if (`SELECT @@global.log_bin`)
 {
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 }
 
 # Disconected and follower threads need synchronization
@@ -129,7 +129,7 @@ if (`SELECT @@global.log_bin = 1`)
 {
   --let $MYSQLD_DATADIR=`SELECT @@datadir`
   --exec $MYSQL_BINLOG -R --to-last-log binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
 

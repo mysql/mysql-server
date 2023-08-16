@@ -114,7 +114,7 @@ INSERT INTO t1 VALUES (3);
 --source include/stop_slave_io.inc
 SET GLOBAL GTID_MODE = ON;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --let $use_gtids= 1
 
@@ -122,7 +122,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --source include/rpl_connection_master.inc
 SET GLOBAL GTID_MODE = ON;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 

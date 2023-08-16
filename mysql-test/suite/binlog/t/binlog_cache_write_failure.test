@@ -37,7 +37,7 @@
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
 call mtr.add_suppression(".*Error writing file.*");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c1 varchar(8192));
 CREATE TABLE t2(c1 varchar(8192));
 CREATE TABLE t3(c1 varchar(8192));
@@ -172,5 +172,5 @@ select * from t2;
 --connection default
 --enable_reconnect
 DROP TABLE t1, t2, t3;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 

@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 connection default;
 # MERGE is the only remaning non-specialized SE (like NDB or P_S)
 # which implements TRUNCATE TABLE through handler::truncate().

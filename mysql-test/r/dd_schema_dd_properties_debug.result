@@ -777,7 +777,7 @@ events=
       elem21=def=starts DATETIME
             lbl=FIELD_STARTS
             pos=11
-      elem22=def=status ENUM('ENABLED', 'DISABLED', 'SLAVESIDE_DISABLED') NOT NULL
+      elem22=def=status ENUM('ENABLED', 'DISABLED', 'REPLICA_SIDE_DISABLED') NOT NULL
             lbl=FIELD_STATUS
             pos=13
       elem23=def=time_zone VARCHAR(64) NOT NULL

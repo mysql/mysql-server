@@ -25,7 +25,7 @@ let $loop = 0;
 while($loop < 3)
 {
   # Clear the binlog to make it easy to check for LOST_EVENTS
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   set @save_debug = @@global.debug;
   set @@global.debug = '+d,ndb_event_fail_read_blob_parts';

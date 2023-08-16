@@ -3,9 +3,9 @@
 
 --disable_warnings
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 --enable_warnings
 
 #
@@ -31,9 +31,9 @@ create table t2 (a int primary key) engine=ndb;
 
 # alter table
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server2
 alter table t2 add column (b int);
@@ -43,9 +43,9 @@ alter table t2 add column (b int);
 
 # alter database
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server2
 ALTER DATABASE mysqltest CHARACTER SET latin1;
@@ -59,9 +59,9 @@ drop table mysqltest.t1;
 
 # drop database and drop should come after data events
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server1
 use test;
@@ -77,9 +77,9 @@ drop table t2;
 
 # logfile groups and table spaces
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server1
 CREATE LOGFILE GROUP lg1
@@ -124,10 +124,10 @@ drop table t1;
 # gets multiply logged
 #
 --connection server1
-reset master;
+reset binary logs and gtids;
 show tables;
 --connection server2
-reset master;
+reset binary logs and gtids;
 show tables;
 
 --connection server1
@@ -147,10 +147,10 @@ drop table t3;
 #
 #
 --connection server1
-reset master;
+reset binary logs and gtids;
 show tables;
 --connection server2
-reset master;
+reset binary logs and gtids;
 show tables;
 
 --connection server1
@@ -172,9 +172,9 @@ drop table t2;
 # vs. the DML operations.
 ##########################
 --connection server1
-reset master;
+reset binary logs and gtids;
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 ##################################################
 # Check whether we have a debug compiled binary:
@@ -329,10 +329,10 @@ drop table progress;
 # is here to document this behaviour.
 
 --connection server1
-reset master;
+reset binary logs and gtids;
 show tables;
 --connection server2
-reset master;
+reset binary logs and gtids;
 show tables;
 
 --connection server1

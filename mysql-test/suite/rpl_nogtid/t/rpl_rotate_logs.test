@@ -11,7 +11,7 @@
 # Test is run with max_binlog_size=4096 to force automatic rotation of the
 # binary log
 # Tests done:
-# - Check that slaves reports correct failures if master.info has strange
+# - Check that replicas reports correct failures if master.info has strange
 #   modes/information
 # - Automatic binary log rotation
 # - Ensure that temporary tables works over flush logs and binary log
@@ -42,26 +42,26 @@ CALL mtr.add_suppression("Error reading source configuration");
 --error ER_CONNECTION_METADATA, 29
 start slave;
 chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
-# It will fail again because the file is empty so the slave cannot get valuable
-# info about how to connect to the master from it (failure in
+# It will fail again because the file is empty so the replica cannot get valuable
+# info about how to connect to the source from it (failure in
 # init_strvar_from_file() in init_master_info()).
 --error ER_CONNECTION_METADATA
 start slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 
-# CHANGE MASTER will fail because it first parses master.info before changing
-# it (so when master.info is bad, people have to use RESET SLAVE first).
+# CHANGE REPLICATION SOURCE will fail because it first parses master.info before changing
+# it (so when source.info is bad, people have to use RESET REPLICA first).
 --replace_column 2 ####
 --error ER_CONNECTION_METADATA
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
-reset slave;
+RESET REPLICA;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
-eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'; 
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 connection master;
-reset master;
+reset binary logs and gtids;
 connection slave;
-start slave;
+START REPLICA;
 --source include/wait_for_slave_to_start.inc
 connection master;
 
@@ -71,7 +71,7 @@ connection master;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
-insert into t1 values('Could not break slave'),('Tried hard');
+insert into t1 values('Could not break replica'),('Tried hard');
 --source include/sync_slave_sql_with_master.inc
 let $status_items= Master_Log_File, Relay_Master_Log_File;
 source include/show_slave_status.inc;
@@ -79,7 +79,7 @@ source include/check_slave_is_running.inc;
 
 --let $assert_text= Table t1 should contain the first inserted line
 --let $query_result= query_get_value(select * from t1, "s", 1)
---let $assert_cond= "$query_result" = "Could not break slave"
+--let $assert_cond= "$query_result" = "Could not break replica"
 --source include/assert.inc
 
 --let $assert_text= Table t1 should contain the second inserted line
@@ -109,12 +109,12 @@ drop table temp_table, t3;
 # Now lets make some duplicate key mess and see if we can recover from it
 #
 
-# First insert a value on the slave
+# First insert a value on the replica
 #connection slave;
 source include/sync_slave_sql_with_master.inc;
 insert into t2 values(1234);
 
-#same value on the master
+#same value on the source
 connection master;
 set insert_id=1234;
 insert into t2 values(NULL);
@@ -126,10 +126,10 @@ call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .1234. for key .t2
 
 connection master;
 
-#let slave catch up
+#let the replica catch up
 --source include/sync_slave_sql_with_master.inc
 connection master;
-purge master logs to 'master-bin.000002';
+purge binary logs to 'master-bin.000002';
 source include/show_master_logs.inc;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
@@ -156,7 +156,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/rpl_rotate_logs.tmp;
 --enable_result_log
 
 replace_regex /\.[\\\/]master/master/;
-purge master logs before (@time_for_purge);
+purge binary logs before (@time_for_purge);
 source include/show_binary_logs.inc;
 insert into t2 values (65);
 --source include/sync_slave_sql_with_master.inc
@@ -194,7 +194,7 @@ insert into temp_table values ("testing temporary tables part 2");
 # Generate some number of logs and prove rotation by comparing the first and the last
 let $1=90;
 
-let $first=query_get_value("SHOW MASTER STATUS", "File", 1);
+let $first=query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 create table t3 (n int);
 disable_query_log;
 while ($1)
@@ -205,16 +205,16 @@ while ($1)
 }
 enable_query_log;
 
---let $assert_text= Table t3 should contain 90 lines on the master
+--let $assert_text= Table t3 should contain 90 lines on the source
 --let $assert_cond= [select count(*) from t3 where n >= 4] = 90
 --source include/assert.inc
 
 create table t4 select * from temp_table;
-let $last=query_get_value("SHOW MASTER STATUS", "File", 1);
+let $last=query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 if (`select '$first' like '$last'`)
 {
   --die No expected logs rotation
-} 
+}
 --source include/sync_slave_sql_with_master.inc
 
 --let $query_result= query_get_value(select * from t4, "a", 1)
@@ -227,7 +227,7 @@ source include/check_slave_is_running.inc;
 # if we do not lock
 lock tables t3 read;
 
---let $assert_text= Table t3 should contain 90 lines on the slave
+--let $assert_text= Table t3 should contain 90 lines on the replica
 --let $assert_cond= [select count(*) from t3 where n >= 4] = 90
 --source include/assert.inc
 
@@ -250,11 +250,11 @@ drop temporary table temp_table;
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in 'non existing_binlog_file';
 replace_regex /\.[\\\/]slave/slave/;
-purge master logs before now();
+purge binary logs before now();
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in '';
 replace_regex /\.[\\\/]slave/slave/;
-purge master logs before now();
+purge binary logs before now();
 
 --echo End of 5.0 tests
 --source include/rpl_end.inc

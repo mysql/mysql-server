@@ -49,7 +49,7 @@
 # TC1. Restart the server with `binlog_expire_logs_seconds=1`
 # -----------------------------------------------------------
 --let $expire_seconds = 1
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # 1. Create a table.
 CREATE TABLE t (a INT);
 
@@ -83,7 +83,7 @@ DROP TABLE t;
 # TC2. Restart the server with `binlog_expire_logs_seconds` and after flush
 # -------------------------------------------------------------------------
 --let $expire_seconds = 5
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # 1. Create a table.
 CREATE TABLE t (a INT);
 # 2. Flush the logs.

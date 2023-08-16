@@ -113,11 +113,11 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
 flush logs;
 set @@global.binlog_checksum= CRC32;
-reset master;
+reset binary logs and gtids;
 flush logs;
 create table t3 (a int, b char(5)) engine=ndb;
 include/start_slave.inc
@@ -130,7 +130,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 flush logs;
-reset master;
+reset binary logs and gtids;
 insert into t3 value (1, @@global.binlog_checksum);
 include/start_slave.inc
 flush logs;

@@ -12,7 +12,7 @@ INSERT INTO t2 VALUES(1);
 
 --echo
 --echo # Nothing is inserted.
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 INSERT INTO t1 VALUES(1),(2);
 source include/show_binlog_events.inc;
@@ -28,7 +28,7 @@ source include/diff_tables.inc;
 --echo
 --echo # Nothing is inserted.
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 INSERT INTO t1 SELECT 1 UNION SELECT 2;
 source include/show_binlog_events.inc;
@@ -44,7 +44,7 @@ source include/diff_tables.inc;
 --echo
 --echo # A row is updated.
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1 SET c1=4;
 --source include/sync_slave_sql_with_master.inc
@@ -52,7 +52,7 @@ source include/diff_tables.inc;
 
 --echo # Nothing is updated.
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1 SET c1=4;
 source include/show_binlog_events.inc;
@@ -68,7 +68,7 @@ source include/diff_tables.inc;
 --echo
 --echo Nothing is updated.
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --error 1062
 UPDATE t1, t2 SET t1.c1= 5, t2.c1=5;
 source include/show_binlog_events.inc;

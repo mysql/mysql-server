@@ -159,7 +159,7 @@
 --source include/install_replication_observers_example.inc
 CALL mtr.add_suppression(".*was not purged because it was being read by.*");
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ################################################
 
@@ -188,7 +188,7 @@ SET GTID_NEXT=AUTOMATIC;
 SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ###
 --echo ### End of Scenario #1
@@ -240,7 +240,7 @@ SET DEBUG_SYNC='now SIGNAL signal.resume';
 --connection default
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection con1
 --disconnect con1
@@ -310,7 +310,7 @@ SET DEBUG_SYNC='now SIGNAL signal.resume';
 --connection default
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection con1
 --disconnect con1
@@ -337,7 +337,7 @@ RESET MASTER;
 --let $rpl_connection_name=con1
 --source include/rpl_connection.inc 
 
---let $binlog_file1 = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file1 = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 USE test;
 --eval SET GTID_NEXT="$uuid0:1"
@@ -346,7 +346,7 @@ SET GTID_NEXT=AUTOMATIC;
 
 FLUSH BINARY LOGS;
 
---let $binlog_file2 = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file2 = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --eval SET GTID_NEXT="$uuid0:2"
 INSERT INTO t1 VALUES (1);
@@ -354,7 +354,7 @@ SET GTID_NEXT=AUTOMATIC;
 
 FLUSH BINARY LOGS;
 
---let $binlog_file3 = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file3 = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # lets try to purge the two first files after we open the iterator
 
@@ -415,7 +415,7 @@ SET DEBUG_SYNC='now SIGNAL signal.resume';
 --source include/rpl_connection.inc 
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection con1
 --disconnect con1
@@ -474,7 +474,7 @@ SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema
 --let $buffer_reallocations_after = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = "test_binlog_storage_iterator.count_buffer_reallocations"`
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $assert_cond = ($buffer_reallocations_after - $buffer_reallocations_before) = 1
 --let $assert_text = Assert that there was 1 buffer reallocation
@@ -559,7 +559,7 @@ SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema
 --source include/remove_debug_point.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ###
 --echo ### End of Scenario #6
@@ -615,7 +615,7 @@ while($i<21) {
 
 FLUSH LOGS;
 
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --let $i=21
 while($i<31) {
@@ -632,7 +632,7 @@ while($i<31) {
 SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ###
 --echo ### End of Scenario #7
@@ -692,7 +692,7 @@ SET DEBUG_SYNC='now SIGNAL signal.resume';
 --connection default
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection con1
 --disconnect con1
@@ -730,7 +730,7 @@ SET GTID_NEXT=AUTOMATIC;
 SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ###
 --echo ### End of Scenario #9
@@ -780,7 +780,7 @@ SET GTID_NEXT=AUTOMATIC;
 --source include/assert.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # Clean up

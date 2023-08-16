@@ -20,7 +20,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Disable background GTID task to get uniform result.
 SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 --let $master_uuid=`SELECT @@GLOBAL.server_uuid`
@@ -124,4 +124,4 @@ SET @free_intervals_mutex_after= (
 SET @@GLOBAL.DEBUG= '-d, disable_gtid_background_persister';
 
 DROP TABLE t1, t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

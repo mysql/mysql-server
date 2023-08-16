@@ -249,7 +249,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 RESET SLAVE;
 
@@ -412,7 +412,7 @@ CREATE TABLE t4(a int);
 
 --source include/rpl_connection_master.inc
 DROP TABLE t4;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 RESET SLAVE;
@@ -496,7 +496,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t5;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 DROP TABLE t5;
@@ -577,7 +577,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t6;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 RESET SLAVE;
@@ -642,7 +642,7 @@ INSERT INTO t7 values (1);
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t7;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= OFF

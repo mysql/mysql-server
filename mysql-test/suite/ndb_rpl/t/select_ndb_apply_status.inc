@@ -17,24 +17,24 @@ if (!$source_end_pos) {
 }
 
 let $binlog_file= `SELECT log_name FROM mysql.ndb_apply_status
-                    WHERE server_id = $master_server_id`;
+                    WHERE server_id = $source_server_id`;
 #echo binlog_file: $binlog_file;
 
 let $binlog_start = `SELECT start_pos FROM mysql.ndb_apply_status
-                    WHERE server_id = $master_server_id`;
+                    WHERE server_id = $source_server_id`;
 #echo binlog_start: $binlog_start;
 
 let $binlog_end = `SELECT end_pos FROM mysql.ndb_apply_status
-                    WHERE server_id = $master_server_id`;
+                    WHERE server_id = $source_server_id`;
 #echo binlog_end: $binlog_end;
 
 if ($binlog_file != $source_file) {
   echo Detected mismatching file;
-  echo master_server_id: $master_server_id;
+  echo source_server_id: $source_server_id;
   echo source_file: $source_file;
   echo binlog_file: $binlog_file;
   eval SELECT log_name, start_pos, end_pos
-    FROM mysql.ndb_apply_status WHERE server_id = $master_server_id;
+    FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
   --source include/rpl_connection_master.inc
   show binlog events;
@@ -43,11 +43,11 @@ if ($binlog_file != $source_file) {
 
 if ($binlog_start != $source_start_pos) {
   echo Detected mismatching start_pos;
-  echo master_server_id: $master_server_id;
+  echo source_server_id: $source_server_id;
   echo source_start_pos: $source_start_pos;
   echo binlog_start: $binlog_start;
   eval SELECT log_name, start_pos, end_pos
-    FROM mysql.ndb_apply_status WHERE server_id = $master_server_id;
+    FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
   --source include/rpl_connection_master.inc
   show binlog events;
@@ -56,11 +56,11 @@ if ($binlog_start != $source_start_pos) {
 
 if ($binlog_end != $source_end_pos) {
   echo Detected mismatching end_pos;
-  echo master_server_id: $master_server_id;
+  echo source_server_id: $source_server_id;
   echo source_end_pos: $source_end_pos;
   echo binlog_end: $binlog_end;
   eval SELECT log_name, start_pos, end_pos
-    FROM mysql.ndb_apply_status WHERE server_id = $master_server_id;
+    FROM mysql.ndb_apply_status WHERE server_id = $source_server_id;
   SELECT * FROM mysql.ndb_apply_status;
   --source include/rpl_connection_master.inc
   show binlog events;

@@ -41,7 +41,7 @@ while ($i <= $number_of_channels)
 {
   --let $rpl_connection_name= server_$i
   --source include/rpl_connection.inc
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --let $master_port=`SELECT @@PORT`
   --let $rpl_connection_name=server_$rpl_msr_server_number
   --source include/rpl_connection.inc

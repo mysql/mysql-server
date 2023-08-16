@@ -81,7 +81,7 @@ SHOW VARIABLES LIKE 'clone_block_ddl';
 Variable_name	Value
 clone_block_ddl	OFF
 # 1. CREATE UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
 SET GLOBAL DEBUG = '+d,log_redo_with_invalid_master_key';
 CREATE UNDO TABLESPACE undo_00 ADD DATAFILE 'undo_00.ibu';
@@ -351,7 +351,7 @@ Variable_name	Value
 innodb_undo_log_encrypt	ON
 SET DEBUG_SYNC = 'RESET';
 # 2. TRUNCATE UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
 SET GLOBAL DEBUG = '+d,log_redo_with_invalid_master_key';
 ALTER UNDO TABLESPACE undo_00 SET INACTIVE ;
@@ -633,7 +633,7 @@ Variable_name	Value
 innodb_undo_log_encrypt	ON
 SET DEBUG_SYNC = 'RESET';
 # 3. DROP UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,local_release_clone_file_pin';
 SET GLOBAL DEBUG = '+d,log_redo_with_invalid_master_key';
 DROP UNDO TABLESPACE undo_00  ;

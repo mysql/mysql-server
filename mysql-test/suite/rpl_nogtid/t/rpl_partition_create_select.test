@@ -64,5 +64,5 @@ INSERT INTO emp values (4, 6), (5, 13) ;
 
 DROP TABLE store;
 DROP TABLE emp;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_end.inc

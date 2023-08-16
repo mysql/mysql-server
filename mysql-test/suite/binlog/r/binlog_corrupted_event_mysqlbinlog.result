@@ -1,5 +1,5 @@
 # Init: Clear binary logs from previous tests.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ==== R1: Error for corrupted file ====
 # Create a corrupted binary log.
 # Adding debug point 'set_query_log_event_size_to_5' to @@GLOBAL.debug
@@ -13,7 +13,7 @@ FLUSH BINARY LOGS;
 include/assert_command_output.inc
 # Clean up.
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ==== R2.1: No error for truncated file when IN_USE flag is set ====
 # Create a truncated binary log.
 CREATE TABLE t (a INT);
@@ -21,7 +21,7 @@ include/save_binlog_position.inc
 include/assert_command_output.inc
 # Clean up.
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ==== R2.2: Error for truncated file when IN_USE flag is not set ====
 # Create a truncated binary log.
 CREATE TABLE t (a INT);
@@ -31,4 +31,4 @@ FLUSH BINARY LOGS;
 include/assert_command_output.inc
 # Clean up.
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

@@ -695,7 +695,7 @@ test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	utf8mb4	ut
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	REPLICA_SIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -755,7 +755,7 @@ test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	utf8mb4	ut
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	REPLICA_SIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)

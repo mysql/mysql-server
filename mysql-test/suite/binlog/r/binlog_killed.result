@@ -5,7 +5,7 @@ create table t3 (a int auto_increment, b int, PRIMARY KEY (a)) ENGINE=InnoDB;
 select get_lock("a", 20);
 get_lock("a", 20)
 1
-reset master;
+reset binary logs and gtids;
 insert into t2 values (null, null), (null, get_lock("a", 10));
 kill query ID;
 select
@@ -74,7 +74,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 delete from t4;
 insert into t4 values (1,1), (1,1);
-reset master;
+reset binary logs and gtids;
 select get_lock("a", 20);
 get_lock("a", 20)
 1
@@ -115,7 +115,7 @@ RELEASE_LOCK("a")
 1
 delete from t4;
 insert into t4 values (1,1), (2,2);
-reset master;
+reset binary logs and gtids;
 select get_lock("a", 20);
 get_lock("a", 20)
 1

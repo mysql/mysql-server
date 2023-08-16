@@ -11,7 +11,7 @@ call mtr.add_suppression("Either disk is full or file system is read only");
 call mtr.add_suppression("Can't open file:*");
 call mtr.add_suppression("Can't generate a unique log-filename*");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
@@ -93,7 +93,7 @@ ERROR HY000: Binary logging not possible. Message: Can't generate a unique log-f
 DROP TABLE t1;
 Test case11
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
@@ -102,7 +102,7 @@ ERROR HY000: Binary logging not possible. Message: An error occurred during flus
 Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'." found
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 INSERT INTO t1 VALUES (2);
@@ -111,7 +111,7 @@ include/assert.inc [Count of elements in t1 should be 1.]
 include/assert.inc [Query is not binlogged as expected.]
 Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'." found
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Test case12
 SET GLOBAL sync_binlog = 1;
 CREATE TABLE t1(i INT);
@@ -120,7 +120,7 @@ SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
 ERROR HY000: Binary logging not possible. Message: An error occurred during sync stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 DELETE FROM t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 INSERT INTO t1 VALUES (2);
@@ -128,7 +128,7 @@ include/assert.inc [Count of elements in t1 should be 1.]
 DROP table t1;
 SET SESSION debug = "-d,simulate_error_during_sync_binlog_file";
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Test case13
 CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_do_write_cache_failure";
@@ -137,14 +137,14 @@ INSERT INTO t1 VALUES (1);
 ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION debug = "+d,simulate_do_write_cache_failure";
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 INSERT INTO t1 VALUES (2);
 include/assert.inc [Count of elements in t1 should be 1.]
 DROP table t1;
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Test case14
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 SET GLOBAL sync_binlog = 1;
@@ -194,7 +194,7 @@ Test case17
 FLUSH LOGS;
 ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
 SET @@GLOBAL.binlog_encryption=OFF;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNINSTALL PLUGIN keyring_file;
 # restart
 Test case18
@@ -203,6 +203,6 @@ Test case18
 FLUSH LOGS;
 ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
 SET @@GLOBAL.binlog_encryption=OFF;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNINSTALL PLUGIN keyring_file;
 # restart

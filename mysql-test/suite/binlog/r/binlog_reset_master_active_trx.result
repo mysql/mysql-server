@@ -1,7 +1,7 @@
 #
 # Step-1) Initial Setup which is required for the test.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Step-1.1) Create four client connections.
 #
@@ -12,7 +12,7 @@ CREATE TABLE t1 (i INT);
 #
 #  Step-2) Execute a simple insert transaction that will wait
 #          for a signal at various stages of transaction commit.
-#          Execute 'RESET MASTER' when it is waiting for the signal
+#          Execute 'RESET BINARY LOGS AND GTIDS' when it is waiting for the signal
 #          and check binlog contents and GTID_EXECUTED (if GTID
 #          enabled) that they are as expected.
 #
@@ -23,7 +23,7 @@ SET debug_sync="ha_commit_trans_before_acquire_commit_lock SIGNAL reached WAIT_F
 COMMIT;
 [connection conn2]
 SET debug_sync="now WAIT_FOR reached";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn1]
 #
@@ -38,7 +38,7 @@ SET debug_sync="bgc_before_flush_stage SIGNAL reached WAIT_FOR insert_continue";
 COMMIT;
 [connection conn2]
 SET debug_sync="now WAIT_FOR reached";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
@@ -55,7 +55,7 @@ SET debug_sync="bgc_after_flush_stage_before_sync_stage SIGNAL reached WAIT_FOR 
 COMMIT;
 [connection conn2]
 SET debug_sync="now WAIT_FOR reached";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
@@ -72,7 +72,7 @@ SET debug_sync="bgc_after_sync_stage_before_commit_stage SIGNAL reached WAIT_FOR
 COMMIT;
 [connection conn2]
 SET debug_sync="now WAIT_FOR reached";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
@@ -89,7 +89,7 @@ SET debug_sync="bgc_after_commit_stage_before_rotation SIGNAL reached WAIT_FOR i
 COMMIT;
 [connection conn2]
 SET debug_sync="now WAIT_FOR reached";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
@@ -108,7 +108,7 @@ COMMIT;
 SET debug_sync="now WAIT_FOR reached";
 FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 [connection conn1]
 #
@@ -127,7 +127,7 @@ FLUSH TABLES WITH READ LOCK;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 [connection conn1]
 #
@@ -146,7 +146,7 @@ FLUSH TABLES WITH READ LOCK;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 [connection conn1]
 #
@@ -165,7 +165,7 @@ FLUSH TABLES WITH READ LOCK;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 [connection conn1]
 #
@@ -184,7 +184,7 @@ FLUSH TABLES WITH READ LOCK;
 [connection conn3]
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 [connection conn1]
 #
@@ -202,7 +202,7 @@ SET debug_sync="now WAIT_FOR reached";
 FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn4]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn2]
 UNLOCK TABLES;
 [connection conn1]
@@ -223,7 +223,7 @@ FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
 [connection conn4]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn2]
 UNLOCK TABLES;
 [connection conn1]
@@ -244,7 +244,7 @@ FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
 [connection conn4]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn2]
 UNLOCK TABLES;
 [connection conn1]
@@ -265,7 +265,7 @@ FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
 [connection conn4]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn2]
 UNLOCK TABLES;
 [connection conn1]
@@ -286,7 +286,7 @@ FLUSH TABLES WITH READ LOCK;
 SET debug_sync="now SIGNAL insert_continue";
 [connection conn2]
 [connection conn4]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection conn2]
 UNLOCK TABLES;
 [connection conn1]
@@ -296,15 +296,15 @@ UNLOCK TABLES;
 [connection conn2]
 SET debug_sync="RESET";
 #
-# Step-3) Check that 'RESET MASTER' fails if it is executed from a
+# Step-3) Check that 'RESET BINARY LOGS AND GTIDS' fails if it is executed from a
 #         session that has already acquired locks on a table.
 #
 LOCK TABLE t1 READ;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 UNLOCK TABLES;
 LOCK TABLE t1 WRITE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 UNLOCK TABLES;
 # Step-4) Cleanup

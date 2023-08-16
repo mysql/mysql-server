@@ -22,7 +22,7 @@ SET GLOBAL sync_binlog = 1;
 # Block the session before its events are synced to disk
 SET DEBUG_SYNC = 'before_sync_binlog_file WAIT_FOR continue';
 
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 send CREATE TABLE t1(c1 INT);
 
 # Wait enough time. So the events were replicated if they could be replicated

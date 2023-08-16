@@ -5,8 +5,8 @@
 # 2. Bug#17250994 BAD BINLOG GENERATION AFTER MISMATCH TABLE DISCOVER
 #
 # Reset binlogging for test
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 # Setup
 create table t1 (a int unsigned auto_increment not null primary key)
 engine=ndbcluster;

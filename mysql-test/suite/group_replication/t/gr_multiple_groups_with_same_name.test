@@ -35,7 +35,7 @@ SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.rep
 # Stop GR on server2.
 --source include/stop_group_replication.inc
 # To reset the GTID_EXECUTED.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Bootstrap start GR on server2.
 --source include/start_and_bootstrap_group_replication.inc

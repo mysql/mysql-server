@@ -22,7 +22,7 @@
 --source include/master-slave.inc
 
 --let $MYSQLD_MASTER_DATADIR= `select @@datadir`
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $is_windows = `SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`
 
 # Stop the master

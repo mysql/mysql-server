@@ -2632,8 +2632,9 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
   relying on the binlog's version. This is not perfect: imagine an upgrade
   of the master without waiting that all slaves are in sync with the master;
   then a slave could be fooled about the binlog's format. This is what happens
-  when people upgrade a 3.23 master to 4.0 without doing RESET MASTER: 4.0
-  slaves are fooled. So we do this only to distinguish between 3.23 and more
+  when people upgrade a 3.23 master to 4.0 without doing
+  RESET BINARY LOGS AND GTIDS: 4.0 slaves are fooled.
+  So we do this only to distinguish between 3.23 and more
   recent masters (it's too late to change things for 3.23).
 
   RETURNS

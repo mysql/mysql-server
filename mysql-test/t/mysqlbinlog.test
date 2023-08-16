@@ -9,7 +9,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 --enable_query_log
 
 # Deletes all the binary logs
-reset master;
+reset binary logs and gtids;
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
@@ -36,7 +36,7 @@ load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 # simple query to show more in second binlog
---let $binlog_start_pos=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_start_pos=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 insert into t1 values ("Alas");
 flush logs;
 
@@ -225,7 +225,7 @@ CREATE TABLE t1 (c1 CHAR(10));
 # we need this for getting fixed timestamps inside of this test
 FLUSH LOGS;
 INSERT INTO t1 VALUES ('0123456789');
-let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 DROP TABLE t1;
 
@@ -256,7 +256,7 @@ FLUSH LOGS;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(connection_id());
 let $a= `SELECT a FROM t1`;
-let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 let $outfile= $MYSQLTEST_VARDIR/tmp/bug29928.sql;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file > $outfile
@@ -283,7 +283,7 @@ set timestamp= default;
 # Test --disable-force-if-open and --force-if-open
 #
 FLUSH LOGS;
-let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --error 1
 --exec $MYSQL_BINLOG --disable-force-if-open $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
@@ -300,7 +300,7 @@ USE mysqltest1;
 CREATE TABLE t1 (a INT, b CHAR(64));
 flush logs;
 INSERT INTO t1 VALUES (1,USER());
-let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 flush logs;
 echo mysqlbinlog var/log/master_binlog_file > var/tmp/bug31611.sql;
 exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
@@ -332,7 +332,7 @@ SET @an_int = 1000;
 SET @a_decimal = CAST(rand(19) * 999 AS DECIMAL(5,2));
 SET @a_string = 'Just a test';
 INSERT INTO t1 VALUES (@a_real, @an_int, @a_decimal, @a_string);
-let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 query_vertical SELECT * FROM t1;
 DROP TABLE t1;
@@ -354,7 +354,7 @@ let $save_server_id= `SELECT @@global.server_id`;
 let $s_id_max= `SELECT (1 << 32) - 1`;
 eval SET @@global.server_id= $s_id_max;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $binlog_file
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -371,7 +371,7 @@ eval SET @@global.server_id= $save_server_id;
 # Bug #41943: mysqlbinlog.exe crashes if --hexdump option is used
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 
 # We do not need the results, just make sure that mysqlbinlog does not crash
@@ -383,7 +383,7 @@ FLUSH LOGS;
 # in regardless of database filtering
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 
 # The following three test cases were wrtten into binlog_transaction.000001
@@ -459,7 +459,7 @@ FLUSH LOGS;
 # BUG#38468 Memory leak detected when using mysqlbinlog utility;
 #
 disable_query_log;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 SELECT 1;
 FLUSH LOGS;
 DROP TABLE t1;
@@ -508,7 +508,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
 # "No Database Selected" error when dropping and recreating
 # that database.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE test1;
 USE test1;
 CREATE TABLE t1(id int);
@@ -518,13 +518,13 @@ USE test1;
 CREATE TABLE t1(id int);
 DROP TABLE t1;
 DROP DATABASE test1;
-let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1;
 
-let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 source include/show_binlog_events.inc;
 
 #
@@ -532,13 +532,13 @@ source include/show_binlog_events.inc;
 # This test checks that the format description log event is not
 # filtered out by the --server-id option.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 USE test;
 CREATE TABLE t1 (a INT);
 --let $old_server_id= `SELECT @@GLOBAL.SERVER_ID`
 SET GLOBAL SERVER_ID = 2;
 DROP TABLE t1;
---let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 # The following should only create t1, not drop it.
 --exec $MYSQL_BINLOG --server-id=1 $MYSQLD_DATADIR/$master_binlog | $MYSQL
@@ -559,7 +559,7 @@ eval SET GLOBAL SERVER_ID = $old_server_id;
 # WL#9632: mysqlbinlog: generate deprecation warning for --short-form
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $ofile= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --exec $MYSQL_BINLOG -h 127.0.0.1 -P $MASTER_MYPORT -R binlog.000001 --short-form > /dev/null 2> $ofile
@@ -571,7 +571,7 @@ RESET MASTER;
 # WL#9633: mysqlbinlog: generate deprecation warning for --stop-never-slave-server-id
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $ofile= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --exec $MYSQL_BINLOG -h 127.0.0.1 -P $MASTER_MYPORT -R --stop-never-slave-server-id=100 binlog.000001 > /dev/null 2> $ofile

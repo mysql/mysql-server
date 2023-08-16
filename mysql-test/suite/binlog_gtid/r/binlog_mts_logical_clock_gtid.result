@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a int) ENGINE= innodb;
 include/include/assert_logical_timestamps.inc [0 1]
 INSERT INTO t1 SET a=1;
@@ -28,7 +28,7 @@ INSERT INTO t1 SET a=2;
 [connection two]
 include/include/assert_logical_timestamps.inc [5 6;[56] 7]
 [connection one]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 INSERT INTO t1 SET a=1;
 [connection two]
 BEGIN;
@@ -44,7 +44,7 @@ FLUSH LOGS;
 COMMIT;
 include/include/assert_logical_timestamps.inc [0 1]
 [connection one]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 INSERT INTO t1 SET a=1;
 [connection two]
 BEGIN;
@@ -58,7 +58,7 @@ INSERT INTO t1 SET a=4;
 [connection two]
 COMMIT;
 include/include/assert_logical_timestamps.inc [0 1;1 2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection one]
 COMMIT;
 [connection three]
@@ -67,7 +67,7 @@ include/include/assert_logical_timestamps.inc [0 1;0 2]
 DROP TABLE t1;
 CREATE TABLE t1 (a int) ENGINE= innodb;
 CREATE TABLE tm (a int) ENGINE= MyISAM;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 *** The query is logged in four part.

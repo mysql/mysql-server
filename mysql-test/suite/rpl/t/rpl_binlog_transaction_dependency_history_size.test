@@ -117,7 +117,7 @@ while ($type < 3)
   --echo # Drop table and flush logs to force binlog to rotate
   DROP TABLE test.tab1, test.tab2;
 
-  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
   FLUSH LOGS;
 
   --echo # Processing binlog...

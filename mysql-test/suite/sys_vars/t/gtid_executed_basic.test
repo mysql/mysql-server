@@ -1,5 +1,5 @@
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @start_global_value = @@global.gtid_executed;
 SELECT @start_global_value;
 

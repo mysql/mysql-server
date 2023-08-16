@@ -23,7 +23,7 @@ eval create trigger tr11 $insert_action on t2 for each row begin
 end |
 delimiter ;|
 begin;
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 insert into t1(a) values(f1_two_inserts_trigger());
 
 connection master1;

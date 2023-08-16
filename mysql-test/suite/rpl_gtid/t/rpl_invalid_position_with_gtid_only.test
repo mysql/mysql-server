@@ -127,8 +127,8 @@ INSERT INTO t VALUES(2);
 
 --source include/rpl_connection_master.inc
 
---let $log_file_on_source=query_get_value(SHOW MASTER STATUS, File, 1)
---let $log_pos_on_source=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $log_file_on_source=query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $log_pos_on_source=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
 

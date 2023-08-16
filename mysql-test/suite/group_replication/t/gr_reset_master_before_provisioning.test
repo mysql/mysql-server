@@ -1,5 +1,5 @@
 ################################################################################
-# This test intends to prove that members can survive reset master commands.
+# This test intends to prove that members can survive reset binary logs and gtids commands.
 # These commands end up causing the members to purge their relay logs even when
 # the member has some provisioned data.
 # This test has 3 phases:
@@ -18,7 +18,7 @@
 #    Validate both members have the same GTID set.
 #
 # Phase 2: Reset the group and provision a server.
-# 2. Stop GR and reset master on both members.
+# 2. Stop GR and reset binary logs and gtids on both members.
 # 3. On M1, add some data and bootstrap start group replication.
 # 4. On M2, fake the member being provisioned. Start group replication.
 # 5. Test that the group works by adding some data.
@@ -86,11 +86,11 @@ DROP TABLE t1;
 
 --connection server1
 --source include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server2
 --source include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server1
 

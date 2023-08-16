@@ -44,10 +44,10 @@ class Event_parse_data {
  public:
   /*
     ENABLED = feature can function normally (is turned on)
-    SLAVESIDE_DISABLED = feature is turned off on slave
+    REPLICA_SIDE_DISABLED = feature is turned off on replica
     DISABLED = feature is turned off
   */
-  enum enum_status { ENABLED = 1, DISABLED, SLAVESIDE_DISABLED };
+  enum enum_status { ENABLED = 1, DISABLED, REPLICA_SIDE_DISABLED };
 
   enum enum_on_completion {
     /*

@@ -1988,17 +1988,17 @@ DROP TABLE t1;
 # Bug #20665: All commands supported in Stored Procedures should work in
 # Prepared Statements
 #
-create procedure proc_1() reset master;
+create procedure proc_1() reset binary logs and gtids;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin reset master; return 1; end|
+create function func_1() returns int begin reset binary logs and gtids; return 1; end|
 create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
 drop procedure proc_1;
-prepare abc from "reset master";
+prepare abc from "reset binary logs and gtids";
 execute abc;
 execute abc;
 execute abc;
@@ -2322,31 +2322,31 @@ prepare abc from "show slave status";
 deallocate prepare abc;
 
 
-create procedure proc_1() show master status;
+create procedure proc_1() show binary log status;
 drop procedure proc_1;
 delimiter |;
 --error ER_SP_NO_RETSET
-create function func_1() returns int begin show master status; return 1; end|
+create function func_1() returns int begin show binary log status; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
-prepare abc from "show master status";
+prepare abc from "show binary log status";
 deallocate prepare abc;
 
 
-create procedure proc_1() show master logs;
+create procedure proc_1() show binary logs;
 drop procedure proc_1;
 delimiter |;
 --error ER_SP_NO_RETSET
-create function func_1() returns int begin show master logs; return 1; end|
+create function func_1() returns int begin show binary logs; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST
 select func_1(), func_1(), func_1() from dual;
 --error ER_SP_DOES_NOT_EXIST
 drop function func_1;
-prepare abc from "show master logs";
+prepare abc from "show binary logs";
 deallocate prepare abc;
 
 

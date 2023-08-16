@@ -11,7 +11,7 @@
 --echo Setup circular replication
 
 --connection slave
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 let $SLAVE_SERVER_ID= `select @@server_id`;
 echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 

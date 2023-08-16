@@ -18,7 +18,7 @@ connect (con2,localhost,root,,);
 --echo # Switch to connection con1
 connection con1;
 CREATE TABLE t1 (a INT) ENGINE=innodb;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET AUTOCOMMIT=0;
 SELECT 1;
 --echo # Switch to connection con2

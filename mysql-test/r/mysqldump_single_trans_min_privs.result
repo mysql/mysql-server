@@ -39,4 +39,4 @@ GRANT SELECT ON `bug_test`.* TO `test`@`localhost`
 # ----- End of tests -----
 DROP USER test@localhost;
 DROP DATABASE bug_test;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

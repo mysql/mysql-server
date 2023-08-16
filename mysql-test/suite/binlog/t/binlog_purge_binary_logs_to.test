@@ -20,28 +20,28 @@
 # This test case is binlog_format agnostic
 --source include/have_binlog_format_row.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $INDEX=$MYSQLD_DATADIR/binlog.index
 
---let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo # Generate binlog.000002
 FLUSH BINARY LOGS;
---let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo # Generate binlog.000003
 FLUSH BINARY LOGS;
---let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file3= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo # Generate binlog.000004
 FLUSH BINARY LOGS;
---let $binlog_file4= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file4= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo # Generate binlog.000005
 FLUSH BINARY LOGS;
---let $binlog_file5= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file5= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Move the binary logs to var/tmp/ directory
 

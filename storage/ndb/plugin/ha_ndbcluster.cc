@@ -11813,9 +11813,10 @@ inline void ha_ndbcluster::release_key_fields() {
   @note This function is called in several different contexts:
    - By same thread which opened or have used NDB before. In this
      case both THD and Thd_ndb is available.
-   - By thread which executes FLUSH TABLES or RESET SOURCE and thus closes all
-     cached table definitions (and thus the related ha_ndbcluster instance). In
-     this case only THD is available since thread hasn't used NDB before.
+   - By thread which executes FLUSH TABLES or RESET BINARY LOGS AND GTIDS
+     and thus closes all  cached table definitions (and thus the related
+     ha_ndbcluster instance).
+     In this case only THD is available since thread hasn't used NDB before.
    - By thread handling SIGHUP which closes all cached table definitions. In
      this case there isn't even a THD available (this is intentional).
 

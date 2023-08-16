@@ -55,8 +55,8 @@ CALL create_tables();
 --source include/gtid_step_reset.inc
 
 # Get offset of events
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $binlog_position= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $binlog_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 # Set GTID_NEXT.
 --let $expect_error= 0

@@ -14,7 +14,7 @@
 
 # Clear previous tests binlog.
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 --echo #########################################################################
@@ -113,7 +113,7 @@ SHOW CREATE FUNCTION f;
 
 # Clear previous tests binlog.
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 CREATE TABLE t1(a INT);
@@ -173,7 +173,7 @@ DROP TABLE t1;
 
 # Clear previous tests binlog.
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 --echo #
@@ -253,7 +253,7 @@ SHOW EVENTS;
 
 # Clear previous tests binlog.
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 CREATE VIEW v1 AS SELECT 1;
@@ -372,7 +372,7 @@ DROP TABLE t1;
 
 # Clear previous tests binlog.
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 SET @orig_lock_wait_timeout= @@global.lock_wait_timeout;

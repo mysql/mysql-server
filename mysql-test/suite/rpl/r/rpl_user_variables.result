@@ -4,9 +4,9 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 include/sync_slave_sql_with_master.inc
-reset master;
+reset binary logs and gtids;
 include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 create table t1(n char(30)) CHARACTER SET latin1;
 set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;

@@ -1,6 +1,6 @@
 call mtr.add_suppression("Did not write failed 'GRANT ALL ON *.* TO user2' into binary log while granting/revoking privileges in databases.");
 call mtr.add_suppression("Did not write failed 'REVOKE ALL PRIVILEGES ON *.* FROM user2' into binary log while granting/revoking privileges in databases.");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t1_c like t1;

@@ -2139,7 +2139,7 @@ OBSOLETE_ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
   eng "NDB Binlog: Server shutdown detected while waiting for ndbcluster to start..."
 
 OBSOLETE_ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
-  eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET SOURCE should be issued. Resetting ndb_latest_handled_binlog_epoch."
+  eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET BINARY LOGS AND GTIDS should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
 OBSOLETE_ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
   eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
@@ -4650,7 +4650,7 @@ ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
   eng "Error stopping all replication channels while server was leaving the group. %s"
 
 ER_GRP_RPL_PURGE_APPLIER_LOGS
-  eng "Detected previous RESET SOURCE invocation or an issue exists in the group replication applier relay log. Purging existing applier logs."
+  eng "Detected previous RESET BINARY LOGS AND GTIDS invocation or an issue exists in the group replication applier relay log. Purging existing applier logs."
 
 ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR
   eng "Unknown error occurred while resetting applier's module logs."

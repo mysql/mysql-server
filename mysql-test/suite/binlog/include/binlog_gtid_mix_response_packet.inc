@@ -40,7 +40,7 @@ while($i)
   }
 
   --eval SET SESSION SESSION_TRACK_GTIDS=$_option
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   # transaction 1 - $uuid:1
   CREATE TABLE t1 (c1 INT) Engine=InnoDB;

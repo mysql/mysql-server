@@ -10,8 +10,8 @@ start slave;
 
 connection master;
 
-let $file = query_get_value(SHOW MASTER STATUS, File, 1);
-let $pos = query_get_value(SHOW MASTER STATUS, Position, 1);
+let $file = query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
 --disable_result_log

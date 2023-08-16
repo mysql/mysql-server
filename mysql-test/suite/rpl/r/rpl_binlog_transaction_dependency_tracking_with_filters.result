@@ -89,7 +89,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ######## 2.2. WRITESET with SLAVE ########
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
@@ -107,7 +107,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ######## 2.3. WRITESET_SESSION with SLAVE ########
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;

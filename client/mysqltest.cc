@@ -5026,8 +5026,8 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
 
   if (!result_str || result < 0) {
     /* source_pos_wait returned NULL or < 0 */
-    show_query(mysql, "SHOW MASTER STATUS");
-    show_query(mysql, "SHOW SLAVE STATUS");
+    show_query(mysql, "SHOW BINARY LOG STATUS");
+    show_query(mysql, "SHOW REPLICA STATUS");
     show_query(mysql, "SHOW PROCESSLIST");
     fprintf(stderr, "analyze: sync_with_master\n");
 
@@ -5191,14 +5191,14 @@ static int do_save_master_pos() {
   */
   ndb_wait_for_binlog_injector();
 
-  if (mysql_query_wrapper(mysql, query = "show master status"))
-    die("failed in 'show master status': %d %s", mysql_errno(mysql),
+  if (mysql_query_wrapper(mysql, query = "show binary log status"))
+    die("failed in 'SHOW BINARY LOG STATUS': %d %s", mysql_errno(mysql),
         mysql_error(mysql));
 
   if (!(res = mysql_store_result_wrapper(mysql)))
     die("mysql_store_result() retuned NULL for '%s'", query);
   if (!(row = mysql_fetch_row_wrapper(res)))
-    die("empty result in show master status");
+    die("empty result in SHOW BINARY LOG STATUS");
   my_stpnmov(master_pos.file, row[0], sizeof(master_pos.file) - 1);
   master_pos.pos = strtoul(row[1], (char **)nullptr, 10);
   mysql_free_result_wrapper(res);

@@ -101,22 +101,22 @@ source suite/ndb_rpl/t/wait_schema_logging.inc;
 --disable_query_log
 connection srv_master;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_master2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave1;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 --enable_query_log
 
@@ -141,22 +141,22 @@ RESET MASTER;
 --disable_query_log
 connection srv_master;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_master2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave1;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 --enable_query_log
 
@@ -181,22 +181,22 @@ RESET MASTER;
 --disable_query_log
 connection srv_master;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_master2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave1;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 
 connection srv_slave2;
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_warnings
 --enable_query_log
 

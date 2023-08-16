@@ -29,5 +29,5 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 include/assert.inc [The super_read_only mode should be 0 here.]
 CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/group_replication_end.inc

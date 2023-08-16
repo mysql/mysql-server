@@ -57,7 +57,7 @@
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
 
---let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --echo #
 --echo # TC1. `Query_log_event` should fail if `PRIVILEGE_CHECKS_USER` user
@@ -163,7 +163,7 @@ START SLAVE;
 #
 --source include/rpl_connection_master.inc
 --let $master_uuid = `SELECT @@GLOBAL.SERVER_UUID`
---let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET sql_log_bin= 0;
 CREATE USER 'u1'@'localhost';
 SET sql_log_bin= 1;
@@ -215,7 +215,7 @@ DROP USER 'u1'@'localhost';
 
 # Clean up
 --source include/rpl_connection_master.inc
---let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_log_pos = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --source include/rpl_connection_slave.inc
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';

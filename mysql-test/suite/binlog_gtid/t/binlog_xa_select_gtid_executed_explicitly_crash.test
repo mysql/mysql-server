@@ -31,7 +31,7 @@
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
 # For reseting mysql.gtid_executed table
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

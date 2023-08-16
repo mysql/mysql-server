@@ -35,7 +35,7 @@
 CALL mtr.add_suppression("Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.");
 --enable_query_log
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # 1. Save current binlog file name
@@ -65,7 +65,7 @@ FLUSH BINARY LOGS;
 
 --echo #
 --echo # 3.3 Verify that binlogs are not purged
---let $binlog_name = query_get_value(SHOW MASTER LOGS, Log_name, 1)
+--let $binlog_name = query_get_value(SHOW BINARY LOGS, Log_name, 1)
 --let $assert_text = Expected binary log file
 --let $assert_cond = "$binlog_name" = "$first_binlog_file"
 --source include/assert.inc
@@ -93,7 +93,7 @@ FLUSH BINARY LOGS;
 
 --echo #
 --echo # 4.3 Verify that binlogs are not purged
---let $binlog_name = query_get_value(SHOW MASTER LOGS, Log_name, 1)
+--let $binlog_name = query_get_value(SHOW BINARY LOGS, Log_name, 1)
 --let $assert_text = Expected binary log file
 --let $assert_cond = "$binlog_name" = "$first_binlog_file"
 --source include/assert.inc

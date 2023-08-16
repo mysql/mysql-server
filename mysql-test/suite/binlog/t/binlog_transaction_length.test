@@ -10,7 +10,7 @@
 #    (which will be enabled on the MTR collection).
 ################################################################################
 --source include/have_binlog_format_row.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo ############################################################

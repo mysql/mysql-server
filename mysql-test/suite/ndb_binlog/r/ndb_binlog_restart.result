@@ -1,4 +1,4 @@
-reset master;
+reset binary logs and gtids;
 Disconnect mysqld from all datanodes
 Wait for binlog rotate to indicate disconnect
 Wait to get out of read-only mode
@@ -12,7 +12,7 @@ binlog.000001	#	Rotate	#	#	binlog.000002;pos=POS
 
 Testing for Bug#22204186: Stuck in Readonly if slow failure handling
 ====================================================================
-reset master;
+reset binary logs and gtids;
 Disconnect mysqld from all datanodes
 Wait for binlog rotate to indicate disconnect
 Wait to get out of read-only mode

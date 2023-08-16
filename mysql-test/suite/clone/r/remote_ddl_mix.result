@@ -73,7 +73,7 @@ SHOW VARIABLES LIKE 'clone_block_ddl';
 Variable_name	Value
 clone_block_ddl	OFF
 # 1. RENAME and CREATE a TABLE with same name while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 RENAME t0_new;
 CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) ;
@@ -287,7 +287,7 @@ DROP TABLE t3_new;
 DROP TABLE t11_new;
 DROP TABLE t21_new;
 # 2. CREATE & DROP TABLE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 CREATE TABLE t0 (col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB) PARTITION BY KEY(col1) PARTITIONS 5;
 DROP TABLE t0  ;

@@ -7769,7 +7769,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 14,
-                "char_length": 54,
+                "char_length": 63,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -7792,7 +7792,7 @@
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
                 "column_key": 1,
-                "column_type_utf8": "enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')",
+                "column_type_utf8": "enum('ENABLED','DISABLED','REPLICA_SIDE_DISABLED')",
                 "elements": [
                     {
                         "name": "RU5BQkxFRA==", "decoded-name": "ENABLED",
@@ -7803,7 +7803,7 @@
                         "index": 2
                     },
                     {
-                        "name": "U0xBVkVTSURFX0RJU0FCTEVE", "decoded-name": "SLAVESIDE_DISABLED",
+                        "name": "UkVQTElDQV9TSURFX0RJU0FCTEVE", "decoded-name": "REPLICA_SIDE_DISABLED",
                         "index": 3
                     }
                 ],

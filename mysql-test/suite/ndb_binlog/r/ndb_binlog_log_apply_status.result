@@ -6,7 +6,7 @@ ndb_log_apply_status	OFF
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 Should have empty apply status table
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
@@ -27,7 +27,7 @@ ndb_log_apply_status	ON
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 Should have empty apply status table
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos

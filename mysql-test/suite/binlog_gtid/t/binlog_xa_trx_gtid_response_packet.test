@@ -16,7 +16,7 @@
 --let $option_value = 1
 --source include/only_with_option.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 --echo

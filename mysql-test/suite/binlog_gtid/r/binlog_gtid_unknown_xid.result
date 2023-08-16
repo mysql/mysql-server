@@ -32,4 +32,4 @@ XA ROLLBACK 'xa1';
 include/assert.inc [All XA transactions were cleared]
 DROP TABLE t2;
 SET @@AUTOCOMMIT=DEFAULT_AUTOCOMMIT;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

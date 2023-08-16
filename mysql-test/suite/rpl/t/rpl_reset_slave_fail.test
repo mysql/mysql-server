@@ -75,7 +75,7 @@ START SLAVE;
 --disable_warnings
 RESET SLAVE;
 --enable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 # Start slave.
 --source include/start_slave.inc

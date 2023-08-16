@@ -1,7 +1,7 @@
 set binlog_format=statement;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 drop database if exists my_local_db;
 create database my_local_db;
 create table my_local_db.my_non_tx_table(a bigint) engine = myisam;

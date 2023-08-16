@@ -54,23 +54,23 @@ create table test.synch(x int primary key) engine=ndb;
 
 -- echo Test 1: Testing logging of pk reads
 
-reset master;
+reset binary logs and gtids;
 
 connection mysqld2;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld3;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld4;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 SET ndb_log_exclusive_reads= 1;
@@ -191,7 +191,7 @@ SET ndb_log_exclusive_reads= 0;
 
 -- echo Test 2: Testing logging of unique index reads
 
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 --disable_result_log
@@ -201,17 +201,17 @@ connection mysqld2;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld3;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld4;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 SET ndb_log_exclusive_reads= 1;
@@ -332,7 +332,7 @@ SET ndb_log_exclusive_reads= 0;
 
 -- echo Test 3: Testing logging of ordered index scans
 
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 --disable_result_log
@@ -342,17 +342,17 @@ connection mysqld2;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld3;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld4;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 SET ndb_log_exclusive_reads= 1;
@@ -473,7 +473,7 @@ SET ndb_log_exclusive_reads= 0;
 
 -- echo Test 4: Testing logging of table scans
 
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 --disable_result_log
@@ -483,17 +483,17 @@ connection mysqld2;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld3;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 connection mysqld4;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 
 connection mysqld1;
 SET ndb_log_exclusive_reads= 1;

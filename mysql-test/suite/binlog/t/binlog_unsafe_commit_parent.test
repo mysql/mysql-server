@@ -28,7 +28,7 @@
 --connect(insert_conn, localhost, root)
 --connect(admin_conn, localhost, root)
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1(c1 INT AUTO_INCREMENT PRIMARY KEY, c2 VARCHAR(200))
   PARTITION BY HASH (c1) PARTITIONS 4;

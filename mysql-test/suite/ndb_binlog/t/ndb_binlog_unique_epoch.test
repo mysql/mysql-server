@@ -117,7 +117,7 @@ drop table epochs_in_binlog;
 
 # Now cleanup
 
-reset master;
+reset binary logs and gtids;
 alter table mysql.ndb_binlog_index add primary key (epoch, orig_server_id, orig_epoch);
 
 drop procedure ins;

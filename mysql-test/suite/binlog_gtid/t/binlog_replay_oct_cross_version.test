@@ -22,7 +22,7 @@
 --source include/have_debug.inc
 --source include/have_log_bin.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Run some transactions on the master
 --let $uuid=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -33,7 +33,7 @@ CREATE TABLE t1 (a INT);
 DROP TABLE t1;
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 
---let $binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`
 
 --echo # run mysqlbinlog with a flag so that the OCT is not printed
@@ -41,7 +41,7 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 --exec $MYSQL_BINLOG -#d,do_not_write_rpl_OCT --force-if-open $binlog_path > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
 
 # reset the server so we can replay the transactions
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo # replay the transactions on the server
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
 

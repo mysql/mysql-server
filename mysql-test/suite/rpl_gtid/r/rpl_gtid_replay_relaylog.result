@@ -18,10 +18,10 @@ include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert.inc [Check that there is one tuple in the table]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert.inc [Check that there are two tuples in the table]
 [connection master]
 DROP TABLE t1;

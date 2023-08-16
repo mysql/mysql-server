@@ -34,12 +34,12 @@
 -- source include/not_have_privilege_checks_user.inc
 -- source include/master-slave.inc
 
-# Reset master
+# Reset source
 connection slave;
 --source include/stop_slave.inc 
 
 connection master;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 connection slave;
 --source include/start_slave.inc
@@ -51,8 +51,8 @@ call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
 
 -- let $old_debug = `select @@global.debug`
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 
 -- echo # Test case1: Set DEBUG POINT before binlog to make
@@ -108,8 +108,8 @@ COMMIT;
 --source include/diff_tables.inc
 
 connection master;
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 -- echo # Test case2: Set DEBUG POINT after binlog, and before the date
 -- echo #             is committed to make crash for transaction
 
@@ -167,8 +167,8 @@ DROP TABLE t1;
 -- source include/stop_slave.inc
 
 connection master;
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 # Test transaction with large data inserted
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 

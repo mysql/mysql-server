@@ -74,7 +74,7 @@ Variable_name	Value
 clone_block_ddl	OFF
 # 1. TRUNCATE TABLE while clone in progress
 SET global debug="+d,clone_send_deleted_block";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 TRUNCATE TABLE t0  ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';

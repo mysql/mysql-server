@@ -133,7 +133,7 @@ call mtr.add_suppression(".* Got fatal error 1236 from source when reading data 
 --echo #
 
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c1 INT);
 
 --let $debug_point= simulate_kill_dump
@@ -164,7 +164,7 @@ DROP TABLE t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/output
 
 --source include/rpl_connection_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/start_slave.inc
 --source include/rpl_end.inc

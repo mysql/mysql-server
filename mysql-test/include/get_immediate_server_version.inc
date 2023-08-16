@@ -19,7 +19,7 @@
 if ($log_file == '' )
 {
   --let $MYSQLD_DATADIR = `select @@datadir`
-  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
   --let $log_file = $MYSQLD_DATADIR/$binlog_file
 }
 --let $prefix = `select uuid()`

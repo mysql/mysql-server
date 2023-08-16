@@ -26,7 +26,7 @@ CALL mtr.add_suppression("Recovery from source pos");
 
 INSERT INTO t1 VALUES (1);
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # make sure that the slave copies everything, but does not apply
 # this last insert statement

@@ -21,10 +21,10 @@
 #
 
 --connection server1
-reset master;
+reset binary logs and gtids;
 
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server1
 
@@ -44,12 +44,12 @@ insert into ndbt1 values (1,1);
 
 --echo Show + reset Binlog contents on Server 1
 --source include/show_binlog_events.inc
-reset master;
+reset binary logs and gtids;
 
 --echo Show + reset Binlog contents on Server 2
 --connection server2
 --source include/show_binlog_events.inc
-reset master;
+reset binary logs and gtids;
 
 --echo Now perform MyIsam table change followed by 
 --echo flush tables with read lock on Server 1
@@ -99,10 +99,10 @@ insert into ndbt1 values (6,6);
 
 --echo Reset both binlogs;
 --connection server1
-reset master;
+reset binary logs and gtids;
 
 --connection server2
-reset master;
+reset binary logs and gtids;
 
 --connection server1
 
@@ -134,12 +134,12 @@ while ($not_proven)
   --connection server1
   let $SERVER1_DATADIR= `select @@datadir;`;
   delete from test.ndbt2;
-  reset master;
+  reset binary logs and gtids;
 
   --connection server2
   let $SERVER2_DATADIR= `select @@datadir;`;
   delete from test.ndbt2;
-  reset master;
+  reset binary logs and gtids;
 
   --connection server1
 

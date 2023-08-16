@@ -20,7 +20,7 @@
 
 CREATE TABLE t1 (c1 INT);
 
---let $first_encrypted_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $first_encrypted_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$first_encrypted_binary_log
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=the first encrypted binary log is encrypted using first master key

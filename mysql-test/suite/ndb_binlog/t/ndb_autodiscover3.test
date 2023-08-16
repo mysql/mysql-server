@@ -77,7 +77,7 @@ select * from t2 order by a limit 3;
 --error ER_NO_SUCH_TABLE
 select * from t2;
 show tables like 't2';
-reset master;
+reset binary logs and gtids;
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
@@ -85,7 +85,7 @@ select * from t2 order by a limit 3;
 # server 1 should have a stale cache, transaction must be retried
 --connection server1
 select * from t2 order by a limit 3;
-reset master;
+reset binary logs and gtids;
 
 --source include/ndb_backup_id.inc
 --exec $NDB_MGM -e "all restart -i" >> $NDB_TOOLS_OUTPUT
@@ -109,7 +109,7 @@ reset master;
 --error ER_NO_SUCH_TABLE
 select * from t2;
 show tables like 't2';
-reset master;
+reset binary logs and gtids;
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
@@ -117,7 +117,7 @@ select * from t2 order by a limit 3;
 # server 2 should have a stale cache, transaction need not be retried
 --connection server2
 select * from t2 order by a limit 3;
-reset master;
+reset binary logs and gtids;
 
 drop table t2;
 --source suite/ndb/include/backup_restore_cleanup.inc

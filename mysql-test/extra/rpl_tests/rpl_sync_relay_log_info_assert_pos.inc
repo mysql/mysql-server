@@ -4,8 +4,8 @@
 
 # Save current master position
 --source include/rpl_connection_master.inc
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 # Inc the sub test counter
 --inc $_rrli_counter

@@ -1,0 +1,429 @@
+# ==== Purpose ====
+#
+# This test checks the behavior of the mysqldump --output-as-version.
+# With what relates to source and replica dumps this option should allow the use to
+# generate dumps that work on servers with a version lower than 8.0.26 that do not
+# support the new REPLICA commands
+#
+# ==== Implementation ====
+#
+# 1. Create a database and a table
+# 2. For the usage of mysqldump with --source-data
+#  Test a dump with --output-as-version= SERVER
+#  Test a dump with --output-as-version= BEFORE_8_2_0
+#  Test a dump with --output-as-version= BEFORE_8_0_23
+#  Test a dump with server  @@GLOBAL.terminology_use_previous= BEFORE_8_0_26 and mysqldump --output-as-version= SERVER
+#  Test the dumps are valid
+# 3. For the usage of mysqldump with --dump-replica --apply-replica-statements --include-source-host-port
+#  Test a dump with --output-as-version= SERVER
+#  Test a dump with --output-as-version= BEFORE_8_2_0
+#  Test a dump with --output-as-version= BEFORE_8_0_23
+#  Test a dump with server  @@GLOBAL.terminology_use_previous= BEFORE_8_0_26 and mysqldump --output-as-version= SERVER
+#  Test the dumps are valid
+# 3. Cleanup
+#
+# ==== References ====
+#
+# WL#14190: Replace old terms in replication SQL commands on the SOURCE
+#
+
+# Binlog is required
+--source include/have_log_bin.inc
+--let $use_gtids= 0
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo #
+--echo # Create the database/table for testing
+
+--source include/rpl_connection_master.inc
+
+CREATE DATABASE mysqldump_test_db;
+CREATE TABLE mysqldump_test_db.t1 (a INT);
+INSERT INTO mysqldump_test_db.t1 VALUES (1);
+
+--echo #
+--echo # Test the output of --source-data
+--echo #
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= SOURCE
+--echo # Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_no_settings.sql
+
+--exec $MYSQL_DUMP --source-data=1 mysqldump_test_db  > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_2_0
+--echo # Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_2_0.sql
+
+--exec $MYSQL_DUMP --source-data=2 --output-as-version=BEFORE_8_2_0 mysqldump_test_db > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_0_23
+--echo # Output on dump: CHANGE MASTER / MASTER_LOG_FILE & MASTER_LOG_POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_0_23.sql
+
+--exec $MYSQL_DUMP --source-data=1 --output-as-version=BEFORE_8_0_23 --add-drop-database --databases  mysqldump_test_db  > $assert_file
+
+--let $assert_select= CHANGE MASTER
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE MASTER
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $dump_file_master= $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+--echo #   Mysqldump setting --output-as-version= SERVER
+--echo # Output on dump: CHANGE REPLICATION SOURCE / SOURCE_LOG & SOURCE_POS
+
+--let $sysvars_to_save = [ "GLOBAL.terminology_use_previous" ]
+--source include/save_sysvars.inc
+
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+
+# Change the binlog position for later testing
+INSERT INTO mysqldump_test_db.t1 VALUES (2);
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_opt_server.sql
+
+--exec $MYSQL_DUMP --source-data=1 --output-as-version=SERVER --add-drop-database --databases mysqldump_test_db > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--let $source_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $dump_file_rep_source= $assert_file
+
+--echo #
+--echo # Test application of dumps with either terminology
+
+--source include/rpl_connection_slave.inc
+
+--exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
+
+--let $assert_text= "CHANGE MASTER set the valid position"
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] = $master_pos
+--source include/assert.inc
+
+--exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_rep_source
+
+--let $assert_text= "CHANGE REPLICATION SOURCE set the valid position"
+--let $assert_cond= [SHOW REPLICA STATUS, Read_Source_Log_Pos, 1] = $source_pos
+--source include/assert.inc
+
+--echo #
+--echo # Mid test cleanup
+
+--source include/rpl_connection_master.inc
+
+--source include/restore_sysvars.inc
+
+--remove_file $dump_file_master
+
+--remove_file $dump_file_rep_source
+
+--echo #
+--echo # Test the output of --dump-replica, --apply-replica-statements and --include-source-host-port
+--echo #
+
+--source include/rpl_connection_slave.inc
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= SERVER
+--echo # Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_no_settings.sql
+
+--exec $MYSQL_DUMP_SLAVE --dump-replica --apply-replica-statements --include-source-host-port mysqldump_test_db  > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= START REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for START REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= STOP REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for STOP REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_PORT
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_PORT
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_HOST
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_HOST
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_2_0
+--echo # Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_2_0.sql
+
+--exec $MYSQL_DUMP_SLAVE --dump-replica=2 --apply-replica-statements --include-source-host-port --output-as-version=BEFORE_8_2_0 mysqldump_test_db  > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= START REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for START REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= STOP REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for STOP REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_PORT
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_PORT
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_HOST
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_HOST
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_0_23
+--echo # Output on dump: CHANGE MASTER / START & STOP SLAVE / MASTER_ HOST, PORT, LOG & POS
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_0_23.sql
+
+--exec $MYSQL_DUMP_SLAVE --dump-replica=1 --apply-replica-statements --include-source-host-port --output-as-version=BEFORE_8_0_23 --add-drop-database --databases mysqldump_test_db  > $assert_file
+
+--let $assert_select= CHANGE MASTER
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE MASTER
+--source include/assert_grep.inc
+
+--let $assert_select= START SLAVE
+--let $assert_count= 1
+--let $assert_text= Check for START SLAVE
+--source include/assert_grep.inc
+
+--let $assert_select= STOP SLAVE
+--let $assert_count= 1
+--let $assert_text= Check for STOP SLAVE
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_PORT
+--let $assert_count= 1
+--let $assert_text= Check for MASTER_PORT
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_HOST
+--let $assert_count= 1
+--let $assert_text= Check for MASTER_HOST
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for MASTER_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= MASTER_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for MASTER_LOG_POS
+--source include/assert_grep.inc
+
+--let $source_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $dump_file_rep_source= $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+--echo #   Mysqldump setting --output-as-version= SERVER
+--echo # Output on dump: CHANGE REPLICATION SOURCE / START & STOP REPLICA / SOURCE_ HOST, PORT, LOG & POS
+
+--let $sysvars_to_save = [ "GLOBAL.terminology_use_previous" ]
+--source include/save_sysvars.inc
+
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_opt_server.sql
+
+--exec $MYSQL_DUMP_SLAVE --dump-replica=1 --apply-replica-statements --include-source-host-port --output-as-version=SERVER --add-drop-database --databases mysqldump_test_db > $assert_file
+
+--let $assert_select= CHANGE REPLICATION SOURCE
+--let $assert_count= 1
+--let $assert_text= Check for CHANGE REPLICATION SOURCE
+--source include/assert_grep.inc
+
+--let $assert_select= START REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for START REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= STOP REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for STOP REPLICA
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_PORT
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_PORT
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_HOST
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_HOST
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_FILE
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_FILE
+--source include/assert_grep.inc
+
+--let $assert_select= SOURCE_LOG_POS
+--let $assert_count= 1
+--let $assert_text= Check for SOURCE_LOG_POS
+--source include/assert_grep.inc
+
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let $dump_file_master= $assert_file
+
+--echo #
+--echo # Test application of dumps with either terminology
+
+--source include/rpl_connection_slave.inc
+
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+
+INSERT INTO mysqldump_test_db.t1 VALUES (3);
+
+--source include/rpl_connection_slave.inc
+
+--exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_master
+
+# The dump deletes and then applies the data and starts replication, so there should be 3 rows on the table
+--let $wait_condition = SELECT COUNT(*) = 3 FROM mysqldump_test_db.t1
+--source include/wait_condition.inc
+
+--exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT < $dump_file_rep_source
+
+# The dump deletes and then applies the data and starts replication, so there should be 3 rows on the table
+--let $wait_condition = SELECT COUNT(*) = 3 FROM mysqldump_test_db.t1
+--source include/wait_condition.inc
+
+--echo #
+--echo # Cleanup
+
+--source include/restore_sysvars.inc
+--source include/destroy_json_functions.inc
+
+--source include/rpl_connection_master.inc
+
+--remove_file $dump_file_master
+
+--remove_file $dump_file_rep_source
+
+DROP DATABASE mysqldump_test_db;
+
+--source include/rpl_end.inc

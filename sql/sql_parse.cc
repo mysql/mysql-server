@@ -3473,7 +3473,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                  "SUPER or BINLOG_ADMIN");
         goto error;
       }
-      /* PURGE MASTER LOGS TO 'file' */
+      /* PURGE BINARY LOGS TO 'file' */
       res = purge_source_logs_to_file(thd, lex->to_log);
       break;
     }
@@ -3486,7 +3486,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                  "SUPER or BINLOG_ADMIN");
         goto error;
       }
-      /* PURGE MASTER LOGS BEFORE 'data' */
+      /* PURGE BINARY LOGS BEFORE 'data' */
       it = lex->purge_value_list.head();
       if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1)) {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");

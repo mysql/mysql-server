@@ -1,8 +1,8 @@
 #
-# 0. Execute a RESET MASTER to clean old binary logs
+# 0. Execute a RESET BINARY LOGS AND GTIDS to clean old binary logs
 #    Add suppressions for the test.
 #    Create a test include.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 #
 # 1. Log a DML transaction using statement based logging (T1)
@@ -20,7 +20,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The INSERT query is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The INSERT query is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 2. Log a transaction with a LOAD DATA event (T2)
 CREATE TABLE tload (c1 TEXT);
@@ -37,7 +37,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The LOAD DATA event is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The LOAD DATA event is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 3. Log a transaction with a USER_VAR event (T2)
 CREATE TABLE t1(i INT) ENGINE=InnoDB;
@@ -54,7 +54,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The USER_VAR event is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The USER_VAR event is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 4. Log a transaction with a RAND event (T2)
 INSERT INTO t1 VALUES (Rand());
@@ -72,7 +72,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The RAND event is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The RAND event is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 5. Log a transaction with a INTVAR event (T2)
 CREATE TABLE t2 (j INT PRIMARY KEY AUTO_INCREMENT);
@@ -89,7 +89,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The INTVAR event is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The INTVAR event is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 6. Log a transaction with a CREATE TEMPORARY TABLE query (T3)
 CREATE TEMPORARY TABLE t1 (k INT PRIMARY KEY);
@@ -104,7 +104,7 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The CREATE TEMPORARY TABLE is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The CREATE TEMPORARY TABLE is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 7. Log a transaction with a DROP TEMPORARY TABLE query (T3)
 DROP TEMPORARY TABLE t1;
@@ -119,6 +119,6 @@ include/assert_grep.inc [There was an error when executing mysqlbinlog remotely]
 include/assert_grep.inc [The DROP TEMPORARY TABLE is not written with --require_row_format]
 include/mysqlbinlog.inc
 include/assert_grep.inc [The DROP TEMPORARY TABLE is written without --require_row_format]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 8. Cleanup

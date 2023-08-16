@@ -14,7 +14,7 @@ if ($extra_root_users_for_slave)
   --connection slave_init_con
   DROP USER 'root'@'127.0.0.1';
   DROP USER 'root'@'::1';
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --connection default
   --disconnect slave_init_con
 }

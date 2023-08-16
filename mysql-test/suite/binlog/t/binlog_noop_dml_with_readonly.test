@@ -61,7 +61,7 @@ connection con1;
 COMMIT;
 
 --let $assert_text = Binlog position did not advance
---let $assert_cond = [SHOW MASTER STATUS, Position, 1] = $binlog_position
+--let $assert_cond = [SHOW BINARY LOG STATUS, Position, 1] = $binlog_position
 --source include/assert.inc
 
 --echo check RO transaction still commits
@@ -97,7 +97,7 @@ connection con1;
 COMMIT;
 
 --let $assert_text = Binlog position did not advance
---let $assert_cond = [SHOW MASTER STATUS, Position, 1] = $binlog_position
+--let $assert_cond = [SHOW BINARY LOG STATUS, Position, 1] = $binlog_position
 --source include/assert.inc
 
 DROP TABLE t2;
@@ -127,7 +127,7 @@ COMMIT;
 
 connection default;
 --let $assert_text = Binlog position did not advance
---let $assert_cond = [SHOW MASTER STATUS, Position, 1] = $binlog_position
+--let $assert_cond = [SHOW BINARY LOG STATUS, Position, 1] = $binlog_position
 --source include/assert.inc
 
 SET GLOBAL READ_ONLY=0;
@@ -154,7 +154,7 @@ COMMIT;
 
 connection default;
 --let $assert_text = Binlog position did not advance
---let $assert_cond = [SHOW MASTER STATUS, Position, 1] = $binlog_position
+--let $assert_cond = [SHOW BINARY LOG STATUS, Position, 1] = $binlog_position
 --source include/assert.inc
 
 connection con2;

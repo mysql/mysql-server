@@ -1,7 +1,7 @@
 -- source include/not_ndb_default.inc
 -- source include/have_binlog_format_statement.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 let $lock_option= CONCURRENT;
 

@@ -12,7 +12,7 @@
 #    events/gtid events.
 #
 # 2. Rotate binary logs in all possible ways:
-#    - RESET MASTER
+#    - RESET BINARY LOGS AND GTIDS
 #    - FLUSH BINARY LOGS
 #    - Grow over the binlog size limit
 #    - Restart master server
@@ -61,16 +61,16 @@ INSERT INTO t1 VALUES ('1');
 
 --echo ==== Generate new binary logs in many ways ====
 
---echo ---- RESET MASTER ----
+--echo ---- RESET BINARY LOGS AND GTIDS ----
 
-# RESET MASTER is with a running slave has undefined consequences.
+# RESET BINARY LOGS AND GTIDS is with a running slave has undefined consequences.
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 INSERT INTO t1 VALUES ('2');
 
 --connection slave

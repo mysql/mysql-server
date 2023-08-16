@@ -79,7 +79,7 @@ if ($do_only_regular_logging)
 if ($do_pre_binlog)
 {
   FLUSH LOGS;
-  --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+  --let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
 
   #
   # prepare, the first CRASH,  /* log,  commit */
@@ -132,7 +132,7 @@ if ($do_pre_binlog)
 if ($do_post_binlog)
 {
   FLUSH LOGS;
-  --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+  --let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
 
   #
   # prepare, log, the 2nd CRASH, /* commit */

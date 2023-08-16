@@ -1,7 +1,7 @@
 
 # ==== Purpose ====
 #
-# Test bugs in RESET MASTER.
+# Test bugs in RESET BINARY LOGS AND GTIDS.
 
 # Genereates a lot of noise when run with valgrind.
 --source include/not_valgrind.inc
@@ -13,7 +13,7 @@
 # BUG#12574820: binlog.binlog_tmp_table timing out in daily and weekly trunk run
 # Problem: MYSQL_BIN_LOG::reset_logs acquired LOCK_thd_count and
 # LOCK_log in the wrong order. This could cause a deadlock when
-# RESET MASTER was run concurrently with a disconnecting thread.
+# RESET BINARY LOGS AND GTIDS was run concurrently with a disconnecting thread.
 #######################################################################
 
 # We use sleep, not debug_sync, because the sync point needs to be in
@@ -26,5 +26,5 @@
 --enable_query_log
 
 --exec $MYSQL < $write_to_file
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --remove_file $write_to_file

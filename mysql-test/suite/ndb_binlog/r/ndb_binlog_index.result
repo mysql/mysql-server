@@ -32,7 +32,7 @@ Mismatches between Binlog index next_pos and Binlog COMMIT event pos
 ---------------------------------------------------------------------------
 epoch	calculated_pos	stored_pos
 Done
-reset master;
+reset binary logs and gtids;
 Test interleaved epochs and DDL
 ------------------------------
 insert into t1 values(1, repeat('R', 400));
@@ -57,8 +57,8 @@ Check Binlog on DDL-source MySQLD to ensure that binlog index positions
 Check Binlog on other MySQLD to ensure that binlog index positions
 'cover' the Binlog (DDL here is 'fabricated' by Binlog injector thread
 
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 set sql_log_bin=0;
 create procedure dmlload (seconds int)
 begin
@@ -116,7 +116,7 @@ epoch end position information
 ------------------------------------------------
 alter table mysql.ndb_binlog_index drop column next_file;
 alter table mysql.ndb_binlog_index drop column next_position;
-reset master;
+reset binary logs and gtids;
 show create table mysql.ndb_binlog_index;
 Table	Create Table
 ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
@@ -141,7 +141,7 @@ insert into t1 values(1, repeat('F', 400));
 insert into t1 values(1, repeat('E', 400));
 flush logs;
 Nothing to verify
-reset master;
+reset binary logs and gtids;
 Test interleaved epochs and DDL
 ------------------------------
 insert into t1 values(1, repeat('R', 400));
@@ -162,8 +162,8 @@ Check Binlog on DDL-source MySQLD to ensure that binlog index positions
 Check Binlog on other MySQLD to ensure that binlog index positions
 'cover' the Binlog (DDL here is 'fabricated' by Binlog injector thread
 
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 set sql_log_bin=0;
 create procedure dmlload (seconds int)
 begin
@@ -212,10 +212,10 @@ drop table t1;
 drop table t2;
 drop table t3;
 Now restore original schema
-reset master;
+reset binary logs and gtids;
 alter table mysql.ndb_binlog_index add column next_position bigint unsigned not null;
 alter table mysql.ndb_binlog_index add column next_file varchar(255) not null;
-reset master;
+reset binary logs and gtids;
 --------------------------------------
 Quick test of ndb-log-empty-epochs = 1
 --------------------------------------

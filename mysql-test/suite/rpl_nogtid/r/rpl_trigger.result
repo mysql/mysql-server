@@ -932,7 +932,7 @@ SHOW TABLES LIKE 't_';
 Tables_in_test (t_)
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

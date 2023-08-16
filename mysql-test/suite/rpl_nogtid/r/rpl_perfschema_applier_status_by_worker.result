@@ -74,7 +74,7 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 drop table t;
-reset master;
+reset binary logs and gtids;
 
 # Set up replication in gtid-mode=on and test 'Last_Seen_Transaction'
 # field.

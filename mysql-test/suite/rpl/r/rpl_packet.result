@@ -53,8 +53,8 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
 SET @max_allowed_packet_0= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_1= @@session.max_allowed_packet;

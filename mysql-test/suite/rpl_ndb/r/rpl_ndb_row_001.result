@@ -37,7 +37,7 @@ SUM(LENGTH(word))
 1022
 DROP TABLE t1,t3;
 CREATE TABLE t1 (n INT) ENGINE=NDB;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
@@ -46,7 +46,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000
 include/save_master_pos.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 LOCK TABLES t1 READ;
 include/start_slave.inc
 include/sync_slave_io.inc

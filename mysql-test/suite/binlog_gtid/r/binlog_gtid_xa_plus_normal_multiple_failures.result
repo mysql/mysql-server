@@ -4,7 +4,7 @@ include/suppress_messages.inc
 # Connection 1 suppresses message <.*Crash recovery finished in InnoDB engine.*>.
 # Connection 1 suppresses message <.*Found .* prepared XA transactions.*>.
 # Connection 1 suppresses message <.*Storage engines failed to recover one or more transactions*>.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t (a INT);
 ==== 1. Issue XA PREPARE preceding XA COMMIT/XA ROLLBACK ====
 XA START '4';

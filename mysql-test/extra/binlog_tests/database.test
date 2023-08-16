@@ -4,7 +4,7 @@ source include/have_debug.inc;
 # Checking that the drop of a database does not replicate anything in
 # addition to the drop of the database
 
-reset master;
+reset binary logs and gtids;
 create database testing_1;
 use testing_1;
 create table t1 (a int);
@@ -20,7 +20,7 @@ source include/show_binlog_events.inc;
 # temporary tables open
 
 use test;
-reset master;
+reset binary logs and gtids;
 create temporary table tt1 (a int);
 create table t1 (a int);
 insert into t1 values (1);
@@ -49,7 +49,7 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 --error ER_UNKNOWN_ERROR
@@ -63,4 +63,4 @@ SHOW TABLES FROM db1;
 
 # Cleanup
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

@@ -186,7 +186,7 @@ ALTER TABLE t4 RENAME COLUMN a TO my_row_id;
 
 --source include/rpl_connection_master.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t5(a int); # No primary key
 
@@ -195,7 +195,7 @@ ALTER TABLE t5 ADD PRIMARY KEY `k` (a);
 --source include/rpl_connection_slave.inc
 
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_reset_slave.inc
 START REPLICA;
 
@@ -206,14 +206,14 @@ START REPLICA;
 
 --source include/rpl_connection_master.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t6 (my_row_id TEXT);
 
 --source include/rpl_connection_slave.inc
 
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_reset_slave.inc
 START REPLICA;
 
@@ -226,13 +226,13 @@ START REPLICA;
 
 --source include/rpl_connection_master.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 
 --source include/stop_slave.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_reset_slave.inc
 

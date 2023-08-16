@@ -16,4 +16,4 @@ include/execute_from_conditional_timestamp_sync_point.inc [2@before_wait_on_tick
 include/execute_from_conditional_timestamp_sync_point.inc [3@before_wait_on_ticket]
 include/assert_binlog_events.inc [Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:2' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:3' # !Begin # !Insert # !Commit # Gtid/.*GTID_NEXT= '435aeb3e-cc91-11ec-a715-6ba04eb9487e:1' # !Begin # !Insert # !Commit]
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

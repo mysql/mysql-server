@@ -14,7 +14,7 @@
 --source include/count_sessions.inc
 
 ## Get rid of the binary logs from previous run.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $MYSQLD_DATADIR= `select @@datadir;`

@@ -9,7 +9,7 @@ CALL mtr.add_suppression("Failed to start replica threads for channel");
 CALL mtr.add_suppression("Could not start replica for channel");
 CALL mtr.add_suppression("file .* was not purged because it was being read by thread");
 [connection server_1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
@@ -23,7 +23,7 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
@@ -37,7 +37,7 @@ DROP TABLE db2.t2;
 DROP DATABASE db2;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
@@ -215,7 +215,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
@@ -229,7 +229,7 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
@@ -243,7 +243,7 @@ DROP TABLE db2.t2;
 DROP DATABASE db2;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:
@@ -421,7 +421,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL '';
 Warnings:
@@ -435,7 +435,7 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_2';
 Warnings:
@@ -449,7 +449,7 @@ DROP TABLE db2.t2;
 DROP DATABASE db2;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_4]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT= port, SOURCE_HOST='localhost' FOR CHANNEL 'channel_3';
 Warnings:

@@ -1,7 +1,7 @@
 
 -- source include/force_binlog_format_statement.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET NAMES gbk;
 --character_set gbk
 
@@ -30,7 +30,7 @@ RENAME TABLE t1 to t2;
 let $MYSQLD_DATADIR= `select @@datadir`;
 copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.saved;
 # Reset GTIDs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL_BINLOG --force-if-open --short-form $MYSQLD_DATADIR/binlog.saved | $MYSQL
 SELECT hex(f1) FROM t2;
 SELECT hex(f1) FROM t1;

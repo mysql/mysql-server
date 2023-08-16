@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Populate ACL tbales that has no rows.
 CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES (33);

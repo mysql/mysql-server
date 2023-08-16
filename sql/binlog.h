@@ -81,7 +81,7 @@ typedef int64 query_id_t;
 
 /*
   Maximum allowed unique log filename extension for
-  RESET MASTER TO command - 2 Billion
+  RESET BINARY LOGS AND GTIDS command - 2 Billion
  */
 #define MAX_ALLOWED_FN_EXT_RESET_MASTER 2000000000
 
@@ -761,7 +761,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     thread while creating a new relay log file. This should be NULL for
     binary log files.
     @param new_index_number The binary log file index number to start from
-    after the RESET MASTER TO command is called.
+    after the RESET BINARY LOGS AND GTIDS command is called.
   */
   bool open_binlog(const char *log_name, const char *new_name,
                    ulong max_size_arg, bool null_created_arg,

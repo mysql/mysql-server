@@ -234,7 +234,7 @@ include/assert.inc [sender thread should report - Cannot replicate GTID-transact
 include/assert_grep.inc [Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.]
 [connection master]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 RESET SLAVE;
 Warnings:
@@ -308,7 +308,7 @@ include/stop_slave_sql.inc
 include/rpl_set_gtid_mode.inc [OFF on servers 2]
 [connection master]
 DROP TABLE t4;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 RESET SLAVE;
 Warnings:
@@ -351,7 +351,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 include/rpl_set_gtid_mode.inc [OFF on servers 2]
 [connection master]
 DROP TABLE t5;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 DROP TABLE t5;
 RESET SLAVE;
@@ -392,7 +392,7 @@ include/rpl_set_gtid_mode.inc [OFF on servers 1,2]
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t6;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 RESET SLAVE;
 Warnings:
@@ -434,7 +434,7 @@ INSERT INTO t7 values (1);
 ERROR HY000: @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t7;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]
 #
 # Error generated if master has an unknown gtid_mode

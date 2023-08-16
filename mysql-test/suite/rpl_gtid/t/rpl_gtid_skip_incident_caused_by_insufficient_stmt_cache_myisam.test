@@ -42,7 +42,7 @@ SET GLOBAL binlog_stmt_cache_size = 4096;
 --connect(master,127.0.0.1,root,,test,$MASTER_MYPORT,)
 --let $master_uuid=`SELECT @@SERVER_UUID`
 --let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 --echo #

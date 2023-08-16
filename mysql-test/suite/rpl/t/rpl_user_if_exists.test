@@ -218,7 +218,7 @@ DROP USER IF EXISTS u1, u2, u3, u4;
 # Check that if Create/alter user if exists gets ERROR it won't be logged in the binary log.
 # If GTID mode is ON check that GTID won't be generated.
 
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 --let $gtid_executed_before= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 # Gets error due to INCORRECT day value specified.
@@ -241,7 +241,7 @@ ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
 
 # Check that  the above statements have not been logged in binary log
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 --let $gtid_executed_after= `SELECT @@GLOBAL.GTID_EXECUTED`
@@ -256,7 +256,7 @@ ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
 CREATE USER u3;
 
 # User u1 does not exists
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 
 # CREATE gets ERROR since shsh auth_plugin do not exists
 --error ER_PLUGIN_IS_NOT_LOADED
@@ -264,7 +264,7 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 I
 
 # Check that  the above statement has not been logged
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 CREATE USER u1;
@@ -277,7 +277,7 @@ SET GLOBAL password_history=1;
 
 CREATE USER default_def@localhost IDENTIFIED BY 'haha';
 
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 
 # Alter will fail as password is in history
 --error ER_CREDENTIALS_CONTRADICT_TO_HISTORY
@@ -285,7 +285,7 @@ ALTER USER IF EXISTS default_def@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY
 
 # Check that  the above statement has not been logged
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 DROP USER default_def@localhost;
@@ -293,7 +293,7 @@ DROP USER default_def@localhost;
 CREATE USER to_be_renamed@localhost IDENTIFIED BY 'haha' PASSWORD HISTORY 1;
 RENAME USER to_be_renamed@localhost TO now_renamed@localhost;
 
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 
 # Alter will fail as password is in history
 --error ER_CREDENTIALS_CONTRADICT_TO_HISTORY
@@ -301,7 +301,7 @@ ALTER USER IF EXISTS now_renamed@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY
 
 # Check that  the above statement has not been logged
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 DROP USER now_renamed@localhost;
@@ -311,7 +311,7 @@ CREATE USER no_pwd_history@localhost IDENTIFIED BY 'haha';
 
 RENAME TABLE mysql.password_history TO mysql.password_history_backup;
 
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 
 --echo # Create will fail: eventual write operation to history
 --error ER_NO_SUCH_TABLE
@@ -328,7 +328,7 @@ DROP USER IF EXISTS u1,no_pwd_history@localhost;
 
 # Check that  the above statements have not been logged in binary log
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 RENAME TABLE mysql.password_history_backup TO mysql.password_history;

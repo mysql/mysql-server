@@ -964,7 +964,7 @@ std::atomic<int32> Global_read_lock::m_atomic_active_requests;
   if possible).
 
   Why does FLUSH TABLES WITH READ LOCK need to block COMMIT: because it's used
-  to read a non-moving SHOW MASTER STATUS, and a COMMIT writes to the binary
+  to read a non-moving SHOW BINARY LOG STATUS, and a COMMIT writes to the binary
   log.
 
   Why getting the global read lock is two steps and not one. Because FLUSH

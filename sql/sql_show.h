@@ -434,11 +434,12 @@ class Sql_cmd_show_keys : public Sql_cmd_show_table_base {
   Sql_cmd_show_keys() : Sql_cmd_show_table_base(SQLCOM_SHOW_KEYS) {}
 };
 
-/// Represents SHOW MASTER STATUS statement.
+/// Represents SHOW BINARY LOG STATUS statement.
 
-class Sql_cmd_show_master_status : public Sql_cmd_show_noplan {
+class Sql_cmd_show_binary_log_status : public Sql_cmd_show_noplan {
  public:
-  Sql_cmd_show_master_status() : Sql_cmd_show_noplan(SQLCOM_SHOW_MASTER_STAT) {}
+  Sql_cmd_show_binary_log_status()
+      : Sql_cmd_show_noplan(SQLCOM_SHOW_MASTER_STAT) {}
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
 };

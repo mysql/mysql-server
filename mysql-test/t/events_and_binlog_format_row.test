@@ -5,11 +5,11 @@
 --echo #
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $offset_of_query_event= 4
---let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
---let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $binlog_position= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
 
 CREATE EVENT IF NOT EXISTS ev1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() ENDS
 NOW() + INTERVAL 1 SECOND ON COMPLETION NOT PRESERVE DO SELECT 1;

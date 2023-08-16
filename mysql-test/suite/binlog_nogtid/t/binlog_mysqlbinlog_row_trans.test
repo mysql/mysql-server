@@ -30,7 +30,7 @@ SET timestamp=1000000000;
 --echo #
 --echo # Delete all existing binary logs.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Bug#22350047: IF CLIENT KILLED AFTER ROLLBACK TO SAVEPOINT PREVIOUS

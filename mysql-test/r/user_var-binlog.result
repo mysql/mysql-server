@@ -5,7 +5,7 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create table t1 (a varchar(50));
-reset master;
+reset binary logs and gtids;
 SET TIMESTAMP=10000;
 SET @`a b`='hello';
 INSERT INTO t1 VALUES(@`a b`);

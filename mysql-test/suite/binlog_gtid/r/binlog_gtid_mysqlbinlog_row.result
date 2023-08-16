@@ -9,7 +9,7 @@ SET timestamp=1000000000;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c01 BIT);
 INSERT INTO t1 VALUES (0);
 INSERT INTO t1 VALUES (1);

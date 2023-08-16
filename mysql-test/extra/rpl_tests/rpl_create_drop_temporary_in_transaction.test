@@ -38,7 +38,7 @@
 --echo # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 CREATE TEMPORARY TABLE temp1 (i INT);
 COMMIT;
@@ -56,7 +56,7 @@ COMMIT;
 --echo # Verify that DROP TEMPORARY TABLE in a single STMT transaction
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 DROP TEMPORARY TABLE temp1;
 COMMIT;
@@ -69,7 +69,7 @@ CREATE TABLE t1 (c1 INT);
 --echo # transaction is not written into binlog after committing the
 --echo # transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (1);
 CREATE TEMPORARY TABLE temp1 (i INT);
@@ -90,7 +90,7 @@ COMMIT;
 --echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (3);
 INSERT INTO temp1 VALUES (2);
@@ -111,7 +111,7 @@ COMMIT;
 --echo # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 CREATE TEMPORARY TABLE temp1 (i INT);
 ROLLBACK;
@@ -129,7 +129,7 @@ ROLLBACK;
 --echo # Verify that DROP TEMPORARY TABLE in a single STMT transaction
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 DROP TEMPORARY TABLE temp1;
 ROLLBACK;
@@ -141,7 +141,7 @@ ROLLBACK;
 --echo # transaction is not written into binlog after rolling back the
 --echo # transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (5);
 CREATE TEMPORARY TABLE temp1 (i INT);
@@ -162,7 +162,7 @@ ROLLBACK;
 --echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (7);
 INSERT INTO temp1 VALUES (2);
@@ -217,7 +217,7 @@ delimiter ;//
 --echo # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp1();
 COMMIT;
@@ -235,7 +235,7 @@ COMMIT;
 --echo # Verify that DROP TEMPORARY TABLE in a single STMT procedure
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp2();
 COMMIT;
@@ -246,7 +246,7 @@ COMMIT;
 --echo # Verify that CREATE or DML against TEMPORARY TABLE in a PROCEDURE
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp3();
 COMMIT;
@@ -264,7 +264,7 @@ COMMIT;
 --echo # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
 --echo # is not written into binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp4();
 COMMIT;
@@ -282,7 +282,7 @@ COMMIT;
 --echo # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp1();
 ROLLBACK;
@@ -300,7 +300,7 @@ ROLLBACK;
 --echo # Verify that DROP TEMPORARY TABLE in a single STMT procedure
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp2();
 ROLLBACK;
@@ -311,7 +311,7 @@ ROLLBACK;
 --echo # Verify that CREATE or DML against TEMPORARY TABLE in a PROCEDURE
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp3();
 ROLLBACK;
@@ -329,7 +329,7 @@ ROLLBACK;
 --echo # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
 --echo # is not written into binlog after rolling back the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 CALL sp4();
 ROLLBACK;

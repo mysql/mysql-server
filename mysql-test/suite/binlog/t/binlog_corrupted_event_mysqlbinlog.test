@@ -30,7 +30,7 @@
 --source include/have_binlog_format_row.inc
 
 --echo # Init: Clear binary logs from previous tests.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ==== R1: Error for corrupted file ====
 
@@ -53,7 +53,7 @@ FLUSH BINARY LOGS;
 
 --echo # Clean up.
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ==== R2.1: No error for truncated file when IN_USE flag is set ====
 
@@ -82,7 +82,7 @@ if ($have_windows) {
 --echo # Clean up.
 --remove_file $binlog_fullpath.tmp
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ==== R2.2: Error for truncated file when IN_USE flag is not set ====
 
@@ -108,4 +108,4 @@ FLUSH BINARY LOGS;
 --echo # Clean up.
 --remove_file $binlog_fullpath.tmp
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

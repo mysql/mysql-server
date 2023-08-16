@@ -63,14 +63,14 @@ let $explain_extra = query_get_value(
 # Save current master position
 if ($have_log_bin == ON)
 {
-  --let $saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $saved_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 }
 DELETE FROM t1;
 
 # Assert that this was not binlogged if binary log is enabled
 if ($have_log_bin == ON)
 {
-  --let $current_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $current_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
   --let $assert_text= DELETE was not binlogged
   --let $assert_cond= $current_pos = $saved_pos
   --source include/assert.inc
@@ -108,14 +108,14 @@ if ($have_log_bin == ON)
 # Save current master position
 if ($have_log_bin == ON)
 {
-  --let $saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $saved_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 }
 
 DELETE FROM t1;
 # Assert that this was binlogged if binary log is enabled
 if ($have_log_bin == ON)
 {
-  --let $current_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $current_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
   --let $assert_text= DELETE was binlogged
   --let $assert_cond= $current_pos > $saved_pos
   --source include/assert.inc

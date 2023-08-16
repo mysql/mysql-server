@@ -36,7 +36,7 @@ DROP TABLE t2, t1;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection master]
 Restore binary log from the master into the slave
 include/diff_tables.inc [master:test.t1, slave:test.t1]

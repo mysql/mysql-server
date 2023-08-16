@@ -779,7 +779,8 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
       /*
         After we release LOCK_binlog_ above while waiting for the condition,
         it can happen that some other parallel client session executed
-        RESET MASTER. That can set rpl_semi_sync_source_wait_sessions to zero.
+        RESET BINARY LOGS AND GTIDS.
+        That can set rpl_semi_sync_source_wait_sessions to zero.
         Hence check the value before decrementing it and decrement it only if it
         is non-zero value.
       */

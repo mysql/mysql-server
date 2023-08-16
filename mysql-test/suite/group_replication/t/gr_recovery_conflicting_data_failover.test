@@ -149,7 +149,7 @@ SET SESSION sql_log_bin= 1;
 
 --echo #
 --echo # Cleaning up
---echo # We use RESET MASTER here due to deviations on all members GTID sets
+--echo # We use RESET BINARY LOGS AND GTIDS here due to deviations on all members GTID sets
 --echo #
 
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
@@ -160,7 +160,7 @@ DROP TABLE t1;
 
 DROP TABLE lost_test_table;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET SESSION sql_log_bin= 0;
 --eval DROP USER "$recovery_user"
@@ -176,7 +176,7 @@ SET SESSION sql_log_bin= 1;
 
 DROP TABLE lost_test_table;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server1
 
@@ -186,6 +186,6 @@ SET SESSION sql_log_bin= 0;
 --eval DROP USER "$recovery_user"
 SET SESSION sql_log_bin= 1;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/group_replication_end.inc

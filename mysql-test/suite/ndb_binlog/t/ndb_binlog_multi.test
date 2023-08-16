@@ -10,9 +10,9 @@ DROP TABLE t3;
 
 # reset for test
 connection server1;
-reset master;
+reset binary logs and gtids;
 connection server2;
-reset master;
+reset binary logs and gtids;
 
 #
 # basic test to see if one server sees the table from the other
@@ -48,9 +48,9 @@ eval SELECT inserts,updates,deletes,schemaops FROM
 
 # reset for next test
 connection server1;
-reset master;
+reset binary logs and gtids;
 connection server2;
-reset master;
+reset binary logs and gtids;
 
 # single schema ops will not show
 connection server2;

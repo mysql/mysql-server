@@ -50,4 +50,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 --replace_result $saved_enforce_gtid_consistency SAVED_LEVEL
 --eval SET GLOBAL enforce_gtid_consistency=$saved_enforce_gtid_consistency
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

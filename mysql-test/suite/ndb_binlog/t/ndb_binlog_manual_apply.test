@@ -8,7 +8,7 @@ show variables like '%binlog_format%';
 use test;
 create table test.t1 (a int primary key, b int) engine=myisam;
 create table test.notes (a varchar(1000)) engine=myisam;
-reset master;
+reset binary logs and gtids;
 
 # Autocommit, transaction per statement
 

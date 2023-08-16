@@ -209,8 +209,8 @@ COMMIT;
 
 --source include/rpl_connection_master.inc
 FLUSH LOGS;
---let $file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS

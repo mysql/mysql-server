@@ -4,7 +4,7 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET NAMES gbk;
 CREATE TABLE t1 (
 f1 BLOB
@@ -22,7 +22,7 @@ CALL p1(@`tcontent`);
 FLUSH LOGS;
 DROP PROCEDURE p1;
 RENAME TABLE t1 to t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SELECT hex(f1) FROM t2;
 hex(f1)
 50434B000900000000000000E9000000

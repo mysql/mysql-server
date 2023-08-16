@@ -38,8 +38,8 @@ CREATE TABLE t
  KEY a (a))
 ENGINE = MyISAM;
 
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
---let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $binlog_start=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t SELECT * FROM tmp;
 
 --sync_slave_with_master

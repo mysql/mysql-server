@@ -8,21 +8,21 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Should have 1 transaction id
 insert into t1 values (2,2);
 Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Should have 1 transaction id
 update t1 set b=20 where a=2;
 Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Multi row autocommit transaction
 Should have 1 transaction id
 delete from t1;
@@ -30,7 +30,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Multi row explicit transaction
 Should have 1 transaction id
 begin;
@@ -42,7 +42,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Should have 1 transaction id
 begin;
 insert into t1 values (6,6);
@@ -53,7 +53,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Multi table explicit transaction
 Should have 1 transaction id
 begin;
@@ -65,7 +65,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 1
-reset master;
+reset binary logs and gtids;
 Multiple autocommit transactions
 Should have 2 transaction ids
 insert into t1 values (8,8);
@@ -74,7 +74,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 2
-reset master;
+reset binary logs and gtids;
 Multiple autocommit transactions on single row
 Should have 3 transaction ids
 insert into t1 values (10,10);
@@ -84,7 +84,7 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 3
-reset master;
+reset binary logs and gtids;
 Multiple explicit transactions
 Should have 2 transaction ids
 begin;
@@ -99,6 +99,6 @@ Number of different transaction ids in Binlog
 select count(1) as number_of_transactions from diff_extra_data;
 number_of_transactions
 2
-reset master;
+reset binary logs and gtids;
 drop table t1;
 drop table t2;

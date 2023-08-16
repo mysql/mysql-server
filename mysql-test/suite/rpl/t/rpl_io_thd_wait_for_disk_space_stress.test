@@ -61,7 +61,7 @@ while ($inserts)
   --dec $inserts
 }
 --enable_query_log
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --echo # Waiting until slave I/O thread synced with master
 --source include/rpl_connection_slave.inc

@@ -23,7 +23,7 @@ table_map
  `test`.`ndbt1` 
  `test`.`ndbt3` 
 drop table table_map_binlog_rows;
-reset master;
+reset binary logs and gtids;
 Show + reset Binlog contents on Mysqld 2
 We should se tables ndbt1 and ndbt3 added to Table_map,
 but not table ndbt2
@@ -34,7 +34,7 @@ table_map
  `test`.`ndbt1` 
  `test`.`ndbt3` 
 drop table table_map_binlog_rows;
-reset master;
+reset binary logs and gtids;
 drop table ndbt1;
 drop table ndbt2;
 drop table ndbt3;

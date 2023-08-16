@@ -80,13 +80,13 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL ch1]
 [connection server1]
 include/sync_slave_sql_with_master.inc
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server2]
 include/stop_slave.inc [FOR CHANNEL 'ch1']
 RESET REPLICA ALL FOR CHANNEL 'ch1';
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/group_replication_end.inc

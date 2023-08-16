@@ -14,7 +14,7 @@ connection master;
 --source include/sync_slave_sql_with_master.inc
 show variables like 'init_replica';
 show variables like 'max_connections';
-reset master;
+reset binary logs and gtids;
 connection master;
 show variables like 'init_replica';
 show variables like 'max_connections';

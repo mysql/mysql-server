@@ -38,7 +38,7 @@ XA PREPARE 'xa_commit';
 XA COMMIT 'xa_commit';
 SET @@session.pseudo_replica_mode= @sav.pseudo_replica_mode;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT);
 XA BEGIN 'xa1';
 INSERT INTO t1 VALUES (1);
@@ -46,4 +46,4 @@ XA END 'xa1';
 XA COMMIT 'xa1' ONE PHASE;
 [Validate that SHOW BINLOG EVENTS shows the ONE PHASE statement.]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

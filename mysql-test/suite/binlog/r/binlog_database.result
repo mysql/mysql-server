@@ -1,7 +1,7 @@
 set binlog_format=statement;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-reset master;
+reset binary logs and gtids;
 create database testing_1;
 use testing_1;
 create table t1 (a int);
@@ -20,7 +20,7 @@ binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PRO
 insert into t1 values(a)
 binlog.000001	#	Query	#	#	drop database testing_1
 use test;
-reset master;
+reset binary logs and gtids;
 create temporary table tt1 (a int);
 create table t1 (a int);
 insert into t1 values (1);
@@ -51,7 +51,7 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
 ERROR HY000: Unknown error
@@ -63,11 +63,11 @@ t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 set binlog_format=mixed;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-reset master;
+reset binary logs and gtids;
 create database testing_1;
 use testing_1;
 create table t1 (a int);
@@ -86,7 +86,7 @@ binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PRO
 insert into t1 values(a)
 binlog.000001	#	Query	#	#	drop database testing_1
 use test;
-reset master;
+reset binary logs and gtids;
 create temporary table tt1 (a int);
 create table t1 (a int);
 insert into t1 values (1);
@@ -115,7 +115,7 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
 ERROR HY000: Unknown error
@@ -127,11 +127,11 @@ t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 set binlog_format='row';
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-reset master;
+reset binary logs and gtids;
 create database testing_1;
 use testing_1;
 create table t1 (a int);
@@ -150,7 +150,7 @@ binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PRO
 insert into t1 values(a)
 binlog.000001	#	Query	#	#	drop database testing_1
 use test;
-reset master;
+reset binary logs and gtids;
 create temporary table tt1 (a int);
 create table t1 (a int);
 insert into t1 values (1);
@@ -181,7 +181,7 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
 ERROR HY000: Unknown error
@@ -193,7 +193,7 @@ t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 show databases;
 Database
 information_schema

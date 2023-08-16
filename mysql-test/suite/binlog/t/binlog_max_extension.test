@@ -25,7 +25,7 @@ call mtr.add_suppression("Log filename extension number exhausted:");
 call mtr.add_suppression("Can't generate a unique log-filename");
 call mtr.add_suppression("Could not open .*");
 -- source include/have_log_bin.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 -- let $MYSQLD_DATADIR= `select @@datadir`
 

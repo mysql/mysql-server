@@ -73,7 +73,7 @@ SHOW VARIABLES LIKE 'clone_block_ddl';
 Variable_name	Value
 clone_block_ddl	OFF
 # 1. CREATE UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 CREATE UNDO TABLESPACE undo_00 ADD DATAFILE 'undo_00.ibu';
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
@@ -332,7 +332,7 @@ CALL execute_dml(1, 0, 100, 100, 10, 0);
 # restart:
 SET DEBUG_SYNC = 'RESET';
 # 2. TRUNCATE UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER UNDO TABLESPACE undo_00 SET INACTIVE ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
@@ -603,7 +603,7 @@ CALL execute_dml(1, 0, 100, 100, 10, 0);
 # restart:
 SET DEBUG_SYNC = 'RESET';
 # 3. DROP UNDO TABLESPACE while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 DROP UNDO TABLESPACE undo_00  ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';

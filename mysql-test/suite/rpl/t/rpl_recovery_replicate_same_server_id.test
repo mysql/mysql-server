@@ -49,7 +49,7 @@
 call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Error during --relay-log-recovery *");
 CREATE TABLE t1 ( n INT);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # replicate ourselves
 --source include/stop_slave.inc

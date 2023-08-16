@@ -27,7 +27,7 @@ XA PREPARE '1';
 --echo # 2) Try to do 'XA ROLLBACK' with XA global Trx id '2' and check that
 --echo #    it fails.
 --echo #
-let $binlog_before_xa_rollback = query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_before_xa_rollback = query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --disable_result_log
 --let $xa_error = ER_XAER_RMFAIL
@@ -42,7 +42,7 @@ XA ROLLBACK '2';
 --echo # 3) Check that nothing is written to binary log.
 --echo #
 --let $assert_text= Nothing should be written in binlog for failed XA ROLLBACK.
---let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $binlog_before_xa_rollback
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $binlog_before_xa_rollback
 --source include/assert.inc
 
 --echo #

@@ -157,7 +157,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 # finally
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Restart server 2 again, now with group_replication_start_on_boot disabled
 --let $allow_rpl_inited=1
 --let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name

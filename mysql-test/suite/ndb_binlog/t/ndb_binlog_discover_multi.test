@@ -10,9 +10,9 @@
 
 --echo # Reset binlogging for test
 -- connection server1
-reset master;
+reset binary logs and gtids;
 -- connection server2
-reset master;
+reset binary logs and gtids;
 
 --echo # Setup
 # Setup for Bug#17250994

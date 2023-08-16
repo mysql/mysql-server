@@ -84,7 +84,7 @@ STOP SLAVE;
 # Test some replication commands
 #
 --connection master
-reset master;
+reset binary logs and gtids;
 # should now contain nothing
 select * from mysql.ndb_binlog_index;
 

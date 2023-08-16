@@ -4,7 +4,7 @@
 #
 #  - sync all slaves,
 #  - stop all slaves (STOP REPLICA),
-#  - remove all binlogs and relay logs (RESET MASTER and RESET REPLICA),
+#  - remove all binlogs and relay logs (RESET BINARY LOGS AND GTIDS and RESET REPLICA),
 #  - start all slaves again (START REPLICA).
 #
 # It does not execute CHANGE REPLICATION SOURCE, so the replication topology is
@@ -70,8 +70,8 @@ if (!$rpl_skip_sync)
 --let $rpl_source_file= include/rpl_reset_slave_helper.inc
 --source include/rpl_for_each_connection.inc
 
-# RESET MASTER
---let $rpl_sql= RESET MASTER
+# RESET BINARY LOGS AND GTIDS
+--let $rpl_sql= RESET BINARY LOGS AND GTIDS
 --source include/rpl_for_each_server_stmt.inc
 
 # START REPLICA

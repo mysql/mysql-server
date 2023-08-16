@@ -16,9 +16,9 @@ include/assert.inc [On member 1, all executed GTID should belong to the group]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 include/start_and_bootstrap_group_replication.inc

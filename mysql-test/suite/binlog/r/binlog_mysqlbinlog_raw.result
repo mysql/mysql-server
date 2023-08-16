@@ -1,6 +1,6 @@
 # Preparing script without compression
 # Testing with compressed protocol now
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_dump_threads.inc
 # Step-1: Execute some dummy statements.
 CREATE TABLE t1(i int);
@@ -14,13 +14,13 @@ INSERT INTO t1 values (1);
 include/stop_dump_threads.inc
 # Step-6: Cleanup the data, so that it is ready for reapply.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Step-7: Apply the data that we got from --stop-never process.
 # Step-8: Check that the data is there.
 include/assert.inc [Check the table t1 exists and contains one tuple with value 1.]
 # Step-9: Cleanup
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_dump_threads.inc
 # Step-1: Execute some dummy statements.
 CREATE TABLE t1(i int);
@@ -34,16 +34,16 @@ INSERT INTO t1 values (1);
 include/stop_dump_threads.inc
 # Step-6: Cleanup the data, so that it is ready for reapply.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Step-7: Apply the data that we got from --stop-never process.
 # Step-8: Check that the data is there.
 include/assert.inc [Check the table t1 exists and contains one tuple with value 1.]
 # Step-9: Cleanup
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (1);
 DROP TABLE t1;
 # test mysqlbinlog '-C' option with --raw
 # test mysqlbinlog '--compress' option without --raw
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

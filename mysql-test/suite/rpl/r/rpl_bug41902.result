@@ -29,10 +29,10 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE REPLICATION SOURCE to SOURCE_HOST='dummy';
 # Adding debug point 'simulate_find_log_pos_error' to @@GLOBAL.debug
-reset master;
+reset binary logs and gtids;
 ERROR HY000: Target log not found in binlog index
 # Removing debug point 'simulate_find_log_pos_error' from @@GLOBAL.debug
-reset master;
+reset binary logs and gtids;
 # Adding debug point 'simulate_find_log_pos_error' to @@GLOBAL.debug
 purge binary logs to 'master-bin.000001';
 ERROR HY000: Target log not found in binlog index

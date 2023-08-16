@@ -372,7 +372,7 @@ COMMIT;
 CREATE TABLE t6 (a varchar(20)) ENGINE=Innodb;
 
 # Save the current binary log position
---let $pos_before= query_get_value(show master status,Position,1)
+--let $pos_before= query_get_value(show binary log status,Position,1)
 
 --disable_query_log
 --let $write_var =`SELECT REPEAT('Testing\n', 1000)`
@@ -390,7 +390,7 @@ eval LOAD DATA INFILE '$write_to_file' INTO TABLE t6;
 
 # Check that the above transaction has not been logged in the binary log
 --let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
 # Check that the table is empty on master
@@ -430,8 +430,8 @@ connection master;
 TRUNCATE t1;
 
 sync_slave_with_master;
---let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
---let binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+--let binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 connection master;
 --replace_result $old_max_binlog_cache_size ORIGINAL_VALUE

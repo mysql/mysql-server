@@ -16,15 +16,15 @@ use test;
 connection slave;
 
 # Execute mysqldump with --dump-replica
---replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
+--replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=BINLOG_START/
 --exec $MYSQL_DUMP_SLAVE --compact --dump-replica test
 
 # Execute mysqldump with --dump-replica and --apply-replica-statements 
---replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
+--replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=BINLOG_START/
 --exec $MYSQL_DUMP_SLAVE --compact --dump-replica --apply-replica-statements test
 
---replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
---replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_regex /SOURCE_LOG_POS=[0-9]+/SOURCE_LOG_POS=BINLOG_START/
+--replace_result $MASTER_MYPORT SOURCE_MYPORT
 # Execute mysqldump with --dump-replica ,--apply-replica-statements and --include-source-host-port
 --exec $MYSQL_DUMP_SLAVE --compact --dump-replica --apply-replica-statements --include-source-host-port test
 

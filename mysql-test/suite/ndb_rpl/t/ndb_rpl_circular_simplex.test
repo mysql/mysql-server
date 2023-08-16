@@ -9,7 +9,7 @@ SHOW TABLES;
 # Lose the events from the slave binary log: there is no
 # need to re-create the table on the master.
 connection slave;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Insert some values on the slave and master
 connection master;

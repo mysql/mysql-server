@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=MYISAM;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 include/show_binlog_events.inc

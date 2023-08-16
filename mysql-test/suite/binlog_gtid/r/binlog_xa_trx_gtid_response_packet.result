@@ -1,5 +1,5 @@
 include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 
 SET SESSION session_track_gtids='all_gtids';

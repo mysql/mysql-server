@@ -69,4 +69,4 @@ while($i)
   --dec $i
 }
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

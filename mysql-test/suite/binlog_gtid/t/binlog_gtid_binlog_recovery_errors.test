@@ -241,7 +241,7 @@ let $messages = .*Found invalid event sequence while recovering from binary log 
 
 # Create a table and reset server state
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Log file to be searched for error messages
 --let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err

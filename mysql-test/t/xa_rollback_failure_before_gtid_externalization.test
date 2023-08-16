@@ -50,7 +50,7 @@
 --let $xid = `SELECT CONCAT("X'", LOWER(HEX('$xid_data')), "',X'',1")`
 --source extra/xa_crash_safe_tests/setup.inc
 --let $uuid = 72e9b9d8-8a89-11ec-8f56-6f896ffede71
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # 2. Start and execute an XA transaction containing an insert until before
 #    `XA ROLLBACK`.

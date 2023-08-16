@@ -4,7 +4,7 @@ binlog_format	ROW
 use test;
 create table test.t1 (a int primary key, b int) engine=myisam;
 create table test.notes (a varchar(1000)) engine=myisam;
-reset master;
+reset binary logs and gtids;
 insert into test.notes values ("Scattered single statement transactions");
 insert into test.t1 values (1,1);
 insert into test.t1 values (2,2);

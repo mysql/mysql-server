@@ -1,5 +1,5 @@
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/gtid_utils.inc
 include/gtid_step_reset.inc
 SET GTID_NEXT = 'AUTOMATIC';

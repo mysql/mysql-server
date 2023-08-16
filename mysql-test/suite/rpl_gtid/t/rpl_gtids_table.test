@@ -203,7 +203,7 @@ FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo #
 --echo # Verify that we can get the correct set of gtid_purged
 --echo # when purging logs.

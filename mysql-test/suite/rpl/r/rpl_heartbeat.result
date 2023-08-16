@@ -106,7 +106,7 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION;
 include/start_slave.inc
 include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.]

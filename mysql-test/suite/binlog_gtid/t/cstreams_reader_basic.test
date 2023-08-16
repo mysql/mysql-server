@@ -3,7 +3,7 @@
 --source include/have_cs_test_mysql_proto_reader_mtr.inc
 --source include/gtid_utils.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --eval SET GTID_NEXT='$uuid0:1'
 CREATE TABLE t1 (c1 INT);
@@ -23,6 +23,6 @@ SET GTID_NEXT=AUTOMATIC;
 --exec $basedir/bin/cs-test-mysql-proto-reader-mtr --gtest_print_time=0 127.0.0.1 root "" $MASTER_MYPORT
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/gtid_utils_end.inc

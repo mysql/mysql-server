@@ -33,7 +33,7 @@
 
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --let $datadir= `SELECT @@datadir`
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo # Case 1: With --partial_revokes
 
@@ -99,7 +99,7 @@ while ($user_number <= 7) {
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT
@@ -135,7 +135,7 @@ SET @@global.partial_revokes = @save_partial_revokes_master;
 --source include/rpl_connection.inc
 SET @@global.partial_revokes = @save_partial_revokes_slave;
 
-# 1.6.2 Reset master and slave - because we need a clean slate
+# 1.6.2 Reset source and reset slave - because we need a clean slate
 --source include/rpl_reset.inc
 
 --echo # Case 2: Without --partial_revokes
@@ -200,7 +200,7 @@ while ($user_number <= 7) {
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 
 --exec $MYSQL_BINLOG $datadir/$binlog_file | $MYSQL --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT

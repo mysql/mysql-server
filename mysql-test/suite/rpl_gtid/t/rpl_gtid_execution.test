@@ -395,9 +395,9 @@ while ($id <= $max_id)
 
       --let $eval_no_result= 1
       --let $include_silent= 1
-      --let $eval_expr= SET @binlog_file_before= "[master:SHOW MASTER STATUS, File, 1]"
+      --let $eval_expr= SET @binlog_file_before= "[master:SHOW BINARY LOG STATUS, File, 1]"
       --source include/eval.inc
-      --let $eval_expr= SET @binlog_pos_before= [master:SHOW MASTER STATUS, Position, 1]
+      --let $eval_expr= SET @binlog_pos_before= [master:SHOW BINARY LOG STATUS, Position, 1]
       --source include/eval.inc
       --let $eval_expr= SET @slave_gtid_executed= "[slave:SELECT @@GLOBAL.GTID_EXECUTED]"
       --source include/eval.inc
@@ -555,7 +555,7 @@ while ($id <= $max_id)
       if ($changed_binlog)
       {
         let $assert_cond=
-          [SHOW MASTER STATUS, Position, 1] >
+          [SHOW BINARY LOG STATUS, Position, 1] >
           [server_1_$connection:SELECT @binlog_pos_before];
         --let $assert_text= Something was written to the binlog
         --source include/assert.inc
@@ -572,13 +572,13 @@ while ($id <= $max_id)
       if (!$changed_binlog)
       {
         let $assert_cond=
-          "[SHOW MASTER STATUS, File, 1]" =
+          "[SHOW BINARY LOG STATUS, File, 1]" =
           "[server_1_$connection:SELECT @binlog_file_before]";
         --let $assert_text= Binlog was not rotated
         --source include/assert.inc
 
         let $assert_cond=
-          [SHOW MASTER STATUS, Position, 1] =
+          [SHOW BINARY LOG STATUS, Position, 1] =
           [server_1_$connection:SELECT @binlog_pos_before];
         --let $assert_text= Binlog position was not updated
         --source include/assert.inc

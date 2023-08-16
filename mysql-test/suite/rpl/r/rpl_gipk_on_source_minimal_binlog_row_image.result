@@ -39,11 +39,11 @@ include/assert.inc [The table t1 contains no rows on the replica]
 ##################################################
 # 3. Cleanup
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/stop_slave.inc
 include/rpl_reset_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 include/suppress_messages.inc
 # Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at source log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test>.

@@ -20,7 +20,7 @@ INSERT INTO t2 VALUES(1);
 
 --echo
 --echo # Nothing is inserted.
---let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --error 1062
 INSERT INTO t1 VALUES(1),(2);
@@ -38,7 +38,7 @@ source include/show_binlog_events.inc;
 --echo # Nothing is inserted.
 
 --connection server1
---let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --error 1062
 INSERT INTO t1 SELECT 1 UNION SELECT 2;
 --source include/show_binlog_events.inc
@@ -62,7 +62,7 @@ INSERT INTO t1 SELECT 3 UNION SELECT 2;
 --echo
 --echo # Nothing is updated.
 --connection server1
---let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --error 1062
 UPDATE t1 SET c1=4;
 --source include/rpl_sync.inc

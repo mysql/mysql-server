@@ -50,7 +50,7 @@ show binlog events; # wait for binlog-sync and therefore epoch end
 flush logs;
 --source suite/ndb_binlog/t/ndb_binlog_check_binlog_index.inc
 
-reset master;
+reset binary logs and gtids;
 
 --echo Test interleaved epochs and DDL
 --echo ------------------------------
@@ -87,10 +87,10 @@ flush logs;
 --connect (server2con1, 127.0.0.1,root,,test,$MASTER_MYPORT1,)
 
 --connection server1con1
-reset master;
+reset binary logs and gtids;
 
 --connection server2con1
-reset master;
+reset binary logs and gtids;
 
 --connection server1con1
 

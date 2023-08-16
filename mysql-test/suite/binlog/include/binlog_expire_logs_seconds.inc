@@ -26,7 +26,7 @@ CREATE TABLE t1(s LONGBLOB );
 while ($case < 3)
 {
   --echo Case:$case
-  --let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $first_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
   # rotates the log, thence the first log will be closed, and depending upon
   # the expire time the purge will/will not happen.
@@ -35,7 +35,7 @@ while ($case < 3)
 
   INSERT INTO t1 VALUES('a');
 
-  --let $second_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $second_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
   FLUSH LOGS;
 
@@ -100,10 +100,10 @@ while ($case < 3)
   --file_exists $MYSQLD_DATADIR/$second_binlog_file
 
   --inc $case
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 }
 --echo ##### Cleanup #####
 --eval SET @@GLOBAL.MAX_BINLOG_SIZE= $max_binlog_size_save;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 

@@ -72,9 +72,9 @@ call mtr.add_suppression("Attempting backtrace. You can use the following inform
 PROCEDURE
 
 # Clear the existing binlogs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $mysqld_datadir= `SELECT @@global.datadir`
 --let $index_file= `SELECT @@global.log_bin_index`
 

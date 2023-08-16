@@ -1,5 +1,5 @@
 # First part: outside a transaction
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 eval $prepare;
 
 INSERT INTO t1 VALUES (1);
@@ -11,7 +11,7 @@ if ($cleanup) {
 }
 
 # Second part: inside a transaction
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 eval $prepare;
 BEGIN;
 INSERT INTO t1 VALUES (2);

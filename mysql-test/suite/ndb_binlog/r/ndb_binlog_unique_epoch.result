@@ -27,7 +27,7 @@ from epochs_in_binlog
 group by epoch
 having count > 1;
 gci	ugci	count
-reset master;
+reset binary logs and gtids;
 alter table mysql.ndb_binlog_index add primary key (epoch, orig_server_id, orig_epoch);
 drop procedure ins;
 drop table t1;

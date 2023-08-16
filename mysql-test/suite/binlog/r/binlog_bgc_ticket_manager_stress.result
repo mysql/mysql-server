@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t (
 c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT,
@@ -12,4 +12,4 @@ c3 DATETIME DEFAULT CURRENT_TIMESTAMP);
 # Adding debug point 'begin_new_bgc_ticket' to @@SESSION.debug
 # Removing debug point 'begin_new_bgc_ticket' from @@SESSION.debug
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

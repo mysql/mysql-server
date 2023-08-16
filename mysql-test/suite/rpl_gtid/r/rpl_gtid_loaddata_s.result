@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-reset master;
+reset binary logs and gtids;
 create table test.t1(a int, b int, unique(b));
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 include/sync_slave_sql_with_master.inc

@@ -8,7 +8,7 @@
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
 #  - Verifies that @@server_id of all servers are different.
-#  - Calls RESET MASTER, RESET REPLICA, USE test, CHANGE REPLICATION SOURCE, START REPLICA.
+#  - Calls RESET BINARY LOGS AND GTIDS, RESET REPLICA, USE test, CHANGE REPLICATION SOURCE, START REPLICA.
 #  - Sets the connection to server_1 before exiting.
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
@@ -104,8 +104,8 @@
 #      guaranteed by mtr, so it is only useful for debugging.
 #
 #    $rpl_skip_reset_master_and_slave
-#      By default, this script issues RESET MASTER and RESET REPLICA
-#      before CHANGE REPLICATION SOURCE and START REPLICA.  RESET MASTER
+#      By default, this script issues RESET BINARY LOGS AND GTIDS and RESET REPLICA
+#      before CHANGE REPLICATION SOURCE and START REPLICA.  RESET BINARY LOGS AND GTIDS
 #      and RESET REPLICA are suppressed if $rpl_skip_reset_master_and_slave
 #      is set.
 #
@@ -297,7 +297,7 @@ if ($gtid_mode == 'ON')
 
 --let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
 
-# Create two connections to each server; reset master/slave, select
+# Create two connections to each server; reset binary logs and gtids/reset slave, select
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _
@@ -339,7 +339,7 @@ while ($_rpl_server)
   if (!$rpl_skip_reset_master_and_slave)
   {
 
-    RESET MASTER;
+    RESET BINARY LOGS AND GTIDS;
     if (!$rpl_shallow_reset_slave){
       --let $_rpl_init_reset_slave_modifier= ALL
     }

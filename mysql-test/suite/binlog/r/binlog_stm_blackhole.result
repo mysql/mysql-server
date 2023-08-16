@@ -96,7 +96,7 @@ Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("only");
 a	b
-reset master;
+reset binary logs and gtids;
 drop table t1,t2;
 create table t1 (a int) engine=blackhole;
 delete from t1 where a=10;
@@ -165,7 +165,7 @@ ALTER TABLE t1 DROP INDEX a;
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 DELETE FROM t1 WHERE a=10;
 DROP TABLE t1;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int) engine=blackhole;
 set autocommit=0;
 start transaction;
@@ -176,7 +176,7 @@ insert into t1 values(2);
 rollback;
 set autocommit=1;
 drop table if exists t1;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int auto_increment, primary key (a)) engine=blackhole;
 insert into t1 values (11), (NULL), (NULL), (NULL);
 set insert_id= 3;

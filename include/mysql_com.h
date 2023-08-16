@@ -221,16 +221,21 @@
 #define REFRESH_STATUS 16  /**< Flush status variables, FLUSH STATUS */
 #define REFRESH_THREADS 32 /**< Flush thread cache */
 #define REFRESH_REPLICA                         \
-  64 /**< Reset master info and restart replica \
+  64 /**< Reset source info and restart replica \
         thread, RESET REPLICA */
 #define REFRESH_SLAVE                                        \
-  REFRESH_REPLICA /**< Reset master info and restart replica \
+  REFRESH_REPLICA /**< Reset source info and restart replica \
         thread, RESET REPLICA. This is deprecated,           \
         use REFRESH_REPLICA instead. */
 
-#define REFRESH_MASTER                                                 \
-  128                            /**< Remove all bin logs in the index \
-                                    and truncate the index, RESET MASTER */
+#define REFRESH_SOURCE                       \
+  128 /**< Remove all bin logs in the index  \
+         and truncate the index. Also resets \
+         GTID information. Command:          \
+         RESET BINARY LOGS AND GTIDS */
+#define REFRESH_MASTER \
+  REFRESH_SOURCE /**< This is deprecated, use REFRESH_SOURCE instead. */
+
 #define REFRESH_ERROR_LOG 256    /**< Rotate only the error log */
 #define REFRESH_ENGINE_LOG 512   /**< Flush all storage engine logs */
 #define REFRESH_BINARY_LOG 1024  /**< Flush the binary log */

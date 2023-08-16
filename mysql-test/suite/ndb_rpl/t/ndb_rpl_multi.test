@@ -19,7 +19,7 @@ CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = ND
 # a dummy table such that we can make sure data gets into binlog on server2
 CREATE TABLE t2 (a int key) ENGINE = NDB ;
 connection server2;
-reset master;
+reset binary logs and gtids;
 SHOW TABLES;
 connection master;
 INSERT INTO t1 VALUES ("row1","will go away",1);

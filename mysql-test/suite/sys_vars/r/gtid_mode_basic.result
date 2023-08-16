@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @start_global_value = @@global.gtid_mode;
 SELECT @start_global_value;
 @start_global_value
@@ -100,7 +100,7 @@ set global gtid_mode = off_permissive;
 set global gtid_mode = on_permissive;
 set global gtid_mode = on;
 ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because ENFORCE_GTID_CONSISTENCY is not ON.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
 BEGIN;
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';

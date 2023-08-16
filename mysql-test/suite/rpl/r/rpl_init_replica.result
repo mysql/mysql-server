@@ -13,7 +13,7 @@ init_replica	set global max_connections=500
 show variables like 'max_connections';
 Variable_name	Value
 max_connections	500
-reset master;
+reset binary logs and gtids;
 show variables like 'init_replica';
 Variable_name	Value
 init_replica	

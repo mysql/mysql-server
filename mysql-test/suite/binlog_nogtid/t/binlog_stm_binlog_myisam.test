@@ -6,7 +6,7 @@
 -- source include/have_log_bin.inc
 -- source include/have_debug.inc
 -- source include/have_myisam.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # Bug#33798: prepared statements improperly handle large unsigned ints
@@ -14,7 +14,7 @@ RESET MASTER;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-reset master;
+reset binary logs and gtids;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
@@ -29,7 +29,7 @@ drop table t1;
 # Bug #39182: Binary log producing incompatible character set query from
 # stored procedure.
 #
-reset master;
+reset binary logs and gtids;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 USE bug39182;
 CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
@@ -108,7 +108,7 @@ DROP PROCEDURE p4;
 # Test of a too big SET INSERT_ID: see if the truncated value goes
 # into binlog (right), or the too big value (wrong); we look at the
 # binlog further down with SHOW BINLOG EVENTS.
-reset master;
+reset binary logs and gtids;
 create table t1 (id tinyint auto_increment primary key);
 set insert_id=128;
 insert ignore into t1 values(null);
@@ -171,7 +171,7 @@ DROP TABLES t1, t2;
 connect (fresh,localhost,root,,test);
 connection fresh;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
 # Format description event, with server_id = 10;

@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
 SET DEBUG_SYNC = "wait_in_show_binlog_events_loop SIGNAL reached_for_loop WAIT_FOR go_ahead";

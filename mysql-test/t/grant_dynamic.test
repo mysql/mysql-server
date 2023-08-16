@@ -622,7 +622,7 @@ SHOW GRANTS FOR u1;
 # all dynamic privilege should have "WITH_GRANT_OPTION" set to NO
 SELECT * FROM mysql.global_grants WHERE USER='u1';
 # check for binlog events
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $mask_grant_as_events=1
 --source include/show_binlog_events.inc
 GRANT SELECT ON *.* TO u1;
@@ -632,7 +632,7 @@ GRANT PERSIST_RO_VARIABLES_ADMIN, DELETE ON *.* TO u1 WITH GRANT OPTION;
 GRANT GRANT OPTION ON *.* TO u1;
 --source include/show_binlog_events.inc
 DROP USER u1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE ALL;
 
 --echo #

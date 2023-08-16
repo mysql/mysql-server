@@ -1877,7 +1877,7 @@ bool close_temporary_tables(THD *thd) {
     to avoid the splitting if a slave server reads from this binlog.
   */
 
-  /* Better add "if exists", in case a RESET MASTER has been done */
+  /* Add "if exists", in case a RESET BINARY LOGS AND GTIDS has been done */
   const char stub[] = "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
   const uint stub_len = sizeof(stub) - 1;
   char buf_trans[256], buf_non_trans[256];

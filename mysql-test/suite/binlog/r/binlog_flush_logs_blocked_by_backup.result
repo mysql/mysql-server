@@ -2,7 +2,7 @@
 # Initialize
 #
 SET @@global.binlog_expire_logs_seconds = 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH BINARY LOGS;
 FLUSH BINARY LOGS;
 #

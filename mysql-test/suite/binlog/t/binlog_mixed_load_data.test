@@ -9,9 +9,9 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_log_bin.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (word CHAR(20) NOT NULL) ENGINE=MYISAM;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 --source include/show_binlog_events.inc
 DROP TABLE t1;

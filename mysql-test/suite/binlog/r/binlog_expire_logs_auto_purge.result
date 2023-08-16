@@ -29,4 +29,4 @@ SET GLOBAL binlog_expire_logs_auto_purge=1;
 SET GLOBAL expire_logs_days=0;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

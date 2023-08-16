@@ -21,9 +21,9 @@
 
 --eval CREATE DATABASE $from_db
 --eval USE $from_db
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
---let $binlog = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_file = $output_dir/$binlog
 
 CREATE TABLE t1 (i LONGTEXT);
@@ -42,7 +42,7 @@ COMMIT;
 
 --eval CREATE DATABASE $to_db
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --local-infile=1 < $mysqlbinlog_file
 
 --remove_file $binlog_file
@@ -54,4 +54,4 @@ RESET MASTER;
 --eval DROP DATABASE $from_db
 --eval DROP DATABASE $to_db
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

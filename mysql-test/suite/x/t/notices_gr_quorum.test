@@ -180,7 +180,7 @@ callmacro GR_stop;
 
 callmacro Setsession	server_1;
 noquery_result;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 varsub %GROUP_SEEDS_SERVER_1%;
 SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_1%";
 varsub %LOCAL_ADDRESS_SERVER_1%;
@@ -197,7 +197,7 @@ callmacro %ASSERT_NOTICES%	none	verify_1;
 callmacro Setsession	server_2;
 
 noquery_result;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 varsub %GROUP_SEEDS_SERVER_2%;
 SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_2%";
 varsub %LOCAL_ADDRESS_SERVER_2%;

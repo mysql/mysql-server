@@ -184,7 +184,7 @@ DROP TABLE t2;
 --let $sync_slave_connection= server3
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -195,10 +195,10 @@ RESET REPLICA ALL FOR CHANNEL 'ch1';
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/group_replication_end.inc

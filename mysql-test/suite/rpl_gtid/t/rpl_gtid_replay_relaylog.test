@@ -55,7 +55,7 @@ SET GLOBAL DEBUG= @save_debug;
 # Step 3: Replay the incomplete Relaylog's mysqlbinlog output against mysql and see that
 # there are no issues.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
 
 --let $assert_text= Check that there is one tuple in the table
@@ -65,7 +65,7 @@ RESET MASTER;
 # Step 4: Concat two relay logs and then replay mysqlbinlog ouput against mysql and see
 # that there are no issues.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 $MYSQLD_DATADIR/$relay_file2 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
 
 --let $assert_text= Check that there are two tuples in the table

@@ -8,7 +8,7 @@ INSERT INTO t1 VALUES (2);
 ==== pump and restore ====
 # pump
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # restore
 ==== Verify after restoring from pump ====
 include/assert.inc [GTID_EXECUTED should equal master GTID_EXECUTED after pump restored]

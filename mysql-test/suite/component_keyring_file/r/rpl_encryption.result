@@ -20,7 +20,7 @@ ERROR HY000: Unable to recover binlog encryption master key, please check if key
 include/assert.inc [binlog_encryption option shall be OFF]
 include/assert.inc [Binary log was not rotated]
 include/assert.inc [Binary log is not encrypted]
-include/assert.inc [1st binary log is not encrypted on master]
+include/assert.inc [1st binary log is not encrypted on source]
 include/rpl_stop_server.inc [server_number=1]
 # Taking backup of local manifest file for MySQL server instance
 Starting the server with "--binlog_encryption=ON" but no keyring installed
@@ -28,30 +28,30 @@ include/assert_grep.inc [Server failed to initialize binlog encryption]
 include/assert_grep.inc [Server aborted to start]
 # Part 2
 # Restore local manifest file for MySQL server instance from backup
-Starting the master with "--binlog_encryption=ON" and keyring installed
+Starting the source with "--binlog_encryption=ON" and keyring installed
 include/rpl_start_server.inc [server_number=1]
 include/assert.inc [binlog_encryption option shall be ON]
-include/assert.inc [2nd binary log is encrypted on master]
+include/assert.inc [2nd binary log is encrypted on source]
 include/assert.inc [Binary log is encrypted using 1st master key]
-include/assert.inc [Binary log rotated as expected at master startup]
+include/assert.inc [Binary log rotated as expected at source startup]
 SET PERSIST binlog_encryption = ON;
-Restart the master with keyring installed
+Restart the source with keyring installed
 include/rpl_restart_server.inc [server_number=1]
 include/assert.inc [binlog_encryption option shall be ON]
-include/assert.inc [3rd binary log is encrypted on master]
+include/assert.inc [3rd binary log is encrypted on source]
 include/assert.inc [Binary log is encrypted using 1st master key]
-include/assert.inc [Binary log rotated as expected at master startup]
+include/assert.inc [Binary log rotated as expected at source startup]
 [connection slave]
-include/assert.inc [1st binary log is not encrypted on slave]
+include/assert.inc [1st binary log is not encrypted on replica]
 include/assert.inc [Relay log is not encrypted for slave-relay-bin.000001]
-Restart the slave with keyring installed
+Restart the replica with keyring installed
 include/rpl_restart_server.inc [server_number=2]
 include/assert.inc [binlog_encryption option shall be OFF]
-include/assert.inc [2nd binary log is not encrypted on slave]
+include/assert.inc [2nd binary log is not encrypted on replica]
 include/assert.inc [Relay log is not encrypted for slave-relay-bin.000002]
 SET GLOBAL binlog_encryption = ON;
 include/assert.inc [binlog_encryption option shall be ON]
-include/assert.inc [3rd binary log is encrypted on slave]
+include/assert.inc [3rd binary log is encrypted on replica]
 include/assert.inc [Binary log rotated as expected at server startup]
 include/assert.inc [New binary log is encrypted using 1st master key]
 include/assert.inc [Relay log rotated as expected at server startup]
@@ -78,7 +78,7 @@ SET GLOBAL keyring_operations = OFF;
 [connection master]
 include/sync_slave_sql_with_master.inc
 FLUSH LOGS;
-include/assert.inc [5th binary log is encrypted on slave]
+include/assert.inc [5th binary log is encrypted on replica]
 include/assert.inc [Binary log rotated as expected by the FLUSH LOGS]
 include/assert.inc [New binary log is still encrypted]
 include/wait_for_slave_sql_error.inc [errno=13121]
@@ -97,7 +97,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 SET GLOBAL binlog_encryption = OFF;
-include/assert.inc [6th binary log is not encrypted on slave]
+include/assert.inc [6th binary log is not encrypted on replica]
 include/assert.inc [Binary log rotated as expected when disabling the option]
 include/assert.inc [New binary log is not encrypted]
 RESET SLAVE ALL;
@@ -118,11 +118,11 @@ include/assert.inc [the third binary log is encrypted using first master key]
 # Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 # Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@GLOBAL.debug
-include/assert.inc [the fourth binary log is encrypted on master]
+include/assert.inc [the fourth binary log is encrypted on source]
 include/assert.inc [the third binary log is re-encrypted using second master key]
 include/assert.inc [the fourth binary log is encrypted using second master key]
 SET PERSIST binlog_encryption = OFF;
-include/assert.inc [5th binary log is not encrypted on master]
+include/assert.inc [5th binary log is not encrypted on source]
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 ERROR HY000: Cannot rotate binary log master key when 'binlog-encryption' is off.
 RESET PERSIST;

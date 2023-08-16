@@ -81,7 +81,7 @@ SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 --replace_result $replica_uuid SLAVE_UUID
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$replica_uuid"
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo #
 --echo # Verify that we can get the correct set of gtid_purged when purging
 --echo # logs if binlog is enabled and log_replica_updates is disabled.

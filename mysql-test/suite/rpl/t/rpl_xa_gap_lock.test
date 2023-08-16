@@ -95,11 +95,11 @@ XA COMMIT 'XA2';
 --source include/stop_slave.inc
 DROP TABLE t2, t1;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_master.inc
 --let $master_data_dir= `SELECT @@datadir`
---let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $mysql_server= $MYSQL --defaults-group-suffix=.2
 --echo Restore binary log from the master into the slave
 --exec $MYSQL_BINLOG --force-if-open $master_data_dir/$master_log_file | $mysql_server
@@ -112,8 +112,8 @@ RESET MASTER;
 #
 # Cleanup
 #
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 DROP TABLE t2, t1;
 
 # When GTID_MODE=OFF, we need to skip already applied transactions

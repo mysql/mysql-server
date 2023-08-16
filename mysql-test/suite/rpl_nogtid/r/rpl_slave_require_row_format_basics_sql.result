@@ -50,7 +50,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 2. Log a transaction with a LOAD DATA event (TC2)
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
@@ -83,7 +83,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 3. Log a transaction with a USER_VAR event (TC2)
 SET @v= 10;
@@ -117,7 +117,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 4. Log a transaction with a RAND event (TC2)
 INSERT INTO t1 VALUES (Rand());
@@ -152,7 +152,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 5. Log a transaction with a INTVAR event (TC2)
 INSERT INTO t3 VALUES();
@@ -185,7 +185,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 6. Log a transaction with a CREATE TEMPORARY TABLE query (TC3)
 CREATE TEMPORARY TABLE temp1 (k INT PRIMARY KEY);
@@ -220,7 +220,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 7. Log a transaction with a DROP TEMPORARY TABLE query (TC3)
 DROP TEMPORARY TABLE temp1;
@@ -253,7 +253,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 8. Cleanup
 [connection slave]

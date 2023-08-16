@@ -55,24 +55,24 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 -- connection master
 -- sync_slave_with_master
 
--- let $row_img_pos_slave= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $row_img_pos_slave= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 -- connection master
--- let $row_img_pos_master= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $row_img_pos_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 # execute the query
 -- connection master
 -- eval $row_img_query
 
 # lets wait until the binary log position changes
--- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+-- let $_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 
 # wait for 5 minutes
 -- let $iterations=3000
 while($_pos == $row_img_pos_master)
 {
   -- sleep 0.1
-  -- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+  -- let $_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
   -- dec $iterations
 }
 

@@ -70,6 +70,7 @@
 // calc_time_diff.
 #include "sql/tztime.h"  // my_tz_find, my_tz_OFFSET0
 #include "sql_string.h"
+#include "storage/perfschema/terminology_use_previous_enum.h"
 #include "string_with_len.h"
 
 class Item;
@@ -936,9 +937,16 @@ int Event_timed::get_create_event(const THD *thd, String *buf) {
 
   if (m_status == Event_parse_data::ENABLED)
     buf->append(STRING_WITH_LEN("ENABLE"));
-  else if (m_status == Event_parse_data::SLAVESIDE_DISABLED)
-    buf->append(STRING_WITH_LEN("DISABLE ON SLAVE"));
-  else
+  else if (m_status == Event_parse_data::REPLICA_SIDE_DISABLED) {
+    if (thd->variables.terminology_use_previous !=
+            terminology_use_previous::enum_compatibility_version::NONE &&
+        thd->variables.terminology_use_previous <=
+            (ulong)terminology_use_previous::enum_compatibility_version::
+                BEFORE_8_2_0)
+      buf->append(STRING_WITH_LEN("DISABLE ON SLAVE"));
+    else
+      buf->append(STRING_WITH_LEN("DISABLE ON REPLICA"));
+  } else
     buf->append(STRING_WITH_LEN("DISABLE"));
 
   if (m_comment.length) {

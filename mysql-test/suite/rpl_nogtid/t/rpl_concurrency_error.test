@@ -54,7 +54,7 @@ let $type=2;
 
 while ($type)
 {
-  let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+  let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
   connection conn1;
   if ($type == 2)
   {
@@ -89,7 +89,7 @@ while ($type)
   ROLLBACK;
   --source include/show_binlog_events.inc
 
-  let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+  let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
   connection conn1;
   if ($type == 2)
   {

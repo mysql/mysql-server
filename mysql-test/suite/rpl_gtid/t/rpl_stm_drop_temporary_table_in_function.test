@@ -47,7 +47,7 @@ delimiter ;//
 --echo # log even if the function has only 'DROP TEMPORARY TABLE' and
 --echo # replication runs successfully in the ROLLBACK case.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT create_temp_table();
 ROLLBACK;
@@ -70,7 +70,7 @@ ROLLBACK;
 --echo # log even if the function has only 'DROP TEMPORARY TABLE' and
 --echo # replication runs successfully.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT create_temp_table();
 SELECT drop_temp_table();
 SELECT create_temp_table();
@@ -85,7 +85,7 @@ SELECT drop_temp_table();
 --echo # log even if the function has only 'DROP TEMPORARY TABLE' and
 --echo # replication runs successfully.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT create_temp_table();
 COMMIT;

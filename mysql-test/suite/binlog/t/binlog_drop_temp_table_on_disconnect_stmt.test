@@ -18,7 +18,7 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1(a INT) ENGINE=InnoDB;
 

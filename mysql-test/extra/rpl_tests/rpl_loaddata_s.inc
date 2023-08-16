@@ -6,8 +6,8 @@
 -- source include/master-slave.inc
 
 connection slave;
-# Not sure why we connect to slave and then try to reset master, but I will leave it [JBM]
-reset master;
+# Not sure why we connect to slave and then try to reset binary logs and gtids, but I will leave it [JBM]
+reset binary logs and gtids;
 
 connection master;
 # 'test' is the current database

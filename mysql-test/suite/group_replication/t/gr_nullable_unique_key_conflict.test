@@ -207,9 +207,9 @@ RENAME TABLE t2 TO t4;
 RENAME TABLE t1 TO t3;
 # Check Server1's binlog.
 --exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
-# Before replaying, RESET MASTER, so that GTID numbers are cleared and server
+# Before replaying, RESET BINARY LOGS AND GTIDS, so that GTID numbers are cleared and server
 # state is ready for replay.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Replay the binlog content.
 --exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
 
@@ -225,9 +225,9 @@ DROP TABLE t2, t1;
 
 # Check Server2's binlog.
 --exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-binary-log.000001 > $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
-# Before replaying, RESET MASTER, so that GTID numbers are cleared and server
+# Before replaying, RESET BINARY LOGS AND GTIDS, so that GTID numbers are cleared and server
 # state is ready for replay.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Replay the binlog content.
 --exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
 
@@ -242,7 +242,7 @@ RESET MASTER;
 DROP TABLE t4, t3, t2, t1;
 
 # Put back to the original server state after the above experiments.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_1 < $MYSQLTEST_VARDIR/tmp/binlog_replay.sql
 SET SQL_LOG_BIN=1;
 --source include/start_group_replication.inc

@@ -40,7 +40,7 @@ if ($logical_timestamps == '')
 # Stop Group Replication since we will do local operations.
 --source include/stop_group_replication.inc
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $DATADIR= `SELECT @@DATADIR`
 --copy_file $DATADIR/$binlog_file $MYSQL_TMP_DIR/$binlog_file
 
@@ -58,7 +58,7 @@ CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
 --echo # Clear GTID_EXECUTED to avoid that transactions reapplied
 --echo # from binary log are skipped.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo # Replay binary log.

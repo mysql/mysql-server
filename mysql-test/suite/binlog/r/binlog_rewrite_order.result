@@ -1,5 +1,5 @@
 call mtr.add_suppression("WARNING: The option --database has been used. It may filter parts of transactions,");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE SCHEMA schemaa;
 USE schemaa;
 FLUSH LOGS;
@@ -33,21 +33,21 @@ INSERT INTO t1 VALUES (2);
 SET SQL_LOG_BIN=0;
 FLUSH LOGS;
 CREATE SCHEMA db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE _other_.t1;
 include/diff_tables.inc [schemaa.test,db1.test]
 include/diff_tables.inc [schemaa.tload,db1.tload]
 TRUNCATE db1.test;
 TRUNCATE db1.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 USE db1;
 include/assert.inc [Zero records on db1.test]
 include/assert.inc [There is NO data in 'tload' table]
 TRUNCATE db1.test;
 TRUNCATE db1.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE db1.test;
 DROP TABLE db1.tload;
 DROP TABLE _other_.t1;
@@ -59,8 +59,8 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 DROP SCHEMA db1;
 DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
-RESET MASTER;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
 CREATE SCHEMA schemaa;
 USE schemaa;
 FLUSH LOGS;
@@ -94,21 +94,21 @@ INSERT INTO t1 VALUES (2);
 SET SQL_LOG_BIN=0;
 FLUSH LOGS;
 CREATE SCHEMA schemab;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE _other_.t1;
 include/diff_tables.inc [schemaa.test,schemab.test]
 include/diff_tables.inc [schemaa.tload,schemab.tload]
 TRUNCATE schemab.test;
 TRUNCATE schemab.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 USE schemab;
 include/assert.inc [Zero records on schemab.test]
 include/assert.inc [There is NO data in 'tload' table]
 TRUNCATE schemab.test;
 TRUNCATE schemab.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE schemab.test;
 DROP TABLE schemab.tload;
 DROP TABLE _other_.t1;
@@ -120,8 +120,8 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 DROP SCHEMA schemab;
 DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
-RESET MASTER;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
 CREATE SCHEMA schemaa;
 USE schemaa;
 FLUSH LOGS;
@@ -155,21 +155,21 @@ INSERT INTO t1 VALUES (2);
 SET SQL_LOG_BIN=0;
 FLUSH LOGS;
 CREATE SCHEMA my_new_fancy_and_very_long_schema_name;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE _other_.t1;
 include/diff_tables.inc [schemaa.test,my_new_fancy_and_very_long_schema_name.test]
 include/diff_tables.inc [schemaa.tload,my_new_fancy_and_very_long_schema_name.tload]
 TRUNCATE my_new_fancy_and_very_long_schema_name.test;
 TRUNCATE my_new_fancy_and_very_long_schema_name.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 USE my_new_fancy_and_very_long_schema_name;
 include/assert.inc [Zero records on my_new_fancy_and_very_long_schema_name.test]
 include/assert.inc [There is NO data in 'tload' table]
 TRUNCATE my_new_fancy_and_very_long_schema_name.test;
 TRUNCATE my_new_fancy_and_very_long_schema_name.tload;
 TRUNCATE _other_.t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE my_new_fancy_and_very_long_schema_name.test;
 DROP TABLE my_new_fancy_and_very_long_schema_name.tload;
 DROP TABLE _other_.t1;
@@ -181,7 +181,7 @@ Warning	1287	'@@binlog_format' is deprecated and will be removed in a future rel
 DROP SCHEMA my_new_fancy_and_very_long_schema_name;
 DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET BINLOG_FORMAT=MIXED;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

@@ -50,14 +50,14 @@
 # Step 1, dump
 
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Dump's data
 CREATE DATABASE db;
 CREATE TABLE db.t (a INT);
 INSERT INTO db.t SET a=1;
 FLUSH LOGS;
---let $new_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $new_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --eval PURGE BINARY LOGS TO '$new_log'
 # Purge may be ineffective, make sure that's not the case with the following show:
 SHOW WARNINGS;

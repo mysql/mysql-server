@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ==== Conditions for gtid_executed ====
 # Readable.
 SELECT @@GLOBAL.GTID_EXECUTED;

@@ -28,7 +28,7 @@ connect (addconroot2, localhost, root,,);
 connection default;
 create table t1 (i int);
 # We are going to check that statements are logged in correct order
-reset master;
+reset binary logs and gtids;
 set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 --send alter table t1 change i c char(10) default 'Test1';
 connection addconroot;

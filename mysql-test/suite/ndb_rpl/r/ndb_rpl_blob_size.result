@@ -22,7 +22,7 @@ inline_size	part_size
 100	2000
 512	4000
 128	13948
-reset master;
+reset binary logs and gtids;
 ## Create table in replica with other custom Blob inline size
 CREATE TABLE test.t1 (a int primary key,
 b blob comment "NDB_COLUMN=BLOB_INLINE_SIZE=96",

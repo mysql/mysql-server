@@ -65,7 +65,7 @@
 --let $MYSQLD_DATADIR= `select @@datadir`
 --exec $MYSQL_BINLOG --short-form --to-last-log $MYSQLD_DATADIR/$binlog_file_create_user  > $MYSQLTEST_VARDIR/tmp/wl9175.sql
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $gtid_step_gtid_mode_agnostic=1
 --source include/gtid_step_reset.inc
 --exec $MYSQL  < $MYSQLTEST_VARDIR/tmp/wl9175.sql

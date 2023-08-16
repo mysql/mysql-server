@@ -1,7 +1,7 @@
 --source include/have_log_bin.inc
 
 --echo # Test to ensure resource group statements are not binlogged.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE RESOURCE GROUP u1 TYPE=USER VCPU=0-2;
 ALTER RESOURCE GROUP u1 VCPU=3;
 SET RESOURCE GROUP u1;

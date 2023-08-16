@@ -3,7 +3,7 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_log_bin.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 create table t3 (f text character set utf8);
@@ -18,7 +18,7 @@ copy_file $datadir/binlog.000001 $datadir/binlog.saved;
 rename table t3 to t03, t4 to t04;
 
 # Reset GTIDs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --exec $MYSQL_BINLOG --short-form $datadir/binlog.saved | $MYSQL --default-character-set=utf8
 # original and recovered data must be equal

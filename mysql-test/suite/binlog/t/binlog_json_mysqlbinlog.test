@@ -25,7 +25,7 @@
 
 --echo ==== Generate binlog ====
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t (i INT, j JSON);
 SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
 INSERT INTO t VALUES (1, '{"a" : 1}');

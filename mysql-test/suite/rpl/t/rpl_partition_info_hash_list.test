@@ -268,5 +268,5 @@ let $diff_tables= master:sp, slave:sp;
 # Cleanup
 connection master;
 DROP TABLE sp;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_end.inc

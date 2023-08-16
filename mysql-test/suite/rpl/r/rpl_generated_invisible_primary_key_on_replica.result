@@ -71,21 +71,21 @@ ALTER TABLE t4 RENAME COLUMN a TO my_row_id;
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1060]
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t5(a int);
 ALTER TABLE t5 ADD PRIMARY KEY `k` (a);
 [connection slave]
 include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_reset_slave.inc
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1068]
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t6 (my_row_id TEXT);
 [connection slave]
 include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_reset_slave.inc
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=4108]
@@ -93,10 +93,10 @@ include/wait_for_slave_sql_error.inc [errno=4108]
 ##############################################################
 # 7. Cleanup
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_reset_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = PRIMARY_KEY_CHECK_VALUE;
 include/start_slave.inc

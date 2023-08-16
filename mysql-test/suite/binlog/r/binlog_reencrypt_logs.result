@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Adding debug point 'purge_logs_during_reencryption' to @@GLOBAL.debug
 ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 Warnings:

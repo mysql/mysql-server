@@ -207,7 +207,7 @@ void Event_queue::update_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
   DBUG_PRINT("enter", ("thd: %p  et=[%s.%s]", thd, dbname.str, name.str));
 
   if ((new_element->m_status == Event_parse_data::DISABLED) ||
-      (new_element->m_status == Event_parse_data::SLAVESIDE_DISABLED)) {
+      (new_element->m_status == Event_parse_data::REPLICA_SIDE_DISABLED)) {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
       Destroy the object but don't skip to end: because we may have to remove

@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 1. FLUSH LOGS
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:1
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
@@ -21,18 +21,18 @@ FLUSH LOGS;
 #### 2. Binlog_size > max_binlog_size
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 INSERT INTO t1 (s) VALUES (REPEAT('s',50000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:2
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 3. Server restart
 # restart:--binlog_expire_logs_seconds=0
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ##### Cleanup #####
 SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ####
 #### 2.1: binlog_expire_logs_seconds > 0 and expire_logs_days == 0
 ####
@@ -44,7 +44,7 @@ Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future 
 FLUSH LOGS;
 FLUSH LOGS;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Testing with greater values of binlog_expire_logs_seconds
 SET GLOBAL binlog_expire_logs_seconds= 3600;
 SET GLOBAL expire_logs_days= 0;
@@ -57,7 +57,7 @@ INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 1. FLUSH LOGS
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:1
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
@@ -65,18 +65,18 @@ FLUSH LOGS;
 #### 2. Binlog_size > max_binlog_size
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 INSERT INTO t1 (s) VALUES (REPEAT('s',50000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:2
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 3. Server restart
 # restart:--binlog_expire_logs_seconds=3600
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ##### Cleanup #####
 SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ####
 #### 2.3: binlog_expire_logs_seconds == 0 and expire_logs_days > 0
 ####
@@ -91,7 +91,7 @@ INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 1. FLUSH LOGS
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:1
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
@@ -99,39 +99,39 @@ FLUSH LOGS;
 #### 2. Binlog_size > max_binlog_size
 SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 INSERT INTO t1 (s) VALUES (REPEAT('s',50000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 Case:2
 FLUSH LOGS;
 INSERT INTO t1 VALUES('a');
 FLUSH LOGS;
 #### 3. Server restart
 # restart:--binlog_expire_logs_seconds=86400
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ##### Cleanup #####
 SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
-RESET MASTER;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_expire_logs_seconds=2147483648;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_expire_logs_seconds=4294967295;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ### Code coverage for WL#14930 boundary conditions
 ### Expiration time < 0
 ### Test case: binlog_expire_logs_seconds set to current time
 SET GLOBAL binlog_expire_logs_seconds= CURRENT_TIME;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ### Test case: binlog_expire_logs_seconds set to current_time + 2^31
 SET GLOBAL binlog_expire_logs_seconds=  2<<31+ CURRENT_TIME;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ### Test case: binlog_expire_logs_seconds set to current_time + 2^30
 SET GLOBAL binlog_expire_logs_seconds=  2<<30+ CURRENT_TIME;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_expire_logs_seconds= 0;
 SET GLOBAL expire_logs_days= 0;
 Warnings:

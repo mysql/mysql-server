@@ -22,4 +22,4 @@ include/assert_grep.inc [Check that BIGINT metadata is marked signed and therefo
 
 # 3. Cleanup
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

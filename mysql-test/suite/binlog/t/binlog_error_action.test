@@ -42,7 +42,7 @@ let $old=`select @@debug`;
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo Test case1
 # Make binlog index readonly and check the behaviour with ABORT
@@ -208,7 +208,7 @@ DROP TABLE t1;
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
 --source include/start_mysqld.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1(i INT);
 --let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
@@ -241,7 +241,7 @@ INSERT INTO t1 VALUES (1);
 --source include/assert.inc
 
 # Case 11.2 (binlog_error_action = IGNORE_ERROR)
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
 SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
@@ -268,7 +268,7 @@ INSERT INTO t1 VALUES (2);
 
 # Cleanup
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################
 --echo Test case12
@@ -296,7 +296,7 @@ INSERT INTO t1 VALUES (1);
 
 # Cleanup
 DELETE FROM t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Case 12.2 (binlog_error_action = IGNORE_ERROR)
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
@@ -312,7 +312,7 @@ INSERT INTO t1 VALUES (2);
 DROP table t1;
 SET SESSION debug = "-d,simulate_error_during_sync_binlog_file";
 --source include/restart_mysqld.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################
 --echo Test case13
@@ -348,7 +348,7 @@ INSERT INTO t1 VALUES (1);
 --source include/assert.inc
 
 # Cleanup
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Case 13.2 (binlog_error_action = IGNORE_ERROR)
 SET SESSION debug = "+d,simulate_do_write_cache_failure";
@@ -365,7 +365,7 @@ INSERT INTO t1 VALUES (2);
 # Cleanup
 DROP table t1;
 --source include/restart_mysqld.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################
 --echo Test case14
@@ -515,7 +515,7 @@ FLUSH LOGS;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_data
 --let $restart_parameters=
@@ -541,7 +541,7 @@ FLUSH LOGS;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 SET @@GLOBAL.binlog_encryption=OFF;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_data
 --let $restart_parameters=

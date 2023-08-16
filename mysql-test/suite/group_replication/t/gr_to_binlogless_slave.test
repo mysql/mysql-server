@@ -76,7 +76,7 @@ SET SESSION sql_log_bin=1;
 
 # Get the binlog file
 --let $server2_datadir= `SELECT @@DATADIR`
---let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server2_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --echo
 --let $rpl_connection_name= server4

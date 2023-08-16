@@ -13,9 +13,9 @@ source suite/ndb_rpl/t/wait_schema_logging.inc;
 
 --disable_query_log
 connection mysqld1;
-reset master;
+reset binary logs and gtids;
 connection mysqld2;
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 # Bug#26333981 BI IS WRITING TABLE_MAP EVEN WHEN USING SQL_LOG_BIN = 0
@@ -50,7 +50,7 @@ drop table stream_marker;
 --echo but not table ndbt2
 --connection mysqld1
 --source include/wait_for_binlog_event.inc
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 let $MYSQLD_DATADIR= `select @@datadir;`;
 
 create table table_map_binlog_rows (table_map varchar(1000));
@@ -63,14 +63,14 @@ create table table_map_binlog_rows (table_map varchar(1000));
 --enable_warnings
 select * from table_map_binlog_rows order by table_map;
 drop table table_map_binlog_rows;
-reset master;
+reset binary logs and gtids;
 
 --echo Show + reset Binlog contents on Mysqld 2
 --echo We should se tables ndbt1 and ndbt3 added to Table_map,
 --echo but not table ndbt2
 --connection mysqld2
 --source include/wait_for_binlog_event.inc
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 let $MYSQLD_DATADIR= `select @@datadir;`;
 
 create table table_map_binlog_rows (table_map varchar(1000));
@@ -83,7 +83,7 @@ create table table_map_binlog_rows (table_map varchar(1000));
 --enable_warnings
 select * from table_map_binlog_rows order by table_map;
 drop table table_map_binlog_rows;
-reset master;
+reset binary logs and gtids;
 
 --connection mysqld1
 drop table ndbt1;
@@ -131,7 +131,7 @@ drop table ndbt3;
 #
 #--connection mysqld2
 #--source include/wait_for_binlog_event.inc
-#--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+#--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 #let $MYSQLD_DATADIR= `select @@datadir;`;
 #create table table_map_binlog_rows (Table_map varchar(1000));
 #--disable_warnings

@@ -108,7 +108,7 @@ call mtr.add_suppression("The query does not comply with variable require_row_fo
 
   --source include/rpl_connection_master.inc
 
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   --inc $error_count
 

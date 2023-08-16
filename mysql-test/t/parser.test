@@ -541,9 +541,9 @@ select locate(1);
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select locate(1, 2, 3, 4);
 
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+-- error ER_PARSE_ERROR
 select log();
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+-- error ER_PARSE_ERROR
 select log(1, 2, 3);
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT

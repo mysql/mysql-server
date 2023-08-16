@@ -17,7 +17,7 @@
 
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
-reset master;
+reset binary logs and gtids;
 
 # action
 
@@ -40,7 +40,7 @@ select * from ti /* that is what slave would miss - bug#28960 */;
 ## send_error() branch
 delete from ti;
 delete from tt where a=1;
-reset master;
+reset binary logs and gtids;
 
 # action
 
@@ -87,20 +87,20 @@ begin
 end|
 delimiter ;|
 
-reset master;
+reset binary logs and gtids;
 
 # execute
 
 insert into t2 values (bug27417(1));
 insert into t2 select bug27417(2);
-reset master;
+reset binary logs and gtids;
 
 --error ER_DUP_ENTRY
 insert into t2 values (bug27417(2));
 source include/show_binlog_events.inc; #only (!) with fixes for #23333 will show there is the query
 select count(*) from t1 /* must be 3 */;
 
-reset master;
+reset binary logs and gtids;
 select count(*) from t2;
 delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */; 
@@ -135,7 +135,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # prepare
   
  insert into t2 values (1);
- reset master;
+ reset binary logs and gtids;
 
 # execute
 
@@ -155,7 +155,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  delete from t1;
  delete from t2;
  insert into t2 values (2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
 
@@ -174,7 +174,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # prepare
  delete from t1;
  insert into t3 values (1,1),(2,3),(3,4);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -192,7 +192,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1);
  insert into t4 values (1,1),(2,2);
 
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -211,7 +211,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1),(2,2);
  insert into t4 values (1,1),(2,2);
 
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -236,7 +236,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1);
  create trigger trg_del before delete on t2 for each row 
    insert into t3 values (bug27417(1), 2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -256,7 +256,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
    insert into t1 values (1);
  insert into t2 values (2),(3);
  insert into t5 values (1),(2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -275,7 +275,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  delete from t1;
  create table t4 (a int default 0, b int primary key) engine=innodb;
  insert into t4 values (0, 17);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY

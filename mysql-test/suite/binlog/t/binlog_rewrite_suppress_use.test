@@ -6,7 +6,7 @@
 #
 
 --source include/have_binlog_format_row.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (i INT);
@@ -38,7 +38,7 @@ CREATE DATABASE db2;
 DROP DATABASE db1;
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event.sql
 --error ER_NO_SUCH_TABLE
 SELECT * FROM db2.t1;
@@ -46,7 +46,7 @@ SELECT * FROM db2.t1;
 DROP DATABASE db1;
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo [The event of table db1.t1 has been successfully applied to db2.t1]
 --exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let $assert_text= Assert that table db2.t1 has no rows after applying the sql file.

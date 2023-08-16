@@ -152,7 +152,7 @@ RESET SLAVE FOR CHANNEL 'example_channel';
 
 --source include/rpl_connection_master.inc
 FLUSH BINARY LOGS;
---let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server_binlog_file_cur= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Need to kill the dump thread explicitly: stop slave does not do
 # that, and if the dump thread is slow, it will still be reading from
@@ -219,7 +219,7 @@ RESET SLAVE ALL FOR CHANNEL 'example_channel';
 # Cleanup the master to be able to replicate from it again
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 # Start the default channel slave threads

@@ -56,7 +56,7 @@
 
 --source include/stop_group_replication.inc
 
-# A RESET MASTER was executed in the context of include/master-slave.inc after
+# A RESET BINARY LOGS AND GTIDS was executed in the context of include/master-slave.inc after
 # the server auto started group replication.
 # The server applier logs will be reset to avoid recovery problems.
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";

@@ -7,9 +7,9 @@ CREATE TABLE t1 (c1 INT);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

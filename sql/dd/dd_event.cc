@@ -56,8 +56,8 @@ int get_old_status(Event::enum_event_status event_status) {
       return Event_parse_data::ENABLED;
     case Event::ES_DISABLED:
       return Event_parse_data::DISABLED;
-    case Event::ES_SLAVESIDE_DISABLED:
-      return Event_parse_data::SLAVESIDE_DISABLED;
+    case Event::ES_REPLICA_SIDE_DISABLED:
+      return Event_parse_data::REPLICA_SIDE_DISABLED;
   }
 
   /* purecov: begin deadcode */
@@ -83,8 +83,8 @@ static Event::enum_event_status get_enum_event_status(int event_status) {
       return Event::ES_ENABLED;
     case Event_parse_data::DISABLED:
       return Event::ES_DISABLED;
-    case Event_parse_data::SLAVESIDE_DISABLED:
-      return Event::ES_SLAVESIDE_DISABLED;
+    case Event_parse_data::REPLICA_SIDE_DISABLED:
+      return Event::ES_REPLICA_SIDE_DISABLED;
   }
 
   /* purecov: begin deadcode */

@@ -21,7 +21,7 @@ connect (con4,localhost,root,,);
 connection default;
 
 --echo First initialize the binlog
-reset master;
+reset binary logs and gtids;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -49,7 +49,7 @@ insert into test.t1 select NULL, a from test.t1;
 
 --source include/wait_for_ndb_committed_to_binlog.inc
 
-let $master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
+let $master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 eval
   select trim(trailing "$master_log_file" from File)
     from mysql.ndb_binlog_index
@@ -63,7 +63,7 @@ select count(*)/100 > 0 from mysql.ndb_binlog_index where File=@file1;
 --echo Flush log to get onto the next file...
 FLUSH LOGS;
 
-let $master_log_file2 = query_get_value("SHOW MASTER STATUS", "File", 1);
+let $master_log_file2 = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
 eval select concat(@file_prefix, "$master_log_file2") into @file2;
 
 create table test.files(file1 varchar(255), file2 varchar(255));

@@ -415,7 +415,7 @@ drop temporary table t4;
 # SQLCOM_SHOW_MASTER_STAT
 #
 INSERT INTO db1.trans (a) VALUES (1);
-show master status;
+show binary log status;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 NO

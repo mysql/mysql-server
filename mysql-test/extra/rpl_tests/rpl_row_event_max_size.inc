@@ -15,16 +15,16 @@ SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 SET SESSION sql_log_bin= 1;
 
---let $binlog_filename= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_filename= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $MYSQLD_DATADIR= `select @@datadir`
 
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
                  data2 LONGBLOB, PRIMARY KEY(a));
 
-let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $start_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 INSERT INTO t1 (data1, data2) VALUES (repeat('a',1000000), repeat('a', 1000000));
-let $end_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $end_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 #FLUSH LOGS;
 DELETE FROM t1 WHERE a = 1;
 --echo # On master, test the inserted data is deleted
@@ -97,7 +97,7 @@ CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large ran
 # clear errno
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --remove_file $binlog_uuid_filename
 --let $rpl_only_running_threads= 1

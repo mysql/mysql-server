@@ -497,5 +497,5 @@ INSERT INTO t1 VALUES (2);
 DROP TABLE t1;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_partition_1.binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_end.inc

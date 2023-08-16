@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (i INT);
@@ -17,23 +17,23 @@ DELETE FROM t1 WHERE i=2;
 #Dropping the database db1 and creating the table in the new database new_db1.
 CREATE DATABASE new_db1;
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SELECT * FROM new_db1.t1;
 ERROR 42S02: Table 'new_db1.t1' doesn't exist
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [The event of table db1.t1 has been successfully applied to new_db1.t1]
 include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file.]
 DROP DATABASE db1;
 DROP DATABASE new_db1;
 CREATE DATABASE new_db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [The event of table db1.t1 has been successfully applied to new_db1.t1]
 include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file.]
 DROP DATABASE db1;
 DROP DATABASE new_db1;
 CREATE DATABASE new_db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [The event of table db1.t1 has been successfully applied to new_db1.t1 from raw mode]
 include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file from raw binlog dump.]
 CLEANUP

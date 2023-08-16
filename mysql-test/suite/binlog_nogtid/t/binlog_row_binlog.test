@@ -7,7 +7,7 @@
 SELECT @@session.binlog_row_image INTO @saved_binlog_row_image;
 SET binlog_row_image= MINIMAL;
 SHOW VARIABLES LIKE 'binlog_row_image';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(100)) ENGINE=Innodb;
 INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3, 'c');
 ## before the patch there would be 3 delete row events

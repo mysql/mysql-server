@@ -98,7 +98,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 include/uninstall_replication_observers_example.inc
 [connection master]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/start_slave.inc
 include/rpl_end.inc

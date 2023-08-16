@@ -7,8 +7,8 @@
 # === Implementaion ===
 -- source include/have_binlog_format_statement.inc
 
-# Reset master to cleanup binlog
-RESET MASTER;
+# Reset source to cleanup binlog
+RESET BINARY LOGS AND GTIDS;
 
 # we need this for getting fixed timestamps inside of this test
 SET timestamp=1000000000;
@@ -30,7 +30,7 @@ while($i > 0)
 
 INSERT INTO t2 VALUES(@string);
 --enable_query_log
-let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 
 --replace_regex /SQL_LOAD_MB-[a-f0-9]-[a-f0-9]/SQL_LOAD_MB-#-#/

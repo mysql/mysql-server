@@ -43,7 +43,7 @@ let $prepare = SET AUTOCOMMIT = 1;
 let $statement = SET AUTOCOMMIT = 0;
 source extra/binlog_tests/implicit.test;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
 source include/show_binlog_events.inc;

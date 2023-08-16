@@ -11,7 +11,7 @@ source include/add_anonymous_users.inc;
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
-# (otherwise RESET MASTER may come too early).
+# (otherwise RESET BINARY LOGS AND GTIDS may come too early).
 save_master_pos;
 connection slave;
 
@@ -19,7 +19,7 @@ connection slave;
 call mtr.add_suppression("Replica: Can\'t find record in \'user\' Error_code: 1032");
 
 sync_with_master;
-reset master;
+reset binary logs and gtids;
 
 # ##################################################################
 # BUG#41725: slave crashes when inserting into temporary table after

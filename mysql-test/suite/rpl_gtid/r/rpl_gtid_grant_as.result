@@ -40,7 +40,7 @@ include/stop_slave.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -97,7 +97,7 @@ include/stop_slave.inc
 DROP USER u1, u2, u3, u4, u5, u6, u7;
 DROP ROLE r1, r2;
 DROP USER foo;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

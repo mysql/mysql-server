@@ -92,7 +92,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --connection master
 # Some more DML's on the master
 --echo #Insert via connection to the address 127.0.0.1 from the default network namespace
---let $MASTER_LOG_POS= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MASTER_LOG_POS= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t1 VALUES (3, 'ghi');
 
@@ -132,7 +132,7 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 
 --echo [ connection master ]
 --connection master
---let $MASTER_LOG_POS= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MASTER_LOG_POS= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --echo [ connection slave ]
 --connection slave

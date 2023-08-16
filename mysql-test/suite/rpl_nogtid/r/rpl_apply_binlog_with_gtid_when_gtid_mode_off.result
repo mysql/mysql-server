@@ -29,7 +29,7 @@ call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 include/wait_for_slave_sql_error.inc [errno=1781]
 include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

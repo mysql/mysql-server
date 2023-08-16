@@ -36,7 +36,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 # Test case 1 cleanup
 # Remove data on server 2
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server1]
 include/rpl_gr_wait_for_number_of_members.inc
 #
@@ -58,7 +58,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 [connection server2]
 include/rpl_gr_wait_for_number_of_members.inc
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 [connection server2]

@@ -3,7 +3,7 @@
 #
 SET @save_max_binlog_size=@@global.max_binlog_size;
 SET GLOBAL max_binlog_size=4096;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 2) Start a XA transaction which is more than max_binlog_size (4KB).
 #
@@ -27,7 +27,7 @@ XA COMMIT 'xa1';
 # 6) Cleanup the server and make it ready to apply the binlog dump.
 #
 RENAME TABLE t1 TO t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 7) Apply the binlog dump.
 #

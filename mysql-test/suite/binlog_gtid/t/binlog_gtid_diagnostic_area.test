@@ -36,7 +36,7 @@
 --source include/have_binlog_format_row.inc
 
 #Clean the table before starting the test.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CALL mtr.add_suppression("Unable to create a new binlog file.");
 CALL mtr.add_suppression("Error persisting GTIDs to table");

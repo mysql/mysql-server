@@ -15,7 +15,7 @@
 #
 
 --source include/have_binlog_format_row.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (i INT);
@@ -53,7 +53,7 @@ DROP DATABASE db2;
 
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo [The sql file will be applied on the current database]
 --exec $MYSQL --database=db3 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
 

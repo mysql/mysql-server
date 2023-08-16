@@ -25,10 +25,10 @@ INSERT INTO t1 VALUES (3);
 SET sql_log_bin = 0;
 include/gtid_utils.inc
 SET sql_log_bin = 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL GTID_PURGED = "7c4f89da-55d2-4a9a-8aa1-b9e854dcf286:1-3";
 include/assert.inc [GTID_PURGED should contain the first 3 transactions]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #########################################################################
 # 3) Start GR on both members and verify that the group stabilizes

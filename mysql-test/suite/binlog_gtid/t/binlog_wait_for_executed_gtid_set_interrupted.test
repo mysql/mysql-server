@@ -6,7 +6,7 @@
 --source include/have_log_bin.inc
 
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 

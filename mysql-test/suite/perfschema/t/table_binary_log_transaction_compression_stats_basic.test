@@ -18,7 +18,7 @@
 --let $trx_size_bytes = 1000000
 --let $ntrx = 3
 --let $pfs_table = performance_schema.binary_log_transaction_compression_stats
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 --let $i = 1
@@ -168,7 +168,7 @@ while($i < 3)
   --let $assert_text = Number of rows in $pfs_table = 0
   --source include/assert.inc
 
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_master
 
   --inc $i

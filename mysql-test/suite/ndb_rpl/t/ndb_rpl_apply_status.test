@@ -49,7 +49,7 @@ reset replica;
 select count(*) from mysql.ndb_apply_status;
 
 --source include/rpl_connection_master.inc
-reset master;
+reset binary logs and gtids;
 alter table t1 modify b varchar(255);
 
 --source include/rpl_connection_slave.inc
@@ -91,7 +91,7 @@ reset slave;
 select count(1) from mysql.ndb_apply_status;
 
 --connection master
-reset master;
+reset binary logs and gtids;
 --source include/rpl_start_slaves.inc
 
 --echo *** Test reset slave all ***
@@ -113,7 +113,7 @@ reset slave all;
 select count(1) from mysql.ndb_apply_status;
 
 --connection master
-reset master;
+reset binary logs and gtids;
 --echo RESET SLAVE ALL zapped Master info - re-set it.
 --let $rpl_unconditional_change_master=1
 --source include/rpl_change_topology.inc
@@ -146,7 +146,7 @@ select count(1) from mysql.ndb_apply_status;
 delete from mysql.ndb_apply_status;
 
 --connection master
-reset master;
+reset binary logs and gtids;
 --source include/rpl_start_slaves.inc
 
 --connection master
@@ -171,7 +171,7 @@ reset slave all;
 select count(1) from mysql.ndb_apply_status;
 
 --connection master
-reset master;
+reset binary logs and gtids;
 --echo RESET SLAVE ALL zapped Master info - re-set it.
 --let $rpl_unconditional_change_master=1
 --source include/rpl_change_topology.inc

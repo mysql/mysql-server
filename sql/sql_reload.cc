@@ -343,19 +343,21 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
   if (thd && (options & REFRESH_STATUS)) refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
-  if (options & REFRESH_MASTER) {
+  if (options & REFRESH_SOURCE) {
     assert(thd);
     tmp_write_to_binlog = 0;
     /*
-      RESET MASTER acquired global read lock (if the thread is not acquired
-      already) to make sure no transaction commits are getting executed
-      while the operation is in process. If (and only if) it is
-      acquired by RESET MASTER internal process (options will contain
-      REFRESH_READ_LOCK flag in this case), unlock the global read lock
-      in reset_master().
+      RESET BINARY LOGS AND GTIDS acquired global read lock (if the thread is
+      not acquired already) to make sure no transaction commits are getting
+      executed while the operation is in process. If (and only if) it is
+      acquired by RESET BINARY LOGS AND GTIDS internal process (options will
+      contain REFRESH_READ_LOCK flag in this case), unlock the global read lock
+      in reset_binary_logs_and_gtids().
     */
-    if (reset_master(thd, options & REFRESH_READ_LOCK)) {
-      /* NOTE: my_error() has been already called by reset_master(). */
+    if (reset_binary_logs_and_gtids(thd, options & REFRESH_READ_LOCK)) {
+      /* NOTE: my_error() has been already called by
+       * reset_binary_logs_and_gtids().
+       */
       result = true;
     }
   }

@@ -26,7 +26,7 @@
 --source include/have_binlog_format_row.inc
 
 # Make sure the test is repeatable
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 call mtr.add_suppression("Did not write failed .* into binary log while storing table level and column level grants in the privilege tables");
 
@@ -40,7 +40,7 @@ CREATE USER u1@h;
 SELECT user FROM mysql.user where user='u1';
 
 # Check-1: GRANT
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --replace_result $master_uuid MASTER_UUID
 --error ER_BAD_FIELD_ERROR
 GRANT SELECT(a), SELECT(c) ON t1 TO u1@h;
@@ -73,7 +73,7 @@ GRANT SELECT(a) ON t1 TO u1@h;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 
 # Check-2: REVOKE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE SELECT(a), SELECT(b) ON t1 FROM u1@h;
 --echo #
@@ -97,7 +97,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --source include/show_binlog_events.inc
 
 # Check-3: DROP USER
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --error ER_CANNOT_USER
 DROP USER u1@h, u2@h;
 --echo #
@@ -119,7 +119,7 @@ SELECT user FROM mysql.user where user='u1';
 --source include/show_binlog_events.inc
 
 # Check-4: RENAME TABLE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --error ER_NO_SUCH_TABLE
 RENAME TABLE t1 TO t2, t3 TO t4;
 --echo #
@@ -142,7 +142,7 @@ SHOW CREATE TABLE t1;
 --source include/show_binlog_events.inc
 
 # Check-5: OPTIMIZE TABLE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --echo #
 --echo # The OPTIMIZE TABLE statement can be failed partially when optimizing
 --echo # multiple tables, which contain a non-existent table.
@@ -164,7 +164,7 @@ OPTIMIZE TABLE t1, t_non_existent;
 --source include/show_binlog_events.inc
 
 # Check-6: ANALYZE TABLE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --echo #
 --echo # The ANALYZE TABLE statement can be failed partially when analyzing
 --echo # multiple tables, which contain a non-existent table.
@@ -186,7 +186,7 @@ ANALYZE TABLE t1, t_non_existent;
 --source include/show_binlog_events.inc
 
 # Check-7: REPARE TABLE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --echo #
 --echo # The REPAIR TABLE statement can be failed partially when repairing
 --echo # multiple tables, which contain a non-existent table.
@@ -208,7 +208,7 @@ REPAIR TABLE t1, t_non_existent;
 --source include/show_binlog_events.inc
 
 # Check-8: CHECKSUM TABLE
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --echo #
 --echo # The CHECKSUM TABLE statement can be failed partially when checksuming
 --echo # multiple tables, which contain a non-existent table.

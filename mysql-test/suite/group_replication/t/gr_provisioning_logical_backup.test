@@ -41,7 +41,7 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 
 # Get the binlog file
 --let $server2_datadir= `SELECT @@DATADIR`
---let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server2_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Restore the backup onto a 3rd server outside the GR group
 --echo
@@ -92,7 +92,7 @@ UPDATE t2 SET c1=2 WHERE c1=0;
 
 # Get the binlog file
 --let $server2_datadir= `SELECT @@DATADIR`
---let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server2_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 # Record the binlog file
 --exec $MYSQL_BINLOG $server2_datadir/$server2_binlog_file > $MYSQL_TMP_DIR/binlog_output
 

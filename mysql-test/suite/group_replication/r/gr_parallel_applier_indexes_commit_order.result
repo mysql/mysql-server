@@ -139,7 +139,7 @@ CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
 # Clear GTID_EXECUTED to avoid that transactions reapplied
 # from binary log are skipped.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Replay binary log.
 #
@@ -186,7 +186,7 @@ CREATE TABLE t1 (a INT, id INT AUTO_INCREMENT KEY) ENGINE = InnoDB;
 # Clear GTID_EXECUTED to avoid that transactions reapplied
 # from binary log are skipped.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Replay binary log.
 #

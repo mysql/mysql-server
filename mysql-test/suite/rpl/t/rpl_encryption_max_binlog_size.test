@@ -43,9 +43,9 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 VARCHAR(255));
 --echo # Inserting $trx transactions
 --disable_query_log
 # Get the trx size
---let $pos_before=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $pos_before=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --eval INSERT INTO t1 (c1, c2) VALUES ($trx, '$max_string')
---let $pos_after=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $pos_after=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --dec $trx
 while ($trx)
 {
@@ -61,7 +61,7 @@ while ($trx)
 # No binlog shall be greater than max_binlog_size + trx_size + ROTATE
 --let $max_expected_size=`SELECT @@GLOBAL.max_binlog_size + $trx_size + $rotate_size`
 
---let $binary_logs=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binary_logs=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binary_logs=`SELECT RIGHT('$binary_logs', 6) - 0`
 --echo # Assert that all $binary_logs binary logs considered the encryption header
 while ($binary_logs)

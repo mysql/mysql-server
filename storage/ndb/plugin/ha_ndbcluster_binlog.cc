@@ -250,8 +250,8 @@ static bool g_injector_v1_warning_emitted = false;
 /*
   @brief Wait until the last committed epoch from the session enters the
          binlog. Wait a maximum of 30 seconds. This wait is necessary in
-         SHOW BINLOG EVENTS so that the user see its own changes. Also
-         in RESET SOURCE before clearing ndbcluster's binlog index.
+         SHOW BINLOG EVENTS so that the user see its own changes. Also in
+         RESET BINARY LOGS AND GTIDS before clearing ndbcluster's binlog index.
   @param thd Thread handle to wait for its changes to enter the binlog.
 */
 static void ndbcluster_binlog_wait(THD *thd) {
@@ -7537,7 +7537,7 @@ restart_cluster_failure:
             "cluster has been restarted --initial or with older filesystem. "
             "ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: "
             "%u/%u. "
-            "RESET SOURCE should be issued. Resetting "
+            "RESET BINARY LOGS AND GTIDS should be issued. Resetting "
             "ndb_latest_handled_binlog_epoch.",
             (uint)(ndb_latest_handled_binlog_epoch >> 32),
             (uint)(ndb_latest_handled_binlog_epoch), (uint)(schema_gci >> 32),

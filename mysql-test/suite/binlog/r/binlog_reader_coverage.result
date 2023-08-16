@@ -1,6 +1,6 @@
 call mtr.add_suppression("Binary logging not possible");
 call mtr.add_suppression("Attempting backtrace");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c1 INT);
 SET debug = "+d,simulate_init_io_cache_failure";
 SHOW BINLOG EVENTS;

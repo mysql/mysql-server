@@ -31,7 +31,7 @@ SELECT @@GLOBAL.innodb_lock_wait_timeout;
 
 connection master;
 # Save position of BEGIN
-let $master_pos_begin= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_pos_begin= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 BEGIN;
 INSERT INTO t1 VALUES (1);
 # We make a long transaction here
@@ -88,7 +88,7 @@ connection slave;
 --source include/stop_slave.inc
 DELETE FROM t2;
 # Set slave position to the BEGIN log event
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $master_pos_begin MASTER_POS_BEGIN
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin;
 BEGIN;
@@ -122,7 +122,7 @@ SET global max_relay_log_size=0;
 --source include/stop_slave.inc
 DELETE FROM t2;
 # Set slave position to the BEGIN log event
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $master_pos_begin MASTER_POS_BEGIN
 eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=$master_pos_begin; 
 BEGIN;

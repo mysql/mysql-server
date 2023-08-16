@@ -59,7 +59,7 @@ SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.
 --echo # Verify that filters doesn't reset by
 --echo # "RESET SLAVE [FOR CHANNEL 'ch1']" command.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 RESET SLAVE FOR CHANNEL 'ch1';
 

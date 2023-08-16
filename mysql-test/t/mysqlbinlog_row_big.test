@@ -62,7 +62,7 @@ connect (default, localhost,root,,);
 --echo #
 --echo # Delete all existing binary logs.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Create a test table.

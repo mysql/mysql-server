@@ -60,7 +60,7 @@ include/stop_group_replication.inc
 ############################################################
 # 2. Validate that member start moves to ERROR state when
 #    group GNOs are exhausted.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775806";
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775806]
 include/start_group_replication.inc
@@ -69,13 +69,13 @@ include/stop_group_replication.inc
 # 3. Validate that member moves to ERROR state when group
 #    GNOs are exhausted on view change log.
 [connection server1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775805";
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775805]
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775806]
 [connection server2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL GTID_PURGED= "c234f752-1ee4-11e6-adee-00212844d44e:1-9223372036854775805";
 include/assert.inc [GTID_EXECUTED must be UUID:1-9223372036854775805]
 include/start_group_replication.inc
@@ -87,10 +87,10 @@ include/stop_group_replication.inc
 ############################################################
 # 4. Clean up.
 [connection server2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_and_bootstrap_group_replication.inc
 [connection server1]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_group_replication.inc
 [connection server1]
 SET SESSION sql_log_bin= 0;

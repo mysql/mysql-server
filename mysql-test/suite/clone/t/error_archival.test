@@ -14,7 +14,7 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Log writer is waiting for re
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Log writer waited too long for redo-archiver to advance .*");
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 
 ## Install plugin

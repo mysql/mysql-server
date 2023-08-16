@@ -25,8 +25,8 @@ source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 
 --echo # Test non-transaction
-let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
-let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
+let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 create table t1(a int, b int) engine= myisam;
 insert into t1(a,b) values(1,1),(2,1);
 update t1 set a = a + 5 where b = 1 LIMIT 1;
@@ -49,7 +49,7 @@ insert into t1(a,b) values(1,7);
 commit;
 
 drop table t1, t2;
-let $end_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $end_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 
 create table t3(a int, b int) engine= myisam;
 create table t4(a int, b int) engine= myisam;
@@ -86,7 +86,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --let $prefix=`SELECT UUID()`
 --let $binlog_uuid_filename= $MYSQLTEST_VARDIR/tmp/$prefix-bin.log
 --copy_file $MYSQLD_DATADIR/$master_binlog $binlog_uuid_filename
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # MYSQL_BINLOG output based on a saved copy of master-bin.000001
 
@@ -105,7 +105,7 @@ connect (master2,localhost,root,,);
 connection master2;
 --echo # SHOW BINLOG EVENTS ON 2nd CONNECTION TO MASTE
 set @@session.binlog_rows_query_log_events= off;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --echo # Test statements from the 2nd connection have no comment event
 --echo # when setting binlog_rows_query_log_events= off
 create table t7(a bigint) engine= myisam;

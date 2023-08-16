@@ -28,7 +28,7 @@
 #  - Check that the failure did not utilize any GTID values
 #  - Check that the failure did not committed any ongoing transaction
 #  - COMMIT on M1 (UUID_M1:1). Check data is available in table on M1.
-#  - Clean server by doing RESET MASTER
+#  - Clean server by doing RESET BINARY LOGS AND GTIDS
 # 5. Initiate a transaction on M1 (session 1) and try to start GR from session 2
 #  - From session 1, INSERT a tuple into table that does not have primary key
 #     i.e., GR incompatible DML
@@ -212,7 +212,7 @@ COMMIT;
 
 # Clean server since it has more transactions than the group.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo ##################################################################
@@ -260,7 +260,7 @@ SET SESSION sql_log_bin= 1;
 
 # Clean server since it has more transactions than the group.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -300,7 +300,7 @@ SET GTID_NEXT= AUTOMATIC;
 --source include/assert.inc
 
 # Clean server since it has more transactions than the group.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/start_group_replication.inc
 

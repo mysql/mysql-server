@@ -54,12 +54,12 @@ connection master;
 --source include/add_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
-reset master;
+reset binary logs and gtids;
 
 --let $debug_point= simulate_find_log_pos_error
 --source include/remove_debug_point.inc
 
-reset master;
+reset binary logs and gtids;
 
 --let $debug_point= simulate_find_log_pos_error
 --source include/add_debug_point.inc

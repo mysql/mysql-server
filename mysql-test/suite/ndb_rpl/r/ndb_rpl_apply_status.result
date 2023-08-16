@@ -36,7 +36,7 @@ select count(*) from mysql.ndb_apply_status;
 count(*)
 0
 [connection master]
-reset master;
+reset binary logs and gtids;
 alter table t1 modify b varchar(255);
 [connection slave]
 start replica;
@@ -68,7 +68,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 select count(1) from mysql.ndb_apply_status;
 count(1)
 0
-reset master;
+reset binary logs and gtids;
 include/rpl_start_slaves.inc
 *** Test reset slave all ***
 insert into test.t1 values (2);
@@ -87,7 +87,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 select count(1) from mysql.ndb_apply_status;
 count(1)
 0
-reset master;
+reset binary logs and gtids;
 RESET SLAVE ALL zapped Master info - re-set it.
 include/rpl_change_topology.inc [new topology=1->2]
 Warnings:
@@ -113,7 +113,7 @@ select count(1) from mysql.ndb_apply_status;
 count(1)
 2
 delete from mysql.ndb_apply_status;
-reset master;
+reset binary logs and gtids;
 include/rpl_start_slaves.inc
 *** Test reset slave all ***
 insert into test.t1 values (4);
@@ -132,7 +132,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 select count(1) from mysql.ndb_apply_status;
 count(1)
 2
-reset master;
+reset binary logs and gtids;
 RESET SLAVE ALL zapped Master info - re-set it.
 include/rpl_change_topology.inc [new topology=1->2]
 Warnings:

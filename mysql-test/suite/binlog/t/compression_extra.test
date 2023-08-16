@@ -18,7 +18,7 @@ SET SESSION binlog_transaction_compression = ON;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
 CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000));
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 BEGIN;
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
@@ -51,7 +51,7 @@ while ($i < 11)
 DROP TABLE IF EXISTS t1, t2;
 --replace_result $saved_binlog_transaction_compression_session SAVED
 --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 #
@@ -80,4 +80,4 @@ DROP TABLE t1;
 --eval SET SESSION binlog_transaction_compression_level_zstd = $saved_binlog_transaction_compression_level_zstd_session
 
 --eval TRUNCATE $pfs_table
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

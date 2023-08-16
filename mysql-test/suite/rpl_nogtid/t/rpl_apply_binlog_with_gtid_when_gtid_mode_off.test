@@ -61,7 +61,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 --let $slave_io_errno= 2013 #CR_SERVER_LOST
 --let $rpl_allow_error= 1
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/start_slave.inc
 

@@ -8,7 +8,7 @@
 
 # BUG#19667258: WL#6972 - SERVER CRASH ON SET SESSION SESSION_TRACK_GTIDS='OFF'
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --enable_session_track_info
 CREATE TABLE t1 (c1 INT) Engine=InnoDB;
@@ -20,7 +20,7 @@ set session session_track_gtids='all_gtids';
 SELECT * FROM t1;
 DROP TABLE t1;
 set session session_track_gtids='off';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --disable_session_track_info
 
 ########################################################
@@ -54,7 +54,7 @@ DROP TABLE t1, t2, t3;
 --disable_session_track_info
 
 --eval SET SESSION SESSION_TRACK_GTIDS= $saved_session_track_gtids
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ######################################################
 # Tests for the OK packet data

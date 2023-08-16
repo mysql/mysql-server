@@ -1,7 +1,7 @@
 CREATE TABLE t3 (dummy INT PRIMARY KEY) ENGINE = NDB;
 DROP TABLE t3;
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 CREATE TABLE t2 (a INT PRIMARY KEY, b int) ENGINE = NDB;
 INSERT INTO t2 VALUES (1,1),(2,2);
 include/show_binlog_events.inc
@@ -42,8 +42,8 @@ SELECT inserts,updates,deletes,schemaops FROM
 mysql.ndb_binlog_index WHERE epoch=<the_epoch>;
 inserts	updates	deletes	schemaops
 2	0	0	0
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = NDB;
 INSERT INTO t1 VALUES (1),(2);
 include/show_binlog_events.inc

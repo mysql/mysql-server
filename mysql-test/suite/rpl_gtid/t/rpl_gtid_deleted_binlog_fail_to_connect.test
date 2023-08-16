@@ -60,11 +60,11 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --echo #
 INSERT INTO t1 VALUES (1);
 
---let $master_file_old= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_file_old= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t1 VALUES (2);
 --save_master_pos
 
@@ -133,10 +133,10 @@ CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missin
 --echo # 7) Cleanup.
 --echo #
 --disable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc

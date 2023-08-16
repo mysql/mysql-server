@@ -42,7 +42,7 @@
 --echo # Verify that CREATE/DROP TEMPORARY TABLE in a FUNCTION are not written
 --echo # into binlog when using the FUNCTION IN SELECT QUERY.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT func1();
 --let $binlog_start= $saved_master_pos
 --source include/show_binlog_events.inc
@@ -52,7 +52,7 @@ SELECT func1();
 --echo # into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
 --echo # TRANSACTION STATEMENT with commit.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT func1();
 COMMIT;
@@ -64,7 +64,7 @@ COMMIT;
 --echo # into binlog when using the FUNCTION IN SELECT QUERY IN MULTI
 --echo # TRANSACTION STATEMENT with rollback.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT func1();
 ROLLBACK;
@@ -76,7 +76,7 @@ ROLLBACK;
 --echo # into binlog when using the FUNCTION IN INSERT/UPDATE/DELETE QUERY ON
 --echo # transactional/non-transactional table.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 # iter 1 : INSERT/UPDATE/DELETE QUERY ON transactional table USING THAT FUNCTION
 # iter 2 : INSERT/UPDATE/DELETE QUERY ON non transactional table USING THAT FUNCTION
 --let $iter=1
@@ -168,7 +168,7 @@ while ($iter <= 12)
     --echo # into binlog when the trigger is triggered before/after
     --echo # INSERT QUERY ON transactional/non-transactional table.
     --echo #
-    --let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
     --let $insert_cmd= INSERT INTO $table VALUES (10)
     --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
     --eval $insert_cmd
@@ -184,7 +184,7 @@ while ($iter <= 12)
     --echo # into binlog when the trigger is triggered before/after
     --echo # UPDATE QUERY ON transactional/non-transactional table.
     --echo #
-    --let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
     --let $update_cmd= UPDATE $table SET i=12
     --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
     --eval $update_cmd
@@ -200,7 +200,7 @@ while ($iter <= 12)
     --echo # into binlog when the trigger is triggered before/after
     --echo # DELETE QUERY ON transactional/non-transactional table.
     --echo #
-    --let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+    --let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
     --let $delete_cmd= DELETE FROM $table
     --error 0, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
     --eval $delete_cmd

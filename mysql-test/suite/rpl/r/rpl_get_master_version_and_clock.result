@@ -44,7 +44,7 @@ include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'dbug.before_get_SOURCE_UUID'";
 include/rpl_start_server.inc [server_number=1]
 include/wait_for_slave_param.inc [Slave_IO_Running]
-reset master;
+reset binary logs and gtids;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_PORT=SLAVE_PORT;
 start slave;

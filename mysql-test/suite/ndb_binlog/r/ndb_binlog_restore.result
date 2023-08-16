@@ -6,7 +6,7 @@ insert into t1 values (1,1);
 #
 # reset and restore schema
 drop table t1;
-reset master;
+reset binary logs and gtids;
 select * from t1 where 1=0 /* force discover table */;
 a	b
 #
@@ -22,7 +22,7 @@ binlog.000001	#	Query	#	#	use `test`; create table binlogmarker (a int) engine=n
 # reset and restore schema again
 drop table binlogmarker;
 drop table t1;
-reset master;
+reset binary logs and gtids;
 select * from t1 where 1=0 /* force discover table */;
 a	b
 #
@@ -83,7 +83,7 @@ PRIMARY KEY USING HASH (ACCOUNT_TYPE_ID))
 ENGINE = NDB;
 #
 # reset, restore and  binlog should _not_ happen
-reset master;
+reset binary logs and gtids;
 select count(*) from TRANSACTION;
 count(*)
 3444

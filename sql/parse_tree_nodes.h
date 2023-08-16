@@ -3697,17 +3697,17 @@ class PT_show_keys final : public PT_show_table_base {
   Sql_cmd_show_keys m_sql_cmd;
 };
 
-/// Parse tree node for SHOW MASTER STATUS statement
+/// Parse tree node for SHOW BINARY LOG STATUS statement
 
-class PT_show_master_status final : public PT_show_base {
+class PT_show_binary_log_status final : public PT_show_base {
  public:
-  PT_show_master_status(const POS &pos)
+  PT_show_binary_log_status(const POS &pos)
       : PT_show_base(pos, SQLCOM_SHOW_MASTER_STAT) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
-  Sql_cmd_show_master_status m_sql_cmd;
+  Sql_cmd_show_binary_log_status m_sql_cmd;
 };
 
 /// Parse tree node for SHOW OPEN TABLES statement

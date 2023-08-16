@@ -4431,6 +4431,10 @@ SHOW_VAR com_status_vars[] = {
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_MASTER_STAT]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_binary_log_status",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_SHOW_MASTER_STAT]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_open_tables",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_OPEN_TABLES]),
@@ -6653,20 +6657,21 @@ int init_common_variables() {
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
-    We also have aliases for 5 com_status_vars:
+    We also have aliases for 6 com_status_vars:
 
       Com_slave_start              => Com_replica_start
       Com_slave_stop               => Com_replica_stop
       Com_show_slave_status        => Com_show_replica_status
       Com_show_slave_hosts         => Com_show_replicas
       Com_change_master            => Com_change_replication_source
+      Com_show_master_status       => Com_show_binary_log_status
 
     With this correction the number of Com_ variables (number of elements in
     the array, excluding the last element - terminator) must match the number
     of SQLCOM_ constants.
   */
   static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
-                    SQLCOM_END + 12,
+                    SQLCOM_END + 13,
                 "");
 #endif
 
@@ -9707,10 +9712,10 @@ int mysqld_main(int argc, char **argv)
         four cases:
           1. the upgrade case.
           2. the case that a slave is provisioned from a backup of
-             the master and the slave is cleaned by RESET MASTER
-             and RESET SLAVE before this.
+             the master and the slave is cleaned by RESET BINARY LOGS AND GTIDS
+             and RESET REPLICA before this.
           3. the case that no binlog rotation happened from the
-             last RESET MASTER on the server before it crashes.
+             last RESET BINARY LOGS AND GTIDS on the server before it crashes.
           4. The set of GTIDs of the last binlog is not saved into the
              gtid_executed table if server crashes, so we save it into
              gtid_executed table and executed_gtids during recovery

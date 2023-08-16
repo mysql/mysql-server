@@ -31,7 +31,7 @@ let $connect_retry= 20;
 
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
@@ -40,7 +40,7 @@ eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
 --enable_query_log
 
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 --echo
@@ -62,7 +62,7 @@ let $result= query_get_value(SELECT $replica_net_timeout/$slave_heartbeat_timeou
 --echo replica_net_timeout/slave_heartbeat_timeout=$result
 
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 # Reset slave set slave_heartbeat_timeout = replica_net_timeout/2
@@ -74,7 +74,7 @@ SET @@global.replica_net_timeout=30;
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=5;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 --echo
@@ -91,7 +91,7 @@ select heartbeat_interval from performance_schema.replication_connection_configu
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 
@@ -102,7 +102,7 @@ let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from per
 eval SET @@global.replica_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 # Set value of slave_heartbeat_period greater than replica_net_timeout
@@ -113,7 +113,7 @@ inc $replica_net_timeout;
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=$replica_net_timeout;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo 
 
@@ -132,7 +132,7 @@ SHOW VARIABLES LIKE 'replica_net_timeout';
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 # Master value of replica_net_timeout shouldn't affect to slave's slave_heartbeat_period
@@ -144,7 +144,7 @@ SET @@global.replica_net_timeout=500;
 --connection slave
 SET @@global.replica_net_timeout=200;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry;
@@ -156,7 +156,7 @@ select heartbeat_interval from performance_schema.replication_connection_configu
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection master
 
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
@@ -214,7 +214,7 @@ select heartbeat_interval from performance_schema.replication_connection_configu
 select count_received_heartbeats from performance_schema.replication_connection_status;
 
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 --eval SELECT $slave_heartbeat_timeout = 0 AS Result
@@ -229,13 +229,13 @@ let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from per
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.001;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.0009;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 --echo *** Max slave_heartbeat_timeout ***
@@ -244,27 +244,27 @@ RESET MASTER;
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=4294967;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=4294968;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Check double size of max allowed value for master_heartbeat_period
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=8589935;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Check 2^32
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE 
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=4294967296;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 --echo *** Misc incorrect values ***
@@ -273,19 +273,19 @@ RESET MASTER;
 --error ER_PARSE_ERROR
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD='-1';
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_PARSE_ERROR
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD='123abc';
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --error ER_PARSE_ERROR
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD='';
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo
 
 #
@@ -438,7 +438,7 @@ SET @@global.replica_compressed_protocol=1;
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_compressed_protocol=1;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
@@ -456,19 +456,19 @@ SET @@global.replica_compressed_protocol=0;
 --echo
 
 # Check received heartbeat events after reset of master
---echo *** Reset master ***
+--echo *** Reset source ***
 --connection slave
 
 STOP SLAVE;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 --source include/sync_slave_sql_with_master.inc
 --sleep 2
@@ -482,7 +482,7 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 --connection slave
 STOP SLAVE;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=$connect_retry, SOURCE_HEARTBEAT_PERIOD=0.1;
@@ -519,7 +519,7 @@ let $status_col_comparsion= >;
 
 #--connection slave
 #--source include/stop_slave.inc
-#let $slave_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+#let $slave_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --connection master
 #--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_binlog SLAVE_BINLOG
 #eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SLAVE_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='$slave_binlog';

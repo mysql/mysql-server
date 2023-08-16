@@ -3698,8 +3698,8 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   if (new_index_number > 0) {
     /*
       If "new_index_number" was specified, this means we are handling a
-      "RESET SOURCE TO" command and the binary log was already purged
-      so max_found should be 0.
+      "RESET BINARY LOGS AND GTIDS TO" command and the binary log was already
+      purged so max_found should be 0.
     */
     assert(max_found == 0);
     next = new_index_number;
@@ -3797,7 +3797,8 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
   @param new_name            The new name for the logfile.
                              NULL forces generate_new_name() to be called.
   @param new_index_number    The binary log file index number to start from
-                             after the RESET MASTER TO command is called.
+                             after the RESET BINARY LOGS AND GTIDS command is
+                             called.
 
   @return true if error, false otherwise.
 */
@@ -3827,7 +3828,7 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
   /*
     LOCK_sync guarantees that no thread is calling m_binlog_file to sync data
     to disk when another thread is opening the new file
-    (FLUSH LOG or RESET MASTER).
+    (FLUSH LOG or RESET BINARY LOGS AND GTIDS).
   */
   if (!is_relay_log) mysql_mutex_lock(&LOCK_sync);
 
@@ -5607,8 +5608,8 @@ std::pair<int, std::list<std::string>> MYSQL_BIN_LOG::get_log_index(
 }
 
 /**
-  Removes files, as part of a RESET MASTER or RESET SLAVE statement,
-  by deleting all logs referred to in the index file and the index
+  Removes files, as part of a RESET BINARY LOGS AND GTIDS or RESET REPLICA
+  statement, by deleting all logs referred to in the index file and the index
   file. Then, it creates a new index file and a new log file.
 
   The new index file will only contain the new log file.
@@ -8742,9 +8743,10 @@ std::pair<bool, bool> MYSQL_BIN_LOG::sync_binlog_file(bool force) {
     sync_counter = 0;
 
     /*
-      There is a chance that binlog file could be closed by 'RESET MASTER' or
-      or 'FLUSH LOGS' just after the leader releases LOCK_log and before it
-      acquires LOCK_sync log. So it should check if m_binlog_file is opened.
+      There is a chance that binlog file could be closed by 'RESET BINARY LOGS
+      AND GTIDS' or or 'FLUSH LOGS' just after the leader releases LOCK_log and
+      before it acquires LOCK_sync log. So it should check if m_binlog_file is
+      opened.
     */
     if (DBUG_EVALUATE_IF("simulate_error_during_sync_binlog_file", 1,
                          m_binlog_file->is_open() && m_binlog_file->sync())) {

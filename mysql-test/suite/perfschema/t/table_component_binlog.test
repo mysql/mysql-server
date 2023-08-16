@@ -5,9 +5,9 @@
 --echo #  COMPONENT
 --echo #
 
---let $before=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $before=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 INSTALL COMPONENT "file://component_pfs_example_component_population";
---let $after=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $after=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 --let $assert_text = Nothing was written to the binlog by adding a PFS table
 --let $assert_cond = $before = $after
@@ -17,9 +17,9 @@ INSTALL COMPONENT "file://component_pfs_example_component_population";
 --source include/restart_mysqld.inc
 SELECT "it's alive";
 
---let $beforeu=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $beforeu=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 UNINSTALL COMPONENT "file://component_pfs_example_component_population";
---let $afteru=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $afteru=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 --let $assert_text = Nothing was written to the binlog by removing a PFS table
 --let $assert_cond = $beforeu = $afteru

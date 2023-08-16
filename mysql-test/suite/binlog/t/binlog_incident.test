@@ -11,7 +11,7 @@ source include/have_log_bin.inc;
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
 call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
@@ -26,8 +26,8 @@ connect(con1,localhost,root,,);
 --let $master_uuid=`SELECT @@SERVER_UUID`
 --let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
 --let $MYSQLD_DATADIR= `select @@datadir`
---let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
---let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $start_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 --echo #

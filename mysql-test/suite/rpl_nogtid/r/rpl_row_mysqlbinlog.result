@@ -83,11 +83,11 @@ DROP TABLE t2;
 DROP TABLE t3;
 stop slave;
 include/wait_for_slave_to_stop.inc
-reset master;
+reset binary logs and gtids;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -263,11 +263,11 @@ DROP TABLE t2;
 DROP TABLE t3;
 stop slave;
 include/wait_for_slave_to_stop.inc
-reset master;
+reset binary logs and gtids;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -355,11 +355,11 @@ include/mysqlbinlog.inc
 --- Test 8 switch internal charset --
 stop slave;
 include/wait_for_slave_to_stop.inc
-reset master;
+reset binary logs and gtids;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

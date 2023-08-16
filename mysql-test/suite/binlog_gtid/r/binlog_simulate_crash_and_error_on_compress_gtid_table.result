@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 call mtr.add_suppression("Failed to compress the gtid_executed table.");
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
@@ -66,8 +66,8 @@ SET @@GLOBAL.DEBUG= '-d, disable_gtid_background_persister';
 call mtr.add_suppression("Failed to delete the row: .* from "
                          "the gtid_executed table.");
 SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ERROR HY000: Got error -1 - 'Unknown error' from storage engine
 SET GLOBAL DEBUG= @debug_save;
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

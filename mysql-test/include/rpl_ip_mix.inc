@@ -4,7 +4,7 @@ connect (master,$IPv6,root,,test,$MASTER_MYPORT);
 connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT);
 --echo connection master;
 connection master;
-reset master;
+reset binary logs and gtids;
 source include/show_master_status.inc;
 save_master_pos;
 --echo connection slave;

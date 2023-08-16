@@ -102,7 +102,7 @@ DELIMITER ;//
 --echo # format if the function contains operations on temporary tables.
 --echo # case1: Function call inside a transaction with ROLLBACK.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT create_temp_table();
 ROLLBACK;
@@ -131,7 +131,7 @@ ROLLBACK;
 --echo # format if the function contains operations on temporary tables.
 --echo # case2: Function call inside a transaction with COMMIT.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT create_temp_table();
 COMMIT;
@@ -142,10 +142,10 @@ START TRANSACTION;
 SELECT drop_temp_table();
 COMMIT;
 --let $assert_text= Functions with operations on temporary tables are binlogged in ROW format when binlog_format= ROW/MIXED.
---let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 SELECT create_temp_table_with_dmls();
 COMMIT;
@@ -164,15 +164,15 @@ COMMIT;
 --echo # Verify that a function call is written to binary log in ROW
 --echo # format if the function contains operations on temporary tables.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT create_temp_table();
 SELECT dmls_on_temp_tables();
 SELECT drop_temp_table();
 --let $assert_text= Functions with operations on temporary tables are binlogged in ROW format when binlog_format= ROW/MIXED.
---let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT create_temp_table_with_dmls();
 SELECT dmls_on_temp_and_regular_tables();
 SELECT drop_temp_table_with_dmls();
@@ -187,10 +187,10 @@ CREATE FUNCTION dummy_function() RETURNS INT DETERMINISTIC RETURN 1;
 CREATE TEMPORARY TABLE temp3(a int);
 INSERT INTO temp3 VALUES(1);
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 CREATE TEMPORARY TABLE temp4 SELECT dummy_function() as result FROM temp3;
 --let $assert_text= CREATE TEMPORARY TABLE with function is binlogged in ROW format when binlog_format= ROW/MIXED.
---let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] = $saved_master_pos
 --source include/assert.inc
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_connection_master.inc
@@ -221,7 +221,7 @@ DELIMITER ;//
 --echo # case 1: Calling the function call_drop_temp_table_if_exists() twice so
 --echo # that the temporary table does not exist during the second call and ensuring
 --echo # that the functions are binlogged in ROW format for both the calls.
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT call_drop_temp_table_if_exists();
 SELECT call_drop_temp_table_if_exists();
 --let $binlog_start= $saved_master_pos
@@ -232,7 +232,7 @@ SELECT call_drop_temp_table_if_exists();
 --echo # definition and calling call_drop_temp_table_if_exists() again. Ensure
 --echo # that the first call is binlogged in ROW format and the second call in
 --echo # STATEMENT format.
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 CREATE TEMPORARY TABLE temp1(a INT);
 SELECT call_drop_temp_table_if_exists();
 
@@ -256,7 +256,7 @@ END //
 DELIMITER ;//
 
 PREPARE function_call FROM 'SELECT call_drop_temp_table_if_exists()';
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 EXECUTE function_call;
 EXECUTE function_call;
 --let $binlog_start= $saved_master_pos
@@ -268,7 +268,7 @@ EXECUTE function_call;
 --echo # binlogged in ROW format and in the second execution, the function is binlogged
 --echo # in STATEMENT format.
 CREATE TEMPORARY TABLE temp1(a INT);
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 EXECUTE function_call;
 DROP FUNCTION drop_temp_table_if_exists;
 CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
@@ -299,7 +299,7 @@ RETURN 1;
 END //
 DELIMITER ;//
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SELECT call_proc_with_temp_table_ddl();
 --let $binlog_start= $saved_master_pos
 --source include/show_binlog_events.inc
@@ -314,7 +314,7 @@ ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 5 SECOND
 DO SELECT call_proc_with_temp_table_ddl();
 
 DELETE FROM t4;
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 # Wait for the event to execute once.
 --let $wait_condition= select count(*) = 1 from t4
 --source include/wait_condition_or_abort.inc

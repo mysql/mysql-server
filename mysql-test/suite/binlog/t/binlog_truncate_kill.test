@@ -20,7 +20,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_connect_log
 --connection default
 --echo # MERGE is the only remaning non-specialized SE (like NDB or P_S)

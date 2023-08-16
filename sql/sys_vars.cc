@@ -7654,7 +7654,7 @@ static Sys_var_deprecated_alias Sys_skip_slave_start("skip_slave_start",
                                                      Sys_skip_replica_start);
 
 static const char *terminology_use_previous_names[] = {"NONE", "BEFORE_8_0_26",
-                                                       nullptr};
+                                                       "BEFORE_8_2_0", nullptr};
 
 static Sys_var_enum Sys_terminology_use_previous(
     "terminology_use_previous",
@@ -7668,7 +7668,11 @@ static Sys_var_enum Sys_terminology_use_previous(
     "or SHOW REPLICA STATUS. When the global option is set to BEFORE_8_0_26, "
     "new sessions use BEFORE_8_0_26 as default for the session option, and in "
     "addition the thread commands that were in use until 8.0.25 are written "
-    "to the slow query log.",
+    "to the slow query log. If set to BEFORE_8_2_0 or less the command SHOW "
+    "CREATE EVENT will show how the event would have been created in a server "
+    "of a version lower than 8.2.0. SHOW EVENTS and queries into "
+    "information_schema.events will also output the old terminology for the "
+    "event status field.",
     SESSION_VAR(terminology_use_previous), CMD_LINE(REQUIRED_ARG),
     terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),

@@ -9,7 +9,7 @@
 source include/master-slave.inc;
 
 #--source include/sync_slave_sql_with_master.inc
-#reset master;
+#reset binary logs and gtids;
 #connection master;
 
 --disable_warnings

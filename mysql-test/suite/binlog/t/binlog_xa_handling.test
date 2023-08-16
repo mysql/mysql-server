@@ -105,7 +105,7 @@ DROP TABLE t1;
 # clean up binary log so that the following operation
 # does not have to scan through a long history of
 # events in the log (potentially causing a failure).
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 (c1 INT);
 XA BEGIN 'xa1';
@@ -123,4 +123,4 @@ DROP TABLE t1;
 
 # clean up the binary log at in the end of the test
 # case as well.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

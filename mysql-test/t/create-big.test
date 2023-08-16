@@ -449,7 +449,7 @@ set debug_sync='RESET';
 create table t1 (i int);
 set debug_sync='create_table_like_after_open SIGNAL parked WAIT_FOR go';
 # Reset binlog to have clear start
-reset master;
+reset binary logs and gtids;
 --send create table t2 like t1;
 connection addconroot1;
 set debug_sync='now WAIT_FOR parked';
@@ -477,7 +477,7 @@ source include/show_binlog_events.inc;
 # Now check the gap between table creation and binlogging
 create table t1 (i int);
 set debug_sync='create_table_like_before_binlog SIGNAL parked WAIT_FOR go';
-reset master;
+reset binary logs and gtids;
 --send create table t2 like t1;
 connection addconroot1;
 set debug_sync='now WAIT_FOR parked';

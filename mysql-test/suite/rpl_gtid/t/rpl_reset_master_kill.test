@@ -1,13 +1,13 @@
 # ==== Purpose ====
 # The purpose of this test is to make sure binlog file is re-stored
-# when client session running RESET MASTER is killed.
+# when client session running RESET BINARY LOGS AND GTIDS is killed.
 #
 # ==== Requirements ====
-# RESET MASTER should exit leaving binlog files in consistent state.
+# RESET BINARY LOGS AND GTIDS should exit leaving binlog files in consistent state.
 #
 # ==== Implementation ====
 # 1. Create table t1
-# 2. Run RESET MASTER from client connection master_tmp
+# 2. Run RESET BINARY LOGS AND GTIDS from client connection master_tmp
 # 3. Kill the master_tmp connection
 # 4. Now DROP TABLE t1(any DDL)
 #
@@ -26,8 +26,8 @@ CREATE TABLE t1(c1 int);
 --connect(master_tmp,127.0.0.1,root,,test,$MASTER_MYPORT,)
 --let $thread_id= `SELECT CONNECTION_ID()`
 
-# 2. Run RESET MASTER from client connection master_tmp
---send RESET MASTER
+# 2. Run RESET BINARY LOGS AND GTIDS from client connection master_tmp
+--send RESET BINARY LOGS AND GTIDS
 
 # 3. Kill the master_tmp connection
 --connection default

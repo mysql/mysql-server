@@ -196,9 +196,9 @@ while ($_rpl_server <= $rpl_server_count) {
   SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
 
   --echo
-  --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
+  --echo **** SHOW BINARY LOG STATUS on $CURRENT_CONNECTION ****
   query_vertical
-  SHOW MASTER STATUS;
+  SHOW BINARY LOG STATUS;
 
   --echo
   --echo **** SHOW REPLICAS on $CURRENT_CONNECTION ****
@@ -219,7 +219,7 @@ while ($_rpl_server <= $rpl_server_count) {
 
   --echo
   --echo **** SHOW BINLOG EVENTS on $CURRENT_CONNECTION ****
-  let $binlog_name = query_get_value("SHOW MASTER STATUS", File, 1);
+  let $binlog_name = query_get_value("SHOW BINARY LOG STATUS", File, 1);
   --echo binlog_name = '$binlog_name'
   eval SHOW BINLOG EVENTS IN '$binlog_name';
 

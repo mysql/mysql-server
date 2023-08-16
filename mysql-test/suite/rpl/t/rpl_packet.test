@@ -152,9 +152,9 @@ connection slave;
 # Remove the bad binlog and clear error status on slave.
 STOP SLAVE;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 
 #

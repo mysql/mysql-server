@@ -51,7 +51,7 @@
 # then fail the test.
 #
 # include/tpcb.inc
-# Creates DATABASE tpcb, the tables and 
+# Creates DATABASE tpcb, the tables and
 # stored procedures for loading the DB
 # and for running transactions against DB.
 ##############################################
@@ -61,8 +61,8 @@
 create table t1 (a int key, b int) engine innodb;
 create table t2 (a int key, b int) engine innodb;
 
-let $master_server_id = `select @@server_id`;
-#echo master_server_id: $master_server_id;
+let $source_server_id = `select @@server_id`;
+#echo source_server_id: $source_server_id;
 
 --echo
 
@@ -77,12 +77,12 @@ alter table t2 engine ndb;
 # check binlog position without begin
 --source include/rpl_connection_master.inc
 
-let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $source_start_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 insert into t1 values (1,2);
 
-let $source_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # Show the binlog events recorded for above change
 let $binlog_file = $source_file;
@@ -97,8 +97,8 @@ let $binlog_start = $source_start_pos;
 --echo
 --source include/rpl_connection_master.inc
 
-let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $source_start_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # check binlog position with begin
 begin;
@@ -106,7 +106,7 @@ insert into t1 values (2,3);
 insert into t2 values (3,4);
 commit;
 
-let $source_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # Show the binlog events recorded for above change
 let $binlog_file = $source_file;
@@ -156,8 +156,8 @@ while ($run)
  let $run_bad= $mysql_errno;
  if (!$run_bad)
  {
-   let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-   let $source_start_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+   let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+   let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
    COMMIT;
    echo COMMIT;
@@ -173,7 +173,7 @@ while ($run)
 SET AUTOCOMMIT=1;
 --enable_query_log
 
-let $source_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # Show the binlog events recorded for last part of above change
 let $binlog_file = $source_file;
@@ -188,13 +188,13 @@ let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
 --echo ** Test 3 **
 --echo
 
-# Flush the logs on the master moving all
+# Flush the logs on the source moving all
 # Transaction to a new binlog and ensure
 # that the ndb_apply_status table is updated
 # to show the use of the new binlog.
 --source include/rpl_connection_master.inc
 
-# Flush logs on master which should force it
+# Flush logs on source which should force it
 # to switch to binlog #2
 
 FLUSH LOGS;
@@ -212,8 +212,8 @@ while ($run)
  let $run_bad= $mysql_errno;
  if (!$run_bad)
  {
-   let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-   let $source_start_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+   let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+   let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
    COMMIT;
    echo COMMIT;
@@ -228,7 +228,7 @@ while ($run)
 SET AUTOCOMMIT=1;
 --enable_query_log
 
-let $source_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # Show the binlog events recorded for last part of above change
 let $binlog_file = $source_file;
@@ -243,14 +243,14 @@ let $binlog_limit = $off_set, 1; # Show only the last COMMIT event in group
 --echo ** Test 4 **
 --echo
 
-# Now we reset both the master and the slave
+# Now we reset both the source and the slave
 # Run some more transaction and ensure
 # that the ndb_apply_status is updated
 # correctly
 
 --source include/rpl_connection_master.inc
 
-# Reset both slave and master
+# Reset both slave and source
 # This should reset binlog to #1
 --source include/rpl_reset.inc
 
@@ -268,8 +268,8 @@ while ($run)
  let $run_bad= $mysql_errno;
  if (!$run_bad)
  {
-   let $source_file= query_get_value(SHOW MASTER STATUS, File, 1);
-   let $source_start_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+   let $source_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+   let $source_start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
    COMMIT;
    echo COMMIT;
@@ -284,7 +284,7 @@ while ($run)
 SET AUTOCOMMIT=1;
 --enable_query_log
 
-let $source_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $source_end_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 # Show the binlog events recorded for last part of above change
 let $binlog_file = $source_file;

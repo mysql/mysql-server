@@ -71,7 +71,7 @@ let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
 # reset of the server
 STOP SLAVE;
 --wait_for_slave_to_stop
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
@@ -90,7 +90,7 @@ SET @@global.init_replica = "SET @a=5";
 #
 STOP SLAVE;
 --wait_for_slave_to_stop
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;

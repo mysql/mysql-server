@@ -73,7 +73,7 @@ delimiter ;//
 # the $binlog_start will be used by the show_binlog_events.inc, so
 # that we can skip binlog events we don't care
 --let $mask_binlog_commit_events= 1
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CALL p1();
 source include/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0
@@ -95,7 +95,7 @@ DROP TRIGGER tr1;
 # the $binlog_start will be used by the show_binlog_events.inc, so
 # that we can skip binlog events we don't care
 --let $mask_binlog_commit_events= 1
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CALL p2();
 source include/show_binlog_events.inc;
 --let $mask_binlog_commit_events= 0

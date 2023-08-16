@@ -3950,6 +3950,21 @@ class Item_func_internal_is_mandatory_role : public Item_int_func {
   }
 };
 
+class Item_func_internal_use_terminology_previous : public Item_int_func {
+ public:
+  Item_func_internal_use_terminology_previous(const POS &pos)
+      : Item_int_func(pos) {}
+  longlong val_int() override;
+  const char *func_name() const override {
+    return "internal_use_terminology_previous";
+  }
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_nullable(true);
+    return false;
+  }
+};
+
 /**
   Internal function used by INFORMATION_SCHEMA implementation to check
   if a role is enabled.

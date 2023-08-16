@@ -24,7 +24,7 @@
 #
 
 # 1. Ensure server is freshly initialized.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # 2. Create a table with a blob column.
 CREATE TABLE t1 (id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,

@@ -42,7 +42,7 @@
 
 #Initial setup
 --let $datadir= `SELECT @@datadir`
---let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Step 1 : Dummy statements to generate gtid transactions (gtid-mode is ON)
 # in binlog_file1
@@ -53,7 +53,7 @@ INSERT INTO t1 values (1);
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= --gtid-mode=off
 --source include/rpl_restart_server.inc
---let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Step 3: Dummy statements to generate anonymous transactions
 # (gtid-mode is OFF)
@@ -64,7 +64,7 @@ INSERT INTO t2 values (2);
 --let $rpl_server_number= 1
 --let $rpl_server_parameters= --gtid-mode=on
 --source include/rpl_restart_server.inc
---let $binlog_file3= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file3= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Step 5 : Dummy statements to generate gtid transactions (gtid-mode is ON)
 # in binlog_file3
@@ -83,9 +83,9 @@ DROP TABLE t1,t2,t3;
 --exec $MYSQL_BINLOG --force-if-open --skip-gtids $datadir/$binlog_file2 >> $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
 --exec $MYSQL_BINLOG --force-if-open $datadir/$binlog_file3 >> $MYSQLTEST_VARDIR/tmp/concat_three_files.sql
 
-# Execute reset master, so that when we are applying gtid transactions,
+# Execute reset binary logs and gtids, so that when we are applying gtid transactions,
 # they should not skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Step 7: Apply the generated .sql through mysql command line tool
 # and it should not cause any issues

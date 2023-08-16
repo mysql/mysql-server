@@ -12,7 +12,7 @@
 #               REPEATABLE READ
 #
 --source include/have_binlog_format_mixed.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $transactions=200
 # First transaction is a DDL, so rbr_only will be "no"
@@ -89,7 +89,7 @@ while ($transactions)
 }
 
 # Assert the "rbr_only" flags on binlog file
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 # The workload is not deterministic, so skipping to print the expected flags
 --let $dont_print_rbr_only_flags= 1
 --source include/assert_rbr_only_flags.inc

@@ -82,7 +82,7 @@ UPDATE t SET name='Old';
 --source include/remove_debug_point.inc
 
 --source include/stop_slave_io.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/start_slave.inc
 

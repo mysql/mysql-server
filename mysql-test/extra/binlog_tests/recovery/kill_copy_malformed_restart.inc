@@ -27,7 +27,7 @@ if ($recovery_scenario == '') {
 --echo extra/binlog_tests/recovery/kill_copy_malformed_restart.inc [$recovery_scenario]
 
 --let $datadir = `SELECT @@GLOBAL.datadir`
---let $last_binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $last_binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $target_binlog_file = $datadir$last_binlog_file
 --let $target_binlog_file_bak = $target_binlog_file.bak
 

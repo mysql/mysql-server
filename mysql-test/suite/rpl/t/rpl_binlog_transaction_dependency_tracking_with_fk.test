@@ -178,7 +178,7 @@ while ($referential_action < 4)
     --connection master
     DROP TABLE child2, parent2, child1, parent1, t1;
 
-    --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+    --let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
     FLUSH LOGS;
 
     --echo # Processing binlog...

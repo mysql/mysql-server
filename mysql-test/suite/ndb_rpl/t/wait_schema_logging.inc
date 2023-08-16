@@ -26,7 +26,7 @@ if (`SELECT "$binlog" != "ON"`)
 }
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 
 # Following code 'inspired' by include/wait_for_binlog_event.inc
@@ -72,7 +72,7 @@ while (`SELECT INSTR("$_event","$wait_binlog_event") = 0`)
 connection $dest_server;
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 
 #--echo - Schema event logging is active

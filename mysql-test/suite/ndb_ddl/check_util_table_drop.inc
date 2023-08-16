@@ -21,7 +21,7 @@ SHOW CREATE TABLE t1;
 
 --connection mysqld5
 # Clear the binlog to prepare for checking if a LOST_EVENTS appears later
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Drop mysql.$util_table_name from NDB
 --exec $NDB_DROP_TABLE -d mysql $util_table_name

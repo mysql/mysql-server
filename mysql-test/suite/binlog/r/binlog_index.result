@@ -4,7 +4,7 @@ call mtr.add_suppression('MYSQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('Could not open .*');
 call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 flush logs;
 flush logs;
 flush logs;
@@ -28,7 +28,7 @@ DROP USER binlog_admin@localhost;
 show binary logs;
 Log_name	File_size	Encrypted
 binlog.000004	#	#
-reset master;
+reset binary logs and gtids;
 flush logs;
 flush logs;
 flush logs;
@@ -40,7 +40,7 @@ Warning	1612	Being purged log binlog.000001 was not found
 show binary logs;
 Log_name	File_size	Encrypted
 binlog.000004	#	#
-reset master;
+reset binary logs and gtids;
 flush logs;
 flush logs;
 flush logs;
@@ -50,7 +50,7 @@ show warnings;
 Level	Code	Message
 Warning	1377	a problem with deleting binlog.000001; consider examining correspondence of your binlog index file to the actual binlog files
 Error	1377	Fatal error during log purge
-reset master;
+reset binary logs and gtids;
 # crash_purge_before_update_index
 flush logs;
 SET SESSION debug="+d,crash_purge_before_update_index";
@@ -208,7 +208,7 @@ binlog.000013	#	#
 SET SESSION debug="+d,crash_create_before_rename_index_file";
 flush logs;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the master server
+# Restart the source server
 # Test if the index file has the correct data,
 # i.e. binlog file name is added.
 show binary logs;
@@ -228,7 +228,7 @@ binlog.000015	#	#
 SET SESSION debug="+d,crash_create_after_rename_index_file";
 flush logs;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the master server
+# Restart the source server
 # Test if the index file has the correct data,
 # i.e. binlog file name is added.
 show binary logs;
@@ -264,7 +264,7 @@ binlog.000017	#	#
 SET SESSION debug="+d,crash_create_after_rename_index_file";
 purge binary logs TO 'binlog.000010';
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the master server
+# Restart the source server
 # Test if the index file has the correct data,
 # i.e. requested binlog file names are removed.
 show binary logs;
@@ -294,7 +294,7 @@ binlog.000018	#	#
 SET SESSION debug="+d,crash_create_before_rename_index_file";
 purge binary logs TO 'binlog.000012';
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the master server
+# Restart the source server
 # Test if the index file has the correct data,
 # i.e. requested binlog file names are removed.
 show binary logs;
@@ -322,7 +322,7 @@ binlog.000019	#	#
 SET SESSION debug="+d,fault_injection_copy_part_file";
 purge binary logs TO 'binlog.000014';
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the master server
+# Restart the source server
 # Test the index file is complete, although is not purged successfully.
 show binary logs;
 Log_name	File_size	Encrypted
@@ -410,5 +410,5 @@ include/assert_grep.inc [Retried for rename.]
 SET SESSION debug="";
 # Test case12: Ends
 SET GLOBAL binlog_error_action= ABORT_SERVER;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 End of tests

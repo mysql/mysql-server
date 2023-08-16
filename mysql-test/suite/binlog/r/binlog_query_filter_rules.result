@@ -1,10 +1,10 @@
 drop table if exists t1;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int);
 insert into t1 values (1);
 flush logs;
 drop table t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 *** must be 1 ***
 select * from t1;
 a

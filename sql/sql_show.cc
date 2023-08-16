@@ -550,12 +550,12 @@ bool Sql_cmd_show_grants::execute_inner(THD *thd) {
                            have_using_clause);
 }
 
-bool Sql_cmd_show_master_status::check_privileges(THD *thd) {
+bool Sql_cmd_show_binary_log_status::check_privileges(THD *thd) {
   return check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL);
 }
 
-bool Sql_cmd_show_master_status::execute_inner(THD *thd) {
-  return show_master_status(thd);
+bool Sql_cmd_show_binary_log_status::execute_inner(THD *thd) {
+  return show_binary_log_status(thd);
 }
 
 bool Sql_cmd_show_profiles::execute_inner(THD *thd [[maybe_unused]]) {

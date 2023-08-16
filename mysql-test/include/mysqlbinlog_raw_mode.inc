@@ -2,7 +2,7 @@
 # TODO: Test --wait-for-data
 
 # Delete all the binary logs
-reset master;
+reset binary logs and gtids;
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;

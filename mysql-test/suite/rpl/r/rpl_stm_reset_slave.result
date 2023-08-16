@@ -36,7 +36,7 @@ Warning	3022	This operation may not be safe when the replica has temporary table
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 include/start_slave.inc
 show status like 'replica_open_temp_tables';
 Variable_name	Value

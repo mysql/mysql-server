@@ -35,7 +35,7 @@
 --connection server3
 
 # Force empty binary log.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -48,7 +48,7 @@ COMMIT;
 SET GTID_NEXT= 'AUTOMATIC';
 
 --let $server3_datadir= `SELECT @@DATADIR`
---let $server3_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server3_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 
 --echo

@@ -2777,7 +2777,7 @@ Sql_cmd *PT_show_events::make_cmd(THD *thd) {
   return &m_sql_cmd;
 }
 
-Sql_cmd *PT_show_master_status::make_cmd(THD *thd) {
+Sql_cmd *PT_show_binary_log_status::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 

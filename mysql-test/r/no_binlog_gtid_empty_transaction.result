@@ -1,5 +1,5 @@
 include/gtid_utils.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/gtid_step_reset.inc
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;

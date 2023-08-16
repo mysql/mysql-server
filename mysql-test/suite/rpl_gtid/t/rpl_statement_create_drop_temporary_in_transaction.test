@@ -47,7 +47,7 @@
 --echo # is disallowed and not written into binlog after committing the
 --echo # transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 CREATE TEMPORARY TABLE temp1 (i INT);
@@ -67,7 +67,7 @@ COMMIT;
 --echo # is disallowed and not written into binlog after committing
 --echo # the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 DROP TEMPORARY TABLE temp1;
@@ -81,7 +81,7 @@ CREATE TABLE t1 (c1 INT);
 --echo # is disallowed and not written into binlog after committing the
 --echo # transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (1);
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
@@ -103,7 +103,7 @@ COMMIT;
 --echo # is disallowed and not written into binlog after committing
 --echo # the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 BEGIN;
 INSERT INTO t1 VALUES (3);
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
@@ -156,7 +156,7 @@ delimiter ;//
 --echo # in transactional context is disallowed and not written into
 --echo # binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 CALL sp1();
@@ -176,7 +176,7 @@ COMMIT;
 --echo # in transactional context is disallowed and not written into
 --echo # binlog after committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 CALL sp2();
@@ -189,7 +189,7 @@ COMMIT;
 --echo # context is disallowed and not written into binlog after committing
 --echo # the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 CALL sp3();
@@ -209,7 +209,7 @@ COMMIT;
 --echo # context is disallowed and not written into binlog after
 --echo # committing the transaction.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 START TRANSACTION;
 --error ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 CALL sp4();
@@ -229,7 +229,7 @@ COMMIT;
 --echo # transactional context is allowed and written into binlog after
 --echo # calling the procedure.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 CALL sp1();
 CALL sp2();
 CALL sp3();

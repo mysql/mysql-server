@@ -49,7 +49,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --let $assert_select=Ignoring binlog_rotate_encryption_master_key_at_startup
 --let $assert_count= 1
 --source include/assert_grep.inc
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated
 --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
 --source include/assert.inc
@@ -100,7 +100,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "ON"
 --source include/assert.inc
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated
 --let $assert_cond= RIGHT("$binlog_file", 6) = "000003"
 --source include/assert.inc
@@ -156,7 +156,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "ON"
 --source include/assert.inc
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated
 --let $assert_cond= RIGHT("$binlog_file", 6) = "000004"
 --source include/assert.inc
@@ -173,7 +173,7 @@ call mtr.add_suppression("Could not find the data corresponding to Data ID:");
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 INSERT INTO t1 (c2) VALUES ("MySQL");
 --let $key=3
---let $last_binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $last_binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 while ($key < 9)
 {
   --inc $key
@@ -186,7 +186,7 @@ while ($key < 9)
   --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
   --let $assert_cond= "$option_value" = "ON"
   --source include/assert.inc
-  --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
   --let $assert_text=Binary log rotated as expected
   --let $assert_cond= RIGHT("$binlog_file", 6) = 1 + RIGHT("$last_binlog_file", 6)
   --source include/assert.inc
@@ -195,7 +195,7 @@ while ($key < 9)
   --let $assert_text=Binary log is encrypted with key #$key
   --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_$key"
   --source include/assert.inc
-  --let $last_binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $last_binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
   INSERT INTO t1 (c2) VALUES ("MySQL");
 }
 

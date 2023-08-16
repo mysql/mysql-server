@@ -536,15 +536,15 @@ include/stop_group_replication.inc
 SET SQL_LOG_BIN=0;
 RENAME TABLE t2 TO t4;
 RENAME TABLE t1 TO t3;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/diff_tables.inc [server1:t1,server1:t3]
 include/diff_tables.inc [server1:t2,server1:t4]
 DROP TABLE t2, t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/diff_tables.inc [server1:t1,server1:t3]
 include/diff_tables.inc [server1:t2,server1:t4]
 DROP TABLE t4, t3, t2, t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SQL_LOG_BIN=1;
 include/start_group_replication.inc
 

@@ -107,7 +107,7 @@ RUN SET GLOBAL read_only= FALSE
 ### - Failed Servers:  N/A
 ##########################################################
 [connection server_1]
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_1%"
 RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_1%"
 [connection server_1]
@@ -126,7 +126,7 @@ RUN SET GLOBAL group_replication_bootstrap_group= 0
 [ASSERT state_change on 'verify_1' connection]
 [ASSERT no notices on 'verify_1' connection]
 [connection server_2]
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_2%"
 RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_2%"
 RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
@@ -259,7 +259,7 @@ RUN SET GLOBAL read_only= FALSE
 ### - Failed Servers:  N/A
 ##########################################################
 [connection server_1]
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_1%"
 RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_1%"
 [connection server_1]
@@ -278,7 +278,7 @@ RUN SET GLOBAL group_replication_bootstrap_group= 0
 [ASSERT no notices on 'verify_1' connection]
 [ASSERT no notices on 'verify_1' connection]
 [connection server_2]
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_2%"
 RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_2%"
 RUN SET GLOBAL group_replication_group_name='%GR_NAME%'

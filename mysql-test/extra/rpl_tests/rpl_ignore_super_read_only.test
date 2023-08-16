@@ -12,7 +12,7 @@
 # 7) Execute 'RESET SLAVE ALL FOR CHANNEL <channel_name>' command
 # 8) Execute 'RESET SLAVE' command
 # 9) Execute 'START SLAVE' command
-# 10) Execute 'RESET MASTER' command (with GTID_MODE=ON will assert)
+# 10) Execute 'RESET BINARY LOGS AND GTIDS' command (with GTID_MODE=ON will assert)
 # 11) Execute 'FLUSH BINARY LOGS' command (with GTID_MODE=ON will assert)
 # 12) Execute 'SET GLOBAL gtid_purged='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1''
 # command
@@ -107,9 +107,9 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 --enable_query_log
 
 --echo ####################################################################
---echo # Test Case7: RESET MASTER command
+--echo # Test Case7: RESET BINARY LOGS AND GTIDS command
 --echo ####################################################################
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo ####################################################################
 --echo # Test Case8: SET GLOBAL GTID_PURGED command

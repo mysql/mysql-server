@@ -21,12 +21,12 @@
 -- source include/master-slave.inc
 
 
-# Reset master
+# Reset source
 connection slave;
 --source include/stop_slave.inc
 
 connection master;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #connection slave;
 #--source include/start_slave.inc
@@ -40,8 +40,8 @@ call mtr.add_suppression("Buffered warning: Performance schema disabled");
 -- let $old_debug = `select @@global.debug`
 -- echo # Test case4: Set DEBUG POINT in the middle of binlog to
 -- echo #             make the master crash for non-transaction.
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

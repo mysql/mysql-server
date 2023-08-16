@@ -434,7 +434,7 @@ a1	a2	a3	a4	a5
 4	4	4	4	4
 drop table t1, t2, t3, t4;
 drop table mysql.ndb_replication;
-reset master;
+reset binary logs and gtids;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
@@ -452,7 +452,7 @@ select * from bah order by tst;
 tst	cvy	sqs
 1	2	1
 drop table bah;
-reset master;
+reset binary logs and gtids;
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
@@ -478,7 +478,7 @@ Manually applying captured binlog
 select * from t1;
 charId	enumId	val	version
 drop table t1;
-reset master;
+reset binary logs and gtids;
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON

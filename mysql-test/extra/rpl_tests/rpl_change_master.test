@@ -24,7 +24,7 @@ insert into t1 values(1);
 insert into t1 values(2);
 save_master_pos;
 let $slave_param= Read_Master_Log_Pos;
-let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $slave_param_value= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 connection slave;
 source include/wait_for_slave_param.inc;
 source include/stop_slave.inc;

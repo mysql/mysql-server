@@ -29,8 +29,8 @@
 --let $tmp_binlog_dump_file = $MYSQL_TMP_DIR/$tmp_binlog_file_prefix.sql
 --let $ntrans_expected = 4
 
-RESET MASTER;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+RESET BINARY LOGS AND GTIDS;
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_file=$MYSQLD_DATADIR/$binlog_file
 --eval TRUNCATE $pfs_table
 
@@ -55,7 +55,7 @@ while($i > 0)
   if ($i == 3)
   {
     CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
-    RESET MASTER;
+    RESET BINARY LOGS AND GTIDS;
     --eval TRUNCATE $pfs_table
     --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
     --let $ntrans_expected = 1
@@ -65,7 +65,7 @@ while($i > 0)
   {
     CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
     --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
-    RESET MASTER;
+    RESET BINARY LOGS AND GTIDS;
     --eval TRUNCATE $pfs_table
     --eval UPDATE t1 SET c2=REPEAT('c', $trx_size_bytes)
     --let $ntrans_expected = 1
@@ -76,7 +76,7 @@ while($i > 0)
     CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
     --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
     --eval UPDATE t1 SET c2=REPEAT('c', $trx_size_bytes)
-    RESET MASTER;
+    RESET BINARY LOGS AND GTIDS;
     --eval TRUNCATE $pfs_table
     DELETE FROM t1;
     --let $ntrans_expected = 1
@@ -141,7 +141,7 @@ while($i > 0)
   }
 
   --eval TRUNCATE $pfs_table
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   # replay the binary log
   --exec $MYSQL_BINLOG $tmp_binlog_file > $tmp_binlog_dump_file
@@ -206,7 +206,7 @@ while($i > 0)
   }
 
   DROP TABLE t1;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --remove_file $tmp_binlog_file
   --remove_file $tmp_binlog_dump_file
 
@@ -218,9 +218,9 @@ while($i > 0)
 # Test 2: Search for the compression comment from mysqlbinlog
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_file=$MYSQLD_DATADIR/$binlog_file
 
 # transactions executed in this session shall be compressed
@@ -249,7 +249,7 @@ FLUSH LOGS;
 
 
 --remove_file $tmp_binlog_dump_file
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 #
@@ -257,9 +257,9 @@ RESET MASTER;
 # must originate uncompressed binlogs
 #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $binlog_file=$MYSQLD_DATADIR/$binlog_file
 
 # transactions executed in this session shall be compressed
@@ -274,7 +274,7 @@ FLUSH LOGS;
 --copy_file $binlog_file $tmp_binlog_file
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 --exec $MYSQL_BINLOG $tmp_binlog_file | $MYSQL test
@@ -292,7 +292,7 @@ RESET MASTER;
 
 --remove_file $tmp_binlog_file
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 #
@@ -302,7 +302,7 @@ RESET MASTER;
 --let $i=2
 while ($i>0)
 {
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --eval TRUNCATE $pfs_table
 
 
@@ -335,7 +335,7 @@ while ($i>0)
   --dec $i
 }
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 #

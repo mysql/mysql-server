@@ -9,7 +9,7 @@ STOP SLAVE;
 RESET SLAVE;
 
 connection master;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 connection slave;
 START SLAVE;

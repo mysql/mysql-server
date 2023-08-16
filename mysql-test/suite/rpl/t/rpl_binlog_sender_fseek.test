@@ -50,7 +50,7 @@
 --eval CREATE TABLE t1 (c1 TEXT($block_size))
 
 # Get current binlog position
---let $init_master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $init_master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --let $ref_size= `SELECT $block_size DIV $event_factor`
 --let $content= `SELECT REPEAT('x', $ref_size)`
@@ -60,7 +60,7 @@
 --enable_query_log
 
 # Calculate the "transaction payload" (all but the insert content)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --let $trx_base_size= `SELECT ($master_pos - $init_master_pos) - $ref_size`
 
 # Prepare a transaction to left the binlog at the border of a block
@@ -71,7 +71,7 @@
 --eval INSERT INTO t1 VALUES ("$content")
 --enable_query_log
 
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --let $assert_text= The binary log is at the expected border of a $block_size block
 --let $assert_cond= $border = ($block_size - ( $master_pos % $block_size ))
 --source include/assert.inc

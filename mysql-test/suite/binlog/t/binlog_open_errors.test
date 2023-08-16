@@ -35,10 +35,10 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $MYSQLD_DATADIR = `SELECT @@DATADIR`
---let $binlog = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $event_following_format_desc_start = query_get_value(SHOW BINLOG EVENTS IN '$binlog', Pos, 2)
 --let $event_following_format_desc_stop = query_get_value(SHOW BINLOG EVENTS IN '$binlog', End_log_pos, 2)
 
@@ -114,7 +114,7 @@ RESET MASTER;
 #
 --source include/start_mysqld.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # Search for error message : 'arrived the end of the file'
@@ -142,7 +142,7 @@ RESET MASTER;
 #
 --source include/start_mysqld.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # Search for error message : 'binlog truncated in the middle of event; consider out of disk space'
@@ -172,7 +172,7 @@ let $error_pattern = Error in Log_event::read_log_event().*
 #
 --source include/start_mysqld.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # Search for error message

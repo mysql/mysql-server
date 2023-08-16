@@ -21,7 +21,7 @@
 --source include/have_binlog_format_row.inc
 
 # Make sure the test is repeatable
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source extra/binlog_tests/gtid_next_begin_caused_trx.test
 

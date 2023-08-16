@@ -128,8 +128,8 @@ select
 --echo Flush logs to ensure any pending update (e.g. reflected apply_status write row)
 --echo is skipped over.
 flush logs;
-let $cluster_a_master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
-let $cluster_a_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position", 1);
+let $cluster_a_master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+let $cluster_a_master_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
 --echo Setup slave on Cluster B to use it
 --connection slave1
 --echo Slave1 (4)
@@ -143,8 +143,8 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE="$cluster_a_master_log_file", 
 --echo  Flush logs to ensure any pending update (e.g. reflected apply_status write row)
 --echo is skipped over.
 flush logs;
-let $cluster_b_master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
-let $cluster_b_master_log_pos = query_get_value("SHOW MASTER STATUS", "Position", 1);
+let $cluster_b_master_log_file = query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+let $cluster_b_master_log_pos = query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
 --echo Setup slave on Cluster A to use it
 --connection master
 --echo Master (1)

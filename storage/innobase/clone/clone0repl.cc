@@ -730,7 +730,7 @@ void Clone_persist_gtid::wait_flush(bool compress_gtid, bool early_timeout,
   auto request_number = request_immediate_flush(compress_gtid);
   os_event_set(m_event);
 
-  /* For RESET MASTER we must wait for the flush. */
+  /* For RESET BINARY LOGS AND GTIDS we must wait for the flush. */
   auto thd = thd_get_current_thd();
   if (thd != nullptr && thd->is_log_reset()) {
     early_timeout = false;

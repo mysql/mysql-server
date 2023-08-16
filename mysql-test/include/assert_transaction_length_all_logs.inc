@@ -22,7 +22,7 @@
 #
 
 # Get last binary log file
---let $_atlal_current_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $_atlal_current_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $_atlal_binlog_prefix=`SELECT CONCAT(SUBSTRING_INDEX('$_atlal_current_binlog_file', '.', 1), '.')`
 --let $_atlal_binlog_number=`SELECT CAST(SUBSTRING_INDEX('$_atlal_current_binlog_file', '.', -1) AS UNSIGNED)`
 # Iterate backwards for each existing binary log file

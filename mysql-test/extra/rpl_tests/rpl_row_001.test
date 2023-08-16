@@ -53,7 +53,7 @@ connection master;
 eval CREATE TABLE t1 (n INT) ENGINE=$engine_type;
 sync_slave_with_master;
 connection master;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 connection slave;
 --let $wait_condition=SELECT COUNT(*)=0 from t1
@@ -83,7 +83,7 @@ SELECT COUNT(*) FROM t1;
 
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 LOCK TABLES t1 READ;
 
 --source include/start_slave.inc

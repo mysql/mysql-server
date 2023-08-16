@@ -39,7 +39,7 @@ START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1837]
 ALTER TABLE t1 engine=Innodb;
 DELETE FROM t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 include/start_slave_sql.inc
 [connection master]

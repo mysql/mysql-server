@@ -329,15 +329,15 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set *wait_for, double timeout,
 
     Once the loop over SIDNOs has completed, 'todo' is guaranteed to
     be empty.  However, it may still be the case that not all GTIDs of
-    wait_for are included in gtid_executed, since RESET MASTER may
-    have been executed while we were waiting.
+    wait_for are included in gtid_executed, since RESET BINARY LOGS AND GTIDS
+    may have been executed while we were waiting.
 
-    RESET MASTER requires global_sid_lock.wrlock.  We hold
+    RESET BINARY LOGS AND GTIDS requires global_sid_lock.wrlock.  We hold
     global_sid_lock.rdlock while removing GTIDs from 'todo', but the
     wait operation releases global_sid_lock.rdlock.  So if we
     completed the 'for' loop without waiting, we know for sure that
     global_sid_lock.rdlock was held while emptying 'todo', and thus
-    RESET MASTER cannot have executed in the meantime.  But if we
+    RESET BINARY LOGS AND GTIDS cannot have executed in the meantime.  But if we
     waited at some point during the execution of the 'for' loop, RESET
     MASTER may have been called.  Thus, we repeatedly run 'for' loop
     until it completes without waiting (this is the outermost 'while'

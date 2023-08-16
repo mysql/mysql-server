@@ -2729,7 +2729,7 @@ TEST_P(ConnectionTest, classic_protocol_binlog_dump) {
       cli.query("SET @source_binlog_checksum=@@global.binlog_checksum"));
 
   // purge the logs
-  ASSERT_NO_ERROR(cli.query("RESET MASTER"));
+  ASSERT_NO_ERROR(cli.query("RESET BINARY LOGS AND GTIDS"));
 
   {
     MYSQL_RPL rpl{};

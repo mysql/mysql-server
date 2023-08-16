@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/save_error_log_position.inc
 Prepare binary log with header only
 Prepare binary log without Format_desc event
@@ -8,13 +8,13 @@ Backup binlog file
 # 1. Test Error in Log_event::read_log_event() #
 ################################################
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert_error_log.inc [server: 1, pattern: Error in Log_event::read_log_event().*]
 
 # 2. Truncated binary log
 ##############################################################################
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert_error_log.inc [server: 1, pattern: Error in Log_event::read_log_event().*
 Error reading GTIDs from binary log.*
 ]
@@ -22,7 +22,7 @@ Error reading GTIDs from binary log.*
 # 3. Test Found invalid event sequence while recovering from binary log file #
 ##############################################################################
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert_error_log.inc [server: 1, pattern: Found invalid event sequence while recovering from binary log file.*]
 # restart
 

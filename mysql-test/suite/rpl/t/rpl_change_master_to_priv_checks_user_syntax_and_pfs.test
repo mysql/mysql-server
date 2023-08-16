@@ -11,7 +11,7 @@
 #     updated value equal to the value passed on to the `PRIVILEGE_CHECKS_USER`
 #     option.
 #
-# R2. After `RESET MASTER`, column `privilege_checks_user` from table
+# R2. After `RESET BINARY LOGS AND GTIDS`, column `privilege_checks_user` from table
 #     `performance_schema.replication_applier_configuration` should have an
 #     updated value equal to `NULL`.
 #

@@ -12,7 +12,7 @@
 --disable_query_log
 --disable_result_log
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 STOP SLAVE;
 select @secondary_server_id:=(variable_value+0)
        from performance_schema.global_variables
@@ -24,7 +24,7 @@ select @secondary_port:=(variable_value+0)
 let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 STOP SLAVE;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_PORT,SOURCE_USER="root"
 START SLAVE;

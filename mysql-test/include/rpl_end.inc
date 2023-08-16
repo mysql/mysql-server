@@ -6,7 +6,7 @@
 # CHANGE REPLICATION SOURCE on all servers, and disconnects all connections
 # configured by rpl_init.inc.
 #
-# It does not execute RESET MASTER or RESET REPLICA, because that would
+# It does not execute RESET BINARY LOGS AND GTIDS or RESET REPLICA, because that would
 # remove binlogs which are possibly useful debug information in case
 # the test case later fails with a result mismatch.  If you need that,
 # source include/rpl_reset.inc before you source this file.

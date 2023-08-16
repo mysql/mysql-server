@@ -101,8 +101,8 @@ connection master;
 --copy_file $server_3_datadir/$uuid_file $master_datadir/$uuid_file
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
---let $master_log_file= query_get_value(SHOW MASTER STATUS, 'File', 1)
---let $master_log_pos= query_get_value(SHOW MASTER STATUS, 'Position', 1)
+--let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, 'File', 1)
+--let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, 'Position', 1)
 
 --echo 
 --echo # server_3 is running with --replicate-same-server-id option 

@@ -55,7 +55,7 @@
 
 if (`SELECT "$binlog" = "binlog"`)
 {
-  --let $command_set= SHOW MASTER STATUS
+  --let $command_set= SHOW BINARY LOG STATUS
   --let $command_set_info= File
   --let $command_show= SHOW BINLOG EVENTS
 }

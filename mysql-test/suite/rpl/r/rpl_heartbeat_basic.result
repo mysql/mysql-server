@@ -12,9 +12,9 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 
@@ -27,7 +27,7 @@ replica_net_timeout/slave_heartbeat_timeout=2.0000
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Reset slave affect ***
 SET @@global.replica_net_timeout=30;
@@ -38,7 +38,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 5.000
@@ -56,7 +56,7 @@ SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Warning if updated replica_net_timeout < slave_heartbeat_timeout ***
 SET @@global.replica_net_timeout=FLOOR(SLAVE_HEARTBEAT_TIMEOUT)-1;
@@ -66,7 +66,7 @@ SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Warning if updated slave_heartbeat_timeout > replica_net_timeout ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=REPLICA_NET_TIMEOUT;
@@ -77,7 +77,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** CHANGE MASTER statement only updates slave_heartbeat_period ***
 SET @@global.replica_net_timeout=20;
@@ -102,7 +102,7 @@ SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Update replica_net_timeout on master ***
 SET @@global.replica_net_timeout=500;
@@ -110,7 +110,7 @@ SET @@global.replica_net_timeout=200;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -130,7 +130,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 *** Start/stop slave ***
@@ -190,7 +190,7 @@ count_received_heartbeats
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SELECT SLAVE_HEARTBEAT_TIMEOUT = 0 AS Result;
 Result
 1
@@ -206,7 +206,7 @@ heartbeat_interval
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.0009;
 Warnings:
 Warning	####	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
@@ -218,7 +218,7 @@ heartbeat_interval
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Max slave_heartbeat_timeout ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967;
@@ -232,25 +232,25 @@ heartbeat_interval
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294968;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=8589935;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967296;
 ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Misc incorrect values ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='-1';
@@ -258,19 +258,19 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='123abc';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''123abc'' at line 1
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD='';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''' at line 1
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 *** Running slave ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD= 3.0;
@@ -347,7 +347,7 @@ include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@global.replica_compressed_protocol=1;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
@@ -358,20 +358,20 @@ Heartbeat event received
 SET @@global.replica_compressed_protocol=0;
 SET @@global.replica_compressed_protocol=0;
 
-*** Reset master ***
+*** Reset source ***
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/sync_slave_sql_with_master.inc
 Heartbeat events are received after reset of master (1 means 'yes'): 1
 
@@ -382,7 +382,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

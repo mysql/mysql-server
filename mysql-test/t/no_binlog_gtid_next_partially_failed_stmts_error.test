@@ -36,7 +36,7 @@
 --source include/not_log_bin.inc
 
 # Make sure the test is repeatable
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:1'

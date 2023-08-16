@@ -25,15 +25,15 @@ enable_query_log;
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
-# (otherwise RESET MASTER may come too early).
+# (otherwise RESET BINARY LOGS AND GTIDS may come too early).
 --source include/sync_slave_sql_with_master.inc
-# Save slave's GTID_EXECUTED before issuing a reset master on it.
+# Save slave's GTID_EXECUTED before issuing a reset binary logs and gtids on it.
 --let $old_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
-reset master;
+reset binary logs and gtids;
 connection slave;
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # As the master have a GTID for the suppression added in the beginning of the
 # test case, we have to make this GTID as purged on slave because we are not

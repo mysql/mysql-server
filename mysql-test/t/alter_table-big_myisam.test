@@ -342,7 +342,7 @@ insert into t1 values (1, 2, 3);
 
 # Later we use binlog to check the order in which statements are
 # executed so let us reset it first.
-reset master;
+reset binary logs and gtids;
 set debug_sync='alter_table_enable_indexes SIGNAL parked WAIT_FOR go';
 --send alter table t1 enable keys;
 connection addconroot;

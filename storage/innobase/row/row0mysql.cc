@@ -4786,8 +4786,9 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
 
   /* Skip concurrency ticket while implicitly updating GTID table. This is to
   avoid deadlock otherwise possible with low innodb_thread_concurrency.
-  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID
-  flush GTID Background: Write to GTID table -> wait for innodb ticket. */
+  Session: RESET BINARY LOGS AND GTIDS -> FLUSH LOGS -> get innodb ticket
+           -> wait for GTID flush GTID
+  Background: Write to GTID table -> wait for innodb ticket. */
   auto thd = trx->mysql_thd;
   if (thd == nullptr) {
     thd = current_thd;

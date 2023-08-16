@@ -14,7 +14,7 @@ create table t2 (a int key) engine=ndb;
 alter table t2 rename t1;
 
 --echo # System restart
-reset master;
+reset binary logs and gtids;
 --exec $NDB_MGM -e "all restart -n" > /dev/null
 --exec $NDB_WAITER --not-started > /dev/null
 --exec $NDB_MGM -e "all start" > /dev/null
@@ -37,7 +37,7 @@ select * from t1;
 --echo # Verify that the replication API is working properly.
 --echo # The binlog should have the insert event.
 --source include/show_binlog_events.inc
-PURGE MASTER LOGS TO 'binlog.000002';
+PURGE BINARY LOGS TO 'binlog.000002';
 --source include/wait_for_ndb_committed_to_binlog.inc
 --source include/show_binlog_events.inc
 

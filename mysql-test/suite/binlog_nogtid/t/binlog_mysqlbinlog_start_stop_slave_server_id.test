@@ -33,7 +33,7 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 CREATE TABLE t1 (a INT);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source extra/binlog_tests/binlog_mysqlbinlog_fill.inc
 

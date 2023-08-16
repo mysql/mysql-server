@@ -3,7 +3,7 @@ call mtr.add_suppression("Log filename extension number exhausted: 2147483647. P
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # restart
 FLUSH BINARY LOGS;
 ERROR HY000: Binary logging not possible. Message: Can't generate a unique log-filename binlog.(1-999), while rotating the binlog. Aborting the server

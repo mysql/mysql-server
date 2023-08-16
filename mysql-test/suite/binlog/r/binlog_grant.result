@@ -1,4 +1,4 @@
-reset master;
+reset binary logs and gtids;
 set @saved_binlog_format = @@global.binlog_format;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

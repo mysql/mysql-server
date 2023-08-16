@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (i INT);
@@ -16,11 +16,11 @@ None
 Occurrences of 'use `db1`' in the input file: 0
 CREATE DATABASE db2;
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SELECT * FROM db2.t1;
 ERROR 42S02: Table 'db2.t1' doesn't exist
 DROP DATABASE db1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [The event of table db1.t1 has been successfully applied to db2.t1]
 include/assert.inc [Assert that table db2.t1 has no rows after applying the sql file.]
 [CLEANUP]

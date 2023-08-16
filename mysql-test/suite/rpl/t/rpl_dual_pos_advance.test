@@ -15,8 +15,8 @@
 connection server_2;
 
 create table t1 (n int);
-let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $master_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $master_log_pos_1= `SELECT $master_log_pos_1 + 3`;
 
 --let $sync_slave_connection= server_1
@@ -36,13 +36,13 @@ create table t2 (n int); # create one ignored event
 show tables;
 
 create table t3 (n int) engine=innodb;
-let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $master_log_pos_2= `SELECT $master_log_pos_2 + 5`;
 # there is the event: Gtid_log_event
 --let $master_log_pos_2= `SELECT $master_log_pos_2 + 57`
 set @a=1;
 insert into t3 values(@a);
-let $master_log_pos_3= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_3= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 let $master_log_pos_3= `SELECT $master_log_pos_3 + 5`;
 # there is the event: Gtid_log_event
 --let $master_log_pos_3= `SELECT $master_log_pos_3 + 57`

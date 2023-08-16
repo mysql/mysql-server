@@ -84,8 +84,8 @@ if ($commands == recovery)
 {
   --echo ==== begin rpl_mts_crash_safe.inc:recovery ====
   --connection master
-  let $m_before_master_file= query_get_value("SHOW MASTER STATUS", "File", 1);
-  let $m_before_master_pos= query_get_value("SHOW MASTER STATUS", "Position", 1);
+  let $m_before_master_file= query_get_value("SHOW BINARY LOG STATUS", "File", 1);
+  let $m_before_master_pos= query_get_value("SHOW BINARY LOG STATUS", "Position", 1);
 
   #### Guaranteeing that all events in the binary log are transfered to the slave ######
   --connection slave

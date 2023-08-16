@@ -23,7 +23,7 @@ INSERT INTO t1 VALUES (3);
 --echo #    is correctly skipped when is replayed.
 --echo #
 --let $MYSQLD_DATADIR= `SELECT @@DATADIR`
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/binlog_gtid_set_gtid_next.sql
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/binlog_gtid_set_gtid_next.sql

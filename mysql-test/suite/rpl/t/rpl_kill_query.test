@@ -63,10 +63,10 @@ CALL mtr.add_suppression("The replica coordinator and worker threads are stopped
 --echo ---- Clean up ----
 --source include/stop_slave_io.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP DATABASE db1;
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc

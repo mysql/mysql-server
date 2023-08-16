@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@GLOBAL.DEBUG= "+d,simulate_err_on_write_gtid_into_table";
 call mtr.add_suppression("Failed to save the set of Global Transaction "
                          "Identifiers of the last binary log into the "

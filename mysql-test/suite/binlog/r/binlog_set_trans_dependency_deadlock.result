@@ -2,7 +2,7 @@
 # Bug 92108: Deadlock by concurrent SHOW BINLOGS,
 # performance_schema.session_variables query, and binlog purge
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 connect con1,localhost,root,,;
 SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";

@@ -10,17 +10,17 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use 
 #
 
 #
-# Commands associated with the SLAVE.
+# Commands associated with the REPLICA.
 #
-SHOW SLAVE STATUS;
+SHOW REPLICA STATUS;
 --error ER_REPLICA_CONFIGURATION
-RESET SLAVE;
+RESET REPLICA;
 --error ER_REPLICA_CONFIGURATION
 SHOW RELAYLOG EVENTS;
 --error ER_REPLICA_CONFIGURATION
-STOP SLAVE;
+STOP REPLICA;
 --error ER_REPLICA_CONFIGURATION
-START SLAVE;
+START REPLICA;
 SELECT SOURCE_POS_WAIT('non-existent', 0);
 --error ER_REPLICA_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_HEARTBEAT_PERIOD = 1.01;
@@ -46,7 +46,7 @@ CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db1.t%');
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
 
 #
-# Configuration options associated with the SLAVE.
+# Configuration options associated with the REPLICA.
 #
 --disable_warnings
 --let $saved= `SELECT @@GLOBAL.master_info_repository`
@@ -74,13 +74,13 @@ SET @@SESSION.sql_log_bin= 0;
 --eval SET @@SESSION.sql_log_bin= $saved
 
 #
-# Commands associated with the MASTER.
+# Commands associated with the SOURCE.
 #
 --error ER_NO_BINARY_LOGGING
-SHOW MASTER LOGS;
-SHOW MASTER STATUS;
-SHOW SLAVE HOSTS;
-RESET MASTER;
+SHOW BINARY LOGS;
+SHOW BINARY LOG STATUS;
+SHOW REPLICAS;
+RESET BINARY LOGS AND GTIDS;
 SHOW BINLOG EVENTS;
 --error 2
 --exec $MYSQL_DUMP --compact --source-data=2 test
@@ -89,7 +89,7 @@ FLUSH BINARY LOGS;
 
 
 #
-# Configuration options associated with the MASTER.
+# Configuration options associated with the SOURCE.
 #
 --let $saved= `SELECT @@GLOBAL.max_binlog_size`
 SET @@GLOBAL.max_binlog_size= 536870912;

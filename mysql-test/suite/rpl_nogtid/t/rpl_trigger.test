@@ -369,7 +369,7 @@ SHOW TABLES LIKE 't_';
 --replace_column 6 #
 SHOW TRIGGERS;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Restart slave.
 

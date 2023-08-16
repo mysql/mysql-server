@@ -44,7 +44,7 @@ SET GLOBAL binlog_stmt_cache_size = 4096;
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --echo #
 --echo # A single statement on non-transactional table causes to log an incident
 --echo # event without a GTID due to the fact that the stmt_cache is not big

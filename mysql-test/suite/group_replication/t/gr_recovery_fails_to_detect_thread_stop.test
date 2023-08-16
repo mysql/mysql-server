@@ -118,7 +118,7 @@ SET SESSION sql_log_bin= 1;
 --echo # 3.1 Rotate and purge the binary log on server1 to make recovery unfeasible
 
 FLUSH BINARY LOGS;
---let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server_binlog_file_cur= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Need to kill the dump thread explicitly: stop slave does not do
 # that, and if the dump thread is slow, it will still be reading from

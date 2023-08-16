@@ -664,7 +664,7 @@ DROP TABLE test.t2;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=1, only_count=0]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/gtid_step_reset.inc
 include/gtid_step_assert.inc [count=1, only_count=1]
 include/gtid_step_reset.inc

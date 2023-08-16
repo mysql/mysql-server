@@ -185,7 +185,7 @@ SET DEBUG_SYNC= 'RESET';
 STOP GROUP_REPLICATION;
 --source include/assert_and_disable_read_only.inc
 
-# Remove all M1 data and force a RESET MASTER to allow server1 to
+# Remove all M1 data and force a RESET BINARY LOGS AND GTIDS to allow server1 to
 # join, despite intentionally has more transactions than the group.
 ALTER EVENT e1 DISABLE;
 --let $wait_timeout= 300
@@ -195,7 +195,7 @@ SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;
 
 DROP EVENT e1;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/start_group_replication_command.inc
 

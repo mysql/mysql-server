@@ -14,7 +14,7 @@ include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @saved_replica_type_conversions = @@replica_type_conversions;
 SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (
@@ -64,7 +64,7 @@ t LONGTEXT
 );
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 *** Start replication ***
 START SLAVE;
 Warnings:

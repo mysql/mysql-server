@@ -32,7 +32,7 @@ ERROR HY000: Replica failed to initialize applier metadata structure from the re
 START SLAVE;
 ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 include/start_slave.inc
 [connection master]

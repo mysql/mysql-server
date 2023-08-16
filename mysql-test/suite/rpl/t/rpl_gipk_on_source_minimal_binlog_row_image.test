@@ -94,13 +94,13 @@ UPDATE t1 SET t1.f1 = 3 WHERE t1.f1=1;
 
 --source include/rpl_connection_master.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 
 --source include/stop_slave.inc
 --source include/rpl_reset_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/start_slave.inc
 
 let $messages =

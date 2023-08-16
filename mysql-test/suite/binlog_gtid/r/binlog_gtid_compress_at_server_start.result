@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 1. Create a table with 2 values.
 #    Wait that each transaction appears individually in the table

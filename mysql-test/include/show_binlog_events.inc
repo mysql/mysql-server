@@ -21,7 +21,7 @@
 #     Filename for the 'IN' clause of SHOW BINLOG EVENTS. If none
 #     given, no argument is given to SHOW BINLOG EVENTS, meaning that
 #     it uses the first binlog. If you set this to "LAST", it prints
-#     the last binlog (according to SHOW MASTER STATUS).
+#     the last binlog (according to SHOW BINARY LOG STATUS).
 #
 #   $binlog_start
 #     Position for the 'FROM' clause of SHOW BINLOG EVENTS. If none

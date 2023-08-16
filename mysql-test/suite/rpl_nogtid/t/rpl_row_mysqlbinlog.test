@@ -36,14 +36,14 @@ CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY);
 # Since these positions will be tested against this binlog after it is applied
 # using mysqlbinlog, we need to consider the three transactions that occurred
 # previously and, therefore, add 21 bytes to the start position.
---let $m_position= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $m_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --let $position=`select $m_position + 21`
 
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT); 
 
 # In addition to the 21 bytes of the three previous transactions, we add
 # extra 7 to account for this transaction.
---let $m_stop_position=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $m_stop_position=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --let $stop_position=`select $m_stop_position + 28`
 --let $stop_position1=`select $stop_position - 1`
 
@@ -132,10 +132,10 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;
-reset master;
+reset binary logs and gtids;
 connection slave;
 reset slave;
-reset master;
+reset binary logs and gtids;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;
@@ -214,10 +214,10 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;
-reset master;
+reset binary logs and gtids;
 connection slave;
 reset slave;
-reset master;
+reset binary logs and gtids;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;
@@ -294,10 +294,10 @@ stop slave;
 --source include/wait_for_slave_to_stop.inc
 --enable_warnings
 connection master;
-reset master;
+reset binary logs and gtids;
 connection slave;
 reset slave;
-reset master;
+reset binary logs and gtids;
 start slave;
 --source include/wait_for_slave_to_start.inc
 connection master;

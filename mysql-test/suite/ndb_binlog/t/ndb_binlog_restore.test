@@ -23,7 +23,7 @@ insert into t1 values (1,1);
 --echo #
 --echo # reset and restore schema
 drop table t1;
-reset master;
+reset binary logs and gtids;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select * from t1 where 1=0 /* force discover table */;
 
@@ -46,7 +46,7 @@ let $wait_binlog_event= binlogmarker;
 --echo # reset and restore schema again
 drop table binlogmarker;
 drop table t1;
-reset master;
+reset binary logs and gtids;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select * from t1 where 1=0 /* force discover table */;
 
@@ -123,7 +123,7 @@ CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
 
 --echo #
 --echo # reset, restore and  binlog should _not_ happen
-reset master;
+reset binary logs and gtids;
 --exec $NDB_RESTORE --no-binlog -b 1 -n 1 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 

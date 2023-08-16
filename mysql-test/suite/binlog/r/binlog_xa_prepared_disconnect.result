@@ -1,7 +1,7 @@
 include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/gtid_utils.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
 call mtr.add_suppression("Found 1 prepared XA transactions");
@@ -920,7 +920,7 @@ binlog.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
 binlog.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
 binlog.000001	#	Stop	#	#	
 include/assert.inc [committed gno 131]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert.inc [committed gno 131]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;

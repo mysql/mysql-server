@@ -54,7 +54,7 @@ while ($wait_counter)
 if (!$success)
 {
   echo Timeout in wait_condition.inc for $wait_condition;
-  show master status;
+  show binary log status;
   show slave status;
 }
 

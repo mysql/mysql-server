@@ -4085,7 +4085,7 @@ OBSOLETE_ER_DUMP_NOT_IMPLEMENTED
         swe "Tabellhanteraren klarar inte en binär kopiering av tabellen"
         ukr "Цей тип таблиці не підтримує бінарну передачу таблиці"
 OBSOLETE_ER_FLUSH_MASTER_BINLOG_CLOSED
-        eng "Binlog closed, cannot RESET SOURCE"
+        eng "Binlog closed, cannot RESET BINARY LOGS AND GTIDS"
         ger "Binlog geschlossen. Kann RESET MASTER nicht ausführen"
         jpn "バイナリログがクローズされています。RESET MASTER を実行できません。"
         por "Binlog fechado. Não pode fazer RESET MASTER"
@@ -7742,7 +7742,7 @@ ER_USER_COLUMN_OLD_LENGTH
   eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
 
 ER_CANT_RESET_SOURCE
-  eng "RESET SOURCE is not allowed because %-.384s."
+  eng "RESET BINARY LOGS AND GTIDS is not allowed because %-.384s."
 
 ER_GROUP_REPLICATION_MAX_GROUP_SIZE
   eng "The START GROUP_REPLICATION command failed since the group already has 9 members."

@@ -23,7 +23,7 @@ CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
 CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
 INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
-let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
 source include/show_binlog_events.inc;
 
@@ -62,11 +62,11 @@ STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 connection master;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET @foo = 12;
-let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t1 VALUES(@foo, 2*@foo);
 save_master_pos;
 source include/show_binlog_events.inc;

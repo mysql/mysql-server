@@ -3,8 +3,8 @@
 connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
 connect (slave,::1,root,,test,SLAVE_MYPORT);
 connection master;
-reset master;
-show master status;
+reset binary logs and gtids;
+show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
@@ -21,8 +21,8 @@ connection default;
 connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
 connect (slave,0000:0000:0000:0000:0000:0000:0000:0001,root,,test,SLAVE_MYPORT);
 connection master;
-reset master;
-show master status;
+reset binary logs and gtids;
+show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
@@ -39,8 +39,8 @@ connection default;
 connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
 connect (slave,0:0:0:0:0:0:0:1,root,,test,SLAVE_MYPORT);
 connection master;
-reset master;
-show master status;
+reset binary logs and gtids;
+show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;
@@ -57,8 +57,8 @@ connection default;
 connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
 connect (slave,::1,root,,test,SLAVE_MYPORT);
 connection master;
-reset master;
-show master status;
+reset binary logs and gtids;
+show binary log status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 connection slave;

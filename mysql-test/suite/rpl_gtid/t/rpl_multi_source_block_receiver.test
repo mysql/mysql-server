@@ -81,7 +81,7 @@ INSERT INTO t2 VALUES(2);
 
 # Get the binlog file for backup
 --let $server3_datadir = `SELECT @@DATADIR`
---let $server3_binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server3_binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $server3_gtid = `SELECT @@GLOBAL.GTID_EXECUTED`
 --let $server3_uuid = `SELECT @@global.server_uuid`
 

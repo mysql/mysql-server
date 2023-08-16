@@ -10,7 +10,7 @@ include/start_and_bootstrap_group_replication.inc
 
 # 2. Create user u1 on M2.
 #    Add PRIVILEGE_CHECKS_USER for u1 for GR applier channel.
-#    Reset master.
+#    Reset source.
 
 [connection server2]
 SET SQL_LOG_BIN=0;
@@ -18,7 +18,7 @@ CREATE USER 'u1'@'localhost';
 SET SQL_LOG_BIN=1;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # 3. Start GR fails.
 #    Assert value of PRIVILEGE_CHECKS_USER is preserved.

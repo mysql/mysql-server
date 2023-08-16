@@ -1,5 +1,5 @@
 drop table if exists t1;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int);
 prepare s from "insert into t1 values (@a),(?)";
 set @a=98;

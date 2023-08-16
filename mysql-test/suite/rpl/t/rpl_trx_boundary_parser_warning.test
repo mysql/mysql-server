@@ -311,7 +311,7 @@ while ($event_counter <= $expected_amount_of_events)
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 if ($use_gtids)
 {

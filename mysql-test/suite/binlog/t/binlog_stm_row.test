@@ -10,7 +10,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 
 # Get rid of previous tests binlog
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 #

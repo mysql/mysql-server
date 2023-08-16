@@ -1410,6 +1410,9 @@ void warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> PARSE_TREE_SYM     1205      /* MYSQL */
 
+%token<lexer.keyword> LOG_SYM                    1206   /* MYSQL */
+%token<lexer.keyword> GTIDS_SYM                  1207   /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1918,6 +1921,7 @@ void warn_on_deprecated_user_defined_collation(
         select_stmt_with_into
         set_resource_group_stmt
         set_role_stmt
+        show_binary_log_status_stmt
         show_binary_logs_stmt
         show_binlog_events_stmt
         show_character_set_stmt
@@ -2419,6 +2423,7 @@ simple_statement:
         | set                           { $$= nullptr; CONTEXTUALIZE($1); }
         | set_resource_group_stmt
         | set_role_stmt
+        | show_binary_log_status_stmt
         | show_binary_logs_stmt
         | show_binlog_events_stmt
         | show_character_set_stmt
@@ -3772,7 +3777,15 @@ opt_ev_status:
           }
         | DISABLE_SYM ON_SYM SLAVE
           {
-            Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            push_deprecated_warn(YYTHD, "<CREATE|ALTER> EVENT ... DISABLE ON SLAVE",
+                                        "<CREATE|ALTER> EVENT ... DISABLE ON REPLICA");
+            Lex->event_parse_data->status= Event_parse_data::REPLICA_SIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true;
+            $$= 1;
+          }
+        | DISABLE_SYM ON_SYM REPLICA_SYM
+          {
+            Lex->event_parse_data->status= Event_parse_data::REPLICA_SIDE_DISABLED;
             Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
@@ -10821,6 +10834,14 @@ function_call_nonkeyword:
           {
             $$= NEW_PTN Item_func_get_format(@$, $3, $5);
           }
+        | LOG_SYM '(' expr ')'
+          {
+            $$= NEW_PTN Item_func_log(@$, $3);
+          }
+        | LOG_SYM '(' expr ',' expr ')'
+          {
+            $$= NEW_PTN Item_func_log(@$, $3, $5);
+          }
         | now
           {
             $$= NEW_PTN PTI_function_call_nonkeyword_now(@$,
@@ -13733,6 +13754,10 @@ show_columns_stmt:
 show_binary_logs_stmt:
           SHOW master_or_binary LOGS_SYM
           {
+            if (Lex->is_replication_deprecated_syntax_used())
+            {
+              push_deprecated_warn(YYTHD, "SHOW MASTER LOGS", "SHOW BINARY LOGS");
+            }
             $$ = NEW_PTN PT_show_binlogs(@$);
           }
         ;
@@ -13917,7 +13942,15 @@ show_create_view_stmt:
 show_master_status_stmt:
           SHOW MASTER_SYM STATUS_SYM
           {
-            $$ = NEW_PTN PT_show_master_status(@$);
+            push_deprecated_warn(YYTHD, "SHOW MASTER STATUS", "SHOW BINARY LOG STATUS");
+            $$ = NEW_PTN PT_show_binary_log_status(@$);
+          }
+        ;
+
+show_binary_log_status_stmt:
+          SHOW BINARY_SYM LOG_SYM STATUS_SYM
+          {
+            $$ = NEW_PTN PT_show_binary_log_status(@$);
           }
         ;
 
@@ -14011,7 +14044,18 @@ engine_or_all:
 
 master_or_binary:
           MASTER_SYM
+          {
+            Lex->set_replication_deprecated_syntax_used();
+          }
         | BINARY_SYM
+        ;
+
+master_or_binary_logs_and_gtids:
+          MASTER_SYM
+          {
+            Lex->set_replication_deprecated_syntax_used();
+          }
+        | BINARY_SYM LOGS_SYM AND_SYM GTIDS_SYM
         ;
 
 opt_storage:
@@ -14361,11 +14405,15 @@ reset_option:
           if (Lex->set_channel_name($4))
             MYSQL_YYABORT;  // OOM
           }
-        | MASTER_SYM
+        | master_or_binary_logs_and_gtids
           {
-            Lex->type|= REFRESH_MASTER;
+            Lex->type|= REFRESH_SOURCE;
+            if (Lex->is_replication_deprecated_syntax_used()){
+              Lex->type|= REFRESH_MASTER;
+              push_deprecated_warn(YYTHD, "RESET MASTER", "RESET BINARY LOGS AND GTIDS");
+            }
             /*
-              Reset Master should acquire global read lock
+              RESET BINARY LOGS AND GTIDS should acquire global read lock
               in order to avoid any parallel transaction commits
               while the reset operation is going on.
 
@@ -14412,7 +14460,14 @@ purge:
         ;
 
 purge_options:
-          master_or_binary LOGS_SYM purge_option
+          master_or_binary
+          {
+            if (Lex->is_replication_deprecated_syntax_used())
+            {
+              push_deprecated_warn(YYTHD, "PURGE MASTER LOGS TO", "PURGE BINARY LOGS TO");
+            }
+          }
+          LOGS_SYM purge_option
         ;
 
 purge_option:
@@ -15493,6 +15548,7 @@ ident_keywords_unambiguous:
         | GET_SOURCE_PUBLIC_KEY_SYM
         | GRANTS
         | GROUP_REPLICATION
+        | GTIDS_SYM
         | GTID_ONLY_SYM
         | HASH_SYM
         | HISTOGRAM_SYM
@@ -15529,6 +15585,7 @@ ident_keywords_unambiguous:
         | LOCKS_SYM
         | LOGFILE_SYM
         | LOGS_SYM
+        | LOG_SYM
         | MASTER_AUTO_POSITION_SYM
         | MASTER_COMPRESSION_ALGORITHM_SYM
         | MASTER_CONNECT_RETRY_SYM

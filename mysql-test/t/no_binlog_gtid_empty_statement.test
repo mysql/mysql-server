@@ -40,7 +40,7 @@ DROP TABLE t1;
 
 # Just in case that the server has some GTID_EXECUTED
 SET GTID_NEXT='AUTOMATIC';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # With non-anonymous GTIDs
 --source include/set_gtid_next.inc

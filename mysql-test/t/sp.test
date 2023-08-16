@@ -2751,7 +2751,7 @@ end|
 --replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events|
 show storage engines|
-show master status|
+show binary log status|
 show slave hosts|
 show slave status|
 --enable_testcase
@@ -9171,7 +9171,7 @@ end|
 --disable_testcase BUG#0000
 show binlog events|
 show storage engines|
-show master status|
+show binary log status|
 show slave hosts|
 show slave status|
 --enable_testcase

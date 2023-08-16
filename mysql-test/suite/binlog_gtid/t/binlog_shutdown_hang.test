@@ -20,7 +20,7 @@
 #
 
 # For reseting mysql.gtid_executed table
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t (f INT PRIMARY KEY) ENGINE=INNODB;
 
@@ -47,4 +47,4 @@ SELECT * FROM mysql.gtid_executed;
 DROP TABLE t;
 
 # Cleanup
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

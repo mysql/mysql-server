@@ -1,5 +1,5 @@
 call mtr.add_suppression("Found 1 prepared XA transactions");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 FLUSH LOGS;
 #

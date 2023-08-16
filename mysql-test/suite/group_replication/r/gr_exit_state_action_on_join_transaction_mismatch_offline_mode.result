@@ -51,7 +51,7 @@ include/assert_grep.inc [GR reported expected transaction mismatch]
 
 [connection server2]
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@GLOBAL.group_replication_start_on_boot = OFF;
 SET @@GLOBAL.group_replication_exit_state_action = DEFAULT;
 include/start_group_replication.inc

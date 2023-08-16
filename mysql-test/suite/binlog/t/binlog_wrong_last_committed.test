@@ -34,7 +34,7 @@
 
 # Reset sequence_number and last_committed, so we can check the exact number
 # Make sure it starts from binlog.000001
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT) ENGINE = InnoDB;
 
@@ -50,7 +50,7 @@ SET DEBUG_SYNC = "bgc_after_enrolling_for_commit_stage
 # Make sure above INSERT is the leader
 SET DEBUG_SYNC = "now WAIT_FOR insert1_ready";
 # Record the INSERT's binlog position
---let $binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 # Pause the INSERT when it enters finishi_commit()
 SET DEBUG_SYNC = "reached_finish_commit WAIT_FOR insert2_finish";
@@ -58,7 +58,7 @@ SET DEBUG_SYNC = "reached_finish_commit WAIT_FOR insert2_finish";
 
 # Wait until above INSERT is binlogged
 --connection conn2
---let $show_statement= SHOW MASTER STATUS
+--let $show_statement= SHOW BINARY LOG STATUS
 --let $field= Position
 --let $condition= != '$binlog_pos'
 --source include/wait_show_condition.inc

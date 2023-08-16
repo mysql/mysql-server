@@ -43,7 +43,7 @@
 --echo # Verify Case2 works well
 --echo #
 --source include/master-slave.inc
---let $master_file1 = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_file1 = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $MASTER_DATADIR=`select @@datadir`
 
 --source include/rpl_connection_slave.inc
@@ -60,7 +60,7 @@
 --source include/rpl_connection_master.inc
 FLUSH BINARY LOGS;
 
---let $master_file2 = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_file2 = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --exec $MYSQL_BINLOG --force-if-open $MASTER_DATADIR/$master_file1 $MASTER_DATADIR/$master_file2 | $MYSQL -uroot -S$SLAVE_MYSOCK
 

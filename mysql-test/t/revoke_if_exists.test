@@ -14,7 +14,7 @@ CREATE FUNCTION wl14690.fun() RETURNS INT DETERMINISTIC CONTAINS SQL RETURN @var
 SET @@global.partial_revokes = OFF;
 
 --echo # FR1.1.1: REVOKE ... IGNORE UNKNOWN USER where target user/role does not exists
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_REVOKE_GRANTS
 REVOKE ALL ON *.* FROM unknown_user;
 REVOKE ALL ON *.* FROM unknown_user IGNORE UNKNOWN USER;
@@ -37,7 +37,7 @@ SELECT COUNT(*) FROM mysql.user where user = 'unknown_user';
 --source include/show_binlog_events.inc
 
 --echo # FR1.1.2: REVOKE ... IGNORE UNKNOWN USER where privilege does not exist
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_GRANT
 REVOKE ALL ON wl14690.* FROM u1;
 --error ER_NONEXISTING_GRANT
@@ -54,7 +54,7 @@ GRANT EXECUTE ON FUNCTION wl14690.fun TO u1,u3;
 --echo #          and privilege being revoked is granted
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
 --source include/show_binlog_events.inc
 --echo # check that INSERT (i) is revoked.
@@ -66,7 +66,7 @@ GRANT INSERT (i) ON wl14690.t TO u1, u2;
 GRANT r1 TO u2;
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE SELECT, INSERT (i) ON wl14690.t FROM u1, u2, unknown_user;
 --error ER_NONEXISTING_GRANT
@@ -87,7 +87,7 @@ SHOW GRANTS FOR u2;
 --echo # FR1.2.3: REVOKE ... IGNORE UNKNOWN USER with missing target user/role
 --echo #          and privilege being revoked is not granted
 GRANT INSERT (i) ON wl14690.t TO u1, u2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_TABLE_GRANT
 REVOKE INSERT (i) ON wl14690.t FROM u1, u2, u3, unknown_user IGNORE UNKNOWN USER;
 --echo # check that INSERT (i) is not revoked.
@@ -102,7 +102,7 @@ SHOW GRANTS FOR u2;
 
 --echo # FR1.3.1: REVOKE IF EXISTS where target user/role exists and
 --echo #          privilege being revoked is not granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_GRANT
 REVOKE PROXY ON u3 FROM u1;
 --error ER_NONEXISTING_GRANT
@@ -136,7 +136,7 @@ SHOW GRANTS FOR u2;
 
 --echo # FR1.3.2: REVOKE IF EXISTS with missing target user/role and
 --echo #          privilege being revoked is granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_GRANT
 REVOKE SELECT ON *.* FROM unknown_user;
 --error ER_NONEXISTING_GRANT
@@ -145,7 +145,7 @@ REVOKE IF EXISTS SELECT ON *.* FROM unknown_user;
 
 --echo # FR1.3.3: REVOKE IF EXISTS where target user/role exists and
 --echo #          privilege being revoked is granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT, INSERT, UPDATE ON *.* FROM u1;
 --source include/show_binlog_events.inc
 
@@ -157,7 +157,7 @@ REVOKE ALL ON *.* FROM u3;
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE on wl14690.* to u1;
 GRANT SELECT ON wl14690.* TO u2;
 GRANT UPDATE, SELECT ON wl14690.* TO u3;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT ON wl14690.* FROM u1, u2, u3;
 --error ER_UNKNOWN_AUTHID
 REVOKE role1 FROM u1, u2;
@@ -175,7 +175,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE on *.* to u1;
 GRANT SELECT ON *.* TO u2;
 GRANT SELECT ON wl14690.* TO u3;
 SHOW GRANTS FOR u3;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_GRANT
 REVOKE DELETE, SELECT ON wl14690.* FROM u1, u2, u3;
 --error ER_NONEXISTING_GRANT
@@ -202,7 +202,7 @@ GRANT SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO u
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
 SHOW GRANTS FOR u3;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_NONEXISTING_GRANT
 REVOKE IF EXISTS UPDATE, SELECT ON *.* FROM u1, u2, unknown_user;
 --error ER_NONEXISTING_GRANT
@@ -215,7 +215,7 @@ SHOW GRANTS FOR u3;
 
 --echo # FR1.5: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with single target user
 --echo #        and privilege which is not granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo # missing privileges and target user report warning
 REVOKE IF EXISTS UPDATE, SELECT ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;
 --echo # missing privileges and target user
@@ -227,7 +227,7 @@ REVOKE IF EXISTS PROXY ON u1 FROM unknown_user IGNORE UNKNOWN USER;
 GRANT SELECT, INSERT (i) ON wl14690.t TO u1, u2;
 SHOW GRANTS FOR u1;
 SHOW GRANTS FOR u2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS INSERT (i) ON wl14690.t FROM u1, u2 IGNORE UNKNOWN USER;
 REVOKE IF EXISTS TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* FROM u1, u3
 IGNORE UNKNOWN USER;
@@ -238,7 +238,7 @@ SHOW GRANTS FOR u2;
 
 --echo # FR1.6.2: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
 --echo #          user (present) and privilege being revoked is not granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3
 IGNORE UNKNOWN USER;
 REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN
@@ -249,7 +249,7 @@ SHOW GRANTS FOR u2;
 
 --echo # FR1.6.3: REVOKE IF EXISTS ... IGNORE UNKNOWN USER with multiple target
 --echo #          user (not present) and privilege being revoked is granted
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER;
 --source include/show_binlog_events.inc
 
@@ -258,7 +258,7 @@ REVOKE IF EXISTS SELECT ON wl14690.t FROM u1, unknown_user IGNORE UNKNOWN USER;
 --echo # doesn't issue warning
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_ILLEGAL_PRIVILEGE_LEVEL
 REVOKE DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1;
 --echo # should report warning
@@ -277,7 +277,7 @@ REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGN
 --echo #
 
 SET GLOBAL mandatory_roles=r1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --error ER_MANDATORY_ROLE
 REVOKE r1 FROM u1;
 --error ER_MANDATORY_ROLE

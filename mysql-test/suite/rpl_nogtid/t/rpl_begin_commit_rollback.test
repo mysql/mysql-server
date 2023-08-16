@@ -75,7 +75,7 @@ INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p1()');
 # BUG#43263, BEGIN will not be ignored by the replication db rules,
 # and then the whole transaction will be executed before slave SQL
 # stop.
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 USE test;
 BEGIN;
@@ -90,7 +90,7 @@ COMMIT;
 --inc $master_pos
 
 # The position where the following START SLAVE UNTIL should stop at
-let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_end_trans_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p1()');
 SELECT * FROM replicate_do_db.t1;
@@ -115,7 +115,7 @@ SELECT * from replicate_do_db.t2;
 INSERT INTO replicate_do_db.t2 VALUES ('before call replicate_do_db.p2()');
 
 # See comments above.
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 BEGIN;
 CALL replicate_do_db.p2();
@@ -126,7 +126,7 @@ enable_warnings;
 --let $master_pos= query_get_value(SHOW BINLOG EVENTS FROM $master_pos LIMIT 1, End_log_pos, 1)
 --inc $master_pos
 
-let $master_end_trans_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_end_trans_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 INSERT INTO replicate_do_db.t2 VALUES ('after call replicate_do_db.p2()');
 SELECT * FROM replicate_do_db.t1;
@@ -153,7 +153,7 @@ source include/wait_for_slave_sql_to_start.inc;
 --echo # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
 --echo # This was reported by BUG#50407
 --source include/rpl_connection_master.inc
-let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start=query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 BEGIN;
 INSERT INTO replicate_do_db.t1 VALUES(20);

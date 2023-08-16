@@ -153,11 +153,11 @@ DROP TABLE t1;
 --connection server1
 --source include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server2
 --source include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/gr_clear_configuration.inc

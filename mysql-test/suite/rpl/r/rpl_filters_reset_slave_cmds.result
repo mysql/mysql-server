@@ -44,7 +44,7 @@ REPLICATE_WILD_IGNORE_TABLE	test.i%	CHANGE_REPLICATION_FILTER	0
 # Verify that filters doesn't reset by
 # "RESET SLAVE [FOR CHANNEL 'ch1']" command.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

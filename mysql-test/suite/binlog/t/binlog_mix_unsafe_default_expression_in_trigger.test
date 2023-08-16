@@ -32,7 +32,7 @@
 
 --source include/have_binlog_format_mixed.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a DOUBLE DEFAULT (PI()),
                  b DOUBLE DEFAULT (RAND()));
 CREATE TABLE t2 (x INT);

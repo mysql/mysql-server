@@ -1,0 +1,141 @@
+# ==== Purpose ====
+#
+# This test checks the behavior of the mysqldump --output-as-version
+# With what relates to events this option should allow the use to generate
+# dumps that work on servers with a version lower than 8.2.0 that do not
+# support the new DISABLE ON REPLICA terminology.
+#
+# ==== Implementation ====
+#
+# 1. Create a database and an event
+# 2. Test an invalid enum value for output-as-version
+# 3. Test a dump with --output-as-version= SERVER
+# 4. Test a dump with --output-as-version= BEFORE_8_2_0
+# 5. Test a dump with --output-as-version= BEFORE_8_0_23
+# 6. Test a dump with server  @@GLOBAL.terminology_use_previous= BEFORE_8_0_26 and mysqldump --output-as-version= SERVER
+# 7. Test the dumps are valid
+# 8. Cleanup
+#
+# ==== References ====
+#
+# WL#14190: Replace old terms in replication SQL commands on the SOURCE
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqldump_test_db;
+--enable_warnings
+
+--echo #
+--echo # Create the database for testing
+--echo # Create an event for testing
+
+CREATE DATABASE mysqldump_test_db;
+CREATE TABLE mysqldump_test_db.t1 (a INT);
+
+CREATE EVENT mysqldump_test_db.replica_event ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO SELECT 1;
+
+--echo #
+--echo # Test that it doesn't allow the server values for --terminology_use_previous
+
+--error 1
+--exec $MYSQL_DUMP --events mysqldump_test_db --output-as-version=BEFORE_8_0_26
+
+--echo #
+--echo # Test output generation
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --terminology_use_previous= SERVER
+--echo # Output for CREATE EVENT:DISABLE ON REPLICA
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_no_settings.sql
+
+--exec $MYSQL_DUMP --events mysqldump_test_db  > $assert_file
+
+--let $assert_select= DISABLE ON REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for DISABLE ON REPLICA
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_2_0
+--echo # Output for CREATE EVENT:DISABLE ON SLAVE
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_2_0.sql
+
+--exec $MYSQL_DUMP --events mysqldump_test_db --output-as-version=BEFORE_8_2_0 > $assert_file
+
+--let $assert_select= DISABLE ON SLAVE
+--let $assert_count= 1
+--let $assert_text= Check for DISABLE ON SLAVE
+--source include/assert_grep.inc
+
+--remove_file $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Mysqldump setting --output-as-version= BEFORE_8_0_23
+--echo # Output for CREATE EVENT:DISABLE ON SLAVE
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_before_8_0_23.sql
+
+--exec $MYSQL_DUMP --events --output-as-version=BEFORE_8_0_23 --add-drop-database --databases mysqldump_test_db > $assert_file
+
+--let $assert_select= DISABLE ON SLAVE
+--let $assert_count= 1
+--let $assert_text= Check for DISABLE ON SLAVE
+--source include/assert_grep.inc
+
+--let $dump_file_slave= $assert_file
+
+--echo #
+--echo # Case settings:
+--echo #   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+--echo #   Mysqldump setting --terminology_use_previous= SERVER
+--echo # Output for CREATE EVENT:DISABLE ON REPLICA
+
+--let $sysvars_to_save = [ "GLOBAL.terminology_use_previous" ]
+--source include/save_sysvars.inc
+
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/dump_with_opt_server.sql
+
+--exec $MYSQL_DUMP --events --output-as-version=SERVER --add-drop-database --databases mysqldump_test_db > $assert_file
+
+--let $assert_select= DISABLE ON REPLICA
+--let $assert_count= 1
+--let $assert_text= Check for DISABLE ON REPLICA
+--source include/assert_grep.inc
+
+--let $dump_file_replica= $assert_file
+
+--echo #
+--echo # Test application of dumps with either terminology
+
+--exec $MYSQL < $dump_file_slave
+
+--let $assert_text= The event Status should be REPLICA_SIDE_DISABLED for replica_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="replica_event" AND status="REPLICA_SIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+--exec $MYSQL < $dump_file_replica
+
+--let $assert_text= The event Status should be REPLICA_SIDE_DISABLED for replica_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="replica_event" AND status="REPLICA_SIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+
+--source include/restore_sysvars.inc
+--source include/destroy_json_functions.inc
+
+--remove_file $dump_file_slave
+
+--remove_file $dump_file_replica
+
+DROP DATABASE mysqldump_test_db;

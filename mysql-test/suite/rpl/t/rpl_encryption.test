@@ -75,7 +75,7 @@ CALL mtr.add_suppression('Failed to fetch key from keyring');
 
 
 --echo # Part 1
---let $before_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $before_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Enabling the option without plug-in
 --error ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
@@ -86,7 +86,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 --let $assert_cond= "$option_value" = "OFF"
 --source include/assert.inc
 
---let $after_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log was not rotated
 --let $assert_cond= "$before_master_file" = "$after_master_file"
 --source include/assert.inc
@@ -140,7 +140,7 @@ SET @@GLOBAL.binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "Yes"
 --source include/assert.inc
 
---let $after_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$after_master_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key
@@ -170,7 +170,7 @@ SET PERSIST binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
 --source include/assert.inc
 
---let $after_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$after_master_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key
@@ -229,7 +229,7 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
 --source include/assert.inc
 
---let $after_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $after_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated as expected at server startup
 --let $assert_cond= RIGHT("$after_master_file", 6) = "000003"
 --source include/assert.inc
@@ -305,7 +305,7 @@ FLUSH LOGS;
 --let $assert_text= 5th binary log is encrypted on slave
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 5]" = "Yes"
 --source include/assert.inc
---let $encrypted_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $encrypted_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated as expected by the FLUSH LOGS
 --let $assert_cond=RIGHT("$encrypted_master_file", 6) = "000005"
 --source include/assert.inc
@@ -348,7 +348,7 @@ SET GLOBAL binlog_encryption = OFF;
 --let $assert_text= 6th binary log is not encrypted on slave
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 6]" = "No"
 --source include/assert.inc
---let $disabled_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $disabled_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated as expected when disabling the option
 --let $assert_cond=RIGHT("$disabled_master_file", 6) = "000006"
 --source include/assert.inc
@@ -389,7 +389,7 @@ if (!$AUTO_POSITION) {
 
 --source include/rpl_connection_master.inc
 
---let $third_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $third_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo third_binary_log: $third_binary_log
 --let $rpl_log_file=$MASTER_DATADIR$third_binary_log
 --source include/rpl_get_log_encryption_key_id.inc
@@ -412,7 +412,7 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
 
---let $fourth_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $fourth_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$fourth_binary_log
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=the fourth binary log is encrypted using second master key

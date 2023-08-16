@@ -10,7 +10,7 @@
 # this test requires implicit rotation due to fabricated large transaction
 --source include/not_binlog_transaction_compression_on.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # replace_regex should replace output of SHOW BINLOG EVENTS
 

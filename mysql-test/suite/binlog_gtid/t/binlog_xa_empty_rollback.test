@@ -85,7 +85,7 @@
 
 --source include/have_binlog_format_row.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # USE-CASE 1 - rollback empty transaction as first statement and GTID_NEXT

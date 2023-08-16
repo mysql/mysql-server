@@ -39,7 +39,7 @@
 --source include/have_debug.inc
 
 # Make sure the test is repeatable
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

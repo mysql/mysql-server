@@ -53,7 +53,7 @@ include/assert.inc ['There is no row in performance_schema.replication_asynchron
 # 6. Join server2 to group B and validate is added to senders list
 
 [connection server2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_group_replication.inc
 [connection server5]
 include/assert.inc ['There one row in performance_schema.replication_asynchronous_connection_failover for server2']

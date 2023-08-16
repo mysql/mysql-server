@@ -1,5 +1,5 @@
 use test;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int primary key, b int) engine=ndb;
 Low level transport test
 set global debug='+d,ndb_injector_set_event_conflict_flags';
@@ -14,7 +14,7 @@ txt
 ### Extra row ndb info: data_format: 0, len: 4, data: 0x0200FAFA
 set global debug='';
 delete from test.t1;
-reset master;
+reset binary logs and gtids;
 Specific flag settings test : Reflect
 set global debug='+d,ndb_set_reflect_anyvalue';
 Two inserts to the same table, with nothing else in the epoch,
@@ -28,7 +28,7 @@ txt
 ### Extra row ndb info: data_format: 0, len: 4, data: 0x02000100
 set global debug='';
 delete from test.t1;
-reset master;
+reset binary logs and gtids;
 Specific flag settings test : Refresh
 set global debug='+d,ndb_set_refresh_anyvalue';
 Two inserts to the same table, with nothing else in the epoch,

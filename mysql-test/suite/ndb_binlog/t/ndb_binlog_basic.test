@@ -5,7 +5,7 @@
 # basic insert, update, delete test, alter, rename, drop
 # check that ndb_binlog_index gets the right info
 #
-reset master;
+reset binary logs and gtids;
 
 create table t1 (a int primary key) engine=ndb;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -48,7 +48,7 @@ flush logs;
 --sleep 1
 # Fix windows dir separators in file name of the warning
 --replace_regex /\.[\\\/]binlog/.\/binlog/;
-purge master logs before now();
+purge binary logs before now();
 
 select count(*) from mysql.ndb_binlog_index;
 

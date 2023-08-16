@@ -72,7 +72,7 @@ reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/check_slave_no_error.inc
-reset master;
+reset binary logs and gtids;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
 Warnings:

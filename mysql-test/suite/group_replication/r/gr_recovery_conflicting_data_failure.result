@@ -39,14 +39,14 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 SET SESSION sql_log_bin= 1;
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_group_replication.inc
 #
 # Remove the conflicting data and see that all goes fine now
 #
 include/stop_group_replication.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
 include/start_group_replication.inc
 include/assert.inc [On the recovered member, the table should exist and have 1 elements]

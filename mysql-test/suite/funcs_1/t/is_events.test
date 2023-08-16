@@ -72,7 +72,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 #                     clause, this column contains the corresponding DATETIME
 #                     value. If there is no ENDS clause affecting the timing
 #                     of the event, this column contains NULL.
-# STATUS              ENABLED, DISABLED or SLAVESIDE_DISABLED
+# STATUS              ENABLED, DISABLED, REPLICA_SIDE_DISABLED
 # ON_COMPLETION       PRESERVE or NOT PRESERVE.
 # CREATED             Date and time of event creation
 # LAST_ALTERED        Date and time of the last event modification
@@ -90,7 +90,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 #                     is associated.
 #
 eval DESCRIBE          information_schema.$is_table;
---replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE
 eval SHOW CREATE TABLE information_schema.$is_table;
 eval SHOW COLUMNS FROM information_schema.$is_table;
 
@@ -104,7 +104,7 @@ FROM information_schema.events
 WHERE event_catalog IS NOT NULL or
       event_body NOT IN ('SQL') or
       event_type NOT IN ('ONE TIME','RECURRING') or
-      status NOT IN ('ENABLED','DISABLED','SLAVESIDE_DISABLED') or
+      status NOT IN ('ENABLED','DISABLED','REPLICA_SIDE_DISABLED') or
       on_completion NOT IN ('PRESERVE','NOT PRESERVE');
 
 # FIXME:  Check the regression tests and implement tests checking the

@@ -9,7 +9,7 @@ SET timestamp=1000000000;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create test tables.
 #

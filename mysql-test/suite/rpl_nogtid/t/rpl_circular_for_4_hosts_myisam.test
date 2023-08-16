@@ -210,9 +210,9 @@ DELETE FROM t1 WHERE a = 6;
 --source include/start_slave.inc
 --connection server_2
 --sync_slave_with_master server_3
-RESET MASTER;
---let $file_d= query_get_value(SHOW MASTER STATUS, File, 1)
---let $pos_d= query_get_value(SHOW MASTER STATUS, Position, 1)
+RESET BINARY LOGS AND GTIDS;
+--let $file_d= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $pos_d= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --connection server_4
 RESET SLAVE;
 --let $rpl_topology= 1->2->3->4->1

@@ -19,7 +19,7 @@
 
 CREATE TABLE t1(id INT);
 let $datadir = `SELECT @@DATADIR`;
-let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
 SHOW TABLES;
 FLUSH LOGS;
@@ -27,7 +27,7 @@ copy_file $binlog_path $datadir/binlog.saved;
 DROP TABLE t1;
 
 # Reset GTIDs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Replay binlog
 --exec $MYSQL_BINLOG $datadir/binlog.saved | $MYSQL test
 SHOW TABLES;

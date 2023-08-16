@@ -49,4 +49,4 @@ if ($end_scenario_stmt != '') {
 }
 
 DELETE FROM t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

@@ -39,13 +39,13 @@ let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v'
 # Stop Slave @ Secondary
 STOP REPLICA;
 # Clear Secondary Binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # Stop Slave @ Primary 
 STOP REPLICA;
 # Clear Primary Binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_SERVER_PORT,SOURCE_USER="root"
 

@@ -25,7 +25,7 @@
 --let $rpl_skip_change_master=1
 
 --source include/master-slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #--let $rpl_connection_name= server_1
 #--source include/rpl_connection.inc
 

@@ -114,12 +114,12 @@ RUN SET GLOBAL read_only= FALSE
 RUN STOP GROUP_REPLICATION
 RUN SET GLOBAL read_only= FALSE
 RUN DROP TABLE test.tab1
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 [ASSERT view_change on 'verify_1' connection]
 [ASSERT state_change on 'verify_1' connection]
 [connection server_2]
 RUN DROP TABLE test.tab1
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 
 ### Postcheck: Assert session status variables
 ### Expected:
@@ -254,12 +254,12 @@ RUN SET GLOBAL read_only= FALSE
 RUN STOP GROUP_REPLICATION
 RUN SET GLOBAL read_only= FALSE
 RUN DROP TABLE test.tab1
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 [ASSERT no notices on 'verify_1' connection]
 [ASSERT no notices on 'verify_1' connection]
 [connection server_2]
 RUN DROP TABLE test.tab1
-RUN RESET MASTER
+RUN RESET BINARY LOGS AND GTIDS
 
 ### Postcheck: Assert session status variables
 ### Expected:

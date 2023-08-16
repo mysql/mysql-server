@@ -30,7 +30,7 @@
 --source include/mysqlbinlog_have_debug.inc
 --source include/have_binlog_format_row.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (i INT);
@@ -61,7 +61,7 @@ DELETE FROM t1 WHERE i=2;
 --echo [VALID SYNTAX,The from->to database names is correctly mentioned]
 --exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->new_db1" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Bug26117735: MYSQLBINLOG READ-FROM-REMOTE-SERVER NOT HONORING REWRITE_DB FILTERING
 --echo [VALID SYNTAX read from remote server ,The from->to database names are correctly mentioned]
@@ -87,7 +87,7 @@ DROP DATABASE db1;
 
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --database=new_db1 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event.sql
 --error ER_NO_SUCH_TABLE
 SELECT * FROM new_db1.t1;
@@ -97,7 +97,7 @@ SELECT * FROM new_db1.t1;
 DROP DATABASE db1;
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo [The event of table db1.t1 has been successfully applied to new_db1.t1]
 --exec $MYSQL  --database=new_db1 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let $assert_text= Assert that table new_db1.t1 has one row after applying the sql file.
@@ -109,7 +109,7 @@ DROP DATABASE new_db1;
 CREATE DATABASE new_db1;
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo [The event of table db1.t1 has been successfully applied to new_db1.t1]
 --exec $MYSQL  --database=new_db1 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite.sql
 --let $assert_text= Assert that table new_db1.t1 has one row after applying the sql file.
@@ -121,7 +121,7 @@ DROP DATABASE new_db1;
 CREATE DATABASE new_db1;
 # With gtid-mode=on we need purge gtid_executed, if not transactions
 # replayed through mysqlbinlog will be skipped.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo [The event of table db1.t1 has been successfully applied to new_db1.t1 from raw mode]
 --exec $MYSQL  --database=new_db1 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_from_remote_server_rewrite_raw.sql
 --let $assert_text= Assert that table new_db1.t1 has one row after applying the sql file from raw binlog dump.

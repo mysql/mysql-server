@@ -7,7 +7,7 @@ set global ndb_log_apply_status=Off;
 show variables like '%ndb_log_apply_status%';
 
 reset slave;
-reset master;
+reset binary logs and gtids;
 --echo Should have empty apply status table
 select * from mysql.ndb_apply_status;
 
@@ -32,7 +32,7 @@ set global ndb_log_apply_status=On;
 show variables like '%ndb_log_apply_status%';
 
 reset slave;
-reset master;
+reset binary logs and gtids;
 --echo Should have empty apply status table
 select * from mysql.ndb_apply_status;
 

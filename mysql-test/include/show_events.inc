@@ -43,7 +43,7 @@ if ($binlog_file)
     }
     if (!$is_relay_log)
     {
-      --let $_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+      --let $_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
     }
   }
   --let $statement= $statement IN '$_binlog_file'

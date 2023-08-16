@@ -87,7 +87,7 @@ while ($point < 3)
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "ON"
 --source include/assert.inc
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated
 --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
 --source include/assert.inc
@@ -153,7 +153,7 @@ while ($point < 3)
   --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
   --let $assert_cond= "$option_value" = "OFF"
   --source include/assert.inc
-  --let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
   --let $assert_text=Binary log did not rotated
   --let $assert_cond= RIGHT("$binlog_file", 6) = "000002"
   --source include/assert.inc
@@ -164,7 +164,7 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_text=binlog_encryption option shall be ON
 --let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
 --let $assert_cond= "$option_value" = "ON"
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text=Binary log rotated
 --let $assert_cond= RIGHT("$binlog_file", 6) = "000003"
 --source include/assert.inc

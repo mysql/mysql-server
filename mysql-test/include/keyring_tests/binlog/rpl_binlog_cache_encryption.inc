@@ -73,7 +73,7 @@ while ($trx)
 PROCEDURE
 
 --echo # Part 1 - binlog_encryption = OFF
---let $plain_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $plain_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 
 --source $MYSQLTEST_VARDIR/tmp/rpl_binlog_cache_encryption.inc
@@ -95,7 +95,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
 --let $assert_cond= "$option_value" = "ON"
 --source include/assert.inc
 
---let $encrypted_master_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $encrypted_master_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$encrypted_master_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=Binary log is encrypted using 1st master key

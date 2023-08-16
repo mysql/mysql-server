@@ -67,7 +67,7 @@ include/assert_grep.inc [GR reported expected transaction mismatch]
 #########################################################################
 
 [connection server2]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
 include/rpl_reconnect.inc
 include/start_group_replication.inc

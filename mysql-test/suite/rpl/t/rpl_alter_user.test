@@ -33,7 +33,7 @@ SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
 CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password BY 'auth_string1';
 # Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
@@ -73,7 +73,7 @@ SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
 SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
 --connection master
 # Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
@@ -109,12 +109,12 @@ disconnect con1;
 --echo #
 
 --connection slave
---let $saved_master_relay_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_relay_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 --connection master
 --echo [connection master]
 # Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 CREATE USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT OPTIONAL;
 ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT DEFAULT;
 ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT;
@@ -181,7 +181,7 @@ DROP USER '11544_u1'@'localhost';
 # WL11772 CREATE USER WITH RANDOM PASSWORD
 #
 #
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 --connection master
 --echo * Create a new user with random password
@@ -227,7 +227,7 @@ DROP USER u1@localhost;
 #
 # WL13562 ARBITRARY JSON ATTRIBUTES
 #
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos= query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --connection master
 --echo * Create a new user with an arbitrary attribute
 CREATE USER u1@localhost IDENTIFIED BY 'foo' ATTRIBUTE '{"trackingId": "12345"}';

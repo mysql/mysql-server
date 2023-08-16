@@ -74,6 +74,6 @@ CREATE TABLE t1 (i INT PRIMARY KEY NOT NULL);
 
 #Drop the table and reset the server allowing a clean test exit
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/group_replication_end.inc

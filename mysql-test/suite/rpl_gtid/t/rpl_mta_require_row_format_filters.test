@@ -332,11 +332,11 @@ SET SESSION binlog_format=ROW;
 --source include/rpl_connection_slave.inc
 RESET REPLICA;
 DROP TABLE tload;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_master.inc
 DROP TABLE tload;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc

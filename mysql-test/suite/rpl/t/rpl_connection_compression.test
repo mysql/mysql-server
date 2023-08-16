@@ -240,7 +240,7 @@ EOF
 
   --source include/rpl_connection_slave.inc
   --disable_query_log
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   RESET SLAVE ALL;
   --enable_query_log
 EOF

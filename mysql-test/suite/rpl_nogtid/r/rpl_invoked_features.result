@@ -172,7 +172,7 @@ FUNCTION	f2
 PROCEDURE	p11
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
 EVENT_NAME	STATUS
-e11	SLAVESIDE_DISABLED
+e11	REPLICA_SIDE_DISABLED
 
 SELECT COUNT(*) FROM t11;
 COUNT(*)

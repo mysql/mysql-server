@@ -42,7 +42,7 @@ START GROUP_REPLICATION;
 include/gr_wait_for_member_state.inc
 include/assert.inc [b0000000-7fb8-11e6-9f35-ac56a84b7f00: There are two members in the group.]
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # c) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#2.
 #    Expect SUCCESS.
@@ -68,11 +68,11 @@ set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 set session sql_log_bin=1;
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server2]
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server1]
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/group_replication_end.inc

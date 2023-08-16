@@ -58,7 +58,10 @@ Events::Events() {
                          "CONVERT_TZ(evt.starts,'+00:00', evt.time_zone)");
   m_target_def.add_field(FIELD_ENDS, "ENDS",
                          "CONVERT_TZ(evt.ends,'+00:00', evt.time_zone)");
-  m_target_def.add_field(FIELD_STATUS, "STATUS", "evt.status");
+  m_target_def.add_field(
+      FIELD_STATUS, "STATUS",
+      "IF(evt.status = 'REPLICA_SIDE_DISABLED' AND "
+      "INTERNAL_USE_TERMINOLOGY_PREVIOUS(), 'SLAVESIDE_DISABLED', evt.status)");
   m_target_def.add_field(
       FIELD_ON_COMPLETION, "ON_COMPLETION",
       "IF (evt.on_completion='DROP', 'NOT PRESERVE', 'PRESERVE')");

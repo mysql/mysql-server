@@ -75,6 +75,4 @@ while ($binlog_formats)
 # Cleanup
 DROP TABLE cases;
 SET GLOBAL BINLOG_FORMAT=@saved_binlog_format;
-# Remove this when Bug#33594199 has been fixed
-RESET MASTER;
 --enable_query_log

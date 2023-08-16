@@ -6,8 +6,8 @@
 
 --source include/have_log_bin.inc
 
-RESET MASTER;
---let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+RESET BINARY LOGS AND GTIDS;
+--let $source_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 #
 # Bug#24976304 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS TIMEOUT VALUE HANDLES SOME
@@ -18,16 +18,16 @@ RESET MASTER;
 --echo error.
 SET @save_sql_mode=@@SESSION.SQL_MODE;
 SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
---replace_result $master_uuid MASTER_UUID
+--replace_result $source_uuid SOURCE_UUID
 --error ER_WRONG_ARGUMENTS
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$source_uuid:100', -1);
 
 --echo When SQL_MODE is non-strict mode the function executes
 --echo same as in strict SQL_MODE and generates WRONG_ARGUMENTS error.
 SET @@SESSION.SQL_MODE="";
---replace_result $master_uuid MASTER_UUID
+--replace_result $source_uuid SOURCE_UUID
 --error ER_WRONG_ARGUMENTS
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', -1);
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$source_uuid:100', -1);
 SET @@SESSION.SQL_MODE=@save_sql_mode;
 
 --echo Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
@@ -38,7 +38,7 @@ SET @@SESSION.SQL_MODE=@save_sql_mode;
 --echo Also check that function returns 1 if timeout has been executed.
 
 --let $assert_text= WAIT_FOR_EXECUTED_GTID_SET returns 1 if the timeout has been exceeded.
---let $query_result= query_get_value("SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:100', 0.4) AS VALUE", VALUE, 1)
+--let $query_result= query_get_value("SELECT WAIT_FOR_EXECUTED_GTID_SET('$source_uuid:100', 0.4) AS VALUE", VALUE, 1)
 --let $assert_cond= "$query_result" = "1"
 --source include/assert.inc
 

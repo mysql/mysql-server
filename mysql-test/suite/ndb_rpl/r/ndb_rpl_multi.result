@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 CREATE TABLE t2 (a int key) ENGINE = NDB ;
-reset master;
+reset binary logs and gtids;
 SHOW TABLES;
 Tables_in_test
 t1

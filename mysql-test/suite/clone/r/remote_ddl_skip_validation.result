@@ -75,7 +75,7 @@ Variable_name	Value
 clone_block_ddl	OFF
 # restart: --skip-innodb-validate-tablespace-paths
 # 1. ALTER TABLE ADD COLUMN while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 ADD COLUMN col5 int, ALGORITHM=COPY ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
@@ -265,7 +265,7 @@ call execute_dml(1, 0, 100, 100, 10, 0);
 # restart: --skip-innodb-validate-tablespace-paths
 SET DEBUG_SYNC = 'RESET';
 # 2. ALTER TABLE DROP COLUMN while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 DROP COLUMN col5, ALGORITHM=COPY ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
@@ -453,7 +453,7 @@ call execute_dml(1, 0, 100, 100, 10, 0);
 SET DEBUG_SYNC = 'RESET';
 # 3. ADD INDEX while clone in progress
 SET GLOBAL innodb_ddl_threads = 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 ADD INDEX col2_idx(col2), ALGORITHM=COPY ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';
@@ -643,7 +643,7 @@ call execute_dml(1, 0, 100, 100, 10, 0);
 # restart: --skip-innodb-validate-tablespace-paths
 SET DEBUG_SYNC = 'RESET';
 # 4. DROP INDEX while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 DROP INDEX col2_idx, ALGORITHM=COPY ;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';

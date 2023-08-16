@@ -16,7 +16,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (id, c) VALUES (1, 'manually');
 "Creating event test.justonce on the master"
-CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO 
+CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO
 INSERT IGNORE INTO t1 (id, c) VALUES (2, 'from justonce');
 "Checking event is active on master"
 SELECT event_schema, event_name, status, originator FROM information_schema.events WHERE event_name = 'justonce';
@@ -25,73 +25,73 @@ test	justonce	ENABLED	1
 "Checking event data on the master"
 ONE
 1
-"Checking event data on the slave"
+"Checking event data on the replica"
 ZERO
 0
-"Checking event is inactive on slave"
+"Checking event is inactive on replica"
 SELECT event_name, status, originator FROM information_schema.events WHERE  event_name = 'justonce';
 EVENT_NAME	STATUS	ORIGINATOR
-justonce	SLAVESIDE_DISABLED	1
-"Dropping event test.slave_once on the slave"
-DROP EVENT IF EXISTS test.slave_once;
-CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
-INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
-"Checking event status on the slave for originator value = slave's server_id"
-SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_once';
+justonce	REPLICA_SIDE_DISABLED	1
+"Dropping event test.replica_once on the replica"
+DROP EVENT IF EXISTS test.replica_once;
+CREATE EVENT test.replica_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO
+INSERT IGNORE INTO t1(id, c) VALUES (3, 'from replica_once');
+"Checking event status on the replica for originator value = replica's server_id"
+SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'replica_once';
 EVENT_NAME	STATUS	ORIGINATOR
-slave_once	ENABLED	2
-"Dropping event test.slave_once on the slave"
-DROP EVENT IF EXISTS test.slave_once;
+replica_once	ENABLED	2
+"Dropping event test.replica_once on the replica"
+DROP EVENT IF EXISTS test.replica_once;
 "Dropping event test.justonce on the master"
 DROP EVENT IF EXISTS test.justonce;
 "Creating event test.er on the master"
-CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
+CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO
 INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE  event_name = 'er';
 EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
-"Checking event status on the slave"
+"Checking event status on the replica"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
-er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
+er	REPLICA_SIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
 "Altering event test.er on the master"
-ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
+ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO
 INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
-"Checking event status on the slave"
+"Checking event status on the replica"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
-er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
+er	REPLICA_SIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
 "Dropping event test.er on the master"
 DROP EVENT test.er;
 "Checking event status on the master"
 SELECT  event_name, status, originator FROM information_schema.events;
 EVENT_NAME	STATUS	ORIGINATOR
-"Checking event status on the slave"
+"Checking event status on the replica"
 SELECT event_name, status, originator FROM information_schema.events;
 EVENT_NAME	STATUS	ORIGINATOR
-"Creating event test.slave_terminate on the slave"
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
-INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
-"Checking event status on the slave"
-SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
+"Creating event test.replica_terminate on the replica"
+CREATE EVENT test.replica_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO
+INSERT IGNORE INTO t1(id, c) VALUES (6, 'from replica_terminate');
+"Checking event status on the replica"
+SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'replica_terminate';
 EVENT_NAME	STATUS	ORIGINATOR
-slave_terminate	ENABLED	2
-"Dropping event test.slave_terminate on the slave"
-DROP EVENT test.slave_terminate;
-"Creating event test.slave_terminate with DISABLE ON SLAVE on the slave"
-CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO 
-INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
-"Checking event status on the slave"
-SELECT  event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
+replica_terminate	ENABLED	2
+"Dropping event test.replica_terminate on the replica"
+DROP EVENT test.replica_terminate;
+"Creating event test.replica_terminate with DISABLE ON REPLICA on the replica"
+CREATE EVENT test.replica_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO
+INSERT IGNORE INTO t1(c) VALUES (7, 'from replica_terminate');
+"Checking event status on the replica"
+SELECT  event_name, status, originator FROM information_schema.events WHERE event_name = 'replica_terminate';
 EVENT_NAME	STATUS	ORIGINATOR
-slave_terminate	SLAVESIDE_DISABLED	2
-"Dropping event test.slave_terminate on the slave"
-DROP EVENT test.slave_terminate;
+replica_terminate	REPLICA_SIDE_DISABLED	2
+"Dropping event test.replica_terminate on the replica"
+DROP EVENT test.replica_terminate;
 "Cleanup"
 DROP TABLE t1;
 include/rpl_end.inc

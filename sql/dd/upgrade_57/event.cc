@@ -412,7 +412,7 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
       et_parse_data->status = Event_parse_data::ENABLED;
       break;
     case 'S':
-      et_parse_data->status = Event_parse_data::SLAVESIDE_DISABLED;
+      et_parse_data->status = Event_parse_data::REPLICA_SIDE_DISABLED;
       break;
     case 'D':
     default:

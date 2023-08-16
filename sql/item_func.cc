@@ -146,6 +146,7 @@
 #include "sql/thd_raii.h"
 #include "sql/val_int_compare.h"  // Integer_value
 #include "sql_string.h"
+#include "storage/perfschema/terminology_use_previous_enum.h"
 #include "string_with_len.h"
 #include "template_utils.h"
 #include "template_utils.h"  // pointer_cast
@@ -9991,6 +9992,22 @@ longlong Item_func_internal_is_mandatory_role::val_int() {
   }
 
   return is_mandatory;
+}
+
+longlong Item_func_internal_use_terminology_previous::val_int() {
+  DBUG_TRACE;
+  bool use_previous{false};
+  THD *thd = current_thd;
+  if (thd) {
+    if (thd->variables.terminology_use_previous !=
+            terminology_use_previous::enum_compatibility_version::NONE &&
+        thd->variables.terminology_use_previous <=
+            (ulong)terminology_use_previous::enum_compatibility_version::
+                BEFORE_8_2_0) {
+      use_previous = true;
+    }
+  }
+  return use_previous;
 }
 
 /**

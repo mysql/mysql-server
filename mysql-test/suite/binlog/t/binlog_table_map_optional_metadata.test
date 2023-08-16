@@ -27,7 +27,7 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $binlog_file= $MYSQLD_DATADIR/binlog.000001
@@ -43,7 +43,7 @@ INSERT INTO t1(c_year) VALUES(2017);
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Json types can be printed correctly
@@ -53,7 +53,7 @@ INSERT INTO t1(c_char) VALUES("abc");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Geometry types can be printed correctly
@@ -66,7 +66,7 @@ CREATE TABLE t1 (c_geo GEOMETRY, c_point POINT, c_linestring LINESTRING,
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 
 # geometry type is binlogged, the real geometry types are printed
@@ -74,7 +74,7 @@ INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Numeric types can be printed correctly
@@ -89,14 +89,14 @@ INSERT INTO t1(c_bool) VALUES(1);
 --echo # UNSIGNED flag should be printed
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_bool) VALUES(1);
 
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Character types can be printed correctly
@@ -111,14 +111,14 @@ INSERT INTO t1(c_char) VALUES("1");
 # Charset set is printed with default charset
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_char) VALUES("1");
 
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Column names with non-ascii characters and escape characters can be printed correctly
@@ -131,7 +131,7 @@ INSERT INTO t1 VALUES(1);
 
 --source extra/binlog_tests/print_optional_metadata.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Charsets can be printed correctly
@@ -146,7 +146,7 @@ INSERT INTO t1 VALUES("1", "2", "3");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Test collation number less than 250 and collation number greater than 250
 CREATE TABLE t1(c_utf8mb4_520 CHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
@@ -159,7 +159,7 @@ INSERT INTO t1 VALUES("1", "2", "3");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Blob and binary columns can be printed correctly
@@ -172,7 +172,7 @@ INSERT INTO t1 VALUES("1", "2", "3", "4", "5", "6");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Verify that SET string values and character sets can be printed correctly
@@ -191,13 +191,13 @@ SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Verify that ENUM string values and character sets can be printed correctly
@@ -216,13 +216,13 @@ SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Verify that explicit NOT NULL can be printed correctly
@@ -234,7 +234,7 @@ INSERT INTO t1 VALUES(1, 2, 3, 4);
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Verify that primary key can be printed correctly
@@ -247,7 +247,7 @@ INSERT INTO t1 VALUES(1, 2, 3, 4);
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Key has prefix
 CREATE TABLE t1(c_key1 CHAR(100), c_key3 CHAR(100), c_not_key INT, c_key2 CHAR(10),
@@ -256,14 +256,14 @@ PRIMARY KEY(c_key1(5), c_key2, c_key3(10)));
 INSERT INTO t1 VALUES("1", "2", 3, "4");
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Primary key should not be printed
 SET GLOBAL binlog_row_metadata = MINIMAL;
 
 INSERT INTO t1 VALUES("2", "2", 3, "4");
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo #
 --echo # Coverage test: Print column index instead of column name if column name
 --echo #                is not binlogged.
@@ -276,7 +276,7 @@ INSERT INTO t1 VALUES("3", "2", 3, "4");
 
 --let $print_primary_key=
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Coverage test: Inject an invalid column type
@@ -288,12 +288,12 @@ INSERT INTO t1 VALUES(1, "a");
 # It prints an error
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Coverage test: Inject an invalid BLOB metadata
 --echo #
---let $start_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 SET SESSION debug = 'd,inject_invalid_blob_size';
 INSERT INTO t1 VALUES(2, "b");
@@ -308,8 +308,8 @@ INSERT INTO t1 VALUES(2, "b");
 --echo #
 DROP TABLE t1;
 CREATE TABLE t1(c_geometry GEOMETRY, c_point POINT, c_multilinestring MULTILINESTRING);
-RESET MASTER;
---let $start_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+RESET BINARY LOGS AND GTIDS;
+--let $start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 SET SESSION debug = 'd,inject_invalid_geometry_type';
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
@@ -320,7 +320,7 @@ INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo #
 --echo # Comptibility Test: Verify mysqlbinlog can print OLD table_map_log_event
 --echo # without any optional metadata
@@ -337,7 +337,7 @@ INSERT INTO t1(c_int) VALUES(1);
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo #
 --echo # Simulate error on initializing charset and primary key metadata
 --echo #
@@ -356,7 +356,7 @@ INSERT INTO t1 VALUES("b");
 SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # WL#10905 - Support for INVISIBLE columns.
@@ -377,7 +377,7 @@ INSERT INTO t1 VALUES(1);
 UPDATE t1 SET c1=4 WHERE c4=5;
 --source extra/binlog_tests/print_optional_metadata.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --echo # INVISIBLE clause is included with only binlog_row_metadata = FULL.
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c1, c4) VALUES(3, 6);
@@ -385,4 +385,4 @@ INSERT INTO t1(c1, c4) VALUES(3, 6);
 UPDATE t1 SET c1=4 WHERE c4=6;
 --source extra/binlog_tests/print_optional_metadata.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

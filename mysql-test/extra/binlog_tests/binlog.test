@@ -5,7 +5,7 @@
 -- source include/have_log_bin.inc
 -- source include/have_debug.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
@@ -32,7 +32,7 @@ SET @@session.binlog_transaction_compression = FALSE;
 --enable_result_log
 --enable_query_log
 
-reset master;
+reset binary logs and gtids;
 let $1=100;
 
 create table t1 (n int) engine=innodb;
@@ -47,7 +47,7 @@ while ($1)
 commit;
 drop table t1;
 --source include/show_binlog_events.inc
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --source include/show_binlog_events.inc
 --let $binlog_file=
 
@@ -77,7 +77,7 @@ set @ac = @@autocommit;
 # first show this to work for SHOW BINLOG EVENTS
 
 set autocommit= 0;
-reset master;
+reset binary logs and gtids;
 create table t1(n int) engine=innodb;
 begin;
 insert into t1 values (1);
@@ -101,7 +101,7 @@ SET @@session.binlog_transaction_compression = FALSE;
 
 set @bcs = @@binlog_cache_size;
 set global binlog_cache_size=4096;
-reset master;
+reset binary logs and gtids;
 
 create table t1 (a int, b char(255)) engine=innodb;
 
@@ -139,7 +139,7 @@ SET @@session.binlog_transaction_compression = @saved_btc;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-reset master;
+reset binary logs and gtids;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
@@ -154,7 +154,7 @@ drop table t1;
 # Bug #39182: Binary log producing incompatible character set query from 
 # stored procedure.
 #
-reset master;
+reset binary logs and gtids;
 CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 USE bug39182;
 CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
@@ -233,7 +233,7 @@ DROP PROCEDURE p4;
 # Test of a too big SET INSERT_ID: see if the truncated value goes
 # into binlog (right), or the too big value (wrong); we look at the
 # binlog further down with SHOW BINLOG EVENTS.
-reset master;
+reset binary logs and gtids;
 create table t1 (id tinyint auto_increment primary key);
 set insert_id=128;
 insert ignore into t1 values(null);
@@ -276,7 +276,7 @@ drop table t1,t2,t3,tt1;
 
 #Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
 # server should not hang, binlog must rotate in the end
-reset master;
+reset binary logs and gtids;
 
 # temporarily disable compression for this test case, since it needs
 # to create a large binlog to rotate it.
@@ -290,7 +290,7 @@ SET @@session.binlog_transaction_compression = FALSE;
 drop table if exists t3;
 --enable_warnings
 create table t3 (a int(11) NOT NULL AUTO_INCREMENT, b text, PRIMARY KEY (a) ) engine=innodb;
---let $binlog_file1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo File $binlog_file1
 let $it=4;
 while ($it)
@@ -298,13 +298,13 @@ while ($it)
 insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 dec $it;
 }
---let $binlog_file2= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --echo *** show new binlog index after rotating ***
 --echo File $binlog_file2
 drop table t3;
 
 # clean up
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --disable_result_log
 --disable_query_log
 SET @@session.binlog_transaction_compression = @saved_btc;
@@ -333,7 +333,7 @@ DROP TABLES t1, t2;
 connect (fresh,localhost,root,,test);
 connection fresh;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
 # Format description event, with server_id = 10;

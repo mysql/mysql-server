@@ -68,7 +68,7 @@
 --let $MYSQLBINLOG_OUTFILE=$MYSQLTEST_VARDIR/tmp/wl13355_mysqlbinlog.sql
 --let $mysqlbinlog_parameters= --result-file=$MYSQLBINLOG_OUTFILE --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
 --let $WAIT_COUNT=6000
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Case 1: Replay DDL_CTAS without rows, crash before commit;
@@ -82,7 +82,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
@@ -94,7 +94,7 @@ RESET MASTER;
 --source include/assert.inc
 
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Replay the binlog events and cause crash before commit;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
@@ -113,10 +113,10 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --source include/assert.inc
 
 DROP TABLE t0;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 --remove_file $MYSQLBINLOG_OUTFILE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Case 2: Replay DDL_CTAS with rows, crash before commit;
@@ -134,7 +134,7 @@ CREATE TABLE t1 AS SELECT * FROM t0;
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
@@ -146,7 +146,7 @@ RESET MASTER;
 --source include/assert.inc
 
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Replay the binlog events, cause crash before commit and restart;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
@@ -170,7 +170,7 @@ DROP TABLE t0;
 --echo #
 --echo # Case 3: Replay DDL_CTAS with rows and then force rollback.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET GLOBAL DEBUG='+d, force_rollback_in_replica_on_transactional_ddl_commit';
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
@@ -182,7 +182,7 @@ SET global DEBUG='-d, force_rollback_in_replica_on_transactional_ddl_commit';
 --source include/assert.inc
 
 DROP TABLE t0;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Case 4: Replay DDL_CTAS in a SP without rows, crash before commit;
@@ -203,7 +203,7 @@ CALL proc1();
 --echo # Replay without crash.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
@@ -213,7 +213,7 @@ RESET MASTER;
 --echo # Drop existing objects.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Replay the binlog events and cause crash.
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
@@ -233,11 +233,11 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 
 DROP TABLE t0;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 --remove_file $MYSQLBINLOG_OUTFILE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Case 5: Replay DDL_CTAS in a SP with rows, crash before commit;
@@ -262,7 +262,7 @@ CALL proc1();
 --echo # Replay without crash.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
@@ -276,7 +276,7 @@ RESET MASTER;
 --echo # Drop existing objects.
 DROP TABLE t0,t1;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Replay the binlog events and cause crash.
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
@@ -296,11 +296,11 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 
 DROP TABLE t0;
 DROP PROCEDURE proc1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 --remove_file $MYSQLBINLOG_OUTFILE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # Case 6: Replay DDL_CTAS using PS with rows, crash before commit;
@@ -321,7 +321,7 @@ DEALLOCATE PREPARE stmt;
 
 --echo # Replay without crash.
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --skip-comments test < $MYSQLBINLOG_OUTFILE
 
 --let $assert_text= Verify two tables (t0 & t1) are present in test database
@@ -334,7 +334,7 @@ RESET MASTER;
 
 --echo # Drop existing objects.
 DROP TABLE t0,t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --echo # Replay the binlog events and cause crash.
@@ -353,4 +353,4 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 
 DROP TABLE t0;
 --remove_file $MYSQLBINLOG_OUTFILE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

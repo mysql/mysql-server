@@ -13,7 +13,7 @@ create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 
 --sync_slave_with_master
 --connection master
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 # Add a suppression for the warning that will appear in the slave's .err file
@@ -183,7 +183,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --connection master
 set global debug = @old_debug;
 
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
@@ -264,7 +264,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --connection master
 set global debug = @old_debug;
 
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
@@ -348,7 +348,7 @@ set global debug = @old_debug;
 
 --connection master
 
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;

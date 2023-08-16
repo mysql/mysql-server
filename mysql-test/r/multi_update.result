@@ -667,7 +667,7 @@ CREATE TABLE t3 (a int, PRIMARY KEY (a));
 create trigger trg_del_t3 before  delete on t3 for each row insert into t1 values (1);
 insert into t2 values (1),(2);
 insert into t3 values (1),(2);
-reset master;
+reset binary logs and gtids;
 delete t3.* from t2,t3 where t2.a=t3.a;
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 select count(*) from t1 /* must be 0 */;

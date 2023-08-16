@@ -596,7 +596,7 @@ create trigger trg_del_t3 before  delete on t3 for each row insert into t1 value
 
 insert into t2 values (1),(2);
 insert into t3 values (1),(2);
-reset master;
+reset binary logs and gtids;
 
 # exec cases B, A - see innodb.test
 

@@ -67,7 +67,7 @@ SET SESSION sql_log_bin= 1;
 
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
@@ -80,7 +80,7 @@ RESET MASTER;
 DROP TABLE t1;
 
 # Reset the server GTIDs so rpl_end don't blocks
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
 

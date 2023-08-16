@@ -1,7 +1,7 @@
 SET BINLOG_FORMAT=MIXED;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
@@ -163,7 +163,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
-reset master;
+reset binary logs and gtids;
 UPDATE t2,t1 SET t2.a=t1.a+2;
 ERROR 23000: Duplicate entry '3' for key 't2.PRIMARY'
 select * from t2 /* must be (3,1), (4,4) */;
@@ -177,7 +177,7 @@ delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
 insert into t2 values (1,2),(3,4),(4,4);
-reset master;
+reset binary logs and gtids;
 UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 't2.PRIMARY'
 # There must be no UPDATE query event;

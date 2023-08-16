@@ -24,8 +24,8 @@ CALL mtr.add_suppression("Could not find first log file name in binary log");
 
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (a INT);
---let $binlog_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
---let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+--let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 

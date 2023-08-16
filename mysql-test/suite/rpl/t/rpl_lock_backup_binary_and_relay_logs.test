@@ -52,16 +52,16 @@ LOCK INSTANCE FOR BACKUP;
 
 # Generate workload on master
 --source include/rpl_connection_master.inc
---let $m1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $m1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOCAL LOGS;
 
---let $m2= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $m2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 FLUSH LOCAL LOGS;
 
---let $m3= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $m3= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 INSERT INTO t1 VALUES (4);
 INSERT INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (6);

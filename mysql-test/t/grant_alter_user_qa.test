@@ -972,7 +972,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_bin';
 
 # Get rid of previous tests binlog
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';

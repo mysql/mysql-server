@@ -37,7 +37,7 @@ include/assert_grep.inc [Found 2 warning in the error log]
 ==== Clean up ====
 # Removing debug point 'simulate_rows_event_cleanup_failure' from @@GLOBAL.debug
 include/stop_slave_io.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

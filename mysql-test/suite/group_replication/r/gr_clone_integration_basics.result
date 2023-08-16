@@ -40,7 +40,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server2]
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################################################
 # 6. On a empty server2 start group replication

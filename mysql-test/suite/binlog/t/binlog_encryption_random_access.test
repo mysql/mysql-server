@@ -16,7 +16,7 @@
 
 # Suppression of error messages
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
---let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
 
@@ -27,7 +27,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
 --disable_warnings
 while ($trx)
 {
-  --let $pos=query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $pos=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
   BEGIN;
   --eval INSERT INTO t1 (c1, c2, pos) VALUES ($trx, REPEAT('a', RAND() * 8192), $pos)
   COMMIT;

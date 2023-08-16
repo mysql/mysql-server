@@ -19,7 +19,7 @@
 # Run this test in mixed mode as that is where the crash is seen.
 --source include/have_binlog_format_mixed.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE employees (store_id INT NOT NULL) PARTITION BY RANGE (store_id)
 ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20),

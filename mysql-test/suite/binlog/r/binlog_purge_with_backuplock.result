@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # 1. Save current binlog file name
 include/save_binlog_position.inc

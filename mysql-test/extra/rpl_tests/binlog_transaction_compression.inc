@@ -59,7 +59,7 @@ while($i < 3)
   # CREATE TABLE onwards
 
   CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
-  --let $create_table_pos_master = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $create_table_pos_master = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
   # now get the position where the CREATE TABLE ended up in the relay log
   --source include/rpl_connection_master.inc
@@ -72,7 +72,7 @@ while($i < 3)
   --source include/start_slave_sql.inc
   --source include/rpl_connection_master.inc
   --source include/sync_slave_sql_with_master.inc
-  --let $create_table_pos_slave = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $create_table_pos_slave = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
   --source include/stop_slave_sql.inc
 
   # 1. on master insert a large transaction ...
@@ -90,7 +90,7 @@ while($i < 3)
   # ... and assert that SHOW BINLOG EVENTS shows the correct output
   --echo BINLOG EVENTS on master [$compression_type]
   --let $binlog_position = $create_table_pos_master
-  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
   --let $relay_log=0
   --let $include_header_events= 0
   --let $include_trx_payload_events=1
@@ -136,7 +136,7 @@ while($i < 3)
   # ... and assert that SHOW BINLOG EVENTS shows the correct output
   --echo BINLOG EVENTS on slave [$compression_type] (no compression, since slave applier has binlog_transaction_compression = NONE)
   --let $binlog_position = $create_table_pos_slave
-  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
   --let $relay_log=0
   --let $include_header_events= 0
   --let $include_trx_payload_events=1

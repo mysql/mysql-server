@@ -11,13 +11,13 @@
 CREATE TABLE t1(s INT);
 INSERT INTO t1 VALUES(1);
 
---let $binlog_file_1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file_1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 # Flush logs to create second binlog file
 FLUSH LOGS;
 INSERT INTO t1 VALUES(2);
 
---let $binlog_file_2= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file_2= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir;`;
 
@@ -34,4 +34,4 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 --remove_file $MYSQLD_DATADIR/$binlog_file_1.gz
 --remove_file $MYSQLD_DATADIR/$binlog_file_2.gz
 --remove_file $MYSQLTEST_VARDIR/tmp/compressed_files.sql
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

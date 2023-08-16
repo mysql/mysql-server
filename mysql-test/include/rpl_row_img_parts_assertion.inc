@@ -48,7 +48,7 @@ if (`SELECT LENGTH("$row_img_expected") = 0`)
 -- let $_prefix= `SELECT UUID()`
 -- let $TMP_FILE= $MYSQLTEST_VARDIR/tmp/$_prefix.tmp
 
--- let $binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 -- let $MYSQLD_DATADIR= `select @@datadir;`
 -- exec $MYSQL_BINLOG -v --start-position=$row_img_pos $MYSQLD_DATADIR/$binlog > $TMP_FILE
 

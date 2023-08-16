@@ -37,7 +37,7 @@ connection server2;
 call mtr.add_suppression("cluster disconnect An incident event has been written");
 
 connection server1;
-reset master;
+reset binary logs and gtids;
 
 #############################################################
 # A TE_FAILURE event will be received by the binlog thread 
@@ -108,7 +108,7 @@ if ($have_debug)
 }
 enable_query_log;
 
-reset master;
+reset binary logs and gtids;
 
 --echo Disconnect mysqld from all datanodes
 --exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT

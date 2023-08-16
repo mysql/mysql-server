@@ -101,14 +101,14 @@ INSERT INTO t1 VALUES (3);
 # Restore the slave
 --source include/stop_slave_io.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --let $use_gtids= 1
 
 # Cleanup the master
 --source include/rpl_connection_master.inc
 DROP TABLE t1,t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 

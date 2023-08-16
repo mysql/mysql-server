@@ -1,6 +1,6 @@
 --source include/have_log_bin.inc
 
-reset master;
+reset binary logs and gtids;
 
 create table t1 (col1 int primary key);
 

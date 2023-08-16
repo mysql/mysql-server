@@ -38,7 +38,7 @@
 --echo # performance_schema.session_variables query, and binlog purge
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 --enable_connect_log
 --connect(con1,localhost,root,,)

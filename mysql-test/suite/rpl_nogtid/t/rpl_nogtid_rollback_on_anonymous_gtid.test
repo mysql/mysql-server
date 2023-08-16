@@ -35,8 +35,8 @@
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
 
 # Collect the master positions before the transaction
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
 CALL mtr.add_suppression('GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected');

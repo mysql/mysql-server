@@ -171,7 +171,7 @@ callmacro Setsession	server_1;
 callmacro GR_stop;
 noquery_result;
 DROP TABLE test.tab1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 query_result;
 callmacro %ASSERT_NOTICES%	view_changed	verify_1;
 callmacro %ASSERT_NOTICES%	state_changed	verify_1;
@@ -179,7 +179,7 @@ callmacro %ASSERT_NOTICES%	state_changed	verify_1;
 callmacro Setsession	server_2;
 noquery_result;
 DROP TABLE test.tab1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 query_result;
 
 -->echo

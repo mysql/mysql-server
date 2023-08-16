@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ---- Initialize ----
 [connection slave]
 CREATE TABLE t1 (n INT);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_PORT = SLAVE_PORT;
 include/start_slave.inc

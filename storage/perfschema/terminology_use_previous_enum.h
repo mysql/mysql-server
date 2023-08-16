@@ -48,7 +48,9 @@ enum enum_compatibility_version {
   /// Use new names; do not provide backward compatibility
   NONE,
   /// Use names that were in use up to 8.0.25, inclusive.
-  BEFORE_8_0_26
+  BEFORE_8_0_26,
+  /// Use names that were in use before 8.2.0.
+  BEFORE_8_2_0
 };
 
 }  // namespace terminology_use_previous

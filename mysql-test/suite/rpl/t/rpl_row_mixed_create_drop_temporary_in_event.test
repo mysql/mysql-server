@@ -38,7 +38,7 @@ DO BEGIN
 END;|
 DELIMITER ;|
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --sleep $naptime
 --let $binlog_start= $saved_master_pos
 # skip two events, print the one next event if it exists
@@ -67,7 +67,7 @@ DO BEGIN
 END;|
 DELIMITER ;|
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --sleep $naptime
 --let $binlog_start= $saved_master_pos
 # skip two events, print the one next event if it exists
@@ -92,7 +92,7 @@ DO BEGIN
 END;|
 DELIMITER ;|
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --sleep $naptime
 --let $binlog_start= $saved_master_pos
 # print the top five events.
@@ -126,7 +126,7 @@ DO BEGIN
 END;|
 DELIMITER ;|
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --sleep $naptime
 --let $binlog_start= $saved_master_pos
 # skip two events, print the one next event if it exists

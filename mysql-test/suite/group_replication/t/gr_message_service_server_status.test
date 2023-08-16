@@ -33,7 +33,7 @@
 #
 #   5.   When group looses quorum server can send messages but they only be
 #        deliver if quorum is reestablished
-#   5.1. Stop server1 and remove table t1 and reset master to allow
+#   5.1. Stop server1 and remove table t1 and reset binary logs and gtids to allow
 #        joining back to the group
 #   5.2. Start server1 and wait to be ONLINE
 #   5.3. Kill server2
@@ -212,7 +212,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent a message whe
 --echo #    deliver if quorum is reestablished
 
 --echo
---echo # 5.1. Stop server1 and remove table t1 and reset master to allow
+--echo # 5.1. Stop server1 and remove table t1 and reset binary logs and gtids to allow
 --echo #      joining back to the group
 
 --let $rpl_connection_name= server1
@@ -221,7 +221,7 @@ SELECT group_replication_service_message_send("tag", "Server2 sent a message whe
 --source include/stop_group_replication.inc
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo # 5.2. Start server1 and wait to be ONLINE

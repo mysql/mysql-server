@@ -25,7 +25,7 @@
 --source include/have_binlog_format_row.inc
 
 # Make sure the test is repeatable
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the replicas.");
 
@@ -38,7 +38,7 @@ CREATE USER u1@h;
 --echo #
 SELECT user FROM mysql.user where user='u1';
 
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 --error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 --echo #

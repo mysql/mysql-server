@@ -7,8 +7,8 @@
 # 1) generate some workload at the master;
 # 2) sync the slave with the master;
 # 3) stop slave replication threads;
-# 4) do RESET MASTER on the master;
-# 5) do RESET MASTER on the slave;
+# 4) do RESET BINARY LOGS AND GTIDS on the master;
+# 5) do RESET BINARY LOGS AND GTIDS on the slave;
 # 6) do RESET SLAVE on the slave;
 # 7) restart the slave.
 #
@@ -28,10 +28,10 @@ CREATE TABLE t1 (c1 INT);
 --source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/start_slave.inc
 

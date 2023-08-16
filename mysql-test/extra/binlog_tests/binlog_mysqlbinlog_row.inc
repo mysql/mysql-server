@@ -13,7 +13,7 @@ SET timestamp=1000000000;
 --echo #
 --echo # Delete all existing binary logs.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 
 CREATE TABLE t1 (c01 BIT);

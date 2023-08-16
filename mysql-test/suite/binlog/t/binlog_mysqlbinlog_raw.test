@@ -55,8 +55,8 @@ while ($iteration>0)
   }
 
   # binlog file name is needed in the test. To use binlog.000001,
-  # RESET MASTER is needed.
-  RESET MASTER;
+  # RESET BINARY LOGS AND GTIDS is needed.
+  RESET BINARY LOGS AND GTIDS;
   # kill the dump threads if there any dump threads (may be from previous test)
   --source include/stop_dump_threads.inc
 
@@ -81,7 +81,7 @@ while ($iteration>0)
 
   --echo # Step-6: Cleanup the data, so that it is ready for reapply.
   DROP TABLE t1;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   --echo # Step-7: Apply the data that we got from --stop-never process.
   --exec $MYSQL_BINLOG $MYSQL_TMP_DIR/binlog-back_up_file.000001 | $MYSQL --user=root --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT
@@ -105,8 +105,8 @@ while ($iteration>0)
 #
 
 # test the new compression option
-RESET MASTER;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+RESET BINARY LOGS AND GTIDS;
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (1);
@@ -125,4 +125,4 @@ DROP TABLE t1;
 --exec $MYSQL_BINLOG --compress --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
 --exec $MYSQL_BINLOG -C --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

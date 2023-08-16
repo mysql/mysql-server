@@ -39,7 +39,7 @@ SET GLOBAL replica_transaction_retries = 0;
 --source include/rpl_connection_master.inc
 CREATE TABLE t1(a INT);
 INSERT INTO t1 SET a=1;
---let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
 --let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, Info, 7)
 --let $query_pos= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM 4, End_log_pos,7)
 

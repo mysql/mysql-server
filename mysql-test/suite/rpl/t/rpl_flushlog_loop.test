@@ -31,7 +31,7 @@ FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
 
 INSERT INTO t1 VALUE(2);
-let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $slave_param_value= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --let $sync_slave_connection= server_1
 --source include/sync_slave_sql_with_master.inc
 

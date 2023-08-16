@@ -6,7 +6,7 @@ source include/have_log_bin.inc;
 
 connection default;
 --disable_warnings
-reset master;
+reset binary logs and gtids;
 --enable_warnings
 
 set @saved_binlog_format = @@global.binlog_format;
@@ -82,7 +82,7 @@ DROP USER 'mysqltest_1'@'localhost';
 --echo #   THE PRIVILEGES TO BINLOG
 --echo #
 
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 CREATE USER b31869146@localhost;
 CREATE DATABASE b31869146_db;
 CREATE TABLE b31869146_db.t1 (a INT);

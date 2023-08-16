@@ -142,7 +142,7 @@ source include/stop_slave.inc;
 
 connection master;
 create table t2 (a int) engine=ndb;
-let $pos_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $pos_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
 
@@ -188,7 +188,7 @@ select count(*) as 'must be zero' from t2;
 connection slave;
 stop slave;
 reset slave;
-reset master;
+reset binary logs and gtids;
 
 # randomize slave server's own checksum policy
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
@@ -196,7 +196,7 @@ flush logs;
 
 connection master;
 set @@global.binlog_checksum= CRC32;
-reset master;
+reset binary logs and gtids;
 flush logs;
 create table t3 (a int, b char(5)) engine=ndb;
 
@@ -215,7 +215,7 @@ eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MY
 
 connection master;
 flush logs;
-reset master;
+reset binary logs and gtids;
 insert into t3 value (1, @@global.binlog_checksum);
 
 connection slave;

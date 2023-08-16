@@ -1,4 +1,4 @@
-reset master;
+reset binary logs and gtids;
 create database mysqltest;
 use mysqltest;
 create table t1 (a int primary key, b int) engine=ndb;
@@ -9,7 +9,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 drop database mysqltest;
 --bug58698 Epoch not in ndb_apply_status 
-reset master;
+reset binary logs and gtids;
 use mysql;
 -- MyISAM table in mysql db
 create table invisible(a int primary key) engine=myisam;

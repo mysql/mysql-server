@@ -181,7 +181,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   --let $dropped_t=
   --let $dropped_n=
 
-  let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+  let $pos_trans_command= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 
   SET @commands= '';
 }
@@ -1040,7 +1040,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     }
     --enable_warnings 
 
-    let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+    let $pos_trans_command= query_get_value("SHOW BINARY LOG STATUS", Position, 1);
     let $commands= '';
   }
   --enable_query_log

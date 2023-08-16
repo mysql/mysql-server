@@ -547,8 +547,8 @@ typedef int (*after_send_event_t)(Binlog_transmit_param *param,
 /**
   This callback is called after resetting master status
 
-  This is called when executing the command RESET MASTER, and is
-  used to reset status variables added by observers.
+  This is called when executing the command RESET BINARY LOGS AND GTIDS,
+  and is used to reset status variables added by observers.
 
   @param param Observer common parameter
 

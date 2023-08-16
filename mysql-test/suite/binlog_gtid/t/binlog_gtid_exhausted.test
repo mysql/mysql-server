@@ -28,8 +28,8 @@ call mtr.add_suppression("Attempting backtrace. You can use the following inform
 SET GLOBAL binlog_error_action=IGNORE_ERROR;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 # @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is empty.
-# Hence execute RESET MASTER.
-RESET MASTER;
+# Hence execute RESET BINARY LOGS AND GTIDS.
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL gtid_purged = CONCAT(@@GLOBAL.server_uuid, ':1-9223372036854775805');
 INSERT INTO t1 VALUES (1);
 --error ER_GNO_EXHAUSTED
@@ -47,7 +47,7 @@ INSERT INTO t1 VALUES (2);
 --source include/assert.inc
 --source include/restart_mysqld.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 
 #Test case 2:
@@ -55,14 +55,14 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 # @@GLOBAL.GTID_PURGED can only be set when the new value
 # includes the old one and their set difference does not overlap with
 # @@GLOBAL.GTID_EXECUTED.
-# RESET MASTER empties the latter and the current purged set
+# RESET BINARY LOGS AND GTIDS empties the latter and the current purged set
 # to satisfy the above condition.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # BUG#20470724 owes this check of no binlog rotation after SET
---let $binlog_file_0= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file_0= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 SET GLOBAL gtid_purged = CONCAT(@@GLOBAL.server_uuid, ':1-9223372036854775805');
---let $binlog_file_1= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file_1= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 --let $assert_cond = "$binlog_file_0" = "$binlog_file_1"
 --let $assert_text = Binlog file must not rotate after SET GTID_PURGED
@@ -78,7 +78,7 @@ INSERT INTO t1 VALUES (2);
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 
 ## BUG26035544 Assert that an error was logged to the server error log.
@@ -123,7 +123,7 @@ DROP TABLE t1;
 
 # Test case 3:
 # Test scenario set GTID > Threshold[(LLONG_MAX/100)*99].
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --disable_query_log
 --eval SET GLOBAL gtid_purged = CONCAT('$server_uuid:1-', (1 << 63) - 10);
 --enable_query_log
@@ -139,7 +139,7 @@ DROP TABLE t1;
 
 # Test case 4:
 # Test scenario set GTID < Threshold.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --disable_query_log
 --eval SET GLOBAL gtid_purged = CONCAT('$server_uuid:1-', (1 << 63) - (1 << 57));
 --enable_query_log
@@ -199,7 +199,7 @@ DROP TABLE t1;
 --let $assert_select = The integer component of the GTID number is high.
 
 # Test scenario 1:
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Set server_uuid as dummy and GTID value below Threshold.
 --eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_uuid:1-', (1 << 62))
 # Set server_uuid as @@GLOBAL.SERVER_UUID and GTID below Threshold.
@@ -211,7 +211,7 @@ RESET MASTER;
 --source include/assert_grep.inc
 
 # Test scenario 2:
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Set server_uuid as dummy and GTID value above Threshold.
 --eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_uuid:1-', (1 << 63) - 2)
 # Set server_uuid as @@GLOBAL.SERVER_UUID GTID below Threshold.

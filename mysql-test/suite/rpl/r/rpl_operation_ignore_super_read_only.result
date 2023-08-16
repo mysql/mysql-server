@@ -51,9 +51,9 @@ include/sync_slave_sql_with_master.inc
 ####################################################################
 FLUSH BINARY LOGS;
 ####################################################################
-# Test Case7: RESET MASTER command
+# Test Case7: RESET BINARY LOGS AND GTIDS command
 ####################################################################
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ####################################################################
 # Test Case8: SET GLOBAL GTID_PURGED command
 ####################################################################
@@ -127,9 +127,9 @@ include/sync_slave_sql_with_master.inc
 ####################################################################
 FLUSH BINARY LOGS;
 ####################################################################
-# Test Case7: RESET MASTER command
+# Test Case7: RESET BINARY LOGS AND GTIDS command
 ####################################################################
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ####################################################################
 # Test Case8: SET GLOBAL GTID_PURGED command
 ####################################################################

@@ -241,7 +241,7 @@ while ($i <= $number_of_channels)
   {
     --let $rpl_connection_name= server_$i
     --source include/rpl_connection.inc
-    --let $position=query_get_value("SHOW MASTER STATUS", Position, 1)
+    --let $position=query_get_value("SHOW BINARY LOG STATUS", Position, 1)
     --let $masked_position= POSITION
     --let $query_expected_result= 0
     if ($j == 2)

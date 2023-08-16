@@ -172,14 +172,14 @@ START REPLICA;
 --source include/rpl_connection.inc
 
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
 STOP REPLICA;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo # 4. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.

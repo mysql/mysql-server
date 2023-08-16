@@ -23,7 +23,7 @@
 
 --source include/rpl_connection_slave.inc
 CREATE TABLE t1 (n INT);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # replicate slave -> slave
 --source include/stop_slave.inc
@@ -69,7 +69,7 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $MASTER_MYPORT;
 # right after that.
 
 CREATE TABLE t1(n int);
---let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $until_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 CREATE TABLE t2(n int);
 

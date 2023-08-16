@@ -255,7 +255,7 @@ RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

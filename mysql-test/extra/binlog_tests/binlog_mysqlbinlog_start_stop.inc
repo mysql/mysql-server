@@ -9,7 +9,7 @@
 # TODO: Need to look at making row based version once new binlog client is complete.
 
 CREATE TABLE t1 (a INT);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source extra/binlog_tests/binlog_mysqlbinlog_fill.inc
 

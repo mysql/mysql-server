@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 use test;
 create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
-reset master;
+reset binary logs and gtids;
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 START REPLICA;
@@ -103,7 +103,7 @@ skipped_err_count
 0
 Now check that we can manually restart the slave
 set global debug = @old_debug;
-reset master;
+reset binary logs and gtids;
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
@@ -149,7 +149,7 @@ skipped_err_count
 0
 Now check that we can manually restart the slave
 set global debug = @old_debug;
-reset master;
+reset binary logs and gtids;
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;
@@ -193,7 +193,7 @@ skipped_err_count
 1
 Now check that we can manually restart the slave
 set global debug = @old_debug;
-reset master;
+reset binary logs and gtids;
 START REPLICA SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 STOP REPLICA;
 CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=4;

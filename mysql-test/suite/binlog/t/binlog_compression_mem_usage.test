@@ -86,7 +86,7 @@ SELECT @@global.binlog_transaction_compression;
 --echo #
 
 --disable_result_log
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --eval SHOW BINLOG EVENTS IN '$binlog_file';
 --enable_result_log
 

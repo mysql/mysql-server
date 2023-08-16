@@ -216,7 +216,7 @@ if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
   --echo **** Check if every drop temporary table command is prepended with "use"
   --echo
   connection master;
-  --let $current_binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
+  --let $current_binlog_file= query_get_value(SHOW BINARY LOG STATUS,File,1)
   --let $count_drop= 0
   --let $event_number= 1
   --let $binlog_event= query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)

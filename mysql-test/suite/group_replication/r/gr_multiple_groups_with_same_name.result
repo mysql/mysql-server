@@ -18,7 +18,7 @@ SELECT CHANNEL_NAME, MEMBER_STATE, COUNT(*) AS COUNT from performance_schema.rep
 CHANNEL_NAME	MEMBER_STATE	COUNT
 group_replication_applier	ONLINE	2
 include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_and_bootstrap_group_replication.inc
 #
 # Check that group with one member is formed.

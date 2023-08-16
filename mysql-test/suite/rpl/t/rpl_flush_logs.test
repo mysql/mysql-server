@@ -156,8 +156,8 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 # are not written to binary log.
 
 --connection master
---let $binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
---let $binlog_start= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS,File,1)
+--let $binlog_start= query_get_value(SHOW BINARY LOG STATUS,Position,1)
 --let $master_pos_before_flush_logs= $binlog_start
 
 # Make FLUSH <individual> LOGS fail by changing
@@ -175,7 +175,7 @@ FLUSH SLOW LOGS;
 FLUSH GENERAL LOGS;
 
 # Assert that the above statements are not written to the binlog.
---let $master_pos_after_flush_logs= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $master_pos_after_flush_logs= query_get_value(SHOW BINARY LOG STATUS,Position,1)
 --let $assert_text= assert that the above events are not written to binlog
 --let $assert_cond= $master_pos_before_flush_logs = $master_pos_after_flush_logs
 --source include/assert.inc

@@ -27,9 +27,9 @@ connection con2;
 let $ID= `select connection_id()`;
 
 #
-# `reset master' problem is to be addressed by bug#15580 fixes.
+# `reset binary logs and gtids' problem is to be addressed by bug#15580 fixes.
 #
-reset master;
+reset binary logs and gtids;
 send insert into t2 values (null, null), (null, get_lock("a", 10));
 
 
@@ -248,7 +248,7 @@ delimiter ;|
 
 delete from t4;
 insert into t4 values (1,1), (1,1);
-reset master;
+reset binary logs and gtids;
 connection con1;
 select get_lock("a", 20);
 
@@ -298,7 +298,7 @@ select RELEASE_LOCK("a");
 
 delete from t4;
 insert into t4 values (1,1), (2,2);
-reset master;
+reset binary logs and gtids;
 connection con1;
 select get_lock("a", 20);
 

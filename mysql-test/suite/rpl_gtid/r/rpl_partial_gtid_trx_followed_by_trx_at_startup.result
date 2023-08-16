@@ -38,11 +38,11 @@ include/stop_slave_io.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 [connection master]
 DROP TABLE t1,t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/start_slave.inc
 include/rpl_end.inc

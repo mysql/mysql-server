@@ -5,7 +5,7 @@
 
 let $saved_server_id=`select @@server_id`;
 set global server_id=1;
-reset master;
+reset binary logs and gtids;
 
 -- disable_warnings
 drop table if exists t1,t2,t3;
@@ -14,7 +14,7 @@ drop table if exists t1,t2,t3;
 --let $i=3
 while ($i)
 {
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --eval set global server_id=$i
   --eval create table t$i (a int)
 

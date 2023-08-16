@@ -47,7 +47,7 @@ CREATE TABLE `t1` (`ID` bigint(20) primary key) ENGINE=InnoDB;
 CREATE TABLE `t2` (`ID` bigint(20) primary key) ENGINE=InnoDB;
 
 # Save master position
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 
 
 # Test a multiple table drop failure involving non-InnoDB table

@@ -69,7 +69,7 @@ if (!$crash_commit)
 
 --source include/rpl_connection_master.inc
 --eval $current_query
---let $binlog_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $binlog_pos= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 
 --source include/sync_slave_io_with_master.inc
 

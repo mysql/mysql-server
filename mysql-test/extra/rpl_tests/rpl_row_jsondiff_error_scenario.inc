@@ -213,7 +213,7 @@ if (!$skip_case)
       --source include/stop_slave_io.inc
       RESET SLAVE;
       --source include/rpl_connection_master.inc
-      RESET MASTER;
+      RESET BINARY LOGS AND GTIDS;
       --source include/rpl_connection_slave.inc
       --source include/start_slave.inc
     }
@@ -238,15 +238,15 @@ if (!$skip_case)
   --source include/stop_slave.inc
 
   # BUG#27636289: RPL BREAKS WITH RESTART AFTER RESET SLAVE,
-  #               RESET MASTER WITH WRONG ERROR IN MTS
+  #               RESET BINARY LOGS AND GTIDS WITH WRONG ERROR IN MTS
   # Due to the above mentioned bug we need to use RESET SLAVE ALL
   # and CHANGE MASTER instead of just RESET SLAVE, in order to clear
   # RECEIVED_GTID_SET when test runs in MTS mode.
 
   RESET SLAVE ALL;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --source include/rpl_connection_master.inc
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --source include/rpl_connection_slave.inc
   --replace_result $MASTER_MYPORT MASTER_PORT
   --disable_warnings

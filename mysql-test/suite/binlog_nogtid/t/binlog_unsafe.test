@@ -575,7 +575,7 @@ BEGIN
 END|
 --DELIMITER ;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SELECT func_limit();
 --let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
@@ -615,7 +615,7 @@ INSERT INTO t2 SET a = func_modify_t1();
 
 SET SESSION binlog_format = MIXED;
 --echo # Check if the statement is logged in row format.
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t2 SET a = func_modify_t1();
 --let $mask_binlog_commit_events= 1
 --source include/show_binlog_events.inc
@@ -648,7 +648,7 @@ INSERT INTO t1 SET a = 1;
 
 SET SESSION binlog_format = MIXED;
 --echo # Check if the statement is logged in row format.
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 INSERT INTO t1 SET a = 2;
 --let $mask_binlog_commit_events= 1
 --source include/show_binlog_events.inc

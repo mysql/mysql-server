@@ -43,10 +43,10 @@ SELECT * FROM tab1;
 --replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
 eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
 
-# Set Disable On Master
+# Set Disable On Source
 ALTER INSTANCE DISABLE INNODB REDO_LOG;
 
-# Check redo_log status DISABLE on Master as set
+# Check redo_log status DISABLE on Source as set
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
 SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 
@@ -75,10 +75,10 @@ eval SET @@global.innodb_redo_log_archive_dirs = 'label2:$IRLA_DIRECTORY_1';
 SELECT * FROM tab1;
 SELECT * FROM tab2;
 
-# Set Disable On Slave
+# Set Disable On Replica
 ALTER INSTANCE DISABLE INNODB REDO_LOG;
 
-# Check redo_log status DISABLE on Slave
+# Check redo_log status DISABLE on Replica
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
 SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 
@@ -89,7 +89,7 @@ DO innodb_redo_log_archive_start("label2");
 --echo [Connection Master]
 --connection master
 
-# Check redo_log status still Disable on Slave
+# Check redo_log status still Disable on Replica
 SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
 SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 

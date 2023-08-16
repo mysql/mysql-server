@@ -83,7 +83,7 @@ Events::Events() {
   m_target_def.add_field(FIELD_ENDS, "FIELD_ENDS", "ends DATETIME");
   m_target_def.add_field(
       FIELD_STATUS, "FIELD_STATUS",
-      "status ENUM('ENABLED', 'DISABLED', 'SLAVESIDE_DISABLED') NOT NULL");
+      "status ENUM('ENABLED', 'DISABLED', 'REPLICA_SIDE_DISABLED') NOT NULL");
   m_target_def.add_field(FIELD_ON_COMPLETION, "FIELD_ON_COMPLETION",
                          "on_completion ENUM('DROP', 'PRESERVE') NOT NULL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",

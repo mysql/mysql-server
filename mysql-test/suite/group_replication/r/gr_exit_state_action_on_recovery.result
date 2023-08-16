@@ -81,7 +81,7 @@ include/rpl_reconnect.inc
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin= 1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
 include/start_group_replication.inc

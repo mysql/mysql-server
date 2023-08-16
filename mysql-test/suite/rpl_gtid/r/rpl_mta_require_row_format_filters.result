@@ -182,10 +182,10 @@ include/stop_slave.inc
 [connection slave]
 RESET REPLICA;
 DROP TABLE tload;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection master]
 DROP TABLE tload;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 include/start_slave.inc
 [connection master]

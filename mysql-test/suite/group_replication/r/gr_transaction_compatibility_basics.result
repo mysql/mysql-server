@@ -40,7 +40,7 @@ Occurrences of 'The member contains transactions not present in the group. The m
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server2]
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_group_replication.inc
 #
 # Verify all is fine

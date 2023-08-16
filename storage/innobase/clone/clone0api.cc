@@ -2351,7 +2351,7 @@ static int clone_drop_binary_logs(THD *thd) {
     thd->clear_error();
 
     /* 2. Clear all binary logs and GTID. */
-    snprintf(sql_stmt, sizeof(sql_stmt), "RESET MASTER");
+    snprintf(sql_stmt, sizeof(sql_stmt), "RESET BINARY LOGS AND GTIDS");
 
     if (clone_execute_query(thd, &sql_stmt[0], 1, false)) {
       err = ER_INTERNAL_ERROR;

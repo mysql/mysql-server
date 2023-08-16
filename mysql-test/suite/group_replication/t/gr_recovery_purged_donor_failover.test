@@ -51,9 +51,9 @@ SET SESSION sql_log_bin= 1;
 
 --connection server1
 
---let $server_binlog_file_prev= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server_binlog_file_prev= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH BINARY LOGS;
---let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $server_binlog_file_cur= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 #
 # At this point the dump thread spawned to attend the

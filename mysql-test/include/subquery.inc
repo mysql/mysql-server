@@ -5211,9 +5211,9 @@ DROP TABLE t1,t2;
 CALL mtr.add_suppression("file *  was not purged because it is the active log file.");
 --enable_query_log
 --error 1064
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
+purge binary logs before (select adddate(current_timestamp(), interval -4 day));
 --disable_warnings
-purge master logs before adddate(current_timestamp(), interval -4 day);
+purge binary logs before adddate(current_timestamp(), interval -4 day);
 --enable_warnings
 
 #

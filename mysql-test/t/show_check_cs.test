@@ -488,7 +488,7 @@ show grants;
 show create database test;
 show create table t1;
 show create view v1;
-show master status;
+show binary log status;
 show slave status;
 show create procedure p1;
 show create function f1;

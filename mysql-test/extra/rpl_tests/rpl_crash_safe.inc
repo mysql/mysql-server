@@ -109,9 +109,9 @@ if ($commands != '')
   # rpl_mixing_engines.inc
   #
   connection master;
-  let $master_before= query_get_value(SHOW MASTER STATUS, Position, 1);
+  let $master_before= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
   --source extra/rpl_tests/rpl_mixing_engines.inc
-  let $master_after= query_get_value(SHOW MASTER STATUS, Position, 1);
+  let $master_after= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
   #
   # Restarts the SQL THREAD and waits for the SLAVE to be crashed and

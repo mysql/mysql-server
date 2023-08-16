@@ -751,7 +751,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
       case ADMIN_REFRESH:
         if (mysql_refresh(mysql, (uint) ~(REFRESH_GRANT | REFRESH_STATUS |
                                           REFRESH_READ_LOCK | REFRESH_REPLICA |
-                                          REFRESH_MASTER))) {
+                                          REFRESH_SOURCE))) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;

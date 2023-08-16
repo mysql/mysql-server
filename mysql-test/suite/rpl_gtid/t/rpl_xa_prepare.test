@@ -145,7 +145,7 @@ START REPLICA SQL_THREAD;
 # Cleanup the mess created by this testcase
 ALTER TABLE t1 engine=Innodb;
 DELETE FROM t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ###############################################################################
 # Step-3.3: Start SQL thread from the begining of the XA transaction.

@@ -99,7 +99,7 @@ GRANT ALL ON *.* TO root@10.0.1.1;
 --source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
---let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MASTER_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
 --echo # Change master to listen to the source on IP '10.0.2.1' in the 'red' namespace
@@ -123,7 +123,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 # we reconnect in the same namespace.
 
 --source include/rpl_connection_master.inc
---let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MASTER_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
@@ -168,7 +168,7 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 --source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
---let $MASTER_LOG_POS = query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $MASTER_LOG_POS = query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/rpl_connection_slave.inc
 --echo # Change master to original connection

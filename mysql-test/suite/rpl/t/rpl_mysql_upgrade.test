@@ -27,7 +27,7 @@ CREATE DATABASE `#mysql50#mysqltest-1`;
 --source include/stop_slave_io.inc
 
 connection master;
-let $before_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $before_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 #With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
 #binlog is disabled by default.
@@ -41,7 +41,7 @@ connection slave;
 --source include/start_slave_io.inc
 
 connection master;
-let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $after_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 if ($before_position == $after_position)
 {
@@ -62,8 +62,8 @@ connection master;
 --source include/rpl_restart_server.inc
 
 connection master;
-let $after_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $after_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $after_position= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 if ($before_position != $after_position)
 {

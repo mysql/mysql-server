@@ -7,7 +7,7 @@ t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Drop mysql.ndb_schema from NDB
 Dropping table ndb_schema...OK
 
@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Drop mysql.ndb_apply_status from NDB
 Dropping table ndb_apply_status...OK
 
@@ -69,7 +69,7 @@ t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Drop mysql.ndb_schema_result from NDB
 Dropping table ndb_schema_result...OK
 

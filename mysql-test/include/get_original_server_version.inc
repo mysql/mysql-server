@@ -15,7 +15,7 @@
 #
 
 --let $MYSQLD_DATADIR = `select @@datadir`
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $prefix = `select uuid()`
 --let $out_file = $MYSQLTEST_VARDIR/tmp/$prefix.out
 --exec $MYSQL_BINLOG --include-gtids=$gtid --force-if-open $MYSQLD_DATADIR/$binlog_file > $out_file

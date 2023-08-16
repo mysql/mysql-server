@@ -4,7 +4,7 @@
 
 show variables like 'log_bin';
 
-reset master;
+reset binary logs and gtids;
 
 use test;
 create table stuff (a int) engine=ndb;
@@ -53,5 +53,5 @@ let $mysqld_name=mysqld.1.1;
 #select distinct(file) from mysql.ndb_binlog_index;
 
 drop table stuff;
-reset master;
+reset binary logs and gtids;
 

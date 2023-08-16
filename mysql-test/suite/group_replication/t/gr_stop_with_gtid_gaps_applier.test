@@ -11,7 +11,7 @@
 # 3. Create a table on M2 with a specified GTID. GTID_EXECUTED must contain a
 #    hole on M2. Wait until statement reaches M1 relay log.
 # 4. Shutdown the group before applying the received transactions on server1.
-#  - M2: Drop table t1, remove applier thread channel and reset master.
+#  - M2: Drop table t1, remove applier thread channel and reset binary logs and gtids.
 # 5. Bootstrap start a group on M1. GTID_EXECUTED must contain no holes.
 #  - UUID_GROUP:3 is used for the view on M1.
 #  - M1: Assert check events sequence in binlog.
@@ -112,7 +112,7 @@ SET DEBUG_SYNC= 'RESET';
 --source include/stop_group_replication.inc
 DROP TABLE t1;
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 
 --echo

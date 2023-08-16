@@ -1,0 +1,46 @@
+DROP DATABASE IF EXISTS mysqldump_test_db;
+#
+# Create the database for testing
+# Create an event for testing
+CREATE DATABASE mysqldump_test_db;
+CREATE TABLE mysqldump_test_db.t1 (a INT);
+CREATE EVENT mysqldump_test_db.replica_event ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO SELECT 1;
+#
+# Test that it doesn't allow the server values for --terminology_use_previous
+#
+# Test output generation
+#
+# Case settings:
+#   Mysqldump setting --terminology_use_previous= SERVER
+# Output for CREATE EVENT:DISABLE ON REPLICA
+include/assert_grep.inc [Check for DISABLE ON REPLICA]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_2_0
+# Output for CREATE EVENT:DISABLE ON SLAVE
+include/assert_grep.inc [Check for DISABLE ON SLAVE]
+#
+# Case settings:
+#   Mysqldump setting --output-as-version= BEFORE_8_0_23
+# Output for CREATE EVENT:DISABLE ON SLAVE
+include/assert_grep.inc [Check for DISABLE ON SLAVE]
+#
+# Case settings:
+#   Server setting @@GLOBAL.terminology_use_previous= BEFORE_8_0_26
+#   Mysqldump setting --terminology_use_previous= SERVER
+# Output for CREATE EVENT:DISABLE ON REPLICA
+include/save_sysvars.inc [ "GLOBAL.terminology_use_previous" ]
+SET @@GLOBAL.terminology_use_previous = BEFORE_8_0_26;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+include/assert_grep.inc [Check for DISABLE ON REPLICA]
+#
+# Test application of dumps with either terminology
+include/assert.inc [The event Status should be REPLICA_SIDE_DISABLED for replica_event]
+include/assert.inc [The event Status should be REPLICA_SIDE_DISABLED for replica_event]
+#
+# Cleanup
+include/restore_sysvars.inc
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+DROP DATABASE mysqldump_test_db;

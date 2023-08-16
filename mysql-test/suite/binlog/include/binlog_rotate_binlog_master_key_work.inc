@@ -47,7 +47,7 @@
 # Wl#12080 Add support to binary log encryption key rotation and cleanup
 
 
---let $before_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $before_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$before_binary_log
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=the before binary log is encrypted using current master key with key id: $current_master_key_id
@@ -60,7 +60,7 @@ ALTER INSTANCE ROTATE BINLOG MASTER KEY;
 --source include/remove_debug_point.inc
 INSERT INTO t1 VALUES (1);
 
---let $after_binary_log=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $after_binary_log=query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $rpl_log_file=$MASTER_DATADIR$after_binary_log
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=the after binary log is encrypted using rotated master key with key id: $rotated_master_key_id

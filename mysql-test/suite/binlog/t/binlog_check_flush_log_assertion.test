@@ -6,7 +6,7 @@
 # ==== Implementation ====
 #
 # 1) SET GLOBAL debug='d,error_unique_log_filename' to
-#    cause 'FLUSH LOGS' and 'RESET MASTER' commands to error out.
+#    cause 'FLUSH LOGS' and 'RESET BINARY LOGS AND GTIDS' commands to error out.
 # 2) Execute 'FLUSH LOGS' to verify that it does not cause
 #    assertion failure any more.
 #
@@ -39,12 +39,12 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --source include/add_debug_point.inc
 
 --error ER_NO_UNIQUE_LOGFILE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/remove_debug_point.inc
 
 --error ER_UNKNOWN_TARGET_BINLOG
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 
 # Verify that 'FLUSH LOGS' does not cause assertion failure any more,

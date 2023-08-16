@@ -5,7 +5,7 @@ Warning	1287	'ucs2' is deprecated and will be removed in a future release. Pleas
 set @v=convert('abc' using ucs2);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-reset master;
+reset binary logs and gtids;
 insert into t2 values (@v);
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

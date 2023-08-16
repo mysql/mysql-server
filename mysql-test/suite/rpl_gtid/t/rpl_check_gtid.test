@@ -30,12 +30,12 @@
 #                set of complete transactions stored in the previous relay
 #                logs.
 #
-# 3. Guarantee that RESET SLAVE/RESET MASTER cleans the appropriate states.
+# 3. Guarantee that RESET SLAVE/RESET BINARY LOGS AND GTIDS cleans the appropriate states.
 #
 # Property 3.1 - RESET SLAVE cleans the GTIDs and previous GTIDs' state
 #                stored in the relay log.
 #
-# Property 3.2 - RESET MASTER cleans the GTIDs and previous GTIDs' state
+# Property 3.2 - RESET BINARY LOGS AND GTIDS cleans the GTIDs and previous GTIDs' state
 #                stored in the binary log.
 #
 # 4. With CHANGE MASTER TO MASTER_AUTO_POSITION coordinates are not used.
@@ -562,9 +562,9 @@ while ($i != 5)
   --connection slave
   --source include/stop_slave.inc
   RESET SLAVE;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --connection master
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --connection slave
   --disable_warnings
   --source include/start_slave.inc
@@ -620,9 +620,9 @@ while ($i != 5)
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 --let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
 --error ER_BAD_REPLICA_AUTO_POSITION
@@ -647,14 +647,14 @@ while ($i != 5)
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
-  --let $wait_gtids_first= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
+  --let $wait_gtids_first= query_get_value(SHOW BINARY LOG STATUS, Executed_Gtid_Set, 1)
 
   BEGIN;
   INSERT INTO t1 VALUES(1);
   INSERT INTO t1 VALUES(2);
   COMMIT;
 
-  --let $wait_gtids_second= query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1)
+  --let $wait_gtids_second= query_get_value(SHOW BINARY LOG STATUS, Executed_Gtid_Set, 1)
 
   if (`SELECT ($i % 2) = 0`)
   {
@@ -722,9 +722,9 @@ while ($i != 5)
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 --let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
 --replace_result $slave_master_host SLAVE_MASTER_HOST
@@ -791,11 +791,11 @@ while ($i != 5)
 
 --connection slave
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '$slave_master_host', SOURCE_AUTO_POSITION= 0
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 --disable_warnings
 --source include/start_slave.inc

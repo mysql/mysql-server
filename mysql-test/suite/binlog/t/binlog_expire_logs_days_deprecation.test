@@ -87,7 +87,7 @@ CALL mtr.add_suppression("The option expire_logs_days cannot be used together*")
 
 --let $restart_parameters=restart:--binlog_expire_logs_seconds=2 --expire_logs_days=1 --log-error=$ofile
 --source include/restart_mysqld.inc
---let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $first_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 # Sleep for twice of binlog_expire_logs_seconds value
 --sleep 4
@@ -140,7 +140,7 @@ SET GLOBAL expire_logs_days= 10;
 
 --let $restart_parameters=restart: --expire_logs_days=1 --binlog_expire_logs_seconds=0 --log-error=$ofile
 --source include/restart_mysqld.inc
---let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $first_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 --sleep 4
 --file_exists $MYSQLD_DATADIR/$first_binlog_file
@@ -235,7 +235,7 @@ FLUSH LOGS;
 --echo ####
 
 --echo #### Case 4.1: server start should not purge the file
---let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $first_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --let $restart_parameters=restart: --log-error=$ofile --expire_logs_days=0
 --source include/restart_mysqld.inc
@@ -243,7 +243,7 @@ FLUSH LOGS;
 --file_exists $MYSQLD_DATADIR/$first_binlog_file
 
 --echo #### Case 4.2: flush logs should not purge the file
---let $first_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $first_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH LOGS;
 --sleep 4
 --file_exists $MYSQLD_DATADIR/$first_binlog_file

@@ -131,5 +131,5 @@ include/rpl_partition_info.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:sp, slave:sp]
 DROP TABLE sp;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_end.inc

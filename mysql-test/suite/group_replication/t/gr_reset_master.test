@@ -1,17 +1,17 @@
 ################################################################################
-# This test intends to prove that members can survive reset master commands.
+# This test intends to prove that members can survive reset binary logs and gtids commands.
 # These commands end up causing the members to purge their relay logs
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
-# 1. On M1, test a reset master command before start GR. It MUST be successful.
+# 1. On M1, test a reset binary logs and gtids command before start GR. It MUST be successful.
 # 2. Bootstrap start a group on M1. Start GR on M2.
 # 3. Create a table and insert some data.
 # 4. Validate both members must have the same GTID set.
-# 5. Stop GR and reset master on both members.
+# 5. Stop GR and reset binary logs and gtids on both members.
 # 6. Restart both members (Bootstrap start a group on M2. Start GR on M1).
 # 7. Insert some data to test that the group is still running.
-# 8. Run RESET MASTER while GR is running. It must fail.
+# 8. Run RESET BINARY LOGS AND GTIDS while GR is running. It must fail.
 # 9. Clean up.
 ################################################################################
 --source include/have_group_replication_gtid_assignment_block_size_1.inc
@@ -23,7 +23,7 @@
 
 --connection server1
 --echo #Test a reset command before start.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -67,11 +67,11 @@ while ($server_count)
 
 --connection server1
 --source include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server2
 --source include/stop_group_replication.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #Restart both members
 
@@ -112,9 +112,9 @@ while ($server_count)
   --dec $server_count
 }
 
---echo # Run RESET MASTER while Group Replication is running must fail
+--echo # Run RESET BINARY LOGS AND GTIDS while Group Replication is running must fail
 --error ER_CANT_RESET_SOURCE
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Clean up
 DROP TABLE t1;

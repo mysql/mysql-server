@@ -3,7 +3,7 @@
 #
 # Test case to verify that INVISIBLE columns are included in the binlog event.
 SET @start_row_image_value = @@session.binlog_row_image;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (f1 INT,
 f2 INT INVISIBLE DEFAULT(10),
 f3 INT INVISIBLE DEFAULT(905),

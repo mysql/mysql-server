@@ -2,7 +2,7 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t (
   c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   c2 INT,
@@ -54,4 +54,4 @@ while ($new_ticket != $n_tickets) {
 --source include/wait_condition.inc
 
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

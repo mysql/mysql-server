@@ -99,12 +99,12 @@ The tag and message was sent to the group.
 # 5. When group looses quorum server can send messages but they only be
 #    deliver if quorum is reestablished
 
-# 5.1. Stop server1 and remove table t1 and reset master to allow
+# 5.1. Stop server1 and remove table t1 and reset binary logs and gtids to allow
 #      joining back to the group
 [connection server1]
 include/stop_group_replication.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # 5.2. Start server1 and wait to be ONLINE
 include/start_group_replication.inc

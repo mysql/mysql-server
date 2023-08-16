@@ -93,7 +93,11 @@ class Event : virtual public Entity_object {
     IF_SECOND_MICROSECOND
   };
 
-  enum enum_event_status { ES_ENABLED = 1, ES_DISABLED, ES_SLAVESIDE_DISABLED };
+  enum enum_event_status {
+    ES_ENABLED = 1,
+    ES_DISABLED,
+    ES_REPLICA_SIDE_DISABLED
+  };
 
   enum enum_on_completion { OC_DROP = 1, OC_PRESERVE };
 

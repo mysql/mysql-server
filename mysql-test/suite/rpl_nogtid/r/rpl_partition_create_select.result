@@ -22,5 +22,5 @@ INSERT INTO emp values (4, 6), (5, 13) ;
 include/rpl_partition_info.inc
 DROP TABLE store;
 DROP TABLE emp;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_end.inc

@@ -90,7 +90,7 @@ START GROUP_REPLICATION;
 --source include/rpl_connection.inc
 
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/start_group_replication.inc
 

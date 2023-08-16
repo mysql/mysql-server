@@ -51,7 +51,7 @@ stop slave;
 --connection master
 use test;
 create table ticker (a int primary key) engine=ndb;
-reset master;
+reset binary logs and gtids;
 
 --connection server2
 
@@ -220,7 +220,7 @@ drop procedure tick;
 drop table ticker;
 
 --connection master
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 #start slave;

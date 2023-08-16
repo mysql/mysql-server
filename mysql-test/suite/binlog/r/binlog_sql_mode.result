@@ -4,7 +4,7 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION sql_mode=8;
 Initialization 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (id INT);
 CREATE PROCEDURE testProc() SELECT * FROM t1;
 CREATE VIEW testView as SELECT * from t1;
@@ -126,7 +126,7 @@ wxyz\%ef
 wxyz\_ef
 "Dropping table test_table"
 DROP TABLE test_table;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #"test_table" content after replaying the binlog
 SELECT * FROM test_table;
 c1
@@ -153,6 +153,6 @@ wxyz\_ef
 DROP DATABASE mysqltest_db;
 SET @@sql_mode= @org_mode;
 use test;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #End of Test for Bug#12601974 

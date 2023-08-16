@@ -56,7 +56,7 @@ END|
 # In case of ROLLBACK the transactional engine part is gone.
 # p1() produces two groups, p2() one, and p3() three.
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # transaction that mixes transactional and nontransactional tables and commits
 START TRANSACTION;
   INSERT INTO t1 SET a=1;
@@ -66,7 +66,7 @@ COMMIT;
 --let $logical_timestamps= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # transaction that mixes transactional and nontransactional tables and rolls back
 START TRANSACTION;
   INSERT INTO t1 SET a=1;
@@ -76,7 +76,7 @@ ROLLBACK;
 --let $logical_timestamps= 0 1
 --source include/assert_logical_timestamps.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # One query gets logged to as multiple transactions, due to both mixed
 # engines and multiple transactions executed by a stored procedure.
 
@@ -85,7 +85,7 @@ CALL p1();
 --let $logical_timestamps= 0 1;1 2;2 3
 --source include/assert_logical_timestamps.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # few regular transactions logged with one query
 CALL p2();
 

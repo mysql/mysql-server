@@ -6,7 +6,7 @@
 # ==== Implementation ====
 #
 # Execute some transactions in different binary logs, purge some of them.
-# Take a dump. Drop the table and RESET MASTER. Verify that
+# Take a dump. Drop the table and RESET BINARY LOGS AND GTIDS. Verify that
 # GTID_EXECUTED and GTID_PURGED after the dump equal GTID_EXECUTED before
 # the dump. Restart server. Repeat the check.
 #
@@ -21,7 +21,7 @@
 
 CREATE TABLE t1 (a INT);
 FLUSH LOGS;
---let $current_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $current_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --replace_result $current_binlog_file <CURRENT_BINLOG>
 eval PURGE BINARY LOGS TO '$current_binlog_file';
 INSERT INTO t1 VALUES (1);
@@ -41,7 +41,7 @@ INSERT INTO t1 VALUES (2);
 --exec $PROGRAM >> $MYSQL_TMP_DIR/mysql$name.sql
 
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # restore
 --exec $MYSQL --comments < $MYSQL_TMP_DIR/mysql$name.sql

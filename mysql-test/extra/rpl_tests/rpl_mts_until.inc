@@ -19,8 +19,8 @@ eval INSERT INTO db3.t1 VALUES(4, '$until_type');
 
 if ($until_type == 'SOURCE_POS')
 {
-  --let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
-  --let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+  --let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 }
 
 if ($until_type == 'RELAY_POS')

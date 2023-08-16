@@ -283,7 +283,7 @@ extern bool server_id_supplied;
       rli.data_lock, (relay.reset_logs) THD::LOCK_thd_data,
       relay.LOCK_log, relay.LOCK_index, global_sid_lock->wrlock
 
-    reset_master:
+    reset_binary_logs_and_gtids:
       (binlog.reset_logs) THD::LOCK_thd_data, binlog.LOCK_log,
       binlog.LOCK_index, global_sid_lock->wrlock, LOCK_reset_gtid_table
 
@@ -297,10 +297,9 @@ extern bool server_id_supplied;
 
       [Note: purge_logs contains a known bug: LOCK_index should not be
       taken before LOCK_thd_list.  This implies that, e.g.,
-      purge_source_logs_to_file can deadlock with reset_master.  However,
-      although purge_first_log and reset_slave take locks in reverse
-      order, they cannot deadlock because they both first acquire
-      rli.data_lock.]
+      purge_source_logs_to_file can deadlock with reset_binary_logs_and_gtids.
+  However, although purge_first_log and reset_slave take locks in reverse order,
+  they cannot deadlock because they both first acquire rli.data_lock.]
 
     purge_source_logs_to_file, purge_source_logs_before_date, purge:
       (binlog.purge_logs) binlog.LOCK_index, LOCK_thd_list, thd.linfo.lock

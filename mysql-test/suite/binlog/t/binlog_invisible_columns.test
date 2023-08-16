@@ -10,7 +10,7 @@
 SET @start_row_image_value = @@session.binlog_row_image;
 
 # Clear the binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 (f1 INT,
                  f2 INT INVISIBLE DEFAULT(10),

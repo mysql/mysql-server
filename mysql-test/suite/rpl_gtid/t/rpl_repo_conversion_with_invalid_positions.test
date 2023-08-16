@@ -82,8 +82,8 @@ INSERT INTO t1 VALUES(3);
 
 FLUSH LOGS;
 
---let $log_file_on_source=query_get_value(SHOW MASTER STATUS, File, 1)
---let $log_pos_on_source=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $log_file_on_source=query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $log_pos_on_source=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 --source include/sync_slave_sql_with_master.inc
 

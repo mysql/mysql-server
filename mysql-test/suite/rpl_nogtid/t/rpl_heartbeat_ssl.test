@@ -14,7 +14,7 @@
 # Heartbeat over SSL 
 --echo *** Heartbeat over SSL ***
 --connection master
-let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 --connection slave
 --source include/stop_slave.inc
 RESET SLAVE;

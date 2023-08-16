@@ -10,7 +10,7 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 connection con1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a INT);
 SET AUTOCOMMIT=OFF;
 BEGIN;

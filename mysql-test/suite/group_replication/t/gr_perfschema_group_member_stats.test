@@ -6,7 +6,7 @@
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
-# 1. Restart the first server to erase remains of old rounds. RESET MASTER on
+# 1. Restart the first server to erase remains of old rounds. RESET BINARY LOGS AND GTIDS on
 #    both M1 and M2 to delete data from previous rounds.
 # 2. Check output of the replication_group_member_stats table before GR start.
 # 3. Bootstrap and start GR on M1. Add some data.
@@ -41,11 +41,11 @@ connect(server1_1,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
 #Reset the servers to delete data from previous rounds
 --connection server2
 --echo server2
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server1
 --echo server1
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server1
 --echo server1

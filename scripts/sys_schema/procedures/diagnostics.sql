@@ -662,12 +662,12 @@ BEGIN
 
         SELECT NOW(), CONCAT('Iteration Number ', IFNULL(v_output_count, 'NULL')) AS 'The following output is:';
 
-        -- Even in 5.7 there is no way to get all the info from SHOW MASTER|SLAVE STATUS using the Performance Schema or
+        -- Even in 5.7 there is no way to get all the info from SHOW BINARY LOG|REPLICA STATUS using the Performance Schema or
         -- other tables, so include them even though they are no longer optimal solutions and if present get the additional
         -- information from the other tables available.
         IF (@@log_bin = 1) THEN
-            SELECT 'SHOW MASTER STATUS' AS 'The following output is:';
-            SHOW MASTER STATUS;
+            SELECT 'SHOW BINARY LOG STATUS' AS 'The following output is:';
+            SHOW BINARY LOG STATUS;
         END IF;
 
         IF (v_has_replication <> 'NO') THEN

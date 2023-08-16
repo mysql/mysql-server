@@ -1,3 +1,3 @@
 # restart
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert_grep.inc [Found the expected warning "The syntax '--binlog_max_flush_queue_time' is deprecated and will be removed in a future release" in server's error log.]

@@ -80,11 +80,11 @@
 #          function should return quickly; it should not take time
 #          O(number of GTIDs).
 #
-# 9. RESET MASTER should not confuse the function. That is, suppose
+# 9. RESET BINARY LOGS AND GTIDS should not confuse the function. That is, suppose
 #    the following happens:
 #     9a. The function waits for multiple GTIDs.
 #     9b. Some but not all GTIDs are committed.
-#     9c. RESET MASTER is issued.
+#     9c. RESET BINARY LOGS AND GTIDS is issued.
 #     9d. The remaining GTIDs are committed
 #    At this point, despite all GTIDs were committed at some point,
 #    the function should not return, since not all GTIDs are included
@@ -693,7 +693,7 @@ while ($it <= 4)
 DROP TABLE t1;
 --source include/rpl_sync.inc
 --source include/rpl_stop_slaves.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_master1.inc
 --let $thread_id= `SELECT CONNECTION_ID()`
@@ -710,9 +710,9 @@ eval SET GLOBAL GTID_PURGED = '$uuida:1-1234567890';
 
 --source include/rpl_connection_master.inc
 
---echo ==== 9. RESET MASTER ====
+--echo ==== 9. RESET BINARY LOGS AND GTIDS ====
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_master1.inc
 --send
@@ -727,7 +727,7 @@ eval SET GTID_NEXT = '$uuidb:1';
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 eval SET SESSION GTID_NEXT = '$uuidc:1';
 COMMIT;

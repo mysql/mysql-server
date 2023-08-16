@@ -247,9 +247,17 @@ namespace info_schema {
   80035: Next IS version number after the previous is public.
   ------------------------------------
   Changes from version 80035:
+
+  80200:
+  ----------------------------------------------------------------------------
+  Changes:
+  - WL#14190: Replace old terms in replication SQL commands on the SOURCE
+      Changed the status column of information_schema.events to show
+      correct terminology
+
 */
 
-static const uint IS_DD_VERSION = 80033;
+static const uint IS_DD_VERSION = 80200;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

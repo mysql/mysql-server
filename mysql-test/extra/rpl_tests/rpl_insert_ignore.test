@@ -48,8 +48,8 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 # the insert and comparing the binlog positions. The count should be the same in both points
 # and the statement should be in the binary log.
 --connection master
---let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
---let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 --let $statement_file=INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a
 --disable_warnings ER_DUP_ENTRY,ER_BINLOG_UNSAFE_STATEMENT ONCE
 --eval $statement_file
@@ -64,7 +64,7 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
   --let $binlog_position_cmp= =
-  --let $assert_cond= [SHOW MASTER STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] $binlog_position_cmp $binlog_start
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
@@ -97,8 +97,8 @@ INSERT INTO t2 VALUES (1);
 # force outstanding executed transactions to be flushed to binlog for ndb
 --save_master_pos
 
---let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
---let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $binlog_file= query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW BINARY LOG STATUS", Position, 1)
 --let $statement_file=INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a
 --disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 --eval $statement_file
@@ -113,7 +113,7 @@ INSERT INTO t2 VALUES (1);
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
   --let $binlog_position_cmp= =
-  --let $assert_cond= [SHOW MASTER STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] $binlog_position_cmp $binlog_start
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)

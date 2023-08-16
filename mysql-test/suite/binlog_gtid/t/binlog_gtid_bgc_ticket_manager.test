@@ -84,4 +84,4 @@ CREATE TABLE t (
 --source include/assert_binlog_events.inc
 
 DROP TABLE t;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

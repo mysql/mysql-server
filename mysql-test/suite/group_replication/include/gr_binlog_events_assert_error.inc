@@ -128,12 +128,12 @@ if ($rpl_mysqlbinlog)
 {
   # Save mysqlbinlog output in a file
   --let $_rpl_server_datadir= `SELECT @@DATADIR`
-  --let $_rpl_server_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $_rpl_server_binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
   --exec $MYSQL_BINLOG --start-position=$rpl_start_binlog_pos --force-if-open $_rpl_server_datadir/$_rpl_server_binlog_file > $rpl_out_binlog
 
   # save binlog position
-  --let $rpl_start_binlog_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+  --let $rpl_start_binlog_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
   # Execute mysqlbinlog output of server2 on server1. Expect error.
   --let $rpl_connection_name= $rpl_slave_connection_name

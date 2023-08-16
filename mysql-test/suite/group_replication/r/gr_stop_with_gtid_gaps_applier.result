@@ -53,7 +53,7 @@ DROP TABLE t1;
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################################################
 # 5. Bootstrap the group again.

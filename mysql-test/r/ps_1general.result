@@ -314,11 +314,9 @@ execute stmt4;
 Type	Name	Status
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
-prepare stmt4 from ' show master status ';
-prepare stmt4 from ' show master logs ';
-prepare stmt4 from ' show slave status ';
-Warnings:
-Warning	1287	'SHOW SLAVE STATUS' is deprecated and will be removed in a future release. Please use SHOW REPLICA STATUS instead
+prepare stmt4 from ' show binary log status ';
+prepare stmt4 from ' show binary logs ';
+prepare stmt4 from ' show replica status ';
 prepare stmt4 from ' show warnings limit 20 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' show errors limit 20 ';

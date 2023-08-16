@@ -1784,6 +1784,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_INTERNAL(Item_func_internal_get_mandatory_roles_json, 0)},
     {"INTERNAL_IS_MANDATORY_ROLE",
      SQL_FN_INTERNAL(Item_func_internal_is_mandatory_role, 2)},
+    {"INTERNAL_USE_TERMINOLOGY_PREVIOUS",
+     SQL_FN_INTERNAL(Item_func_internal_use_terminology_previous, 0)},
     {"INTERNAL_IS_ENABLED_ROLE",
      SQL_FN_INTERNAL(Item_func_internal_is_enabled_role, 2)}};
 

@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 Setup circular replication
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SLAVE_SERVER_ID: 3
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=SLAVE_PORT,SOURCE_USER="root";
 Warnings:

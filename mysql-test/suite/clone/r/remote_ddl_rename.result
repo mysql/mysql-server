@@ -73,7 +73,7 @@ SHOW VARIABLES LIKE 'clone_block_ddl';
 Variable_name	Value
 clone_block_ddl	OFF
 # 1. ALTER TABLE RENAME while clone in progress
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL DEBUG = '+d,remote_release_clone_file_pin';
 ALTER TABLE t0 RENAME t0_new;
 SET DEBUG_SYNC = 'clone_before_init_meta SIGNAL start_ddl_file_init WAIT_FOR resume_file_init';

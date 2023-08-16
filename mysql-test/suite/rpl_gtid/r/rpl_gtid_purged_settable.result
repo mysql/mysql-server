@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/gtid_utils.inc
 include/rpl_reset.inc
 [connection master]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE db;
 CREATE TABLE db.t (a INT);
 INSERT INTO db.t SET a=1;

@@ -126,7 +126,7 @@ queries issued before the crash.;
     connection master;
     eval select * into outfile '$MYSQLTEST_VARDIR/tmp/master_all' from t1 order by id;
     eval select id into outfile '$MYSQLTEST_VARDIR/tmp/master_id' from t1 order by id;
-    show master status;
+    show binary log status;
 
     connection slave;
     eval select * into outfile '$MYSQLTEST_VARDIR/tmp/slave_all' from t1 order by id;

@@ -135,7 +135,7 @@ set session sql_log_bin=1;
 --enable_query_log
 
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection server1
 
@@ -146,7 +146,7 @@ RESET MASTER;
 --enable_query_log
 
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

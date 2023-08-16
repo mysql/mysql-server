@@ -61,7 +61,7 @@
 # You should not normally source this file directly; instead set
 # $rpl_gtid_utils=1 before sourcing master-slave.inc or rpl_init.inc.
 # Then, the functions are automatically dropped in rpl_end.inc, and
-# RESET MASTER is executed so that the functions do not pollute the
+# RESET BINARY LOGS AND GTIDS is executed so that the functions do not pollute the
 # binary log.
 #
 # If you really need to use this file manually, do this:

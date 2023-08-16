@@ -18,7 +18,7 @@
 --source include/have_binlog_format_statement.inc
 
 # To make test to start with binlog.000001
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Run some sample tests to put it in binlog.000001
 CREATE TABLE t1(i INT);
 DROP TABLE t1;

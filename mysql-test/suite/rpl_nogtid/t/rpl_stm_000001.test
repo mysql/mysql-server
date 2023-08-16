@@ -58,7 +58,7 @@ connection master;
 eval create table t1 (n int) engine=$engine_type;
 --source include/sync_slave_sql_with_master.inc
 connection master;
-reset master;
+reset binary logs and gtids;
 connection slave;
 stop slave;
 reset slave;
@@ -66,7 +66,7 @@ reset slave;
 connection master;
 let $1=100;
 # Generate 16K of relay log
---let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 disable_query_log;
 while ($1)
 {
@@ -76,7 +76,7 @@ while ($1)
 enable_query_log;
 
 --let $assert_text= We should have generated greater than 16 KB relay log
---let $assert_cond= [SHOW MASTER STATUS, Position, 1] - $pos > 16384
+--let $assert_cond= [SHOW BINARY LOG STATUS, Position, 1] - $pos > 16384
 --source include/assert.inc
 
 # Try to cause a large relay log lag on the slave by locking t1

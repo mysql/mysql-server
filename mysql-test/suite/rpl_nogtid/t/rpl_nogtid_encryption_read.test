@@ -123,7 +123,7 @@
 # Makes the index file to contain two files (we will replace the second one
 # by a previously generated encrypted binary log file.
 FLUSH LOCAL LOGS;
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 --let $assert_text= Master status shall point to master-bin.000002
 --let $assert_cond= "$binlog_file" = "master-bin.000002"
 --source include/assert.inc

@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 #  1. Execute some transactions on server 3, which doesn't
 #     belong to the group.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
 INSERT INTO t1 VALUES (1);

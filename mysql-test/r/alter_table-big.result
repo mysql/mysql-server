@@ -6,7 +6,7 @@ Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop table if exists t1, t2, t3;
 create table t1 (i int);
-reset master;
+reset binary logs and gtids;
 set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 alter table t1 change i c char(10) default 'Test1';;
 set debug_sync='now WAIT_FOR parked';

@@ -1,4 +1,4 @@
-reset master;
+reset binary logs and gtids;
 set timestamp=1000000000;
 drop table if exists t1;
 CREATE TABLE t1 (c01 BIT);

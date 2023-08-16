@@ -1,6 +1,6 @@
 include/have_replication_observers_example_plugin.inc
 include/install_replication_observers_example.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_requirements';
 ROLLBACK;

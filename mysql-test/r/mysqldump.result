@@ -3357,12 +3357,12 @@ use test;
 #
 create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
-reset master;
+reset binary logs and gtids;
 mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation (1227)
 mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation (1227)
 grant RELOAD on *.* to mysqltest_1@localhost;
-mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
-mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
+mysqldump: Couldn't execute 'SHOW BINARY LOG STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
+mysqldump: Couldn't execute 'SHOW BINARY LOG STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
@@ -4980,7 +4980,7 @@ DROP DATABASE b12809202_db;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #

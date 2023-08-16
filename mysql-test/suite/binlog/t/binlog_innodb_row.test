@@ -9,7 +9,7 @@ source include/have_binlog_format_row.inc;
 #
 
 CREATE TABLE t1 (i int unique) ENGINE=innodb;
-reset master;
+reset binary logs and gtids;
 
 # part 1: update can cause the dup key
 
@@ -26,7 +26,7 @@ source include/show_binlog_events.inc;
 # part 2: insert can cause the dup key
 
 delete from t1;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values (1),(2);
@@ -50,7 +50,7 @@ drop table t1;
 # binlogged, which would cause the slave to fail with "table does not
 # exist".
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TABLE t1 ( c1 int , primary key (c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -64,7 +64,7 @@ DROP TABLE t1;
 -- source include/show_binlog_events.inc
 -- echo ###############################################
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CREATE TEMPORARY TABLE t1 (c1 int) Engine=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (3);

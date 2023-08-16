@@ -52,8 +52,8 @@ CREATE TABLE t(s INT);
 
 INSERT INTO t VALUES(1);
 
---let $log_file_on_source=query_get_value(SHOW MASTER STATUS, File, 1)
---let $log_pos_on_source=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $log_file_on_source=query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $log_pos_on_source=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(2);
 
@@ -83,7 +83,7 @@ INSERT INTO t VALUES(2);
 INSERT INTO t VALUES(3);
 
 # used on get_relay_log_pos.inc
---let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(4);
 
@@ -123,8 +123,8 @@ SET @@GLOBAL.local_infile= true;
 
 INSERT INTO t VALUES(5);
 
---let $log_file_on_source=query_get_value(SHOW MASTER STATUS, File, 1)
---let $log_pos_on_source=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $log_file_on_source=query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $log_pos_on_source=query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(6);
 
@@ -150,7 +150,7 @@ INSERT INTO t VALUES(6);
 INSERT INTO t VALUES(7);
 
 # used on get_relay_log_pos.inc
---let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 
 INSERT INTO t VALUES(8);
 

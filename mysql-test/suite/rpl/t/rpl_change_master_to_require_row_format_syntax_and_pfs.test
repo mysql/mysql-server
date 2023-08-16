@@ -11,7 +11,7 @@
 #     updated value equal to the value passed on to the `REQUIRE_ROW_FORMAT`
 #     option.
 #
-# R2. After `RESET MASTER`, column `require_row_format` from table
+# R2. After `RESET BINARY LOGS AND GTIDS`, column `require_row_format` from table
 #     `performance_schema.replication_applier_configuration` should have it's
 #     value unchanged.
 #

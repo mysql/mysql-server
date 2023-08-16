@@ -16,7 +16,7 @@ create table test.synch(x int primary key auto_increment) engine=ndb;
 --disable_result_log
 show create table test.synch;
 --enable_result_log
-reset master;
+reset binary logs and gtids;
 
 --echo Create table with tableId X and blob part tables :
 --echo   NDB\$BLOB_X_2
@@ -60,7 +60,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -88,7 +88,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 --echo Show tables and events
 
@@ -145,7 +145,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -173,7 +173,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -257,7 +257,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -285,7 +285,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -356,7 +356,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -384,7 +384,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -455,7 +455,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -483,7 +483,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -553,7 +553,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -581,7 +581,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -640,7 +640,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -668,7 +668,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -714,7 +714,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -742,7 +742,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -816,7 +816,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -844,7 +844,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -891,7 +891,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -919,7 +919,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -991,7 +991,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -1019,7 +1019,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -1090,7 +1090,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -1118,7 +1118,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 
@@ -1189,7 +1189,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server2;
 --disable_query_log
@@ -1217,7 +1217,7 @@ create table raw_binlog_rows (txt varchar(1000));
 select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
-reset master;
+reset binary logs and gtids;
 
 connection server1;
 

@@ -90,7 +90,7 @@ START GROUP_REPLICATION;
 --echo # Remove data on server 2
 
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #For precaution, wait for server 2 to leave
 --let $rpl_connection_name= server1
@@ -145,7 +145,7 @@ START GROUP_REPLICATION;
 
 --source include/stop_group_replication.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

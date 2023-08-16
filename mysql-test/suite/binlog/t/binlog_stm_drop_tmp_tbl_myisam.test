@@ -6,7 +6,7 @@
 --echo # Bug 83003: Using temporary tables on slaves increases GTID sequence number
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/count_sessions.inc
 --connect (con1,localhost,root,,)
 

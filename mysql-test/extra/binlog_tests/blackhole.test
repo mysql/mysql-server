@@ -108,7 +108,7 @@ select * from t1 where MATCH(a,b) AGAINST ("only");
 # Test that every DML (except SELECT) and DDL gets into binlog
 # so that blackhole can be used as "binlog propagator"
 
-reset master;
+reset binary logs and gtids;
 drop table t1,t2;
 create table t1 (a int) engine=blackhole;
 delete from t1 where a=10;
@@ -151,20 +151,20 @@ DROP TABLE t1;
 # Test that a transaction which is rolled back does not go into binlog
 # and that a transaction which is committed does
 
-reset master;
+reset binary logs and gtids;
 create table t1 (a int) engine=blackhole;
 set autocommit=0;
 start transaction;
 insert into t1 values(1);
 commit;
 
-let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 start transaction;
 insert into t1 values(2);
 rollback;
 
-let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 if ($master_log_pos_2 != $master_log_pos_1)
 {
   echo $master_log_pos_1 $master_log_pos_2;
@@ -182,7 +182,7 @@ drop table if exists t1;
 # preceeds the following autoincrement insert in a blachhole
 #
 
-reset master;
+reset binary logs and gtids;
 create table t1 (a int auto_increment, primary key (a)) engine=blackhole;
 
 # not insert_id prescribed insert binlogs with the default set insert_id 1

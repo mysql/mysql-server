@@ -61,14 +61,14 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
 
 FLUSH LOGS;
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 INSERT INTO t1 VALUES (2);
 --save_master_pos
 
 --eval PURGE BINARY LOGS TO '$master_file'
 
---let $assert_cond= "[SHOW MASTER STATUS, File, 1]" = "$master_file"
+--let $assert_cond= "[SHOW BINARY LOG STATUS, File, 1]" = "$master_file"
 --let $assert_text= PURGE BINARY LOGS successfully removed all but the latest file
 --source include/assert.inc
 
@@ -154,10 +154,10 @@ CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missin
 --echo # 7) Cleanup.
 --echo #
 --source include/rpl_connection_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/rpl_connection_master.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc

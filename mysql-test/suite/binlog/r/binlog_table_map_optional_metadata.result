@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Temporal types can be printed correctly
 #
@@ -17,7 +17,7 @@ Matching lines are:
 #         TIMESTAMP(3))
 Occurrences of '# (?:Columns\(| {8})' in the input file: 8
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Json types can be printed correctly
 #
@@ -28,7 +28,7 @@ Matching lines are:
 #         CHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 2
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Geometry types can be printed correctly
 #
@@ -48,7 +48,7 @@ Matching lines are:
 #         GEOMCOLLECTION,
 #         CHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 9
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
@@ -63,7 +63,7 @@ Matching lines are:
 #         `c_char` CHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 9
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Numeric types can be printed correctly
 #
@@ -86,7 +86,7 @@ Matching lines are:
 #         DOUBLE,
 #         DECIMAL(10,2))
 Occurrences of '# (?:Columns\(| {8})' in the input file: 9
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_bool) VALUES(1);
 Matching lines are:
@@ -101,7 +101,7 @@ Matching lines are:
 #         `c_decimal` DECIMAL(10,2))
 Occurrences of '# (?:Columns\(| {8})' in the input file: 9
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Character types can be printed correctly
 #
@@ -120,7 +120,7 @@ Matching lines are:
 #         MEDIUMTEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
 #         LONGTEXT CHARSET utf8mb3 COLLATE utf8mb3_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_char) VALUES("1");
 Matching lines are:
@@ -132,7 +132,7 @@ Matching lines are:
 #         `c_longtext` LONGTEXT CHARSET utf8mb3 COLLATE utf8mb3_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Column names with non-ascii characters and escape characters can be printed correctly
 #
@@ -147,7 +147,7 @@ Matching lines are:
 # Columns(`åäö表\\a\'``"` INT)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 1
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Charsets can be printed correctly
 #
@@ -165,7 +165,7 @@ Matching lines are:
 #         `c_text_utf8` TEXT CHARSET utf8mb3 COLLATE utf8mb3_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 3
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c_utf8mb4_520 CHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
 c_utf8mb4_0900 VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_pl_0900_as_cs,
 c_utf8mb4_def TEXT CHARSET utf8mb4);
@@ -176,7 +176,7 @@ Matching lines are:
 #         `c_utf8mb4_def` TEXT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 3
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Blob and binary columns can be printed correctly
 #
@@ -193,7 +193,7 @@ Matching lines are:
 #         `c_longblob` LONGBLOB)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Verify that SET string values and character sets can be printed correctly
 #
@@ -217,7 +217,7 @@ Matching lines are:
 #         SET,
 #         SET)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 Matching lines are:
@@ -229,7 +229,7 @@ Matching lines are:
 #         `c_set_6` SET('\0\0\0s\0\0\0e\0\0\0t\0\0\06\0\0\0_\0\0\0v\0\0\01\0\0\0_\0\0\0�', '\0\0\0s\0\0\0e\0\0\0t\0\0\06\0\0\0_\0\0\0v\0\0\02\0\0\0_\0\0\0�', '\0\0\0s\0\0\0e\0\0\0t\0\0\06\0\0\0_\0\0\0v\0\0\03\0\0\0_\0\0\0�') CHARSET utf32 COLLATE utf32_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Verify that ENUM string values and character sets can be printed correctly
 #
@@ -253,7 +253,7 @@ Matching lines are:
 #         ENUM,
 #         ENUM)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 Matching lines are:
@@ -265,7 +265,7 @@ Matching lines are:
 #         `c_enum_6` ENUM('\0\0\0e\0\0\0n\0\0\0u\0\0\0m\0\0\06\0\0\0_\0\0\0v\0\0\01\0\0\0_\0\0\0�', '\0\0\0e\0\0\0n\0\0\0u\0\0\0m\0\0\06\0\0\0_\0\0\0v\0\0\02\0\0\0_\0\0\0�', '\0\0\0e\0\0\0n\0\0\0u\0\0\0m\0\0\06\0\0\0_\0\0\0v\0\0\03\0\0\0_\0\0\0�') CHARSET utf32 COLLATE utf32_general_ci)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 6
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Verify that explicit NOT NULL can be printed correctly
 #
@@ -279,7 +279,7 @@ Matching lines are:
 #         `c_null2` INT)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 4
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Verify that primary key can be printed correctly
 #
@@ -296,7 +296,7 @@ Matching lines are:
 # Primary Key(c_key1, c_key2, c_key3)
 Occurrences of '# Primary Key' in the input file: 1
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1(c_key1 CHAR(100), c_key3 CHAR(100), c_not_key INT, c_key2 CHAR(10),
 PRIMARY KEY(c_key1(5), c_key2, c_key3(10)));
 INSERT INTO t1 VALUES("1", "2", 3, "4");
@@ -309,7 +309,7 @@ Occurrences of '# (?:Columns\(| {8})' in the input file: 4
 Matching lines are:
 # Primary Key(c_key1(5), c_key2, c_key3(10))
 Occurrences of '# Primary Key' in the input file: 1
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1 VALUES("2", "2", 3, "4");
 Matching lines are:
@@ -321,7 +321,7 @@ Occurrences of '# (?:Columns\(| {8})' in the input file: 4
 Matching lines are:
 None
 Occurrences of '# Primary Key' in the input file: 0
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Coverage test: Print column index instead of column name if column name
 #                is not binlogged.
@@ -339,7 +339,7 @@ Matching lines are:
 # Primary Key(0(5), 3, 1(10))
 Occurrences of '# Primary Key' in the input file: 1
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Coverage test: Inject an invalid column type
 #
@@ -350,7 +350,7 @@ Matching lines are:
 # Columns(`c1` INT,
 #         `c2` INVALID_TYPE(230))
 Occurrences of '# (?:Columns\(| {8})' in the input file: 2
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Coverage test: Inject an invalid BLOB metadata
 #
@@ -365,7 +365,7 @@ Occurrences of '# (?:Columns\(| {8})' in the input file: 2
 #
 DROP TABLE t1;
 CREATE TABLE t1(c_geometry GEOMETRY, c_point POINT, c_multilinestring MULTILINESTRING);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION debug = 'd,inject_invalid_geometry_type';
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
@@ -374,7 +374,7 @@ Matching lines are:
 #         `c_multilinestring` INVALID_GEOMETRY_TYPE(100))
 Occurrences of '# (?:Columns\(| {8})' in the input file: 3
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Comptibility Test: Verify mysqlbinlog can print OLD table_map_log_event
 # without any optional metadata
@@ -391,7 +391,7 @@ Matching lines are:
 #         GEOMETRY)
 Occurrences of '# (?:Columns\(| {8})' in the input file: 5
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Simulate error on initializing charset and primary key metadata
 #
@@ -411,7 +411,7 @@ Occurrences of '# Primary Key' in the input file: 0
 SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # WL#10905 - Support for INVISIBLE columns.
 #
@@ -455,7 +455,7 @@ Occurrences of '# (?:Columns\(| {8})' in the input file: 8
 Matching lines are:
 # Primary Key(c4)
 Occurrences of '# Primary Key' in the input file: 1
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # INVISIBLE clause is included with only binlog_row_metadata = FULL.
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c1, c4) VALUES(3, 6);
@@ -495,4 +495,4 @@ Matching lines are:
 None
 Occurrences of '# Primary Key' in the input file: 0
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

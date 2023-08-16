@@ -74,7 +74,7 @@ include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

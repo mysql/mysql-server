@@ -591,9 +591,10 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
 
       /*
         It is reading events before end_pos of active binlog file. In theory,
-        it should never return nullptr. But RESET MASTER doesn't check if there
-        is any dump thread working. So it is possible that the active binlog
-        file is reopened and truncated to 0 after RESET MASTER.
+        it should never return nullptr. But RESET BINARY LOGS AND GTIDS doesn't
+        check if there is any dump thread working. So it is possible that the
+        active binlog file is reopened and truncated to 0 after
+        RESET BINARY LOGS AND GTIDS.
       */
       set_fatal_error(log_read_error_msg(Binlog_read_error::SYSTEM_IO));
       return 1;

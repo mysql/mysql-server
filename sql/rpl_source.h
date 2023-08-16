@@ -62,7 +62,7 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length);
 void unregister_replica(THD *thd, bool only_mine, bool need_lock_slave_list);
 bool show_replicas(THD *thd);
 String *get_replica_uuid(THD *thd, String *value);
-bool show_master_status(THD *thd);
+bool show_binary_log_status(THD *thd);
 bool show_binlogs(THD *thd);
 void kill_zombie_dump_threads(THD *thd);
 
@@ -120,7 +120,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
 void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
                        Gtid_set *gtid_set, uint32 flags);
 
-bool reset_master(THD *thd, bool unlock_read_lock);
+bool reset_binary_logs_and_gtids(THD *thd, bool unlock_read_lock);
 
 class user_var_entry;
 /**

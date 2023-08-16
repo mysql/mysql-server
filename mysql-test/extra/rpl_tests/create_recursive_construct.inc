@@ -337,7 +337,7 @@ if ($CRC_RET_stmt_sidef) {
 
   --echo * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
   SET SQL_LOG_BIN = 0;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --eval $CRC_RET_stmt_sidef
 
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
@@ -352,7 +352,7 @@ if ($CRC_RET_stmt_sidef) {
 
   --echo * binlog_format = MIXED: expect row events in binlog and no warning.
   SET binlog_format = MIXED;
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
   if ($n_warnings != $CRC_expected_number_of_warnings_after_reset) {

@@ -48,13 +48,13 @@ call mtr.add_suppression("Request to stop replica SQL Thread received while appl
 # Stop Slave @ Secondary
 STOP SLAVE;
 # Clear Secondary Binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 # Stop Slave @ Primary 
 STOP SLAVE;
 # Clear Primary Binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_SERVER_PORT,SOURCE_USER="root"
 

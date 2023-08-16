@@ -15,7 +15,7 @@
 #
 # ==== Implementation ====
 #
-#  0. Execute a RESET MASTER to clean old binary logs
+#  0. Execute a RESET BINARY LOGS AND GTIDS to clean old binary logs
 #     Add suppressions for the test.
 #     Create a test include.
 #  1. Log a DML transaction using statement based logging (T1)
@@ -41,12 +41,12 @@
 --source include/have_binlog_format_statement.inc
 
 --echo #
---echo # 0. Execute a RESET MASTER to clean old binary logs
+--echo # 0. Execute a RESET BINARY LOGS AND GTIDS to clean old binary logs
 --echo #    Add suppressions for the test.
 --echo #    Create a test include.
 
 # Clean any old binlogs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -102,7 +102,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
   --let $assert_count = 1
   --source include/assert_grep.inc
 
-  RESET MASTER;
+  RESET BINARY LOGS AND GTIDS;
 
   --remove_file $MYSQL_TMP_DIR/mysqlbinlog.out
 
@@ -117,7 +117,7 @@ INSERT INTO t1 VALUES (0);
 
 DROP TABLE t1;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 
@@ -137,7 +137,7 @@ CREATE TABLE tload (c1 TEXT);
 
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 DROP TABLE tload;
 
@@ -160,7 +160,7 @@ CREATE TABLE t1(i INT) ENGINE=InnoDB;
 --eval SET @v= 10
 --eval INSERT INTO t1 VALUES (@v)
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 
@@ -180,7 +180,7 @@ INSERT INTO t1 VALUES (Rand());
 
 DROP TABLE t1;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 
@@ -201,7 +201,7 @@ INSERT INTO t2 VALUES();
 
 DROP TABLE t2;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 
@@ -218,7 +218,7 @@ FLUSH LOGS;
 
 CREATE TEMPORARY TABLE t1 (k INT PRIMARY KEY);
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 
@@ -236,7 +236,7 @@ FLUSH LOGS;
 
 DROP TEMPORARY TABLE t1;
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 FLUSH LOGS;
 

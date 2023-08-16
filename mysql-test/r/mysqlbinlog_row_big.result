@@ -23,7 +23,7 @@ default connection established, continuing with the test
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create a test table.
 #

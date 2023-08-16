@@ -15,7 +15,7 @@ source include/have_binlog_format_statement.inc;
 --let $mask_binlog_commit_events= 1
 CREATE TABLE t1(c1 INT);
 source include/show_binlog_events.inc;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --echo
 --echo # Case 1:
@@ -26,7 +26,7 @@ let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 /*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
 
 source include/show_binlog_events.inc;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 --source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
@@ -57,7 +57,7 @@ CREATE TABLE t1(c1 INT);
 EXECUTE stmt USING @value;
 
 source include/show_binlog_events.inc;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $binlog_start= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 --source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1,slave:t1

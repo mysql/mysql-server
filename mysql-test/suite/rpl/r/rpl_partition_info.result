@@ -276,5 +276,5 @@ include/save_binlog_position.inc
 INSERT INTO t1 VALUES (2);
 include/assert_grep.inc [The error block is working fine for ndb_info print.]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/rpl_end.inc

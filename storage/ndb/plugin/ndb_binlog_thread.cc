@@ -55,9 +55,9 @@ int Ndb_binlog_thread::do_deinit() {
 }
 
 /*
-  @brief Callback called when RESET MASTER has successfully removed binlog and
-  reset index. This means that ndbcluster also need to clear its own binlog
-  index(which is stored in the mysql.ndb_binlog_index table).
+  @brief Callback called when RESET BINARY LOGS AND GTIDS has successfully
+  removed binlog and reset index. This means that ndbcluster also need to clear
+  its own binlog index(which is stored in the mysql.ndb_binlog_index table).
 
   @return 0 on success
 */

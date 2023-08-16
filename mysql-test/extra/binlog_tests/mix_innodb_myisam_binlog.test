@@ -22,7 +22,7 @@ connection con1;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
 
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(1);
@@ -33,7 +33,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(2);
@@ -45,7 +45,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(3);
@@ -59,7 +59,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(5);
@@ -76,7 +76,7 @@ source include/show_binlog_events.inc;
 # and when ROLLBACK is not explicit?
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 select get_lock("a",10);
 begin;
@@ -96,7 +96,7 @@ source include/show_binlog_events.inc;
 # and when not in a transact1on?
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 insert into t1 values(9);
 insert into t2 select * from t1;
@@ -107,7 +107,7 @@ source include/show_binlog_events.inc;
 # transaction, we log it immediately.
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 insert into t1 values(10); # first make t1 non-empty
 begin;
@@ -125,7 +125,7 @@ alter table t2 engine=INNODB;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(12);
@@ -136,7 +136,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(13);
@@ -147,7 +147,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(14);
@@ -161,7 +161,7 @@ source include/show_binlog_events.inc;
 
 delete from t1;
 delete from t2;
-reset master;
+reset binary logs and gtids;
 
 begin;
 insert into t1 values(16);
@@ -268,7 +268,7 @@ drop table t0,t2;
 
 set autocommit=0;
 CREATE TABLE t1 (a int, b int) engine=myisam;
-reset master;
+reset binary logs and gtids;
 INSERT INTO t1 values (1,1),(1,2);
 --error ER_DUP_ENTRY
 CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
@@ -326,7 +326,7 @@ source include/show_binlog_events.inc;
 
 connect (con4,localhost,root,,);
 connection con3;
-reset master;
+reset binary logs and gtids;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
 select get_lock("a",10);
@@ -389,7 +389,7 @@ drop table t1, t2;
 
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
-reset master;
+reset binary logs and gtids;
 
 # action
 
@@ -412,7 +412,7 @@ select * from ti /* that is what slave would miss - a bug */;
 ## send_error() branch
 delete from ti;
 delete from tt where a=1;
-reset master;
+reset binary logs and gtids;
 
 # action
 
@@ -459,20 +459,20 @@ begin
 end|
 delimiter ;|
 
-reset master;
+reset binary logs and gtids;
 
 # execute
 
 insert into t2 values (bug27417(1));
 insert into t2 select bug27417(2);
-reset master;
+reset binary logs and gtids;
 
 --error ER_DUP_ENTRY
 insert into t2 values (bug27417(2)); 
 source include/show_binlog_events.inc; /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 
-reset master;
+reset binary logs and gtids;
 select count(*) from t2;
 delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */; 
@@ -509,7 +509,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # prepare
   
  insert into t2 values (1);
- reset master;
+ reset binary logs and gtids;
 
 # execute
 
@@ -529,7 +529,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  delete from t1;
  delete from t2;
  insert into t2 values (2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
 
@@ -548,7 +548,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # prepare
  delete from t1;
  insert into t3 values (1,1),(2,3),(3,4);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -566,7 +566,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1);
  insert into t4 values (1,1),(2,2);
 
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -585,7 +585,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1),(2,2);
  insert into t4 values (1,1),(2,2);
 
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -610,7 +610,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  insert into t3 values (1,1);
  create trigger trg_del before delete on t2 for each row 
    insert into t3 values (bug27417(1), 2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -630,7 +630,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
    insert into t1 values (1);
  insert into t2 values (2),(3);
  insert into t5 values (1),(2);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY
@@ -649,7 +649,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  delete from t1;
  create table t4 (a int default 0, b int primary key) engine=innodb;
  insert into t4 values (0, 17);
- reset master;
+ reset binary logs and gtids;
 
 # execute
  --error ER_DUP_ENTRY

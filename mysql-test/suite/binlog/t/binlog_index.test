@@ -17,7 +17,7 @@ call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers be
 let $old=`select @@debug`;
 let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $INDEX=$MYSQLD_DATADIR/binlog.index;
@@ -58,7 +58,7 @@ source include/show_binary_logs.inc;
 # testing purge binary logs BEFORE
 #
 
-reset master;
+reset binary logs and gtids;
 
 flush logs;
 flush logs;
@@ -80,7 +80,7 @@ source include/show_binary_logs.inc;
 # Turning a binlog file into a directory must be a portable setup
 # 
 
-reset master;
+reset binary logs and gtids;
 
 flush logs;
 flush logs;
@@ -95,7 +95,7 @@ replace_regex /\.[\\\/]binlog/binlog/;
 show warnings;
 rmdir $MYSQLD_DATADIR/binlog.000001;
 --disable_warnings
-reset master;
+reset binary logs and gtids;
 --enable_warnings
 
 --echo # crash_purge_before_update_index
@@ -280,26 +280,26 @@ SELECT @index;
 #
 # WL#5493
 # Test case6 verifies if the index file has the correct data,
-# i.e. if binlog file name is added after the master restarts
+# i.e. if binlog file name is added after the source restarts
 # when setting DEBUG POINT before renaming index file. 
 #
 # Test case7 verifies if the index file has the correct data,
-# i.e. if binlog file name is added after the master restarts
+# i.e. if binlog file name is added after the source restarts
 # when setting DEBUG POINT after renaming index file.
 #
 # Test case8 verifies if the index file has the correct data,
 # i.e. if requested binlog file names are removed after the
-# master restarts when setting DEBUG POINT after purging index
+# source restarts when setting DEBUG POINT after purging index
 # file.
 #
 # Test case9 verifies if the index file has the correct data,
 # i.e. if requested binlog file names are removed after the
-# master restarts when setting DEBUG POINT before purging index
+# source restarts when setting DEBUG POINT before purging index
 # file.
 #
 # Test case10 verifies if the index file has the correct data,
 # i.e. although requested binlog file names are not removed
-# after the master restarts when injecting a fault to the
+# after the source restarts when injecting a fault to the
 # temp file in the process of purging the index file.
 #
 
@@ -319,7 +319,7 @@ flush logs;
 
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
--- echo # Restart the master server
+-- echo # Restart the source server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
@@ -343,7 +343,7 @@ flush logs;
 
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
--- echo # Restart the master server
+-- echo # Restart the source server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
@@ -369,7 +369,7 @@ purge binary logs TO 'binlog.000010';
 
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
--- echo # Restart the master server
+-- echo # Restart the source server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
@@ -396,7 +396,7 @@ purge binary logs TO 'binlog.000012';
 
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
--- echo # Restart the master server
+-- echo # Restart the source server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
@@ -423,7 +423,7 @@ purge binary logs TO 'binlog.000014';
 
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
--- echo # Restart the master server
+-- echo # Restart the source server
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
@@ -521,8 +521,8 @@ eval SET SESSION debug="$old";
 
 eval SET GLOBAL binlog_error_action= $saved_binlog_error_action;
 
-# Reset Master deletes all binary log files listed in the index file, resets
+# Reset Source deletes all binary log files listed in the index file, resets
 # the binary log index file to be empty and creates a new binary log file.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo End of tests

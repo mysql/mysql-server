@@ -67,7 +67,7 @@ let $slave_relay_pos0= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 
 connection master;
 create table t1 (n int);
-let $master_binlog_end= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_binlog_end= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
 let $slave_param= Exec_Master_Log_Pos;

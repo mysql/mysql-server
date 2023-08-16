@@ -21,7 +21,7 @@ call mtr.add_suppression("An incident event has been written to the binary log w
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table
 
 --let $debug_point=binlog_compression_inject_incident
@@ -77,5 +77,5 @@ INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 DROP TABLE t1;
 --replace_result $saved_binlog_transaction_compression_session SAVED
 --eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval TRUNCATE $pfs_table

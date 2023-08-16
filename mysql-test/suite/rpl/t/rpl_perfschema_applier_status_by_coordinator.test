@@ -353,11 +353,11 @@ source include/assert.inc;
 source include/stop_slave.inc;
 --connection master
 drop table t;
-reset master;
+reset binary logs and gtids;
 
 --connection slave
 reset slave;
-reset master;
+reset binary logs and gtids;
 
 --echo
 --echo # Restarting servers and setting up MTS now. Since, SQL thread and

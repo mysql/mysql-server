@@ -12,7 +12,7 @@
 #    written to the binary log on the slave.
 
 connection slave;
-let $before = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $before = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 
 --echo [on master]
 connection master;
@@ -22,7 +22,7 @@ eval $statement;
 --source include/sync_slave_sql_with_master.inc
 --echo # Expect 0
 SELECT COUNT(*) FROM t1;
-let $after = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $after = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 let $something_written = `select $after - $before != 0`;
 if ($something_written) {
   --echo >>> Something was written to binary log <<<

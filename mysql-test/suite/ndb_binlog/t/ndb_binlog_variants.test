@@ -61,17 +61,17 @@ source suite/ndb_rpl/t/wait_schema_logging.inc;
 
 --disable_query_log
 connection mysqld1;
-reset master;
+reset binary logs and gtids;
 connection mysqld2;
-reset master;
+reset binary logs and gtids;
 connection mysqld3;
-reset master;
+reset binary logs and gtids;
 connection mysqld4;
-reset master;
+reset binary logs and gtids;
 connection mysqld5;
-reset master;
+reset binary logs and gtids;
 connection mysqld6;
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 connection mysqld1;
@@ -281,7 +281,7 @@ create table t3(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engi
 create table t4(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine=ndb;
 
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 # Now make the inserts and update
@@ -350,7 +350,7 @@ drop table mysql.ndb_replication;
 # 
 
 connection mysqld1;
-reset master;
+reset binary logs and gtids;
 show variables like 'ndb_log_update%';
 
 create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
@@ -396,7 +396,7 @@ drop table bah;
 # any errors should be ignored
 
 connection mysqld1;
-reset master;
+reset binary logs and gtids;
 show variables like '%log_update%';
 
 CREATE TABLE `t1` (
@@ -468,7 +468,7 @@ drop table t1;
 # of non-existing row
 
 connection mysqld1;
-reset master;
+reset binary logs and gtids;
 show variables like '%log_update%';
 
 create table t1 (pk int not null primary key, name varchar(256)) engine = ndb;

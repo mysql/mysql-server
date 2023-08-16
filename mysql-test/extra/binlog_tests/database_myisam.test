@@ -11,7 +11,7 @@ source include/have_debug.inc;
 --echo # for t1. So failed DROP DATABASE will have side-effect even
 --echo # though removal of InnoDB tables is rolled back.
 --echo # DROP TABLE IF EXISTS is logged for MyISAM table in this case.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE testing_1;
 USE testing_1;
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;

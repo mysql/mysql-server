@@ -1,6 +1,6 @@
 
 source include/force_binlog_format_statement.inc;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
 --echo # --------------------------------------------------------------------------
@@ -36,14 +36,14 @@ eval INSERT INTO `$table_name_right` VALUES("$char");
 eval SELECT HEX(c1) FROM `$table_name_right`;
 
 --echo
-let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 FLUSH LOGS;
 eval DROP TABLE `$table_name_right`;
 
 --echo
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/my.sql
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # '--exec mysql ...' without --binary-mode option
 --echo # It creates the table with a wrong table name and generates an error.
@@ -74,7 +74,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --echo
 --echo # In binary_mode, table name '0x410D0A42' and string '0x410042' can be
 --echo # handled correctly.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL --binary-mode test < $MYSQLTEST_VARDIR/tmp/my.sql
 eval SELECT HEX(c1) FROM `$table_name_right`;
 
@@ -84,7 +84,7 @@ eval DROP TABLE `$table_name_right`;
 #
 #  BUG#12794048 - MAIN.MYSQL_BINARY_MODE FAILS ON WINDOWS RELEASE BUILD 
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 #
 # This test case tests if the table names and their values
@@ -97,7 +97,7 @@ let $tbl= `SELECT 0x610D0A62`;
 --disable_result_log
 --disable_query_log
 
---let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 
 #### case #1: mysqltest 
 #### CREATE table and insert value through regular mysqltest session 
@@ -120,7 +120,7 @@ FLUSH LOGS;
 --let $prefix=`SELECT UUID()`
 --let $binlog_uuid_filename= $MYSQLTEST_VARDIR/tmp/$prefix-bin.log
 --copy_file $MYSQLD_DATADIR/$binlog_file $binlog_uuid_filename
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --exec $MYSQL_BINLOG $binlog_uuid_filename  | $MYSQL
 
@@ -133,7 +133,7 @@ RESET MASTER;
 #### case #3: mysql --binlog-mode=1
 #### Replay through regular mysql client non-interactive mode and with binary mode set
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --exec $MYSQL_BINLOG $binlog_uuid_filename  | $MYSQL --binary-mode
 
 --let $table_name=`SELECT table_name FROM information_schema.tables WHERE table_schema='test'`
@@ -166,7 +166,7 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 --let $assert_cond=  "$tbl2" = "610D0A62" AND "$val2" = "610D0A62"
 --source include/assert.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --remove_file $binlog_uuid_filename
 --remove_file $MYSQLTEST_VARDIR/tmp/my.sql
 

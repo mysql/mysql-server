@@ -45,11 +45,11 @@ START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=3750 FOR CHANNEL 'channel_1']
 [connection server_1]
 DROP TABLE t2;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection server_2]
 STOP REPLICA;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # 4. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON.
 #    Create a table on the source (server 1) with a primary key

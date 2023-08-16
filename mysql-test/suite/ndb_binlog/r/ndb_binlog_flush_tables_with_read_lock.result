@@ -1,5 +1,5 @@
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 Initial setup
 Create some tables and put some data in them
 use test;
@@ -18,7 +18,7 @@ binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 binlog.000001	#	Write_rows	#	#	table_id: #
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
-reset master;
+reset binary logs and gtids;
 Show + reset Binlog contents on Server 2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -30,7 +30,7 @@ binlog.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 binlog.000001	#	Write_rows	#	#	table_id: #
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
-reset master;
+reset binary logs and gtids;
 Now perform MyIsam table change followed by 
 flush tables with read lock on Server 1
 insert into test.myisamt3s1 values (3,3);
@@ -105,8 +105,8 @@ binlog.000001	#	Write_rows	#	#	table_id: #
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 Reset both binlogs;
-reset master;
-reset master;
+reset binary logs and gtids;
+reset binary logs and gtids;
 Now show that a Server 1 Ndb update can
 be committed, but won't always make it to
 the Binlog

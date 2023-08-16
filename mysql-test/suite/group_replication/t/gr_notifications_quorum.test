@@ -297,7 +297,7 @@ SET GLOBAL group_replication_force_members= "";
 --source include/rpl_connection.inc
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --eval SET @@global.group_replication_local_address="$local_address_server1"
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
@@ -311,7 +311,7 @@ RESET MASTER;
 --source include/rpl_connection.inc
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
@@ -387,7 +387,7 @@ SET SQL_LOG_BIN=1;
 --source include/remove_debug_point.inc
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --eval SET @@global.group_replication_local_address="$local_address_server1"
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
@@ -401,7 +401,7 @@ RESET MASTER;
 --source include/rpl_connection.inc
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
@@ -415,7 +415,7 @@ RESET MASTER;
 --source include/rpl_connection.inc
 
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --eval SET @@global.group_replication_local_address="$local_address_server3"
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"

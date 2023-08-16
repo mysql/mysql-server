@@ -17,7 +17,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --let $debug_point=purge_logs_during_reencryption
 --source include/add_debug_point.inc

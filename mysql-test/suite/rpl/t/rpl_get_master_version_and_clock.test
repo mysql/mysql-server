@@ -53,7 +53,7 @@ source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 #Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
 connection slave;
-reset master;
+reset binary logs and gtids;
 # replicate ourselves
 source include/stop_slave.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT

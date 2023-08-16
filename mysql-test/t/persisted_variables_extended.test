@@ -140,7 +140,7 @@ SELECT VARIABLE_NAME,VARIABLE_SOURCE,MIN_VALUE,MAX_VALUE
 
 # Get rid of previous tests binlog
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 SET PERSIST max_connections=500;
@@ -249,7 +249,7 @@ SET PERSIST general_log=       'ON';
 
 # Get rid of previous tests binlog
 --disable_query_log
-reset master;
+reset binary logs and gtids;
 --enable_query_log
 
 SET PERSIST innodb_io_capacity=225;

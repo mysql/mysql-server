@@ -32,14 +32,14 @@
 CREATE TABLE t (a INT);
 INSERT INTO t VALUES (1);
 
---let $binlog_file_master= query_get_value(SHOW MASTER STATUS, File, 1)
---let $binlog_position_master= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_file_master= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $binlog_position_master= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 
 --source include/sync_slave_sql_with_master.inc
 
---let $binlog_file_slave= query_get_value(SHOW MASTER STATUS, File, 1)
---let $binlog_position_slave= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $binlog_file_slave= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $binlog_position_slave= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @binlog_row_image_save= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= 'MINIMAL';

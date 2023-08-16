@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 ############################################################
 # 1. Run a transaction with 5 events: GTID, Begin, Table_map, Write_rows, Commit.

@@ -17,11 +17,11 @@
 --echo Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 --echo Get binlog position before install plugin.
-let $before_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $before_pos = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 --echo Install example engine.
 INSTALL PLUGIN example SONAME 'ha_example.so';
 --echo Get binlog position after install plugin.
-let $after_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $after_pos = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 --echo Compute the difference of the  binlog positions.
 --echo Should be zero as install plugin should not be replicated.
 --disable_query_log
@@ -39,10 +39,10 @@ SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 --echo connection master: Uninstall example engine.
 connection master;
 --echo Get binlog position before uninstall plugin.
-let $before_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $before_pos = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 UNINSTALL PLUGIN example;
 --echo Get binlog position after uninstall plugin.
-let $after_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
+let $after_pos = query_get_value("SHOW BINARY LOG STATUS", Position, 1);
 --echo Compute the difference of the  binlog positions.
 --echo Should be zero as uninstall plugin should not be replicated.
 --disable_query_log

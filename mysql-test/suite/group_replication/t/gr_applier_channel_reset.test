@@ -1,13 +1,13 @@
 ################################################################################
 # This test proves Group replication does not delete group_replication_applier
-# channel on start of group replication post reset master.
+# channel on start of group replication post reset binary logs and gtids.
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Bootstrap M1.
 # 2. Create user u1 on M2.
 #    Add PRIVILEGE_CHECKS_USER for u1 for GR applier channel.
-#    Reset master.
+#    Reset source.
 # 3. Start GR fails.
 #    Assert value of PRIVILEGE_CHECKS_USER is preserved.
 # 4. Give privileges to u1.
@@ -30,7 +30,7 @@
 --echo
 --echo # 2. Create user u1 on M2.
 --echo #    Add PRIVILEGE_CHECKS_USER for u1 for GR applier channel.
---echo #    Reset master.
+--echo #    Reset source.
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -42,7 +42,7 @@ SET SQL_LOG_BIN=1;
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo
 --echo # 3. Start GR fails.

@@ -424,7 +424,7 @@ drop temporary table t4;
 --echo #
 
 let $statement=
-  show master status;
+  show binary log status;
 source include/implicit_commit_helper.inc;
 
 --echo #

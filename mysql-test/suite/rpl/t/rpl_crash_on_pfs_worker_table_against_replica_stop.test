@@ -139,13 +139,13 @@ SET DEBUG_SYNC = 'RESET';
 
 --source include/rpl_connection_master.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --source include/rpl_connection_slave.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
---replace_result $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYPORT SOURCE_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc
 

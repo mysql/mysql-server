@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 STOP REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 START REPLICA;
 INSERT INTO t1 VALUES ("row1","will go away",1);
@@ -46,7 +46,7 @@ row3	C	3
 row4	D	4
 STOP REPLICA;
 DROP TABLE t1;
-RESET master;
+RESET BINARY LOGS AND GTIDS;
 DROP TABLE t1;
 RESET REPLICA;
 START REPLICA;
@@ -63,7 +63,7 @@ row2	new on slave	2
 include/check_slave_is_running.inc
 DROP TABLE IF EXISTS t1;
 STOP REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 START REPLICA;
 Let's interleave some DDL and DML in the Binlog
@@ -105,7 +105,7 @@ LAST_ERROR_MESSAGE LIKE "%Table 't2' already exists%";
 FOUND_ERROR_MESSAGE
 1
 STOP REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 START REPLICA;
 DROP TABLE t1;

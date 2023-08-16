@@ -53,11 +53,11 @@ Value returned by SSS and PS table for Last_Error_Message is same.
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 include/stop_slave.inc
 drop table t;
-reset master;
+reset binary logs and gtids;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-reset master;
+reset binary logs and gtids;
 
 # Restarting servers and setting up MTS now. Since, SQL thread and
 # coordinator are the same and follow same code path, we can skip

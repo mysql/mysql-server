@@ -17,7 +17,7 @@ select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
 Tables_in_test (t2)
-reset master;
+reset binary logs and gtids;
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
@@ -30,12 +30,12 @@ a
 1
 2
 3
-reset master;
+reset binary logs and gtids;
 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
 Tables_in_test (t2)
-reset master;
+reset binary logs and gtids;
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
@@ -48,5 +48,5 @@ a
 1
 2
 3
-reset master;
+reset binary logs and gtids;
 drop table t2;

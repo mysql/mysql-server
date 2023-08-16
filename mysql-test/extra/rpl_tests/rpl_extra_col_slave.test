@@ -42,7 +42,7 @@ eval CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(10)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -82,7 +82,7 @@ eval CREATE TABLE t2 (a INT PRIMARY KEY, b INT, c CHAR(10)
                        ) ENGINE=$engine_type;
 
 --echo *** Start Slave ***
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -97,7 +97,7 @@ connection slave;
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -126,7 +126,7 @@ eval CREATE TABLE t3 (a BLOB, b INT PRIMARY KEY, c CHAR(20)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -170,7 +170,7 @@ eval CREATE TABLE t4 (a DECIMAL(8,2), b INT PRIMARY KEY, c CHAR(20)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -213,7 +213,7 @@ eval CREATE TABLE t5 (a INT PRIMARY KEY, b VARCHAR(6),
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -257,7 +257,7 @@ eval CREATE TABLE t6 (a INT PRIMARY KEY, b VARCHAR(6),
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -317,7 +317,7 @@ eval CREATE TABLE t7 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -358,7 +358,7 @@ eval CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -417,7 +417,7 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
   --enable_warnings
   --echo *** Start Slave ***
   connection slave;
-  # reset master and slave and start slave
+  # reset binary logs and gtids and slave and start slave
   --let $rpl_only_running_threads= 1
   --source include/rpl_reset.inc
   SET @previous_sql_mode = @@sql_mode;
@@ -482,7 +482,7 @@ eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -524,7 +524,7 @@ eval CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -566,7 +566,7 @@ eval CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -607,7 +607,7 @@ eval CREATE TABLE t13 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -655,7 +655,7 @@ eval CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -695,7 +695,7 @@ eval CREATE TABLE t14a (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -720,7 +720,7 @@ ALTER TABLE t14a DROP COLUMN c5;
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -785,7 +785,7 @@ eval CREATE TABLE t15 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -858,7 +858,7 @@ eval CREATE TABLE t16 (c1 INT PRIMARY KEY, c2 DECIMAL(8,2), c3 TEXT,
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 
@@ -915,7 +915,7 @@ eval CREATE TABLE t17 (a BIGINT PRIMARY KEY, b INT, c CHAR(10)
 
 --echo *** Start Slave ***
 connection slave;
-# reset master and slave and start slave
+# reset binary logs and gtids and slave and start slave
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 

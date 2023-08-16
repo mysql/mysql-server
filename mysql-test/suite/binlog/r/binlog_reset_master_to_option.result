@@ -1,55 +1,55 @@
 call mtr.add_suppression("Next log extension.* Remaining log filename extensions.");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 1234;
+RESET BINARY LOGS AND GTIDS TO 1234;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 1.023;
+RESET BINARY LOGS AND GTIDS TO 1.023;
 ERROR 42000: Only integers allowed as number here near '1.023' at line 1
-RESET MASTER TO -123;
+RESET BINARY LOGS AND GTIDS TO -123;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-123' at line 1
-RESET MASTER TO 2000000000;
+RESET BINARY LOGS AND GTIDS TO 2000000000;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 2000000001;
+RESET BINARY LOGS AND GTIDS TO 2000000001;
 ERROR HY000: The requested value '2000000001' for the next binary log index is out of range. Please use a value between '1' and '2000000000'.
-RESET MASTER TO 5000000000;
+RESET BINARY LOGS AND GTIDS TO 5000000000;
 ERROR HY000: The requested value '5000000000' for the next binary log index is out of range. Please use a value between '1' and '2000000000'.
-RESET MASTER TO 20000000000000000000;
+RESET BINARY LOGS AND GTIDS TO 20000000000000000000;
 ERROR 42000: Only integers allowed as number here near '20000000000000000000' at line 1
-RESET MASTER TO 0;
+RESET BINARY LOGS AND GTIDS TO 0;
 ERROR HY000: The requested value '0' for the next binary log index is out of range. Please use a value between '1' and '2000000000'.
-RESET MASTER TO q;
+RESET BINARY LOGS AND GTIDS TO q;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'q' at line 1
-RESET MASTER TO "qwe";
+RESET BINARY LOGS AND GTIDS TO "qwe";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"qwe"' at line 1
-RESET MASTER TO @;
+RESET BINARY LOGS AND GTIDS TO @;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
 CREATE USER user1@localhost IDENTIFIED BY 'pass1';
-RESET MASTER TO 100;
+RESET BINARY LOGS AND GTIDS TO 100;
 ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation
 GRANT RELOAD ON *.* TO 'user1'@'localhost';
-RESET MASTER TO 100;
+RESET BINARY LOGS AND GTIDS TO 100;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 0xF;
+RESET BINARY LOGS AND GTIDS TO 0xF;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 0x0;
+RESET BINARY LOGS AND GTIDS TO 0x0;
 ERROR HY000: The requested value '0' for the next binary log index is out of range. Please use a value between '1' and '2000000000'.
-RESET MASTER TO 0xFFFF;
+RESET BINARY LOGS AND GTIDS TO 0xFFFF;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]
 include/assert.inc [Assert that file is created and opened]
-RESET MASTER TO 0x7FFFFFFF;
+RESET BINARY LOGS AND GTIDS TO 0x7FFFFFFF;
 ERROR HY000: The requested value '2147483647' for the next binary log index is out of range. Please use a value between '1' and '2000000000'.
 CREATE FUNCTION f1(a int) RETURNS INT RETURN (a+10);
-RESET MASTER TO f1(3);
+RESET BINARY LOGS AND GTIDS TO f1(3);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'f1(3)' at line 1
-RESET MASTER TO 2000000000;
+RESET BINARY LOGS AND GTIDS TO 2000000000;
 FLUSH BINARY LOGS;
 FLUSH BINARY LOGS;
 include/assert_grep.inc [Found the expected log exhaustion warnings in the error log.]
 DROP USER 'user1'@'localhost';
 DROP FUNCTION f1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

@@ -33,7 +33,7 @@
 --echo # is written into binlog after executing the event when
 --echo # @@session.binlog_format=STATEMENT.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 DELIMITER |;
 CREATE EVENT event1
 ON SCHEDULE EVERY 2 SECOND
@@ -62,7 +62,7 @@ DELIMITER ;|
 --echo # is written into binlog after executing the event when
 --echo # @@session.binlog_format=STATEMENT.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 DELIMITER |;
 CREATE EVENT event1
 ON SCHEDULE EVERY 2 SECOND
@@ -86,7 +86,7 @@ CREATE TABLE t1 (i INT);
 --echo # is written into binlog after executing the event when
 --echo # @@session.binlog_format=STATEMENT.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 DELIMITER |;
 CREATE EVENT event1
 ON SCHEDULE EVERY 2 SECOND
@@ -117,7 +117,7 @@ DELIMITER ;|
 --echo # is written into binlog after executing the event when
 --echo # @@session.binlog_format=STATEMENT.
 --echo #
---let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--let $saved_master_pos=query_get_value('SHOW BINARY LOG STATUS', Position, 1)
 DELIMITER |;
 CREATE EVENT event1
 ON SCHEDULE EVERY 2 SECOND

@@ -3,6 +3,56 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
+[connection slave]
+CREATE EVENT test.slave_event ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO SELECT 1;
+Warnings:
+Warning	1287	'<CREATE|ALTER> EVENT ... DISABLE ON SLAVE' is deprecated and will be removed in a future release. Please use <CREATE|ALTER> EVENT ... DISABLE ON REPLICA instead
+CREATE EVENT test.replica_event ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO SELECT 1;
+SHOW CREATE EVENT test.slave_event;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+slave_event	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `slave_event` ON SCHEDULE EVERY 3 SECOND STARTS '#' ON COMPLETION NOT PRESERVE DISABLE ON REPLICA DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+include/assert.inc [The event Status should be REPLICA_SIDE_DISABLED for slave_event]
+include/assert.inc [The event Status should be REPLICA_SIDE_DISABLED for replica_event]
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	replica_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	REPLICA_SIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	slave_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	REPLICA_SIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SET @save_terminology_use_previous = @@session.terminology_use_previous;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SET @@session.terminology_use_previous = BEFORE_8_0_26;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SHOW CREATE EVENT test.slave_event;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+slave_event	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `slave_event` ON SCHEDULE EVERY 3 SECOND STARTS '#' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	replica_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	SLAVESIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	slave_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	SLAVESIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SET @@session.terminology_use_previous = BEFORE_8_2_0;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+SHOW CREATE EVENT test.slave_event;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+slave_event	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `slave_event` ON SCHEDULE EVERY 3 SECOND STARTS '#' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE EVENT test.replica_event;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+replica_event	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `replica_event` ON SCHEDULE EVERY 3 SECOND STARTS '#' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	replica_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	SLAVESIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	slave_event	root@localhost	SYSTEM	RECURRING	#	3	SECOND	#	#	SLAVESIDE_DISABLED	2	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+include/assert.inc [The event Status should be SLAVESIDE_DISABLED for slave_event]
+include/assert.inc [The event Status should be SLAVESIDE_DISABLED for replica_event]
+SET @@session.terminology_use_previous = @save_terminology_use_previous;
+Warnings:
+Warning	1287	'@@terminology_use_previous' is deprecated and will be removed in a future release.
+DROP EVENT test.slave_event;
+DROP EVENT test.replica_event;
+RESET BINARY LOGS AND GTIDS;
+[connection master]
+[connection master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 DROP TABLE t1;
 [connection slave]
@@ -64,7 +114,7 @@ include/stop_slave.inc
 include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 START REPLICA UNTIL MASTER_LOG_FILE='LOG_FILE', MASTER_LOG_POS=LOG_POS;
 Warnings:
 Warning	1287	'MASTER_LOG_FILE' is deprecated and will be removed in a future release. Please use SOURCE_LOG_FILE instead
@@ -74,11 +124,11 @@ include/stop_slave.inc
 include/diff_tables.inc [master:t1,slave:t1]
 [connection master]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection slave]
 DROP TABLE t1;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 [connection master]
 include/rpl_end.inc

@@ -29,7 +29,7 @@ USE bug27374791;
 CREATE TABLE T( i int);
 # Get rid of previous tests binlog
 --disable_query_log
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --enable_query_log
 --source include/show_binlog_events.inc
 BEGIN;

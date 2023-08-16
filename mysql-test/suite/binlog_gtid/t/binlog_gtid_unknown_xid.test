@@ -148,4 +148,4 @@ XA ROLLBACK 'xa1';
 DROP TABLE t2;
 --replace_result $current_autocommit DEFAULT_AUTOCOMMIT
 --eval SET @@AUTOCOMMIT=$current_autocommit
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

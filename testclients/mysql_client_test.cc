@@ -11733,7 +11733,7 @@ static void test_cursor_for_show() {
     //"SHOW FUNCTION CODE f1", - not supported in optimized build
       "SHOW FUNCTION STATUS",
       "SHOW GRANTS",
-      "SHOW MASTER STATUS",
+      "SHOW BINARY LOG STATUS",
       "SHOW OPEN TABLES",
       "SHOW PLUGINS",
       "SHOW PRIVILEGES",
@@ -20230,7 +20230,7 @@ static void test_mysql_binlog() {
   {
     MYSQL_RES *res;
     MYSQL_ROW row;
-    DIE_IF(mysql_query(mysql, "SHOW MASTER STATUS"));
+    DIE_IF(mysql_query(mysql, "SHOW BINARY LOG STATUS"));
     DIE_UNLESS(res = mysql_store_result(mysql));
     if (!(row = mysql_fetch_row(res)) || strcmp(row[0], binlog_name)) {
       if (!opt_silent) fprintf(stdout, "Skipping test_mysql_binlog\n");
@@ -20245,7 +20245,7 @@ static void test_mysql_binlog() {
   myquery(rc);
   rc = mysql_query(mysql, "SET @@global.binlog_checksum=NONE");
   myquery(rc);
-  rc = mysql_query(mysql, "RESET MASTER");
+  rc = mysql_query(mysql, "RESET BINARY LOGS AND GTIDS");
   myquery(rc);
   rc = mysql_query(mysql, "CREATE TABLE t1(a INT)");
   myquery(rc);

@@ -40,7 +40,7 @@
 #  http://dev.mysql.com/doc/refman/5.1/en/sql-syntax-data-definition.html
 #
 --source include/have_log_bin.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 disable_warnings;
 

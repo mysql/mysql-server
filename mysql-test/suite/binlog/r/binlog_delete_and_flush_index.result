@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a int);
 ### assertion: index file contains regular entries
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//binlog.index');
@@ -47,4 +47,4 @@ SELECT @index;
 @index
 binlog.000002
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

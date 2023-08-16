@@ -3,9 +3,9 @@ Cleanup and server setup
 ###################
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
 server2
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 server1
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 server1
 SET GLOBAL group_replication_group_name= "8a84f397-aaa4-18df-89ab-c70aa9823561";
 ###################

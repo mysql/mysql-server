@@ -17,7 +17,7 @@ sync_slave_with_master;
 --connection slave
 STOP REPLICA;
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 RESET REPLICA;
 START REPLICA;
@@ -98,7 +98,7 @@ STOP REPLICA;
 #
 --connection master
 DROP TABLE t1;
-RESET master;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 DROP TABLE t1;
 RESET REPLICA;
@@ -142,7 +142,7 @@ DROP TABLE IF EXISTS t1;
 --connection slave
 STOP REPLICA;
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --connection slave
 RESET REPLICA;
 START REPLICA;
@@ -227,7 +227,7 @@ STOP REPLICA;
 
 # Cleanup
 --connection master
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --connection slave
 RESET REPLICA;

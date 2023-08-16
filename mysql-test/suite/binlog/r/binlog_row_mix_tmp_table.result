@@ -1,4 +1,4 @@
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 create table foo (a int);
 flush logs;
 create temporary table tmp1_foo like foo;
@@ -22,7 +22,7 @@ a
 8
 drop table foo;
 create table foo (a int);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 select * from foo;
 a
 5
@@ -30,7 +30,7 @@ a
 6
 8
 drop table foo;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 create database b51226;
 use b51226;
 create temporary table t1(i int);
@@ -41,4 +41,4 @@ ERROR 42S01: Table 't1' already exists
 insert into t1 values(1);
 DROP DATABASE b51226;
 FLUSH LOGS;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

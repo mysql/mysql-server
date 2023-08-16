@@ -620,17 +620,15 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
                   &stage_waiting_for_the_replica_thread_to_advance_position,
                   &old_stage);
   /*
-     This function will abort when it notices that some CHANGE MASTER or
-     RESET MASTER has changed the master info.
-     To catch this, these commands modify abort_pos_wait ; We just monitor
-     abort_pos_wait and see if it has changed.
-     Why do we have this mechanism instead of simply monitoring slave_running
-     in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
-     the SQL thread be stopped?
-     This is because if someones does:
-     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
-     the change may happen very quickly and we may not notice that
-     slave_running briefly switches between 1/0/1.
+     This function will abort when it notices that some CHANGE REPLICATION
+     SOURCE or RESET BINARY LOGS AND GTIDS has changed the master info. To catch
+     this, these commands modify abort_pos_wait ; We just monitor abort_pos_wait
+     and see if it has changed. Why do we have this mechanism instead of simply
+     monitoring slave_running in the loop (we do this too), as CHANGE
+     MASTER/RESET SLAVE require that the SQL thread be stopped? This is because
+     if someones does: STOP REPLICA;CHANGE REPLICATION SOURCE/RESET REPLICA;
+     START REPLICA; the change may happen very quickly and we may not notice
+     that slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait = abort_pos_wait;
 
@@ -832,14 +830,14 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
                     &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
-     RESET MASTER has changed the master info.
+     RESET BINARY LOGS AND GTIDS has changed the master info.
      To catch this, these commands modify abort_pos_wait ; We just monitor
      abort_pos_wait and see if it has changed.
      Why do we have this mechanism instead of simply monitoring slave_running
-     in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
-     the SQL thread be stopped?
+     in the loop (we do this too), as CHANGE REPLICATION SOURCE/RESET REPLICA
+     require that the SQL thread be stopped?
      This is because if someones does:
-     STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
+     STOP REPLICA;CHANGE REPLICATION SOURCE/RESET REPLICA; START REPLICA;
      the change may happen very quickly and we may not notice that
      slave_running briefly switches between 1/0/1.
   */

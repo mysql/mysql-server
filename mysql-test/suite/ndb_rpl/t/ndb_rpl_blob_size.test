@@ -22,7 +22,7 @@ engine=ndb;
 --echo ## Verify inline and partition sizes of test.t1 on master
 SELECT inline_size, part_size FROM ndbinfo.blobs WHERE table_name = 't1';
 
-reset master;
+reset binary logs and gtids;
 
 --echo ## Create table in replica with other custom Blob inline size
 --connection slave

@@ -16,7 +16,7 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
 SET GLOBAL replica_transaction_retries = 0;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (a int) ENGINE= innodb;
 INSERT INTO t1 SET a=1;
 BEGIN;
@@ -46,11 +46,11 @@ INSERT INTO t1 SET a=0;
 SET @@session.debug ='-d,feign_commit_parent';
 include/wait_for_slave_sql_to_stop.inc
 include/stop_slave_io.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/start_slave.inc
 DROP TABLE t1;
 include/stop_slave.inc

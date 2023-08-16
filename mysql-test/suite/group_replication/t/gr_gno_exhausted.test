@@ -128,7 +128,7 @@ INSERT INTO t1 VALUES (1);
 --echo ############################################################
 --echo # 2. Validate that member start moves to ERROR state when
 --echo #    group GNOs are exhausted.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:1-9223372036854775806"
 --let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775806
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775806"
@@ -151,7 +151,7 @@ RESET MASTER;
 # Set GTID_EXECUTED and start server 1.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:1-9223372036854775805"
 --let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775805
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775805"
@@ -165,7 +165,7 @@ RESET MASTER;
 # Set GTID_EXECUTED and start server 2.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:1-9223372036854775805"
 --let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775805
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775805"
@@ -198,11 +198,11 @@ RESET MASTER;
 --echo # 4. Clean up.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/start_and_bootstrap_group_replication.inc
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server1

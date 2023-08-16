@@ -43,7 +43,7 @@ drop table t1,t3;
 include/sync_slave_sql_with_master.inc
 create table t1 (n int) engine=myisam;
 include/sync_slave_sql_with_master.inc
-reset master;
+reset binary logs and gtids;
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead

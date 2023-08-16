@@ -3,7 +3,7 @@ Explore some event weirdness
 use test;
 create table test.synch(x int primary key auto_increment) engine=ndb;
 show create table test.synch;
-reset master;
+reset binary logs and gtids;
 Create table with tableId X and blob part tables :
 NDB$BLOB_X_2
 NDB$BLOB_X_3
@@ -22,14 +22,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Show tables and events
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
@@ -50,14 +50,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -98,14 +98,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -140,7 +140,7 @@ mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
 mysqld1:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
@@ -148,7 +148,7 @@ mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 Expecting 4 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -180,12 +180,12 @@ insert into test.t1 values(0, "b");
 mysqld1:	txt
 mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
-reset master;
+reset binary logs and gtids;
 Expecting 1 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -217,12 +217,12 @@ insert into test.t1 values(0, 1, "c");
 mysqld1:	txt
 mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @3='c'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @3='c'
-reset master;
+reset binary logs and gtids;
 Expecting 1 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -247,12 +247,12 @@ insert into test.t1 values(0, "b");
 mysqld1:	txt
 mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
-reset master;
+reset binary logs and gtids;
 drop table test.t1;
 Expecting 0 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
@@ -267,14 +267,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -310,14 +310,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -335,14 +335,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -377,14 +377,14 @@ mysqld1:	### INSERT INTO `test`.`t1`
 mysqld1:	###   @3='b'
 mysqld1:	###   @4='c'
 mysqld1:	###   @5='d'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @3='b'
 mysqld2:	###   @4='c'
 mysqld2:	###   @5='d'
-reset master;
+reset binary logs and gtids;
 Expecting 3 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -419,7 +419,7 @@ mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
 mysqld1:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
@@ -427,7 +427,7 @@ mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)
@@ -462,7 +462,7 @@ mysqld1:	###   @2='b'
 mysqld1:	###   @3='c'
 mysqld1:	###   @4='d'
 mysqld1:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 "Check that the binlog contains the inserted row"
 mysqld2:	txt
 mysqld2:	### INSERT INTO `test`.`t1`
@@ -470,7 +470,7 @@ mysqld2:	###   @2='b'
 mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
-reset master;
+reset binary logs and gtids;
 Expecting 4 BLOB events for t1    
 select count(*) from raw_binlog_events where txt like '%t1\_%';
 count(*)

@@ -243,8 +243,8 @@ source include/stop_slave.inc;
 --connection master
 create table t2 (a int);
 
-let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
-let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
+let $master_log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 insert into t2 values (1);
 
@@ -404,7 +404,7 @@ if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
     --connection slave
     show slave status;
     --connection master
-    show master status;
+    show binary log status;
     --die
 }
 

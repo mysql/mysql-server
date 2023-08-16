@@ -6,7 +6,7 @@
 --echo # regardless of binlog_row_image
 
 # Clear the binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 SET @start_row_image_value = @@session.binlog_row_image;
 
@@ -30,7 +30,7 @@ FLUSH LOGS;
 --source include/mysqlbinlog.inc
 
 # Clear the binlog
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Check that when the only unique NOT NULL index is a functional index,
 --echo # the binary log contains a full before-image regardless of

@@ -225,7 +225,7 @@ key (n3, n1, n2));
 create table t2 (i int) engine=innodb;
 alter table t1 disable keys;
 insert into t1 values (1, 2, 3);
-reset master;
+reset binary logs and gtids;
 set debug_sync='alter_table_enable_indexes SIGNAL parked WAIT_FOR go';
 alter table t1 enable keys;;
 set debug_sync='now WAIT_FOR parked';

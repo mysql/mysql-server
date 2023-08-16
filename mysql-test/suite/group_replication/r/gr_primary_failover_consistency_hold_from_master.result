@@ -105,5 +105,5 @@ SET @@GLOBAL.group_replication_consistency= DEFAULT;
 STOP REPLICA FOR CHANNEL 'ch3_2';
 RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 [connection server3]
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/group_replication_end.inc

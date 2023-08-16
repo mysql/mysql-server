@@ -28,10 +28,10 @@
 --echo # Initialization
 --echo #
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE TABLE t1 (c INT);
 
---let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
 FLUSH BINARY LOGS;
 --replace_column 2 SIZE
 SHOW BINARY LOGS;

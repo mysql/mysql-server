@@ -39,12 +39,12 @@ let $VERSION=`select version()`;
 connection master;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
-let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
-let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $master_log_pos_1= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
+let $master_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1);
 drop table t1;
 create table t2(n int not null auto_increment primary key);
 insert into t2 values (1),(2);
-let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_log_pos_2= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 insert into t2 values (3),(4);
 drop table t2;
 
@@ -143,7 +143,7 @@ source include/stop_slave.inc;
 drop table if exists t1;
 --enable_warnings
 reset slave;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'; 
 
@@ -151,10 +151,10 @@ connection master;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-reset master;
+reset binary logs and gtids;
 create table t1 (a int primary key auto_increment);
 save_master_pos;
-let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 
 connection slave;
 start slave;
@@ -172,7 +172,7 @@ eval select $diff_pos as zero;
 
 connection master;
 insert into t1 set a=null;
-let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $until_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
 insert into t1 set a=null;
 select count(*) as two from t1;
 
@@ -232,8 +232,8 @@ FLUSH LOGS;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 
 # Save master position to use on UNTIL clause of START SLAVE
---let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $master_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --dec $master_pos
 
 # Sync the IO thread with the master

@@ -1,7 +1,7 @@
 include/gtid_utils.inc
 include/install_replication_observers_example.inc
 CALL mtr.add_suppression(".*was not purged because it was being read by.*");
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### Scenario 1: several transactions, multiple log files
 ###
@@ -44,7 +44,7 @@ Query	00000000-0000-0000-0000-000000000000	5	{ "filename" : "./binlog.000003",  
 Gtid	00000000-0000-0000-0000-000000000000	6	{ "filename" : "./binlog.000003",  "position" : POSITION }
 Transaction_payload	00000000-0000-0000-0000-000000000000	6	{ "filename" : "./binlog.000003",  "position" : POSITION }
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #1
 ###
@@ -95,7 +95,7 @@ Transaction_payload	22222222-2222-2222-2222-222222222222	2	{ "filename" : "./bin
 Gtid	22222222-2222-2222-2222-222222222222	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
 Transaction_payload	22222222-2222-2222-2222-222222222222	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #2
 ###
@@ -179,7 +179,7 @@ Transaction_payload	44444444-4444-4444-4444-444444444444	2	{ "filename" : "./bin
 Gtid	44444444-4444-4444-4444-444444444444	1	{ "filename" : "./binlog.000003",  "position" : POSITION }
 Transaction_payload	44444444-4444-4444-4444-444444444444	1	{ "filename" : "./binlog.000003",  "position" : POSITION }
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #3
 ###
@@ -328,7 +328,7 @@ Gtid	00000000-0000-0000-0000-000000000000	29	{ "filename" : "./binlog.000005",  
 Gtid	00000000-0000-0000-0000-000000000000	30	{ "filename" : "./binlog.000005",  "position" : POSITION }
 # Removing debug point 'test_binlog_storage_iterator_filter_gtids' from @@GLOBAL.debug
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #6
 ###
@@ -436,7 +436,7 @@ PURGE BINARY LOGS TO 'binlog.000005';
 SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
 ERROR HY000: Invalid performance_schema usage.
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #7
 ###
@@ -478,7 +478,7 @@ Gtid	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "
 Transaction_payload	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
 # Removing debug point 'test_binlog_storage_iterator_try_again_on_eof' from @@GLOBAL.debug
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #8
 ###
@@ -515,7 +515,7 @@ Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000004",  "position" : POSITIO
 Gtid	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000004",  "position" : POSITION }
 Transaction_payload	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000004",  "position" : POSITION }
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 ###
 ### End of Scenario #9
 ###
@@ -542,6 +542,6 @@ include/assert.inc [Asset that iterator does not return 00000000-0000-0000-0000-
 include/assert.inc [Asset that iterator returns 00000000-0000-0000-0000-000000000000:4]
 include/assert.inc [Assert that there is no Stop and no Rotate event]
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 include/uninstall_replication_observers_example.inc
 include/gtid_utils_end.inc

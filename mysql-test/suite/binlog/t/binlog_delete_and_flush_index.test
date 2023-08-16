@@ -31,12 +31,12 @@
 #   6. Not purged binlog file exists in the filesystem
 #
 #  CLEAN UP:
-#   1. RESET MASTER
+#   1. RESET BINARY LOGS AND GTIDS
 #
 
 -- source include/have_log_bin.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 -- let $datadir= `SELECT @@datadir`
 -- let $index=$datadir/binlog.index
@@ -94,7 +94,7 @@ SELECT @index;
 DROP TABLE t1;
 
 -- echo ### assertion: purging binlogs up to binlog created after instrumenting index file should work
--- let $current_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+-- let $current_binlog= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 -- eval PURGE BINARY LOGS TO '$current_binlog'
 
 -- echo ### assertion: show binary logs should only contain latest binlog
@@ -114,4 +114,4 @@ DROP TABLE t1;
 -- replace_regex /\.[\\\/]binlog/binlog/
 SELECT @index;
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;

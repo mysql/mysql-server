@@ -10,7 +10,7 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 use test;
 create table ticker (a int primary key) engine=ndb;
-reset master;
+reset binary logs and gtids;
 use test;
 create procedure tick(times int)
 begin
@@ -143,5 +143,5 @@ select @log_max_val;
 Cleanup
 drop procedure tick;
 drop table ticker;
-reset master;
+reset binary logs and gtids;
 include/rpl_end.inc

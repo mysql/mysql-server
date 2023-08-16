@@ -743,7 +743,7 @@ class Sid_map {
   /// Destroy this Sid_map.
   ~Sid_map();
   /**
-    Clears this Sid_map (for RESET SLAVE)
+    Clears this Sid_map (for RESET REPLICA)
 
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
@@ -2743,8 +2743,8 @@ class Gtid_state {
   */
   int init();
   /**
-    Reset the state and persistor after RESET MASTER: remove all logged
-    and lost gtids, but keep owned gtids as they are.
+    Reset the state and persistor after RESET BINARY LOGS AND GTIDS:
+    remove all logged and lost gtids, but keep owned gtids as they are.
 
     The caller must hold the write lock on sid_lock before calling
     this function.
@@ -3039,7 +3039,8 @@ class Gtid_state {
 
     This variable can be read and modified in four places:
     - During server startup, holding global_sid_lock.wrlock;
-    - By a client thread holding global_sid_lock.wrlock (doing a RESET MASTER);
+    - By a client thread holding global_sid_lock.wrlock
+      when executing RESET BINARY LOGS AND GTIDS
     - By a client thread calling MYSQL_BIN_LOG::write_transaction function
     (often the group commit FLUSH stage leader). It will call
       Gtid_state::generate_automatic_gtid, that will acquire

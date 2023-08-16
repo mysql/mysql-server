@@ -21,7 +21,7 @@
 --eval CREATE TABLE t1 (c1 INT) ENGINE = $engine
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Test case1
 --connect(con1,localhost,root)

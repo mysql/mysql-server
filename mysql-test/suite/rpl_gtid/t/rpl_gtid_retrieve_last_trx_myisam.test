@@ -40,7 +40,7 @@ CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 # Clean GTIDs on slave, so if a already retrieved transaction be asked
 # again to the master, the transaction will be applied again, generating
 # data inconsistency.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Restart the slave threads
 --source include/stop_slave.inc
@@ -62,7 +62,7 @@ INSERT INTO t2 VALUES (1);
 # Clean GTIDs on slave, so if a already retrieved transaction be asked
 # again to the master, the transaction will be applied again, generating
 # data inconsistency.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # Restart the slave threads
 --source include/stop_slave.inc
@@ -85,7 +85,7 @@ RESET MASTER;
 # Save slave Retrieved_Gtid_Set to add it as slave's GTID_PURGED
 --source include/rpl_connection_slave.inc
 --let $slave_gtid_purged= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@GLOBAL.GTID_PURGED='$slave_gtid_purged'
 

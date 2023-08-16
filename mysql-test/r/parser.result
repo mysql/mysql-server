@@ -449,9 +449,9 @@ ERROR 42000: Incorrect parameter count in the call to native function 'locate'
 select locate(1, 2, 3, 4);
 ERROR 42000: Incorrect parameter count in the call to native function 'locate'
 select log();
-ERROR 42000: Incorrect parameter count in the call to native function 'log'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 select log(1, 2, 3);
-ERROR 42000: Incorrect parameter count in the call to native function 'log'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', 3)' at line 1
 select make_set();
 ERROR 42000: Incorrect parameter count in the call to native function 'make_set'
 select make_set(1);

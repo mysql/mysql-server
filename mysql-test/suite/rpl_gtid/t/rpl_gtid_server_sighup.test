@@ -62,7 +62,7 @@ while ($_rpl_server <= 2)
   # Get current master binlog name
   if ($_rpl_server == 1)
   {
-    --let $before_sighup_log_name=query_get_value(SHOW MASTER STATUS, File, 1)
+    --let $before_sighup_log_name=query_get_value(SHOW BINARY LOG STATUS, File, 1)
   }
   if ($_rpl_server == 2)
   {
@@ -76,7 +76,7 @@ while ($_rpl_server <= 2)
   # (i.e., completes rotation of binary/relay log) after receiving SIGHUP signal.
   if ($_rpl_server == 1)
   {
-    --let $show_statement=SHOW MASTER STATUS
+    --let $show_statement=SHOW BINARY LOG STATUS
     --let $field=File
   }
   if ($_rpl_server == 2)

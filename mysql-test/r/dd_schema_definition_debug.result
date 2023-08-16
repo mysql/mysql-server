@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80023
+DD_VERSION=80200
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -286,7 +286,7 @@ events	CREATE TABLE `events` (
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8mb3_bin NOT NULL,
   `starts` datetime DEFAULT NULL,
   `ends` datetime DEFAULT NULL,
-  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8mb3_bin NOT NULL,
+  `status` enum('ENABLED','DISABLED','REPLICA_SIDE_DISABLED') COLLATE utf8mb3_bin NOT NULL,
   `on_completion` enum('DROP','PRESERVE') COLLATE utf8mb3_bin NOT NULL,
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
@@ -734,5 +734,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80023.
+The schema checksum corresponds to DD version 80200.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

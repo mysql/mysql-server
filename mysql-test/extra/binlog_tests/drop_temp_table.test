@@ -6,7 +6,7 @@ DROP DATABASE IF EXISTS `drop-temp+table-test`;
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 CREATE DATABASE `drop-temp+table-test`;
 USE `drop-temp+table-test`;
 CREATE TEMPORARY TABLE shortn1 (a INT);
@@ -64,7 +64,7 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
 
 source include/show_binlog_events.inc;
 DROP DATABASE `drop-temp+table-test`;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 # End of 4.1 tests
 
@@ -100,8 +100,8 @@ SET SESSION sql_log_bin= 1;
 --echo # table) while in XA_idle. Then checks that an explicit DROP TEMPORARY
 --echo # TABLE is rejected with ER_XAER_RMFAIL as required by the XA spec.
 --echo #
---echo # Reset master to avoid clutter when dumping binlog
-RESET MASTER;
+--echo # Reset source to avoid clutter when dumping binlog
+RESET BINARY LOGS AND GTIDS;
 --echo # Create separate connection
 connect (con3,localhost,root,,);
 --connection con3
@@ -138,7 +138,7 @@ XA ROLLBACK 'idle_when_drop_temp';
 
 # clean up the binary log at in the end of the test
 # case as well.
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo #
 --echo # BUG#28642318: POINT IN TIME RECOVERY USING MYSQLBINLOG BROKEN
@@ -146,7 +146,7 @@ RESET MASTER;
 
 --echo # Test case for DELETE query.
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 connect (con1,localhost,root,,);
 
 --echo # Set up.
@@ -178,7 +178,7 @@ DROP TABLE IF EXISTS t1;
 
 --connection default
 DROP TABLE IF EXISTS t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Test case for DROP query.
 
@@ -203,7 +203,7 @@ DROP TABLE t1;
 --echo # Clean up
 --connection default
 SET @@session.binlog_format= @save_binlog_format;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug28642318.sql
 
 --disconnect con1

@@ -3,7 +3,7 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 #
 # Test 1: single non-trans statement
@@ -17,14 +17,14 @@ include/assert.inc [Number of rows in performance_schema.binary_log_transaction_
 include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
 DROP TABLE IF EXISTS t1, t2;
 SET SESSION binlog_transaction_compression = SAVED;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 SET SESSION binlog_transaction_compression = ON;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 #
 # Test 2: single non-trans + trans statement
@@ -55,14 +55,14 @@ include/assert.inc [Number of rows in performance_schema.binary_log_transaction_
 include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
 DROP TABLE IF EXISTS t1, t2;
 SET SESSION binlog_transaction_compression = SAVED;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 SET SESSION binlog_transaction_compression = ON;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
 INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;
 #
 # Test 3: transaction with non-trans and trans statement
@@ -83,5 +83,5 @@ include/assert.inc [Number of rows in performance_schema.binary_log_transaction_
 include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
 DROP TABLE IF EXISTS t1, t2;
 SET SESSION binlog_transaction_compression = SAVED;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 TRUNCATE performance_schema.binary_log_transaction_compression_stats;

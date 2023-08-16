@@ -175,10 +175,10 @@ let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 connection slave;
 source include/stop_slave.inc;
 RESET SLAVE;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 connection master;
 # Force master to forget used GTIDs
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 FLUSH LOGS;
 connection slave;
 source include/start_slave.inc;

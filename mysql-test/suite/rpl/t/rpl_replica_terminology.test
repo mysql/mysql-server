@@ -1,6 +1,117 @@
+# === Purpose ===
+#
+# This test validates that new and old terminology for replica commands
+#
+# ==== Requirements ====
+#
+# R1. Both commands that use the new terminology or the old SLAVE terms are
+#     accepted by the server, but the latter are marked as deprecated.
+#
+# === Implementation ====
+#
+# 1. Test EVENT related terminology
+#    - SHOW CREATE EVENT
+#    - SHOW EVENTS
+#    - Queries into information_schema.events
+#
+# 2. Test replica commands
+#    - SHOW REPLICAS
+#    - SHOW REPLICA STATUS
+#    - RESET REPLICA
+#    - START REPLICA UNTIL
+#
+# === References ===
+#
+# WL#14190: Replace old terms in replication SQL commands on the SOURCE
+# WL#14171: Replication: replace SLAVE in SQL commands
+#
+
+--source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
 --source include/master-slave.inc
---source include/have_binlog_format_row.inc
+
+#####################################################################
+#
+# WL#14190: Replace old terms in replication SQL commands on the SOURCE
+#
+# This is a test case for the CREATE EVENT on the Replica
+# We test how the variable terminology_use_previous affects the output of:
+#  - SHOW CREATE EVENT
+#  - SHOW EVENTS
+#  - Queries into information_schema.events
+#
+#####################################################################
+
+--source include/rpl_connection_slave.inc
+
+CREATE EVENT test.slave_event ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO SELECT 1;
+CREATE EVENT test.replica_event ON SCHEDULE EVERY 3 SECOND DISABLE ON REPLICA DO SELECT 1;
+
+# Shows DISABLE ON REPLICA
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT test.slave_event;
+
+--let $assert_text= The event Status should be REPLICA_SIDE_DISABLED for slave_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="slave_event" AND status="REPLICA_SIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+--let $assert_text= The event Status should be REPLICA_SIDE_DISABLED for replica_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="replica_event" AND status="REPLICA_SIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+# SHOW EVENTS will show REPLICA_SIDE_DISABLED for both events
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS;
+
+SET @save_terminology_use_previous = @@session.terminology_use_previous;
+
+SET @@session.terminology_use_previous = BEFORE_8_0_26;
+# Shows DISABLE ON SLAVE
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT test.slave_event;
+
+# SHOW EVENTS will show SLAVESIDE_DISABLED for both events
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS;
+
+SET @@session.terminology_use_previous = BEFORE_8_2_0;
+# Shows DISABLE ON SLAVE
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT test.slave_event;
+
+# Shows DISABLE ON SLAVE for the replica_event as well
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT test.replica_event;
+
+# SHOW EVENTS will show SLAVESIDE_DISABLED for both events
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS;
+
+# The table also is affected by the terminology_use_previous
+--let $assert_text= The event Status should be SLAVESIDE_DISABLED for slave_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="slave_event" AND status="SLAVESIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+--let $assert_text= The event Status should be SLAVESIDE_DISABLED for replica_event
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.events WHERE event_name="replica_event" AND status="SLAVESIDE_DISABLED"]" = 1
+--source include/assert.inc
+
+SET @@session.terminology_use_previous = @save_terminology_use_previous;
+
+DROP EVENT test.slave_event;
+DROP EVENT test.replica_event;
+
+RESET BINARY LOGS AND GTIDS;
+
+--source include/rpl_connection_master.inc
+
+######################################################################
+#
+# WL#14171: Replication: replace SLAVE in SQL commands
+#
+######################################################################
+
+--source include/rpl_connection_master.inc
 
 # Add data on source
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -185,8 +296,8 @@ RESET REPLICA ALL;
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
---let $log_file= query_get_value(SHOW MASTER STATUS, File, 1)
---let $log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $log_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --source include/rpl_connection_slave.inc
 # Once deprecation warnings are introduced, this statement shall
 # continue to not produce any warnings
@@ -198,7 +309,7 @@ INSERT INTO t1 VALUES (1);
 --source include/diff_tables.inc
 DROP TABLE t1;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 # Once deprecation warnings are introduced, this statement shall
 # produce warnings
 --replace_result $log_file LOG_FILE $log_pos LOG_POS
@@ -209,11 +320,11 @@ RESET MASTER;
 --source include/diff_tables.inc
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/rpl_connection_slave.inc
 DROP TABLE t1;
 RESET REPLICA;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 

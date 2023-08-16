@@ -27,7 +27,7 @@
 #
 
 --let $_atl_data_dir= `SELECT @@datadir`
---let $_atl_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $_atl_log_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
 if ($binlog_file)
 {
   --let $_atl_log_file= $binlog_file

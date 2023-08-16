@@ -16,7 +16,7 @@ SET timestamp=1000000000;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create a test table with all data types.
 #
@@ -4083,7 +4083,7 @@ DROP TABLE t1;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create a test table with selected data types.
 #
@@ -4427,7 +4427,7 @@ DROP TABLE t1;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create test tables with selected data types.
 #
@@ -5246,7 +5246,7 @@ DROP TABLE t1, t2, t3;
 #
 # Delete all existing binary logs.
 #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 #
 # Create a test table with selected data types.
 #

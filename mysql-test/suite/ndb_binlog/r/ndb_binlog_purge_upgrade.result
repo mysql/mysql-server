@@ -3,7 +3,7 @@ call mtr.add_suppression("Can't create database 'performance_schema'; database e
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 # restart:--upgrade=FORCE --log-error=MYSQLD_LOG
 First initialize the binlog
-reset master;
+reset binary logs and gtids;
 DROP TABLE IF EXISTS t1;
 Test that binlog purging doesn't use table lock on ndb_binlog_index
 Put some real stuff in the Binlog.

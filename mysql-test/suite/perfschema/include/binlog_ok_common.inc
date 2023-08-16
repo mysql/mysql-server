@@ -7,7 +7,7 @@
 # - MIXED binlog format
 # - ROW binlog format.
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --disable_warnings
 drop database if exists my_local_db;

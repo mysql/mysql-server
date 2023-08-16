@@ -1,7 +1,7 @@
 SET SESSION autocommit= 0;
 CREATE TABLE t1 AS SELECT 1 AS col1;
 DROP TABLE t1;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION DEBUG= '+d,mysql_lock_tables_kill_query';
 CREATE TABLE t2 AS SELECT 1 AS col1;
 ERROR 70100: Query execution was interrupted

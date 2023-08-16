@@ -17,7 +17,7 @@ drop table if exists t1,t2;
 
 create table t1  (a int) engine=MyISAM;
 insert into t1 set a=1;
-reset master;
+reset binary logs and gtids;
 
 update t1 set a=2 /* will be "killed" after work has been done */;
 
@@ -43,7 +43,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
 #
 
 create table t2 (a int, b int) ENGINE=MyISAM;
-reset master;
+reset binary logs and gtids;
 --error ER_QUERY_INTERRUPTED
 load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
 

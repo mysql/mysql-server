@@ -54,7 +54,7 @@ while ($i) {
     eval DELETE FROM t1 WHERE a = $j;
   }
   if (!$pos) {
-    let $pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+    let $pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1);
     --source include/sync_slave_sql_with_master.inc
     --source include/stop_slave.inc
     --disable_query_log

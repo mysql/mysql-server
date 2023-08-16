@@ -23,7 +23,7 @@
 
 --source include/have_binlog_format_mixed.inc
 
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 
 --echo # Populate ACL tbales that has no rows.
 CREATE TABLE t1 (f1 INT);

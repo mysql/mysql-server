@@ -4,8 +4,8 @@
 #
 # Problem: When a transaction is in Binlog group commit, (flush stage is done
 #          but third stage, commit stage, is not done yet), if some one executes
-#          RESET MASTER, binlog will not contain the transaction (it will be
-#          cleared by RESET MASTER), but after the transaction is committed,
+#          RESET BINARY LOGS AND GTIDS, binlog will not contain the transaction (it will be
+#          cleared by RESET BINARY LOGS AND GTIDS), but after the transaction is committed,
 #          transaction gtid is added to gtid_executed. And this gtid cannot be
 #          utilized by server again even though the transaction is already
 #          cleared from the binlog. This leaves the server in bad gtid state.
@@ -15,11 +15,11 @@
 #
 #  Step-1) Initial Setup which is required for the test.
 #  Step-2) Execute a transaction that will wait for a signal
-#          at various stages of commit. Then execute 'RESET MASTER'
+#          at various stages of commit. Then execute 'RESET BINARY LOGS AND GTIDS'
 #          and observe binlog contents and GTID state. Repeat
 #          the step when 'global read lock' is already acquired
 #          by either the same thread or by some other thread
-#          before executing 'RESET MASTER'.
+#          before executing 'RESET BINARY LOGS AND GTIDS'.
 #  Step-3) Test error cases
 #  Step-4) Cleanup
 ################################################################################
@@ -36,7 +36,7 @@
 --echo #
 --echo # Step-1) Initial Setup which is required for the test.
 --echo #
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 --source include/save_binlog_position.inc
 --let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
 --let $gtid_event= Anonymous_Gtid
@@ -62,7 +62,7 @@ CREATE TABLE t1 (i INT);
 --echo #
 --echo #  Step-2) Execute a simple insert transaction that will wait
 --echo #          for a signal at various stages of transaction commit.
---echo #          Execute 'RESET MASTER' when it is waiting for the signal
+--echo #          Execute 'RESET BINARY LOGS AND GTIDS' when it is waiting for the signal
 --echo #          and check binlog contents and GTID_EXECUTED (if GTID
 --echo #          enabled) that they are as expected.
 --echo #
@@ -80,13 +80,13 @@ CREATE TABLE t1 (i INT);
 #
 #  Also repeat all the above steps when a thread has already acquired
 #  'FLUSH TABLES WITH READ LOCK' (either the same thread or some other thread),
-#  to make sure that 'RESET MASTER' does not give any complaints.
+#  to make sure that 'RESET BINARY LOGS AND GTIDS' does not give any complaints.
 #
-#          j = 1 , 'RESET MASTER' on a thread that did not execute
+#          j = 1 , 'RESET BINARY LOGS AND GTIDS' on a thread that did not execute
 #                  'FLUSH TABLES WITH READ LOCK'
-#          j = 2 , 'RESET MASTER' on a thread that already acquired
+#          j = 2 , 'RESET BINARY LOGS AND GTIDS' on a thread that already acquired
 #                  'FLUSH TABLES WITH READ LOCK'
-#          j = 3 , 'RESET MASTER' on a thread that did not execute
+#          j = 3 , 'RESET BINARY LOGS AND GTIDS' on a thread that did not execute
 #                  'FLUSH TABLES WITH READ LOCK' but some other thread
 #                  has already acquired 'FLUSH TABLES WITH READ LOCK'.
 #
@@ -132,12 +132,12 @@ while ($j <= 3)
 
     #
     # Step-2.2) Now, when transaction is waiting for signal,
-    #           execute 'RESET MASTER'. If this is second iteration (j = 2)
-    #           wrap 'RESET MASTER' with 'FLUSH TABLES WITH READ LOCK'
+    #           execute 'RESET BINARY LOGS AND GTIDS'. If this is second iteration (j = 2)
+    #           wrap 'RESET BINARY LOGS AND GTIDS' with 'FLUSH TABLES WITH READ LOCK'
     #           and 'UNLOCK TABLES'.
     if ($j == 1)
     {
-      --send RESET MASTER
+      --send RESET BINARY LOGS AND GTIDS
     }
     if ($j != 1)
     {
@@ -161,14 +161,14 @@ while ($j <= 3)
     }
     if ($j == 2)
     {
-      RESET MASTER;
+      RESET BINARY LOGS AND GTIDS;
       UNLOCK TABLES;
     }
     if ($j == 3)
     {
       --let $rpl_connection_name= conn4
       --source include/rpl_connection.inc
-      RESET MASTER;
+      RESET BINARY LOGS AND GTIDS;
       --let $rpl_connection_name= conn2
       --source include/rpl_connection.inc
       UNLOCK TABLES;
@@ -182,13 +182,13 @@ while ($j <= 3)
 
     #
     # Step-2.4) Check binlog contents and GTID state (if GTID enabled)
-    #           If 'RESET MASTER' is executed before the transaction
+    #           If 'RESET BINARY LOGS AND GTIDS' is executed before the transaction
     #           commit acquires 'global read lock' (i = 1 iteration),
     #           then binlog should contain the transaction events
     #           and one GTID should be utilized.
     #
     #           If transaction commit is already in BGC (after acquiring
-    #           'global read lock', then 'RESET MASTER' will wait for
+    #           'global read lock', then 'RESET BINARY LOGS AND GTIDS' will wait for
     #           the transaction to complete and then will do it's work.
     #           In this case (i = 2, 3, 4, 5), binlog should be empty
     #           and no GTIDs are utilized.
@@ -224,17 +224,17 @@ while ($j <= 3)
 }
 
 --echo #
---echo # Step-3) Check that 'RESET MASTER' fails if it is executed from a
+--echo # Step-3) Check that 'RESET BINARY LOGS AND GTIDS' fails if it is executed from a
 --echo #         session that has already acquired locks on a table.
 --echo #
 LOCK TABLE t1 READ;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 
 LOCK TABLE t1 WRITE;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 UNLOCK TABLES;
 
 --echo # Step-4) Cleanup

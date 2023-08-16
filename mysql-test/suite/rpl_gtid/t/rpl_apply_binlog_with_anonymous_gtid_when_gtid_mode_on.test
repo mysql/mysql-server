@@ -62,7 +62,7 @@ call mtr.add_suppression("The replica coordinator and worker threads are stopped
 
 # Reset slave.
 --source include/stop_slave.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 RESET SLAVE;
 --source include/start_slave.inc
 

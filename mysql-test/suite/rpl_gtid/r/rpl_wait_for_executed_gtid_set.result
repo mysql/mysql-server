@@ -581,7 +581,7 @@ WAIT_FOR_EXECUTED_GTID_SET('UUID:1')
 DROP TABLE t1;
 include/rpl_sync.inc
 include/rpl_stop_slaves.inc
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 [connection master1]
 SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890');
 [connection master]
@@ -591,8 +591,8 @@ SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890';
 WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-1234567890')
 0
 [connection master]
-==== 9. RESET MASTER ====
-RESET MASTER;
+==== 9. RESET BINARY LOGS AND GTIDS ====
+RESET BINARY LOGS AND GTIDS;
 [connection master1]
 SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1,cccccccc-cccc-cccc-cccc-cccccccccccc:1');
 [connection master]
@@ -601,7 +601,7 @@ SET GLOBAL GTID_PURGED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 SET GTID_NEXT = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1';
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';

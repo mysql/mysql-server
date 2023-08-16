@@ -1,7 +1,7 @@
 CREATE TABLE t1 (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t2 (b INT, c INT) ENGINE=BLACKHOLE;
 CREATE TABLE t3 (e INT, f INT) ENGINE=NDB;
-RESET MASTER;
+RESET BINARY LOGS AND GTIDS;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 Warnings:
 Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
