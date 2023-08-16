@@ -343,7 +343,7 @@ Transporter::connect_client()
    /** Socket Authentication */
     if(m_socket_client->authenticate(secureSocket) < SocketAuthSimple::AuthOk)
     {
-      DEBUG_FPRINTF((stderr, "Socket Authenticator failed\n"));
+      secureSocket.close();
       DBUG_RETURN(false);
     }
 
@@ -361,6 +361,7 @@ Transporter::connect_client(NdbSocket & socket)
   {
     DBUG_PRINT("error", ("Already connected"));
     DEBUG_FPRINTF((stderr, "Already connected\n"));
+    socket.close();
     DBUG_RETURN(true);
   }
 
@@ -369,6 +370,7 @@ Transporter::connect_client(NdbSocket & socket)
     DBUG_PRINT("error", ("Socket %s is not valid",
                          socket.to_string().c_str()));
     DEBUG_FPRINTF((stderr, "Socket not valid\n"));
+    socket.close();
     DBUG_RETURN(false);
   }
 
@@ -404,6 +406,7 @@ Transporter::connect_client(NdbSocket & socket)
   if (helloLen < 0)
   {
     DBUG_PRINT("error", ("Failed to buffer hello %d", helloLen));
+    socket.close();
     DBUG_RETURN(false);
   }
   /**

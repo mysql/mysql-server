@@ -79,6 +79,12 @@ int ndb_socket_configure_reuseaddr(ndb_socket_t s, int enable)
 }
 
 static inline
+int ndb_socket_shutdown_both(ndb_socket_t s)
+{
+  return shutdown(s.s, SHUT_RDWR);
+}
+
+static inline
 int ndb_socket_close(ndb_socket_t s)
 {
   return close(s.s);

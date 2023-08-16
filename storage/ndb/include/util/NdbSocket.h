@@ -134,7 +134,7 @@ public:
         and SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER.
      See SSL_set_mode(3) for reference on flags.
   */
-  int set_nonblocking(int on);
+  int set_nonblocking(int on) const;
 
   /* ndb_socket.h */
   ssize_t recv(char * buf, size_t len, int peek = 0) const;
@@ -156,9 +156,10 @@ public:
   int readln(int timeout, int *time, char *buf, int len, NdbMutex *) const;
   int write(int timeout, int *, const char * buf, int len) const;
 
+  int shutdown() const;
   /* For SSL sockets, close() removes the SSL from the SSL Socket Table */
   int close();
-  void close_with_reset(bool with_reset);
+  void close_with_reset();
 
   /* ndb_socket_poller.h */
   uint add_readable(ndb_socket_poller *) const;
@@ -179,6 +180,7 @@ private:
   int ssl_readln(int timeout, int *, char * buf, int len, NdbMutex *) const;
   int ssl_write(int timeout, int *, const char * buf, int len) const;
 
+  int ssl_shutdown() const;
   bool ssl_handshake();
   void ssl_close();
 
@@ -267,6 +269,13 @@ ssize_t NdbSocket::writev(const struct iovec *vec, int nvec) const {
 }
 
 inline
+int NdbSocket::shutdown() const {
+  if (ssl) ssl_shutdown();
+  int r = ndb_socket_shutdown_both(s);
+  return r;
+}
+
+inline
 int NdbSocket::close() {
   if(ssl) ssl_close();
   disable_locking();
@@ -276,9 +285,10 @@ int NdbSocket::close() {
 }
 
 inline
-void NdbSocket::close_with_reset(bool with_reset) {
+void NdbSocket::close_with_reset() {
   if(ssl) ssl_close();
   disable_locking();
+  constexpr bool with_reset = true;
   ndb_socket_close_with_reset(s, with_reset);
   invalidate_socket_handle();
 }

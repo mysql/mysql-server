@@ -358,7 +358,6 @@ public:
 
   bool transporter_connect(NdbSocket & socket,
                            BaseString& errormsg,
-                           bool& close_with_reset,
                            bool& log_failure);
 
   SocketServer *get_socket_server() { return &m_socket_server; }

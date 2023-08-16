@@ -130,21 +130,18 @@ SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
     if(r < SocketAuthenticator::AuthOk)
     {
       DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
-      secureSocket.close_with_reset(true); // Close with reset
-      DBUG_RETURN(0);
+      secureSocket.close_with_reset();
+      DBUG_RETURN(nullptr);
     }
   }
 
   BaseString msg;
-  bool close_with_reset = true;
   bool log_failure = false;
   if (!m_transporter_registry->connect_server(secureSocket,
                                               msg,
-                                              close_with_reset,
                                               log_failure))
   {
     DEBUG_FPRINTF((stderr, "New session failed in connect_server\n"));
-    secureSocket.close_with_reset(close_with_reset);
     if (log_failure)
     {
       g_eventLogger->warning("TR : %s", msg.c_str());
@@ -508,7 +505,6 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 bool
 TransporterRegistry::connect_server(NdbSocket & socket,
                                     BaseString & msg,
-                                    bool& close_with_reset,
                                     bool& log_failure)
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
@@ -526,6 +522,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                "read 'hello' from client");
     DBUG_PRINT("error", ("%s", msg.c_str()));
     DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -555,6 +552,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                "parse 'hello' from client.  >%s<", buf);
     DBUG_PRINT("error", ("%s", msg.c_str()));
     DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -581,6 +579,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     msg.assfmt("Ignored connection attempt as client "
                "nodeid %u out of range", nodeId);
     DBUG_PRINT("error", ("%s", msg.c_str()));
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -595,6 +594,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                "nodeid %u is undefined.",
                nodeId);
     DBUG_PRINT("error", ("%s", msg.c_str()));
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -609,6 +609,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                nodeId,
                remote_transporter_type,
                t->m_type);
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -627,6 +628,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                  serverNodeId,
                  t->getLocalNodeId());
       DBUG_PRINT("error", ("%s", msg.c_str()));
+      socket.close_with_reset();
       DBUG_RETURN(false);
     }
   }
@@ -728,6 +730,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
         msg.assfmt("Ignored connection attempt from node %u as multi "
                    "transporter instance %d specified for non multi-transporter",
                    nodeId, multi_transporter_instance);
+        socket.close_with_reset();
         DBUG_RETURN(false);
       }
     }
@@ -783,6 +786,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     {
       // Failed to request client close
       DBUG_PRINT("error", ("Failed to send client BYE"));
+      socket.close_with_reset();
       DBUG_RETURN(false);
     }
 
@@ -791,11 +795,12 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     if (socket.read(read_eof_timeout, buf, sizeof(buf)) == 0)
     {
       // Client gracefully closed connection, turn off close_with_reset
-      close_with_reset = false;
+      socket.close();
       DBUG_RETURN(false);
     }
 
     // Failed to request client close
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
@@ -808,6 +813,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
                "reply to client node %u",
                nodeId);
     DBUG_PRINT("error", ("%s", msg.c_str()));
+    socket.close_with_reset();
     DBUG_RETURN(false);
   }
 
