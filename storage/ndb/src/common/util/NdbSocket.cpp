@@ -233,13 +233,14 @@ ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
 {
   bool r;
   size_t nread = 0;
+  int err;
   {
     Guard2 guard(mutex); // acquire mutex if non-null
     r = SSL_read_ex(ssl, buf, len, &nread);
+    if(r) return nread;
+    err = SSL_get_error(ssl, r);
   }
 
-  if(r) return nread;
-  int err = SSL_get_error(ssl, r);
   Debug_Log("SSL_read(%zd): ERR %d", len, err);
   return handle_ssl_error(err, "SSL_read");
 }
@@ -248,13 +249,14 @@ ssize_t NdbSocket::ssl_peek(char *buf, size_t len) const
 {
   bool r;
   size_t nread = 0;
+  int err;
   {
     Guard2 guard(mutex); // acquire mutex if non-null
     r = SSL_peek_ex(ssl, buf, len, &nread);
+    if(r) return nread;
+    err = SSL_get_error(ssl, r);
   }
 
-  if(r) return nread;
-  int err = SSL_get_error(ssl, r);
   Debug_Log("SSL_peek(%zd): ERR %d", len, err);
   return handle_ssl_error(err, "SSL_peek");
 }
