@@ -119,4 +119,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle,
                            enum ndb_mgm_node_type nodetype,
                            int from_node = 0);
 
+int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int,
+                                  ndb_socket_t*, bool allow_tls);
+
 #endif

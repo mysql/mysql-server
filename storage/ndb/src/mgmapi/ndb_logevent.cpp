@@ -35,10 +35,6 @@
 
 #include "ndb_logevent.hpp"
 
-extern
-int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[],
-                                  int, ndb_socket_t*);
-
 struct ndb_logevent_error_msg {
   enum ndb_logevent_handle_error code;
   const char *msg;
@@ -87,7 +83,8 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
     return nullptr;
 
   ndb_socket_t sock;
-  if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
+  constexpr bool allow_tls = true;
+  if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock, allow_tls) < 0)
   {
     free(h);
     return nullptr;

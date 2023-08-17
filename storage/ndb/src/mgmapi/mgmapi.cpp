@@ -2464,7 +2464,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 int
 ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
-                              int parsable, ndb_socket_t* sock)
+                              int parsable, ndb_socket_t* sock, bool allow_tls)
 {
   DBUG_ENTER("ndb_mgm_listen_event_internal");
   CHECK_HANDLE(handle, -1);
@@ -2561,7 +2561,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     ndb_mgm::handle_ptr tmp_handle(ndb_mgm_create_handle());
     tmp_handle->socket.init_from_new(sockfd);
 
-    if(handle->ssl_ctx)
+    if(allow_tls && handle->ssl_ctx)
     {
       ndb_mgm_set_ssl_ctx(tmp_handle.get(), handle->ssl_ctx);
       ndb_mgm_start_tls(tmp_handle.get());
@@ -2588,7 +2588,8 @@ socket_t
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
   ndb_socket_t s;
-  if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
+  constexpr bool no_tls = false;
+  if(ndb_mgm_listen_event_internal(handle, filter, 0, &s, no_tls)<0)
     ndb_socket_invalidate(&s);
   return ndb_socket_get_native(s);
 }
