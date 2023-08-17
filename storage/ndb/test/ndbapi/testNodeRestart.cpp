@@ -10932,16 +10932,18 @@ int runTestStallTimeout(NDBT_Context* ctx, NDBT_Step* step)
   };
 
   TestCase testcases[] = {
+    {
     "Stall in commit",       /* LQH execCOMMIT()    */
     NdbTransaction::Commit,
     5110,
     false,                   /* Commit stall blocks API ack */
-
+    },{
     "Stall in complete",     /* LQH execCOMPLETE()  */
     NdbTransaction::Commit,
     5111,
     true                     /* Complete stall does not block
                               * API ack (ReadPrimary) */
+    }
   };
 
   for (int stallPoint = 0; stallPoint < 2; stallPoint++)
@@ -11151,8 +11153,8 @@ int runTestStallTimeoutAndNF(NDBT_Context* ctx, NDBT_Step* step)
   };
 
   TestCase testcases[] = {
-    "Stall in commit",   NdbTransaction::Commit,   5110,
-    "Stall in complete", NdbTransaction::Commit,   5111,
+    {"Stall in commit",   NdbTransaction::Commit,   5110, },
+    {"Stall in complete", NdbTransaction::Commit,   5111, }
   };
 
   const char* failTypes[] = {
