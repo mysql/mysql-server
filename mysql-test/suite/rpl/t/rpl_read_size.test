@@ -52,10 +52,12 @@ while ($case < 2)
   TRUNCATE t1;
   --enable_query_log
   # Wait until all workload was replicated
+  --let $ignore_gtids_on_sync=1
   --source include/sync_slave_io_with_master.inc
   # Start reading from the relay log file
   START SLAVE SQL_THREAD;
   # Wait until all workload was read and applied
+  --let $ignore_gtids_on_sync=1
   --source include/sync_slave_sql_with_io.inc
 
   --let $count_read_end= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)

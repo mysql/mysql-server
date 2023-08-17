@@ -139,6 +139,10 @@ if ($rpl_use_before_xa_cmd == 'XA PREPARE')
   XA PREPARE 'a';
   --source include/sync_slave_sql_with_master.inc
 
+  # Wait until transaction is in a PREPARED state
+  --let $expected_prepared_xa_count = 1
+  --source include/wait_until_transaction_prepared.inc
+
   --echo # 4.ii. The XA transaction is successful can be checked using XA
   --echo #       RECOVER. The xid value for the XA transaction will not be
   --echo #       listed by XA RECOVER when the transaction is terminated.

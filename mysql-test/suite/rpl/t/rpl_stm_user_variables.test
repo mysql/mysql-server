@@ -7,6 +7,9 @@
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
+-- let $saved_concurrent_insert = `SELECT @@GLOBAL.concurrent_insert`
+SET @@GLOBAL.concurrent_insert = 0;
+
 -- source include/master-slave.inc
 
 ## Setup user variables for several numeric types, so that we get
@@ -172,6 +175,9 @@ DROP TRIGGER tr1;
 DROP TABLE t1;
 
 SET sql_mode = default;
+
+-- replace_result $saved_concurrent_insert SAVED_CONCURRENT_INSERT
+-- eval SET @@GLOBAL.concurrent_insert = $saved_concurrent_insert
 
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

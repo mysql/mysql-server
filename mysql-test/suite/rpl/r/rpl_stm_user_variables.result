@@ -1,3 +1,4 @@
+SET @@GLOBAL.concurrent_insert = 0;
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -226,5 +227,6 @@ include/diff_tables.inc [master:t1,slave:t1]
 DROP TRIGGER tr1;
 DROP TABLE t1;
 SET sql_mode = default;
+SET @@GLOBAL.concurrent_insert = SAVED_CONCURRENT_INSERT;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

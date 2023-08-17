@@ -1,3 +1,4 @@
+SET @@GLOBAL.concurrent_insert = 0;
 #
 # Setup
 #
@@ -563,3 +564,4 @@ drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
 set @@session.sql_auto_is_null=default;
 include/rpl_end.inc
+SET @@GLOBAL.concurrent_insert = SAVED_CONCURRENT_INSERT;
