@@ -7,6 +7,7 @@ The following options may be given as the first argument:
 --defaults-group-suffix=#
  Also read groups with concat(group, suffix)
 --login-path=# Read this path from the login file.
+--no-login-paths Don't read login paths from the login path file.
 
  --activate-all-roles-on-login 
  Automatically set all granted roles as active after the

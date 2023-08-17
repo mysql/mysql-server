@@ -48,6 +48,7 @@
   --print-defaults	  ; Print the modified command line and exit
   --login-path=login-path-name ; Read options under login-path-name from
                                 the login file.
+  --no-login-paths ; login file is not read.
 */
 
 #include "my_config.h"
@@ -348,6 +349,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   const char **dirs;
   char *forced_default_file, *forced_extra_defaults;
   DBUG_TRACE;
+  bool found_no_login_paths_dummy = false;
 
   /* Skip for login file. */
   if (!is_login_file) {
@@ -355,7 +357,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     *args_used += get_defaults_options(
         *argc - *args_used, *argv + *args_used, &forced_default_file,
         &forced_extra_defaults, const_cast<char **>(&my_defaults_group_suffix),
-        const_cast<char **>(&my_login_path), found_no_defaults);
+        const_cast<char **>(&my_login_path), found_no_defaults,
+        &found_no_login_paths_dummy);
 
     if (!my_defaults_group_suffix)
       my_defaults_group_suffix = getenv("MYSQL_GROUP_SUFFIX");
@@ -544,7 +547,8 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 /*
   Gets options from the command line, however if --no-defaults
   option is used, --defaults-file & --defaults-extra-file options
-  would be ignored.
+  would be ignored and if --no-login-paths option is used,
+  --login-path option would be ignored.
 
   SYNOPSIS
     get_defaults_options()
@@ -554,6 +558,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
     extra_defaults              --defaults-extra-file option
     group_suffix                --defaults-group-suffix option
     login_path                  --login-path option
+    found_no_login_paths        --no-login-paths option present or not
 
   RETURN
     # Number of arguments used from *argv
@@ -563,9 +568,11 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
 int get_defaults_options(int argc, char **argv, char **defaults,
                          char **extra_defaults, char **group_suffix,
-                         char **login_path, bool found_no_defaults) {
+                         char **login_path, bool found_no_defaults,
+                         bool *found_no_login_paths) {
   int org_argc = argc, prev_argc = 0, default_option_count = 0;
   *defaults = *extra_defaults = *group_suffix = *login_path = nullptr;
+  bool found_login_path = false;
 
   while (argc >= 2 && argc != prev_argc) {
     /* Skip program name or previously handled argument */
@@ -597,11 +604,31 @@ int get_defaults_options(int argc, char **argv, char **defaults,
       default_option_count++;
       continue;
     }
-    if (!*login_path && is_prefix(*argv, "--login-path=")) {
+    if (is_prefix(*argv, "--no-login-paths") && !found_login_path) {
+      argc--;
+      default_option_count++;
+      *found_no_login_paths = true;
+      continue;
+    }
+    if (!*login_path && is_prefix(*argv, "--login-path=") &&
+        !*found_no_login_paths) {
       *login_path = *argv + sizeof("--login-path=") - 1;
       argc--;
       default_option_count++;
+      found_login_path = true;
       continue;
+    }
+  }
+  /* Check if --no-login-paths specified before --no-defaults */
+  if (*found_no_login_paths && !found_no_defaults) {
+    int count = argc;
+    while (count >= 2) {
+      if (is_prefix(*argv, "--no-defaults")) {
+        *found_no_login_paths = false;
+        break;
+      }
+      count--;
+      argv++;
     }
   }
   return org_argc - argc;
@@ -682,13 +709,17 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   TYPELIB group;
   bool found_print_defaults = false;
   uint args_used = 0;
-  int error = 0;
+  int error = 0, l_argc = *argc;
   const char **ptr;
   const char **res;
+  char **l_argv = argv[0];
+  char *defaults_dummy, *extra_defaults_dummy, *group_suffix_dummy,
+      *login_path_dummy;
   struct handle_option_ctx ctx;
   const char **dirs;
   char my_login_file[FN_REFLEN];
   bool found_no_defaults = false;
+  bool found_no_login_paths = false;
   const uint args_sep = my_getopt_use_args_separator ? 1 : 0;
   DBUG_TRACE;
 
@@ -699,6 +730,11 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   */
   if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
     no_defaults = found_no_defaults = true;
+
+  /* Check if the user doesn't want login file processing */
+  get_defaults_options(l_argc, l_argv, &defaults_dummy, &extra_defaults_dummy,
+                       &group_suffix_dummy, &login_path_dummy,
+                       found_no_defaults, &found_no_login_paths);
 
   group.count = 0;
   group.name = "defaults";
@@ -716,7 +752,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
     return error;
   }
 
-  if (my_defaults_read_login_file) {
+  if (my_defaults_read_login_file && !found_no_login_paths) {
     /* Read options from login group. */
     if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
         (error = my_search_option_files(my_login_file, argc, argv, &args_used,
@@ -1351,7 +1387,8 @@ void print_defaults(const char *conf_file, const char **groups) {
 --defaults-extra-file=# Read this file after the global files are read.\n\
 --defaults-group-suffix=#\n\
                         Also read groups with concat(group, suffix)\n\
---login-path=#          Read this path from the login file.");
+--login-path=#          Read this path from the login file.\n\
+--no-login-paths        Don't read login paths from the login path file.");
 }
 
 /**

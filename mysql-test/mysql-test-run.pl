@@ -6283,9 +6283,9 @@ sub mysqld_arguments ($$$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
 
-  my @options = ("--no-defaults",   "--defaults-extra-file",
-                 "--defaults-file", "--login-path",
-                 "--print-defaults");
+  my @options = ("--no-defaults",    "--defaults-extra-file",
+                 "--defaults-file",  "--login-path",
+                 "--print-defaults", "--no-login-paths");
 
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 

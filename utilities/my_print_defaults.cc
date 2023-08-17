@@ -100,6 +100,8 @@ static struct my_option my_long_options[] = {
     {"login-path", 'l', "Path to be read from under the login file.",
      &my_login_path, &my_login_path, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"no-login-paths", 'x', "Ignore reading of the login file.", nullptr,
+     nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"show", 's', "Show passwords in plain text.", &show_passwords,
      &show_passwords, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"help", '?', "Display this help message and exit.", nullptr, nullptr,
@@ -171,12 +173,13 @@ int main(int argc, char **argv) {
   char *tmp_arguments[6];
   char **argument, **arguments, **org_argv;
   char *defaults, *extra_defaults, *group_suffix, *login_path;
-
+  bool found_no_login_paths_dummy = false;
   MY_INIT(argv[0]);
 
   org_argv = argv;
   args_used = get_defaults_options(argc, argv, &defaults, &extra_defaults,
-                                   &group_suffix, &login_path, false);
+                                   &group_suffix, &login_path, false,
+                                   &found_no_login_paths_dummy);
 
   /* Copy defaults-xxx arguments & program name */
   count = args_used + 1;

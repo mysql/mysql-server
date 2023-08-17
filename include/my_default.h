@@ -50,7 +50,8 @@ bool my_getopt_is_args_separator(const char *arg);
 bool my_getopt_is_ro_persist_args_separator(const char *arg);
 int get_defaults_options(int argc, char **argv, char **defaults,
                          char **extra_defaults, char **group_suffix,
-                         char **login_path, bool found_no_defaults);
+                         char **login_path, bool found_no_defaults,
+                         bool *found_no_login_paths);
 
 // extern "C" since it is an (undocumented) part of the libmysql ABI.
 extern "C" int my_load_defaults(const char *conf_file, const char **groups,

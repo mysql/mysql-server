@@ -1,0 +1,20 @@
+# WL#12429: Add a --no-login-paths option to turn off login paths from being processed
+# Creating a mysql user
+CREATE USER myuser;
+# Creating a login file with login path "client" and credential "user=myuser"
+[client]
+user = "myuser"
+# Connecting without --no-login-paths option, login file should be read and myuser should be used
+CURRENT_USER()
+myuser@%
+# Connecting with --no-login-paths option, login file should not be read and defaults-file configurations should be used (i.e. user=root)
+CURRENT_USER()
+root@localhost
+# Using --login-path and --no-login-paths options together, error should be raised
+mysql: [ERROR] unknown variable 'login-path=client'.
+mysql: [ERROR] unknown option '--no-login-paths'.
+# Using --no-login-paths option after other client option (e.g. --user), error should be raised
+mysql: [ERROR] unknown option '--no-login-paths'.
+# Specifying --no-login-paths before --no-defaults, error should be raised
+mysql: [ERROR] unknown option '--no-defaults'.
+DROP USER myuser;
