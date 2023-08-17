@@ -79,9 +79,9 @@ Unable to connect to management server.
 '
 
 Testing ndb_waiter
-Connecting to management server at nodeid=0,localhost:<MGMD-PORT>
+Connecting to management server at nodeid=0,localhost:<MGMD-PORT><MAYBE-TLS>
 Node 1: STARTED
 Node 2: STARTED
-Connecting to management server at nodeid=0,no_such_host:1186
-Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186
+Connecting to management server at nodeid=0,no_such_host:1186<MAYBE-TLS>
+Unable to resolve any of the address in connect string: nodeid=0,no_such_host:1186<MAYBE-TLS>
 latest_error=1001, line=no_such_host

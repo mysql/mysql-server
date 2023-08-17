@@ -182,8 +182,6 @@ int main(int argc, char** argv){
   }
 
   tlsKeyManager.init_mgm_client(opt_tls_search_path);
-  if(tlsKeyManager.ctx())
-    ndbout_c("Using TLS.");
 
   if (waitClusterStatus(connect_string, wait_status) != 0)
     return NdbToolsProgramExitCode::FAILED;
@@ -320,7 +318,9 @@ waitClusterStatus(const char* _addr,
 
   char buf[1024];
   ndbout << "Connecting to management server at "
-         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << endl;
+         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf))
+         << (tlsKeyManager.ctx() ? " trying TLS" : "")
+         << endl;
   if (ndb_mgm_connect_tls(handle,
                           opt_connect_retries - 1, opt_connect_retry_delay, 1,
                           opt_mgm_tls)) {
