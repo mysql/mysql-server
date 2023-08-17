@@ -625,6 +625,8 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
       auto now = now_in_nanosecs();
       assert(now >= m_last_event_sent_ts);
 
+      if (before_send_hook(log_file, log_pos)) return 1;
+
       // if enough time has elapsed so that we should send another heartbeat
       if (m_heartbeat_period > std::chrono::nanoseconds(0) &&
           (now - m_last_event_sent_ts) >= m_heartbeat_period) {
@@ -633,6 +635,10 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
       } else {
         exclude_group_end_pos = log_pos;
       }
+
+      if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
+        return 1;
+
       DBUG_PRINT("info", ("Event of type %s is skipped",
                           Log_event::get_type_str(event_type)));
     } else {

@@ -1,0 +1,84 @@
+################################################################################
+# PS-8869: semi-sync master waits for ack when semi-sync replica is down & when
+# we replace it with async
+#
+# Steps to reproduce:
+#  1) Setup semisync replication
+#  2) Set the rpl_semi_sync_source_timeout on source to a large value.
+#  3) Switch the semi-sync replication on replica to async by restarting
+#     replica threads with rpl_semi_sync_replica_enabled=OFF
+#  4) Execute a transaction on source. This should wait for some time for the
+#     replica's acknowledgement.
+#  5) Switch the async replication on replica to semi-sync by restarting
+#     replica threads with rpl_semi_sync_replica_enabled=ON. When replica
+#     threads are started the waiting transaction on source must proceed.
+#  6) Verify that the transaction on source server has finished and the
+#     statement has been replicated.
+#  7) Cleanup
+################################################################################
+
+# Test is independent of Binlog format. One of the three formats is enough
+# for testing. Choosing 'Row' format.
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 1) Setup semisync replication
+--source include/install_semisync.inc
+
+--echo #
+--echo # 2) Set the rpl_semi_sync_source_timeout on source to a large value.
+--source include/rpl_connection_master.inc
+SET @saved_rpl_semi_sync_source_timeout = @@GLOBAL.rpl_semi_sync_source_timeout;
+SET GLOBAL rpl_semi_sync_source_timeout = 36000000;
+
+--echo #
+--echo # 3) Switch the semi-sync replication on replica to async by restarting
+--echo #    replica threads with rpl_semi_sync_replica_enabled=OFF
+--source include/rpl_connection_slave.inc
+SET GLOBAL rpl_semi_sync_replica_enabled=OFF; STOP REPLICA; START REPLICA;
+
+--echo #
+--echo # 4) Execute a transaction on source. This should wait for some time for the
+--echo #    replica's acknowledgement.
+--source include/rpl_connection_master.inc
+--send CREATE DATABASE test1
+
+# Sleep for some time to ensure that that the query still keeps waiting for the semi-sync ACK from replica
+--sleep 5
+--source include/rpl_connection_master1.inc
+--let $wait_condition= SELECT State ="Waiting for semi-sync ACK from replica" FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "CREATE DATA%"
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # 5) Switch the async replication on replica to semi-sync by restarting
+--echo #    replica threads with rpl_semi_sync_replica_enabled=ON. When replica
+--echo #    threads are started the waiting transaction on source must proceed.
+--source include/rpl_connection_slave.inc
+SET GLOBAL rpl_semi_sync_replica_enabled = ON; STOP REPLICA; START REPLICA;
+
+--source include/rpl_connection_master1.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "test1"
+--source include/wait_condition_or_abort.inc
+
+--source include/rpl_connection_master.inc
+--reap
+
+--echo #
+--echo # 6) Verify that the transaction on source server has finished and the
+--echo #    statement has been replicated.
+--source include/rpl_sync.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "test1"
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_diff_statement= SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
+--source include/rpl_diff.inc
+
+--echo #
+--echo # 7) Cleanup
+--source include/rpl_connection_master.inc
+DROP DATABASE test1;
+SET GLOBAL rpl_semi_sync_source_timeout = @saved_rpl_semi_sync_source_timeout;
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

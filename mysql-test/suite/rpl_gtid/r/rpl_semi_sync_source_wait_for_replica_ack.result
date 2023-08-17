@@ -1,0 +1,48 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Setup semisync replication
+include/install_semisync.inc
+#
+# 2) Set the rpl_semi_sync_source_timeout on source to a large value.
+[connection master]
+SET @saved_rpl_semi_sync_source_timeout = @@GLOBAL.rpl_semi_sync_source_timeout;
+SET GLOBAL rpl_semi_sync_source_timeout = 36000000;
+#
+# 3) Switch the semi-sync replication on replica to async by restarting
+#    replica threads with rpl_semi_sync_replica_enabled=OFF
+[connection slave]
+SET GLOBAL rpl_semi_sync_replica_enabled=OFF;
+STOP REPLICA;
+START REPLICA;
+#
+# 4) Execute a transaction on source. This should wait for some time for the
+#    replica's acknowledgement.
+[connection master]
+CREATE DATABASE test1;
+[connection master1]
+#
+# 5) Switch the async replication on replica to semi-sync by restarting
+#    replica threads with rpl_semi_sync_replica_enabled=ON. When replica
+#    threads are started the waiting transaction on source must proceed.
+[connection slave]
+SET GLOBAL rpl_semi_sync_replica_enabled = ON;
+STOP REPLICA;
+START REPLICA;
+[connection master1]
+[connection master]
+#
+# 6) Verify that the transaction on source server has finished and the
+#    statement has been replicated.
+include/rpl_sync.inc
+include/rpl_diff.inc
+#
+# 7) Cleanup
+[connection master]
+DROP DATABASE test1;
+SET GLOBAL rpl_semi_sync_source_timeout = @saved_rpl_semi_sync_source_timeout;
+include/uninstall_semisync.inc
+include/rpl_end.inc
