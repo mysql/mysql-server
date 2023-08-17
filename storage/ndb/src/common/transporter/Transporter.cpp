@@ -311,7 +311,7 @@ Transporter::connect_client()
 
   if(isMgmConnection)
   {
-    return connect_client_mgm(port);
+    DBUG_RETURN(connect_client_mgm(port));
   }
   else
   {
