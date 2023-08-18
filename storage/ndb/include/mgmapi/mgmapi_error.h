@@ -62,6 +62,8 @@ extern "C" {
     NDB_MGM_TLS_REFUSED = 1015,
     /** TLS handshake failed; connection closed */
     NDB_MGM_TLS_HANDSHAKE_FAILED = 1016,
+    /** NdbMgmHandle is already connected */
+    NDB_MGM_ALREADY_CONNECTED = 1017,
 
     /* Alloc node id failures */
     /** Generic error, retry may succeed */

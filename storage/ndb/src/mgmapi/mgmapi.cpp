@@ -839,6 +839,12 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_connect");
 
+  if (handle->connected)
+  {
+    ndb_mgm_disconnect(handle);
+  }
+  require(!handle->socket.is_valid());
+
 #ifdef MGMAPI_LOG
   /**
   * Open the log file
@@ -2718,6 +2724,11 @@ ndb_mgm_connect_tls(NdbMgmHandle handle, int retries,
 {
   if(tls_level < CLIENT_TLS_RELAXED || tls_level > CLIENT_TLS_STRICT) {
     SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "Invalid TLS level");
+    return -1;
+  }
+
+  if (handle->connected) {
+    SET_ERROR(handle, NDB_MGM_ALREADY_CONNECTED, "Already connected");
     return -1;
   }
 

@@ -599,6 +599,15 @@ struct ssl_ctx_st;
    * the approximate maximum amount of time that could be spent in this
    * function.
    *
+   * Note on historical and now deprecated behaviour. If one called
+   * ndb_mgm_connect on an already connected handle, a new connections was
+   * tried and at the same time the old connection remained. If new connections
+   * failed the old connection would remain associated with handle otherwise it
+   * would be leaked. New current behaviour is that old connection are always
+   * disconnected and then new connection is attempted. In future releases this
+   * behaviour may change to fail if ndb_mgm_connect is called on an already
+   * connected handle.
+   *
    * @param   handle        Management handle.
    * @param   no_retries    Number of retries to connect
    *                        (0 means connect once).
@@ -1609,6 +1618,9 @@ struct ssl_ctx_st;
   /**
    * Connects to a management server. This function wraps a call to
    * ndb_mgm_connect(), followed by a call to ndb_mgm_start_tls().
+   *
+   * Note, unlike ndb_mgm_connect, calling ndb_mgm_connect_tls on an already
+   * connected handle will fail with error NDB_MGM_ALREADY_CONNECTED.
    *
    * In order to attempt TLS, the user must first have called
    * ndb_mgm_set_ssl_ctx().
