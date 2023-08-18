@@ -48,8 +48,8 @@ bool Ndb_schema_trans_guard::commit_trans() {
     m_thd_ndb->push_warning("Failed to commit NDB schema transaction");
     return false;  // Failed
   }
-  DBUG_PRINT("info", ("Comitted NDB schema transaction"));
-  m_comitted = true;
+  DBUG_PRINT("info", ("Committed NDB schema transaction"));
+  m_committed = true;
   return true;
 }
 

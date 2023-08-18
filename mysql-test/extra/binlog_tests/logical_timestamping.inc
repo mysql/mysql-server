@@ -20,7 +20,7 @@ INSERT INTO t1 SET a=1;
 # Transaction's last committed timestamp is computed at its last
 # being executed query.
 # Due to this two last logged transactions in the following sequence
-# must have the same last comitted timestamp.
+# must have the same last committed timestamp.
 
 connect (one,localhost,root,,test);
 connect (two,localhost,root,,test);

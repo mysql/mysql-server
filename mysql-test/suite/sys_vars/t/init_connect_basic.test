@@ -45,10 +45,10 @@ SELECT init_connect;
 # access using no scope specified
 SELECT @@init_connect;
 # assign value without @@
-SET @@global.init_connect='SET autocomit=0';
+SET @@global.init_connect='SET autocommit=0';
 SELECT @@global.init_connect;
 # using another syntax for accessing session variable
-SET global init_connect='SET autocomit=0';
+SET global init_connect='SET autocommit=0';
 # accessing variable with scope the wrong way
 --Error ER_BAD_FIELD_ERROR
 SELECT global init_connect;
@@ -91,7 +91,7 @@ SELECT @@global.init_connect;
 SET @@global.init_connect='SET @yoursql="mysql"';
 SELECT @@global.init_connect;
 
-SET @@global.init_connect="SET autocomit=0;REVOKE ALL ON INFORMATION_SCHEMA.*";
+SET @@global.init_connect="SET autocommit=0;REVOKE ALL ON INFORMATION_SCHEMA.*";
 SELECT @@global.init_connect;
 
 SET @@global.init_connect='set @a="12\034"';

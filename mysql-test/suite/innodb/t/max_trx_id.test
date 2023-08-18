@@ -50,7 +50,7 @@ END|
 DELIMITER ;|
 --enable_query_log
 
---echo # Create $N connections which keep creating and comitting transactions.
+--echo # Create $N connections which keep creating and committing transactions.
 --echo # Pause the created connections before trx_sys_mutex_enter() is called
 --echo # before assigning trx->id.
 

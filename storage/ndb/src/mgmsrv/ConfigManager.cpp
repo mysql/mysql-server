@@ -1079,7 +1079,7 @@ ConfigManager::execCONFIG_CHANGE_IMPL_REF(SignalSender& ss, SimpleSignal* sig)
     startAbortConfigChange(ss);
     break;
   }
-  case ConfigChangeState::COMITTING:
+  case ConfigChangeState::COMMITTING:
     /* Got ref while committing, impossible */
     abort();
     break;
@@ -1149,11 +1149,11 @@ ConfigManager::execCONFIG_CHANGE_IMPL_CONF(SignalSender& ss, SimpleSignal* sig)
     if (m_waiting_for.isclear())
       set_config_change_state(ConfigChangeState::IDLE);
     else
-      set_config_change_state(ConfigChangeState::COMITTING);
+      set_config_change_state(ConfigChangeState::COMMITTING);
     break;
   }
 
-  case ConfigChangeState::COMITTING:{
+  case ConfigChangeState::COMMITTING:{
     require(conf->requestType == ConfigChangeImplReq::Commit);
 
     m_waiting_for.clear(nodeId);

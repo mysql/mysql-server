@@ -1569,7 +1569,7 @@ SELECT * FROM t1 WHERE a = 'abcde';
 a
 DROP TABLE t1;
 #
-# BUG #26288: savepoint are not deleted on comit, if the transaction 
+# BUG #26288: savepoint are not deleted on commit, if the transaction 
 # was otherwise empty
 #
 BEGIN;

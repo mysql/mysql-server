@@ -87,7 +87,7 @@ Ndb_dd_client::~Ndb_dd_client() {
 
   if (m_auto_rollback) {
     // Automatically rollback unless commit has been called
-    if (!m_comitted) rollback();
+    if (!m_committed) rollback();
   }
 
   // Release MDL locks
@@ -412,7 +412,7 @@ void Ndb_dd_client::disable_autocommit() {
 void Ndb_dd_client::commit() {
   trans_commit_stmt(m_thd);
   trans_commit(m_thd);
-  m_comitted = true;
+  m_committed = true;
 }
 
 void Ndb_dd_client::rollback() {

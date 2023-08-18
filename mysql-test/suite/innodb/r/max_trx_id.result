@@ -6,7 +6,7 @@
 # concurrently the reservation interval (limit for mtr connections is 128).
 # Restart MySQL using the new data directory.
 # restart: --datadir=tmp/max_trx_id --log-error=my_restart.err --debug=d,trx_sys_low_trx_id_write_margin --innodb-redo-log-capacity=8M --innodb_page_size=INNODB_PAGE_SIZE
-# Create 7 connections which keep creating and comitting transactions.
+# Create 7 connections which keep creating and committing transactions.
 # Pause the created connections before trx_sys_mutex_enter() is called
 # before assigning trx->id.
 SET DEBUG_SYNC = "trx_sys_before_assign_id SIGNAL con_id_waiting1 WAIT_FOR con_go NO_CLEAR_EVENT";

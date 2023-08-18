@@ -137,7 +137,7 @@ include/include/assert_logical_timestamps.inc [13 14]
 # Verify the statements the following statement in different commit
 # window logs correct last_committed
 #
-INSERT INTO t1(c2) VALUES("use max_comitted as last_committed");
+INSERT INTO t1(c2) VALUES("use max_committed as last_committed");
 include/include/assert_logical_timestamps.inc [2 3]
 #
 # Verify binlog rotation doesn't effect the correctness of last_committed
