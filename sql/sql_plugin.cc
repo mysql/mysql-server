@@ -688,13 +688,12 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
   plugin_dl.ref_count = 1;
   /* Open new dll handle */
   mysql_mutex_assert_owner(&LOCK_plugin);
-#if defined(HAVE_ASAN) || defined(HAVE_LSAN)
-  // Do not unload the shared object during dlclose().
-  // LeakSanitizer needs this in order to match entries in lsan.supp
-  plugin_dl.handle = dlopen(dlpath, RTLD_NOW | RTLD_NODELETE);
-#else
+  // We cannot use the RTLD_NODELETE trick for HAVE_ASAN | HAVE_LSAN here,
+  // since we still have plugins which depend on running static destructors
+  // at dlclose().
+  // If a test has valgrind/LSAN/ASAN leaks, then use the debug flag
+  // preserve_shared_objects_after_unload (see elsewhere in this file).
   plugin_dl.handle = dlopen(dlpath, RTLD_NOW);
-#endif
 
   if (plugin_dl.handle == nullptr) {
     const char *errmsg;
