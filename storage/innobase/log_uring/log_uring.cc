@@ -7,15 +7,28 @@
 #include <thread>
 #include <iostream>
 
+bool enable_log_uring = false;
+bool enable_io_stat = false;
+
+bool is_enable_log_uring() {
+  return enable_log_uring;
+}
+
+bool is_enable_io_stat() {
+  return enable_io_stat;
+}
+
 void log_stat_thread() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    auto s = log_stat_period();
+    if (is_enable_io_stat()) {
+      auto s = log_stat_period();
   #ifdef __MYSQLD__
-    LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
+      LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
   #else
-    std::cout << s << std::endl;
+      std::cout << s << std::endl;
   #endif
+    }
   }
 }
 
@@ -23,14 +36,20 @@ void log_stat_thread() {
 std::thread *_thread = NULL;
 
 void create_log_stat_thread() {
-  _thread = new std::thread(log_stat_thread);
+  _thread = new std::thread(log_stat_thread); 
 }
 
 void log_uring(void *) {
+  if (getenv("ENABLE_LOG_URING")) {
+    enable_log_uring = true;
+  }
+
+  if (getenv("ENABLE_IO_STAT")) {
+    enable_io_stat = true;
+  }
   create_log_stat_thread();
   log_uring_thread();
 }
-
 
 int log_uring_append(void *buf, size_t size) {
   return get_xlog()->append(buf, size);

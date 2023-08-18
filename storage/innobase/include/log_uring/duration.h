@@ -80,6 +80,6 @@ public:
 };
 
 
-void log_append_count_inc();
+void log_append_count_inc(uint64_t size);
 void log_sync_count_inc();
 std::string log_stat_period();

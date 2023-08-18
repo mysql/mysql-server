@@ -233,22 +233,28 @@ int xlog::sync(size_t lsn) {
 int xlog::handle_event_list() {
     int num_events = 0;
     io_event *e = nullptr;
-    e = queue_.pull_front();
-    if (!enqueue_sqe(e)) {
-      return num_events;
-    }
-    num_events++;
-    while (true) {
-    auto status =  queue_.try_pull_front(e);
-      if (status == boost::concurrent::queue_op_status::success) {
-        if (!enqueue_sqe(e)) {
-          break;
-        }
-        num_events++;
-        if (num_events * 2 > (int) num_uring_sqe_) {
+    try {
+      e = queue_.pull_front();
+      if (!enqueue_sqe(e)) {
+        return num_events;
+      }
+      num_events++;
+      while (true) {
+      auto status =  queue_.try_pull_front(e);
+        if (status == boost::concurrent::queue_op_status::success) {
+          if (!enqueue_sqe(e)) {
+            break;
+          }
+          num_events++;
+          if (num_events * 2 > (int) num_uring_sqe_) {
+            break;
+          }
+        } else {
           break;
         }
       }
+    } catch (...) {
+      return -1;
     }
     enqueue_sqe_fsync_combine();
 

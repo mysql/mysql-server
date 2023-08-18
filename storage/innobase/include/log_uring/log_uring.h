@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include "log_uring/define.h"
 
+
+bool is_enable_log_uring();
+bool is_enable_io_stat();
+
 void log_uring(void *log_ptr);
 
 int log_uring_append(void *buf, size_t size);
