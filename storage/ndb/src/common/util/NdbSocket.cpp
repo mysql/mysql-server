@@ -431,7 +431,8 @@ int NdbSocket::ssl_readln(int timeout, int * elapsed,
     Timer t(elapsed);
     result = poll_readable(timeout);
   }
-  if(result <= 0) return -1;
+  if(result == 0) return 0; // timeout
+  if(result < 0) return -1;
 
   /* Read until a complete line is available, eof, or timeout */
   TlsLineReader reader(*this, buf, len, heldMutex);
@@ -448,6 +449,7 @@ int NdbSocket::ssl_readln(int timeout, int * elapsed,
   } while(! (reader.error() || (*elapsed >= timeout)));
 
   Debug_Log("ssl_readln => -1 [ELAPSED: %d]", *elapsed);
+  if (*elapsed >= timeout) return 0;
   return -1;
 }
 
