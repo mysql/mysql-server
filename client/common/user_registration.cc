@@ -1,4 +1,3 @@
-
 /*
 Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
@@ -37,20 +36,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #define QUERY_LENGTH 2048
 #define MAX_QUERY_LENGTH 4096
+#define ENCODING_LENGTH 4
+#define CAPABILITY_BIT_LENGTH 1
 
 /**
-  This helper method parses --fido-register-factor option values, and
-  inserts the parsed values in list.
+  This helper method parses --register-factor/--fido-register-factor
+  option values, and inserts the parsed values in list.
 
-  @param[in] what_factor      comma separated string containing what all factors
-                              are to be registered
-  @param[out] list            container holding individual factors
+  @param [in]  what_factor      Comma separated list of values, which specifies
+                                which factor requires registration.
+                                Valid values are "2", "3", "2,3" or "3,2"
+  @param [out] factors          container holding individual factors
 
   @return true failed
   @return false success
 */
-static bool parse_register_option(char *what_factor,
-                                  std::vector<unsigned int> &list) {
+bool parse_register_option(const char *what_factor,
+                           std::vector<unsigned int> &factors) {
   std::string token;
   std::stringstream str(what_factor);
   while (getline(str, token, ',')) {
@@ -64,7 +66,7 @@ static bool parse_register_option(char *what_factor,
     }
     /* nth_factor can be either 2 or 3 */
     if (nth_factor < 2 || nth_factor > 3) return true;
-    list.push_back(nth_factor);
+    factors.push_back(nth_factor);
   }
   return false;
 }
@@ -75,15 +77,16 @@ static bool parse_register_option(char *what_factor,
 
   Please refer @ref sect_fido_info for more information.
 
-  @param mysql              mysql connection handle
-  @param register_option    Comma separated list of values, which specifies
-  which factor requires registration. Valid values are "2", "3", "2,3" or "3,2"
-  @param errmsg             Buffer tol hold error message in case of error.
+  @param [in]  mysql_handle       mysql connection handle
+  @param [in]  register_option    Comma separated list of values, which
+  specifies which factor requires registration. Valid values are "2", "3", "2,3"
+  or "3,2"
+  @param [out] errmsg             Buffer to hold error message in case of error.
 
   @return true failed
   @return false success
 */
-bool user_device_registration(MYSQL *mysql, char *register_option,
+bool user_device_registration(MYSQL *mysql_handle, char *register_option,
                               char *errmsg) {
   char query[QUERY_LENGTH] = {0};
   char *query_ptr = nullptr;
@@ -92,55 +95,68 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
   ulong *lengths;
   uchar *server_challenge = nullptr;
   uchar *server_challenge_response = nullptr;
+  std::string client_plugin_name{"authentication_fido_client"};
+  struct st_mysql_client_plugin *plugin_handler = nullptr;
+  std::stringstream err{};
 
-  if (!mysql) {
-    sprintf(errmsg, "MySQL internal error. ");
+  auto print_error = [&errmsg, &mysql_handle, &err](bool print_mysql_error) {
+    if (print_mysql_error) {
+      sprintf(errmsg, "%s: %d (%s): %s\n", err.str().c_str(),
+              mysql_errno(mysql_handle), mysql_sqlstate(mysql_handle),
+              mysql_error(mysql_handle));
+    } else {
+      sprintf(errmsg, "%s\n", err.str().c_str());
+    }
+  };
+
+  std::vector<unsigned int> factors;
+  if (parse_register_option(register_option, factors)) {
+    err << "Incorrect value specified for "
+           "--register-factor/--fido-register-factor option. "
+           "Correct values can be '2', '3', '2,3' or '3,2'.";
+    print_error(false);
     return true;
   }
-
-  std::vector<unsigned int> list;
-  if (parse_register_option(register_option, list)) {
-    sprintf(errmsg,
-            "Incorrect value specified for --fido-register-factor option. "
-            "Correct values can be '2', '3', '2,3' or '3,2'.");
-    return true;
-  }
-
-  for (auto f : list) {
+  for (auto f : factors) {
     sprintf(query, "ALTER USER USER() %d FACTOR INITIATE REGISTRATION", f);
-    if (mysql_real_query(mysql, query, (ulong)strlen(query))) {
-      sprintf(errmsg, "Initiate registration failed with error: %s. ",
-              mysql_error(mysql));
+    if (mysql_real_query(mysql_handle, query, (ulong)strlen(query))) {
+      err << "Initiate registration for " << f << " factor: ALTER USER failed";
+      print_error(true);
       return true;
     }
-    if (!(result = mysql_store_result(mysql))) {
-      sprintf(errmsg, "Initiate registration failed with error: %s. ",
-              mysql_error(mysql));
+    if (!(result = mysql_store_result(mysql_handle))) {
+      err << "Initiate registration for " << f
+          << " factor: Cannot process result";
+      print_error(true);
       return true;
     }
     if (mysql_num_rows(result) > 1) {
-      sprintf(errmsg, "Initiate registration failed with error: %s. ",
-              mysql_error(mysql));
+      err << "Initiate registration for " << f << " factor: Unexpected result";
+      print_error(true);
       mysql_free_result(result);
       return true;
     }
+
     row = mysql_fetch_row(result);
     lengths = mysql_fetch_lengths(result);
     /*
       max length of challenge can be 32 (random challenge) +
       255 (relying party ID) + 255 (host name) + 32 (user name) + 4 byte for
-      length encodings
+      length encodings + 1 byte capability
     */
-    if (lengths[0] > (CHALLENGE_LENGTH + RELYING_PARTY_ID_LENGTH +
-                      HOSTNAME_LENGTH + USERNAME_LENGTH + 4)) {
-      sprintf(errmsg, "Received server challenge is corrupt. Please retry.\n");
+    if (lengths[0] >
+        (CHALLENGE_LENGTH + RELYING_PARTY_ID_LENGTH + HOSTNAME_LENGTH +
+         USERNAME_LENGTH + ENCODING_LENGTH + CAPABILITY_BIT_LENGTH)) {
+      err << "Initiate registration for " << f
+          << " factor: Received server challenge is corrupt. "
+             "Please retry.";
+      print_error(false);
       mysql_free_result(result);
       return true;
     }
     server_challenge = static_cast<uchar *>(my_malloc(
         PSI_NOT_INSTRUMENTED, lengths[0] + 1, MYF(MY_WME | MY_ZEROFILL)));
     memcpy(server_challenge, row[0], lengths[0]);
-    mysql_free_result(result);
 
     auto cleanup_guard = create_scope_guard([&] {
       if (server_challenge_response) {
@@ -157,28 +173,47 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
       }
     });
 
-    /* load fido client authentication plugin if required */
-    struct st_mysql_client_plugin *p =
-        mysql_client_find_plugin(mysql, "authentication_fido_client",
+    if (mysql_num_fields(result) >= 2) {
+      if (!lengths[1] || !row[1]) {
+        err << "Initiate registration for " << f
+            << " factor: No client plugin name received. Please retry.";
+        print_error(false);
+        mysql_free_result(result);
+        return true;
+      }
+      client_plugin_name.assign(row[1], lengths[1]);
+    }
+    mysql_free_result(result);
+
+    plugin_handler =
+        mysql_client_find_plugin(mysql_handle, client_plugin_name.c_str(),
                                  MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
-    if (!p) {
-      sprintf(
-          errmsg,
-          "Loading authentication_fido_client plugin failed with error: %s. ",
-          mysql_error(mysql));
+    /* check if client plugin is loaded */
+    if (!plugin_handler) {
+      err << "Initiate registration for " << f
+          << " factor: Loading client plugin '" << client_plugin_name
+          << "'failed with error";
+      print_error(true);
       return true;
     }
     /* set server challenge in plugin */
-    if (mysql_plugin_options(p, "registration_challenge", server_challenge)) {
-      sprintf(errmsg,
-              "Failed to set plugin options \"registration_challenge\".\n");
+    if (mysql_plugin_options(plugin_handler, "registration_challenge",
+                             server_challenge)) {
+      err << "Finish registration for " << f
+          << " factor: Failed to set plugin options \"registration_challenge\" "
+             "for plugin '"
+          << client_plugin_name << "'.";
+      print_error(false);
       return true;
     }
     /* get challenge response from plugin, and release the memory */
-    if (mysql_plugin_get_option(p, "registration_response",
+    if (mysql_plugin_get_option(plugin_handler, "registration_response",
                                 &server_challenge_response)) {
-      sprintf(errmsg,
-              "Failed to get plugin options \"registration_response\".\n");
+      err << "Finish registration for " << f
+          << " factor: Failed to get plugin options \"registration_response\". "
+             "for pugin '"
+          << client_plugin_name << "'.";
+      print_error(false);
       return true;
     }
 
@@ -190,10 +225,11 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
     size_t tot_query_len =
         n + strlen(reinterpret_cast<char *>(server_challenge_response));
     if (tot_query_len >= MAX_QUERY_LENGTH) {
-      sprintf(
-          errmsg,
-          "registration_response length exceeds max supported length of %d.\n",
-          MAX_QUERY_LENGTH);
+      err << "Finish registration for " << f
+          << " factor: registration_response length exceeds max "
+             "supported length of "
+          << MAX_QUERY_LENGTH << "\n";
+      print_error(false);
       return true;
     }
     if (tot_query_len >= QUERY_LENGTH) {
@@ -206,9 +242,9 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
             "ALTER USER USER() %d FACTOR FINISH REGISTRATION SET "
             "CHALLENGE_RESPONSE AS '%s'",
             f, server_challenge_response);
-    if (mysql_real_query(mysql, query, (ulong)strlen(query))) {
-      sprintf(errmsg, "Finish registration failed with error: %s.\n",
-              mysql_error(mysql));
+    if (mysql_real_query(mysql_handle, query, (ulong)strlen(query))) {
+      err << "Finish registration for " << f << " factor failed";
+      print_error(true);
       return true;
     }
   }

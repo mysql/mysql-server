@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,35 +26,43 @@
 
 # Skip it if disabled.
 IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
-  MESSAGE(STATUS "Skipping FIDO client authentication plugin.")
+  MESSAGE(STATUS "Skipping webauthn client authentication plugin.")
   RETURN()
 ENDIF()
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="authentication_webauthn")
 # The client authentication plugin is part of the community build.
 # Build it if we have found the necessary libraries.
 IF(NOT FIDO_FOUND)
-  MESSAGE(WARNING "Skipping the FIDO client authentication plugin")
+  MESSAGE(WARNING "Skipping the webauthn client authentication plugin")
   RETURN()
 ENDIF()
 
 INCLUDE(CheckIncludeFiles)
 
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../common
+  )
+
 DISABLE_MISSING_PROFILE_WARNING()
 
-MYSQL_ADD_PLUGIN(authentication_fido_client
-  fido_registration.cc
-  fido_assertion.cc
-  fido_client_plugin.cc
+MYSQL_ADD_PLUGIN(authentication_webauthn_client
+  webauthn_registration.cc
+  webauthn_assertion.cc
+  webauthn_client_plugin.cc
   LINK_LIBRARIES
+  fido_client_common
   ext::fido
+  ${SSL_LIBRARIES}   # Needs RAND_bytes from libcrypto.
   CLIENT_ONLY
   MODULE_ONLY
-  MODULE_OUTPUT_NAME "authentication_fido_client")
+  MODULE_OUTPUT_NAME "authentication_webauthn_client")
 
 IF (INSTALL_RPATH_FOR_FIDO2)
-  ADD_INSTALL_RPATH_FOR_FIDO2(authentication_fido_client)
+  ADD_INSTALL_RPATH_FOR_FIDO2(authentication_webauthn_client)
 ENDIF()
 
 IF(TARGET symlink_fido2_dlls)
-  ADD_DEPENDENCIES(authentication_fido_client symlink_fido2_dlls)
+  ADD_DEPENDENCIES(authentication_webauthn_client symlink_fido2_dlls)
 ENDIF()

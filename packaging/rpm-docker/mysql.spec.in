@@ -444,6 +444,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
@@ -546,6 +547,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -576,10 +578,6 @@ rm -r $(readlink var) var
 
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci
-
-* Mon Jun 20 2022 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.31-1
-- Added component_test_mysql_command_services.so test component
-- Added test_services_command_services.so test plugin
 
 * Wed Feb 02 2022 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.30-1
 - Added component_enterprise_encryption

@@ -28,57 +28,20 @@
 #ifndef FIDO_ASSERTION_H_
 #define FIDO_ASSERTION_H_
 
-#include <fido.h>
-
-/**
-   A wrapper class to access fido2 library APIs to interact with the device.
-   This class abstracts all access to FIDO device.
-*/
-class fido_prepare_assert {
- public:
-  fido_prepare_assert();
-  ~fido_prepare_assert();
-  bool parse_challenge(const unsigned char *challenge);
-  bool sign_challenge();
-  void get_signed_challenge(unsigned char **challenge_res,
-                            size_t &challenge_res_len);
-
- private:
-  /* set client data has */
-  void set_scramble(unsigned char *scramble, size_t len);
-  /* set credential ID */
-  void set_cred_id(unsigned char *cred, size_t len);
-  /* set relying party ID */
-  void set_rp_id(const char *rp_id);
-
-  /* get method to retrieve authenticator data */
-  const unsigned char *get_authdata_ptr();
-  /* get method to retrieve length of authenticator data */
-  size_t get_authdata_len();
-  /* get method to retrieve signature */
-  const unsigned char *get_signature_ptr();
-  /* get method to retrieve length of signature */
-  size_t get_signature_len();
-
- private:
-  /* Abstract type to hold information during authentication */
-  fido_assert_t *m_assert;
-};
-
+#include <assertion.h>
 /**
    Class to initiate authentication(aka assertion in FIDO terminology) on
    client side by generating a signed signature by FIDO device which needs
    to be sent to server to be verified.
 */
-class fido_assertion {
+class fido_assertion : public client_authentication::assertion {
  public:
-  bool prepare_assert(const unsigned char *challenge);
-  bool sign_challenge();
-  void get_signed_challenge(unsigned char **challenge_res,
-                            size_t &challenge_res_len);
-
- private:
-  fido_prepare_assert m_fido_prepare_assert;
+  fido_assertion() = default;
+  bool get_signed_challenge(unsigned char **challenge_res,
+                            size_t &challenge_res_len) override;
+  void set_client_data(const unsigned char *, const char *) override;
+  bool sign_challenge() override;
+  bool parse_challenge(const unsigned char *challenge) override;
 };
 
 #endif  // FIDO_ASSERTION_H_

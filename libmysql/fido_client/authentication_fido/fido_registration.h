@@ -28,60 +28,17 @@
 #ifndef FIDO_REGISTRATION_H_
 #define FIDO_REGISTRATION_H_
 
-#include <fido.h>
-
-/**
-   A wrapper class which abstracts all access to FIDO device.
-*/
-class fido_make_cred {
- public:
-  fido_make_cred();
-  ~fido_make_cred();
-  /* prepare credential */
-  bool make_credentials(const char *challenge);
-  bool make_challenge_response(unsigned char *&challenge_response);
-
- private:
-  void set_rp_id(std::string rp_id);
-  void set_type(int type = COSE_ES256);
-  void set_user(std::string user);
-  void set_scramble(unsigned char *, size_t);
-
-  /* get authenticator data details */
-  size_t get_authdata_len();
-  const unsigned char *get_authdata_ptr();
-  /* get signature details */
-  size_t get_sig_len();
-  const unsigned char *get_sig_ptr();
-  /* get x509 certificate details */
-  size_t get_x5c_len();
-  const unsigned char *get_x5c_ptr();
-  /* get rp id */
-  const char *get_rp_id();
-
-  /* Helper method to parse challenge receviced from server */
-  bool parse_challenge(const char *challenge);
-  /*
-    Helper method to open the device and request the device to
-    generate a signature, authenticator data and x509 certificate.
-  */
-  bool generate_signature();
-
- private:
-  /* An abstraction to hold FIDO credentials. */
-  fido_cred_t *m_cred;
-};
-
+#include <registration.h>
 /**
   This class is used to perform registration step on client side.
 */
-class fido_registration {
+class fido_registration : public client_registration::registration {
  public:
-  bool make_credentials(const char *challenge);
-  bool make_challenge_response(unsigned char *&buf);
-
- private:
-  fido_make_cred m_fido_make_cred;
+  fido_registration() = default;
+  bool parse_challenge(const char *challenge) override;
+  bool make_challenge_response(unsigned char *&buf) override;
+  void set_client_data(const unsigned char *, const char *) override;
+  bool generate_signature() override;
 };
 
 #endif  // FIDO_REGISTRATION_H_

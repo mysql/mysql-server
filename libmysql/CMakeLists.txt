@@ -292,14 +292,14 @@ ENDIF()
 # LDAP authentication SASL client plug-in
 ADD_SUBDIRECTORY(authentication_ldap)
 
-# FIDO authentication client plugin
-ADD_SUBDIRECTORY(authentication_fido)
-
 # authentication kerberos client plug-in
 ADD_SUBDIRECTORY(authentication_kerberos)
 
 # authentication IAM client plug-in
 ADD_SUBDIRECTORY(authentication_oci_client)
+
+# Fido and Webauthn clients
+ADD_SUBDIRECTORY(fido_client)
 
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}

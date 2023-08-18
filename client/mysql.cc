@@ -248,6 +248,7 @@ static const CHARSET_INFO *charset_info = &my_charset_latin1;
 static char *opt_fido_register_factor = nullptr;
 static char *opt_oci_config_file = nullptr;
 static char *opt_authentication_oci_client_config_profile = nullptr;
+static char *opt_register_factor = nullptr;
 
 static bool opt_tel_plugin = false;
 static const char *opt_tel_plugin_name = "telemetry_client";
@@ -259,6 +260,7 @@ static struct my_option my_empty_options[] = {
 static void usage(int version);
 
 #include "authentication_kerberos_clientopt-vars.h"
+#include "authentication_webauthn_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
 #include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
@@ -2085,6 +2087,11 @@ static struct my_option my_long_options[] = {
      &opt_tel_plugin, &opt_tel_plugin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
 #include "authentication_kerberos_clientopt-longopts.h"
+#include "authentication_webauthn_clientopt-longopts.h"
+    {"register-factor", 0,
+     "Specifies factor for which registration needs to be done for.",
+     &opt_register_factor, &opt_register_factor, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -2212,6 +2219,7 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
 #include "sslopt-case.h"
 
 #include "authentication_kerberos_clientopt-case.h"
+#include "authentication_webauthn_clientopt-case.h"
 
     case 'V':
       usage(1);
@@ -4965,10 +4973,25 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
     return -1;  // Retryable
   }
 
-  /* do user registration */
-  if (opt_fido_register_factor) {
-    char errmsg[FN_REFLEN];
-    if (user_device_registration(&mysql_handle, opt_fido_register_factor,
+  /* do token device registration */
+  if (opt_fido_register_factor || opt_register_factor) {
+    char errmsg[FN_REFLEN + 1]{0};
+    if (opt_fido_register_factor) {
+      put_info(
+          "--fido-register-factor option is deprecreted, instead use "
+          "--register-factor.",
+          INFO_INFO);
+      if (opt_register_factor) {
+        put_info(
+            "--register-factor is specified. Value of --fido-register-factor "
+            "will be ignored.",
+            INFO_INFO);
+      }
+    }
+
+    if (user_device_registration(&mysql_handle,
+                                 opt_register_factor ? opt_register_factor
+                                                     : opt_fido_register_factor,
                                  errmsg)) {
       put_info(errmsg, INFO_ERROR);
       return 1;
@@ -5157,13 +5180,17 @@ static bool init_connection_options(MYSQL *mysql) {
     }
   }
 
-#if defined(_WIN32)
   char error[256]{0};
+#if defined(_WIN32)
   if (set_authentication_kerberos_client_mode(mysql, error, 255)) {
     put_info(error, INFO_ERROR);
     return 1;
   }
 #endif
+  if (set_authentication_webauthn_options(mysql, error, 255)) {
+    put_info(error, INFO_ERROR);
+    return true;
+  }
 
   return false;
 }

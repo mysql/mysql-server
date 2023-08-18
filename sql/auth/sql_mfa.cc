@@ -523,10 +523,10 @@ void Multi_factor_auth_list::get_generated_passwords(Userhostpassword_list &gp,
   @param [out]   sc       Buffer to hold server challenge
 
 */
-void Multi_factor_auth_list::get_server_challenge(
-    std::vector<std::string> &sc) {
+void Multi_factor_auth_list::get_server_challenge_info(
+    server_challenge_info_vector &sc) {
   for (auto m : m_factor) {
-    m->get_server_challenge(sc);
+    m->get_server_challenge_info(sc);
   }
 }
 
@@ -814,11 +814,7 @@ bool Multi_factor_auth_info::deserialize(uint nth_factor, Json_dom *mfa_dom) {
 bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   /* check if we are registerting correct multi-factor authentication method */
   if (get_nth_factor() != nth_factor) return false;
-  /*
-    in case init registration is done, then server challenge will be
-    in auth string
-  */
-  if (get_auth_str_len()) return false;
+
   plugin_ref plugin = my_plugin_lock_by_name(nullptr, plugin_name(),
                                              MYSQL_AUTHENTICATION_PLUGIN);
   /* check if plugin is loaded */
@@ -832,6 +828,18 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
     plugin_unlock(nullptr, plugin);
     return (true);
   }
+
+  /*
+    in case init registration is done, then server challenge will be
+    in auth string
+  */
+  if (get_auth_str_len()) {
+    const char *client_plugin = auth->client_auth_plugin;
+    set_client_plugin(client_plugin, strlen(client_plugin));
+    plugin_unlock(nullptr, plugin);
+    return false;
+  }
+
   unsigned char *plugin_buf = nullptr;
   unsigned int plugin_buf_len = 0;
 
@@ -857,12 +865,14 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   }
   srv_registry->release(h_reg_svc);
 
-  const size_t user_name_len = thd->security_context()->user().length +
-                               thd->security_context()->host().length;
+  /* `user name` + '@' + `host name` */
+  Auth_id id(thd->security_context()->priv_user().str,
+             thd->security_context()->priv_host().str);
+  const std::string user_str = id.auth_str();
+  size_t user_str_len = user_str.length();
 
   /* append user name to random challenge(32bit salt + RP id). */
-  const size_t buflen =
-      plugin_buf_len + user_name_len + net_length_size(user_name_len);
+  size_t buflen = plugin_buf_len + user_str_len + net_length_size(user_str_len);
   unsigned char *buf = new unsigned char[buflen];
   unsigned char *pos = buf;
 
@@ -871,13 +881,9 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
 
   if (plugin_buf) delete[] plugin_buf;
 
-  pos = net_store_length(pos, user_name_len);
-  memcpy(pos, thd->security_context()->user().str,
-         thd->security_context()->user().length);
-  pos += thd->security_context()->user().length;
-  memcpy(pos, thd->security_context()->host().str,
-         thd->security_context()->host().length);
-  pos += thd->security_context()->host().length;
+  pos = net_store_length(pos, user_str_len);
+  memcpy(pos, user_str.c_str(), user_str_len);
+  pos += user_str_len;
 
   assert(buflen == (uint)(pos - buf));
 
@@ -896,6 +902,9 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
 
   /* save buffer in auth_string */
   set_auth_str(reinterpret_cast<const char *>(outbuf), outbuflen);
+  /* save client plugin information */
+  const char *client_plugin = auth->client_auth_plugin;
+  set_client_plugin(client_plugin, strlen(client_plugin));
   plugin_unlock(nullptr, plugin);
   return false;
 }
@@ -1103,10 +1112,13 @@ void Multi_factor_auth_info::get_generated_passwords(Userhostpassword_list &gp,
 
   @param [out]   sc        List holding all generated server challenges.
 */
-void Multi_factor_auth_info::get_server_challenge(
-    std::vector<std::string> &sc) {
+void Multi_factor_auth_info::get_server_challenge_info(
+    server_challenge_info_vector &sc) {
   if (get_requires_registration() && get_auth_str_len()) {
-    sc.push_back({std::string(get_auth_str(), get_auth_str_len())});
+    auto result = std::make_pair(
+        std::string(get_auth_str(), get_auth_str_len()),
+        std::string(get_client_plugin_str(), get_client_plugin_len()));
+    sc.push_back(result);
   }
 }
 
@@ -1159,6 +1171,14 @@ const char *Multi_factor_auth_info::get_plugin_str() {
 }
 size_t Multi_factor_auth_info::get_plugin_str_len() {
   return m_multi_factor_auth->plugin.length;
+}
+
+const char *Multi_factor_auth_info::get_client_plugin_str() {
+  return m_multi_factor_auth->client_plugin.str;
+}
+
+size_t Multi_factor_auth_info::get_client_plugin_len() {
+  return m_multi_factor_auth->client_plugin.length;
 }
 
 nthfactor Multi_factor_auth_info::get_factor() {
@@ -1218,6 +1238,10 @@ void Multi_factor_auth_info::set_plugin_str(const char *str, size_t l) {
 void Multi_factor_auth_info::set_generated_password(const char *str, size_t l) {
   lex_string_strmake(m_mem_root, &m_multi_factor_auth->generated_password, str,
                      l);
+}
+
+void Multi_factor_auth_info::set_client_plugin(const char *str, size_t l) {
+  lex_string_strmake(m_mem_root, &m_multi_factor_auth->client_plugin, str, l);
 }
 
 void Multi_factor_auth_info::set_factor(nthfactor f) {

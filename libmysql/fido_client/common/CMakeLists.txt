@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,30 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# plugins
+# Skip it if disabled.
+IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  MESSAGE(WARNING "Skipping the fido_client_common library.")
+  RETURN()
+ENDIF()
 
-usr/lib/mysql/plugin/authentication_fido_client.so
-usr/lib/mysql/plugin/authentication_kerberos_client.so
-usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
-usr/lib/mysql/plugin/authentication_oci_client.so
-usr/lib/mysql/plugin/authentication_webauthn_client.so
-usr/lib/mysql/private/libfido2.*
-@DEB_INSTALL_CLIENT_PLUGINS@
-# legal
-usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-plugins/
-usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-plugins/
+# The client authentication plugin is part of the community build.
+# Build it if we have found the necessary libraries.
+IF(NOT FIDO_FOUND)
+  MESSAGE(WARNING "Skipping the fido_client_common library.")
+  RETURN()
+ENDIF()
+
+ADD_WSHADOW_WARNING()
+SET(FIDO_COMMON_SOURCES
+   assertion.cc
+   common.cc
+   registration.cc
+   )
+
+ADD_CONVENIENCE_LIBRARY(
+  fido_client_common
+  ${FIDO_COMMON_SOURCES}
+  LINK_LIBRARIES
+  mysqlclient
+  ext::fido
+)

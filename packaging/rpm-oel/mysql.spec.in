@@ -1262,6 +1262,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
@@ -1359,6 +1361,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
@@ -1535,11 +1539,12 @@ fi
 %doc %{?license_files_server}
 %if 0%{?ssl_default}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
 %endif # ssl_default
 %if 0%{?commercial}
 %if 0%{?telemetry}
@@ -1680,6 +1685,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %if 0%{?ssl_default}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so

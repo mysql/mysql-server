@@ -770,6 +770,7 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
    @subpage page_protocol_connection_phase_authentication_methods_clear_text_password
    @subpage page_protocol_connection_phase_authentication_methods_authentication_windows
    @subpage page_fido_authentication_exchanges
+   @subpage page_webauthn_authentication_exchanges
 */
 
 /**
@@ -806,7 +807,7 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
 /**
   @page page_fido_authentication_exchanges authentication_fido information
-
+page_fido_authentication_exchanges
   @section sect_fido_definition Definition
   <ul>
   <li>
@@ -860,7 +861,8 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
   </ul>
 
   Initiate registration:
-  --fido-register-factor mysql client option initiates registration step.
+  --register-factor mysql client option initiates registration step.
+  Note that --fido-register-factor is deprecated.
 
   <ol>
    <li>
@@ -869,7 +871,7 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
    <li>
    Server sends a challenge comprising of 32 bytes random salt, user id, relying party ID
    Format of challenge is:
-   |length encoded 32 bytes random salt|length encoded user id (user name + host name)|length encoded relying party ID|
+   | 1 byte capability | length encoded 32 bytes random salt | length encoded relying party ID | length encoded user id (`user name`\@`host name`) |
    </li>
    <li>
    Client receives challenge and passes to authentication_fido_client plugin
@@ -970,6 +972,329 @@ constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
          client -> server : signed challenge
          server -> client : verify signed challenge and send OK or ERR packet
        @enduml
+*/
+
+/**
+  @page page_webauthn_authentication_exchanges authentication_webauthn information
+page_webauthn_authentication_exchanges
+  @section sect_webauthn_definition Definition
+  <ul>
+  <li>
+  The server side plugin name is *authentication_webauthn*
+  </li>
+  <li>
+  The client side plugin name is *authentication_webauthn_client*
+  </li>
+  <li>
+  Account - user account (user-host combination)
+  </li>
+  <li>
+  authentication_string - Transformation of Credential ID stored in mysql.user table
+  </li>
+  <li>
+  relying party ID - Unique name assigned to server by authentication_webauthn plugin
+  </li>
+  <li>
+  FIDO authenticator - A hardware token device
+  </li>
+  <li>
+  Salt - 32 byte long random data
+  </li>
+  <li>
+  Registration mode - Refers to state of connection where only ALTER USER is allowed
+  to do registration steps.
+  </li>
+  </ul>
+
+  @section sect_webauthn_info How authentication_webauthn works?
+
+  Plugin authentication_webauthn works in two phases.
+  <ul>
+   <li>
+    Registration of hardware token device
+   </li>
+   <li>
+    Authentication process
+   </li>
+  </ul>
+
+  Registration process:
+  This is a 2 step process for a given user account.
+  <ul>
+   <li>
+    Initiate registration step.
+   </li>
+   <li>
+    Finish registration step.
+   </li>
+  </ul>
+
+  Initiate registration:
+  --register-factor mysql client option initiates registration step.
+
+  <ol>
+   <li>
+    Client executes ALTER USER user() nth FACTOR INITIATE REGISTRATION;
+   </li>
+   <li>
+   Server sends a challenge comprising of 1 byte capability bit, 32 bytes random salt, relying party ID
+   Format of challenge is:
+   | 1 byte capability | length encoded 32 bytes random salt | length encoded relying party ID | length encoded user id (`user name`\@`host name`) |
+
+   Server also sends name of the client plugin - In this case authentication_webauthn_client.
+   </li>
+   <li>
+   Client receives challenge and client plugin name.
+   It then passes challenge to authentication_webauthn_client plugin
+   with option "registration_challenge" using mysql_plugin_options()
+   </li>
+   <li>
+    FIDO authenticator may prompt to enter device pin.
+    By default pin can be provided via standard input.
+    Alternatively, register a callback with option "authentication_webauthn_client_callback_get_password"
+    using mysql_plugin_options() to provide pin.
+    FIDO authenticator prompts to perform gesture action.
+    This message can be accessed via callback. Register a callback with option
+    "authentication_webauthn_client_messages_callback" using mysql_plugin_options()
+   </li>
+   <li>
+    Once gesture action (touching the token) is performed,
+    FIDO authenticator generates a public/private key pair, a credential ID(
+    X.509 certificate, signature) and authenticator data.
+   </li>
+   <li>
+   Client extracts credential ID(aka challenge response) from authentication_webauthn_client
+   plugin with option "registration_response" using mysql_plugin_get_option()
+   Response is encoded in base64. Format of challenge response is:
+   | 1 bytes capability | length encoded authenticator data | length encoded signature | length encoded x509 certificate | length encoded Client data JSON |
+   </li>
+  </ol>
+
+  Finish registration:
+  <ol>
+   <li>
+    Client executes ALTER USER user() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE AS '?';
+    parameter is binded to challenge response received during initiate registration step.
+   </li>
+   <li>
+    authentication_webauthn plugin verifies the challenge response and responds with an
+    @ref page_protocol_basic_ok_packet or rejects with @ref page_protocol_basic_err_packet
+   </li>
+  </ol>
+       @startuml
+         title Registration
+
+         participant server as "MySQL server"
+         participant client as "Client"
+         participant authenticator as "FIDO authenticator"
+
+         == Initiate registration ==
+
+         client -> server : connect
+         server -> client : OK packet. Connection is in registration mode where only ALTER USER command is allowed
+         client -> server : ALTER USER USER() nth FACTOR INITIATE REGISTRATION
+         server -> client : random challenge (capability, 32 byte random salt, relying party ID, user id)
+         client -> authenticator : random challenge
+         authenticator -> client : challenge response (capability, authenticator data, signature, x509 certificate, client data json)
+
+         == Finish registration ==
+
+         client -> server : ALTER USER USER() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE = 'challenge response'
+         server -> client : Ok packet upon successful verification of credential ID
+       @enduml
+
+  Authentication process:
+  Once initial authentication methods defined for user account are successful,
+  server initiates webauthn authentication process. This includes following steps:
+   <ol>
+    <li>
+     Server sends a 32 byte random salt, relying party ID to client.
+     Format is:
+     | 1 byte capability | length encoded 32 byte random salt | length encoded relying party ID |
+    </li>
+    <li>
+     Client receives them and checks if FIDO device has CTAP2(aka fido2) capability.
+    </li>
+    <li>
+     If FIDO device is not capable of CTAP2, client requests server to send credential ID.
+     Format is:
+     | 0x01 |
+    </li>
+    <li>
+     Server sends credential ID (or empty string if unavailable) to client.
+     Format is:
+     | length encoded credential ID |
+    </li>
+    <li>
+     If device has CTAP2 capability and if user has configured preserve-privacy option,
+     client prompts user to enter pin.
+     client then retrieves all credentials for given relying party ID from FIDO authenticator.
+    </li>
+    <li>
+     Client prompts user to choose from the list of credentials.
+    </li>
+    <li>
+     Client sends random salt, relying party ID and optionally credential ID OR
+     resident key identifier to FIDO authenticator.
+    </li>
+    <li>
+     FIDO authenticator prompts to perform gesture action.
+    </li>
+    <li>
+     For CTAP2 capable device, FIDO authenticator extracts one (in case of preserve-privacy
+     option) or all private key based on relying party ID and signs the challenge.
+    </li>
+    <li>
+     For non-CTAP2 devices, FIDO authenticator extracts private key based on
+     relying party ID and credential ID received from server and signs the challenge.
+    </li>
+    <li>
+     Client sends signed challenge to server.
+     Format:
+     | 0x02 | length encoded number of assertions | length encoded authenticator data | length encoded signature | ... | length encoded authenticator data | length encoded signature | client data json |
+    </li>
+    <li>
+     Server side webauthn authentication plugin verifies the signature with the
+     public key and responds with an @ref page_protocol_basic_ok_packet or with
+     @ref page_protocol_basic_err_packet
+    </li>
+   </ol>
+       @startuml
+         title Authentication
+
+         participant server as "MySQL server"
+         participant client as "Client"
+         participant authenticator as "FIDO authenticator"
+
+         == Authentication ==
+
+         client -> server : connect
+         server -> client : OK packet
+         server -> client : send client side webauthn authentication plugin name in OK packet
+         server -> client : sends 32 byte random salt, relying party ID
+         client -> authenticator : check CTAP2 capability
+         client -> server: send request for credential ID if device is not CTAP2 capable
+         server -> client: send credential ID if available or emplty string
+         client -> authenticator: Retrieve credentials for given relying party ID if preserve-privacy preference is specified
+         client -> authenticator : sends 32 byte random salt, relying party ID, credential ID OR resident key identifier
+         authenticator -> client : signed challenge
+         client -> server : signed challenge
+         server -> client : verify signed challenge and send OK or ERR packet
+       @enduml
+
+  @section sect_webauthn_packet_info Packet Information
+
+  @subsection subsect_webauthn_packet_registration Packets related to registration
+
+  When client sends ALTER USER &lt;username&gt; &lt;N&gt; FACTOR INITIATE REGISTRATION and
+  if user is using authentication_webauthn for given factor, server response will
+  contain registration challege received from server plugin. Following is the format
+  of such a challenge.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x01 </td>
+    <td>capability</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string[32]"</td>
+    <td>random data</td>
+    <td>32 bytes random string </td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>Relying Party ID</td>
+    <td>Variable length Relying Party ID set by authentication_webauthn_rp_id</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>Username</td>
+    <td>Variable length username information</td></tr>
+  </table>
+
+
+  In response to registration challenge, client plugin calculates response and sends
+  it to server as a part of ALTER USER &lt;username&gt; &lt;N&gt; FACTOR FINISH REGISTRATION
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x01 </td>
+    <td>capability</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string[32]"</td>
+    <td>authenticator data</td>
+    <td>length encoded challenge response received as a part of FIDO registration </td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>X509 Certificate</td>
+    <td>length encoded X509 certificate received as a part of FIDO registration</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>ClientDataJSON</td>
+    <td>length encoded client data JSON used for calculating response</td></tr>
+  </table>
+
+  @subsection subsect_webauthn_packet_authentication Packets related to authentication
+
+  As a part of @ref page_protocol_connection_phase_packets_protocol_auth_next_factor_request,
+  server plugin sends following information to client.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x01 </td>
+    <td>capability</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string[32]"</td>
+    <td>random data</td>
+    <td>32 bytes random string </td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>Relying Party ID</td>
+    <td>Variable length Relying Party ID set by authentication_webauthn_rp_id</td></tr>
+  </table>
+
+
+  If client plugin detects that FIDO device is not capable of CTAP2, it requests
+  server plugin for the same using following.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x01 (1) </td>
+    <td>Credential ID request packet</td></tr>
+  </table>
+
+
+  When server plugin receive request for credential ID, it sends it in following format.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>credential data</td>
+    <td>Variable length credential ID</td></tr>
+  </table>
+
+
+  Client plugin sends final authentication reply in following format
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x02 (1) </td>
+    <td>Assertion information</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+    <td>number_of_assertions</td>
+    <td>length encoded number of assertions</td></tr>
+  <tr><td colspan="3">if number_of_assertions > 0, for each {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>authenticator data</td>
+    <td>Variable length authdata obtained as a part of FIDO assertion</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>authenticator data</td>
+    <td>Variable length signed challenge obtained as a part of FIDO assertion</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string[<var>]"</td>
+    <td>Clientdata JSON</td>
+    <td>Variable length JSON client data used for assertion</td></tr>
+  </table>
 */
 /* clang-format on */
 

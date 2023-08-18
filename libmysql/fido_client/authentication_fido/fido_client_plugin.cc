@@ -25,12 +25,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <common.h>
+#include <my_dbug.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
-#include "my_dbug.h"
 
 #include "fido_assertion.h"
-#include "fido_common.h"
 #include "fido_registration.h"
 
 #ifndef NDEBUG
@@ -49,29 +49,14 @@ static bool do_registration();
   If callback is not registered, all messaged are redirected to stderr/stdout.
 */
 plugin_messages_callback mc = nullptr;
-
-/*
-  Helper method which redirect the messages based on what value is set in
-  redirect_message
-*/
-void get_plugin_messages(const std::string &msg, message_type type) {
-  /* if callback is registered, pass msg to callback function */
-  if (mc) {
-    mc(msg.c_str());
-  } else {
-    if (type == message_type::ERROR) {
-      std::cerr << msg.c_str() << std::endl;
-      std::cerr.flush();
-    } else if (type == message_type::INFO) {
-      std::cout << msg.c_str() << std::endl;
-    }
-  }
-}
+plugin_messages_callback_get_uint mc_get_uint = nullptr;
+plugin_messages_callback_get_password mc_get_password = nullptr;
 
 /**
   authentication_fido_client plugin API to initialize
 */
 static int fido_auth_client_plugin_init(char *, size_t, int, va_list) {
+  fido_init(0);
   return 0;
 }
 
@@ -81,7 +66,7 @@ static int fido_auth_client_plugin_init(char *, size_t, int, va_list) {
 static int fido_auth_client_plugin_deinit() { return 0; }
 
 /**
-  authentication_fido_client plugin API to allow server to pass optional data
+  authentication_fido_client plugin API to allow client to pass optional data
   for plugin to process
 */
 static int fido_auth_client_plugin_option(const char *option, const void *val) {
@@ -107,7 +92,7 @@ static int fido_auth_client_plugin_option(const char *option, const void *val) {
 }
 
 /**
-  authentication_fido_client plugin API to allow server to get optional data
+  authentication_fido_client plugin API to allow client to get optional data
   from plugin
 */
 static int fido_auth_client_get_plugin_option(const char *option, void *val) {
@@ -160,7 +145,7 @@ static int fido_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
 #endif
   {
     fido_assertion *fa = new fido_assertion();
-    if (fa->prepare_assert(server_challenge) || fa->sign_challenge()) {
+    if (fa->parse_challenge(server_challenge) || fa->sign_challenge()) {
       delete fa;
       return true;
     }
@@ -190,7 +175,7 @@ static int fido_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *) {
 static bool do_registration() {
 #ifndef NDEBUG
   if (is_fido_testing) {
-    const char *dummy = "\nSIGNATURE \nAUHENDATA \nCERT      ";
+    const char *dummy = "\nSIGNATURE \nAUTHDATA \nCERT      ";
     const size_t sz = strlen(dummy);
     memcpy(registration_challenge, dummy, sz);
     /* dummy challenge response for testing */

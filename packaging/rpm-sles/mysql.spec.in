@@ -886,6 +886,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
@@ -981,6 +982,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
@@ -1150,6 +1152,7 @@ rm -r $(readlink var) var
 %doc %{?license_files_server}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
@@ -1283,6 +1286,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so

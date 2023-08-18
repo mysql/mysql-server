@@ -1,4 +1,3 @@
-
 /*
 Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
@@ -28,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include <mysql.h>
 
-bool user_device_registration(MYSQL *mysql, char *register_option,
+bool user_device_registration(MYSQL *mysql_handle, char *register_option,
                               char *errmsg);
 
 #endif  // USER_REGISTRATION_H_

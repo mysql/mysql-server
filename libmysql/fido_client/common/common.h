@@ -25,8 +25,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef FIDO_COMMON_H_
-#define FIDO_COMMON_H_
+#ifndef COMMON_H_
+#define COMMON_H_
 
 #include <cstring>
 #include <iostream>
@@ -35,8 +35,16 @@
 #include "my_byteorder.h"
 #include "my_inttypes.h"
 
+/* Length of random salt in base64 format */
+#define BASE64_CHALLENGE_LENGTH 45
+
 typedef void (*plugin_messages_callback)(const char *msg);
+typedef int (*plugin_messages_callback_get_uint)(unsigned int *val);
+typedef int (*plugin_messages_callback_get_password)(
+    char *buffer, const unsigned int buffer_len);
 extern plugin_messages_callback mc;
+extern plugin_messages_callback_get_uint mc_get_uint;
+extern plugin_messages_callback_get_password mc_get_password;
 
 /* Define type of message */
 enum class message_type {
@@ -44,61 +52,24 @@ enum class message_type {
   ERROR, /* directed to stderr */
 };
 
+enum class input_type {
+  UINT,    /* get unsigned int input */
+  PASSWORD /* get password */
+};
 /*
   Helper method to redirect plugin specific messages to a registered callback
   method or to stdout/stderr.
 */
 void get_plugin_messages(const std::string &msg, message_type type);
+int get_user_input(const std::string &msg, input_type type, void *arg,
+                   const unsigned int *optional_arg_size = nullptr);
 
-inline uchar *net_store_length(uchar *packet, ulonglong length) {
-  if (length < (ulonglong)251LL) {
-    *packet = (uchar)length;
-    return packet + 1;
-  }
-  /* 251 is reserved for NULL */
-  if (length < (ulonglong)65536LL) {
-    *packet++ = 252;
-    int2store(packet, (uint)length);
-    return packet + 2;
-  }
-  if (length < (ulonglong)16777216LL) {
-    *packet++ = 253;
-    int3store(packet, (ulong)length);
-    return packet + 3;
-  }
-  *packet++ = 254;
-  int8store(packet, length);
-  return packet + 8;
-}
+/**
+  Helper method to convert base64 string to url safe base64.
+*/
+void url_compatible_base64(char *url_compatible_str, size_t len,
+                           char *base64_str);
+bool generate_sha256(const unsigned char *in_key, unsigned int in_key_length,
+                     unsigned char *hash, unsigned int &hash_length);
 
-inline uint net_length_size(ulonglong num) {
-  if (num < 251ULL) return 1;
-  if (num < 65536LL) return 3;
-  if (num < 16777216ULL) return 4;
-  return 9;
-}
-
-/* The same as above but returns longlong */
-inline uint64_t net_field_length_ll(uchar **packet) {
-  const uchar *pos = *packet;
-  if (*pos < 251) {
-    (*packet)++;
-    return (uint64_t)*pos;
-  }
-  if (*pos == 251) {
-    (*packet)++;
-    return (uint64_t)((unsigned long)~0);
-  }
-  if (*pos == 252) {
-    (*packet) += 3;
-    return (uint64_t)uint2korr(pos + 1);
-  }
-  if (*pos == 253) {
-    (*packet) += 4;
-    return (uint64_t)uint3korr(pos + 1);
-  }
-  (*packet) += 9; /* Must be 254 when here */
-  return (uint64_t)uint8korr(pos + 1);
-}
-
-#endif  // FIDO_COMMON_H_
+#endif  // COMMON_H_

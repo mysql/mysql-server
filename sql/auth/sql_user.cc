@@ -3342,7 +3342,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   std::set<LEX_USER *> reset_users;
   std::set<LEX_USER *> mfa_users;
   Userhostpassword_list generated_passwords;
-  std::vector<std::string> server_challenge;
+  server_challenge_info_vector server_challenge;
   DBUG_TRACE;
 
   /*
@@ -3581,7 +3581,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
                                  : pointer_cast<const char *>("")),
               (user->host.length ? user->host.str
                                  : pointer_cast<const char *>("")));
-          acl_user->m_mfa->get_server_challenge(server_challenge);
+          acl_user->m_mfa->get_server_challenge_info(server_challenge);
         }
       }
     }
@@ -3600,15 +3600,20 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
         mem_root_deque<Item *> field_list(thd->mem_root);
         field_list.push_back(
             new Item_string("Server_challenge", 16, system_charset_info));
+        field_list.push_back(
+            new Item_string("Client_plugin", 13, system_charset_info));
         Query_result_send output;
         if (output.send_result_set_metadata(thd, field_list,
                                             Protocol::SEND_NUM_ROWS))
           result = 1;
         mem_root_deque<Item *> item_list(thd->mem_root);
         for (auto sc : server_challenge) {
-          Item *item =
-              new Item_string(sc.c_str(), sc.length(), system_charset_info);
-          item_list.push_back(item);
+          Item *item_challenge = new Item_string(
+              sc.first.c_str(), sc.first.length(), system_charset_info);
+          Item *item_plugin = new Item_string(
+              sc.second.c_str(), sc.second.length(), system_charset_info);
+          item_list.push_back(item_challenge);
+          item_list.push_back(item_plugin);
           if (output.send_data(thd, item_list)) result = 1;
           item_list.clear();
         }

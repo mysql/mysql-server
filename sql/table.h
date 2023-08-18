@@ -2606,6 +2606,7 @@ struct LEX_MFA {
   LEX_CSTRING auth;
   LEX_CSTRING generated_password;
   LEX_CSTRING challenge_response;
+  LEX_CSTRING client_plugin;
   uint nth_factor;
   /*
     The following flags are indicators for the SQL syntax used while
@@ -2643,6 +2644,7 @@ struct LEX_MFA {
     auth = NULL_CSTR;
     generated_password = NULL_CSTR;
     challenge_response = NULL_CSTR;
+    client_plugin = NULL_CSTR;
     nth_factor = 1;
     uses_identified_by_clause = false;
     uses_authentication_string_clause = false;

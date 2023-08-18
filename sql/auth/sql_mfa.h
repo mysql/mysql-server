@@ -36,6 +36,9 @@ enum class nthfactor { NONE = 1, SECOND_FACTOR, THIRD_FACTOR };
 class Multi_factor_auth_list;
 class Multi_factor_auth_info;
 
+using server_challenge_info_vector =
+    std::vector<std::pair<std::string, std::string>>;
+
 /**
   An interface to access information about Multi factor authentication
   methods. This interface represents a chain of authentication plugins
@@ -91,7 +94,7 @@ class I_multi_factor_auth {
   /**
     Fill in server challenge generated as part of initiate registration step.
   */
-  virtual void get_server_challenge(std::vector<std::string> &sc) = 0;
+  virtual void get_server_challenge_info(server_challenge_info_vector &sc) = 0;
   /**
     Get methods.
   */
@@ -131,7 +134,7 @@ class Multi_factor_auth_list : public I_multi_factor_auth {
   void get_info_for_query_rewrite(THD *, LEX_USER *) override;
   void get_generated_passwords(Userhostpassword_list &gp, const char *u,
                                const char *h) override;
-  void get_server_challenge(std::vector<std::string> &sc) override;
+  void get_server_challenge_info(server_challenge_info_vector &sc) override;
 
  private:
   /*
@@ -169,7 +172,7 @@ class Multi_factor_auth_info : public I_multi_factor_auth {
   void get_info_for_query_rewrite(THD *, LEX_USER *) override;
   void get_generated_passwords(Userhostpassword_list &gp, const char *u,
                                const char *h) override;
-  void get_server_challenge(std::vector<std::string> &sc) override;
+  void get_server_challenge_info(server_challenge_info_vector &sc) override;
 
   /* during ALTER USER copy attributes from ACL_USER */
   Multi_factor_auth_info &operator=(Multi_factor_auth_info &new_af);
@@ -195,6 +198,9 @@ class Multi_factor_auth_info : public I_multi_factor_auth {
   const char *get_generated_password_str();
   size_t get_generated_password_len();
 
+  const char *get_client_plugin_str();
+  size_t get_client_plugin_len();
+
   nthfactor get_factor();
   unsigned int get_nth_factor();
   bool is_add_factor();
@@ -210,6 +216,7 @@ class Multi_factor_auth_info : public I_multi_factor_auth {
   void set_auth_str(const char *, size_t);
   void set_plugin_str(const char *, size_t);
   void set_generated_password(const char *, size_t);
+  void set_client_plugin(const char *, size_t);
   void set_factor(nthfactor f);
   void set_passwordless(int v);
   void set_init_registration(bool v);
