@@ -6196,8 +6196,9 @@ int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
       }
     }
   }
+  my_fd.close();
 
- if (ctx->getProperty("BufferUsage2") && prettyStatusMsges2 > 0)
+  if (ctx->getProperty("BufferUsage2") && prettyStatusMsges2 > 0)
     return NDBT_OK;
 
   if (prettyStatusMsges > 0)
