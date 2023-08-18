@@ -7587,18 +7587,16 @@ bool TABLE::setup_partial_update() {
       (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
       mysql_bin_log.is_open() &&
       (thd->variables.option_bits & OPTION_BIN_LOG) != 0 &&
-      log_bin_use_v1_row_events == 0 &&
       thd->is_current_stmt_binlog_format_row();
-  DBUG_PRINT(
-      "info",
-      ("TABLE::setup_partial_update(): logical_diffs=%d "
-       "because binlog_row_value_options=%d binlog.is_open=%d "
-       "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
-       logical_diffs,
-       (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0,
-       mysql_bin_log.is_open(),
-       (thd->variables.option_bits & OPTION_BIN_LOG) != 0,
-       log_bin_use_v1_row_events, thd->is_current_stmt_binlog_format_row()));
+  DBUG_PRINT("info", ("TABLE::setup_partial_update(): logical_diffs=%d "
+                      "because binlog_row_value_options=%d binlog.is_open=%d "
+                      "sql_log_bin=%d rbr=%d",
+                      logical_diffs,
+                      (thd->variables.binlog_row_value_options &
+                       PARTIAL_JSON_UPDATES) != 0,
+                      mysql_bin_log.is_open(),
+                      (thd->variables.option_bits & OPTION_BIN_LOG) != 0,
+                      thd->is_current_stmt_binlog_format_row()));
   return setup_partial_update(logical_diffs);
 }
 

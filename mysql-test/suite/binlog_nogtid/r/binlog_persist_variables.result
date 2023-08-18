@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 114 variables in the table.]
+include/assert.inc [Expect 113 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -90,8 +90,6 @@ SET PERSIST log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_cr
 Warnings:
 Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
-SET PERSIST log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
-ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST log_replica_updates = @@GLOBAL.log_replica_updates;
 ERROR HY000: Variable 'log_replica_updates' is a read only variable
 SET PERSIST log_slave_updates = @@GLOBAL.log_slave_updates;
@@ -329,9 +327,6 @@ RESET PERSIST IF EXISTS log_bin_index;
 Warnings:
 Warning	3615	Variable log_bin_index does not exist in persisted config file
 RESET PERSIST IF EXISTS log_bin_trust_function_creators;
-RESET PERSIST IF EXISTS log_bin_use_v1_row_events;
-Warnings:
-Warning	3615	Variable log_bin_use_v1_row_events does not exist in persisted config file
 RESET PERSIST IF EXISTS log_replica_updates;
 Warnings:
 Warning	3615	Variable log_replica_updates does not exist in persisted config file

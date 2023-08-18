@@ -154,22 +154,6 @@ SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 
-# warning for old format
-SET GLOBAL log_bin_use_v1_row_events = 1;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
-SET @@session.binlog_row_value_options = '';
-SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
-Warnings:
-Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
-
-# no warning for new format
-SET GLOBAL log_bin_use_v1_row_events = 0;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
-SET @@session.binlog_row_value_options = '';
-SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
-
 ---- Setting global value ----
 
 SET @@session.binlog_row_value_options = '';
@@ -211,23 +195,6 @@ SET GLOBAL binlog_row_image = NOBLOB;
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 SET GLOBAL binlog_row_image = MINIMAL;
-SET @@global.binlog_row_value_options = '';
-SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
-
-# warning for old format
-SET GLOBAL log_bin_use_v1_row_events = 1;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
-Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
-SET @@global.binlog_row_value_options = '';
-SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
-Warnings:
-Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
-
-# no warning for new format
-SET GLOBAL log_bin_use_v1_row_events = 0;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 

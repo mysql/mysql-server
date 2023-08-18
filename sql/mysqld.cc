@@ -1382,7 +1382,6 @@ ulong binlog_cache_use = 0, binlog_cache_disk_use = 0;
 ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_replica_timeout = LONG_TIMEOUT;
-bool log_bin_use_v1_row_events = false;
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
@@ -8207,11 +8206,8 @@ static int init_server_components() {
       msg = "the binary log is disabled";
     else if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
       msg = "binlog_format=STATEMENT";
-    else if (log_bin_use_v1_row_events) {
-      msg = "binlog_row_value_options=PARTIAL_JSON";
-      err = ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED;
-    } else if (global_system_variables.binlog_row_image ==
-               BINLOG_ROW_IMAGE_FULL) {
+    else if (global_system_variables.binlog_row_image ==
+             BINLOG_ROW_IMAGE_FULL) {
       msg = "binlog_row_image=FULL";
       err = ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES;
     }
@@ -8220,9 +8216,6 @@ static int init_server_components() {
         case ER_BINLOG_ROW_VALUE_OPTION_IGNORED:
         case ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES:
           LogErr(WARNING_LEVEL, err, msg, "PARTIAL_JSON");
-          break;
-        case ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED:
-          LogErr(WARNING_LEVEL, err, msg);
           break;
         default:
           assert(0); /* purecov: deadcode */
@@ -12686,10 +12679,6 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_MASTER_INFO_FILE:
       push_deprecated_warn_no_replacement(nullptr, "--master-info-file");
-      break;
-    case OPT_LOG_BIN_USE_V1_ROW_EVENTS:
-      push_deprecated_warn_no_replacement(nullptr,
-                                          "--log-bin-use-v1-row-events");
       break;
     case OPT_SLAVE_ROWS_SEARCH_ALGORITHMS:
       push_deprecated_warn_no_replacement(nullptr,

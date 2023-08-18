@@ -7,5 +7,3 @@ Variable_name	log_bin_index
 Value	MYSQLTEST_VARDIR/tmp/something.index
 Variable_name	log_bin_trust_function_creators
 Value	ON
-Variable_name	log_bin_use_v1_row_events
-Value	OFF

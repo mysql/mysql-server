@@ -245,8 +245,6 @@ static ulonglong ndb_latest_received_binlog_epoch = 0;
 extern bool opt_log_replica_updates;
 static bool g_ndb_log_replica_updates;
 
-static bool g_injector_v1_warning_emitted = false;
-
 /*
   @brief Wait until the last committed epoch from the session enters the
          binlog. Wait a maximum of 30 seconds. This wait is necessary in
@@ -4759,16 +4757,6 @@ int ndbcluster_binlog_start() {
     return -1;
   }
 
-  /*
-     Check that v2 events are enabled if log-transaction-id is set
-  */
-  if (opt_ndb_log_transaction_id && log_bin_use_v1_row_events) {
-    ndb_log_error(
-        "--ndb-log-transaction-id requires v2 Binlog row events "
-        "but server is using v1.");
-    return -1;
-  }
-
   ndb_binlog_thread.init();
 
   /**
@@ -6433,22 +6421,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
 
   if (erif_flags != 0) {
     extra_row_info.setFlags(erif_flags);
-    if (likely(!log_bin_use_v1_row_events)) {
-      extra_row_info_ptr = extra_row_info.generateBuffer();
-    } else {
-      /**
-       * Can't put the metadata in a v1 event
-       * Produce 1 warning at most
-       */
-      if (!g_injector_v1_warning_emitted) {
-        log_error(
-            "Injector discarding row event meta data, server is using v1 row "
-            "events. (%u %x)",
-            opt_ndb_log_transaction_id, event_conflict_flags);
-
-        g_injector_v1_warning_emitted = true;
-      }
-    }
+    extra_row_info_ptr = extra_row_info.generateBuffer();
   }
 
   assert(trans.good());

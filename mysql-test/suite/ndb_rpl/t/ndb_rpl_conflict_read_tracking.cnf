@@ -21,7 +21,6 @@ mysqld=,
 log-replica-updates
 ndb-log-apply-status
 ndb-log-transaction-id
-log-bin-use-v1-row-events=false
 ndb-log-empty-update
 
 [mysqld.1.1]

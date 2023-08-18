@@ -15,7 +15,6 @@ let $variable_names = 'master_info_repository', 'relay_log_info_repository', 're
 --source include/skip_by_command_line_option.inc
 
 #####################################################################
-# WL#12926: Deprecate --log_bin_use_v1_row_events                   #
 # WL#11031: Deprecate --relay-log-info-file and --master-info-file  #
 # WL#12892: Deprecate --slave_rows_search_algorithms                #
 # WL#13958 : Deprecate relay_log_info_repository                    #
@@ -44,8 +43,6 @@ SET @@global.relay_log_info_repository="FILE";
 SET @@global.relay_log_info_repository="TABLE";
 
 # check reading deprecated system variables
-SELECT @@global.log_bin_use_v1_row_events;
-SET @@global.log_bin_use_v1_row_events = TRUE;
 SELECT @@global.relay_log_info_file;
 --replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
 SELECT @@global.slave_rows_search_algorithms;
@@ -98,7 +95,7 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
   if ($i == 2) {
-    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
+    --let $rpl_server_parameters = --binlog_format=ROW --sync-relay-log-info=10005 --master-info-repository=TABLE --master-info-file=$mi_file --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --replica-parallel-type=LOGICAL_CLOCK --replica-parallel-workers=0 --binlog-transaction-dependency-tracking=WRITESET_SESSION
   }
 
   if ($i == 1)
@@ -134,8 +131,6 @@ while($i > 0) {
     SET PERSIST binlog_transaction_dependency_tracking=WRITESET_SESSION;
     SET PERSIST binlog_transaction_dependency_tracking=COMMIT_ORDER;
 
-    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-    SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
     --replace_result $rli_file RLI_FILE
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 
@@ -155,7 +150,6 @@ while($i > 0) {
     '--sync-relay-log-info' is deprecated and will be removed in a future release.
     The syntax '--master-info-repository' is deprecated and will be removed in a future release.
     The syntax '--master-info-file' is deprecated and will be removed in a future release.
-    The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
     The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
     The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
     The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.

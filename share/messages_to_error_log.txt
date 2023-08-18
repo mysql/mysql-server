@@ -9362,7 +9362,7 @@ OBSOLETE_ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE
 ER_BINLOG_ROW_VALUE_OPTION_IGNORED
   eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
 
-ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED
+OBSOLETE_ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED
   eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
 
 ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES

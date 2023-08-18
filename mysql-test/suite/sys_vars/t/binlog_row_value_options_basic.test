@@ -132,18 +132,6 @@ SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 
 --echo
---echo # warning for old format
-SET GLOBAL log_bin_use_v1_row_events = 1; # no warning, checked only against global
-SET @@session.binlog_row_value_options = '';
-SET @@session.binlog_row_value_options = 'PARTIAL_JSON'; # warning
-
---echo
---echo # no warning for new format
-SET GLOBAL log_bin_use_v1_row_events = 0;
-SET @@session.binlog_row_value_options = '';
-SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
-
---echo
 --echo ---- Setting global value ----
 --echo
 
@@ -177,18 +165,6 @@ SET GLOBAL binlog_row_image = NOBLOB;
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 SET GLOBAL binlog_row_image = MINIMAL;
-SET @@global.binlog_row_value_options = '';
-SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
-
---echo
---echo # warning for old format
-SET GLOBAL log_bin_use_v1_row_events = 1; # warning
-SET @@global.binlog_row_value_options = '';
-SET @@global.binlog_row_value_options = 'PARTIAL_JSON'; # warning
-
---echo
---echo # no warning for new format
-SET GLOBAL log_bin_use_v1_row_events = 0;
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 

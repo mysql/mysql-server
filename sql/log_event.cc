@@ -10326,73 +10326,65 @@ bool Rows_log_event::write_data_header(Basic_ostream *ostream) {
   });
   int6store(buf + ROWS_MAPID_OFFSET, m_table_id.id());
   int2store(buf + ROWS_FLAGS_OFFSET, m_flags);
-  if (likely(!log_bin_use_v1_row_events)) {
-    /*
-       v2 event, with variable header portion.
-       Determine length of variable header payload(extra_row_info part)
-    */
-    uint extra_row_info_payloadlen = EXTRA_ROW_INFO_HEADER_LENGTH;
-    if (m_extra_row_info.have_ndb_info()) {
-      extra_row_info_payloadlen +=
-          (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length());
-      ;
-    }
+  /*
+     v2 event, with variable header portion.
+     Determine length of variable header payload(extra_row_info part)
+  */
+  uint extra_row_info_payloadlen = EXTRA_ROW_INFO_HEADER_LENGTH;
+  if (m_extra_row_info.have_ndb_info()) {
+    extra_row_info_payloadlen +=
+        (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length());
+  }
 
-    if (m_extra_row_info.have_part()) {
-      extra_row_info_payloadlen +=
-          (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length());
-    }
-    /* Var-size header len includes len itself */
-    int2store(buf + ROWS_VHLEN_OFFSET, extra_row_info_payloadlen);
-    if (wrapper_my_b_safe_write(ostream, buf,
-                                Binary_log_event::ROWS_HEADER_LEN_V2))
+  if (m_extra_row_info.have_part()) {
+    extra_row_info_payloadlen +=
+        (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length());
+  }
+  /* Var-size header len includes len itself */
+  int2store(buf + ROWS_VHLEN_OFFSET, extra_row_info_payloadlen);
+  if (wrapper_my_b_safe_write(ostream, buf,
+                              Binary_log_event::ROWS_HEADER_LEN_V2))
+    return true;
+
+  /* Write var-sized payload, if any */
+  if (m_extra_row_info.have_ndb_info()) {
+    /* Add tag and extra row info */
+    uint8 type_code = static_cast<uint8>(enum_extra_row_info_typecode::NDB);
+    if (wrapper_my_b_safe_write(ostream, &(type_code),
+                                EXTRA_ROW_INFO_TYPECODE_LENGTH))
       return true;
+    if (wrapper_my_b_safe_write(ostream, m_extra_row_info.get_ndb_info(),
+                                m_extra_row_info.get_ndb_length()))
+      return true;
+  }
+  if (m_extra_row_info.have_part()) {
+    uint8 type_code;
+    type_code = static_cast<uint8>(enum_extra_row_info_typecode::PART);
+    uchar partition_buf[5];
+    uint8 extra_part_info_data_len = 0;
+    partition_buf[extra_part_info_data_len++] = type_code;
 
-    /* Write var-sized payload, if any */
-    if (m_extra_row_info.have_ndb_info()) {
-      /* Add tag and extra row info */
-      uint8 type_code = static_cast<uint8>(enum_extra_row_info_typecode::NDB);
-      if (wrapper_my_b_safe_write(ostream, &(type_code),
-                                  EXTRA_ROW_INFO_TYPECODE_LENGTH))
-        return true;
-      if (wrapper_my_b_safe_write(ostream, m_extra_row_info.get_ndb_info(),
-                                  m_extra_row_info.get_ndb_length()))
-        return true;
-    }
-    if (m_extra_row_info.have_part()) {
-      uint8 type_code;
-      type_code = static_cast<uint8>(enum_extra_row_info_typecode::PART);
-      uchar partition_buf[5];
-      uint8 extra_part_info_data_len = 0;
-      partition_buf[extra_part_info_data_len++] = type_code;
+    // partition_id occupies less than 2 bytes
+    // in all the cases because of the current range of allowed number
+    // of partitions 8192 for non-ndb and 12288 for ndb.
+    // So while writing the partition_id it is okay to use 2 bytes for it.
 
-      // partition_id occupies less than 2 bytes
-      // in all the cases because of the current range of allowed number
-      // of partitions 8192 for non-ndb and 12288 for ndb.
-      // So while writing the partition_id it is okay to use 2 bytes for it.
+    int write_partition_id = m_extra_row_info.get_partition_id();
+    int2store(partition_buf + extra_part_info_data_len,
+              static_cast<uint16>(write_partition_id));
+    extra_part_info_data_len += EXTRA_ROW_PART_INFO_VALUE_LENGTH;
 
-      int write_partition_id = m_extra_row_info.get_partition_id();
+    if (get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT) {
+      write_partition_id = m_extra_row_info.get_source_partition_id();
       int2store(partition_buf + extra_part_info_data_len,
                 static_cast<uint16>(write_partition_id));
       extra_part_info_data_len += EXTRA_ROW_PART_INFO_VALUE_LENGTH;
-
-      if (get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT) {
-        write_partition_id = m_extra_row_info.get_source_partition_id();
-        int2store(partition_buf + extra_part_info_data_len,
-                  static_cast<uint16>(write_partition_id));
-        extra_part_info_data_len += EXTRA_ROW_PART_INFO_VALUE_LENGTH;
-      }
-
-      if (wrapper_my_b_safe_write(ostream, partition_buf,
-                                  extra_part_info_data_len))
-        return true;
     }
-  } else {
-    if (wrapper_my_b_safe_write(ostream, buf,
-                                Binary_log_event::ROWS_HEADER_LEN_V1))
+
+    if (wrapper_my_b_safe_write(ostream, partition_buf,
+                                extra_part_info_data_len))
       return true;
   }
-
   return false;
 }
 
@@ -11845,14 +11837,10 @@ void Table_map_log_event::print_primary_key(
 Write_rows_log_event::Write_rows_log_event(
     THD *thd_arg, TABLE *tbl_arg, const mysql::binlog::event::Table_id &tid_arg,
     bool is_transactional, const unsigned char *extra_row_ndb_info)
-    : mysql::binlog::event::Rows_event(
-          log_bin_use_v1_row_events ? mysql::binlog::event::WRITE_ROWS_EVENT_V1
-                                    : mysql::binlog::event::WRITE_ROWS_EVENT),
-      Rows_log_event(
-          thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
-          log_bin_use_v1_row_events ? mysql::binlog::event::WRITE_ROWS_EVENT_V1
-                                    : mysql::binlog::event::WRITE_ROWS_EVENT,
-          extra_row_ndb_info) {
+    : mysql::binlog::event::Rows_event(mysql::binlog::event::WRITE_ROWS_EVENT),
+      Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set,
+                     is_transactional, mysql::binlog::event::WRITE_ROWS_EVENT,
+                     extra_row_ndb_info) {
   common_header->type_code = m_type;
 }
 
@@ -12335,13 +12323,9 @@ void Write_rows_log_event::print(FILE *file,
 Delete_rows_log_event::Delete_rows_log_event(
     THD *thd_arg, TABLE *tbl_arg, const mysql::binlog::event::Table_id &tid,
     bool is_transactional, const uchar *extra_row_ndb_info)
-    : mysql::binlog::event::Rows_event(
-          log_bin_use_v1_row_events ? mysql::binlog::event::DELETE_ROWS_EVENT_V1
-                                    : mysql::binlog::event::DELETE_ROWS_EVENT),
+    : mysql::binlog::event::Rows_event(mysql::binlog::event::DELETE_ROWS_EVENT),
       Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
-                     log_bin_use_v1_row_events
-                         ? mysql::binlog::event::DELETE_ROWS_EVENT_V1
-                         : mysql::binlog::event::DELETE_ROWS_EVENT,
+                     mysql::binlog::event::DELETE_ROWS_EVENT,
                      extra_row_ndb_info),
       mysql::binlog::event::Delete_rows_event() {
   common_header->type_code = m_type;
@@ -12432,9 +12416,7 @@ Update_rows_log_event::get_update_rows_event_type(const THD *thd_arg) {
   mysql::binlog::event::Log_event_type type =
       (thd_arg->variables.binlog_row_value_options != 0
            ? mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT
-           : (log_bin_use_v1_row_events
-                  ? mysql::binlog::event::UPDATE_ROWS_EVENT_V1
-                  : mysql::binlog::event::UPDATE_ROWS_EVENT));
+           : mysql::binlog::event::UPDATE_ROWS_EVENT);
   DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str(type)));
   return type;
 }

@@ -8372,7 +8372,7 @@ ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
 ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED
   eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
 
-ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
+OBSOLETE_ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
   eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
 
 ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES

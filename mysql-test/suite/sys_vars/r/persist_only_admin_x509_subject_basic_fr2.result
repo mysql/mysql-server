@@ -18,9 +18,6 @@ SET PERSIST_ONLY ft_stopword_file = DEFAULT;
 SET PERSIST_ONLY init_file = DEFAULT;
 SET PERSIST_ONLY keyring_operations = DEFAULT;
 SET PERSIST_ONLY lc_messages_dir = DEFAULT;
-SET PERSIST_ONLY log_bin_use_v1_row_events = DEFAULT;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY log_error = DEFAULT;
 SET PERSIST_ONLY pid_file = DEFAULT;
 SET PERSIST_ONLY plugin_dir = DEFAULT;

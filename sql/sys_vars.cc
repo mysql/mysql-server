@@ -2535,27 +2535,6 @@ static Sys_var_bool Sys_sha256_password_proxy_users(
     "check_proxy_users is enabled.",
     GLOBAL_VAR(sha256_password_proxy_users), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static bool check_log_bin_use_v1_row_events(sys_var *, THD *thd, set_var *var) {
-  if (var->save_result.ulonglong_value == 1 &&
-      global_system_variables.binlog_row_value_options != 0)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED,
-                        ER_THD(thd, ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED),
-                        "binlog_row_value_options=PARTIAL_JSON");
-  return false;
-}
-
-static Sys_var_bool Sys_log_bin_use_v1_row_events(
-    "log_bin_use_v1_row_events",
-    "If equal to 1 then version 1 row events are written to a row based "
-    "binary log.  If equal to 0, then the latest version of events are "
-    "written.  "
-    "This option is useful during some upgrades.",
-    NON_PERSIST GLOBAL_VAR(log_bin_use_v1_row_events),
-    CMD_LINE(OPT_ARG, OPT_LOG_BIN_USE_V1_ROW_EVENTS), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_bin_use_v1_row_events),
-    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
-
 static Sys_var_charptr Sys_log_error(
     "log_error", "Error log file",
     READ_ONLY NON_PERSIST GLOBAL_VAR(log_error_dest),
@@ -7070,21 +7049,15 @@ static bool check_binlog_row_value_options(sys_var *self, THD *thd,
         msg = "the binary log is disabled";
       else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
         msg = "binlog_format=STATEMENT";
-      else if (log_bin_use_v1_row_events) {
-        msg = "binlog_row_value_options=PARTIAL_JSON";
-        code = ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
-      } else if (thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL) {
+      else if (thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL) {
         msg = "binlog_row_image=FULL";
         code = ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
       }
     } else {
       if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
         msg = "binlog_format=STATEMENT";
-      else if (log_bin_use_v1_row_events) {
-        msg = "binlog_row_value_options=PARTIAL_JSON";
-        code = ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
-      } else if (global_system_variables.binlog_row_image ==
-                 BINLOG_ROW_IMAGE_FULL) {
+      else if (global_system_variables.binlog_row_image ==
+               BINLOG_ROW_IMAGE_FULL) {
         msg = "binlog_row_image=FULL";
         code = ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
       }
@@ -7103,11 +7076,6 @@ static bool check_binlog_row_value_options(sys_var *self, THD *thd,
               ER_THD(thd,
                      ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES),
               msg, "PARTIAL_JSON");
-          break;
-        case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING, code,
-              ER_THD(thd, ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED), msg);
           break;
         default:
           assert(0); /* purecov: deadcode */

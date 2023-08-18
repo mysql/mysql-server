@@ -23,14 +23,6 @@ Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in 
 SET @@global.relay_log_info_repository="TABLE";
 Warnings:
 Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
-SELECT @@global.log_bin_use_v1_row_events;
-@@global.log_bin_use_v1_row_events
-0
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
-SET @@global.log_bin_use_v1_row_events = TRUE;
-Warnings:
-Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
 SELECT @@global.relay_log_info_file;
 @@global.relay_log_info_file
 relay-log.info
@@ -93,7 +85,6 @@ include/assert_error_log.inc [server: 2, pattern: 'binlog_format' is deprecated 
 '--sync-relay-log-info' is deprecated and will be removed in a future release.
 The syntax '--master-info-repository' is deprecated and will be removed in a future release.
 The syntax '--master-info-file' is deprecated and will be removed in a future release.
-The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
 The syntax '--relay-log-info-repository' is deprecated and will be removed in a future release.
 The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
 The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
@@ -172,8 +163,6 @@ Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will b
 SET PERSIST binlog_transaction_dependency_tracking=COMMIT_ORDER;
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
-ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY relay_log_info_file = "RLI_FILE";
 ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 include/save_error_log_position.inc

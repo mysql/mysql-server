@@ -20,7 +20,6 @@ ndb-cluster-connection-pool=1
 ndb-log-bin=1
 binlog-format=row
 
-log-bin-use-v1-row-events=false
 ndb-log-empty-update
 
 # Enable load data local functionality
