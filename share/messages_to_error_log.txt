@@ -12349,6 +12349,12 @@ ER_COMPONENT_KEYRING_OCI_INVALID_CONFIG_VAR
 ER_WARN_OPTION_RESET_AND_IGNORED_DURING_INITIALIZE
    eng "Ignoring a non-default value for %s during --initialize."
 
+ER_FIREWALL_SCHEDULER_REGISTER_FAILED
+  eng "Automatic registration of the scheduler failed."
+
+ER_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
+  eng "Invalid reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
