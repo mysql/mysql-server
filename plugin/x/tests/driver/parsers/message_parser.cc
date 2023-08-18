@@ -52,7 +52,7 @@ class Error_dumper : public ::google::protobuf::io::ErrorCollector {
   std::string str() { return m_out.str(); }
 };
 
-bool parse_mesage(const std::string &text_message, const std::string &text_name,
+bool parse_message(const std::string &text_message, const std::string &text_name,
                   Message *message, std::string *out_error,
                   const bool allow_partial_messaged) {
   google::protobuf::TextFormat::Parser parser;
@@ -84,7 +84,7 @@ Message *parse_serialize_message(const std::string &text_payload,
                                  const bool allow_partial_messaged) {
   std::unique_ptr<MSG> msg{new MSG()};
 
-  if (!parse_mesage(text_payload, "", msg.get(), out_error,
+  if (!parse_message(text_payload, "", msg.get(), out_error,
                     allow_partial_messaged))
     return {};
 
@@ -202,7 +202,7 @@ Message *get_client_message_from_text(
     break;
   }
 
-  if (!details::parse_mesage(data, name, message, out_error,
+  if (!details::parse_message(data, name, message, out_error,
                              allow_partial_messaged)) {
     delete message;
     return nullptr;
@@ -236,7 +236,7 @@ Message *get_server_message_from_text(
     break;
   }
 
-  if (!details::parse_mesage(data, name, message, out_error,
+  if (!details::parse_message(data, name, message, out_error,
                              allow_partial_messaged)) {
     delete message;
     return nullptr;

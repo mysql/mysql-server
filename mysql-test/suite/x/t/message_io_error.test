@@ -10,7 +10,7 @@
 -->echo #
 # This test ensures that in case of IO error currently parsed protobuf
 # message is discarded by the server. To do so we need to preapre
-# a StmtExecute mesage with two fields "stmt" and "namespace".
+# a StmtExecute message with two fields "stmt" and "namespace".
 #
 # It will create a xprotocol frame with both fields, and its going
 # to send it still, we will transfer successfully only "stmt",

@@ -464,13 +464,13 @@ bool Protocol_impl::send_impl(const Client_message_type_id mid,
                               const Message &msg,
                               ZeroCopyOutputStream *input_stream) {
   CodedOutputStream cos(input_stream);
-  const Header_message_type_id header_mesage_id = mid;
+  const Header_message_type_id header_message_id = mid;
   const int header_message_type_size = sizeof(Header_message_type_id);
   const std::size_t header_whole_message_size =
       details::message_byte_size(msg) + header_message_type_size;
 
   cos.WriteLittleEndian32(header_whole_message_size);
-  cos.WriteRaw(&header_mesage_id, header_message_type_size);
+  cos.WriteRaw(&header_message_id, header_message_type_size);
 
   dispatch_send_message(mid, msg);
 
