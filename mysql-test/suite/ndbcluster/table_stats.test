@@ -3,7 +3,7 @@
 --echo # ###################################################################
 --echo # Show that local table stats are correctly reflecting number of
 --echo # records in table at failure to insert, both with and without trans
---echo # - in particular this shows how the "uncommitted rows" value in Thd_ndb
+--echo # - in particular this shows how the "uncomitted rows" value in Thd_ndb
 --echo #   is handled
 CREATE TABLE t1 (
   a int PRIMARY KEY,

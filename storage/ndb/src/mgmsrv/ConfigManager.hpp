@@ -53,7 +53,7 @@ class ConfigManager : public MgmtThread {
     enum States {
       IDLE = 0,
       PREPARING = 1,
-      COMMITTING = 2,
+      COMITTING = 2,
       ABORT = 3,
       ABORTING = 4
     } m_current_state;

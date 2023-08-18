@@ -252,7 +252,7 @@ bool Ndb_applier::verify_next_epoch(Uint64 next_epoch) const {
   DBUG_TRACE;
 
   const Uint64 current_epoch = m_incoming_epoch.epoch;
-  const bool current_epoch_committed = m_incoming_epoch.committed;
+  const bool current_epoch_comitted = m_incoming_epoch.committed;
   const bool first_epoch = !m_first_epoch_verified;
 
   DBUG_PRINT("info", ("First epoch since applier start: %u", first_epoch));
@@ -261,7 +261,7 @@ bool Ndb_applier::verify_next_epoch(Uint64 next_epoch) const {
                       next_epoch & 0xffffffff, next_epoch));
   DBUG_PRINT("info", ("current_epoch: %llu (%llu/%llu)", current_epoch >> 32,
                       current_epoch & 0xffffffff, current_epoch));
-  DBUG_PRINT("info", ("current_epoch_committed: %d", current_epoch_committed));
+  DBUG_PRINT("info", ("current_epoch_comitted: %d", current_epoch_comitted));
 
   // Analysis of incoming epoch depends on whether it's the first or not
   if (first_epoch) {
@@ -327,7 +327,7 @@ bool Ndb_applier::verify_next_epoch(Uint64 next_epoch) const {
        This is ok if we are retrying - e.g. the
        last epoch was not committed
     */
-    if (current_epoch_committed) {
+    if (current_epoch_comitted) {
       /* This epoch is committed already, why are we replaying it? */
       const auto positions = get_log_positions();
       ndb_log_error(
@@ -352,7 +352,7 @@ bool Ndb_applier::verify_next_epoch(Uint64 next_epoch) const {
      did not commit - in which case it may be a bug in
      transaction retry.
   */
-  if (current_epoch_committed) {
+  if (current_epoch_comitted) {
     return true;
   }
 

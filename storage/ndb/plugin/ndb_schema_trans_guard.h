@@ -36,7 +36,7 @@ class Ndb_schema_trans_guard {
   // it will be aborted when class goes out of scope.
   // NOTE! It's not an error to end a schema trans more than once
   // so there is not much point in keeping more state than this.
-  bool m_committed{false};
+  bool m_comitted{false};
 
  public:
   Ndb_schema_trans_guard(const Thd_ndb *thd_ndb,
@@ -44,7 +44,7 @@ class Ndb_schema_trans_guard {
       : m_thd_ndb(thd_ndb), m_dict(dict) {}
 
   ~Ndb_schema_trans_guard() {
-    if (!m_committed) {
+    if (!m_comitted) {
       abort_trans();
     }
   }

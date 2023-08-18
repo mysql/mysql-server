@@ -91,7 +91,7 @@ INSERT INTO t1 VALUES(1, ""), (2, ""), (3, ""),(4, "");
 --echo # Verify the statements the following statement in different commit
 --echo # window logs correct last_committed
 --echo #
-INSERT INTO t1(c2) VALUES("use max_committed as last_committed");
+INSERT INTO t1(c2) VALUES("use max_comitted as last_committed");
 --let $logical_timestamps= 2 3
 --source include/assert_logical_timestamps.inc
 

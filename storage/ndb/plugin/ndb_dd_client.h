@@ -92,7 +92,7 @@ class Ndb_dd_client {
   // functions in TRANSACTIONAL and STATEMENT scope
   const MDL_savepoint m_save_mdl_locks;
   ulonglong m_save_option_bits{0};
-  bool m_committed{false};
+  bool m_comitted{false};
   bool m_auto_rollback{true};
   // Separate MEM_ROOT to avoid affecting THD::mem_root
   MEM_ROOT m_dd_mem_root;

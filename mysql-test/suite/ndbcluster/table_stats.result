@@ -1,7 +1,7 @@
 # ###################################################################
 # Show that local table stats are correctly reflecting number of
 # records in table at failure to insert, both with and without trans
-# - in particular this shows how the "uncommitted rows" value in Thd_ndb
+# - in particular this shows how the "uncomitted rows" value in Thd_ndb
 #   is handled
 CREATE TABLE t1 (
 a int PRIMARY KEY,

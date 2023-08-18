@@ -1176,7 +1176,7 @@ DROP TABLE t1;
 
 
 --echo #
---echo # BUG #26288: savepoint are not deleted on commit, if the transaction 
+--echo # BUG #26288: savepoint are not deleted on comit, if the transaction 
 --echo # was otherwise empty
 --echo #
 BEGIN;
