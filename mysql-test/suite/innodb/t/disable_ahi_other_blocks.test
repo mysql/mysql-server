@@ -1,0 +1,78 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY
+);
+INSERT INTO t1 (id) VALUES (1);
+
+--let $i=0
+--let $k=4
+while($i < $k){
+  INSERT INTO t1 (id) SELECT (SELECT MAX(id) FROM t1)+id FROM t1;
+  --inc $i
+}
+
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  c1 CHAR(250) NOT NULL DEFAULT 'a',
+  c2 CHAR(250) NOT NULL DEFAULT 'a',
+  c3 CHAR(250) NOT NULL DEFAULT 'a',
+  c4 CHAR(250) NOT NULL DEFAULT 'a',
+  c5 CHAR(250) NOT NULL DEFAULT 'a',
+  c6 CHAR(250) NOT NULL DEFAULT 'a',
+  c7 CHAR(250) NOT NULL DEFAULT 'a',
+  c8 CHAR(250) NOT NULL DEFAULT 'a',
+  c9 CHAR(250) NOT NULL DEFAULT 'a'
+);
+INSERT INTO t2 (id) SELECT id FROM t1;
+
+--let $restart_parameters=restart: --innodb_page_size=4k --innodb_buffer_pool_chunk_size=1048576 --innodb-buffer-pool-instances=1 --innodb-buffer-pool-size=6M
+--source include/restart_mysqld.inc
+
+--echo # Populate the buffer pool with pages
+SELECT COUNT(*) FROM t2;
+
+--echo # Connect now before updating the global system variable
+--connect (conn2,localhost,root,,)
+
+# This is required here because of the `global_system_variables`
+# object which is protected using `LOCK_global_system_variables`
+# mutex. Ongoing update of the global variable will hold the
+# mutex until completion - making the new sessions wait for it
+
+# The code paths where the mutex is acquired:
+# 1. A new session is started:
+#   New session's THD::init (via plugin_thdvar_init) reads object
+# 2. A global variable is updated:
+#   sys_var::update updates the object's members
+
+--connect (conn1,localhost,root,,)
+  SET DEBUG_SYNC='buf_pool_clear_hash_index_will_process_block SIGNAL found_block WAIT_FOR process_block';
+  SET GLOBAL DEBUG="+d,buf_pool_clear_hash_index_check_other_blocks";
+  --send SET GLOBAL innodb_adaptive_hash_index=OFF
+
+--connection conn2
+  SET DEBUG_SYNC='now WAIT_FOR found_block';
+  BEGIN;
+  SELECT COUNT(*) FROM t2 FOR SHARE;
+
+--connection default
+  --echo # Wait for sometime to allow conn2 to bring new pages to the buffer pool
+  --sleep 5
+  SET DEBUG_SYNC='now SIGNAL process_block';
+
+--connection conn1
+  --reap
+
+--connection conn2
+  COMMIT;
+
+--connection default
+SET GLOBAL DEBUG="-d,buf_pool_clear_hash_index_check_other_blocks";
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
