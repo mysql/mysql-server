@@ -30,8 +30,8 @@ source include/restart_mysqld.inc;
 disable_query_log;
 CREATE SCHEMA mtr;
 enable_query_log;
-let $error_pattern =System.*Server upgrade from '50700' to '802..' started.
-System.*Server upgrade from '50700' to '802..' completed.
+let $error_pattern =System.*Server upgrade from '50700' to '803..' started.
+System.*Server upgrade from '50700' to '803..' completed.
 System.*X Plugin ready for connections. Bind-address: .* port: ;
 
 let $ignore_line_count=0;
