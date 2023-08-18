@@ -136,6 +136,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
+  ndb_mgm_set_timeout(h, 2500);
 
   ndbout << "TEST timout check_connection" << endl;
   int errs[] = { 1, 2, 3, -1};
@@ -169,18 +170,20 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
       goto done;
     }
 
-    ndb_mgm_set_timeout(h,2500);
-
     cc= ndb_mgm_check_connection(h);
     if(cc < 0)
       result= NDBT_OK;
     else
+    {
       result= NDBT_FAILED;
+      goto done;
+    }
 
     if(ndb_mgm_is_connected(h))
     {
       ndbout << "FAILED: still connected" << endl;
       result= NDBT_FAILED;
+      goto done;
     }
   }
 
@@ -200,12 +203,12 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   {
     ndbout << "FAILED: didn't get node id" << endl;
     result= NDBT_FAILED;
+    goto done;
   }
   else
     result= NDBT_OK;
 
   ndbout << "TEST end_session" << endl;
-  ndb_mgm_connect(h,0,0,0);
 
   if(ndb_mgm_insert_error(h, mgmd_nodeid, 4, &reply)< 0)
   {
@@ -323,6 +326,16 @@ int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
              << endl;
       result= NDBT_FAILED;
     }
+
+    if (ndb_mgm_is_connected(h))
+    {
+      if (error_ins != 0 && error_ins != 9)
+      {
+        ndbout << "FAILED: is still connected - disconnecting" << endl;
+        result = NDBT_FAILED;
+      }
+      ndb_mgm_disconnect(h);
+    }
   }
 
 done:
@@ -370,6 +383,7 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "failed to insert error " << error_ins << endl;
       result= NDBT_FAILED;
+      goto done;
     }
 
     ndbout << "trying error: " << error_ins << endl;
@@ -383,12 +397,14 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "FAILED: got a ndb_mgm_configuration back" << endl;
       result= NDBT_FAILED;
+      goto done;
     }
 
     if(error_ins!=0 && ndb_mgm_is_connected(h))
     {
       ndbout << "FAILED: is still connected after error" << endl;
       result= NDBT_FAILED;
+      goto done;
     }
 
     if(error_ins!=0 && ndb_mgm_get_latest_error(h)!=ETIMEDOUT)
@@ -400,6 +416,17 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
              << " msg: " << ndb_mgm_get_latest_error_msg(h)
              << endl;
       result= NDBT_FAILED;
+      goto done;
+    }
+
+    if (ndb_mgm_is_connected(h))
+    {
+      if (error_ins != 0)
+      {
+        ndbout << "FAILED: is still connected - disconnecting" << endl;
+        result = NDBT_FAILED;
+      }
+      ndb_mgm_disconnect(h);
     }
   }
 
@@ -503,6 +530,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
     }
+    my_fd.close();
 
     /*
      * events go through a *DIFFERENT* socket than the NdbMgmHandle
@@ -564,6 +592,7 @@ int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "failed to insert error " << error_ins << endl;
       result= NDBT_FAILED;
+      goto done;
     }
 
     ndbout << "trying error: " << error_ins << endl;
@@ -625,6 +654,7 @@ int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "FAILED: is still connected after error" << endl;
       result= NDBT_FAILED;
+      goto done;
     }
 
     ndb_mgm_disconnect(h);
