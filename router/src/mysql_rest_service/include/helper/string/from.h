@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,32 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_FACTORY_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_FACTORY_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_FROM_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_FROM_H_
 
-#include <memory>
+#include "helper/string/generic.h"
 
-#include "mrs/interface/handler_factory.h"
+namespace helper {
 
-namespace mrs {
-namespace rest {
+template <typename String>
+uint64_t to_uint64(const String &str) {
+  return strtoull(string::cstr(str), nullptr, 10);
+}
 
-class HandlerFactory : public mrs::interface::HandlerFactory {
- public:
-  std::unique_ptr<Handler> create_file_handler(
-      Route *r, AuthManager *auth_manager) override;
-  std::unique_ptr<Handler> create_sp_handler(
-      Route *r, AuthManager *auth_manager) override;
-  std::unique_ptr<Handler> create_object_handler(
-      Route *r, AuthManager *auth_manager,
-      mrs::GtidManager *gtid_manager) override;
-  std::unique_ptr<Handler> create_object_metadata_handler(
-      Route *r, AuthManager *auth_manager) override;
-  std::unique_ptr<Handler> create_schema_metadata_handler(
-      RouteSchema *r, AuthManager *auth_manager) override;
-};
+}  // namespace helper
 
-}  // namespace rest
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_FACTORY_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_STRING_FROM_H_

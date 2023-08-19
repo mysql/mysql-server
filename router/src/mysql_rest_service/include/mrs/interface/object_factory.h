@@ -48,14 +48,15 @@ class ObjectFactory {
   using AuthManager = mrs::interface::AuthorizeManager;
   using DbObjectManager = mrs::interface::ObjectManager;
   using MysqlCacheManager = collector::MysqlCacheManager;
+  using GtidManager = mrs::GtidManager;
 
  public:
   virtual ~ObjectFactory() = default;
 
   virtual std::shared_ptr<Object> create_router_object(
       const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
-      MysqlCacheManager *cache, const bool is_ssl,
-      AuthManager *auth_manager) = 0;
+      MysqlCacheManager *cache, const bool is_ssl, AuthManager *auth_manager,
+      GtidManager *gtid_manager) = 0;
   virtual std::shared_ptr<Object> create_router_static_object(
       const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,
       MysqlCacheManager *cache, const bool is_ssl,

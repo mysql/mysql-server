@@ -25,6 +25,7 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/filter_object_generator.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/interface/query_retry.h"
 
 #include "mysqlrouter/mysql_session.h"
@@ -39,8 +40,8 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
 
  public:
   QueryRetryOnRW(collector::MysqlCacheManager *cache, CachedSession &session,
-                 FilterObjectGenerator &fog, uint64_t wait_gtid_timeout,
-                 bool query_has_gtid_check);
+                 GtidManager *gtid_manager, FilterObjectGenerator &fog,
+                 uint64_t wait_gtid_timeout, bool query_has_gtid_check);
 
   void before_query() override;
   mysqlrouter::MySQLSession *get_session() override;
@@ -48,7 +49,9 @@ class QueryRetryOnRW : public mrs::interface::QueryRetry {
   bool should_retry(const uint64_t affected) const override;
 
  private:
+  bool check_gtid(const std::string &gtid);
   CachedSession &session_;
+  GtidManager *gtid_manager_;
   collector::MysqlCacheManager *cache_;
   FilterObjectGenerator &fog_;
   mutable bool is_retry_{false};

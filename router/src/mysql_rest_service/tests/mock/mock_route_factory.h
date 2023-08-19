@@ -38,7 +38,7 @@ class MockRouteFactory : public mrs::interface::ObjectFactory {
   MOCK_METHOD(std::shared_ptr<Route>, create_router_object,
               (const DbObject &pe, std::shared_ptr<RouteSchema> schema,
                MysqlCacheManager *cache, const bool is_ssl,
-               AuthManager *auth_manager),
+               AuthManager *auth_manager, GtidManager *gtid_manager),
               (override));
   MOCK_METHOD(std::shared_ptr<Route>, create_router_static_object,
               (const ContentFile &pe, std::shared_ptr<RouteSchema> schema,

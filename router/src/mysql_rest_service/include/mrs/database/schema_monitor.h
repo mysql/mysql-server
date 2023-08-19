@@ -34,6 +34,7 @@
 #include "mrs/authentication/authorize_manager.h"
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
 
@@ -46,7 +47,8 @@ class SchemaMonitor {
                 collector::MysqlCacheManager *cache,
                 mrs::ObjectManager *dbobject_manager,
                 authentication::AuthorizeManager *auth_manager,
-                mrs::observability::EntitiesManager *entities_manager);
+                mrs::observability::EntitiesManager *entities_manager,
+                mrs::GtidManager *gtid_manager);
   ~SchemaMonitor();
 
   void start();
@@ -68,6 +70,7 @@ class SchemaMonitor {
   mrs::ObjectManager *dbobject_manager_;
   mrs::authentication::AuthorizeManager *auth_manager_;
   mrs::observability::EntitiesManager *entities_manager_;
+  mrs::GtidManager *gtid_manager_;
   bool running_{false};
   Waitable waitable_{this};
 };

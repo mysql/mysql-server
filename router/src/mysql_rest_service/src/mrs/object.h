@@ -33,6 +33,7 @@
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/database/entry/object.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/object_schema.h"
@@ -54,6 +55,7 @@ class Object : public std::enable_shared_from_this<Object>,
   Object(const EntryDbObject &pe, RouteSchemaPtr schema,
          collector::MysqlCacheManager *cache, const bool is_ssl,
          mrs::interface::AuthorizeManager *auth_manager,
+         mrs::GtidManager *gtid_manager,
          std::shared_ptr<HandlerFactory> handler_factory,
          std::shared_ptr<QueryFactory> query_factory);
   ~Object() override;
@@ -118,6 +120,7 @@ class Object : public std::enable_shared_from_this<Object>,
   std::unique_ptr<Handler> handle_metadata_;
   uint32_t access_flags_;
   mrs::interface::AuthorizeManager *auth_manager_;
+  mrs::GtidManager *gtid_manager_;
   std::shared_ptr<HandlerFactory> handler_factory_;
   std::shared_ptr<QueryFactory> query_factory_;
 };

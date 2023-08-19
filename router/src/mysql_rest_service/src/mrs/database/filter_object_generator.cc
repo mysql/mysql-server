@@ -138,6 +138,12 @@ FilterObjectGenerator::FilterObjectGenerator(
       wait_timeout_{wait_timeout},
       use_wait_in_where_{use_wait_in_where} {}
 
+void FilterObjectGenerator::reconfigure(uint64_t wait_timeout,
+                                        bool use_wait_in_where) {
+  wait_timeout_ = wait_timeout;
+  use_wait_in_where_ = use_wait_in_where;
+}
+
 mysqlrouter::sqlstring FilterObjectGenerator::get_result() const {
   mysqlrouter::sqlstring tmp;
   tmp.append_preformatted(where_);

@@ -44,9 +44,9 @@ HandlerPtr HandlerFactory::create_sp_handler(Route *r,
   return HandlerPtr{new HandlerSP(r, auth_manager)};
 }
 
-HandlerPtr HandlerFactory::create_object_handler(Route *r,
-                                                 AuthManager *auth_manager) {
-  return HandlerPtr{new HandlerTable(r, auth_manager)};
+HandlerPtr HandlerFactory::create_object_handler(
+    Route *r, AuthManager *auth_manager, mrs::GtidManager *gtid_manager) {
+  return HandlerPtr{new HandlerTable(r, auth_manager, gtid_manager)};
 }
 
 HandlerPtr HandlerFactory::create_object_metadata_handler(

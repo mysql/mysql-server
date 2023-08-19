@@ -39,7 +39,8 @@ class ObjectFactory : public interface::ObjectFactory {
   std::shared_ptr<Object> create_router_object(
       const DbObject &pe, std::shared_ptr<ObjectSchema> schema,
       collector::MysqlCacheManager *cache, const bool is_ssl,
-      interface::AuthorizeManager *auth_manager) override;
+      interface::AuthorizeManager *auth_manager,
+      GtidManager *gtid_manager) override;
 
   std::shared_ptr<Object> create_router_static_object(
       const ContentFile &pe, std::shared_ptr<ObjectSchema> schema,

@@ -46,6 +46,7 @@
 #include <helper/plugin_monitor.h>
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/schema_monitor.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/object_manager.h"
 #include "mrs/observability/entities_manager.h"
 #include "mrs/router_observation_entities.h"
@@ -116,14 +117,16 @@ struct MrdsModule {
   const ::mrs::Configuration &configuration;
   const std::string jwt_secret;
   collector::MysqlCacheManager mysql_connection_cache{configuration};
+  mrs::GtidManager gtid_manager;
   mrs::authentication::AuthorizeManager authentication{
       &mysql_connection_cache, configuration.jwt_secret_};
-  mrs::ObjectManager mrds_object_manager{
-      &mysql_connection_cache, configuration.is_https_, &authentication};
+  mrs::ObjectManager mrds_object_manager{&mysql_connection_cache,
+                                         configuration.is_https_,
+                                         &authentication, &gtid_manager};
   mrs::observability::EntitiesManager entities_manager;
   mrs::database::SchemaMonitor mrds_monitor{
-      configuration, &mysql_connection_cache, &mrds_object_manager,
-      &authentication, &entities_manager};
+      configuration,   &mysql_connection_cache, &mrds_object_manager,
+      &authentication, &entities_manager,       &gtid_manager};
 };
 
 static std::string get_router_name(const mysql_harness::Config *config) {

@@ -45,6 +45,8 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_helper_plugin_monitor.cc
     ./test_helper_string.cc
     ./test_helper_jwt.cc
+    ./test_helper_gtid.cc
+    ./test_mrs_gtid_manager.cc
     ./test_http_utilities.cc
     ./test_rest_handler_authorize.cc
     ./test_rest_handler_object.cc

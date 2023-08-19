@@ -28,15 +28,13 @@
 #include <cstdint>
 #include <string>
 
-namespace helper {
+#include "helper/string/generic.h"
 
-inline bool is_empty(const std::string &str) { return str.empty(); }
-inline bool is_empty(const char *str) { return *str == 0; }
-inline const char *cstr(const char *str) { return str; }
-inline const char *cstr(const std::string &str) { return str.c_str(); }
+namespace helper {
 
 template <typename String1, typename String2>
 bool contains(const String1 &value, const String2 &sst) {
+  using namespace helper::string;
   return nullptr != strstr(cstr(value), cstr(sst));
 }
 
@@ -67,6 +65,7 @@ inline bool index(const char *value, const char *inside, uint32_t *idx) {
 
 template <typename String1, typename String2>
 bool starts_with(const String1 &value, const String2 &sst) {
+  using namespace helper::string;
   if (is_empty(sst)) return false;
 
   uint32_t idx;

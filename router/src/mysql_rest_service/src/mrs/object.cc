@@ -44,6 +44,7 @@ using Fields = Object::Fields;
 Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
                collector::MysqlCacheManager *cache, const bool is_ssl,
                mrs::interface::AuthorizeManager *auth_manager,
+               mrs::GtidManager *gtid_manager,
                std::shared_ptr<HandlerFactory> handler_factory,
                std::shared_ptr<QueryFactory> query_factory)
     : schema_{schema},
@@ -51,6 +52,7 @@ Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
       cache_{cache},
       is_ssl_{is_ssl},
       auth_manager_{auth_manager},
+      gtid_manager_{gtid_manager},
       handler_factory_{handler_factory},
       query_factory_{query_factory} {
   schema_->route_register(this);
@@ -80,8 +82,8 @@ void Object::turn(const State state) {
 }
 
 void Object::handlers_for_table() {
-  auto handler_obj =
-      handler_factory_->create_object_handler(this, auth_manager_);
+  auto handler_obj = handler_factory_->create_object_handler(
+      this, auth_manager_, gtid_manager_);
   auto handler_meta =
       handler_factory_->create_object_metadata_handler(this, auth_manager_);
 

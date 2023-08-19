@@ -31,7 +31,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-static bool expect_single_bool_value(
+static bool expect_single_row_bool_value(
     std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> row,
     const bool default_value = false) {
   if (row->size()) {
@@ -41,13 +41,38 @@ static bool expect_single_bool_value(
   return default_value;
 }
 
+static std::vector<std::string> expect_single_row_array_strings(
+    std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> row) {
+  if (row->size()) {
+    return mysql_harness::split_string((*row)[0], ',', false);
+  }
+
+  return {};
+}
+
+GtidSets get_gtid_executed(mysqlrouter::MySQLSession *session) {
+  GtidSets result;
+  mysqlrouter::sqlstring get_gtids{"select @@GLOBAL.gtid_executed"};
+  auto gtidsets =
+      expect_single_row_array_strings(session->query_one(get_gtids));
+
+  for (const auto &gtidset : gtidsets) {
+    GtidSet set;
+
+    if (!set.parse(gtidset)) continue;
+    result.push_back(set);
+  }
+
+  return result;
+}
+
 bool wait_gtid_executed(mysqlrouter::MySQLSession *session,
                         const mysqlrouter::sqlstring &gtid, uint64_t timeout) {
   mysqlrouter::sqlstring check_gtid{
       "SELECT 0=WAIT_FOR_EXECUTED_GTID_SET(?, ?)"};
   check_gtid << gtid << timeout;
   log_debug("query: %s", check_gtid.str().c_str());
-  return expect_single_bool_value(session->query_one(check_gtid));
+  return expect_single_row_bool_value(session->query_one(check_gtid));
 }
 
 bool is_gtid_executed(mysqlrouter::MySQLSession *session,
@@ -56,7 +81,7 @@ bool is_gtid_executed(mysqlrouter::MySQLSession *session,
       "SELECT GTID_SUBSET(?, @@GLOBAL.gtid_executed)"};
   check_gtid << gtid;
   log_debug("query: %s", check_gtid.str().c_str());
-  return expect_single_bool_value(session->query_one(check_gtid));
+  return expect_single_row_bool_value(session->query_one(check_gtid));
 }
 
 void throw_if_not_gtid_executed(mysqlrouter::MySQLSession *session,
