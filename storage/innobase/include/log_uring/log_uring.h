@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "log_uring/define.h"
 
-
 bool is_enable_log_uring();
 bool is_enable_io_stat();
 

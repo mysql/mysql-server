@@ -1,12 +1,12 @@
 #include "log_uring/log_uring.h"
 #include "log_uring/xlog.h"
-#include "log_uring/iouring.h"
 #include "log_uring/duration.h"
-#include "mysql/components/services/log_builtins.h"
-#include "mysqld_error.h"
 #include <thread>
 #include <iostream>
-
+#ifdef __MYSQLD__
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
+#endif
 bool enable_log_uring = false;
 bool enable_io_stat = false;
 
