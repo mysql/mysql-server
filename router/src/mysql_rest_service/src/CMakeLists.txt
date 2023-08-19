@@ -62,11 +62,11 @@ ADD_LIBRARY(mysql_rest_service_db
   mrs/database/helper/query.cc
   mrs/database/helper/query_table_columns.cc
   mrs/database/helper/query_audit_log_maxid.cc
-  mrs/database/helper/object_query.cc
   mrs/database/helper/query_retry_on_rw.cc
-  mrs/database/helper/object_checksum.cc
   mrs/database/helper/query_gtid_executed.cc
   mrs/database/helper/query_faults.cc
+  mrs/database/helper/object_query.cc
+  mrs/database/helper/object_checksum.cc
 )
 
 TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_db

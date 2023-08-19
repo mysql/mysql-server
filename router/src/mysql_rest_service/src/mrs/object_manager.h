@@ -32,6 +32,7 @@
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/object_factory.h"
@@ -60,9 +61,11 @@ class ObjectManager : public mrs::interface::ObjectManager {
  public:
   ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
                 mrs::interface::AuthorizeManager *auth_manager,
+                mrs::GtidManager *gtid_manager,
                 std::shared_ptr<::mrs::interface::ObjectFactory> factory);
   ObjectManager(collector::MysqlCacheManager *cache, const bool is_ssl,
-                mrs::interface::AuthorizeManager *auth_manager);
+                mrs::interface::AuthorizeManager *auth_manager,
+                mrs::GtidManager *gtid_manager);
   ~ObjectManager() override;
 
   void turn(const State state, const std::string &options) override;
@@ -88,6 +91,7 @@ class ObjectManager : public mrs::interface::ObjectManager {
   bool is_ssl_;
   State state_{stateOff};
   mrs::interface::AuthorizeManager *auth_manager_;
+  mrs::GtidManager *gtid_manager_;
   std::shared_ptr<mrs::interface::ObjectFactory> factory_;
   std::vector<std::shared_ptr<interface::RestHandler>> custom_paths_;
 };

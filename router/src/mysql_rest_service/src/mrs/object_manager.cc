@@ -97,16 +97,19 @@ PluginOptions parse_json_options(const std::string &options) {
 ObjectManager::ObjectManager(
     collector::MysqlCacheManager *cache, const bool is_ssl,
     mrs::interface::AuthorizeManager *auth_manager,
+    mrs::GtidManager *gtid_manager,
     std::shared_ptr<::mrs::interface::ObjectFactory> factory)
     : cache_{cache},
       is_ssl_{is_ssl},
       auth_manager_{auth_manager},
+      gtid_manager_{gtid_manager},
       factory_{factory} {}
 
 ObjectManager::ObjectManager(collector::MysqlCacheManager *cache,
                              const bool is_ssl,
-                             mrs::interface::AuthorizeManager *auth_manager)
-    : ObjectManager(cache, is_ssl, auth_manager,
+                             mrs::interface::AuthorizeManager *auth_manager,
+                             mrs::GtidManager *gtid_manager)
+    : ObjectManager(cache, is_ssl, auth_manager, gtid_manager,
                     std::make_shared<mrs::ObjectFactory>()) {}
 
 ObjectManager::~ObjectManager() {
@@ -238,7 +241,7 @@ void ObjectManager::handle_new_route(const DbObject &pe) {
   if (pe.deleted) return;
   auto schema = handle_schema(pe);
   auto route = factory_->create_router_object(pe, schema, cache_, is_ssl_,
-                                              auth_manager_);
+                                              auth_manager_, gtid_manager_);
 
   route->turn(state_);
 

@@ -49,6 +49,8 @@ class FilterObjectGenerator {
   FilterObjectGenerator(std::shared_ptr<database::entry::Object> object = {},
                         bool joins_allowed = false, uint64_t wait_timeout = 0,
                         bool use_wait_in_where = true);
+
+  void reconfigure(uint64_t wait_timeout = 0, bool use_wait_in_where = true);
   void parse(const Document &doc);
   void parse(const std::string &filter_query);
   mysqlrouter::sqlstring get_result() const;

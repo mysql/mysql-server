@@ -24,9 +24,27 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_TO_STRING_H_
 
+#include <optional>
+
 namespace helper {
 
+const std::string k_none{"none"};
+const std::string k_true{"true"};
+const std::string k_false{"false"};
+
+inline const std::string &to_string(const bool b) {
+  return b ? k_true : k_false;
+}
+
 inline const char *to_cstr(const bool b) { return b ? "true" : "false"; }
+
+template <typename Type>
+std::string to_string(const std::optional<Type> &v) {
+  using std::to_string;
+  if (!v.has_value()) return k_none;
+
+  return to_string(v.value());
+}
 
 }  // namespace helper
 

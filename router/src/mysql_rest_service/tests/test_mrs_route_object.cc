@@ -125,7 +125,8 @@ class RouteObjectTests : public Test {
 
     sut_ = std::make_shared<mrs::Object>(
         obj, mock_route_schema_, &mock_mysqlcache_, is_https,
-        &mock_auth_manager_, mock_handler_factory_, mock_query_factory_);
+        &mock_auth_manager_, nullptr, mock_handler_factory_,
+        mock_query_factory_);
     ASSERT_EQ(sut_.get(), register_argument);
   }
 
@@ -316,7 +317,7 @@ TEST_F(RouteObjectTests,
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
   EXPECT_CALL(*mock_handler_factory_,
-              create_object_handler(sut_.get(), &mock_auth_manager_));
+              create_object_handler(sut_.get(), &mock_auth_manager_, _));
   EXPECT_CALL(*mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
@@ -331,14 +332,14 @@ TEST_F(RouteObjectTests, second_activation_recreates_handler) {
   make_sut(pe);
 
   EXPECT_CALL(*mock_handler_factory_,
-              create_object_handler(sut_.get(), &mock_auth_manager_));
+              create_object_handler(sut_.get(), &mock_auth_manager_, _));
   EXPECT_CALL(*mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
   verifyAndClearMocks({mock_handler_factory_.get()});
 
   EXPECT_CALL(*mock_handler_factory_,
-              create_object_handler(sut_.get(), &mock_auth_manager_));
+              create_object_handler(sut_.get(), &mock_auth_manager_, _));
   EXPECT_CALL(*mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);
@@ -354,7 +355,7 @@ TEST_F(RouteObjectTests, get_cached_columns) {
   make_sut(pe);
 
   EXPECT_CALL(*mock_handler_factory_,
-              create_object_handler(sut_.get(), &mock_auth_manager_));
+              create_object_handler(sut_.get(), &mock_auth_manager_, _));
   EXPECT_CALL(*mock_handler_factory_,
               create_object_metadata_handler(sut_.get(), &mock_auth_manager_));
   sut_->turn(mrs::stateOn);

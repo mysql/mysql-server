@@ -33,6 +33,13 @@ namespace database {
 
 using MySQLSession = mysqlrouter::MySQLSession;
 using sqlstring = mysqlrouter::sqlstring;
+using TCPAddress = mysql_harness::TCPAddress;
+using ConnectionParameters =
+    collector::CountedMySQLSession::ConnectionParameters;
+
+static TCPAddress get_tcpaddr(const ConnectionParameters &c) {
+  return {c.conn_opts.host, static_cast<uint16_t>(c.conn_opts.port)};
+}
 
 static bool is_rw(collector::MySQLConnection connection) {
   return connection == collector::kMySQLConnectionMetadataRW ||
@@ -41,10 +48,12 @@ static bool is_rw(collector::MySQLConnection connection) {
 
 QueryRetryOnRW::QueryRetryOnRW(collector::MysqlCacheManager *cache,
                                CachedSession &session,
+                               GtidManager *gtid_manager,
                                FilterObjectGenerator &fog,
                                uint64_t wait_gtid_timeout,
                                bool query_has_gtid_check)
     : session_{session},
+      gtid_manager_{gtid_manager},
       cache_{cache},
       fog_{fog},
       wait_gtid_timeout_{wait_gtid_timeout},
@@ -55,8 +64,19 @@ QueryRetryOnRW::QueryRetryOnRW(collector::MysqlCacheManager *cache,
 }
 
 void QueryRetryOnRW::before_query() {
-  if (query_has_gtid_check_) return;
   if (!fog_.has_asof()) return;
+
+  if (check_gtid(gtid_)) {
+    fog_.reset(FilterObjectGenerator::Clear::kAsof);
+
+    // Just to block retry
+    query_has_gtid_check_ = false;
+    return;
+  }
+
+  if (query_has_gtid_check_) {
+    return;
+  }
 
   if (!wait_gtid_executed(session_.get(), gtid_, wait_gtid_timeout_)) {
     if (is_rw(cache_->get_type(session_))) throw_rest_error_asof_timeout();
@@ -65,7 +85,10 @@ void QueryRetryOnRW::before_query() {
 
     is_retry_ = true;
     before_query();
+    return;
   }
+  auto addr = get_tcpaddr(session_->get_connection_parameters());
+  gtid_manager_->remember(addr, {gtid_.str()});
 }
 
 mysqlrouter::MySQLSession *QueryRetryOnRW::get_session() {
@@ -94,6 +117,24 @@ bool QueryRetryOnRW::should_retry(const uint64_t affected) const {
     return !session_.empty();
   }
   // There was not timeout
+  return false;
+}
+
+bool QueryRetryOnRW::check_gtid(const std::string &gtid_str) {
+  mrs::database::Gtid gtid{gtid_str};
+  auto addr = get_tcpaddr(session_->get_connection_parameters());
+
+  for (int retry = 0; retry < 2; ++retry) {
+    auto result = gtid_manager_->is_executed_on_server(addr, gtid);
+
+    if (result == mrs::GtidAction::k_needs_update) {
+      auto gtidsets = get_gtid_executed(session_.get());
+      gtid_manager_->reinitialize(addr, gtidsets);
+      continue;
+    }
+    return result == mrs::GtidAction::k_is_on_server ? true : false;
+  }
+
   return false;
 }
 

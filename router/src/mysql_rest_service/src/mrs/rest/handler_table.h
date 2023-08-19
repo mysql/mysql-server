@@ -31,6 +31,7 @@
 
 #include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/object_row_ownership.h"
+#include "mrs/gtid_manager.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/handler.h"
 
@@ -44,7 +45,8 @@ class HandlerTable : public Handler {
   using Route = mrs::interface::Object;
 
  public:
-  HandlerTable(Route *route, mrs::interface::AuthorizeManager *auth_manager);
+  HandlerTable(Route *route, mrs::interface::AuthorizeManager *auth_manager,
+               mrs::GtidManager *gtid_manager = nullptr);
 
   Authorization requires_authentication() const override;
   UniversalId get_service_id() const override;
@@ -61,6 +63,7 @@ class HandlerTable : public Handler {
 
   uint32_t get_access_rights() const override;
 
+  mrs::GtidManager *gtid_manager_;
   Route *route_;
 
  private:
@@ -69,7 +72,7 @@ class HandlerTable : public Handler {
       const HttpUri &requests_uri);
   std::string get_path_after_object_name(const HttpUri &requests_uri);
   std::string get_rest_query_parameter(HttpUri &requests_uri);
-  std::string get_most_relevant_gtid(::mysqlrouter::MySQLSession *session);
+  std::string get_most_relevant_gtid(const std::vector<std::string> &gtids);
 
   mrs::database::ObjectRowOwnership row_ownership_info(
       rest::RequestContext *ctxt,

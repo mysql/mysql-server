@@ -23,11 +23,19 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_GTID_EXECUTED_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_QUERY_GTID_EXECUTED_H_
 
+#include <optional>
+
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
+#include "helper/string/from.h"
+#include "mrs/database/entry/universal_id.h"
+#include "mrs/database/helper/gtid.h"
+
 namespace mrs {
 namespace database {
+
+GtidSets get_gtid_executed(mysqlrouter::MySQLSession *session);
 
 bool wait_gtid_executed(mysqlrouter::MySQLSession *session,
                         const mysqlrouter::sqlstring &gtid, uint64_t timeout);

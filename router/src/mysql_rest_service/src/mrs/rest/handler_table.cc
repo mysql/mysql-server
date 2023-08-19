@@ -69,6 +69,11 @@ using SqlStrings = std::vector<sqlstring>;
 using Url = helper::http::Url;
 using rapidjson::StringRef;
 
+mysql_harness::TCPAddress get_tcpaddr(
+    const collector::CountedMySQLSession::ConnectionParameters &c) {
+  return {c.conn_opts.host, static_cast<uint16_t>(c.conn_opts.port)};
+}
+
 mysqlrouter::sqlstring rest_param_to_sql_value(
     const mrs::database::entry::Column &col, const std::string &value) {
   using helper::get_type_inside_text;
@@ -151,9 +156,11 @@ using HttpResult = Handler::HttpResult;
 // return supported Authentication methods for given service (Shouldn't be in
 // review)
 HandlerTable::HandlerTable(Route *route,
-                           mrs::interface::AuthorizeManager *auth_manager)
+                           mrs::interface::AuthorizeManager *auth_manager,
+                           mrs::GtidManager *gtid_manager)
     : Handler(route->get_rest_url(), route->get_rest_path(),
               route->get_options(), auth_manager),
+      gtid_manager_{gtid_manager},
       route_{route} {}
 
 void HandlerTable::authorization(rest::RequestContext *ctxt) {
@@ -241,7 +248,10 @@ HttpResult HandlerTable::handle_get(rest::RequestContext *ctxt) {
       database::QueryRestTable rest{};
 
       fog.parse(uri_param.get_query_parameter("q"));
-      database::QueryRetryOnRW query_retry{route_->get_cache(), session, fog,
+      database::QueryRetryOnRW query_retry{route_->get_cache(),
+                                           session,
+                                           gtid_manager_,
+                                           fog,
                                            get_options().query.wait,
                                            get_options().query.embed_wait};
 
@@ -335,11 +345,18 @@ HttpResult HandlerTable::handle_post(
 
   Counter<kEntityCounterRestAffectedItems>::increment();
 
+  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
+  if (gtids.size()) {
+    auto addr = get_tcpaddr(session->get_connection_parameters());
+    for (auto &gtid : gtids) {
+      gtid_manager_->remember(addr, {gtid});
+    }
+  }
+
   if (!pk.empty()) {
     database::QueryRestTableSingleRow fetch_one;
-    std::string gtid{get_options().metadata.gtid
-                         ? get_most_relevant_gtid(session.get())
-                         : ""};
+    std::string gtid{get_options().metadata.gtid ? get_most_relevant_gtid(gtids)
+                                                 : ""};
 
     fetch_one.query_entries(session.get(), object,
                             database::ObjectFieldFilter::from_object(*object),
@@ -372,6 +389,7 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
   auto object = route_->get_cached_object();
   auto session = get_session(ctxt->sql_session_cache.get(), route_->get_cache(),
                              MySQLConnection::kMySQLConnectionUserdataRW);
+  auto addr = get_tcpaddr(session->get_connection_parameters());
 
   uint64_t count = 0;
 
@@ -388,6 +406,21 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
                                         get_options().query.embed_wait);
 
     fog.parse(query);
+
+    if (fog.has_asof()) {
+      for (int retry = 0; retry < 2; ++retry) {
+        auto result =
+            gtid_manager_->is_executed_on_server(addr, {fog.get_asof()});
+        if (result == mrs::GtidAction::k_needs_update) {
+          auto gtidsets = database::get_gtid_executed(session.get());
+          gtid_manager_->reinitialize(addr, gtidsets);
+          continue;
+        }
+        if (result == mrs::GtidAction::k_is_on_server) {
+          fog.reset(database::FilterObjectGenerator::Clear::kAsof);
+        }
+      }
+    }
 
     if (!get_options().query.embed_wait && fog.has_asof()) {
       auto gtid = fog.get_asof();
@@ -412,13 +445,19 @@ HttpResult HandlerTable::handle_delete(rest::RequestContext *ctxt) {
     }
   }
 
+  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
+  if (gtids.size()) {
+    for (auto &gtid : gtids) {
+      gtid_manager_->remember(addr, {gtid});
+    }
+  }
+
   helper::json::SerializerToText stt;
   {
     auto obj = stt.add_object();
     obj->member_add_value("itemsDeleted", count);
 
     if (get_options().metadata.gtid) {
-      auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
       if (count && !gtids.empty()) {
         auto metadata = obj->member_add_object("_metadata");
         metadata->member_add_value("gtid", gtids[0]);
@@ -469,9 +508,17 @@ HttpResult HandlerTable::handle_put(rest::RequestContext *ctxt) {
 
   Counter<kEntityCounterRestAffectedItems>::increment(updater.affected());
 
+  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
+  if (gtids.size()) {
+    auto addr = get_tcpaddr(session->get_connection_parameters());
+    for (auto &gtid : gtids) {
+      gtid_manager_->remember(addr, {gtid});
+    }
+  }
+
   database::QueryRestTableSingleRow fetch_one;
-  std::string gtid{
-      get_options().metadata.gtid ? get_most_relevant_gtid(session.get()) : ""};
+  std::string gtid{get_options().metadata.gtid ? get_most_relevant_gtid(gtids)
+                                               : ""};
 
   fetch_one.query_entries(session.get(), object,
                           database::ObjectFieldFilter::from_object(*object), pk,
@@ -514,8 +561,7 @@ mrs::database::ObjectRowOwnership HandlerTable::row_ownership_info(
 }
 
 std::string HandlerTable::get_most_relevant_gtid(
-    ::mysqlrouter::MySQLSession *session) {
-  auto gtids = session->get_session_tracker_data(SESSION_TRACK_GTIDS);
+    const std::vector<std::string> &gtids) {
   for (auto &g : gtids) {
     log_debug("Received gtid: %s", g.c_str());
   }

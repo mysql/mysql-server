@@ -50,12 +50,14 @@ SchemaMonitor::SchemaMonitor(
     const mrs::Configuration &configuration,
     collector::MysqlCacheManager *cache, mrs::ObjectManager *dbobject_manager,
     authentication::AuthorizeManager *auth_manager,
-    mrs::observability::EntitiesManager *entities_manager)
+    mrs::observability::EntitiesManager *entities_manager,
+    mrs::GtidManager *gtid_manager)
     : configuration_{configuration},
       cache_{cache},
       dbobject_manager_{dbobject_manager},
       auth_manager_{auth_manager},
-      entities_manager_{entities_manager} {}
+      entities_manager_{entities_manager},
+      gtid_manager_{gtid_manager} {}
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
@@ -99,8 +101,10 @@ void SchemaMonitor::run() {
       content_file_fetcher->query_entries(session.get());
 
       if (turn_state->was_changed()) {
-        dbobject_manager_->turn(turn_state->get_state(),
-                                turn_state->get_json_data());
+        auto global_json_config = turn_state->get_json_data();
+        dbobject_manager_->turn(turn_state->get_state(), global_json_config);
+        gtid_manager_->configure(global_json_config);
+
         log_debug("route turn=%s, changed=%s",
                   (turn_state->get_state() == stateOn ? "on" : "off"),
                   turn_state->was_changed() ? "yes" : "no");

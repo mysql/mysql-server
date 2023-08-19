@@ -59,8 +59,9 @@ class RouteManagerTests : public Test {
   void SetUp() override {
     const bool k_is_ssl = true;
     mock_route_factory_ = std::make_shared<MockRouteFactory>();
-    sut_.reset(new mrs::ObjectManager(
-        &mock_mysqlcache_, k_is_ssl, &mock_auth_manager_, mock_route_factory_));
+    sut_.reset(new mrs::ObjectManager(&mock_mysqlcache_, k_is_ssl,
+                                      &mock_auth_manager_, nullptr,
+                                      mock_route_factory_));
   }
 
   struct EntryId {
@@ -100,7 +101,7 @@ class RouteManagerTests : public Test {
   void expect_create(MockRoute &return_mock, const DbObject &obj,
                      bool track_destruction = false) {
     EXPECT_CALL(*mock_route_factory_,
-                create_router_object(ById(obj.id), _, _, _, _))
+                create_router_object(ById(obj.id), _, _, _, _, _))
         .WillOnce(Return(ByMove(std::shared_ptr<Object>(
             &return_mock, [track_destruction](Object *r) {
               if (track_destruction)
