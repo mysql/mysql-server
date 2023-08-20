@@ -450,6 +450,9 @@ mysql_pfs_key_t log_writer_thread_key;
 /** PFS key for the log iouring thread. */
 mysql_pfs_key_t log_uring_thread_key;
 
+
+mysql_pfs_key_t log_stat_thread_key;
+
 /** PFS key for the log checkpointer thread. */
 mysql_pfs_key_t log_checkpointer_thread_key;
 
@@ -929,6 +932,9 @@ void log_start_background_threads(log_t &log) {
   srv_threads.m_log_uring =
       os_thread_create(log_uring_thread_key, 0, log_uring, &log);
 
+  srv_threads.m_log_stat =
+      os_thread_create(log_stat_thread_key, 0, log_stat, &log.should_stop_threads);
+
   srv_threads.m_log_files_governor = os_thread_create(
       log_files_governor_thread_key, 0, log_files_governor, &log);
 
@@ -941,6 +947,7 @@ void log_start_background_threads(log_t &log) {
   srv_threads.m_log_write_notifier.start();
   srv_threads.m_log_writer.start();
   srv_threads.m_log_uring.start();
+  srv_threads.m_log_stat.start();
   srv_threads.m_log_files_governor.start();
 
   log_background_threads_active_validate(log);
@@ -973,6 +980,8 @@ void log_stop_background_threads(log_t &log) {
   log_resume_writer_threads(log);
 
   log_files_dummy_records_disable(log);
+
+  log_uring_stop();
 
   log.should_stop_threads.store(true);
 

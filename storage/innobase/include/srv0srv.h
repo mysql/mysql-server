@@ -179,6 +179,8 @@ struct Srv_threads {
     /** Redo log using iouring*/
   IB_thread m_log_uring;
 
+  IB_thread m_log_stat;
+
   /** Redo flusher thread. */
   IB_thread m_log_flusher;
 
@@ -804,6 +806,7 @@ extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;
 extern mysql_pfs_key_t log_uring_thread_key;
+extern mysql_pfs_key_t log_stat_thread_key;
 extern mysql_pfs_key_t log_files_governor_thread_key;
 extern mysql_pfs_key_t log_checkpointer_thread_key;
 extern mysql_pfs_key_t log_flusher_thread_key;

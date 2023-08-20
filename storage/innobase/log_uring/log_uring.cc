@@ -3,6 +3,7 @@
 #include "log_uring/duration.h"
 #include <thread>
 #include <iostream>
+#include <atomic>
 #ifdef __MYSQLD__
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
@@ -18,9 +19,16 @@ bool is_enable_io_stat() {
   return enable_io_stat;
 }
 
-void log_stat_thread() {
+
+void log_stat_thread(std::atomic_bool *stop) {
   while (true) {
+    if (stop->load()) {
+        break;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    if (stop->load()) {
+        break;
+    }
     if (is_enable_io_stat()) {
       auto s = log_stat_period();
   #ifdef __MYSQLD__
@@ -33,13 +41,7 @@ void log_stat_thread() {
 }
 
 
-std::thread *_thread = NULL;
-
-void create_log_stat_thread() {
-  _thread = new std::thread(log_stat_thread); 
-}
-
-void log_uring(void *) {
+void log_uring(void *ptr) {
   if (getenv("ENABLE_LOG_URING")) {
     enable_log_uring = true;
   }
@@ -47,8 +49,12 @@ void log_uring(void *) {
   if (getenv("ENABLE_IO_STAT")) {
     enable_io_stat = true;
   }
-  create_log_stat_thread();
+
   log_uring_thread();
+}
+
+void log_stat(void* p) {
+    log_stat_thread((std::atomic_bool *) p);
 }
 
 int log_uring_append(void *buf, size_t size) {
@@ -57,6 +63,10 @@ int log_uring_append(void *buf, size_t size) {
 
 int log_uring_sync(size_t lsn) {
   return get_xlog()->sync(lsn);
+}
+
+void log_uring_stop() {
+    return get_xlog()->stop();
 }
 
 void log_uring_create(

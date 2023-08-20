@@ -235,6 +235,9 @@ int xlog::handle_event_list() {
     io_event *e = nullptr;
     try {
       e = queue_.pull_front();
+      if (e == NULL) {
+          return -1;
+      }
       if (!enqueue_sqe(e)) {
         return num_events;
       }
@@ -418,7 +421,6 @@ void xlog::wait_start() {
       });
   }
 }
-
 
 io_event* xlog::new_io_event() {
   io_event* e = new io_event;
