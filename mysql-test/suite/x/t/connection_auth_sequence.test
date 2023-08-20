@@ -169,7 +169,7 @@ exec $MYSQLXTEST -u user_to_lock  -p "xxx" --no-auth --file=$MYSQL_TMP_DIR/auth_
 ## Authentication sequence part
 #
 
---let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'
+--let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 

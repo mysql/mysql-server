@@ -137,7 +137,7 @@ RUN SET GLOBAL group_replication_recovery_ssl_capath= 'MYSQL_TEST_DIR/std_data'
 RUN SET GLOBAL group_replication_recovery_ssl_cert= 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 
 0 rows affected
-RUN SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA'
+RUN SET GLOBAL group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256'
 
 0 rows affected
 RUN SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl'
@@ -197,7 +197,7 @@ include/assert.inc [group_replication_recovery_retry_count is 5]
 include/assert.inc [group_replication_recovery_ssl_ca is MYSQL_TEST_DIR/std_data/cacert.pem]
 include/assert.inc [group_replication_recovery_ssl_capath is MYSQL_TEST_DIR/std_data]
 include/assert.inc [group_replication_recovery_ssl_cert is MYSQL_TEST_DIR/std_data/client-cert.pem]
-include/assert.inc [group_replication_recovery_ssl_cipher is DHE-RSA-AES256-SHA]
+include/assert.inc [group_replication_recovery_ssl_cipher is ECDHE-RSA-AES128-GCM-SHA256]
 include/assert.inc [group_replication_recovery_ssl_crl is crl-client-revoked.crl]
 include/assert.inc [group_replication_recovery_ssl_crlpath is MYSQL_TEST_DIR/std_data]
 include/assert.inc [group_replication_recovery_ssl_key is MYSQL_TEST_DIR/std_data/client-key.pem]

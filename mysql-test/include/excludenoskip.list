@@ -105,6 +105,7 @@ check_openssl_version.inc
 check_openssl.inc
 have_tlsv13.inc
 not_have_tlsv13.inc
+not_tlsv13.inc
 not_min_protocol_tlsv12.inc
 
 # 4.5 Reason for inclusion: Tests should run only with supported innodb page

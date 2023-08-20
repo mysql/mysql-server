@@ -167,8 +167,8 @@ callmacro Assert_status_variable
 	Mysqlx_ssl_version
 	%OPTION_TLS_VERSION%;
 
-# Use either option with which mysqlxtest was started or the default one: DHE-RSA-AES256-SHA
--->stmtsql SELECT IF(""="%OPTION_SSL_CIPHER%","DHE-RSA-AES256-SHA","%OPTION_SSL_CIPHER%") as Value;
+# Use either option with which mysqlxtest was started or the default one: ECDHE-RSA-AES128-GCM-SHA256
+-->stmtsql SELECT IF(""="%OPTION_SSL_CIPHER%","ECDHE-RSA-AES128-GCM-SHA256","%OPTION_SSL_CIPHER%") as Value;
 -->recvtovar %EXPECTED_SSL_CIPHER% Value
 
 callmacro Assert_status_variable
@@ -237,8 +237,8 @@ EOF
 -->import assert_status_variable.macro
 SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 
-callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	DHE-RSA-AES256-SHA;
-callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	AES256-SHA;
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	ECDHE-RSA-AES128-GCM-SHA256;
+callmacro Assert_set_like_status_variable	Mysqlx_ssl_cipher_list	:	ECDHE-RSA-AES256-GCM-SHA384;
 EOF
 
 ############################################################################
@@ -252,7 +252,7 @@ eval CREATE USER user2_mysqlx@localhost
 
 eval CREATE USER user3_mysqlx@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'auth_string3'
-            REQUIRE CIPHER "AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES256-GCM-SHA384" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             PASSWORD EXPIRE NEVER;
@@ -270,7 +270,7 @@ eval CREATE USER user6_mysqlx@localhost
 
 eval CREATE USER user7_mysqlx@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY ''
-            REQUIRE CIPHER "AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES256-GCM-SHA384";
 
 GRANT ALL ON *.* TO user1_mysqlx@localhost;
 GRANT ALL ON *.* TO user2_mysqlx@localhost;
@@ -384,13 +384,13 @@ exec $MYSQLXTEST_VERIFY_SSL -u user2_mysqlx --password='set-new-auth'
 --echo # IV.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3'
-	--ssl-cipher='AES256-SHA' $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	--ssl-cipher='ECDHE-RSA-AES256-GCM-SHA384' $CLIENT_SSL_KEY $CLIENT_SSL_CERT
 	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
 --echo # IV.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3'
-	--ssl-cipher='AES256-SHA' --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem 2>&1;
+	--ssl-cipher='ECDHE-RSA-AES256-GCM-SHA384' --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem 2>&1;
 
 --echo # IV.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
@@ -403,7 +403,7 @@ exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysql
 --echo # IV.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3'
-	--ssl-cipher='AES256-SHA' 2>&1;
+	--ssl-cipher='ECDHE-RSA-AES256-GCM-SHA384' 2>&1;
 
 
 --echo
@@ -494,13 +494,13 @@ exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysql
 --echo # VIII.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx
-	--ssl-cipher="AES256-SHA" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	--ssl-cipher="ECDHE-RSA-AES256-GCM-SHA384" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
 	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
 --echo # VIII.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx
-  --ssl-cipher="AES256-SHA" 2>&1;
+  --ssl-cipher="ECDHE-RSA-AES256-GCM-SHA384" 2>&1;
 
 --echo # VIII.3
 let $expected_error_msg= Access denied for user 'user7_mysqlx'@'localhost' \(using password: YES\) \(code 1045\);
@@ -513,7 +513,7 @@ exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysql
 --echo # VIII.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx
-	--ssl-cipher='DHE-RSA-AES256-SHA' $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
+	--ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
 
 --echo
 --echo
@@ -530,7 +530,7 @@ SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_ver
 replace_regex /4294967295/-1/ /18446744073709551615/-1/;
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u x_root
-	--ssl-cipher="AES256-SHA" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	--ssl-cipher="ECDHE-RSA-AES256-GCM-SHA384" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
 	--file=$MYSQL_TMP_DIR/mysqlx-status.xpl 2>&1;
 
 

@@ -42,19 +42,19 @@ mysql.test: Records: 1  Deleted: 0  Skipped: 0  Warnings: 1
 Variable_name	Value
 Ssl_cipher	
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 # Check behavior when --ssl-mode is not passed explicitly
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 # Check behavior when multiple times --ssl-mode is passed
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 # Check the legacy options
 # Cleanup
 DROP USER 'user1'@'%';
