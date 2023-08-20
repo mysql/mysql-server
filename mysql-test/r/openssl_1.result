@@ -61,7 +61,7 @@ mysqltest: [ERROR] SSL error: Unable to get certificate from ''.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get certificate
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
@@ -90,11 +90,11 @@ Ssl_callback_cache_hits	#
 DROP TABLE thread_status;
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
-Ssl_cipher	AES128-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
-Ssl_cipher	AES128-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 
@@ -206,13 +206,13 @@ mysqldump: [ERROR] SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std
 mysqldump: Got error: 2026: SSL connection error: Unable to get private key when trying to connect
 DROP TABLE t1;
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES128-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES128-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
 is still running; no cipher request crashed the server

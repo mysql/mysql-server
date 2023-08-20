@@ -148,7 +148,7 @@ ssl_cipher
 x509_issuer	
 x509_subject	sub
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#y'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SELECT user,plugin,ssl_type,ssl_cipher,
@@ -156,14 +156,14 @@ x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
 user	u10
 plugin	mysql_native_password
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 SELECT USER();
 USER()
 u10@localhost
 CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' BY '#hGrt0O6'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
@@ -172,7 +172,7 @@ x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='tu6'
 user	tu6
 plugin	mysql_native_password
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
@@ -485,13 +485,13 @@ password_expired	N
 password_last_changed	#
 password_lifetime	80
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
-            BY 'auth_string' REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
+            BY 'auth_string' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u7';
 user	u7
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
@@ -530,13 +530,13 @@ password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 user	u8
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
@@ -561,13 +561,13 @@ password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER tu1@localhost IDENTIFIED WITH 'mysql_native_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 user	tu1
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
@@ -615,7 +615,7 @@ password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -623,7 +623,7 @@ plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u10';
 user	u10
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
@@ -1158,12 +1158,12 @@ SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
 CREATE USER `u9`@`localhost` IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SHOW CREATE USER u10@localhost;
 CREATE USER for u10@localhost
-CREATE USER `u10`@`localhost` IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u10`@`localhost` IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
@@ -1346,8 +1346,8 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu5'@'localhost' IDENTIFIE
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D0B4490FF0452CF4EAA50F79F6B06F859FA2B012' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6F268C32216139F3B99FEBA90FC68F8D9651382A' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D0B4490FF0452CF4EAA50F79F6B06F859FA2B012' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6F268C32216139F3B99FEBA90FC68F8D9651382A' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
@@ -1376,16 +1376,16 @@ slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u5'@'localhost' IDENTIFIED 
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE INTERVAL 80 DAY ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' REQUIRE SSL ACCOUNT UNLOCK
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u9'@'localhost' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*AEEAD8F349FAED7CA659DCEFCEC2F0BF90241263' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u11'@'localhost' WITH MAX_QUERIES_PER_HOUR 6
@@ -1432,7 +1432,7 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2

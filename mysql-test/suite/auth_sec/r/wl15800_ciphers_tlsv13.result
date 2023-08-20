@@ -1,0 +1,2037 @@
+#=======================================================================
+
+# Setup
+
+CREATE USER arthurdent@localhost;
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO arthurdent@localhost;
+CREATE DATABASE cipher_data;
+CREATE TABLE cipher_data.acceptable(ciphers JSON);
+CREATE TABLE cipher_data.deprecated(ciphers JSON);
+CREATE TABLE cipher_data.blocked(ciphers JSON);
+
+#=======================================================================
+
+# Cert type: RSA | TLS version: 1.2
+
+SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/cacert.pem';
+SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/server-cert.pem';
+SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/server-key.pem';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+SET @@global.admin_ssl_ca='MYSQL_TEST_DIR/std_data/cacert.pem';
+SET @@global.admin_ssl_cert='MYSQL_TEST_DIR/std_data/server-cert.pem';
+SET @@global.admin_ssl_key='MYSQL_TEST_DIR/std_data/server-key.pem';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                             "ECDHE-RSA-AES256-GCM-SHA384",
+                                             "ECDHE-RSA-CHACHA20-POLY1305",
+                                             "DHE-RSA-AES128-GCM-SHA256",
+                                             "DHE-RSA-AES256-GCM-SHA384",
+                                             "DHE-RSA-AES256-CCM",
+                                             "DHE-RSA-AES128-CCM",
+                                             "DHE-RSA-CHACHA20-POLY1305"]');
+INSERT INTO cipher_data.deprecated VALUES ('["DHE-RSA-AES256-CCM8",
+                                             "DHE-RSA-AES128-CCM8",
+                                             "ECDHE-RSA-AES128-SHA256",
+                                             "ECDHE-RSA-AES256-SHA384",
+                                             "DHE-RSA-AES256-SHA256",
+                                             "DHE-RSA-AES128-SHA256",
+                                             "DHE-RSA-CAMELLIA256-SHA256",
+                                             "DHE-RSA-CAMELLIA128-SHA256",
+                                             "DHE-RSA-AES128-SHA",
+                                             "DHE-RSA-AES256-SHA",
+                                             "DHE-RSA-CAMELLIA256-SHA",
+                                             "DHE-RSA-CAMELLIA128-SHA",
+                                             "AES128-GCM-SHA256",
+                                             "AES128-CCM",
+                                             "AES128-CCM8",
+                                             "AES256-GCM-SHA384",
+                                             "AES256-CCM",
+                                             "AES256-CCM8",
+                                             "AES128-SHA256",
+                                             "AES256-SHA256",
+                                             "AES128-SHA",
+                                             "AES256-SHA",
+                                             "CAMELLIA256-SHA",
+                                             "CAMELLIA128-SHA"]');
+INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+                                          "ECDHE-RSA-NULL-SHA",
+                                          "ECDHE-ECDSA-NULL-SHA",
+                                          "GOST94-NULL-GOST94",
+                                          "GOST2001-GOST89-GOST89",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "NULL-SHA256",
+                                          "NULL-SHA",
+                                          "NULL-MD5",
+                                          "AECDH-AES256-SHA",
+                                          "ADH-AES256-GCM-SHA384",
+                                          "ADH-AES256-SHA256",
+                                          "ADH-AES256-SHA",
+                                          "ADH-CAMELLIA256-SHA256",
+                                          "ADH-CAMELLIA256-SHA",
+                                          "AECDH-AES128-SHA",
+                                          "ADH-AES128-GCM-SHA256",
+                                          "ADH-AES128-SHA256",
+                                          "ADH-AES128-SHA",
+                                          "ADH-CAMELLIA128-SHA256",
+                                          "AADH-CAMELLIA128-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ADH-RC4-MD5",
+                                          "AECDH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-DES-CBC-SHA",
+                                          "EXP-DH-DSS-DES-CBC-SHA",
+                                          "EXP-DH-RSA-DES-CBC-SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP-KRB5-DES-CBC-SHA",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP-KRB5-RC4-SHA",
+                                          "EXP-KRB5-DES-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC4-MD5",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP1024-DES-CBC-SHA",
+                                          "EXP1024-RC4-SHA",
+                                          "EXP1024-RC4-MD5",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "EXP1024-DHE-DSS-DES-CBC-SHA",
+                                          "EXP1024-DHE-DSS-RC4-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-RC2-MD5",
+                                          "EDH-RSA-DES-CBC-SHA",
+                                          "EDH-DSS-DES-CBC-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "DES-CBC-SHA",
+                                          "ADH-RC4-MD5",
+                                          "RC4-MD5",
+                                          "NULL-MD5",
+                                          "ECDHE-RSA-RC4-SHA",
+                                          "ECDHE-ECDSA-RC4-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ECDH-RSA-RC4-SHA",
+                                          "ECDH-ECDSA-RC4-SHA",
+                                          "RC4-SHA",
+                                          "AECDH-NULL-SHA",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "PSK-AES256-CBC-SHA",
+                                          "PSK-AES128-CBC-SHA",
+                                          "PSK-3DES-EDE-CBC-SHA",
+                                          "PSK-RC4-SHA",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "RC2-CBC-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "DH-RSA-AES128-SHA256",
+                                          "DH-RSA-AES256-SHA256",
+                                          "DH-DSS-AES128-SHA256",
+                                          "DH-DSS-AES128-SHA",
+                                          "DH-DSS-AES256-SHA",
+                                          "DH-DSS-AES256-SHA256",
+                                          "DH-RSA-AES128-SHA",
+                                          "DH-RSA-AES256-SHA",
+                                          "DH-DSS-AES128-GCM-SHA256",
+                                          "DH-DSS-AES256-GCM-SHA384",
+                                          "DH-RSA-AES128-GCM-SHA256",
+                                          "DH-RSA-AES256-GCM-SHA384",
+                                          "DH-DSS-DES-CBC3-SHA",
+                                          "DH-RSA-DES-CBC3-SHA",
+                                          "EDH-DSS-DES-CBC3-SHA",
+                                          "EDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-ECDSA-DES-CBC3-SHA",
+                                          "ECDHE-RSA-DES-CBC3-SHA",
+                                          "ECDHE-ECDSA-DES-CBC3-SHA",
+                                          "DES-CBC3-SHA"]');
+
+#-----------------------------------------------------------------------
+
+# Checking accetable ciphers
+# Setting server ciphers: ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-CCM:DHE-RSA-AES128-CCM:DHE-RSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: ECDHE-RSA-AES128-GCM-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: ECDHE-RSA-AES128-GCM-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: ECDHE-RSA-AES256-GCM-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: ECDHE-RSA-AES256-GCM-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: ECDHE-RSA-CHACHA20-POLY1305 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: ECDHE-RSA-CHACHA20-POLY1305 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: DHE-RSA-AES128-GCM-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: DHE-RSA-AES128-GCM-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: DHE-RSA-AES256-GCM-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: DHE-RSA-AES256-GCM-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: DHE-RSA-AES256-CCM on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-CCM
+# Expecting connection success with cipher: DHE-RSA-AES256-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-CCM
+# Expecting connection success with cipher: DHE-RSA-AES128-CCM on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-CCM
+# Expecting connection success with cipher: DHE-RSA-AES128-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-CCM
+# Expecting connection success with cipher: DHE-RSA-CHACHA20-POLY1305 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: DHE-RSA-CHACHA20-POLY1305 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CHACHA20-POLY1305
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking deprecated ciphers
+# Setting server ciphers: DHE-RSA-AES256-CCM8:DHE-RSA-AES128-CCM8:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-CAMELLIA256-SHA256:DHE-RSA-CAMELLIA128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:DHE-RSA-CAMELLIA128-SHA:AES128-GCM-SHA256:AES128-CCM:AES128-CCM8:AES256-GCM-SHA384:AES256-CCM:AES256-CCM8:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:CAMELLIA256-SHA:CAMELLIA128-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES256-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES256-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES256-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-CCM8
+# Expecting connection success with cipher: DHE-RSA-AES256-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES128-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES128-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES128-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-CCM8
+# Expecting connection success with cipher: DHE-RSA-AES128-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-RSA-AES128-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-SHA256
+# Expecting connection success with cipher: ECDHE-RSA-AES128-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-AES256-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-AES256-SHA384' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-RSA-AES256-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES256-SHA384
+# Expecting connection success with cipher: ECDHE-RSA-AES256-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES256-SHA384
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES256-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA256
+# Expecting connection success with cipher: DHE-RSA-AES256-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES128-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-SHA256
+# Expecting connection success with cipher: DHE-RSA-AES128-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA256-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA256-SHA256
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA256-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA128-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA128-SHA256
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA128-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES128-SHA on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-SHA
+# Expecting connection success with cipher: DHE-RSA-AES128-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES128-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-AES256-SHA on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+# Expecting connection success with cipher: DHE-RSA-AES256-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA256-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA256-SHA on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA256-SHA
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA256-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA256-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DHE-RSA-CAMELLIA128-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA128-SHA on main channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA128-SHA
+# Expecting connection success with cipher: DHE-RSA-CAMELLIA128-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	DHE-RSA-CAMELLIA128-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES128-GCM-SHA256' that is either blocked or deprecated" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES128-GCM-SHA256' that is either blocked or deprecated" not found
+# Expecting connection success with cipher: AES128-GCM-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	AES128-GCM-SHA256
+# Expecting connection success with cipher: AES128-GCM-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	AES128-GCM-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES128-CCM' that is either blocked or deprecated" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES128-CCM' that is either blocked or deprecated" not found
+# Expecting connection success with cipher: AES128-CCM on main channel
+Variable_name	Value
+Ssl_cipher	AES128-CCM
+# Expecting connection success with cipher: AES128-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	AES128-CCM
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES128-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES128-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES128-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	AES128-CCM8
+# Expecting connection success with cipher: AES128-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	AES128-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES256-GCM-SHA384' that is either blocked or deprecated" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES256-GCM-SHA384' that is either blocked or deprecated" not found
+# Expecting connection success with cipher: AES256-GCM-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	AES256-GCM-SHA384
+# Expecting connection success with cipher: AES256-GCM-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	AES256-GCM-SHA384
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES256-CCM' that is either blocked or deprecated" not found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES256-CCM' that is either blocked or deprecated" not found
+# Expecting connection success with cipher: AES256-CCM on main channel
+Variable_name	Value
+Ssl_cipher	AES256-CCM
+# Expecting connection success with cipher: AES256-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	AES256-CCM
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES256-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES256-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES256-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	AES256-CCM8
+# Expecting connection success with cipher: AES256-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	AES256-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES128-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	AES128-SHA256
+# Expecting connection success with cipher: AES128-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES256-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	AES256-SHA256
+# Expecting connection success with cipher: AES256-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	AES256-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES128-SHA on main channel
+Variable_name	Value
+Ssl_cipher	AES128-SHA
+# Expecting connection success with cipher: AES128-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	AES128-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: AES256-SHA on main channel
+Variable_name	Value
+Ssl_cipher	AES256-SHA
+# Expecting connection success with cipher: AES256-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	AES256-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'CAMELLIA256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'CAMELLIA256-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: CAMELLIA256-SHA on main channel
+Variable_name	Value
+Ssl_cipher	CAMELLIA256-SHA
+# Expecting connection success with cipher: CAMELLIA256-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	CAMELLIA256-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'CAMELLIA128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'CAMELLIA128-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: CAMELLIA128-SHA on main channel
+Variable_name	Value
+Ssl_cipher	CAMELLIA128-SHA
+# Expecting connection success with cipher: CAMELLIA128-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	CAMELLIA128-SHA
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking blocked ciphers
+# Setting server ciphers: AECDH-NULL-SHA:ECDHE-RSA-NULL-SHA:ECDHE-ECDSA-NULL-SHA:GOST94-NULL-GOST94:GOST2001-GOST89-GOST89:ECDH-RSA-NULL-SHA:ECDH-ECDSA-NULL-SHA:NULL-SHA256:NULL-SHA:NULL-MD5:AECDH-AES256-SHA:ADH-AES256-GCM-SHA384:ADH-AES256-SHA256:ADH-AES256-SHA:ADH-CAMELLIA256-SHA256:ADH-CAMELLIA256-SHA:AECDH-AES128-SHA:ADH-AES128-GCM-SHA256:ADH-AES128-SHA256:ADH-AES128-SHA:ADH-CAMELLIA128-SHA256:AADH-CAMELLIA128-SHA:AECDH-RC4-SHA:ADH-RC4-MD5:AECDH-DES-CBC3-SHA:ADH-DES-CBC3-SHA:ADH-DES-CBC-SHA:EXP-RC4-MD5:EXP-RC2-CBC-MD5:EXP-DES-CBC-SHA:EXP-DH-DSS-DES-CBC-SHA:EXP-DH-RSA-DES-CBC-SHA:EXP-EDH-DSS-DES-CBC-SHA:EXP-EDH-RSA-DES-CBC-SHA:EXP-ADH-RC4-MD5:EXP-ADH-DES-CBC-SHA:EXP-KRB5-DES-CBC-SHA:EXP-KRB5-RC2-CBC-SHA:EXP-KRB5-RC4-SHA:EXP-KRB5-DES-CBC-MD5:EXP-KRB5-RC2-CBC-MD5:EXP-KRB5-RC4-MD5:EXP-RC4-MD5:EXP-RC2-CBC-MD5:TLS_RSA_EXPORT_WITH_DES40_CBC_SHA:EXP-EDH-DSS-DES-CBC-SHA:EXP-EDH-RSA-DES-CBC-SHA:EXP-ADH-RC4-MD5:EXP-ADH-DES-CBC-SHA:EXP1024-DES-CBC-SHA:EXP1024-RC4-SHA:EXP1024-RC4-MD5:EXP1024-RC2-CBC-MD5:EXP1024-DHE-DSS-DES-CBC-SHA:EXP1024-DHE-DSS-RC4-SHA:EXP-RC4-MD5:EXP-RC2-CBC-MD5:EXP-RC2-MD5:EDH-RSA-DES-CBC-SHA:EDH-DSS-DES-CBC-SHA:ADH-DES-CBC-SHA:DES-CBC-SHA:ADH-RC4-MD5:RC4-MD5:NULL-MD5:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:AECDH-RC4-SHA:ECDH-RSA-RC4-SHA:ECDH-ECDSA-RC4-SHA:RC4-SHA:AECDH-NULL-SHA:ECDH-RSA-NULL-SHA:ECDH-ECDSA-NULL-SHA:PSK-AES256-CBC-SHA:PSK-AES128-CBC-SHA:PSK-3DES-EDE-CBC-SHA:PSK-RC4-SHA:EXP-RC2-CBC-MD5:EXP-KRB5-RC2-CBC-SHA:EXP1024-RC2-CBC-MD5:RC2-CBC-MD5:EXP-RC2-CBC-MD5:DH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:DH-DSS-AES128-SHA256:DH-DSS-AES128-SHA:DH-DSS-AES256-SHA:DH-DSS-AES256-SHA256:DH-RSA-AES128-SHA:DH-RSA-AES256-SHA:DH-DSS-AES128-GCM-SHA256:DH-DSS-AES256-GCM-SHA384:DH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-SHA384:DH-DSS-DES-CBC3-SHA:DH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:DES-CBC3-SHA
+ERROR HY000: Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use
+ERROR HY000: Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'GOST94-NULL-GOST94' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'GOST94-NULL-GOST94' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: GOST94-NULL-GOST94 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: GOST94-NULL-GOST94 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'GOST2001-GOST89-GOST89' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'GOST2001-GOST89-GOST89' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: GOST2001-GOST89-GOST89 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: GOST2001-GOST89-GOST89 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AADH-CAMELLIA128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AADH-CAMELLIA128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AADH-CAMELLIA128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AADH-CAMELLIA128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'TLS_RSA_EXPORT_WITH_DES40_CBC_SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'TLS_RSA_EXPORT_WITH_DES40_CBC_SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: TLS_RSA_EXPORT_WITH_DES40_CBC_SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: TLS_RSA_EXPORT_WITH_DES40_CBC_SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DHE-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DHE-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DHE-DSS-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DHE-DSS-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-AES256-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-AES256-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-AES256-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-AES256-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-AES128-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-AES128-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-AES128-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-AES128-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-3DES-EDE-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-3DES-EDE-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-3DES-EDE-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-3DES-EDE-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+
+#-----------------------------------------------------------------------
+
+#=======================================================================
+
+# Cert type: RSA | TLS version: 1.3
+
+TRUNCATE TABLE cipher_data.acceptable;
+TRUNCATE TABLE cipher_data.deprecated;
+TRUNCATE TABLE cipher_data.blocked;
+INSERT INTO cipher_data.acceptable VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "TLS_AES_256_GCM_SHA384",
+                                             "TLS_CHACHA20_POLY1305_SHA256",
+                                             "TLS_AES_128_CCM_SHA256"]');
+INSERT INTO cipher_data.deprecated VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
+
+#-----------------------------------------------------------------------
+
+# Checking accetable ciphers
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_GCM_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_GCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_GCM_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_GCM_SHA256
+# Expecting connection success with cipher: TLS_AES_256_GCM_SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_256_GCM_SHA384
+# Expecting connection success with cipher: TLS_AES_256_GCM_SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_256_GCM_SHA384
+# Expecting connection success with cipher: TLS_CHACHA20_POLY1305_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_CHACHA20_POLY1305_SHA256
+# Expecting connection success with cipher: TLS_CHACHA20_POLY1305_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_CHACHA20_POLY1305_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_SHA256
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking deprecated ciphers
+# Setting server ciphers: TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: TLS_AES_128_CCM_8_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_8_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_8_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_8_SHA256
+
+#-----------------------------------------------------------------------
+
+
+#=======================================================================
+
+# Cert type: ECDSA | TLS Version: 1.2
+
+SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem';
+SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem';
+SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+SET @@global.admin_ssl_ca='MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem';
+SET @@global.admin_ssl_cert='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem';
+SET @@global.admin_ssl_key='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem';
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+TRUNCATE TABLE cipher_data.acceptable;
+TRUNCATE TABLE cipher_data.deprecated;
+TRUNCATE TABLE cipher_data.blocked;
+INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-ECDSA-AES128-GCM-SHA256",
+                                             "ECDHE-ECDSA-AES256-GCM-SHA384",
+                                             "ECDHE-ECDSA-CHACHA20-POLY1305",
+                                             "ECDHE-ECDSA-AES256-CCM",
+                                             "ECDHE-ECDSA-AES128-CCM"]');
+INSERT INTO cipher_data.deprecated VALUES ('["ECDHE-ECDSA-AES256-CCM8",
+                                             "ECDHE-ECDSA-AES128-CCM8",
+                                             "ECDHE-ECDSA-AES128-SHA256",
+                                             "ECDHE-ECDSA-AES256-SHA384",
+                                             "ECDHE-ECDSA-AES128-SHA",
+                                             "ECDHE-ECDSA-AES256-SHA"]');
+INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+                                          "ECDHE-RSA-NULL-SHA",
+                                          "ECDHE-ECDSA-NULL-SHA",
+                                          "GOST94-NULL-GOST94",
+                                          "GOST2001-GOST89-GOST89",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "NULL-SHA256",
+                                          "NULL-SHA",
+                                          "NULL-MD5",
+                                          "AECDH-AES256-SHA",
+                                          "ADH-AES256-GCM-SHA384",
+                                          "ADH-AES256-SHA256",
+                                          "ADH-AES256-SHA",
+                                          "ADH-CAMELLIA256-SHA256",
+                                          "ADH-CAMELLIA256-SHA",
+                                          "AECDH-AES128-SHA",
+                                          "ADH-AES128-GCM-SHA256",
+                                          "ADH-AES128-SHA256",
+                                          "ADH-AES128-SHA",
+                                          "ADH-CAMELLIA128-SHA256",
+                                          "AADH-CAMELLIA128-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ADH-RC4-MD5",
+                                          "AECDH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-DES-CBC-SHA",
+                                          "EXP-DH-DSS-DES-CBC-SHA",
+                                          "EXP-DH-RSA-DES-CBC-SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP-KRB5-DES-CBC-SHA",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP-KRB5-RC4-SHA",
+                                          "EXP-KRB5-DES-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC4-MD5",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP1024-DES-CBC-SHA",
+                                          "EXP1024-RC4-SHA",
+                                          "EXP1024-RC4-MD5",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "EXP1024-DHE-DSS-DES-CBC-SHA",
+                                          "EXP1024-DHE-DSS-RC4-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-RC2-MD5",
+                                          "EDH-RSA-DES-CBC-SHA",
+                                          "EDH-DSS-DES-CBC-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "DES-CBC-SHA",
+                                          "ADH-RC4-MD5",
+                                          "RC4-MD5",
+                                          "NULL-MD5",
+                                          "ECDHE-RSA-RC4-SHA",
+                                          "ECDHE-ECDSA-RC4-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ECDH-RSA-RC4-SHA",
+                                          "ECDH-ECDSA-RC4-SHA",
+                                          "RC4-SHA",
+                                          "AECDH-NULL-SHA",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "PSK-AES256-CBC-SHA",
+                                          "PSK-AES128-CBC-SHA",
+                                          "PSK-3DES-EDE-CBC-SHA",
+                                          "PSK-RC4-SHA",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "RC2-CBC-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "DH-RSA-AES128-SHA256",
+                                          "DH-RSA-AES256-SHA256",
+                                          "DH-DSS-AES128-SHA256",
+                                          "DH-DSS-AES128-SHA",
+                                          "DH-DSS-AES256-SHA",
+                                          "DH-DSS-AES256-SHA256",
+                                          "DH-RSA-AES128-SHA",
+                                          "DH-RSA-AES256-SHA",
+                                          "DH-DSS-AES128-GCM-SHA256",
+                                          "DH-DSS-AES256-GCM-SHA384",
+                                          "DH-RSA-AES128-GCM-SHA256",
+                                          "DH-RSA-AES256-GCM-SHA384",
+                                          "DH-DSS-DES-CBC3-SHA",
+                                          "DH-RSA-DES-CBC3-SHA",
+                                          "EDH-DSS-DES-CBC3-SHA",
+                                          "EDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-ECDSA-DES-CBC3-SHA",
+                                          "ECDHE-RSA-DES-CBC3-SHA",
+                                          "ECDHE-ECDSA-DES-CBC3-SHA",
+                                          "DES-CBC3-SHA"]');
+
+#-----------------------------------------------------------------------
+
+# Checking accetable ciphers
+# Setting server ciphers: ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-CCM:ECDHE-ECDSA-AES128-CCM
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-GCM-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-GCM-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-GCM-SHA256
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-GCM-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-GCM-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-GCM-SHA384
+# Expecting connection success with cipher: ECDHE-ECDSA-CHACHA20-POLY1305 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: ECDHE-ECDSA-CHACHA20-POLY1305 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-CHACHA20-POLY1305
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-CCM on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-CCM
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-CCM
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-CCM on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-CCM
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-CCM on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-CCM
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking deprecated ciphers
+# Setting server ciphers: ECDHE-ECDSA-AES256-CCM8:ECDHE-ECDSA-AES128-CCM8:ECDHE-ECDSA-AES128-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-CCM8
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-CCM8' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-CCM8' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-CCM8 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-CCM8
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-CCM8 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-CCM8
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-SHA256
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-SHA256
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-SHA384' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-SHA384
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-SHA384
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-SHA on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-SHA
+# Expecting connection success with cipher: ECDHE-ECDSA-AES128-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES128-SHA
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-SHA on main channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-SHA
+# Expecting connection success with cipher: ECDHE-ECDSA-AES256-SHA on admin channel
+Variable_name	Value
+Ssl_cipher	ECDHE-ECDSA-AES256-SHA
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking blocked ciphers
+# Setting server ciphers: AECDH-NULL-SHA:ECDHE-RSA-NULL-SHA:ECDHE-ECDSA-NULL-SHA:GOST94-NULL-GOST94:GOST2001-GOST89-GOST89:ECDH-RSA-NULL-SHA:ECDH-ECDSA-NULL-SHA:NULL-SHA256:NULL-SHA:NULL-MD5:AECDH-AES256-SHA:ADH-AES256-GCM-SHA384:ADH-AES256-SHA256:ADH-AES256-SHA:ADH-CAMELLIA256-SHA256:ADH-CAMELLIA256-SHA:AECDH-AES128-SHA:ADH-AES128-GCM-SHA256:ADH-AES128-SHA256:ADH-AES128-SHA:ADH-CAMELLIA128-SHA256:AADH-CAMELLIA128-SHA:AECDH-RC4-SHA:ADH-RC4-MD5:AECDH-DES-CBC3-SHA:ADH-DES-CBC3-SHA:ADH-DES-CBC-SHA:EXP-RC4-MD5:EXP-RC2-CBC-MD5:EXP-DES-CBC-SHA:EXP-DH-DSS-DES-CBC-SHA:EXP-DH-RSA-DES-CBC-SHA:EXP-EDH-DSS-DES-CBC-SHA:EXP-EDH-RSA-DES-CBC-SHA:EXP-ADH-RC4-MD5:EXP-ADH-DES-CBC-SHA:EXP-KRB5-DES-CBC-SHA:EXP-KRB5-RC2-CBC-SHA:EXP-KRB5-RC4-SHA:EXP-KRB5-DES-CBC-MD5:EXP-KRB5-RC2-CBC-MD5:EXP-KRB5-RC4-MD5:EXP-RC4-MD5:EXP-RC2-CBC-MD5:TLS_RSA_EXPORT_WITH_DES40_CBC_SHA:EXP-EDH-DSS-DES-CBC-SHA:EXP-EDH-RSA-DES-CBC-SHA:EXP-ADH-RC4-MD5:EXP-ADH-DES-CBC-SHA:EXP1024-DES-CBC-SHA:EXP1024-RC4-SHA:EXP1024-RC4-MD5:EXP1024-RC2-CBC-MD5:EXP1024-DHE-DSS-DES-CBC-SHA:EXP1024-DHE-DSS-RC4-SHA:EXP-RC4-MD5:EXP-RC2-CBC-MD5:EXP-RC2-MD5:EDH-RSA-DES-CBC-SHA:EDH-DSS-DES-CBC-SHA:ADH-DES-CBC-SHA:DES-CBC-SHA:ADH-RC4-MD5:RC4-MD5:NULL-MD5:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:AECDH-RC4-SHA:ECDH-RSA-RC4-SHA:ECDH-ECDSA-RC4-SHA:RC4-SHA:AECDH-NULL-SHA:ECDH-RSA-NULL-SHA:ECDH-ECDSA-NULL-SHA:PSK-AES256-CBC-SHA:PSK-AES128-CBC-SHA:PSK-3DES-EDE-CBC-SHA:PSK-RC4-SHA:EXP-RC2-CBC-MD5:EXP-KRB5-RC2-CBC-SHA:EXP1024-RC2-CBC-MD5:RC2-CBC-MD5:EXP-RC2-CBC-MD5:DH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:DH-DSS-AES128-SHA256:DH-DSS-AES128-SHA:DH-DSS-AES256-SHA:DH-DSS-AES256-SHA256:DH-RSA-AES128-SHA:DH-RSA-AES256-SHA:DH-DSS-AES128-GCM-SHA256:DH-DSS-AES256-GCM-SHA384:DH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-SHA384:DH-DSS-DES-CBC3-SHA:DH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:DES-CBC3-SHA
+ERROR HY000: Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use
+ERROR HY000: Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'GOST94-NULL-GOST94' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'GOST94-NULL-GOST94' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: GOST94-NULL-GOST94 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: GOST94-NULL-GOST94 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'GOST2001-GOST89-GOST89' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'GOST2001-GOST89-GOST89' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: GOST2001-GOST89-GOST89 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: GOST2001-GOST89-GOST89 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-CAMELLIA128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-CAMELLIA128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-CAMELLIA128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AADH-CAMELLIA128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AADH-CAMELLIA128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AADH-CAMELLIA128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AADH-CAMELLIA128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-DH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-DH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-DH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-DH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-DES-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-DES-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'TLS_RSA_EXPORT_WITH_DES40_CBC_SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'TLS_RSA_EXPORT_WITH_DES40_CBC_SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: TLS_RSA_EXPORT_WITH_DES40_CBC_SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: TLS_RSA_EXPORT_WITH_DES40_CBC_SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DHE-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DHE-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-DHE-DSS-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-DHE-DSS-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-DHE-DSS-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-RSA-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-DSS-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DES-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DES-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DES-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DES-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ADH-RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ADH-RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC4-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC4-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC4-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC4-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'NULL-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: NULL-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: NULL-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'AECDH-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: AECDH-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-NULL-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-NULL-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-AES256-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-AES256-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-AES256-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-AES256-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-AES128-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-AES128-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-AES128-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-AES128-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-3DES-EDE-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-3DES-EDE-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-3DES-EDE-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-3DES-EDE-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'PSK-RC4-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'PSK-RC4-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: PSK-RC4-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: PSK-RC4-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-KRB5-RC2-CBC-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-KRB5-RC2-CBC-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP1024-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP1024-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EXP-RC2-CBC-MD5' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EXP-RC2-CBC-MD5 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES128-GCM-SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES128-GCM-SHA256' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES128-GCM-SHA256 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES128-GCM-SHA256 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-AES256-GCM-SHA384' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-AES256-GCM-SHA384' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-AES256-GCM-SHA384 on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-AES256-GCM-SHA384 on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-DSS-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-DSS-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-DSS-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-DSS-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'EDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'EDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: EDH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDH-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDH-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDH-ECDSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDH-ECDSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-RSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-RSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-RSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'ECDHE-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'ECDHE-ECDSA-DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: ECDHE-ECDSA-DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+Pattern "Value for option 'ssl_cipher' contains cipher 'DES-CBC3-SHA' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_ssl_cipher' contains cipher 'DES-CBC3-SHA' that is either blocked or deprecated" found
+# Expecting connection failure wiith cipher: DES-CBC3-SHA on main channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+# Expecting connection failure wiith cipher: DES-CBC3-SHA on admin channel
+ERROR 2026 (HY000): SSL connection error: Failed to set ciphers to use
+
+#-----------------------------------------------------------------------
+
+#=======================================================================
+
+# Cert type: ECDSA | TLS version: 1.3
+
+TRUNCATE TABLE cipher_data.acceptable;
+TRUNCATE TABLE cipher_data.deprecated;
+TRUNCATE TABLE cipher_data.blocked;
+INSERT INTO cipher_data.acceptable VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "TLS_AES_256_GCM_SHA384",
+                                             "TLS_CHACHA20_POLY1305_SHA256",
+                                             "TLS_AES_128_CCM_SHA256"]');
+INSERT INTO cipher_data.deprecated VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
+
+#-----------------------------------------------------------------------
+
+# Checking accetable ciphers
+# Setting server ciphers: TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_GCM_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_GCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_GCM_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_GCM_SHA256
+# Expecting connection success with cipher: TLS_AES_256_GCM_SHA384 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_256_GCM_SHA384
+# Expecting connection success with cipher: TLS_AES_256_GCM_SHA384 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_256_GCM_SHA384
+# Expecting connection success with cipher: TLS_CHACHA20_POLY1305_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_CHACHA20_POLY1305_SHA256
+# Expecting connection success with cipher: TLS_CHACHA20_POLY1305_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_CHACHA20_POLY1305_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_SHA256
+
+#-----------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------
+
+# Checking deprecated ciphers
+# Setting server ciphers: TLS_AES_128_CCM_8_SHA256
+Pattern "Value for option 'tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is either blocked or deprecated" found
+Pattern "Value for option 'admin_tls_ciphersuites' contains cipher 'TLS_AES_128_CCM_8_SHA256' that is either blocked or deprecated" found
+# Expecting connection success with cipher: TLS_AES_128_CCM_8_SHA256 on main channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_8_SHA256
+# Expecting connection success with cipher: TLS_AES_128_CCM_8_SHA256 on admin channel
+Variable_name	Value
+Ssl_cipher	TLS_AES_128_CCM_8_SHA256
+
+#-----------------------------------------------------------------------
+
+
+#=======================================================================
+
+# Cleanup
+
+DROP DATABASE cipher_data;
+DROP USER arthurdent@localhost;
+
+#=======================================================================

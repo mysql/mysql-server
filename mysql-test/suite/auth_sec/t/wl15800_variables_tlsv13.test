@@ -1,0 +1,130 @@
+--source include/have_tlsv13.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #=======================================================================
+--echo
+--echo # Setup
+--echo
+SELECT @@ssl_cipher INTO @saved_ssl_cipher;
+SELECT @@admin_ssl_cipher INTO @saved_admin_ssl_cipher;
+SELECT @@tls_ciphersuites INTO @saved_tls_ciphersuites;
+SELECT @@admin_tls_ciphersuites INTO @saved_admin_tls_ciphersuites;
+
+CREATE DATABASE cipher_db;
+CREATE TABLE cipher_db.ciphers_data(ciphers JSON);
+--echo
+--echo #=======================================================================
+--echo
+
+--let $TLS_VERSION=TLSv1.2
+
+--echo # Valid cipher: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Valid ciphers: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                             "ECDHE-RSA-AES256-GCM-SHA384"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated cipher: Search should find warnings
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated ciphers: Search should find warnings for each of them
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-SHA256",
+                                             "DHE-RSA-AES256-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Mix of valid and deprecated ciphers: Search should find warnings for two of them
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                             "ECDHE-RSA-AES128-SHA256",
+                                             "DHE-RSA-AES256-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated cipher with "!" prefix: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["!ECDHE-RSA-AES128-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated ciphers with "!" prefix: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["!ECDHE-RSA-AES128-GCM-SHA256",
+                                             "!ECDHE-RSA-AES256-GCM-SHA384"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                             "!ECDHE-RSA-AES128-SHA256",
+                                             "!DHE-RSA-AES256-SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--let $TLS_VERSION=TLSv1.3
+
+--echo # Valid cipher: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Valid ciphers: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "TLS_AES_256_GCM_SHA384"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated cipher: Search should find warnings
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_CCM_8_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Mix of valid and deprecated ciphers: Search should find warnings for one of them
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "TLS_AES_128_CCM_8_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Deprecated cipher with "!" prefix: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["!TLS_AES_128_CCM_8_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Mix of valid and deprecated ciphers: Search should find warnings for one of them
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "TLS_AES_128_CCM_8_SHA256",
+                                             "TLS_CHACHA20_POLY1305_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo # Valid ciphers and deprecated ciphers with "!" prefix: Search should return empty
+INSERT INTO cipher_db.ciphers_data VALUES ('["TLS_AES_128_GCM_SHA256",
+                                             "!TLS_AES_128_CCM_8_SHA256"]');
+--source suite/auth_sec/include/wl15800_variables_test.inc
+TRUNCATE TABLE cipher_db.ciphers_data;
+
+--echo
+--echo #=======================================================================
+--echo
+--echo # Cleanup
+--echo
+SET GLOBAL ssl_cipher = @saved_ssl_cipher;
+SET GLOBAL admin_ssl_cipher = @saved_admin_ssl_cipher;
+SET GLOBAL tls_ciphersuites = @saved_tls_ciphersuites;
+SET GLOBAL admin_tls_ciphersuites = @saved_tls_ciphersuites;
+ALTER INSTANCE RELOAD TLS;
+
+DROP DATABASE cipher_db;
+--echo
+--echo #=======================================================================
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+# Clean slate
+--source include/force_restart.inc

@@ -390,7 +390,7 @@ connection default;
 disconnect con1;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
             PASSWORD EXPIRE NEVER PASSWORD EXPIRE NEVER;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
@@ -467,7 +467,7 @@ connection default;
 disconnect con1;
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string#y'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
@@ -482,7 +482,7 @@ SHOW CREATE USER u10@localhost;
 SELECT USER();
 connection default;
 disconnect con1;
-ALTER USER u10@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+ALTER USER u10@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
            ACCOUNT UNLOCK PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 --replace_column 2 # 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
@@ -590,7 +590,7 @@ connection default;
 disconnect con1;
 
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
-REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
 WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK;
 --replace_column 3 #
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
@@ -718,7 +718,7 @@ ALTER  USER u18@localhost,
             u22@localhost IDENTIFIED WITH 'mysql_native_password',
             u23@localhost IDENTIFIED WITH 'mysql_native_password'
                           AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
-                          REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+                          REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           ACCOUNT UNLOCK;
 --replace_column 2 # 3 #

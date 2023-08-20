@@ -1,0 +1,466 @@
+--source include/not_tlsv13.inc
+--source include/check_openssl_version.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #=======================================================================
+--echo
+--echo # Setup
+--echo
+--connection default
+CREATE USER arthurdent@localhost;
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO arthurdent@localhost;
+CREATE DATABASE cipher_data;
+CREATE TABLE cipher_data.acceptable(ciphers JSON);
+CREATE TABLE cipher_data.deprecated(ciphers JSON);
+CREATE TABLE cipher_data.blocked(ciphers JSON);
+
+--let $CIPHER_DB = cipher_data
+--let $USER = arthurdent
+--let $OPENSSL_102 = 1
+
+--echo
+--echo #=======================================================================
+--echo
+--echo # Cert type: RSA | TLS version: 1.2
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_ca='$MYSQL_TEST_DIR/std_data/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_cert='$MYSQL_TEST_DIR/std_data/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_key='$MYSQL_TEST_DIR/std_data/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-RSA-AES128-GCM-SHA256",
+                                             "ECDHE-RSA-AES256-GCM-SHA384",
+                                             "DHE-RSA-AES128-GCM-SHA256",
+                                             "DHE-RSA-AES256-GCM-SHA384"]');
+INSERT INTO cipher_data.deprecated VALUES ('["ECDHE-RSA-AES128-SHA256",
+                                             "ECDHE-RSA-AES256-SHA384",
+                                             "DHE-RSA-AES256-SHA256",
+                                             "DHE-RSA-AES128-SHA256",
+                                             "DHE-RSA-AES128-SHA",
+                                             "DHE-RSA-AES256-SHA",
+                                             "DHE-RSA-CAMELLIA256-SHA",
+                                             "DHE-RSA-CAMELLIA128-SHA",
+                                             "AES128-GCM-SHA256",
+                                             "AES256-GCM-SHA384",
+                                             "AES128-SHA256",
+                                             "AES256-SHA256",
+                                             "AES128-SHA",
+                                             "AES256-SHA",
+                                             "CAMELLIA256-SHA",
+                                             "CAMELLIA128-SHA"]');
+INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+                                          "ECDHE-RSA-NULL-SHA",
+                                          "ECDHE-ECDSA-NULL-SHA",
+                                          "GOST94-NULL-GOST94",
+                                          "GOST2001-GOST89-GOST89",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "NULL-SHA256",
+                                          "NULL-SHA",
+                                          "NULL-MD5",
+                                          "AECDH-AES256-SHA",
+                                          "ADH-AES256-GCM-SHA384",
+                                          "ADH-AES256-SHA256",
+                                          "ADH-AES256-SHA",
+                                          "ADH-CAMELLIA256-SHA256",
+                                          "ADH-CAMELLIA256-SHA",
+                                          "AECDH-AES128-SHA",
+                                          "ADH-AES128-GCM-SHA256",
+                                          "ADH-AES128-SHA256",
+                                          "ADH-AES128-SHA",
+                                          "ADH-CAMELLIA128-SHA256",
+                                          "AADH-CAMELLIA128-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ADH-RC4-MD5",
+                                          "AECDH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-DES-CBC-SHA",
+                                          "EXP-DH-DSS-DES-CBC-SHA",
+                                          "EXP-DH-RSA-DES-CBC-SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP-KRB5-DES-CBC-SHA",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP-KRB5-RC4-SHA",
+                                          "EXP-KRB5-DES-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC4-MD5",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP1024-DES-CBC-SHA",
+                                          "EXP1024-RC4-SHA",
+                                          "EXP1024-RC4-MD5",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "EXP1024-DHE-DSS-DES-CBC-SHA",
+                                          "EXP1024-DHE-DSS-RC4-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-RC2-MD5",
+                                          "EDH-RSA-DES-CBC-SHA",
+                                          "EDH-DSS-DES-CBC-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "DES-CBC-SHA",
+                                          "ADH-RC4-MD5",
+                                          "RC4-MD5",
+                                          "NULL-MD5",
+                                          "ECDHE-RSA-RC4-SHA",
+                                          "ECDHE-ECDSA-RC4-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ECDH-RSA-RC4-SHA",
+                                          "ECDH-ECDSA-RC4-SHA",
+                                          "RC4-SHA",
+                                          "AECDH-NULL-SHA",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "PSK-AES256-CBC-SHA",
+                                          "PSK-AES128-CBC-SHA",
+                                          "PSK-3DES-EDE-CBC-SHA",
+                                          "PSK-RC4-SHA",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "RC2-CBC-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "DH-RSA-AES128-SHA256",
+                                          "DH-RSA-AES256-SHA256",
+                                          "DH-DSS-AES128-SHA256",
+                                          "DH-DSS-AES128-SHA",
+                                          "DH-DSS-AES256-SHA",
+                                          "DH-DSS-AES256-SHA256",
+                                          "DH-RSA-AES128-SHA",
+                                          "DH-RSA-AES256-SHA",
+                                          "DH-DSS-AES128-GCM-SHA256",
+                                          "DH-DSS-AES256-GCM-SHA384",
+                                          "DH-RSA-AES128-GCM-SHA256",
+                                          "DH-RSA-AES256-GCM-SHA384",
+                                          "DH-DSS-DES-CBC3-SHA",
+                                          "DH-RSA-DES-CBC3-SHA",
+                                          "EDH-DSS-DES-CBC3-SHA",
+                                          "EDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-ECDSA-DES-CBC3-SHA",
+                                          "ECDHE-RSA-DES-CBC3-SHA",
+                                          "ECDHE-ECDSA-DES-CBC3-SHA",
+                                          "DES-CBC3-SHA"]');
+--let $TLS_VERSION = TLSv1.2
+--source suite/auth_sec/include/wl15800_cipher_test.inc
+
+--echo
+--echo #=======================================================================
+--echo
+--echo # Cert type: ECDSA | TLS Version: 1.2
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_ca='$MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_cert='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_key='$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+TRUNCATE TABLE cipher_data.acceptable;
+TRUNCATE TABLE cipher_data.deprecated;
+TRUNCATE TABLE cipher_data.blocked;
+INSERT INTO cipher_data.acceptable VALUES ('["ECDHE-ECDSA-AES128-GCM-SHA256",
+                                             "ECDHE-ECDSA-AES256-GCM-SHA384"]');
+INSERT INTO cipher_data.deprecated VALUES ('["ECDHE-ECDSA-AES128-SHA256",
+                                             "ECDHE-ECDSA-AES256-SHA384",
+                                             "ECDHE-ECDSA-AES128-SHA",
+                                             "ECDHE-ECDSA-AES256-SHA",
+                                             "ECDH-ECDSA-AES128-SHA256",
+                                             "ECDH-ECDSA-AES256-SHA384",
+                                             "ECDH-ECDSA-AES128-SHA",
+                                             "ECDH-ECDSA-AES256-SHA",
+                                             "ECDH-ECDSA-AES128-GCM-SHA256",
+                                             "ECDH-ECDSA-AES256-GCM-SHA384"]');
+INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+                                          "ECDHE-RSA-NULL-SHA",
+                                          "ECDHE-ECDSA-NULL-SHA",
+                                          "GOST94-NULL-GOST94",
+                                          "GOST2001-GOST89-GOST89",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "NULL-SHA256",
+                                          "NULL-SHA",
+                                          "NULL-MD5",
+                                          "AECDH-AES256-SHA",
+                                          "ADH-AES256-GCM-SHA384",
+                                          "ADH-AES256-SHA256",
+                                          "ADH-AES256-SHA",
+                                          "ADH-CAMELLIA256-SHA256",
+                                          "ADH-CAMELLIA256-SHA",
+                                          "AECDH-AES128-SHA",
+                                          "ADH-AES128-GCM-SHA256",
+                                          "ADH-AES128-SHA256",
+                                          "ADH-AES128-SHA",
+                                          "ADH-CAMELLIA128-SHA256",
+                                          "AADH-CAMELLIA128-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ADH-RC4-MD5",
+                                          "AECDH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-DES-CBC-SHA",
+                                          "EXP-DH-DSS-DES-CBC-SHA",
+                                          "EXP-DH-RSA-DES-CBC-SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP-KRB5-DES-CBC-SHA",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP-KRB5-RC4-SHA",
+                                          "EXP-KRB5-DES-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC4-MD5",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP1024-DES-CBC-SHA",
+                                          "EXP1024-RC4-SHA",
+                                          "EXP1024-RC4-MD5",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "EXP1024-DHE-DSS-DES-CBC-SHA",
+                                          "EXP1024-DHE-DSS-RC4-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-RC2-MD5",
+                                          "EDH-RSA-DES-CBC-SHA",
+                                          "EDH-DSS-DES-CBC-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "DES-CBC-SHA",
+                                          "ADH-RC4-MD5",
+                                          "RC4-MD5",
+                                          "NULL-MD5",
+                                          "ECDHE-RSA-RC4-SHA",
+                                          "ECDHE-ECDSA-RC4-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ECDH-RSA-RC4-SHA",
+                                          "ECDH-ECDSA-RC4-SHA",
+                                          "RC4-SHA",
+                                          "AECDH-NULL-SHA",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "PSK-AES256-CBC-SHA",
+                                          "PSK-AES128-CBC-SHA",
+                                          "PSK-3DES-EDE-CBC-SHA",
+                                          "PSK-RC4-SHA",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "RC2-CBC-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "DH-RSA-AES128-SHA256",
+                                          "DH-RSA-AES256-SHA256",
+                                          "DH-DSS-AES128-SHA256",
+                                          "DH-DSS-AES128-SHA",
+                                          "DH-DSS-AES256-SHA",
+                                          "DH-DSS-AES256-SHA256",
+                                          "DH-RSA-AES128-SHA",
+                                          "DH-RSA-AES256-SHA",
+                                          "DH-DSS-AES128-GCM-SHA256",
+                                          "DH-DSS-AES256-GCM-SHA384",
+                                          "DH-RSA-AES128-GCM-SHA256",
+                                          "DH-RSA-AES256-GCM-SHA384",
+                                          "DH-DSS-DES-CBC3-SHA",
+                                          "DH-RSA-DES-CBC3-SHA",
+                                          "EDH-DSS-DES-CBC3-SHA",
+                                          "EDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-ECDSA-DES-CBC3-SHA",
+                                          "ECDHE-RSA-DES-CBC3-SHA",
+                                          "ECDHE-ECDSA-DES-CBC3-SHA",
+                                          "DES-CBC3-SHA"]');
+--let $TLS_VERSION = TLSv1.2
+--source suite/auth_sec/include/wl15800_cipher_test.inc
+
+--echo
+--echo #=======================================================================
+--echo
+--echo # Cert type: ECDSA | TLS Version: 1.2
+--echo
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_ca='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_cert='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.ssl_key='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_ca='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/cacert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_cert='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-cert.pem'
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET @@global.admin_ssl_key='$MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-key.pem'
+ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
+
+TRUNCATE TABLE cipher_data.acceptable;
+TRUNCATE TABLE cipher_data.deprecated;
+TRUNCATE TABLE cipher_data.blocked;
+INSERT INTO cipher_data.deprecated VALUES ('["ECDH-RSA-AES128-SHA256",
+                                             "ECDH-RSA-AES256-SHA384",
+                                             "ECDH-RSA-AES128-SHA",
+                                             "ECDH-RSA-AES256-SHA",
+                                             "ECDH-RSA-AES128-GCM-SHA256",
+                                             "ECDH-RSA-AES256-GCM-SHA384"]');
+INSERT INTO cipher_data.blocked VALUES ('["AECDH-NULL-SHA",
+                                          "ECDHE-RSA-NULL-SHA",
+                                          "ECDHE-ECDSA-NULL-SHA",
+                                          "GOST94-NULL-GOST94",
+                                          "GOST2001-GOST89-GOST89",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "NULL-SHA256",
+                                          "NULL-SHA",
+                                          "NULL-MD5",
+                                          "AECDH-AES256-SHA",
+                                          "ADH-AES256-GCM-SHA384",
+                                          "ADH-AES256-SHA256",
+                                          "ADH-AES256-SHA",
+                                          "ADH-CAMELLIA256-SHA256",
+                                          "ADH-CAMELLIA256-SHA",
+                                          "AECDH-AES128-SHA",
+                                          "ADH-AES128-GCM-SHA256",
+                                          "ADH-AES128-SHA256",
+                                          "ADH-AES128-SHA",
+                                          "ADH-CAMELLIA128-SHA256",
+                                          "AADH-CAMELLIA128-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ADH-RC4-MD5",
+                                          "AECDH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC3-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-DES-CBC-SHA",
+                                          "EXP-DH-DSS-DES-CBC-SHA",
+                                          "EXP-DH-RSA-DES-CBC-SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP-KRB5-DES-CBC-SHA",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP-KRB5-RC4-SHA",
+                                          "EXP-KRB5-DES-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC4-MD5",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                                          "EXP-EDH-DSS-DES-CBC-SHA",
+                                          "EXP-EDH-RSA-DES-CBC-SHA",
+                                          "EXP-ADH-RC4-MD5",
+                                          "EXP-ADH-DES-CBC-SHA",
+                                          "EXP1024-DES-CBC-SHA",
+                                          "EXP1024-RC4-SHA",
+                                          "EXP1024-RC4-MD5",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "EXP1024-DHE-DSS-DES-CBC-SHA",
+                                          "EXP1024-DHE-DSS-RC4-SHA",
+                                          "EXP-RC4-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-RC2-MD5",
+                                          "EDH-RSA-DES-CBC-SHA",
+                                          "EDH-DSS-DES-CBC-SHA",
+                                          "ADH-DES-CBC-SHA",
+                                          "DES-CBC-SHA",
+                                          "ADH-RC4-MD5",
+                                          "RC4-MD5",
+                                          "NULL-MD5",
+                                          "ECDHE-RSA-RC4-SHA",
+                                          "ECDHE-ECDSA-RC4-SHA",
+                                          "AECDH-RC4-SHA",
+                                          "ECDH-RSA-RC4-SHA",
+                                          "ECDH-ECDSA-RC4-SHA",
+                                          "RC4-SHA",
+                                          "AECDH-NULL-SHA",
+                                          "ECDH-RSA-NULL-SHA",
+                                          "ECDH-ECDSA-NULL-SHA",
+                                          "PSK-AES256-CBC-SHA",
+                                          "PSK-AES128-CBC-SHA",
+                                          "PSK-3DES-EDE-CBC-SHA",
+                                          "PSK-RC4-SHA",
+                                          "EXP-RC2-CBC-MD5",
+                                          "EXP-KRB5-RC2-CBC-SHA",
+                                          "EXP1024-RC2-CBC-MD5",
+                                          "RC2-CBC-MD5",
+                                          "EXP-RC2-CBC-MD5",
+                                          "DH-RSA-AES128-SHA256",
+                                          "DH-RSA-AES256-SHA256",
+                                          "DH-DSS-AES128-SHA256",
+                                          "DH-DSS-AES128-SHA",
+                                          "DH-DSS-AES256-SHA",
+                                          "DH-DSS-AES256-SHA256",
+                                          "DH-RSA-AES128-SHA",
+                                          "DH-RSA-AES256-SHA",
+                                          "DH-DSS-AES128-GCM-SHA256",
+                                          "DH-DSS-AES256-GCM-SHA384",
+                                          "DH-RSA-AES128-GCM-SHA256",
+                                          "DH-RSA-AES256-GCM-SHA384",
+                                          "DH-DSS-DES-CBC3-SHA",
+                                          "DH-RSA-DES-CBC3-SHA",
+                                          "EDH-DSS-DES-CBC3-SHA",
+                                          "EDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-RSA-DES-CBC3-SHA",
+                                          "ECDH-ECDSA-DES-CBC3-SHA",
+                                          "ECDHE-RSA-DES-CBC3-SHA",
+                                          "ECDHE-ECDSA-DES-CBC3-SHA",
+                                          "DES-CBC3-SHA"]');
+--let $TLS_VERSION = TLSv1.2
+--source suite/auth_sec/include/wl15800_cipher_test.inc
+
+--echo
+--echo #=======================================================================
+--echo
+--echo # Cleanup
+--echo
+
+DROP DATABASE cipher_data;
+DROP USER arthurdent@localhost;
+
+--echo
+--echo #=======================================================================
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+# Clean slate
+--source include/force_restart.inc

@@ -47,7 +47,7 @@ SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0;
 EOF
 
 --echo Starting GR on server 1
---exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 
 # Wait for member state to be ONLINE
 --let $group_replication_member_state= ONLINE
@@ -180,7 +180,7 @@ SET GLOBAL group_replication_recovery_retry_count= 5;
 SET GLOBAL group_replication_recovery_ssl_ca= '%TEST_DIR%/std_data/cacert.pem';
 SET GLOBAL group_replication_recovery_ssl_capath= '%TEST_DIR%/std_data';
 SET GLOBAL group_replication_recovery_ssl_cert= '%TEST_DIR%/std_data/client-cert.pem';
-SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
+SET GLOBAL group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256';
 SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 SET GLOBAL group_replication_recovery_ssl_crlpath= '%TEST_DIR%/std_data';
 SET GLOBAL group_replication_recovery_ssl_key= '%TEST_DIR%/std_data/client-key.pem';
@@ -195,7 +195,7 @@ SET GLOBAL group_replication_recovery_public_key_path= '%TEST_DIR%/std_data/rsa_
 EOF
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $xcom_port xcom_port
---exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
+--exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
 
 ## Start GR
 
@@ -284,8 +284,8 @@ EOF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_cert]" = "$MYSQL_TEST_DIR/std_data/client-cert.pem"
 --source include/assert.inc
 
---let $assert_text= group_replication_recovery_ssl_cipher is DHE-RSA-AES256-SHA
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_cipher]" = "DHE-RSA-AES256-SHA"
+--let $assert_text= group_replication_recovery_ssl_cipher is ECDHE-RSA-AES128-GCM-SHA256
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_cipher]" = "ECDHE-RSA-AES128-GCM-SHA256"
 --source include/assert.inc
 
 --let $assert_text= group_replication_recovery_ssl_crl is crl-client-revoked.crl
@@ -336,7 +336,7 @@ EOF
 
 ## Stop GR on Server1
 --echo Stopping GR on server 1
---exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 
 ## Wait for member state to be OFFLINE.
 --let $group_replication_member_state= OFFLINE
@@ -378,12 +378,12 @@ SET GLOBAL group_replication_recovery_public_key_path= @group_replication_recove
 SET GLOBAL group_replication_recovery_get_public_key= @group_replication_recovery_get_public_key_save;
 
 ## See if GR is able to start after resetting the values.
---exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 --let $group_replication_member_state= ONLINE
 --source include/gr_wait_for_member_state.inc
 
 ## Stop GR
---exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $group_replication_member_state= OFFLINE

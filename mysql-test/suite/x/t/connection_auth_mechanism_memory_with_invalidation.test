@@ -69,7 +69,7 @@ SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new';
 -->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256_new
 EOF
 
---let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 
 # Create and configure xuser_* accounts that use native, sha256 and
 # cache_sha2 authentication plugins.

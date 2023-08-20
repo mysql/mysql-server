@@ -24,7 +24,7 @@ EOF
 
 --exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
---let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
+--let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 # each of the below regexps has 2 replaces
 # 1: for openssl 1.0
 # 2: for openssl 1.1
