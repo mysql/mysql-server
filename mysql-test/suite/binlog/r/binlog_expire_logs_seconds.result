@@ -66,18 +66,7 @@ RESET BINARY LOGS AND GTIDS;
 ##### Cleanup #####
 SET @@GLOBAL.MAX_BINLOG_SIZE= 1073741824;;
 DROP TABLE t1;
-<<<<<<< HEAD
 RESET BINARY LOGS AND GTIDS;
-####
-#### 2.3: binlog_expire_logs_seconds == 0 and expire_logs_days > 0
-####
-SET GLOBAL binlog_expire_logs_seconds= 0;
-SET GLOBAL expire_logs_days= 1;
-Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
-=======
-RESET MASTER;
->>>>>>> db6b0d683a3... WL#11006: Remove expire-logs-days
 CREATE TABLE t1(s LONGBLOB );
 Case:0
 FLUSH LOGS;
