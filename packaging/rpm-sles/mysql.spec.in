@@ -883,6 +883,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_uninstall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so

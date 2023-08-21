@@ -46,21 +46,21 @@ CREATE DEFINER='mysql.sys'@'localhost'
 BEGIN
   DECLARE result VARCHAR(160);
   IF arg_mode = "RECORDING" THEN
-    SELECT read_firewall_whitelist(arg_userhost,FW.rule) FROM mysql.firewall_whitelist FW WHERE userhost = arg_userhost;
+    SELECT read_firewall_whitelist(arg_userhost,FW.rule) FROM firewall_whitelist FW WHERE userhost = arg_userhost;
   END IF;
   SELECT set_firewall_mode(arg_userhost, arg_mode) INTO result;
   IF arg_mode = "RESET" THEN
     SET arg_mode = "OFF";
   END IF;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_users VALUES (arg_userhost, arg_mode);
-    UPDATE mysql.firewall_users SET mode=arg_mode WHERE userhost = arg_userhost;
+    INSERT IGNORE INTO firewall_users VALUES (arg_userhost, arg_mode);
+    UPDATE firewall_users SET mode=arg_mode WHERE userhost = arg_userhost;
   ELSE
     SELECT result;
   END IF;
   IF arg_mode = "PROTECTING" OR arg_mode = "OFF" OR arg_mode = "DETECTING" THEN
-    DELETE FROM mysql.firewall_whitelist WHERE USERHOST = arg_userhost;
-    INSERT INTO mysql.firewall_whitelist(USERHOST, RULE) SELECT USERHOST,RULE FROM INFORMATION_SCHEMA.mysql_firewall_whitelist WHERE USERHOST=arg_userhost;
+    DELETE FROM firewall_whitelist WHERE USERHOST = arg_userhost;
+    INSERT INTO firewall_whitelist(USERHOST, RULE) SELECT USERHOST,RULE FROM INFORMATION_SCHEMA.mysql_firewall_whitelist WHERE USERHOST=arg_userhost;
   END IF;
 END$$
 
@@ -72,9 +72,9 @@ BEGIN
   DECLARE result VARCHAR(160);
   SELECT set_firewall_mode(arg_userhost, "RESET") INTO result;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_users VALUES (arg_userhost, "OFF");
-    UPDATE mysql.firewall_users SET mode="OFF" WHERE userhost = arg_userhost;
-    SELECT read_firewall_whitelist(arg_userhost,FW.rule) FROM mysql.firewall_whitelist FW WHERE FW.userhost=arg_userhost;
+    INSERT IGNORE INTO firewall_users VALUES (arg_userhost, "OFF");
+    UPDATE firewall_users SET mode="OFF" WHERE userhost = arg_userhost;
+    SELECT read_firewall_whitelist(arg_userhost,FW.rule) FROM firewall_whitelist FW WHERE FW.userhost=arg_userhost;
   ELSE
     SELECT result;
   END IF;
@@ -88,21 +88,21 @@ CREATE DEFINER='mysql.sys'@'localhost'
 BEGIN
   DECLARE result VARCHAR(160);
   IF arg_mode = "RECORDING" THEN
-    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM mysql.firewall_group_allowlist FW WHERE name = arg_group_name;
+    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM firewall_group_allowlist FW WHERE name = arg_group_name;
   END IF;
   SELECT set_firewall_group_mode(arg_group_name, arg_mode) INTO result;
   IF arg_mode = "RESET" THEN
     SET arg_mode = "OFF";
   END IF;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_groups VALUES (arg_group_name, arg_mode, NULL);
-    UPDATE mysql.firewall_groups SET mode=arg_mode WHERE name = arg_group_name;
+    INSERT IGNORE INTO firewall_groups VALUES (arg_group_name, arg_mode, NULL);
+    UPDATE firewall_groups SET mode=arg_mode WHERE name = arg_group_name;
   ELSE
     SELECT result;
   END IF;
   IF arg_mode = "PROTECTING" OR arg_mode = "OFF" OR arg_mode = "DETECTING" THEN
-    DELETE FROM mysql.firewall_group_allowlist WHERE name = arg_group_name;
-    INSERT INTO mysql.firewall_group_allowlist(name, rule)
+    DELETE FROM firewall_group_allowlist WHERE name = arg_group_name;
+    INSERT INTO firewall_group_allowlist(name, rule)
       SELECT name, rule FROM performance_schema.firewall_group_allowlist
       WHERE name=arg_group_name;
   END IF;
@@ -117,21 +117,21 @@ CREATE DEFINER='mysql.sys'@'localhost'
 BEGIN
   DECLARE result VARCHAR(160);
   IF arg_mode = "RECORDING" THEN
-    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM mysql.firewall_group_allowlist FW WHERE name = arg_group_name;
+    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM firewall_group_allowlist FW WHERE name = arg_group_name;
   END IF;
   SELECT set_firewall_group_mode(arg_group_name, arg_mode, arg_userhost) INTO result;
   IF arg_mode = "RESET" THEN
     SET arg_mode = "OFF";
   END IF;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_groups VALUES (arg_group_name, arg_mode, arg_userhost);
-    UPDATE mysql.firewall_groups SET mode=arg_mode, userhost=arg_userhost WHERE name = arg_group_name;
+    INSERT IGNORE INTO firewall_groups VALUES (arg_group_name, arg_mode, arg_userhost);
+    UPDATE firewall_groups SET mode=arg_mode, userhost=arg_userhost WHERE name = arg_group_name;
   ELSE
     SELECT result;
   END IF;
   IF arg_mode = "PROTECTING" OR arg_mode = "OFF" OR arg_mode = "DETECTING" THEN
-    DELETE FROM mysql.firewall_group_allowlist WHERE name = arg_group_name;
-    INSERT INTO mysql.firewall_group_allowlist(name, rule)
+    DELETE FROM firewall_group_allowlist WHERE name = arg_group_name;
+    INSERT INTO firewall_group_allowlist(name, rule)
       SELECT name, rule FROM performance_schema.firewall_group_allowlist
       WHERE name=arg_group_name;
   END IF;
@@ -145,9 +145,9 @@ BEGIN
   DECLARE result VARCHAR(160);
   SELECT set_firewall_group_mode(arg_group_name, "RESET") INTO result;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_groups VALUES (arg_group_name, "OFF", NULL);
-    UPDATE mysql.firewall_groups SET mode="OFF" WHERE name = arg_group_name;
-    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM mysql.firewall_group_allowlist FW WHERE FW.name=arg_group_name;
+    INSERT IGNORE INTO firewall_groups VALUES (arg_group_name, "OFF", NULL);
+    UPDATE firewall_groups SET mode="OFF" WHERE name = arg_group_name;
+    SELECT read_firewall_group_allowlist(arg_group_name,FW.rule) FROM firewall_group_allowlist FW WHERE FW.name=arg_group_name;
   ELSE
     SELECT result;
   END IF;
@@ -162,7 +162,7 @@ BEGIN
   DECLARE result VARCHAR(160);
   SELECT firewall_group_enlist(arg_group_name, arg_userhost) INTO result;
   IF result = "OK" THEN
-    INSERT IGNORE INTO mysql.firewall_membership VALUES (arg_group_name, arg_userhost);
+    INSERT IGNORE INTO firewall_membership VALUES (arg_group_name, arg_userhost);
   ELSE
     SELECT result;
   END IF;
@@ -177,7 +177,7 @@ BEGIN
   DECLARE result VARCHAR(160);
   SELECT firewall_group_delist(arg_group_name, arg_userhost) INTO result;
   IF result = "OK" THEN
-    DELETE IGNORE FROM mysql.firewall_membership WHERE group_id = arg_group_name AND member_id = arg_userhost;
+    DELETE IGNORE FROM firewall_membership WHERE group_id = arg_group_name AND member_id = arg_userhost;
   ELSE
     SELECT result;
   END IF;
