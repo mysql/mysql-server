@@ -712,8 +712,8 @@ void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
     auto res = run_acceptor(env);
     if (!res) {
       clear_running(env);
-      throw std::runtime_error(string_format(
-          "Failed setting up acceptor services: %s", res.error().c_str()));
+
+      throw std::runtime_error(res.error());
     }
   }
 }
