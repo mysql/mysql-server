@@ -1270,6 +1270,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
