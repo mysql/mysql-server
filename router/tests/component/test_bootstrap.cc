@@ -1626,13 +1626,13 @@ TEST_F(RouterBootstrapTest,
  *       verify that master key file is not overridden by subsequent bootstrap.
  */
 TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
-  std::string master_key_path =
-      Path(bootstrap_dir.name()).join("mysqlrouter.key").str();
-  std::string keyring_path =
-      Path(bootstrap_dir.name()).join("data").join("keyring").str();
-
   mysql_harness::mkdir(Path(bootstrap_dir.name()).str(), 0777);
   mysql_harness::mkdir(Path(bootstrap_dir.name()).join("data").str(), 0777);
+
+  const std::string master_key_path =
+      Path(bootstrap_dir.name()).real_path().join("mysqlrouter.key").str();
+  const std::string keyring_path =
+      Path(bootstrap_dir.name()).real_path().join("data").join("keyring").str();
 
   SCOPED_TRACE("// create the keyrings manually.");
   auto &proc = launch_command(get_origin().join("mysqlrouter_keyring").str(),
