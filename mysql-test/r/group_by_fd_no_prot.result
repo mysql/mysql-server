@@ -2221,7 +2221,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` anti join (`test`.`t3`) on((1 = 1)) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` anti join (`test`.`t3`) on(true) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
 explain select (select 2 from t2 where exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 explain select (select 2 from t2 where not exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
