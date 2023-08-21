@@ -438,8 +438,8 @@ static const BrokenConfigParams broken_config_params_unix[]{
                  {"socket", "/this/path/does/not/exist/socket"},
              }),
      },
-     "Failed setting up acceptor services: Failed setting up acceptor on "
-     "'/this/path/does/not/exist/socket': No such file or directory",
+     "Failed setting up acceptor on '/this/path/does/not/exist/socket': "
+     "No such file or directory",
      ""},
 };
 
