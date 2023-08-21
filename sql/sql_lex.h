@@ -2204,7 +2204,7 @@ class Query_block : public Query_term {
   ///  Build semijoin condition for th query block
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                      Query_block *subq_query_block, table_map outer_tables_map,
-                     Item **sj_cond);
+                     Item **sj_cond, bool *simple_const);
   bool decorrelate_condition(Semijoin_decorrelation &sj_decor,
                              Table_ref *join_nest);
 
