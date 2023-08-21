@@ -1119,6 +1119,41 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
                                     socket_file + "'",
                                 5s));
 }
+
+TEST_F(RouterRoutingTest, named_socket_fails_with_socket_is_not_readable) {
+  TempDirectory bootstrap_dir;
+
+  // launch Router with unix socket
+  const std::string socket_file = bootstrap_dir.name() + "/sockfile";
+
+  // create the file that's not readable to trigger a permission denied check.
+  {
+    int fd = open(socket_file.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0000);
+    ASSERT_NE(fd, -1) << errno;
+    close(fd);
+  }
+
+  auto writer = config_writer(bootstrap_dir.name());
+
+  writer.section("routing:basic", {
+                                      {"socket", socket_file},
+                                      {"mode", "read-write"},
+                                      {"destinations", "127.0.0.1:1234"},
+                                  });
+  auto &router = router_spawner()
+                     .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                     .expected_exit_code(EXIT_FAILURE)
+                     .spawn({"-c", writer.write()});
+
+  ASSERT_NO_THROW(router.wait_for_exit());
+
+  EXPECT_THAT(router.get_logfile_content(),
+              ::testing::HasSubstr(
+                  "is bound by another process failed: Permission denied"));
+
+  // check if the file still exists and hasn't been deleted
+  EXPECT_EQ(access(socket_file.c_str(), F_OK), 0);
+}
 #endif
 
 TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
