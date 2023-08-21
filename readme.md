@@ -31,4 +31,19 @@ Allowed options:
 
 ## Example
 
-    TestLogUring -l 1 -t 400 -u true
+    TestLogUring -g 1024 -l 1 -t 40 -u true
+
+
+# Run mysqld
+
+## mysql database initialize
+
+    mysqld --initialize-insecure
+
+## run mysqld
+
+enable environment
+    
+    export ENABLE_IO_STAT="any value"
+    export ENABLE_LOG_URING="any value"
+    mysqld

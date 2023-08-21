@@ -31,11 +31,13 @@ void log_stat_thread(std::atomic_bool *stop) {
     }
     if (is_enable_io_stat()) {
       auto s = log_stat_period();
+      if (!s.empty()) {
   #ifdef __MYSQLD__
-      LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
+        LogErr(WARNING_LEVEL, ER_LOG_WAL_STAT, s.c_str());
   #else
-      std::cout << s << std::endl;
+        std::cout << s << std::endl;
   #endif
+      }
     }
   }
 }
