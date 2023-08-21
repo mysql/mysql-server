@@ -586,6 +586,13 @@ stdx::expected<void, std::error_code> AcceptingEndpointUnixSocket::setup() {
       if (!last_res) {
         return stdx::make_unexpected(last_res.error());
       }
+    } else {
+      log_warning(
+          "Checking if existing socket file %s is bound by another process "
+          "failed: %s",
+          socket_name_.c_str(), connect_res.error().message().c_str());
+
+      return stdx::make_unexpected(connect_res.error());
     }
   }
 
