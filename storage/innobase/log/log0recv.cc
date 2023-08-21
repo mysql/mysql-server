@@ -2598,11 +2598,6 @@ void recv_recover_page_func(
   DBUG_PRINT("ib_log", ("Applying log to page %u:%u", recv_addr->space,
                         recv_addr->page_no));
 
-#ifdef UNIV_DEBUG
-  lsn_t max_lsn;
-
-  ut_d(max_lsn = log_sys->m_scanned_lsn);
-#endif /* UNIV_DEBUG */
 #else  /* !UNIV_HOTBACKUP */
   ib::trace_2() << "Applying log to space_id " << recv_addr->space
                 << " page_nr " << recv_addr->page_no;
@@ -2662,17 +2657,14 @@ void recv_recover_page_func(
   size_t skipped_recs = 0;
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
   lsn_t end_lsn = 0;
-#endif /* !UNIV_HOTBACKUP */
   lsn_t start_lsn = 0;
   bool modification_to_page = false;
 
   for (auto recv : recv_addr->rec_list) {
-#ifndef UNIV_HOTBACKUP
     end_lsn = recv->end_lsn;
-
-    ut_ad(end_lsn <= max_lsn);
+#ifndef UNIV_HOTBACKUP
+    ut_ad(end_lsn <= log_sys->m_scanned_lsn);
 #endif /* !UNIV_HOTBACKUP */
 
     byte *buf = nullptr;
@@ -2721,8 +2713,6 @@ void recv_recover_page_func(
 #endif /* !UNIV_HOTBACKUP */
     ) {
 
-      lsn_t end_lsn;
-
       if (!modification_to_page) {
 #ifndef UNIV_HOTBACKUP
         ut_a(recv_needed_recovery);
@@ -2747,16 +2737,6 @@ void recv_recover_page_func(
                                        recv_addr->space, recv_addr->page_no,
                                        block, &mtr, ULINT_UNDEFINED, LSN_MAX);
 
-      end_lsn = recv->start_lsn + recv->len;
-
-      mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
-
-      mach_write_to_8(UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM + page,
-                      end_lsn);
-
-      if (page_zip) {
-        mach_write_to_8(FIL_PAGE_LSN + page_zip->data, end_lsn);
-      }
 #ifdef UNIV_HOTBACKUP
       ++applied_recs;
     } else {
@@ -2777,13 +2757,20 @@ void recv_recover_page_func(
   }
 #endif /* UNIV_ZIP_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
   if (modification_to_page) {
-    buf_flush_recv_note_modification(block, start_lsn, end_lsn);
-  }
+    /* page lsn must be less than the lsn of a log record here. Otherwise,
+    it would mean we are moving the page back in time. Also, indirectly this
+    verifies the end_lsn is not 0. */
+    ut_a(page_lsn < end_lsn);
+#ifdef UNIV_HOTBACKUP
+    UT_NOT_USED(start_lsn);
+    /* MEB uses this PAGE_LSN to init page for writing in the
+    meb_apply_log_record() */
+    mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
 #else  /* !UNIV_HOTBACKUP */
-  UT_NOT_USED(start_lsn);
+    buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 #endif /* !UNIV_HOTBACKUP */
+  }
 
   /* Make sure that committing mtr does not change the modification
   LSN values of page */

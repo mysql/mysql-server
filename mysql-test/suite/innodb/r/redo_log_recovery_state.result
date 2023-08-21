@@ -1,0 +1,50 @@
+CREATE TABLE foo (c1 INT PRIMARY KEY, c2 BLOB) ENGINE=INNODB;
+#
+# Stop the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_master_thread_disabled_debug = ON;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_purge_stop_now = ON;
+#
+# Do DML such that redo log record spans multiple log blocks
+#
+INSERT INTO foo VALUES(1, repeat('#',16000));
+#
+# Take snapshot of the datadir to MYSQL_TMP_DIR/datadir_snapshot
+#
+#
+# Resume the page cleaner and other background threads
+#
+SET GLOBAL innodb_dict_stats_disabled_debug = OFF;
+SET GLOBAL innodb_master_thread_disabled_debug = OFF;
+SET GLOBAL debug = "-d,gtid_persist_flush_disable";
+SET GLOBAL debug = "-d,disable_se_persists_gtid";
+SET GLOBAL innodb_page_cleaner_disabled_debug = OFF;
+SET GLOBAL innodb_checkpoint_disabled = OFF;
+SET GLOBAL innodb_purge_stop_now = OFF;
+SET GLOBAL innodb_purge_run_now = ON;
+#
+# Clean server shutdown
+#
+# Take snapshot of datadir after shutdown to MYSQL_TMP_DIR/datadir_with_shutdown
+#
+# Start the server with the snapshot dir to recover it
+#
+# restart: --datadir=MYSQL_TMP_DIR/datadir_snapshot/data
+#
+# Clean server shutdown
+#
+#
+# Compare the recovered file and the one with clean shutdown
+#
+#
+# Cleanup
+#
+# restart: --datadir=MYSQLD_DATADIR
+DROP TABLE foo;
