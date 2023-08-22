@@ -1819,11 +1819,13 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
     /*
       Skip key parts that are constants in the WHERE clause if these are
       already removed in the ORDER expression by check_field_is_const().
+      If they are not removed in the ORDER expression yet, then we skip
+      the constant keyparts that are not part of the ORDER expression.
     */
-    if (order_src->is_const_optimized()) {
-      for (; const_key_parts & 1 && key_part < key_part_end;
-           const_key_parts >>= 1)
-        key_part++;
+    for (; const_key_parts & 1 && key_part < key_part_end &&
+           (order_src->is_const_optimized() || key_part->field != field);
+         const_key_parts >>= 1) {
+      key_part++;
     }
 
     /* Avoid usage of prefix index for sorting a partition table */
@@ -1850,11 +1852,13 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
         /*
           Skip key parts that are constants in the WHERE clause if these are
           already removed in the ORDER expression by check_field_is_const().
+          If they are not removed in the ORDER expression yet, then we skip
+          the constant keyparts that are not part of the ORDER expression.
         */
-        if (order_src->is_const_optimized()) {
-          for (; const_key_parts & 1 && key_part < key_part_end;
-               const_key_parts >>= 1)
-            key_part++;
+        for (; const_key_parts & 1 && key_part < key_part_end &&
+               (order_src->is_const_optimized() || key_part->field != field);
+             const_key_parts >>= 1) {
+          key_part++;
         }
         /*
          The primary and secondary key parts were all const (i.e. there's
@@ -9776,7 +9780,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 */
                 if (read_direction == 1 ||
                     (read_direction == -1 &&
-                     is_reverse_sorted_range(tab->range_scan()))) {
+                     reverse_sort_possible(tab->range_scan()) &&
+                     !make_reverse(get_used_key_parts(tab->range_scan()),
+                                   tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }
               }
