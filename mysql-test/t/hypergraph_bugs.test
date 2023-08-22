@@ -856,3 +856,32 @@ EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1 WHERE d =
 (SELECT MIN(g) FROM t1 x2 WHERE x1.b<>x2.b);
 
 DROP TABLE t1;
+
+
+--echo # Bug#35439787 Assertion `false && "Inconsistent row counts for
+--echo # different AccessPath objects."'
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  KEY k1 (b,c)
+);
+
+ANALYZE TABLE t1;
+
+# To reproduce this bug we use a query with:
+# - A top-level semi-join, so that we get one CompanionSet for the
+#   root and one for the inner-join.
+# - A cyclic dependency between x2, x3 and x4.
+# - Terms comparing both the first and second field in a key to
+#   other fields.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE EXISTS
+(SELECT 1 FROM t1 x2, t1 x3, t1 x4
+  WHERE x2.b=x3.d AND x2.c=x3.e AND x3.d=x4.b AND x2.e=x4.e);
+
+DROP TABLE t1;
