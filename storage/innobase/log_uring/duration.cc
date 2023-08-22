@@ -85,9 +85,10 @@ std::string log_stat_period() {
         if (duration.count() > 0.000001) {
           ssm <<
           "total write: " << total_size << " bytes, "
-          "append count: " << append << ", "
-          "avg log size: " << avg_size << " bytes, "
-          "append/s: " << append / duration.count() << ", "
+          "write count: " << append << ", "
+          "avg write size: " << avg_size << " bytes, "
+          "write bytes/s: " << total_size / duration.count() << ", "
+          "write count/s: " << append / duration.count() << ", "
           "sync/s: " << sync / duration.count();
         }
     }
