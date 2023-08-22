@@ -2609,11 +2609,11 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
 
 /**
  * @test
- *       verify that using --force-password-validation when bootstrapping works
- * ok
+ *       verify that using --force-password-validation is still supported for
+ * backward compatibility
  */
 TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
-  const std::string tracefile = "bootstrap_gr_unhashed_passwd.js";
+  const std::string tracefile = "bootstrap_gr.js";
 
   const auto classic_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();

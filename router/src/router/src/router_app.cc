@@ -1342,11 +1342,14 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--force-password-validation"}),
-      "When autocreating database account do not use HASHED password. "
+      "When autocreating database account do not use HASHED password - this is "
+      "the default behavior now, this parameter is not needed, it is kept for "
+      "backward compatibility."
       "(bootstrap)",
       CmdOptionValueReq::none, "",
-      [this](const std::string &) {
-        this->bootstrap_options_["force-password-validation"] = "1";
+      [](const std::string &) {
+        // this is now always assumed, so this parameter is ignored, kept for
+        // backward compatibility
       },
       [this](const std::string &) {
         this->assert_bootstrap_mode("--force-password-validation");

@@ -40,7 +40,7 @@ class LogFilterTest : public testing::Test {
   static const std::string alter_pattern_;
 };
 /*static*/ const std::string LogFilterTest::create_pattern_ =
-    "(CREATE USER '([[:graph:]]+)' WITH mysql_native_password AS) "
+    "(CREATE USER '([[:graph:]]+)' IDENTIFIED BY) "
     "([[:graph:]]*)";
 /*static*/ const std::string LogFilterTest::alter_pattern_ =
     "(ALTER USER [[:graph:]]+ IDENTIFIED WITH) ([[:graph:]]*) (BY) "
@@ -48,52 +48,50 @@ class LogFilterTest : public testing::Test {
 
 TEST_F(LogFilterTest, IsStatementNotChangedWhenNoPatternAdded) {
   const std::string statement =
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS 'password123'";
+      "CREATE USER 'router_1t3f' IDENTIFIED BY 'password123'";
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(statement));
 }
 
 TEST_F(LogFilterTest, IsStatementNotChangedWhenNoPatternMatched) {
   const std::string statement =
-      "xxxxxx USER 'router_1t3f' WITH mysql_native_password AS 'password123'";
+      "xxxxxx USER 'router_1t3f' IDENTIFIED BY 'password123'";
   log_filter.add_pattern(create_pattern_, "***");
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(statement));
 }
 
 TEST_F(LogFilterTest, IsEmptyPasswordHiddenWhenPatternMatched) {
-  const std::string statement =
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS ''";
+  const std::string statement = "CREATE USER 'router_1t3f' IDENTIFIED BY ''";
   log_filter.add_pattern(create_pattern_, "$1 ***");
   const std::string expected_result(
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS ***");
+      "CREATE USER 'router_1t3f' IDENTIFIED BY ***");
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 
 TEST_F(LogFilterTest, IsSpecialCharacterPasswordHiddenWhenPatternMatched) {
   const std::string statement =
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS '%$_*@'";
+      "CREATE USER 'router_1t3f' IDENTIFIED BY '%$_*@'";
   log_filter.add_pattern(create_pattern_, "$1 ***");
   const std::string expected_result(
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS ***");
+      "CREATE USER 'router_1t3f' IDENTIFIED BY ***");
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 
 TEST_F(LogFilterTest, IsPasswordHiddenWhenPatternMatched) {
   const std::string statement =
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS 'password123'";
+      "CREATE USER 'router_1t3f' IDENTIFIED BY 'password123'";
   log_filter.add_pattern(create_pattern_, "$1 ***");
   const std::string expected_result(
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS ***");
+      "CREATE USER 'router_1t3f' IDENTIFIED BY ***");
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 
 TEST_F(LogFilterTest, IsPasswordHiddenWhenPatternSameAsReplacement) {
   // this is a cornercase that exists if password is passed in plaintext && is
   // '***'
-  const std::string statement =
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS '***'";
+  const std::string statement = "CREATE USER 'router_1t3f' IDENTIFIED BY '***'";
   log_filter.add_pattern(create_pattern_, "$1 ***");
   const std::string expected_result(
-      "CREATE USER 'router_1t3f' WITH mysql_native_password AS ***");
+      "CREATE USER 'router_1t3f' IDENTIFIED BY ***");
   EXPECT_THAT(log_filter.filter(statement), testing::Eq(expected_result));
 }
 

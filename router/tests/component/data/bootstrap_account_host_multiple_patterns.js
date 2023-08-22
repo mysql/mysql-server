@@ -53,9 +53,9 @@ var common_stmts = require("common_statements");
             options);
 
     var cu_regex = "CREATE USER IF NOT EXISTS " +
-        "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*'," +
-        "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*'," +
-        "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*'";
+        "'mysql_router1_.*'@'.*' IDENTIFIED BY '.*'," +
+        "'mysql_router1_.*'@'.*' IDENTIFIED BY '.*'," +
+        "'mysql_router1_.*'@'.*' IDENTIFIED BY '.*'";
 
     if (stmt.match(cu_regex)) {
       return {"ok": {}};
