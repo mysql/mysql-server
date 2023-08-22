@@ -299,6 +299,7 @@ bool NdbSocket::key_update_pending() const { return false; }
 ssize_t NdbSocket::ssl_recv(char *, size_t) const { return too_old; }
 ssize_t NdbSocket::ssl_peek(char *, size_t) const { return too_old; }
 ssize_t NdbSocket::ssl_send(const char *, size_t) const { return too_old; }
+int NdbSocket::ssl_shutdown() const { return -1; }
 #endif
 
 /*
