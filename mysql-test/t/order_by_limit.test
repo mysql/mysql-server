@@ -436,3 +436,70 @@ EXPLAIN SELECT * FROM test  WHERE c = '2022-06-13' AND a > 222 ORDER BY c, a LIM
 
 DROP PROCEDURE insertProc;
 DROP TABLE test;
+
+--echo #
+--echo # Bug#34306497 - Low limit heuristic used unnecessarily with descending scans
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1), KEY(f2, f1));
+
+INSERT INTO t1 (
+WITH RECURSIVE
+a(i) AS (SELECT 0 UNION ALL SELECT i+1 FROM a WHERE i < 9 ),
+b(i) AS (SELECT x.i + y.i * 10 + z.i * 100 FROM a x, a y, a z)
+SELECT b.i, b.i %2 FROM b ORDER BY i);
+
+ANALYZE TABLE t1;
+
+let query =
+SELECT * FROM t1 WHERE f2 = 1 AND f1 <= 100 ORDER BY f1 DESC LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+CREATE TABLE t2 (
+ f1 INTEGER,
+ f2 INTEGER,
+ f3 INTEGER,
+ f4 INTEGER,
+ f5 INTEGER,
+PRIMARY KEY (f1), KEY(f2,f3,f4,f5,f1));
+
+INSERT INTO t2 (
+WITH RECURSIVE a (i) AS (SELECT 0 UNION ALL SELECT i+1 FROM a WHERE i < 9 ),
+b (i) AS (SELECT x.i + y.i * 10 + z.i * 100 FROM a x, a y, a z)
+SELECT b.i, b.i%2, b.i%3, b.i%4, b.i%5 FROM b ORDER BY i);
+
+ANALYZE TABLE t2;
+
+let query =
+SELECT * FROM t2
+WHERE f3 = 1 AND f2 = 1 AND f4 = 3 AND f5 IN(2,3) ORDER BY f4 DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+
+let query =
+SELECT * FROM t2
+WHERE f2 = 1 AND f3 = 2 AND f4 = 3 AND f5 IN(2,3) ORDER BY f3,f4 DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+
+let query =
+SELECT * FROM t2
+WHERE f2 = 1 AND f3 > 1 AND f4 = 3 AND f5 IN(2,3) ORDER BY f2,f3 DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+
+let query =
+SELECT * FROM t2
+WHERE f2 = 1 AND f3 > 1 AND f4 = 3 ORDER BY f2,f3,f5 DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+
+let query =
+SELECT * FROM t2
+WHERE f2 = 1 AND f3 > 1 AND f4 = 3 ORDER BY f2 DESC ,f3 DESC ,f5 DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;

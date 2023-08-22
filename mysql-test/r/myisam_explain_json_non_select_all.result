@@ -4264,6 +4264,7 @@ EXPLAIN
         "filtered": "100.00",
         "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))",
         "backward_index_scan": true,
+        "using_MRR": true,
         "cost_info": {
           "read_cost": "1.46",
           "eval_cost": "0.80",
@@ -5301,6 +5302,7 @@ EXPLAIN
         "filtered": "100.00",
         "index_condition": "((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18))",
         "backward_index_scan": true,
+        "using_MRR": true,
         "cost_info": {
           "read_cost": "1.46",
           "eval_cost": "0.80",
