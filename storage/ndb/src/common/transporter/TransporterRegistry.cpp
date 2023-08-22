@@ -114,14 +114,11 @@ TransporterRegistry::get_bytes_received(NodeId node_id) const
   return theNodeIdTransporters[node_id]->get_bytes_received();
 }
 
-SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
+SocketServer::Session * TransporterService::newSession(NdbSocket&& secureSocket)
 {
   /* The connection is currently running over a plain network socket.
      If m_auth is a SocketAuthTls, it might get upgraded to a TLS socket.
   */
-  NdbSocket secureSocket;
-  secureSocket.init_from_new(sockfd);
-
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   DEBUG_FPRINTF((stderr, "New session created\n"));
   if(m_auth)
@@ -158,7 +155,7 @@ SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
 
   BaseString msg;
   bool log_failure = false;
-  if (!m_transporter_registry->connect_server(secureSocket,
+  if (!m_transporter_registry->connect_server(std::move(secureSocket),
                                               msg,
                                               log_failure))
   {
@@ -522,7 +519,7 @@ TransporterRegistry::init_tls(const char * searchPath, int nodeType,
 }
 
 bool
-TransporterRegistry::connect_server(NdbSocket & socket,
+TransporterRegistry::connect_server(NdbSocket&& socket,
                                     BaseString & msg,
                                     bool& log_failure)
 {
@@ -532,7 +529,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
 
   // Read "hello" that consists of node id and other info
   // from client
-  SecureSocketInputStream s_input(socket);
+  SocketInputStream s_input(socket);
   char buf[256]; // <int> <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == nullptr) {
     /* Could be spurious connection, need not log */
@@ -800,7 +797,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     */
 
     // Avoid TIME_WAIT on server by requesting client to close connection
-    SecureSocketOutputStream s_output(socket);
+    SocketOutputStream s_output(socket);
     if (s_output.println("BYE") < 0)
     {
       // Failed to request client close
@@ -842,7 +839,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
   }
 
   // Send reply to client
-  SecureSocketOutputStream s_output(socket);
+  SocketOutputStream s_output(socket);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
     /* Strange, log it */
@@ -857,7 +854,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
   // Setup transporter (transporter responsible for closing sockfd)
   DEBUG_FPRINTF((stderr, "connect_server for trp_id %u\n",
                  t->getTransporterIndex()));
-  DBUG_RETURN(t->connect_server(socket, msg));
+  DBUG_RETURN(t->connect_server(std::move(socket), msg));
 }
 
 void
@@ -3779,7 +3776,7 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   require(!t->isMultiTransporter());
   require(!t->isPartOfMultiTransporter());
   NdbSocket secureSocket = connect_ndb_mgmd(h);
-  bool res = t->connect_client(secureSocket);
+  bool res = t->connect_client(std::move(secureSocket));
   if (res == true)
   {
     DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTING,"
@@ -3838,7 +3835,7 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   if ( h==nullptr || *h == nullptr )
   {
     g_eventLogger->error("Mgm handle is NULL (%s:%d)", __FILE__, __LINE__);
-    DBUG_RETURN(NdbSocket());  // an invalid socket, newly created on the stack
+    DBUG_RETURN(NdbSocket{});  // an invalid socket, newly created on the stack
   }
 
   /* Before converting, try to start TLS. */
@@ -3851,7 +3848,7 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   if (!report_dynamic_ports(*h))
   {
     ndb_mgm_destroy_handle(h);
-    DBUG_RETURN(NdbSocket());  // an invalid socket, newly created on the stack
+    DBUG_RETURN(NdbSocket{});  // an invalid socket, newly created on the stack
   }
 
   /**
@@ -3859,8 +3856,7 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
    * memory here).
    */
   DBUG_PRINT("info", ("Converting handle to transporter"));
-  NdbSocket socket;
-  ndb_mgm_convert_to_transporter(h, &socket);
+  NdbSocket socket = ndb_mgm_convert_to_transporter(h);
   if (! socket.is_valid())
   {
     g_eventLogger->error("Failed to convert to transporter (%s: %d)",
@@ -3884,7 +3880,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 
   if ( h == nullptr )
   {
-    DBUG_RETURN(NdbSocket());
+    DBUG_RETURN(NdbSocket{});
   }
 
   /**
@@ -3900,7 +3896,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
   {
     DBUG_PRINT("info", ("connection to mgmd failed"));
     ndb_mgm_destroy_handle(&h);
-    DBUG_RETURN(NdbSocket());
+    DBUG_RETURN(NdbSocket{});
   }
 
   DBUG_RETURN(connect_ndb_mgmd(&h));

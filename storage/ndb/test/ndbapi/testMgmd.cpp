@@ -347,8 +347,8 @@ public:
 
   NdbMgmHandle handle() { return m_mgmd_client.handle(); }
 
-  void convert_to_transporter(NdbSocket * sock) {
-    m_mgmd_client.convert_to_transporter(sock);
+  NdbSocket convert_to_transporter() {
+    return m_mgmd_client.convert_to_transporter();
   }
 
 private:
@@ -2161,8 +2161,7 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(state != nullptr);
 
   /* Now convert the socket to a transporter */
-  NdbSocket s;
-  mgmd.convert_to_transporter(&s);
+  NdbSocket s = mgmd.convert_to_transporter();
   CHECK(s.is_valid());
 
   return NDBT_OK;

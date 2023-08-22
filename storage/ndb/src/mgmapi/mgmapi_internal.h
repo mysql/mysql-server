@@ -26,6 +26,7 @@
 #define MGMAPI_INTERNAL_H
 
 #include "portlib/ndb_socket.h"
+#include "util/NdbSocket.h"
 
 
 /**
@@ -90,7 +91,7 @@ int ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
  * @note the socket is now able to be used as a transporter connection
  * @note the management handle is no longer valid after this call
  */
-void ndb_mgm_convert_to_transporter(NdbMgmHandle *handle, class NdbSocket * s);
+NdbSocket ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
 int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 
@@ -104,7 +105,7 @@ int ndb_mgm_set_configuration(NdbMgmHandle handle,
                               struct ndb_mgm_configuration* config);
 
 
-ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle handle);
+const NdbSocket& _ndb_mgm_get_socket(NdbMgmHandle handle);
 
 /**
  * Get configuration
@@ -119,7 +120,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle,
                            enum ndb_mgm_node_type nodetype,
                            int from_node = 0);
 
-int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int,
-                                  ndb_socket_t*, bool allow_tls);
+NdbLogEventHandle
+ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh);
+
+NdbSocket
+ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
+                              int parsable, bool allow_tls);
 
 #endif

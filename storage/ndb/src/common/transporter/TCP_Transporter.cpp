@@ -211,19 +211,19 @@ TCP_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool TCP_Transporter::connect_server_impl(NdbSocket & socket)
+bool TCP_Transporter::connect_server_impl(NdbSocket&& socket)
 {
   DBUG_ENTER("TCP_Transpporter::connect_server_impl");
-  DBUG_RETURN(connect_common(socket));
+  DBUG_RETURN(connect_common(std::move(socket)));
 }
 
-bool TCP_Transporter::connect_client_impl(NdbSocket & socket)
+bool TCP_Transporter::connect_client_impl(NdbSocket&& socket)
 {
   DBUG_ENTER("TCP_Transpporter::connect_client_impl");
-  DBUG_RETURN(connect_common(socket));
+  DBUG_RETURN(connect_common(std::move(socket)));
 }
 
-bool TCP_Transporter::connect_common(NdbSocket & socket)
+bool TCP_Transporter::connect_common(NdbSocket&& socket)
 {
   struct x509_st * cert = socket.peer_certificate();
   if(cert)

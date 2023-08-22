@@ -50,8 +50,12 @@ struct ndb_logevent_error_msg ndb_logevent_error_messages[]= {
 };
 
 struct ndb_logevent_handle {
-  ndb_socket_t socket;
-  enum ndb_logevent_handle_error m_error;
+  ndb_logevent_handle(const NdbSocket& sock): socket(sock) {}
+  ndb_logevent_handle(NdbSocket&& sock): owned_socket(std::move(sock)) {}
+  ~ndb_logevent_handle() { require(!owned_socket.is_valid()); }
+  NdbSocket owned_socket;
+  const NdbSocket& socket{owned_socket};
+  enum ndb_logevent_handle_error m_error{NDB_LEH_NO_ERROR};
 };
 
 /*
@@ -62,14 +66,7 @@ struct ndb_logevent_handle {
 NdbLogEventHandle
 ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh)
 {
-  NdbLogEventHandle h=
-    (NdbLogEventHandle)malloc(sizeof(ndb_logevent_handle));
-  if (!h)
-    return nullptr;
-
-  h->socket= _ndb_mgm_get_socket(mh);
-
-  return h;
+  return new (std::nothrow) ndb_logevent_handle(_ndb_mgm_get_socket(mh));
 }
 
 extern "C"
@@ -77,21 +74,14 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 			       const int filter[])
 {
-  NdbLogEventHandle h=
-    (NdbLogEventHandle)malloc(sizeof(ndb_logevent_handle));
-  if (!h)
-    return nullptr;
-
-  ndb_socket_t sock;
   constexpr bool allow_tls = true;
-  if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock, allow_tls) < 0)
-  {
-    free(h);
+  auto  h = new (std::nothrow)
+    ndb_logevent_handle(ndb_mgm_listen_event_internal(mh, filter, 1, allow_tls));
+
+  if (h && !h->socket.is_valid()) {
+    delete h;
     return nullptr;
   }
-
-  h->socket= sock;
-
   return h;
 }
 
@@ -99,7 +89,7 @@ extern "C"
 socket_t
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
-  return ndb_socket_get_native(h->socket);
+  return h->socket.native_socket();
 }
 
 extern "C"
@@ -107,12 +97,9 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
 {
   if( !h )
     return;
-
-  if ( *h )
-    ndb_socket_close((*h)->socket);
-
-  free(*h);
-  * h = nullptr;
+  if ( *h == nullptr ) return;
+  (*h)->owned_socket.close();
+  delete (*h);
 }
 
 #define ROW(a,b,c,d) \
@@ -548,8 +535,8 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
     return res;
   }
 
-  NdbSocket s(h->socket, NdbSocket::From::Existing);
-  SecureSocketInputStream in(s, timeout_in_milliseconds);
+  const NdbSocket& s = h->socket;
+  SocketInputStream in(s, timeout_in_milliseconds);
 
   /*
     Read log event header until header received

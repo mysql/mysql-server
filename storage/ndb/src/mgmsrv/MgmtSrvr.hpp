@@ -66,7 +66,7 @@ public:
     stop_sessions();
   }
 
-  void add_listener(Event_listener&, NdbSocket &);
+  void add_listener(Event_listener&, NdbSocket&&);
   void check_listeners();
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
@@ -367,7 +367,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(NdbSocket & socket,
+  bool transporter_connect(NdbSocket&& socket,
                            BaseString& errormsg,
                            bool& log_failure);
 

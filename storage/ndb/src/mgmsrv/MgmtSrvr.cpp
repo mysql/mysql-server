@@ -5152,14 +5152,16 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 
 
 bool
-MgmtSrvr::transporter_connect(NdbSocket & socket,
+MgmtSrvr::transporter_connect(NdbSocket&& socket,
                               BaseString& msg,
                               bool& log_failure)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(socket, msg, log_failure))
+  if (!tr->connect_server(std::move(socket), msg, log_failure))
+  {
     DBUG_RETURN(false);
+  }
 
   /**
    * TransporterRegistry::update_connections() is responsible

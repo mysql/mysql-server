@@ -36,6 +36,7 @@
 #include <OwnProcessInfo.hpp>
 #include <EventLogger.hpp>
 #include "portlib/ndb_sockaddr.h"
+#include "util/NdbSocket.h"
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -214,8 +215,8 @@ SocketServer::doAccept()
     ServiceInstance & si = m_services[i];
     assert(m_services_poller.is_socket_equal(i, si.m_socket));
 
-    const ndb_socket_t childSock = ndb_accept(si.m_socket, nullptr);
-    if (!ndb_socket_valid(childSock))
+    NdbSocket childSock{ndb_accept(si.m_socket, nullptr), NdbSocket::From::New};
+    if (!childSock.is_valid())
     {
       // Could not 'accept' socket(maybe at max fds), indicate error
       // to caller by returning false
@@ -225,7 +226,7 @@ SocketServer::doAccept()
 
     SessionInstance s;
     s.m_service = si.m_service;
-    s.m_session = si.m_service->newSession(childSock);
+    s.m_session = si.m_service->newSession(std::move(childSock));
     if (s.m_session != nullptr)
     {
       m_session_mutex.lock();

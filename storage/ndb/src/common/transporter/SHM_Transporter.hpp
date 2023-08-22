@@ -111,7 +111,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connect_server_impl(NdbSocket &) override;
+  bool connect_server_impl(NdbSocket&&) override;
 
   /**
    * Blocking
@@ -124,7 +124,7 @@ protected:
    *            i.e., both agrees that the other one has setup the segment.
    *            Otherwise false.
    */
-  bool connect_client_impl(NdbSocket &) override;
+  bool connect_client_impl(NdbSocket&&) override;
 
   bool connect_common();
 
@@ -132,7 +132,7 @@ protected:
   bool ndb_shm_get();
   bool ndb_shm_attach();
   void ndb_shm_destroy();
-  void set_socket(NdbSocket &);
+  void set_socket(NdbSocket&&);
 
   /**
    * Check if there are two processes attached to the segment (a connection)

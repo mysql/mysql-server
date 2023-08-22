@@ -175,11 +175,11 @@ static struct my_option options[] =
 
 class EchoSession : public SocketServer::Session {
 public:
-  EchoSession(ndb_socket_t s, bool sink, SSL_CTX * ctx) :
-    SocketServer::Session(s),
+  EchoSession(NdbSocket&& s, bool sink, SSL_CTX * ctx) :
+    SocketServer::Session(m_secure_socket),
     m_sink(sink),
     m_ssl_ctx(ctx),
-    m_secure_socket(s, NdbSocket::From::New) {}
+    m_secure_socket(std::move(s)) {}
   void runSession() override;
 private:
   bool m_sink;
@@ -190,8 +190,8 @@ private:
 class PlainService : public SocketServer::Service {
 public:
   PlainService(bool sink) : m_sink(sink) {}
-  EchoSession * newSession(ndb_socket_t s) override {
-    return new EchoSession(s, m_sink, nullptr);
+  EchoSession * newSession(NdbSocket&& s) override {
+    return new EchoSession(std::move(s), m_sink, nullptr);
   }
 private:
   const bool m_sink;
@@ -200,8 +200,8 @@ private:
 class TlsService : public SocketServer::Service {
 public:
   TlsService(bool sink);
-  EchoSession * newSession(ndb_socket_t s) override {
-    return new EchoSession(s, m_sink, m_ssl_ctx);
+  EchoSession * newSession(NdbSocket&& s) override {
+    return new EchoSession(std::move(s), m_sink, m_ssl_ctx);
   }
   static int on_ssl_verify(int, X509_STORE_CTX *);
 
@@ -328,7 +328,7 @@ NdbSocket & Client::connect_plain() {
   }
   server_addr.set_port(opt_port);
   if (!init(server_addr.get_address_family())) return m_plain_socket;
-  connect(m_plain_socket, server_addr);
+  m_plain_socket = connect(server_addr);
   ndb_setsockopt(m_plain_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
                  & opt_tcp_no_delay);
   return m_plain_socket;
@@ -344,7 +344,7 @@ NdbSocket & Client::connect_tls() {
   }
   server_addr.set_port(opt_port + 1);
   if (!init(server_addr.get_address_family())) return m_tls_socket;
-  connect(m_tls_socket, server_addr);
+  m_tls_socket = connect(server_addr);
 
   if(! m_tls_socket.is_valid())
     puts("Could not connect to server");

@@ -363,17 +363,17 @@ extern int g_errorInsert;
 
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
-MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock,
+MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NdbSocket&& sock,
                              Uint64 session_id)
-  : SocketServer::Session(sock),
+  : SocketServer::Session(m_secure_socket),
+    m_secure_socket(std::move(sock)),
     m_mgmsrv(mgm),
     m_session_id(session_id),
     m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_secure_socket.init_from_new(sock);
-  m_input = new SecureSocketInputStream(m_secure_socket, SOCKET_TIMEOUT);
-  m_output = new BufferedSecureOutputStream(m_secure_socket, SOCKET_TIMEOUT);
+  m_input = new SocketInputStream(m_secure_socket, SOCKET_TIMEOUT);
+  m_output = new BufferSocketOutputStream(m_secure_socket, SOCKET_TIMEOUT);
   m_parser = new Parser_t(commands, *m_input);
   m_stopSelf= 0;
   m_ctx= NULL;
@@ -384,7 +384,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock,
   mgm.tls_stat_increment(MgmtSrvr::TlsStats::current);
 
   ndb_sockaddr addr;
-  if (ndb_getpeername(sock, &addr) == 0)
+  if (ndb_getpeername(sock.ndb_socket(), &addr) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
     char *addr_str = Ndb_inet_ntop(&addr,
@@ -1709,7 +1709,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
       if(!m_clients[i].m_socket_ptr->is_valid())
         continue;
 
-      SecureSocketOutputStream out(* m_clients[i].m_socket_ptr);
+      SocketOutputStream out(* m_clients[i].m_socket_ptr);
 
       int r;
       if (m_clients[i].m_parsable)
@@ -1790,7 +1790,7 @@ Ndb_mgmd_event_service::check_listeners()
     if(!(m_clients[i].m_socket_ptr->is_valid()))
       continue;
 
-    SecureSocketOutputStream out(* m_clients[i].m_socket_ptr);
+    SocketOutputStream out(* m_clients[i].m_socket_ptr);
 
     if(out.println("<PING>") < 0)
     {
@@ -1812,7 +1812,7 @@ Ndb_mgmd_event_service::check_listeners()
 }
 
 void
-Ndb_mgmd_event_service::add_listener(Event_listener& client, NdbSocket& socket)
+Ndb_mgmd_event_service::add_listener(Event_listener& client, NdbSocket&& socket)
 {
   DBUG_ENTER("Ndb_mgmd_event_service::add_listener");
 
@@ -1985,7 +1985,7 @@ done:
 
   if(result==0)
   {
-    m_mgmsrv.m_event_listner.add_listener(le, m_secure_socket);
+    m_mgmsrv.m_event_listner.add_listener(le, std::move(m_secure_socket));
     m_stop = true;
     assert(! m_secure_socket.is_valid()); // it has been transfered to listener
   }
@@ -2021,7 +2021,8 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 {
   bool log_failure = false;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_secure_socket, errormsg, log_failure))
+  if (!m_mgmsrv.transporter_connect(std::move(m_secure_socket), errormsg,
+                                    log_failure))
   {
     // Connection not allowed or failed
     if (log_failure)

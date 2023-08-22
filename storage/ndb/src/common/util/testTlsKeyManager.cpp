@@ -216,7 +216,7 @@ bool Client::connect(int port, bool expectOk) {
 }
 
 bool Client::connect(ndb_sockaddr & addr, bool expectOk) {
-  SocketClient::connect(m_socket, addr);
+  m_socket = SocketClient::connect(addr);
   if(! m_socket.is_valid()) {
     if(expectOk) {
       char buffer[256];
@@ -249,10 +249,10 @@ class Session : public SocketServer::Session {
   NdbSocket m_socket;
 
 public:
-  Session(ndb_socket_t socket, class Service * server) :
-    SocketServer::Session(socket),
+  Session(NdbSocket&& socket, class Service * server) :
+    SocketServer::Session(m_socket),
     m_server(server),
-    m_socket(socket, NdbSocket::From::New) {}
+    m_socket(std::move(socket)) {}
   void runSession() override;
 };
 
@@ -260,8 +260,8 @@ class Service : public SocketServer::Service {
 public:
 
   Service(const TlsKeyManager & km) : m_keyManager(km) {}
-  Session * newSession(ndb_socket_t s) override {
-    return new Session(s, this);
+  Session * newSession(NdbSocket&& s) override {
+    return new Session(std::move(s), this);
   }
 
   const TlsKeyManager & m_keyManager;

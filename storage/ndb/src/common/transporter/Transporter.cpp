@@ -233,7 +233,7 @@ Transporter::update_connect_state(bool connected)
 }
 
 bool
-Transporter::connect_server(NdbSocket & sockfd,
+Transporter::connect_server(NdbSocket&& sockfd,
                             BaseString& msg) {
   // all initial negotiation is done in TransporterRegistry::connect_server
   DBUG_ENTER("Transporter::connect_server");
@@ -248,7 +248,7 @@ Transporter::connect_server(NdbSocket & sockfd,
   // Cache the connect address
   ndb_socket_connect_address(sockfd.ndb_socket(), &m_connect_address);
 
-  if (!connect_server_impl(sockfd))
+  if (!connect_server_impl(std::move(sockfd)))
   {
     msg.assfmt("line: %u : connect_server_impl failed", __LINE__);
     DEBUG_FPRINTF((stderr, "connect_server_impl failed\n"));
@@ -282,7 +282,7 @@ Transporter::connect_client_mgm(int port)
   require(!isPartOfMultiTransporter());
   NdbSocket secureSocket =
     m_transporter_registry.connect_ndb_mgmd(remoteHostName, port);
-  return connect_client(secureSocket);
+  return connect_client(std::move(secureSocket));
 }
 
 
@@ -356,7 +356,7 @@ Transporter::connect_client()
         DBUG_RETURN(false);
       }
     }
-    m_socket_client->connect(secureSocket, remote_addr);
+    secureSocket = m_socket_client->connect(remote_addr);
 
    /** Socket Authentication */
     int auth = m_socket_client->authenticate(secureSocket);
@@ -400,11 +400,11 @@ Transporter::connect_client()
     }
   }
 
-  DBUG_RETURN(connect_client(secureSocket));
+  DBUG_RETURN(connect_client(std::move(secureSocket)));
 }
 
 bool
-Transporter::connect_client(NdbSocket & socket)
+Transporter::connect_client(NdbSocket&& socket)
 {
   DBUG_ENTER("Transporter::connect_client(sockfd)");
 
@@ -478,7 +478,7 @@ Transporter::connect_client(NdbSocket & socket)
   DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
   DEBUG_FPRINTF((stderr, "Sending hello : %s\n"));
 
-  SecureSocketOutputStream s_output(socket);
+  SocketOutputStream s_output(socket);
   if (s_output.println("%s", helloBuf) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
@@ -489,7 +489,7 @@ Transporter::connect_client(NdbSocket & socket)
   // Read reply
   DBUG_PRINT("info", ("Reading reply"));
   char buf[256];
-  SecureSocketInputStream s_input(socket);
+  SocketInputStream s_input(socket);
   if (s_input.gets(buf, 256) == nullptr)
   {
     DBUG_PRINT("error", ("Failed to read reply"));
@@ -535,7 +535,7 @@ Transporter::connect_client(NdbSocket & socket)
   // Cache the connect address
   ndb_socket_connect_address(socket.ndb_socket(), &m_connect_address);
 
-  if (! connect_client_impl(socket))
+  if (! connect_client_impl(std::move(socket)))
   {
     DBUG_RETURN(false);
   }

@@ -111,7 +111,7 @@ public:
   {
     m_transporter_registry= t;
   }
-  SocketServer::Session * newSession(ndb_socket_t socket) override;
+  SocketServer::Session * newSession(NdbSocket&& socket) override;
 };
 
 /**
@@ -261,7 +261,7 @@ public:
 
      @returns false on failure and true on success
   */
-  bool connect_server(NdbSocket & sockfd,
+  bool connect_server(NdbSocket&& sockfd,
                       BaseString& msg,
                       bool& log_failure);
 

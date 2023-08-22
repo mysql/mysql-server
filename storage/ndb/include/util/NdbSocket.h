@@ -39,7 +39,7 @@ public:
 
   NdbSocket() = default;
   NdbSocket(NdbSocket&& oth);
-  NdbSocket(ndb_socket_t ndbsocket, From fromType) {
+  NdbSocket(ndb_socket_t ndbsocket, From fromType = From::New) {
     ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
     init_from_native(ndbsocket.s);
   }
@@ -52,6 +52,7 @@ public:
   bool has_tls() const               { return ssl; }
   ndb_socket_t ndb_socket() const    { return s; }
   socket_t native_socket() const     { return ndb_socket_get_native(s); }
+  socket_t release_native_socket();
   std::string to_string() const;
 
   /* Get an SSL for client-side TLS.
@@ -241,6 +242,15 @@ void NdbSocket::invalidate_socket_handle() {
   assert(ssl == nullptr);
   assert(mutex == nullptr);
   ndb_socket_invalidate(&s);
+}
+
+inline
+socket_t NdbSocket::release_native_socket() {
+  require(ssl == nullptr);
+  require(mutex == nullptr);
+  socket_t sock = s.s;
+  invalidate_socket_handle();
+  return sock;
 }
 
 inline

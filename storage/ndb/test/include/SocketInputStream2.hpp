@@ -31,7 +31,7 @@
 #include "util/NdbSocket.h"
 
 class SocketInputStream2 {
-  NdbSocket m_socket;
+  const NdbSocket& m_socket;
   unsigned m_read_timeout;
   UtilBuffer m_buffer;
   size_t m_buffer_read_pos;
@@ -42,9 +42,9 @@ class SocketInputStream2 {
   bool add_buffer(char* buf, ssize_t len);
 
 public:
-  SocketInputStream2(ndb_socket_t socket,
+  SocketInputStream2(const NdbSocket& socket,
                      unsigned read_timeout = 60) :
-    m_socket(socket, NdbSocket::From::Existing),
+    m_socket(socket),
     m_read_timeout(read_timeout),
     m_buffer_read_pos(0)          {}
 

@@ -50,10 +50,10 @@ const char * SocketAuthenticator::error(int result)
   }
 }
 
-int SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::client_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
 
   // Write username and password
   s_output.println("ndbd");
@@ -73,10 +73,10 @@ int SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
   return unexpected_response;
 }
 
-int SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::server_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
 
   char buf[256];
 
@@ -101,10 +101,10 @@ int SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
  * SocketAuthTls
  */
 
-int SocketAuthTls::client_authenticate(NdbSocket & sockfd)
+int SocketAuthTls::client_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
   char buf[32];
   const bool tls_enabled = m_tls_keys->ctx();
 
@@ -143,10 +143,10 @@ int SocketAuthTls::client_authenticate(NdbSocket & sockfd)
   return negotiation_failed;
 }
 
-int SocketAuthTls::server_authenticate(NdbSocket & sockfd)
+int SocketAuthTls::server_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
   char buf[256];
   const bool tls_enabled = m_tls_keys->ctx();
 

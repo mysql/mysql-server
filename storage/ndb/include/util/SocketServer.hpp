@@ -29,6 +29,7 @@
 #include "portlib/NdbThread.h"
 #include "portlib/ndb_socket_poller.h"
 #include "portlib/ndb_sockaddr.h"
+#include "util/NdbSocket.h"
 
 #include <Vector.hpp>
 
@@ -51,7 +52,7 @@ public:
   protected:
     friend class SocketServer;
     friend void* sessionThread_C(void*);
-    Session(ndb_socket_t sock) :
+    Session(const NdbSocket& sock) :
       m_stop(false),
       m_refCount(0),
       m_socket(sock),
@@ -59,13 +60,13 @@ public:
       {
 	DBUG_ENTER("SocketServer::Session");
 	DBUG_PRINT("enter",("NDB_SOCKET: %s",
-                            ndb_socket_to_string(m_socket).c_str()));
+                            m_socket.to_string().c_str()));
 	DBUG_VOID_RETURN;
       }
     bool m_stop;    // Has the session been ordered to stop?
     unsigned m_refCount;
   private:
-    ndb_socket_t m_socket;
+    const NdbSocket& m_socket;
     bool m_thread_stopped; // Has the session thread stopped?
   };
   
@@ -82,7 +83,7 @@ public:
      *
      * To manage threads self, just return NULL
      */
-    virtual Session * newSession(ndb_socket_t theSock) = 0;
+    virtual Session * newSession(NdbSocket&& theSock) = 0;
     virtual void stopSessions(){}
   };
   
