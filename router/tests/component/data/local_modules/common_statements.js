@@ -27,7 +27,7 @@ var defaults = {
   bootstrap_report_host_pattern: ".*",
   account_host_pattern: ".*",
   account_user_pattern: "mysql_router1_[0-9a-z]{12}",
-  account_pass_pattern: "\\*[0-9A-Z]{40}",
+  account_pass_pattern: ".*",
   create_user_warning_count: 0,
   create_user_show_warnings_results: [],
 
@@ -541,8 +541,7 @@ function get_response(stmt_key, options) {
     case "router_create_user":
       return {
         "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@" +
-            options.user_host_pattern +
-            " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
+            options.user_host_pattern + " IDENTIFIED BY '.*'",
         "ok": {}
       };
     case "router_grant_on_metadata_db":
@@ -865,8 +864,7 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex": "^CREATE USER IF NOT EXISTS '" +
             options.account_user_pattern + "'@'" +
-            options.account_host_pattern +
-            "' IDENTIFIED WITH mysql_native_password AS '" +
+            options.account_host_pattern + "' IDENTIFIED BY '" +
             options.account_pass_pattern + "'",
         "ok": {warning_count: options.create_user_warning_count}
       };
@@ -875,8 +873,7 @@ function get_response(stmt_key, options) {
         // CREATE USER (without IF NOT EXISTS) is triggered by
         // --account-create always
         "stmt_regex": "^CREATE USER '" + options.account_user_pattern + "'@'" +
-            options.account_host_pattern +
-            "' IDENTIFIED WITH mysql_native_password AS '" +
+            options.account_host_pattern + "' IDENTIFIED BY '" +
             options.account_pass_pattern + "'",
         "ok": {}
       };
