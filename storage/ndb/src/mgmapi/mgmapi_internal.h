@@ -104,7 +104,7 @@ int ndb_mgm_set_configuration(NdbMgmHandle handle,
                               struct ndb_mgm_configuration* config);
 
 
-ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle handle);
+const NdbSocket& _ndb_mgm_get_socket(NdbMgmHandle handle);
 
 /**
  * Get configuration
@@ -118,5 +118,12 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle,
                            unsigned version,
                            enum ndb_mgm_node_type nodetype,
                            int from_node = 0);
+
+NdbLogEventHandle
+ndb_mgm_create_logevent_handle_same_socket(NdbMgmHandle mh);
+
+NdbSocket
+ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
+                              int parsable);
 
 #endif

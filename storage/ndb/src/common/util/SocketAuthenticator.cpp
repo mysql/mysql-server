@@ -32,10 +32,10 @@ const char * SocketAuthenticator::error(int result)
   return (result < AuthOk) ? "Socket Auth failure" : "Success";
 }
 
-int SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::client_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
 
   // Write username and password
   s_output.println("ndbd");
@@ -55,10 +55,10 @@ int SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
   return -1;
 }
 
-int SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::server_authenticate(const NdbSocket & sockfd)
 {
-  SecureSocketOutputStream s_output(sockfd);
-  SecureSocketInputStream  s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
 
   char buf[256];
 
@@ -75,6 +75,6 @@ int SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
   // Write authentication result
   s_output.println("ok");
 
-  return 0;
+  return AuthOk;
 }
 

@@ -385,10 +385,10 @@ static int pause_lcp(int error)
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
 
-  socket_t fd= ndb_mgm_listen_event(g_restarter.handle, filter);
-  ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
+  NdbSocket my_fd{ndb_socket_create_from_native(
+                    ndb_mgm_listen_event(g_restarter.handle, filter))};
 
-  require(ndb_socket_valid(my_fd));
+  require(my_fd.is_valid());
   require(!g_restarter.insertErrorInAllNodes(error));
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   require(!g_restarter.dumpStateAllNodes(dump, 1));
@@ -404,13 +404,13 @@ static int pause_lcp(int error)
       int id;
       if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	 --nodes == 0){
-	ndb_socket_close(my_fd);
+	my_fd.close();
 	return 0;
       }
     }
   } while(count++ < 30);
-  
-  ndb_socket_close(my_fd);
+
+  my_fd.close();
   return -1;
 }
 
@@ -478,12 +478,12 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  ndb_socket_t my_fd;
+  NdbSocket my_fd;
 
   if(error){
-    socket_t fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-    my_fd = ndb_socket_create_from_native(fd);
-    require(ndb_socket_valid(my_fd));
+    my_fd = ndb_socket_create_from_native(
+              ndb_mgm_listen_event(g_restarter.handle, filter));
+    require(my_fd.is_valid());
   }
 
   int args[] = { DumpStateOrd::LCPContinue };
@@ -503,13 +503,13 @@ static int continue_lcp(int error)
 	int id;
 	if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	   --nodes == 0){
-	  ndb_socket_close(my_fd);
+	  my_fd.close();
 	  return 0;
 	}
       }
     } while(count++ < 30);
-    
-    ndb_socket_close(my_fd);
+
+    my_fd.close();
   }
   return 0;
 }

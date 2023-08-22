@@ -418,7 +418,6 @@ int SimpleCpcClient::select_protocol(Properties &reply) {
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
-  ndb_socket_initialize(&cpc_sock);
   m_cpcd_protocol_version = 0;
 }
 
@@ -430,7 +429,7 @@ SimpleCpcClient::~SimpleCpcClient() {
 
   port = 0;
 
-  if (ndb_socket_valid(cpc_sock)) {
+  if (cpc_sock.is_valid()) {
     close_connection();
   }
 }
@@ -454,22 +453,21 @@ int SimpleCpcClient::open_connection() {
   ndb_sockaddr sa;
   if (Ndb_getAddr(&sa, host))
   {
-    ndb_socket_close(cpc_sock);
-    ndb_socket_invalidate(&cpc_sock);
+    close_connection();
     errno = ENOENT;
     return -1;
   }
   sa.set_port(port);
 
   /* Create socket */
-  cpc_sock = ndb_socket_create(sa.get_address_family());
-  if (!ndb_socket_valid(cpc_sock)) return -1;
+  cpc_sock = NdbSocket(ndb_socket_create(sa.get_address_family()), NdbSocket::From::Existing);
+  if (!cpc_sock.is_valid()) return -1;
 
   if (sa.need_dual_stack())
   {
-    [[maybe_unused]] bool ok = ndb_socket_dual_stack(cpc_sock, 1);
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(cpc_sock.ndb_socket(), 1);
   }
-  return ndb_connect(cpc_sock, &sa);
+  return ndb_connect(cpc_sock.ndb_socket(), &sa);
 }
 
 int SimpleCpcClient::negotiate_client_protocol() {
@@ -490,8 +488,7 @@ int SimpleCpcClient::negotiate_client_protocol() {
 }
 
 void SimpleCpcClient::close_connection() {
-  ndb_socket_close(cpc_sock);
-  ndb_socket_invalidate(&cpc_sock);
+  cpc_sock.close();
 }
 
 int SimpleCpcClient::cpc_send(const char *cmd, const Properties &args) {
@@ -592,7 +589,7 @@ const Properties *SimpleCpcClient::cpc_call(const char *cmd,
   return ret;
 }
 
-SimpleCpcClient::ParserDummy::ParserDummy(ndb_socket_t sock)
+SimpleCpcClient::ParserDummy::ParserDummy(const NdbSocket& sock)
     : SocketServer::Session(sock) {}
 
 template class Vector<SimpleCpcClient::Process>;

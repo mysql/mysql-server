@@ -83,15 +83,15 @@ public:
   void flush() override { fflush(f); }
 };
 
-class SecureSocketOutputStream : public OutputStream {
+class SocketOutputStream : public OutputStream {
 protected:
   const NdbSocket & m_socket;
   unsigned m_timeout_ms;
   bool m_timedout;
   unsigned m_timeout_remain;
 public:
-  SecureSocketOutputStream(const NdbSocket &, unsigned write_timeout_ms = 1000);
-  ~SecureSocketOutputStream() override {}
+  SocketOutputStream(const NdbSocket &, unsigned write_timeout_ms = 1000);
+  ~SocketOutputStream() override {}
   bool timedout() { return m_timedout; }
   void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
@@ -102,24 +102,13 @@ public:
   int write(const void * buf, size_t len) override;
 };
 
-class SocketOutputStream : public SecureSocketOutputStream {
-public:
-  SocketOutputStream(ndb_socket_t s, unsigned timeout_ms = 1000) :
-    SecureSocketOutputStream(m_owned_socket, timeout_ms),
-    m_owned_socket(s, NdbSocket::From::Existing) {}
-  ~SocketOutputStream() override {}
-
-private:
-  NdbSocket m_owned_socket;
-};
-
-class BufferedSecureOutputStream : public SecureSocketOutputStream {
+class BufferSocketOutputStream : public SocketOutputStream {
 protected:
   class UtilBuffer& m_buffer;
 public:
-  BufferedSecureOutputStream(const NdbSocket & socket,
-                             unsigned write_timeout_ms = 1000);
-  ~BufferedSecureOutputStream() override;
+  BufferSocketOutputStream(const NdbSocket & socket,
+                           unsigned write_timeout_ms = 1000);
+  ~BufferSocketOutputStream() override;
 
   int print(const char * fmt, ...) override
     ATTRIBUTE_FORMAT(printf, 2, 3);
@@ -129,18 +118,6 @@ public:
   int write(const void * buf, size_t len) override;
   void flush() override;
 };
-
-class BufferedSockOutputStream : public BufferedSecureOutputStream {
-public:
-  BufferedSockOutputStream(ndb_socket_t s, unsigned timeout_msec = 1000) :
-    BufferedSecureOutputStream(m_owned_socket, timeout_msec),
-    m_owned_socket(s, NdbSocket::From::Existing) {}
-
-  ~BufferedSockOutputStream() override {}
-private:
-  NdbSocket m_owned_socket;
-};
-
 
 class NullOutputStream : public OutputStream {
 public:

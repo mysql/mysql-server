@@ -70,7 +70,7 @@ class SimpleCpcClient {
  private:
   class ParserDummy : SocketServer::Session {
    public:
-    ParserDummy(ndb_socket_t sock);
+    ParserDummy(const NdbSocket& sock);
   };
 
   typedef Parser<ParserDummy> Parser_t;
@@ -78,7 +78,7 @@ class SimpleCpcClient {
 
   char *host;
   int port;
-  ndb_socket_t cpc_sock;
+  NdbSocket cpc_sock;
 
   enum { CPC_PROTOCOL_VERSION = 2 };
 

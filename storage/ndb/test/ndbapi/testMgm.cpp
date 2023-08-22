@@ -458,10 +458,10 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
 
-    socket_t fd= ndb_mgm_listen_event(h, filter);
-    ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
+    NdbSocket my_fd{ndb_socket_create_from_native(
+                      ndb_mgm_listen_event(h, filter))};
 
-    if(!ndb_socket_valid(my_fd))
+    if(!my_fd.is_valid())
     {
       ndbout << "FAILED: could not listen to event" << endl;
       result= NDBT_FAILED;

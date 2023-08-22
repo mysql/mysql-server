@@ -42,8 +42,8 @@ FileInputStream::gets(char * buf, int bufLen){
   return nullptr;
 }
 
-SecureSocketInputStream::SecureSocketInputStream(const NdbSocket & socket,
-                                                 unsigned read_timeout_ms)
+SocketInputStream::SocketInputStream(const NdbSocket & socket,
+                                     unsigned read_timeout_ms)
   : m_socket(socket) {
   m_startover= true;
   m_timeout_remain= m_timeout_ms = read_timeout_ms;
@@ -52,7 +52,7 @@ SecureSocketInputStream::SecureSocketInputStream(const NdbSocket & socket,
 }
 
 char*
-SecureSocketInputStream::gets(char * buf, int bufLen) {
+SocketInputStream::gets(char * buf, int bufLen) {
   if(timedout())
     return nullptr;
   assert(bufLen >= 2);

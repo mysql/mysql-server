@@ -37,8 +37,8 @@ class SocketAuthenticator
 public:
   SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {}
-  virtual int client_authenticate(NdbSocket &) = 0;
-  virtual int server_authenticate(NdbSocket &) = 0;
+  virtual int client_authenticate(const NdbSocket &) = 0;
+  virtual int server_authenticate(const NdbSocket &) = 0;
 
   static constexpr int AuthOk = 0;
   static const char * error(int);   // returns error message for code
@@ -50,8 +50,8 @@ class SocketAuthSimple : public SocketAuthenticator
 public:
   SocketAuthSimple() {}
   ~SocketAuthSimple() override {}
-  int client_authenticate(NdbSocket &) override;
-  int server_authenticate(NdbSocket &) override;
+  int client_authenticate(const NdbSocket &) override;
+  int server_authenticate(const NdbSocket &) override;
 };
 
 

@@ -103,8 +103,8 @@ FileOutputStream::write(const void * buf, size_t len)
   return (int)fwrite(buf, len, 1, f);
 }
 
-SecureSocketOutputStream::SecureSocketOutputStream(const NdbSocket & socket,
-                                                   unsigned write_timeout_ms) :
+SocketOutputStream::SocketOutputStream(const NdbSocket & socket,
+                                       unsigned write_timeout_ms) :
   m_socket(socket),
   m_timeout_ms(write_timeout_ms),
   m_timedout(false),
@@ -113,7 +113,7 @@ SecureSocketOutputStream::SecureSocketOutputStream(const NdbSocket & socket,
 }
 
 int
-SecureSocketOutputStream::print(const char * fmt, ...){
+SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
   char buf[1000];
   char *buf2 = buf;
@@ -147,7 +147,7 @@ SecureSocketOutputStream::print(const char * fmt, ...){
 }
 
 int
-SecureSocketOutputStream::println(const char * fmt, ...){
+SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
   char buf[1000];
   char *buf2 = buf;
@@ -179,7 +179,7 @@ SecureSocketOutputStream::println(const char * fmt, ...){
 }
 
 int
-SecureSocketOutputStream::write(const void * buf, size_t len)
+SocketOutputStream::write(const void * buf, size_t len)
 {
   if (timedout())
     return -1;
@@ -201,20 +201,20 @@ SecureSocketOutputStream::write(const void * buf, size_t len)
 
 #include <UtilBuffer.hpp>
 
-BufferedSecureOutputStream::BufferedSecureOutputStream
-    (const NdbSocket & socket, unsigned write_timeout_ms) :
-  SecureSocketOutputStream(socket, write_timeout_ms),
+BufferSocketOutputStream::BufferSocketOutputStream(const NdbSocket & socket,
+                                                   unsigned write_timeout_ms) :
+  SocketOutputStream(socket, write_timeout_ms),
   m_buffer(*new UtilBuffer)
 {
 }
 
-BufferedSecureOutputStream::~BufferedSecureOutputStream()
+BufferSocketOutputStream::~BufferSocketOutputStream()
 {
   delete &m_buffer;
 }
 
 int
-BufferedSecureOutputStream::print(const char * fmt, ...){
+BufferSocketOutputStream::print(const char * fmt, ...){
   char buf[1];
   va_list ap;
   int len;
@@ -246,7 +246,7 @@ BufferedSecureOutputStream::print(const char * fmt, ...){
 }
 
 int
-BufferedSecureOutputStream::println(const char * fmt, ...){
+BufferSocketOutputStream::println(const char * fmt, ...){
   char buf[1];
   va_list ap;
   int len;
@@ -274,12 +274,12 @@ BufferedSecureOutputStream::println(const char * fmt, ...){
 }
 
 int
-BufferedSecureOutputStream::write(const void * buf, size_t len)
+BufferSocketOutputStream::write(const void * buf, size_t len)
 {
   return m_buffer.append(buf, len);
 }
 
-void BufferedSecureOutputStream::flush(){
+void BufferSocketOutputStream::flush(){
   if(m_buffer.length() == 0) return;
   int elapsed = 0;
   if (m_socket.write(m_timeout_ms, &elapsed, (const char*)m_buffer.get_data(),

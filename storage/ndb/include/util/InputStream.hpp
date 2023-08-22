@@ -57,27 +57,18 @@ public:
 
 extern FileInputStream Stdin;
 
-class SecureSocketInputStream : public InputStream {
+class SocketInputStream : public InputStream {
   const NdbSocket & m_socket;
   unsigned m_timeout_ms;
   unsigned m_timeout_remain;
   bool m_startover;
   bool m_timedout;
 public:
-  SecureSocketInputStream(const NdbSocket &, unsigned read_timeout_ms = 3000);
-  ~SecureSocketInputStream() override {}
+  SocketInputStream(const NdbSocket &, unsigned read_timeout_ms = 3000);
+  ~SocketInputStream() override {}
   char* gets(char * buf, int bufLen) override;
   bool timedout() { return m_timedout; }
   void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
-};
-
-class SocketInputStream : public SecureSocketInputStream {
-  NdbSocket m_owned_socket;
-public:
-  SocketInputStream(ndb_socket_t s, unsigned timeout_ms = 3000) :
-    SecureSocketInputStream(m_owned_socket, timeout_ms),
-    m_owned_socket(s, NdbSocket::From::Existing) {}
-  ~SocketInputStream() override {}
 };
 
 #endif
