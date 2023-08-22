@@ -120,8 +120,7 @@ TEST_F(RouterBootstrapTest, bootstrap_and_run_from_symlinked_dir) {
   // launch mock server that is our metadata server
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
-  set_mock_metadata(http_port, "cluster-specific-id",
-                    {GRNode{server_port, "uuid-1"}}, 0,
+  set_mock_metadata(http_port, "cluster-specific-id", {GRNode{server_port}}, 0,
                     {ClusterNode{server_port, server_x_port}});
 
   SCOPED_TRACE("// launch router with bootstrapped config");
