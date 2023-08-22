@@ -125,6 +125,21 @@ id	c1	c3
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t1 (`c` text, `b` blob NOT NULL, `nc03242` longblob, `d` int DEFAULT NULL, UNIQUE KEY `b` (`b`(99))) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+alter table t1
+change c c text after d,
+add column nc05984 bool,
+algorithm=instant;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+INSERT INTO t1 SET b='ulccclraaacaucrouorouoooolrlo', d=6;
+# Kill and restart
+SELECT * FROM t1;
+b	nc03242	d	c	nc05984
+ulccclraaacaucrouorouoooolrlo	NULL	6	NULL	NULL
+DROP TABLE t1;
 ############################################
 # Test instant ADD/DROP COLUMN for DYNAMIC format
 ############################################
@@ -252,6 +267,21 @@ id	c1	c3
 # CLEANUP #
 ###########
 DROP TABLE t1;
+CREATE TABLE t1 (`c` text, `b` blob NOT NULL, `nc03242` longblob, `d` int DEFAULT NULL, UNIQUE KEY `b` (`b`(99))) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+alter table t1
+change c c text after d,
+add column nc05984 bool,
+algorithm=instant;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+INSERT INTO t1 SET b='ulccclraaacaucrouorouoooolrlo', d=6;
+# Kill and restart
+SELECT * FROM t1;
+b	nc03242	d	c	nc05984
+ulccclraaacaucrouorouoooolrlo	NULL	6	NULL	NULL
+DROP TABLE t1;
 ############################################
 # Test instant ADD/DROP COLUMN for COMPACT format
 ############################################
@@ -378,4 +408,19 @@ id	c1	c3
 ###########
 # CLEANUP #
 ###########
+DROP TABLE t1;
+CREATE TABLE t1 (`c` text, `b` blob NOT NULL, `nc03242` longblob, `d` int DEFAULT NULL, UNIQUE KEY `b` (`b`(99))) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+alter table t1
+change c c text after d,
+add column nc05984 bool,
+algorithm=instant;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+INSERT INTO t1 SET b='ulccclraaacaucrouorouoooolrlo', d=6;
+# Kill and restart
+SELECT * FROM t1;
+b	nc03242	d	c	nc05984
+ulccclraaacaucrouorouoooolrlo	NULL	6	NULL	NULL
 DROP TABLE t1;

@@ -61,3 +61,26 @@ SELECT * FROM t1;
 --echo # CLEANUP #
 --echo ###########
 DROP TABLE t1;
+
+#
+# Bug#35183686 ALTER_STORED_COLUMN_ORDER with algorithm=INSTANT makes wrong INSERT REDO log
+#
+--eval CREATE TABLE t1 (`c` text, `b` blob NOT NULL, `nc03242` longblob, `d` int DEFAULT NULL, UNIQUE KEY `b` (`b`(99))) ENGINE=InnoDB ROW_FORMAT=$row_format
+
+alter table t1
+  change c c text after d,
+  add column nc05984 bool,
+algorithm=instant;
+
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+INSERT INTO t1 SET b='ulccclraaacaucrouorouoooolrlo', d=6;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
