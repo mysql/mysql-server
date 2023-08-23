@@ -1,5 +1,4 @@
-<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
-         xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
    Copyright (c) 2012, 2023, Oracle and/or its affiliates.
@@ -27,13 +26,12 @@
 -->
     <!-- Registry -->
     <!-- We still use "MySQL AB" because we don't want to break software that expects it -->
-    <DirectoryRef Id='TARGETDIR'>
-    <Component Id="RegKeys" Guid="*">
+    <Component Id="RegKeys" Directory="TARGETDIR">
       <RegistryKey
         Id='MySQLRouterKey'
         Root='HKLM'
         Key='SOFTWARE\MySQL AB\[ProductName]'
-        Action='createAndRemoveOnUninstall'>
+        ForceDeleteOnUninstall='yes'>
         <RegistryValue
           Type='string'
           Name='Location'
@@ -48,7 +46,6 @@
           Value="[DATADIR]"/>
       </RegistryKey>
     </Component>
-    </DirectoryRef>
     <Feature
     Id='RegKeys'
     Display='hidden'
@@ -56,4 +53,4 @@
     <ComponentRef Id='RegKeys'/>
     </Feature>
 
-    </Include>
+</Include>
