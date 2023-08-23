@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT WIN32)
-  RETURN()
-ENDIF()
-
 include(wix_setup.cmake)
 
 IF(NOT WIX_DIR)
@@ -40,27 +36,18 @@ SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;
   ${CMAKE_CURRENT_BINARY_DIR}/redist_check.wxs")
 SET(CPACK_MSI_SETUP ${CMAKE_CURRENT_SOURCE_DIR}/cpack_msi_setup.cmake)
 
-ADD_CUSTOM_TARGET(
-  configure_mysql_server_extra
-  COMMAND ${CMAKE_COMMAND}
-  -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
-  -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
-  -DMAJOR_VERSION=${MAJOR_VERSION}
-  -DMINOR_VERSION=${MINOR_VERSION}
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
-)
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
+  @ONLY)
 
-ADD_CUSTOM_TARGET(
-  configure_redist_check
-  COMMAND ${CMAKE_COMMAND}
-  -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/redist_check.wxs.in
-  -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/redist_check.wxs
-  -DLINK_STATIC_RUNTIME_LIBRARIES=${LINK_STATIC_RUNTIME_LIBRARIES}
-  -DBUNDLE_RUNTIME_LIBRARIES=${BUNDLE_RUNTIME_LIBRARIES}
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
-)
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/redist_check.wxs.in
+  ${CMAKE_CURRENT_BINARY_DIR}/redist_check.wxs
+  @ONLY)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
   @ONLY)
 
@@ -86,7 +73,6 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM} 
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI configure_mysql_server_extra configure_redist_check)
 
 IF(TARGET remove_INFO_SRC_from_bs)
   ADD_DEPENDENCIES(MSI remove_INFO_SRC_from_bs)

@@ -1,5 +1,4 @@
-<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
-         xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
    Copyright (c) 2012, 2023, Oracle and/or its affiliates.
@@ -26,12 +25,10 @@
 -->
 
     <!-- Include shortcuts -->
-    <DirectoryRef Id='INSTALLDIR'>
-    <Directory Id="DesktopFolder"/>
-    <Directory Id="ProgramMenuFolder">
+    <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="MysqlProgramMenuFolder" Name="MySQL">
         <Directory Id="MysqlProductMenuFolder" Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@">
-          <Component Id="MysqlProductMenuFolder" Guid="*" Win64="yes">
+          <Component Id="MysqlProductMenuFolder" Bitness="always64">
             <!-- Include a shortcut to the mysql command line client -->
             <Shortcut Id="MysqlCommandLineShellShortcut"
                       Name="MySQL @MAJOR_VERSION@.@MINOR_VERSION@ Command Line Client"
@@ -52,7 +49,7 @@
             <!-- Write Console settings for applications with this name to the registry -->
               <RegistryKey Root="HKCU" 
                            Key="Console\MySQL @MAJOR_VERSION@.@MINOR_VERSION@ Command Line Client - Unicode"
-                           Action="createAndRemoveOnUninstall">
+                           ForceDeleteOnUninstall="yes">
                 <RegistryValue Type="string" Name="FaceName" Value="Lucida Console"/>
                 <RegistryValue Type="integer" Name="FontWeight" Value="400"/>
               </RegistryKey>
@@ -64,21 +61,20 @@
           </Component>
         </Directory>
       </Directory>
-    </Directory>
-    </DirectoryRef>
+    </StandardDirectory>
     <Feature Id="ProgramMenu" Level="1" Display="hidden" ConfigurableDirectory="INSTALLDIR">
     <ComponentRef Id="MysqlProductMenuFolder"/>
     </Feature>    
       
     <!-- Registry -->
     <!-- We still use "MySQL AB" because we don't want to break software that expects it -->
-    <DirectoryRef Id='TARGETDIR'>
-    <Component Id="RegKeys" Guid="*">
+    
+    <Component Id="RegKeys" Directory="TARGETDIR">
       <RegistryKey
         Id='MySQLKey'
         Root='HKLM'
         Key='SOFTWARE\MySQL AB\[ProductName]'
-        Action='createAndRemoveOnUninstall'>
+        ForceDeleteOnUninstall='yes'>
         <RegistryValue
           Type='string'
           Name='Location'
@@ -93,7 +89,6 @@
           Value="[DATADIR]"/>
       </RegistryKey>
     </Component>
-    </DirectoryRef>
     <Feature
     Id='RegKeys'
     Display='hidden'

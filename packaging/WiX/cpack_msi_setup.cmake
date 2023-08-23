@@ -242,7 +242,7 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
 	# According to MSDN each DLL or EXE should be in the own component
 	IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
 
-	  FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' Win64='yes'>\n")
+	  FILE(APPEND ${file} "  <Component Id='C.${id}' Bitness='always64'>\n")
 	  FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
 	  FILE(APPEND ${file} "  </Component>\n")
 	  FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
@@ -257,7 +257,7 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
     GENERATE_GUID(guid)
     SET(ComponentId "C._files_${COMP_NAME}.${DirectoryRefId}")
     FILE(APPEND ${file} 
-    "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' Win64='yes'>${NONEXEFILES}\n</Component></DirectoryRef>\n")
+    "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' Bitness='always64'>${NONEXEFILES}\n</Component>\n</DirectoryRef>\n")
 	FILE(APPEND ${file_comp} "  <ComponentRef Id='${ComponentId}'/>\n")
   ENDIF()
   FOREACH(f ${all_files})

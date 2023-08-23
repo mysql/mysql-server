@@ -1,5 +1,4 @@
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
-      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
    Copyright (c) 2010, 2023, Oracle and/or its affiliates.
@@ -25,24 +24,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
 
-  <Product 
-    Id="*" 
+  <Package
     UpgradeCode="@UPGRADE_CODE@"
     Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
-    Manufacturer="@MANUFACTURER@">
+    Manufacturer="@MANUFACTURER@"
+    InstallerVersion="200">
     
-    <Package Id='*'
+    <SummaryInformation
        Keywords='Installer'
        Description="@PRODUCT_DESCRIPTION@"
-       Manufacturer='@MANUFACTURER@'
-       InstallerVersion='200'
-       Languages='1033'
-       Compressed='yes'
-       SummaryCodepage='1252'
-       Platform='x64'
-       InstallScope="perMachine"/>
+       Manufacturer='@MANUFACTURER@' />
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
@@ -67,9 +60,8 @@
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
-    <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
-      NOT NEWERVERSIONDETECTED OR Installed
-    </Condition>
+    <Launch Condition="NOT NEWERVERSIONDETECTED OR Installed"
+      Message="A later version of [ProductName] is already installed. Setup will now exit." />
     <InstallExecuteSequence>
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
@@ -77,10 +69,7 @@
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
-      <Custom Action="SaveTargetDir" After="InstallValidate">
-        NOT
-        Installed
-      </Custom>
+      <Custom Action="SaveTargetDir" After="InstallValidate" Condition="NOT Installed" />
     </InstallExecuteSequence>
     <InstallUISequence>
       <!-- App search is what does FindInstallLocation, and it is dependent on FindRelatedProducts -->
@@ -91,19 +80,19 @@
     <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          Win64="yes"
+          Bitness="always64"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
     </Property>
     <CustomAction Id="SetInstall"    Property="INSTALLDIR" Value="[GETINSTALLDIR]" />
     <InstallUISequence>
-       <Custom Action="SetInstall"    After="AppSearch">Installed</Custom>
+       <Custom Action="SetInstall"    After="AppSearch" Condition="Installed" />
     </InstallUISequence>
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        Win64="yes"
+        Bitness="always64"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -117,15 +106,15 @@
     </Property>
     <CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
     <InstallUISequence>
-    <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
+      <Custom Action="SetInstallDir2" After="AppSearch" Condition="INSTALLDIR2" /> 
     </InstallUISequence>
    
-    <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
+    <CustomAction Id="QtRemoveService" BinaryRef="Wix4UtilCA_X86" DllEntry="WixQuietExec"
             Execute="deferred" Return="ignore" Impersonate="no"/>
     <InstallExecuteSequence>
-      <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
+      <Custom Action="QtRemoveService" After="InstallInitialize" Condition="(NOT UPGRADINGPRODUCTCODE) AND (REMOVE=&quot;ALL&quot;) AND (NOT MYSQL_INSTALLER=&quot;YES&quot;)" />
     </InstallExecuteSequence>
-    <SetProperty Before="QtRemoveService" Sequence="execute" Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off&amp;set &quot;d=[INSTALLDIR]&quot;&amp;FOR /f &quot;skip=1&quot; %s in (&apos;wmic service where ^&apos;pathname like &quot;%!d:\=\\!%&quot;^&apos; get name ^| findstr /r &quot;^.$&quot;&apos;) do ((for /L %k IN (1,1,20) do wmic service where &apos;name=&quot;%s&quot; and started=&quot;true&quot;&apos; call stopservice | FIND /v &quot;No Instance&quot;>NUL&amp;&amp;timeout /t 5 /nobreak>NUL)&amp;sc delete %s>NUL)&quot;"/>
+    <SetProperty Before="QtRemoveService" Sequence="execute" Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off&amp;set &quot;d=[INSTALLDIR]&quot;&amp;FOR /f &quot;skip=1&quot; %s in ('wmic service where ^'pathname like &quot;%!d:\=\\!%&quot;^' get name ^| findstr /r &quot;^.$&quot;') do ((for /L %k IN (1,1,20) do wmic service where 'name=&quot;%s&quot; and started=&quot;true&quot;' call stopservice | FIND /v &quot;No Instance&quot;&gt;NUL&amp;&amp;timeout /t 5 /nobreak&gt;NUL)&amp;sc delete %s&gt;NUL)&quot;" />
 
     <!-- UI -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
@@ -142,7 +131,7 @@
       SourceFile="@CMAKE_CURRENT_SOURCE_DIR@/MySQLServer.ico"/>
     <Icon 
       Id="Icon.MysqlCmdShell" 
-      SourceFile='@CMAKE_CURRENT_SOURCE_DIR@/mysqlcommandlineshell.ico' />	  	  
+      SourceFile='@CMAKE_CURRENT_SOURCE_DIR@/mysqlcommandlineshell.ico' />
     <Property
       Id="ARPPRODUCTICON"
       Value="icon.ico" />
@@ -153,14 +142,12 @@
       Value="@LICENSE_RTF@"/>
 
     <!-- Installation root-->
-    <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='ProgramFiles64Folder'>
+      <StandardDirectory Id='ProgramFiles6432Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
           <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
         </Directory>
-      </Directory>
-    </Directory>
+      </StandardDirectory>
 
     <!-- CPACK_WIX_FEATURES -->
     @CPACK_WIX_FEATURES@
@@ -176,5 +163,5 @@
     
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
-  </Product>
+  </Package>
 </Wix>
