@@ -1148,8 +1148,11 @@ TEST_F(RouterRoutingTest, named_socket_fails_with_socket_is_not_readable) {
   ASSERT_NO_THROW(router.wait_for_exit());
 
   EXPECT_THAT(router.get_logfile_content(),
-              ::testing::HasSubstr(
-                  "is bound by another process failed: Permission denied"));
+              ::testing::AnyOf(
+                  ::testing::HasSubstr(
+                      "is bound by another process failed: Permission denied"),
+                  ::testing::HasSubstr("is bound by another process failed: "
+                                       "Socket operation on non-socket")));
 
   // check if the file still exists and hasn't been deleted
   EXPECT_EQ(access(socket_file.c_str(), F_OK), 0);
