@@ -75,6 +75,7 @@ int init_events_transactions_history_long(
   events_transactions_history_long_index.m_u32.store(0);
 
   if (events_transactions_history_long_size == 0) {
+    events_transactions_history_long_array = nullptr;
     return 0;
   }
 
@@ -83,7 +84,12 @@ int init_events_transactions_history_long(
       events_transactions_history_long_size, sizeof(PFS_events_transactions),
       PFS_events_transactions, MYF(MY_ZEROFILL));
 
-  return (events_transactions_history_long_array ? 0 : 1);
+  if (events_transactions_history_long_array == nullptr) {
+    events_transactions_history_long_size = 0;
+    return 1;
+  }
+
+  return 0;
 }
 
 /** Cleanup table EVENTS_TRANSACTIONS_HISTORY_LONG. */
@@ -93,6 +99,7 @@ void cleanup_events_transactions_history_long() {
                  sizeof(PFS_events_transactions),
                  events_transactions_history_long_array);
   events_transactions_history_long_array = nullptr;
+  events_transactions_history_long_size = 0;
 }
 
 static inline void copy_events_transactions(

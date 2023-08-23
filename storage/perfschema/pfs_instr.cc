@@ -162,6 +162,7 @@ int init_instruments(const PFS_global_param *param) {
         PFS_MALLOC_ARRAY(&builtin_memory_file_handle, file_handle_max,
                          sizeof(PFS_file *), PFS_file *, MYF(MY_ZEROFILL));
     if (unlikely(file_handle_array == nullptr)) {
+      file_handle_max = 0;
       return 1;
     }
   }
