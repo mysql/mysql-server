@@ -70,6 +70,7 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing) {
   events_waits_history_long_index.m_u32.store(0);
 
   if (events_waits_history_long_size == 0) {
+    events_waits_history_long_array = nullptr;
     return 0;
   }
 
@@ -77,7 +78,12 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing) {
       &builtin_memory_waits_history_long, events_waits_history_long_size,
       sizeof(PFS_events_waits), PFS_events_waits, MYF(MY_ZEROFILL));
 
-  return (events_waits_history_long_array ? 0 : 1);
+  if (events_waits_history_long_array == nullptr) {
+    events_waits_history_long_size = 0;
+    return 1;
+  }
+
+  return 0;
 }
 
 /** Cleanup table EVENTS_WAITS_HISTORY_LONG. */
@@ -86,6 +92,7 @@ void cleanup_events_waits_history_long() {
                  events_waits_history_long_size, sizeof(PFS_events_waits),
                  events_waits_history_long_array);
   events_waits_history_long_array = nullptr;
+  events_waits_history_long_size = 0;
 }
 
 static inline void copy_events_waits(PFS_events_waits *dest,

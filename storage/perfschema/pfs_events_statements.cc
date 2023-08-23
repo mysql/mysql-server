@@ -74,6 +74,10 @@ int init_events_statements_history_long(
   events_statements_history_long_full = false;
   events_statements_history_long_index.m_u32.store(0);
 
+  events_statements_history_long_array = nullptr;
+  h_long_stmts_digest_token_array = nullptr;
+  h_long_stmts_text_array = nullptr;
+
   if (events_statements_history_long_size == 0) {
     return 0;
   }
@@ -149,6 +153,7 @@ void cleanup_events_statements_history_long() {
   events_statements_history_long_array = nullptr;
   h_long_stmts_digest_token_array = nullptr;
   h_long_stmts_text_array = nullptr;
+  events_statements_history_long_size = 0;
 }
 
 static inline void copy_events_statements(PFS_events_statements *dest,

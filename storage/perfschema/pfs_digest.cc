@@ -80,6 +80,10 @@ int init_digest(const PFS_global_param *param) {
   digest_monotonic_index.m_u32.store(1);
   digest_full = false;
 
+  statements_digest_stat_array = nullptr;
+  statements_digest_token_array = nullptr;
+  statements_digest_query_sample_text_array = nullptr;
+
   if (digest_max == 0) {
     return 0;
   }
@@ -152,6 +156,7 @@ void cleanup_digest() {
   statements_digest_stat_array = nullptr;
   statements_digest_token_array = nullptr;
   statements_digest_query_sample_text_array = nullptr;
+  digest_max = 0;
 }
 
 static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {

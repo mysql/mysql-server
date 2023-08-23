@@ -375,6 +375,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
         &builtin_memory_mutex_class, mutex_class_max, sizeof(PFS_mutex_class),
         PFS_mutex_class, MYF(MY_ZEROFILL));
     if (unlikely(mutex_class_array == nullptr)) {
+      mutex_class_max = 0;
       return 1;
     }
   }
@@ -384,6 +385,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
         &builtin_memory_rwlock_class, rwlock_class_max,
         sizeof(PFS_rwlock_class), PFS_rwlock_class, MYF(MY_ZEROFILL));
     if (unlikely(rwlock_class_array == nullptr)) {
+      rwlock_class_max = 0;
       return 1;
     }
   }
@@ -393,6 +395,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
                                         cond_class_max, sizeof(PFS_cond_class),
                                         PFS_cond_class, MYF(MY_ZEROFILL));
     if (unlikely(cond_class_array == nullptr)) {
+      cond_class_max = 0;
       return 1;
     }
   }
@@ -455,6 +458,7 @@ int init_thread_class(uint thread_class_sizing) {
         &builtin_memory_thread_class, thread_class_max,
         sizeof(PFS_thread_class), PFS_thread_class, MYF(MY_ZEROFILL));
     if (unlikely(thread_class_array == nullptr)) {
+      thread_class_max = 0;
       result = 1;
     }
   } else {
@@ -510,6 +514,7 @@ int init_meter_class(uint meter_class_sizing) {
         &builtin_memory_meter_class, meter_class_max, sizeof(PFS_meter_class),
         PFS_meter_class, MYF(MY_ZEROFILL));
     if (unlikely(meter_class_array == nullptr)) {
+      meter_class_max = 0;
       result = 1;
     }
   } else {
@@ -556,6 +561,7 @@ int init_metric_class(uint metric_class_sizing) {
         &builtin_memory_metric_class, metric_class_max,
         sizeof(PFS_metric_class), PFS_metric_class, MYF(MY_ZEROFILL));
     if (unlikely(metric_class_array == nullptr)) {
+      metric_class_max = 0;
       result = 1;
     }
   } else {
@@ -939,6 +945,7 @@ int init_file_class(uint file_class_sizing) {
                                         file_class_max, sizeof(PFS_file_class),
                                         PFS_file_class, MYF(MY_ZEROFILL));
     if (unlikely(file_class_array == nullptr)) {
+      file_class_max = 0;
       return 1;
     }
   } else {
@@ -980,6 +987,7 @@ int init_stage_class(uint stage_class_sizing) {
         &builtin_memory_stage_class, stage_class_max, sizeof(PFS_stage_class),
         PFS_stage_class, MYF(MY_ZEROFILL));
     if (unlikely(stage_class_array == nullptr)) {
+      stage_class_max = 0;
       return 1;
     }
   } else {
@@ -1021,6 +1029,7 @@ int init_statement_class(uint statement_class_sizing) {
         &builtin_memory_statement_class, statement_class_max,
         sizeof(PFS_statement_class), PFS_statement_class, MYF(MY_ZEROFILL));
     if (unlikely(statement_class_array == nullptr)) {
+      statement_class_max = 0;
       return 1;
     }
   } else {
@@ -1062,6 +1071,7 @@ int init_socket_class(uint socket_class_sizing) {
         &builtin_memory_socket_class, socket_class_max,
         sizeof(PFS_socket_class), PFS_socket_class, MYF(MY_ZEROFILL));
     if (unlikely(socket_class_array == nullptr)) {
+      socket_class_max = 0;
       return 1;
     }
   } else {
@@ -1103,6 +1113,7 @@ int init_memory_class(uint memory_class_sizing) {
         &builtin_memory_memory_class, memory_class_max,
         sizeof(PFS_memory_class), PFS_memory_class, MYF(MY_ZEROFILL));
     if (unlikely(memory_class_array.load() == nullptr)) {
+      memory_class_max = 0;
       return 1;
     }
   } else {
