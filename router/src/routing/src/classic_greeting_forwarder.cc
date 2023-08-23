@@ -1050,7 +1050,12 @@ ServerGreetor::client_greeting_after_tls() {
 
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::initial_response() {
-  connection()->push_processor(std::make_unique<AuthForwarder>(connection()));
+  const auto *src_protocol = connection()->client_protocol();
+
+  connection()->push_processor(std::make_unique<AuthForwarder>(
+      connection(),
+      // password was requested already.
+      src_protocol->password() && !src_protocol->password()->empty()));
 
   stage(Stage::FinalResponse);
   return Result::Again;
@@ -1890,7 +1895,12 @@ ServerFirstAuthenticator::client_greeting_after_tls() {
 
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::initial_response() {
-  connection()->push_processor(std::make_unique<AuthForwarder>(connection()));
+  const auto *src_protocol = connection()->client_protocol();
+
+  connection()->push_processor(std::make_unique<AuthForwarder>(
+      connection(),
+      // password was requested already.
+      src_protocol->password() && !src_protocol->password()->empty()));
 
   stage(Stage::FinalResponse);
   return Result::Again;

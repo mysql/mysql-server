@@ -34,7 +34,10 @@
  */
 class AuthForwarder : public ForwardingProcessor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
+  AuthForwarder(MysqlRoutingClassicConnectionBase *conn,
+                bool client_requested_full_auth = false)
+      : ForwardingProcessor(conn),
+        client_requested_full_auth_{client_requested_full_auth} {}
 
   enum class Stage {
     Init,
@@ -62,6 +65,7 @@ class AuthForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> ok();
 
   Stage stage_{Stage::Init};
+  bool client_requested_full_auth_;
 };
 
 #endif
