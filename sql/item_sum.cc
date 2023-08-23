@@ -444,7 +444,9 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
       base_query_block(item->base_query_block),
       aggr_query_block(item->aggr_query_block),
       allow_group_via_temp_table(item->allow_group_via_temp_table),
-      forced_const(item->forced_const) {
+      forced_const(item->forced_const),
+      m_null_resolved(item->m_null_resolved),
+      m_null_executed(item->m_null_executed) {
   assert(arg_count == item->arg_count);
   with_distinct = item->with_distinct;
   if (item->aggr) {
@@ -871,6 +873,8 @@ void Item_sum::cleanup() {
   Item_result_field::cleanup();
   // forced_const may have been set during optimization, reset it:
   forced_const = false;
+
+  m_null_executed = false;
 }
 
 bool Item_sum::fix_fields(THD *thd, Item **ref [[maybe_unused]]) {
@@ -4242,7 +4246,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
                                                Item_func_group_concat *item)
     : Item_sum(thd, item),
       distinct(item->distinct),
-      always_null(item->always_null),
       m_order_arg_count(item->m_order_arg_count),
       m_field_arg_count(item->m_field_arg_count),
       context(item->context),
@@ -4370,17 +4373,19 @@ void Item_func_group_concat::clear() {
 }
 
 bool Item_func_group_concat::add() {
-  if (always_null) return false;
+  if (m_null_executed) return false;
   THD *thd = current_thd;
   if (copy_funcs(tmp_table_param, thd)) return true;
 
   for (uint i = 0; i < m_field_arg_count; i++) {
-    Item *show_item = args[i];
-    if (show_item->const_item()) continue;
-
-    Field *field = show_item->get_tmp_table_field();
-    if (field && field->is_null_in_record((const uchar *)table->record[0]))
+    Item *item = args[i];
+    if (item->const_for_execution()) {
+      continue;
+    }
+    Field *field = item->get_tmp_table_field();
+    if (field && field->is_null_in_record((const uchar *)table->record[0])) {
       return false;  // Skip row if it contains null
+    }
   }
 
   null_value = false;
@@ -4489,7 +4494,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
         item->is_null()) {
       // "is_null()" may cause error:
       if (thd->is_error()) return true;
-      always_null = true;
+      m_null_resolved = true;
     }
   }
 
@@ -4499,7 +4504,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
     The "fields" list is not used after the call to setup_order(), however it
     must be recreated during optimization to create tmp table columns.
   */
-  if (m_order_arg_count > 0 && !always_null &&
+  if (m_order_arg_count > 0 && !m_null_resolved &&
       setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
                   &fields, order_array.begin()))
     return true;
@@ -4519,8 +4524,10 @@ bool Item_func_group_concat::setup(THD *thd) {
   */
   if (table != nullptr || tree != nullptr) return false;
 
-  // Nothing to set up if always NULL:
-  if (always_null) return false;
+  // If resolved as NULL, execution is always NULL
+  m_null_executed = m_null_resolved;
+  // Nothing to set up if value is NULL:
+  if (m_null_executed) return false;
 
   assert(thd->lex->current_query_block() == aggr_query_block);
 
@@ -4551,7 +4558,13 @@ bool Item_func_group_concat::setup(THD *thd) {
 
   // First add the fields from the concat field list
   for (uint i = 0; i < m_field_arg_count; i++) {
-    fields.push_back(args[i]);
+    Item *item = args[i];
+    fields.push_back(item);
+    if (item->const_for_execution()) {
+      if (item->is_null()) m_null_executed = true;
+      if (thd->is_error()) return true;
+      if (m_null_executed) return false;
+    }
   }
   // Then prepend the ordered fields not already in the "fields" list
   for (uint i = 0; i < m_order_arg_count; i++) {
