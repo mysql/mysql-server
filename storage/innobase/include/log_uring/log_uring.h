@@ -5,6 +5,7 @@
 
 bool is_enable_log_uring();
 bool is_enable_io_stat();
+bool is_disable_file_io();
 
 void log_uring(void *log_ptr);
 void log_stat(void *log_ptr);

@@ -322,9 +322,10 @@ void Log_file_handle::fsync() {
   }
   s_total_fsyncs.fetch_add(1, std::memory_order_relaxed);
   s_fsyncs_in_progress.fetch_add(1);
-
-  const bool success = os_file_flush(m_raw_handle);
-
+  bool success = true;
+  if (!is_disable_file_io()) {
+      success = os_file_flush(m_raw_handle);
+  }
   s_fsyncs_in_progress.fetch_sub(1);
   ut_a(success);
 }
@@ -398,7 +399,9 @@ dberr_t Log_file_handle::write(os_offset_t write_offset, os_offset_t write_size,
     log_uring_append((void*)buf, write_size);
   }
   m_is_modified = true;
-
+  if (is_disable_file_io()) {
+    return dberr_t::DB_SUCCESS;
+  }
   return os_file_write(io_request, m_file_path.c_str(), m_raw_handle, buf,
                        write_offset, static_cast<ulint>(write_size));
 }

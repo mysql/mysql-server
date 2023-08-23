@@ -10,6 +10,7 @@
 #endif
 bool enable_log_uring = false;
 bool enable_io_stat = false;
+bool disable_file_io = false;
 
 bool is_enable_log_uring() {
   return enable_log_uring;
@@ -19,6 +20,9 @@ bool is_enable_io_stat() {
   return enable_io_stat;
 }
 
+bool is_disable_file_io() {
+    return disable_file_io;
+}
 
 void log_stat_thread(std::atomic_bool *stop) {
   while (true) {
@@ -52,6 +56,9 @@ void log_uring(void *ptr) {
     enable_io_stat = true;
   }
 
+  if (getenv("DISABLE_FILE_IO")) {
+      disable_file_io = true;
+  }
   log_uring_thread();
 }
 

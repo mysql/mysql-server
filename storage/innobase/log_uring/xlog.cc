@@ -159,7 +159,7 @@ int xlog::append(void *buf, size_t size) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = end - start;
 
-  get_duration()->append_add(diff);
+  get_duration()->append_add(diff, size);
   return 0;
 }
 

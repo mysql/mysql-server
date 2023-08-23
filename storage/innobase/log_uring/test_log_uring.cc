@@ -181,15 +181,17 @@ int main(int argc, const char*argv[]) {
   bool use_iouring = USE_URING;
   int num_log_entries_sync = NUM_LOG_ENTRIES_SYNC;
   int num_transactions = NUM_TRANSACTION;
+  int run_seconds = 30;
   po::options_description desc("Allowed options");
   desc.add_options()
       ("help,h", "produce help message")
-      ("num_log_files,l", po::value<int>(), "number of log files")
-      ("num_uring_sqes,s", po::value<int>(), "number of iouring SQEs")
-      ("num_worker_threads,t", po::value<int>(), "number of worker threads issue log request")
+      ("log_files,l", po::value<int>(), "number of log files")
+      ("uring_sqes,q", po::value<int>(), "number of iouring SQEs")
+      ("worker_threads,t", po::value<int>(), "number of worker threads issue log request")
       ("log_size,g", po::value<int>(), "average log size in bytes")
       ("use_iouring,u", po::value<bool>(), "use io_uring")
-      ("num_log_entries_sync,e", po::value<int>(), "number of log entries before invoke sync")
+      ("log_entries_sync,w", po::value<int>(), "number of log entries wirte before invoke sync")
+      ("run_seconds,s", po::value<int>(), "running time(seoncds)")
       ;
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -200,16 +202,16 @@ int main(int argc, const char*argv[]) {
       return 1;
   }
 
-  if (vm.count("num_log_files")) {
-      num_log_files = vm["num_log_files"].as<int>();
+  if (vm.count("log_files")) {
+      num_log_files = vm["log_files"].as<int>();
   } 
 
-  if (vm.count("num_uring_sqes")) {
-      num_log_files = vm["num_uring_sqes"].as<int>();
+  if (vm.count("uring_sqes")) {
+      num_log_files = vm["uring_sqes"].as<int>();
   }
 
-  if (vm.count("num_worker_threads")) {
-      num_worker_threads = vm["num_worker_threads"].as<int>();
+  if (vm.count("worker_threads")) {
+      num_worker_threads = vm["worker_threads"].as<int>();
   }
 
   if (vm.count("use_iouring")) {
@@ -220,10 +222,13 @@ int main(int argc, const char*argv[]) {
       log_size = vm["log_size"].as<int>();
   }
 
-  if (vm.count("num_log_entries_sync")) {
-    num_log_entries_sync = vm["num_log_entries_sync"].as<int>();
+  if (vm.count("log_entries_sync")) {
+    num_log_entries_sync = vm["log_entries_sync"].as<int>();
   }
 
+  if (vm.count("run_seconds")) {
+      run_seconds = vm["run_seconds"].as<int>();
+  }
   log_uring_create(num_log_files, num_uring_sqes, use_iouring);
 
   std::vector<ptr<std::thread>> threads;
@@ -252,7 +257,7 @@ int main(int argc, const char*argv[]) {
     ptr<std::thread> calculate_thread(new std::thread(
       calculate_thread_handler(
         _list,
-        30 // 30seconds
+        run_seconds // 30seconds
         )));
     threads.push_back(calculate_thread);
   }

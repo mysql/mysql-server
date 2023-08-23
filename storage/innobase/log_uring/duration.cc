@@ -87,9 +87,9 @@ std::string log_stat_period() {
           "total write: " << total_size << " bytes, "
           "write count: " << append << ", "
           "avg write size: " << avg_size << " bytes, "
-          "write bytes/s: " << total_size / duration.count() << ", "
-          "write count/s: " << append / duration.count() << ", "
-          "sync/s: " << sync / duration.count();
+          "write bytes/s: " << (double)total_size / (double)duration.count() << ", "
+          "write count/s: " << (double)append / (double)duration.count() << ", "
+          "sync/s: " << (double)sync / (double)duration.count();
         }
     }
     return ssm.str();

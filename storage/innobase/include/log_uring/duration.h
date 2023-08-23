@@ -42,9 +42,9 @@ class xlog_op_duration {
 private:
   op_duration append_;
   op_duration sync_;
-  
+  uint64_t total_size_;
 public:
-  xlog_op_duration() {
+  xlog_op_duration():total_size_(0) {
 
   }
 
@@ -57,23 +57,28 @@ public:
     sync_.add(duration);
   }
 
-  void append_add(std::chrono::duration<double> duration) {
+  void append_add(std::chrono::duration<double> duration, uint32_t size) {
     append_.add(duration);
+    total_size_ += size;
   }
 
   void add(const xlog_op_duration &duration) {
       sync_.add(duration.sync_);
       append_.add(duration.append_);
+      total_size_ += duration.total_size_;
   }
   
   std::string avg_time_str(int wait_seconds) const {
     std::string ret;
     std::stringstream ssm;
     ssm << 
-      "append: " << append_.avg_duration().count() * 1000000 << "us, invoke "  << append_.count() << " times, " <<
-      "sync: " << sync_.avg_duration().count() * 1000000 << "us, invoke " << sync_.count() << " times, "
-      << " append/seconds: " <<  ((double)append_.count()) / ((double)wait_seconds)
-      << " sync/seconds: " <<  ((double)sync_.count()) / ((double)wait_seconds)
+      "append: " << append_.avg_duration().count() * 1000000 << "us"
+      << ", invoke: "  << append_.count() << " times"
+      << ", sync: " << sync_.avg_duration().count() * 1000000 << "us"
+      << ", invoke: " << sync_.count() << " times"
+      << ", write bytes/s: " << (double)(total_size_) / (double)(wait_seconds)
+      << ", append/seconds: " <<  ((double)append_.count()) / ((double)wait_seconds)
+      << ", sync/seconds: " <<  ((double)sync_.count()) / ((double)wait_seconds)
       ;
     return ssm.str();
   }
