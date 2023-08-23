@@ -3129,11 +3129,13 @@ static dict_index_t *dict_index_build_internal_clust(
 
   ut::free(indexed);
 
-  if (!table->is_system_table) {
-    if (table->has_row_versions()) {
-      new_index->create_fields_array();
-    }
-    new_index->create_nullables(table->current_row_version);
+  new_index->create_nullables(table->current_row_version);
+
+  if (table->has_row_versions()) {
+    new_index->create_fields_array();
+  } else {
+    /* Table with no row version are considered of version 0 */
+    ut_a(new_index->get_nullable_in_version(0) == new_index->n_nullable);
   }
 
   ut_ad(UT_LIST_GET_LEN(table->indexes) == 0);
