@@ -505,6 +505,12 @@ class Item_sum : public Item_func {
     The value must be reset to false after execution.
   */
   bool forced_const{false};
+
+  /// true if the function is resolved to be always NULL
+  bool m_null_resolved{false};
+  /// true if the function is determined to be NULL at start of execution
+  bool m_null_executed{false};
+
   static ulonglong ram_limitation(THD *thd);
 
  public:
@@ -2095,8 +2101,6 @@ class Item_func_group_concat final : public Item_sum {
 
   /// True if GROUP CONCAT has the DISTINCT attribute
   bool distinct;
-  /// True if the result is always NULL
-  bool always_null{false};
   /// The number of ORDER BY items.
   uint m_order_arg_count;
   /// The number of selected items, aka the concat field list

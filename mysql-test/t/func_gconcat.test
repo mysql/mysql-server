@@ -1023,3 +1023,49 @@ SET SESSION group_concat_max_len=default;
 CREATE VIEW v(c0) AS SELECT group_concat((SELECT 1), 1);
 
 DROP VIEW v;
+
+--echo # Bug#35730982: GROUP_CONCAT results were displayed as NULL before 8.0.23
+
+CREATE TABLE customer (
+  c_id int NOT NULL,
+  c_name varchar(255) NOT NULL,
+  PRIMARY KEY (c_id)
+);
+
+INSERT INTO customer VALUES (1,'Messi'),(2,'Pele'),(3,'Maradona');
+
+CREATE TABLE employee (
+  seq_id bigint NOT NULL,
+  c_id int NOT NULL,
+  emp_id int NOT NULL,
+  emp_name varchar(30) DEFAULT NULL,
+  PRIMARY KEY (seq_id)
+);
+
+INSERT INTO employee VALUES (1,1,10,'Zico'),(2,3,30,'Ronaldo');
+
+SELECT mc.c_id,
+       GROUP_CONCAT(e.emp_name order by e.emp_id separator ',') AS gc
+FROM customer AS mc LEFT JOIN employee AS e
+     ON mc.c_id = e.c_id AND e.seq_id = 2
+WHERE mc.c_id = 2
+GROUP BY mc.c_id;
+
+PREPARE ps FROM
+"SELECT mc.c_id,
+       GROUP_CONCAT(e.emp_name order by e.emp_id separator ',') AS gc
+FROM customer AS mc LEFT JOIN employee AS e
+     ON mc.c_id = e.c_id AND e.seq_id = ?
+WHERE mc.c_id = ?
+GROUP BY mc.c_id";
+
+SET @seq_id = 2;
+SET @c_id = 2;
+
+EXECUTE ps USING @seq_id, @c_id;
+
+SET @c_id = 3;
+
+EXECUTE ps USING @seq_id, @c_id;
+
+DROP TABLE customer, employee;
