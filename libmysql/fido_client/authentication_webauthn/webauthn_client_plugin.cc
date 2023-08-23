@@ -77,37 +77,39 @@ static int webauthn_auth_client_plugin_option(const char *option,
 #ifndef NDEBUG
   if (strcmp(option, "is_fido_testing") == 0) {
     is_fido_testing = *static_cast<const bool *>(val);
-    return false;
+    return 0;
   }
 #endif
   if (strcmp(option,
              "plugin_authentication_webauthn_client_messages_callback") == 0) {
     mc = (plugin_messages_callback)(const_cast<void *>(val));
-    return false;
+    return 0;
   }
   if (strcmp(option,
              "plugin_authentication_webauthn_client_callback_get_uint") == 0) {
     mc_get_uint = (plugin_messages_callback_get_uint)(const_cast<void *>(val));
+    return 0;
   }
   if (strcmp(option,
              "plugin_authentication_webauthn_client_callback_get_"
              "password") == 0) {
     mc_get_password =
         (plugin_messages_callback_get_password)(const_cast<void *>(val));
+    return 0;
   }
   if (strcmp(option, "registration_challenge") == 0) {
     unsigned char *p =
         reinterpret_cast<unsigned char *>(const_cast<void *>(val));
     memcpy(registration_challenge, p, strlen(reinterpret_cast<char *>(p)));
     /* finish registration */
-    if (do_registration()) return true;
-    return false;
+    if (do_registration()) return 1;
+    return 0;
   }
   if (strcmp(option, "authentication_webauthn_client_preserve_privacy") == 0) {
     preserve_privacy = *static_cast<const bool *>(val);
-    return false;
+    return 0;
   }
-  return true;
+  return 1;
 }
 
 /**
