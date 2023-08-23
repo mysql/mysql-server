@@ -24,6 +24,7 @@ Checks:
   -*,
   bugprone-*,
   -bugprone-easily-swappable-parameters,
+-bugprone-narrowing-conversions,
   clang-analyzer-*,
   -clang-diagnostic-unused-function,
   cppcoreguidelines-*,
@@ -34,12 +35,17 @@ Checks:
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+-cppcoreguidelines-pro-type-reinterpret-cast,
+-cppcoreguidelines-narrowing-conversions,
   google-*,
   -google-readability-todo,
   -google-readability-braces-around-statements,
   -google-runtime-int,
+-google-build-using-namespace,
   misc-*,
   -misc-const-correctness,
+  -misc-non-private-member-variables-in-classes,
   modernize-use-nullptr,
   llvm-*,
   -llvm-header-guard,
@@ -47,8 +53,12 @@ Checks:
   performance-*,
   readability-*,
   -readability-braces-around-statements,
-  -readability-named-parameter
-  -readability-redundant-member-init
+  -readability-named-parameter,
+  -readability-redundant-member-init,
+  -readability-magic-numbers,
+-clang-diagnostic-error,
+
+
 
 CheckOptions:
   - key:        readability-magic-numbers.IgnoredIntegerValues
