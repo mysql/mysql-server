@@ -1,1 +1,1 @@
---ssl-cipher="DHE-RSA-AES256-SHA"
+--ssl-cipher="ECDHE-RSA-AES128-GCM-SHA256"

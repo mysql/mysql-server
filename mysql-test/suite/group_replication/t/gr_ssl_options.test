@@ -197,7 +197,7 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert=1;
 --source include/start_group_replication.inc
 
 # Check also that a valid cipher is accepted (not used due to portability issues)
---eval SET GLOBAL group_replication_recovery_ssl_cipher= 'AES128-SHA'
+--eval SET GLOBAL group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES256-GCM-SHA384'
 
 --echo #
 --echo # Check the data is there

@@ -70,26 +70,26 @@ include/stop_group_replication.inc
 #      * SLL cipher of the node is compatible with the group
 #    --tls-version='TLSv1.3'
 #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
-#    server1: --ssl-cipher='AES256-SHA:AES256-SHA256'
+#    server1: --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384'
 #    server2: --tls-ciphersuites='TLS_AES_128_CCM_SHA256'
-#    server2: --ssl-cipher='AES256-SHA256:CAMELLIA256-SHA'
+#    server2: --ssl-cipher='DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384'
 #    Outcome: group will not work.
 [connection server1]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.ssl_cipher= 'AES256-SHA:AES256-SHA256';
+SET @@GLOBAL.ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
-SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'AES256-SHA:AES256-SHA256';
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.ssl_cipher= 'AES256-SHA256:CAMELLIA256-SHA';
+SET @@GLOBAL.ssl_cipher= 'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.tls_ciphersuites = 'TLS_AES_128_CCM_SHA256';
 SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
-SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'AES256-SHA256:CAMELLIA256-SHA';
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 START GROUP_REPLICATION;
