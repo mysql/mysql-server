@@ -71,9 +71,10 @@ const char * opt_ndb_config_file = nullptr;
 const char * opt_bound_host      = nullptr;
 const char * opt_dest_dir        = nullptr;
 const char * opt_key_dest_dir    = nullptr;
-char * opt_cluster_key_pass      = nullptr;
+const char * opt_remote_path     = nullptr;
 const char * opt_curve = "P-256";
 const char * opt_schedule = "120,10,130,10,150,0";
+char * opt_cluster_key_pass      = nullptr;
 unsigned int opt_node_id = 0;
 bool opt_create_ca = 0;
 bool opt_create_key = 0;
@@ -150,6 +151,10 @@ static struct my_option sign_keys_options[] =
     0, 0, 0, nullptr, 0, nullptr },
   { "remote-openssl", NDB_OPT_NOSHORT, "Run openssl on CA host for key signing",
     &opt_rs_openssl, nullptr, nullptr, GET_BOOL, NO_ARG,
+    0, 0, 0, nullptr, 0, nullptr },
+  { "remote-exec-path", NDB_OPT_NOSHORT,
+    "Full path to executable on remote CA host",
+    &opt_remote_path, nullptr, nullptr, GET_STR, REQUIRED_ARG,
     0, 0, 0, nullptr, 0, nullptr },
   { "curve", NDB_OPT_NOSHORT, "Named curve to use for node keys",
     &opt_curve, nullptr, nullptr, GET_STR, REQUIRED_ARG,
@@ -259,6 +264,16 @@ bool check_options() {
     if(! opt_sign)
       return message("Error: --stdio mode is only for signing\n");
     return true;
+  }
+
+  /* Check opt_remote_path */
+  if(opt_remote_path) {
+    const char * exe = ndb_basename(opt_remote_path);
+    if(! (strcmp(exe, "ndb_sign_keys") == 0) ||
+         (strcmp(exe, "ndb_sign_keys.exe") == 0) ||
+         (strcmp(exe, "openssl") == 0) ||
+         (strcmp(exe, "openssl.exe") == 0))
+      return message("Error: invalid remote signing utility");
   }
 
   /* Print operation mode */
@@ -1104,7 +1119,7 @@ int remote_signing_method(BaseString & cmd, NdbProcess::Args & args,
     case SIGN_SSH_SIGN_KEYS:  // 1: Run ndb_sign_keys on remote CA host via ssh
       cmd.assign("ssh");
       args.add(opt_ca_host);
-      args.add("ndb_sign_keys");
+      args.add(opt_remote_path ? opt_remote_path : "ndb_sign_keys");
       args.add("--stdio");
       args.add("--duration=", csr->duration());
       if(opt_ca_cert != ClusterCertAuthority::CertFile)
@@ -1119,7 +1134,7 @@ int remote_signing_method(BaseString & cmd, NdbProcess::Args & args,
       nc->self_sign();
       cmd.assign("ssh");
       args.add(opt_ca_host);
-      args.add("openssl");
+      args.add(opt_remote_path ? opt_remote_path : "openssl");
       args.add("x509");
       args.add("-CA ", opt_ca_cert);
       args.add("-CAkey ", opt_ca_key);

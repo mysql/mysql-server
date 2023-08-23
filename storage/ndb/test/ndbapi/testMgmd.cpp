@@ -1937,6 +1937,7 @@ runTestSshKeySigning(NDBT_Context* ctx, NDBT_Step* step)
   args.add("--passphrase=", "Trondheim");
   args.add("--ndb-tls-search-path=", wd.path());
   args.add("--create-key");
+  args.add("--remote-exec-path=", exe.c_str());
   args.add("--remote-CA-host=", "localhost");
   NdbProcess * proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
   bool r = proc->wait(ret, 3000);
