@@ -22,9 +22,9 @@
 #      * SLL cipher of the node is compatible with the group
 #    --tls-version='TLSv1.3'
 #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
-#    server1: --ssl-cipher='AES256-SHA:AES256-SHA256'
+#    server1: --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384'
 #    server2: --tls-ciphersuites='TLS_AES_128_CCM_SHA256'
-#    server2: --ssl-cipher='AES256-SHA256:CAMELLIA256-SHA'
+#    server2: --ssl-cipher='DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384'
 #    Outcome: group will not work.
 # 3. Clean up.
 #
@@ -146,20 +146,20 @@ if(!$have_mysql_stack) {
 --echo #      * SLL cipher of the node is compatible with the group
 --echo #    --tls-version='TLSv1.3'
 --echo #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
---echo #    server1: --ssl-cipher='AES256-SHA:AES256-SHA256'
+--echo #    server1: --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384'
 --echo #    server2: --tls-ciphersuites='TLS_AES_128_CCM_SHA256'
---echo #    server2: --ssl-cipher='AES256-SHA256:CAMELLIA256-SHA'
+--echo #    server2: --ssl-cipher='DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384'
 --echo #    Outcome: group will not work.
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.ssl_cipher= 'AES256-SHA:AES256-SHA256';
+SET @@GLOBAL.ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 if($have_mysql_stack) {
   SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
-  SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'AES256-SHA:AES256-SHA256';
+  SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
   SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 }
 ALTER INSTANCE RELOAD TLS;
@@ -173,11 +173,11 @@ ALTER INSTANCE RELOAD TLS;
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.ssl_cipher= 'AES256-SHA256:CAMELLIA256-SHA';
+SET @@GLOBAL.ssl_cipher= 'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
 SET @@GLOBAL.tls_ciphersuites = 'TLS_AES_128_CCM_SHA256';
 if($have_mysql_stack) {
   SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
-  SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'AES256-SHA256:CAMELLIA256-SHA';
+  SET @@GLOBAL.group_replication_recovery_ssl_cipher= 'DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
   SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
 }
 ALTER INSTANCE RELOAD TLS;

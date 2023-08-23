@@ -173,13 +173,13 @@ drop user wl7699_sha256;
 #
 # Restarting mysqld with :
 #       --auto_generate_certs=ON
-#       --ssl-cipher=DHE-RSA-AES256-SHA
+#       --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256
 #       --skip-sha256_password_auto_generate_rsa_keys
 # Restart completed.
 # Search for : Auto generated SSL certificates are placed in data directory.
 Pattern "Auto generated SSL certificates are placed in data directory." found
 # Search completed.
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 # Clean-up
 # restart:
