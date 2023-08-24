@@ -1701,14 +1701,11 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
 #endif
       };
 
-#ifdef _WIN32
-  Log_file_handle::s_skip_fsyncs =
-      (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED);
-#else
+#ifndef _WIN32
   Log_file_handle::s_skip_fsyncs =
       (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC ||
        srv_unix_file_flush_method == SRV_UNIX_NOSYNC);
-#endif /* _WIN32 */
+#endif /* !_WIN32 */
 
   if (!found_files_in_root) {
     log_files_ctx =
