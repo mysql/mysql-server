@@ -20,59 +20,28 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(NOT WIN32)
-  RETURN()
+# First we look for "wix.exe" using the CMake variable WIX_DIR, second using the
+# environment variable WIX, and then we add "$ENV{USERPROFILE}\\.dotnet\\tools"
+# to the PATH before searching the other default locations
+IF(NOT WIX_DIR AND "$ENV{WIX}")
+  SET(WIX_DIR "$ENV{WIX}")
 ENDIF()
+FIND_PATH(WIX_DIR wix.exe "$ENV{USERPROFILE}\\.dotnet\\tools")
 
-# Need an extra indirection to access ENV(ProgramFiles(x86))
-SET(MYENV "ProgramFiles(x86)")
-
-# Look in various paths for 'heat.exe'
-# Different installations have different layouts.
-# Not really necessary to use V3.8 but keep backward compatibility just in case.
-IF(MSVC_VERSION LESS 1900)
-  FOREACH(path
-      "$ENV{ProgramFiles}/WiX Toolset V3.8"
-      "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
-      "$ENV{${MYENV}}/WiX Toolset V3.8"
-      "$ENV{${MYENV}}/WiX Toolset V3.8/bin")
-    FIND_PATH(WIX_DIR heat.exe "${path}")
-    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
-    IF(WIX_DIR)
-      BREAK()
-    ENDIF()
-  ENDFOREACH()
-ELSE()
-  FOREACH(path
-      "$ENV{ProgramFiles}/WiX Toolset V3.10"
-      "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
-      "$ENV{${MYENV}}/WiX Toolset V3.10"
-      "$ENV{${MYENV}}/WiX Toolset V3.10/bin")
-    FIND_PATH(WIX_DIR heat.exe "${path}")
-    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
-    IF(WIX_DIR)
-      BREAK()
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
-# Finally, look in environment
-IF(NOT WIX_DIR)
-  FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
-  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} looked at $ENV{WIX}")
-ENDIF()
-
-IF(NOT WIX_DIR)
-  IF(NOT _WIX_DIR_CHECKED)
-    SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
-    MESSAGE(STATUS "Cannot find wix 3, installer project will not be generated")
+IF(NOT _WIX_DIR_CHECKED)
+  SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
+  IF(WIX_DIR)
+    MESSAGE(STATUS "WIX_DIR ${WIX_DIR}")
+  ELSE()
+    MESSAGE(STATUS "Cannot find \"wix.exe\", installer project will not be generated")
   ENDIF()
+ENDIF()
+
+IF(NOT WIX_DIR)
   RETURN()
 ENDIF()
 
-FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
-FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
-FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
+FIND_PROGRAM(WIX_EXECUTABLE wix ${WIX_DIR})
 
 # WiX wants the license text as rtf; if there is no rtf license, 
 # we create a fake one from the plain text LICENSE file.
@@ -92,9 +61,9 @@ SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(WixWin64 " Win64='yes'")
+  SET(WixWin64 " Bitness='always64'")
 ELSE()
-  SET(WixWin64 " Win64='no'")
+  SET(WixWin64 " Bitness='always32'")
 ENDIF()
 
 IF("${VERSION}" MATCHES "-ndb-")
@@ -111,21 +80,13 @@ IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "DISPLAY_PATCH_VERSION: ${DISPLAY_PATCH_VERSION}")
 ENDIF()
 
-#CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
-#  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs)
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
+  @ONLY)
 
-ADD_CUSTOM_TARGET(
-  configure_mysql_server_extra
-  COMMAND ${CMAKE_COMMAND}
-  -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
-  -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
-  -DMAJOR_VERSION=${MAJOR_VERSION}
-  -DMINOR_VERSION=${MINOR_VERSION}
-  -DWixWin64=${WixWin64}
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
-  )
-
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
   @ONLY)
 
@@ -151,7 +112,6 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM} 
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI configure_mysql_server_extra)
 
 IF(TARGET remove_INFO_SRC_from_bs)
   ADD_DEPENDENCIES(MSI remove_INFO_SRC_from_bs)
