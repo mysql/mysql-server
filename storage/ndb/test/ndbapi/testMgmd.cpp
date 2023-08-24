@@ -245,7 +245,7 @@ public:
       return false; // Can't kill with -9 -> fatal error
     }
     int ret;
-    if (!m_proc->wait(ret, 1000))
+    if (!m_proc->wait(ret, 30000))
     {
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false; // Can't wait after kill with -9 -> fatal error
@@ -268,7 +268,7 @@ public:
 
   }
 
-  bool wait(int& ret, int timeout = 300)
+  bool wait(int& ret, int timeout = 30000)
   {
     g_info << "Waiting for " << name() << endl;
 
@@ -1623,7 +1623,7 @@ runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
   Mgmd mgmd(1);
   int exit_value;
   CHECK(mgmd.start_from_config_ini(wd.path()));
-  CHECK(mgmd.wait(exit_value, 50));
+  CHECK(mgmd.wait(exit_value, 5000));
   CHECK(exit_value == 1);
   return NDBT_OK;
 }
@@ -1702,8 +1702,8 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
   int ndbd_exit_code;
   Ndbd ndbd2(2);
   CHECK(ndbd2.start(wd.path(), mgmd.connectstring(config)));
-  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 0);   // first 20-second wait
-  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 1);   // second 20-second wait
+  CHECK(ndbd2.wait(ndbd_exit_code, 20000) == 0);   // first 20-second wait
+  CHECK(ndbd2.wait(ndbd_exit_code, 20000) == 1);   // second 20-second wait
 
   return NDBT_OK;
 }
@@ -1740,7 +1740,7 @@ runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
   //TEST 1: start mgmd without nodeid and unknown address
   with_nodeid = false;
   CHECK(mgmd.start_from_config_ini(wd.path()));
-  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(mgmd.wait(exit_value));
   CHECK(exit_value == 1);
   with_nodeid = true;
   search_list.push_back("At least one hostname in the configuration does not match a local interface");
@@ -1761,7 +1761,7 @@ runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
   with_nodeid = false;
   CHECK(mgmd.start_from_config_ini(wd.path(), "-f config2.ini",
     "--initial", NULL));
-  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(mgmd.wait(exit_value));
   CHECK(exit_value == 1);
   with_nodeid = true;
   search_list.push_back("More than one hostname matches a local interface, including node ids");
@@ -1783,7 +1783,7 @@ runTestMgmdwithoutnodeid(NDBT_Context* ctx, NDBT_Step* step)
   with_nodeid = false;
   CHECK(mgmd.start_from_config_ini(wd.path(), "-f config3.ini", "--initial",
                                    NULL));
-  CHECK(mgmd.wait(exit_value, 300));
+  CHECK(mgmd.wait(exit_value));
   CHECK(exit_value == 1);
   with_nodeid = true;
 
