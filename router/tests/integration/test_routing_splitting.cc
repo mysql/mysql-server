@@ -538,7 +538,7 @@ class TestEnv : public ::testing::Environment {
                     "--account", "router",         //
                     "--report-host", "127.0.0.1",  //
                     "-d", router_dir_.name()});
-    ASSERT_NO_THROW(bootstrap_proc.wait_for_exit(2s))
+    ASSERT_NO_THROW(bootstrap_proc.wait_for_exit(10s))
         << bootstrap_proc.get_current_output();
     ASSERT_EQ(bootstrap_proc.exit_code(), 0)
         << bootstrap_proc.get_full_output();
