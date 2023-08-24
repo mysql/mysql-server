@@ -181,6 +181,7 @@ public:
     m_ssl_ctx(ctx),
     m_secure_socket(std::move(s)) {}
   void runSession() override;
+  void stopSession() override { m_secure_socket.close(); }
 private:
   bool m_sink;
   SSL_CTX * m_ssl_ctx;
@@ -468,11 +469,10 @@ void ClientTest::rusage13() const {
 class SendRecvTest : public ClientTest {
 public:
   SendRecvTest(NdbSocket & s, const char * name,
-               bool blocking, bool locking, int buff_size = opt_buff_size) :
+               bool blocking, int buff_size = opt_buff_size) :
     ClientTest(s),  m_name(name), m_test_bytes(opt_send_MB * 1000000),
-    m_buff_size(buff_size), m_block(blocking), m_locking(locking)
+    m_buff_size(buff_size), m_block(blocking)
   {
-    assert(! (blocking && locking));  // can result in deadlock
     m_send_buffer = (char *) malloc(m_buff_size);
     m_recv_buffer = (char *) malloc(m_buff_size);
     int d = m_test_bytes / m_buff_size;
@@ -512,20 +512,17 @@ protected:
   int m_buff_size;
   int m_update_keys {0};
   bool m_block;
-  bool m_locking;
+  //bool m_locking;
   bool m_repeat_input {true};
 };
 
 void SendRecvTest::setup() {
   m_socket.set_nonblocking(! m_block);
-  if(m_locking) m_socket.enable_locking();
-  else m_socket.disable_locking();
 }
 
 void SendRecvTest::printTestName(int n) {
-  printf("(t%d) %s %s %s ", n, m_name,
-         m_block   ? "  blocking  " : "non-blocking",
-         m_locking ? "(w/ mutex)"   : "(no mutex)");
+  printf("(t%d) %s %s ", n, m_name,
+         m_block   ? "  blocking  " : "non-blocking");
 }
 
 int SendRecvTest::runTest() {
@@ -675,9 +672,9 @@ int SendRecvTest::testRecv() {
  */
 class SendTest : public SendRecvTest {
 public:
-  SendTest(NdbSocket & s, const char * name, bool locking,
+  SendTest(NdbSocket & s, const char * name,
            size_t buff = opt_buff_size) :
-    SendRecvTest(s, name, false, locking, buff)               {}
+    SendRecvTest(s, name, false, buff)               {}
 
   void printTestName(int n) override {
     printf("(t%d) SendTest: %s ", n, m_name);
@@ -724,7 +721,7 @@ void SendTest::printTestResult() {
 class WarmupTest : public SendRecvTest {
 public:
   WarmupTest(NdbSocket &s) :
-    SendRecvTest(s, "", false, true, 4096)
+    SendRecvTest(s, "", false, 4096)
   {
     m_test_bytes = 2000000;
     m_verbose_level = 2;
@@ -745,7 +742,7 @@ public:
 class ReadLineTest : public SendRecvTest {
 public:
   ReadLineTest(NdbSocket & s, const char * name) :
-    SendRecvTest(s, name, false, true)
+    SendRecvTest(s, name, false)
   {
     m_repeat_input = false; // don't read the file more than once
     m_test_bytes = 1000000; // don't send more than this
@@ -833,7 +830,7 @@ int IovList::adjust(size_t x) {
 */
 class WritevTest : public SendTest {
 public:
-  WritevTest(NdbSocket &, const char *, bool, size_t buff, std::vector<int>
+  WritevTest(NdbSocket &, const char *, size_t buff, std::vector<int>
              dist = { 25, 60, 250, 600, 2500, 6000, 25000, -1 });
  ~WritevTest() override  { m_iov.free_all(); }
 
@@ -846,8 +843,8 @@ private:
 };
 
 WritevTest::WritevTest(NdbSocket & s, const char * name,
-                       bool locking, size_t buff, std::vector<int> dist) :
-  SendTest(s, name, locking, buff), m_buffer_dist(dist)
+                       size_t buff, std::vector<int> dist) :
+  SendTest(s, name, buff), m_buffer_dist(dist)
 {
   size_t size = m_buff_size;
   int n = 0;
@@ -912,8 +909,8 @@ int WritevTest::testSend() {
 */
 class BigWritevTest : public WritevTest {
 public:
-  BigWritevTest(NdbSocket & s, const char * name, bool locking) :
-    WritevTest(s, name, locking, 262144,
+  BigWritevTest(NdbSocket & s, const char * name) :
+    WritevTest(s, name, 262144,
                { 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768 }) {}
 };
 
@@ -922,7 +919,7 @@ public:
 class KeyUpdateTest : public SendRecvTest {
 public:
   KeyUpdateTest(NdbSocket &s, const char * name) :
-    SendRecvTest(s, name, false, true)
+    SendRecvTest(s, name, false)
   {
     m_update_keys = 1;
   }
@@ -959,11 +956,14 @@ int run_client(const char * server_host) {
    */
   std::vector<ClientTest *> tests =
   {
-    new SendRecvTest(plain_socket, "plain", true,  false),
-    new SendRecvTest(tls_socket,   " TLS ", true,  false),
-    new SendRecvTest(plain_socket, "plain", false, false),
-    new SendRecvTest(plain_socket, "plain", false, true),
-    new SendRecvTest(tls_socket,   " TLS ", false, true),
+    new SendRecvTest(plain_socket, "plain", true),
+    // As TLS set locks, it cant be blocking at the same time?
+    //  ... recv() may block while holding the lock, waiting for send
+    //      to become 'unblocked'.
+    //  ... Sender is waiting for lock, thus cant unblock recv()
+    //new SendRecvTest(tls_socket,   " TLS ", true),
+    new SendRecvTest(plain_socket, "plain", false),
+    new SendRecvTest(tls_socket,   " TLS ", false),
 
     new ReadLineTest(plain_socket, "plain readline"),
     new ReadLineTest(tls_socket,   " TLS  readline"),
@@ -971,13 +971,13 @@ int run_client(const char * server_host) {
     new KeyUpdateTest(tls_socket,
                       opt_tls12 ? "TLS 1.2 renegotiate" : "TLS 1.3 key update"),
 
-    new SendTest(plain_socket, " plain basic", false),
-    new SendTest(tls_socket, " TLS  basic", true),
+    new SendTest(plain_socket, " plain basic"),
+    new SendTest(tls_socket, " TLS  basic"),
 
-    new WritevTest(plain_socket,   "plain writev", false, opt_buff_size),
-    new WritevTest(tls_socket,     " TLS  writev", true, opt_buff_size),
-    new BigWritevTest(plain_socket, "plain big writev", false),
-    new BigWritevTest(tls_socket,   " TLS  big writev", true)
+    new WritevTest(plain_socket,   "plain writev", opt_buff_size),
+    new WritevTest(tls_socket,     " TLS  writev", opt_buff_size),
+    new BigWritevTest(plain_socket, "plain big writev"),
+    new BigWritevTest(tls_socket,   " TLS  big writev")
   };
 
   /* Print list of tests and exit */

@@ -95,6 +95,12 @@ Multi_Transporter::disconnectImpl()
 }
 
 void
+Multi_Transporter::releaseAfterDisconnect()
+{
+  require(false);
+}
+
+void
 Multi_Transporter::add_not_used_trp(Transporter *t)
 {
   require(m_num_not_used_transporters < MAX_NODE_GROUP_TRANSPORTERS);

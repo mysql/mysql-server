@@ -283,10 +283,8 @@ SHM_Transporter::detach_shm(bool rep_error)
 }
 
 void
-SHM_Transporter::disconnectImpl()
+SHM_Transporter::releaseAfterDisconnect()
 {
-  DEBUG_FPRINTF((stderr, "(%u)disconnectImpl(%d)\n",
-                 localNodeId, remoteNodeId));
-  disconnect_socket();
+  Transporter::releaseAfterDisconnect();
   setupBuffersUndone();
 }

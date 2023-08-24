@@ -89,16 +89,11 @@ public:
   
 protected:
   /**
-   * disconnect a segmnet
+   * Release resources used by SHM after disconnect
    * -# deletes the shm buffer associated with a segment
    * -# marks the segment for removal
    */
-  void disconnectImpl() override;
-
-  /**
-   * Disconnect socket that was used for wakeup services.
-   */
-  void disconnect_socket();
+  void releaseAfterDisconnect() override;
 
   /**
    * Blocking

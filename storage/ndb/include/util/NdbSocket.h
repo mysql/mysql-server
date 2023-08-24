@@ -37,8 +37,14 @@ public:
   NdbSocket() = default;
   NdbSocket(NdbSocket&& oth);
   // TODO: move ndb_socket_t into NdbSocket
-  NdbSocket(ndb_socket_t ndbsocket): s(ndbsocket) {}
-  ~NdbSocket()                       { disable_locking(); }
+  NdbSocket(ndb_socket_t ndbsocket): s(ndbsocket) { }
+  ~NdbSocket() {
+    assert(ssl == nullptr);
+    assert(!ndb_socket_valid(s));
+    if (mutex != nullptr)
+      NdbMutex_Destroy(mutex);
+  }
+
   NdbSocket& operator=(NdbSocket &&);
 
   int is_valid() const               { return ndb_socket_valid(s); }
@@ -67,20 +73,13 @@ public:
    */
   static void free_ssl(struct ssl_st *);
 
-  /* Associate a socket with an SSL.
+  /* Associate a socket with an SSL and create mutex for SSL-protection.
    * Returns true on success.
    * Returns false if socket already has an SSL association,
    *               or if SSL is null,
-   *               or on failure from the SSL socket table,
    *               or on failure from SSL_set_fd().
    */
   bool associate(struct ssl_st *);
-
-  /* Enable or disable mutex locking around SSL read and write calls.
-   * Return true on success.
-   */
-  bool enable_locking();
-  bool disable_locking();
 
   /* Run TLS handshake.
    * This must be done synchronously on a blocking socket.
@@ -152,7 +151,6 @@ public:
   int write(int timeout, int *, const char * buf, int len) const;
 
   int shutdown() const;
-  /* For SSL sockets, close() removes the SSL from the SSL Socket Table */
   int close();
   void close_with_reset();
 
@@ -175,8 +173,8 @@ private:
   int ssl_readln(int timeout, int *, char * buf, int len, NdbMutex *) const;
   int ssl_write(int timeout, int *, const char * buf, int len) const;
 
-  int ssl_shutdown() const;
   bool ssl_handshake();
+  int ssl_shutdown() const;
   void ssl_close();
 
   int consolidate(const struct iovec *, const int) const;
@@ -185,8 +183,15 @@ private:
   friend class TlsLineReader;
 
 private:
+  /**
+   * SSL functions required a mutex as its libraries are not multithread safe.
+   * The mutex is created by associate(), when a ssl object is assigned to the
+   * NdbSocket. As the mutex is also required for shutdown() and close(),
+   * it is only released by the destructor, or the move c'tors when we
+   * move into an NdbSocket already having a mutex assigned.
+   */
+  NdbMutex * mutex{nullptr};  // Protects ssl
   struct ssl_st * ssl{nullptr};
-  NdbMutex * mutex{nullptr};
   ndb_socket_t s{INVALID_SOCKET};
 };
 
@@ -196,6 +201,9 @@ private:
  */
 inline
 NdbSocket::NdbSocket(NdbSocket && oth) {
+  assert(ssl == nullptr);
+  assert(!ndb_socket_valid(s));
+
   // All members are default member initialized.
   // Using swap for move.
   // Source (oth) will become like default initialized.
@@ -211,9 +219,8 @@ NdbSocket::NdbSocket(NdbSocket && oth) {
 inline
 NdbSocket& NdbSocket::operator=(NdbSocket && oth) {
   // Only allow move assignment to default NdbSocket object
-  require(ssl == nullptr);
-  require(mutex == nullptr);
-  require(!ndb_socket_valid(s));
+  assert(ssl == nullptr);
+  assert(!ndb_socket_valid(s));
 
   // Using swap for move.
   // Source (oth) will become like default initialized.
@@ -227,14 +234,12 @@ inline
 void NdbSocket::invalidate_socket_handle() {
   // call close() before invalidate_socket_handle()
   assert(ssl == nullptr);
-  assert(mutex == nullptr);
   ndb_socket_invalidate(&s);
 }
 
 inline
 socket_t NdbSocket::release_native_socket() {
-  require(ssl == nullptr);
-  require(mutex == nullptr);
+  assert(ssl == nullptr);
   socket_t sock = s.s;
   invalidate_socket_handle();
   return sock;
@@ -279,7 +284,6 @@ int NdbSocket::shutdown() const {
 inline
 int NdbSocket::close() {
   if(ssl) ssl_close();
-  disable_locking();
   int r = ndb_socket_close(s);
   invalidate_socket_handle();
   return r;
@@ -288,7 +292,6 @@ int NdbSocket::close() {
 inline
 void NdbSocket::close_with_reset() {
   if(ssl) ssl_close();
-  disable_locking();
   constexpr bool with_reset = true;
   ndb_socket_close_with_reset(s, with_reset);
   invalidate_socket_handle();

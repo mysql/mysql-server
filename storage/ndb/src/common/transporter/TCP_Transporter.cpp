@@ -193,13 +193,7 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 }
 
 TCP_Transporter::~TCP_Transporter() {
-  
-  // Disconnect
-  if (theSocket.is_valid())
-    doDisconnect();
-  
   // Delete receive buffer!!
-  assert(!isConnected());
   receiveBuffer.destroy();
 }
 
@@ -231,16 +225,13 @@ bool TCP_Transporter::connect_common(NdbSocket&& socket)
     m_encrypted = true;
     m_transporter_registry.getTlsKeyManager()->cert_table_set(remoteNodeId,
                                                               cert);
-    socket.enable_locking();
   }
 
   setSocketOptions(socket.ndb_socket());
   socket.set_nonblocking(true);
 
-  get_callback_obj()->lock_transporter(m_transporter_index);
   theSocket = std::move(socket);
   send_checksum_state.init();
-  get_callback_obj()->unlock_transporter(m_transporter_index);
 
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
               remoteNodeId));
@@ -418,7 +409,6 @@ TCP_Transporter::doSend(bool need_wakeup)
       sum_sent += nBytesSent;
       assert(sum >= sum_sent);
       remain = sum - sum_sent;
-      //g_eventLogger->info("Sent %d bytes on trp %u", nBytesSent, getTransporterIndex());
       break;
     }
     else if (nBytesSent > 0)           //Sent some, more pending
@@ -700,19 +690,9 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 }
 
 void
-TCP_Transporter::disconnectImpl()
+TCP_Transporter::releaseAfterDisconnect()
 {
-  get_callback_obj()->lock_transporter(m_transporter_index);
-  NdbSocket sock = std::move(theSocket);
-  get_callback_obj()->unlock_transporter(m_transporter_index);
-
-  if(sock.is_valid())
-  {
-    DEB_MULTI_TRP(("Disconnect socket for trp %u", getTransporterIndex()));
-    if(sock.close() < 0) {
-      report_error(TE_ERROR_CLOSING_SOCKET);
-    }
-  }
+  Transporter::releaseAfterDisconnect();
 
   m_encrypted = false;
   m_transporter_registry.getTlsKeyManager()->cert_table_clear(remoteNodeId);

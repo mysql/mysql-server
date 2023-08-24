@@ -194,6 +194,7 @@ bool Transporter::do_disconnect(int err, bool send_source)
     {
       DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
                      getTransporterIndex()));
+      // Communication inactive -> can close directly without a 'shutdown'
       theSocket.close();
     }
     else
@@ -565,6 +566,67 @@ Transporter::doDisconnect()
   }
   update_connect_state(false);
   disconnectImpl();
+}
+
+void
+Transporter::disconnectImpl()
+{
+  assert(theSocket.is_valid());
+  if(theSocket.is_valid())
+  {
+    DEB_MULTI_TRP(("Shutdown socket for trp %u", getTransporterIndex()));
+    if(theSocket.shutdown() < 0) {
+      // Do we care about shutdown failures? It might fail due to e.g.
+      // connection already terminated by other peer.
+      report_error(TE_ERROR_CLOSING_SOCKET);
+    }
+  }
+}
+
+/**
+ * releaseAfterDisconnect() is assumed to be called when TR has this
+ * Transporter in the DISCONNECTED state -> There are no other concurrent
+ * send/receive activity on it, thus held resources can be released without
+ * lock and concerns for thread safety.
+ *
+ * The exception is (unfortunately) when it 'isPartOfMultiTransporter'
+ * which 'forceUnsafeDisconnect()' on it - See further below.
+ */
+void
+Transporter::releaseAfterDisconnect()
+{
+  assert(!isConnected());
+  theSocket.close();
+}
+
+/**
+ * Bug#35750394 MultiTranporter should follow the DISCONNECT protocol:
+ *
+ * forceUnsafeDisconnect() Is only intended to be used when disconnecting
+ * a Transporter which 'isPartOfMultiTransporter'. The Multi_Transporter
+ * breaks the disconnect 'protocol' by disconnecting these Transporters
+ * directly from report_disconnect(), instead of just setting DISONNECTING
+ * state and let start_client_thread() -> doDisconnect(), and finally let
+ * report_disconnect() set DISCONNECTED state.
+ *
+ * It is intended as a temporary fix for this protocol breach.
+ * Longer term a refactoring effort is needed.
+ */
+void
+Transporter::forceUnsafeDisconnect()
+{
+  assert(isPartOfMultiTransporter());
+
+  if(m_connected)
+  {
+    update_connect_state(false);
+    disconnectImpl();
+  }
+
+  // Release of resources need locks as we not really DISCONNECTED.
+  get_callback_obj()->lock_transporter(m_transporter_index);
+  releaseAfterDisconnect();
+  get_callback_obj()->unlock_transporter(m_transporter_index);
 }
 
 void

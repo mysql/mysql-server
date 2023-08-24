@@ -100,6 +100,10 @@ bool NdbSocket::associate(SSL * new_ssl)
   if(new_ssl == nullptr) return false;
   if(! SSL_set_fd(new_ssl, s.s)) return false;
   ssl = new_ssl;
+
+  // SSL will need mutex protection:
+  assert(mutex == nullptr);
+  mutex = NdbMutex_Create();
   return true;
 }
 
@@ -120,27 +124,16 @@ int NdbSocket::set_nonblocking(int on) const {
       SSL_clear_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
     }
   }
-
   return ndb_socket_nonblock(s, on);
 }
 
-bool NdbSocket::enable_locking() {
-  if(! mutex) mutex = NdbMutex_Create();
-  return (bool) mutex;
-}
-
-bool NdbSocket::disable_locking() {
-  int r = mutex ? NdbMutex_Destroy(mutex) : 0;
-  mutex = nullptr;
-  return (r == 0);
-}
 
 /* NdbSocket private instance methods */
 
 // ssl_close
 void NdbSocket::ssl_close() {
-  Guard2 guard(mutex);     // acquire mutex if non-null
-  set_nonblocking(false);  // set to blocking
+  Guard guard(mutex);
+  ndb_socket_nonblock(s, false); // set blocking BIO
   SSL_shutdown(ssl);       // wait for close
   SSL_free(ssl);
   ssl = nullptr;
@@ -206,7 +199,7 @@ static ssize_t handle_ssl_error(int err, const char * fn) {
 
 bool NdbSocket::update_keys(bool req_peer) const {
   if(ssl && (SSL_version(ssl) == TLS1_3_VERSION)) {
-    Guard2 guard(mutex); // acquire mutex if non-null
+    Guard guard(mutex);
     int flag = req_peer ? SSL_KEY_UPDATE_REQUESTED
                         : SSL_KEY_UPDATE_NOT_REQUESTED;
     return SSL_key_update(ssl, flag);
@@ -230,10 +223,10 @@ bool NdbSocket::key_update_pending() const {
 int NdbSocket::ssl_shutdown() const {
   int err;
   {
-    Guard2 guard(mutex);
-    set_nonblocking(false);
-    int r = SSL_shutdown(ssl);
-    if (r) return 0;
+    Guard guard(mutex);
+    ndb_socket_nonblock(s, false); // set blocking BIO
+    const int r = SSL_shutdown(ssl);
+    if (r >= 0) return 0;
     err = SSL_get_error(ssl, r);
   }
   Debug_Log("SSL_shutdown(): ERR %d", err);
@@ -246,7 +239,10 @@ ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
   size_t nread = 0;
   int err;
   {
-    Guard2 guard(mutex); // acquire mutex if non-null
+    Guard guard(mutex);
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+      return 0;
+
     r = SSL_read_ex(ssl, buf, len, &nread);
     if(r) return nread;
     err = SSL_get_error(ssl, r);
@@ -262,7 +258,10 @@ ssize_t NdbSocket::ssl_peek(char *buf, size_t len) const
   size_t nread = 0;
   int err;
   {
-    Guard2 guard(mutex); // acquire mutex if non-null
+    Guard guard(mutex);
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+      return 0;
+
     r = SSL_peek_ex(ssl, buf, len, &nread);
     if(r) return nread;
     err = SSL_get_error(ssl, r);
@@ -279,8 +278,10 @@ ssize_t NdbSocket::ssl_send(const char * buf, size_t len) const
 
   /* Locked section */
   {
-    Guard2 guard(mutex);
-    if(unlikely(ssl == nullptr)) return -1; // conn. closed by another thread
+    Guard guard(mutex);
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+      return -1;
+
     if(SSL_write_ex(ssl, buf, len, &nwrite))
       return nwrite;
     err = SSL_get_error(ssl, 0);
