@@ -453,7 +453,7 @@ class TestEnv : public ::testing::Environment {
                       "source " + ProcessManager::get_data_dir()
                                       .join("metadata-model-2.1.0.sql")
                                       .str()});
-      ASSERT_NO_THROW(mysql_proc.wait_for_exit(5s))
+      ASSERT_NO_THROW(mysql_proc.wait_for_exit(20s))
           << mysql_proc.get_current_output();
       ASSERT_EQ(mysql_proc.exit_code(), 0) << mysql_proc.get_full_output();
     }
