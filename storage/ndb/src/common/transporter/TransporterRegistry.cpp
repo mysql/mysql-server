@@ -202,6 +202,7 @@ bool
 TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]])
 {
   assert(m_transporters.get(t->getTransporterIndex()));
+
 #if defined(HAVE_EPOLL_CREATE)
   if (m_epoll_fd != -1)
   {
@@ -436,16 +437,11 @@ TransporterRegistry::~TransporterRegistry()
 void
 TransporterRegistry::removeAll()
 {
-  for (Uint32 i = 0; i < nTCPTransporters; i++)
+  for (Uint32 i = 1; i < (nTransporters + 1); i++)
   {
-    delete theTCPTransporters[i];
+    // allTransporters[] contain TCP, Loopback and SHM_Transporters
+    delete allTransporters[i];
   }
-#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
-  for (Uint32 i = 0; i < nSHMTransporters; i++)
-  {
-    delete theSHMTransporters[i];
-  }
-#endif
   for (Uint32 i = 0; i < nMultiTransporters; i++)
   {
     delete theMultiTransporters[i];
@@ -460,16 +456,17 @@ void
 TransporterRegistry::disconnectAll(){
   DEBUG_FPRINTF((stderr, "(%u)doDisconnect(all), line: %d\n",
                localNodeId, __LINE__));
-  for (Uint32 i = 0; i < nTCPTransporters; i++)
+
+  for (Uint32 i = 1; i < (nTransporters + 1); i++)
   {
-    theTCPTransporters[i]->doDisconnect();
+    allTransporters[i]->doDisconnect();
+
+    // We force a 'clean' shutdown of the Transporters.
+    // Beware that the protocol of setting 'DISCONNECTING', then wait for
+    // state to become DISCONNECTED before 'release' is not followed!
+    // Should be OK as we are only called from TransporterRegistry d'tor.
+    allTransporters[i]->releaseAfterDisconnect();
   }
-#ifdef NDB_SHM_TRANSPORTER_SUPPORTED
-  for (Uint32 i = 0; i < nSHMTransporters; i++)
-  {
-    theSHMTransporters[i]->doDisconnect();
-  }
-#endif
 }
 
 bool
@@ -1505,7 +1502,15 @@ TransporterRegistry::check_TCP(TransporterReceiveHandle& recvdata,
          */
         assert(recvdata.m_transporters.get(trpid));
 
-        recvdata.m_recv_transporters.set(trpid);
+        // Note that EPOLLHUP is delivered even if not listened to.
+        if (recvdata.m_epoll_events[i].events & EPOLLHUP) {
+          // Stop listening to events from 'sock_fd'
+          ndb_socket_t sock_fd = allTransporters[trpid]->getSocket();
+          epoll_ctl(recvdata.m_epoll_fd, EPOLL_CTL_DEL,
+                    ndb_socket_get_native(sock_fd), nullptr);
+        } else if (recvdata.m_epoll_events[i].events & EPOLLIN) {
+          recvdata.m_recv_transporters.set(trpid);
+        }
       }
     }
     else if (num_socket_events < 0)
@@ -2044,7 +2049,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
        * synchronication between ::update_connections() and 
        * performReceive()
        *
-       * Transporter::isConnected() state my change asynch.
+       * Transporter::isConnected() state may change asynch.
        * A mismatch between the TransporterRegistry::is_connected(),
        * and Transporter::isConnected() state is possible, and indicate 
        * that a change is underway. (Completed by update_connections())
@@ -2113,7 +2118,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
 	 BitmaskImpl::NotFound)
   {
     bool hasdata = false;
-    Transporter * t = (Transporter*)allTransporters[trp_id];
+    Transporter *t = allTransporters[trp_id];
     NodeId node_id = t->getRemoteNodeId();
 
     assert(recvdata.m_transporters.get(trp_id));
@@ -2699,7 +2704,6 @@ TransporterRegistry::get_node_multi_transporter(NodeId node_id)
     }
   }
   return (Multi_Transporter*)nullptr;
-
 }
 
 void
@@ -2746,6 +2750,14 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   {
     const TrpId trp_id = trp_ids[i];
     DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u\n", trp_id, node_id));
+
+    if (!node_trp->isMultiTransporter())
+    {
+      // Transporter was 'shutdown' when we disconnected.
+      // Now we need to release the NdbSocket resources still kept.
+      allTransporters[trp_id]->releaseAfterDisconnect();
+    }
+
     if (recvdata.m_transporters.get(trp_id))
     {
       /**
@@ -2794,25 +2806,28 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
       if (recvdata.m_transporters.get(trp_id))
       {
         /**
-         * Remove the transporter from the set of transporters handled in
-         * this receive thread.
+         * Bug#35750394 MultiTranporter should follow the DISCONNECT protocol:
          *
-         * Removing it from this bitmask means that the receive thread
-         * will ignore this transporter when receiving and polling.
+         * MultiTransporters disconnect its 'parts' directly.
+         * As we are called from the block-threads, this may hang/timeout
+         * the threads as disconnects may be slow. It also prevents us from
+         * having a transporter_lock-free implementation.
+         * Also see comments for Transporter::forceUnsafeDisconnect()
          */
         DEBUG_FPRINTF((stderr, "trp_id = %u, node_id = %u,"
                                " multi remove_all\n",
                                trp_id, node_id));
         Transporter *t = multi_trp->get_active_transporter(i);
-        t->doDisconnect();
         if (t->isPartOfMultiTransporter())
         {
           require(num_ids > 1);
+          t->forceUnsafeDisconnect();
           remove_allTransporters(t);
         }
         else
         {
           require(num_ids == 1);
+          t->doDisconnect();
           Uint32 num_multi_trps = multi_trp->get_num_inactive_transporters();
           for (Uint32 i = 0; i < num_multi_trps; i++)
           {
@@ -2821,7 +2836,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
             if (remove_trp_id != 0)
             {
               callbackObj->disable_send_buffer(remove_trp_id);
-              remove_trp->doDisconnect();
+              remove_trp->forceUnsafeDisconnect();
               remove_allTransporters(remove_trp);
             }
           }

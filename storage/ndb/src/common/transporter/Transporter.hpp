@@ -143,6 +143,8 @@ public:
    */
   void doDisconnect();
 
+  void forceUnsafeDisconnect();
+
   /**
    * Are we currently connected
    */
@@ -247,10 +249,17 @@ protected:
   virtual int pre_connect_options(ndb_socket_t) { return 0;}
   
   /**
-   * Blocking
+   * Disconnects the Transporter, possibly blocking.
+   * releaseAfterDisconnect() need to be called when
+   * DISCONNECTED state is confirmed.
    */
-  virtual void disconnectImpl() = 0;
-  
+  virtual void disconnectImpl();
+
+  /**
+   * Release any resources held by a DISCONNECTED Transporter.
+   */
+  virtual void releaseAfterDisconnect();
+
   /**
    * Remote host name/and address
    */

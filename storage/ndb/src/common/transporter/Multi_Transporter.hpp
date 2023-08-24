@@ -150,7 +150,9 @@ protected:
    * Disconnects a TCP/IP node, possibly blocking.
    */
   void disconnectImpl() override;
- 
+
+  void releaseAfterDisconnect() override;
+
 private:
   Uint32 m_num_active_transporters;
   Uint32 m_num_inactive_transporters;

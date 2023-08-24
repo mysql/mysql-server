@@ -171,9 +171,11 @@ SHM_Transporter::checkConnected()
 }
 
 void
-SHM_Transporter::disconnectImpl()
+SHM_Transporter::releaseAfterDisconnect()
 {
-  disconnect_socket();
+  Transporter::releaseAfterDisconnect();
+  setupBuffersUndone();
+
   if (_attached)
   {
     volatile Uint32 * sharedCountAttached = 
@@ -201,5 +203,4 @@ SHM_Transporter::disconnectImpl()
     }
     _shmSegCreated = false;
   }
-  setupBuffersDone=false;
 }

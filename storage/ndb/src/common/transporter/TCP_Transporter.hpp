@@ -116,8 +116,14 @@ protected:
   /**
    * Disconnects a TCP/IP node, possibly blocking.
    */
-  void disconnectImpl() override;
-  
+  //void disconnectImpl() override;  // No need to override
+
+  /**
+   * Release resorces after disconnectImpl() has brought
+   * transporter into DISCONNECTED state.
+   */
+  void releaseAfterDisconnect() override;
+
 private:
   Uint32 maxReceiveSize;
   
