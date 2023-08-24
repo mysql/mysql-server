@@ -39,11 +39,12 @@ class AuthCachingSha2Forwarder : public ForwardingProcessor {
  public:
   AuthCachingSha2Forwarder(MysqlRoutingClassicConnectionBase *conn,
                            std::string initial_server_auth_data,
+                           bool in_handshake = true,
                            bool client_requested_full_auth = false)
       : ForwardingProcessor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         client_requested_full_auth_{client_requested_full_auth},
-        stage_{client_requested_full_auth_ ? Stage::Response : Stage::Init} {}
+        stage_{in_handshake ? Stage::Response : Stage::Init} {}
 
   enum class Stage {
     Init,
