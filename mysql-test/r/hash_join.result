@@ -4307,3 +4307,25 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.x1.b' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1;
+#
+# Bug#35703114 Assertion `m_psi_batch_mode == PSI_BATCH_MODE_NONE'
+# failed.
+#
+CREATE TABLE t1(i1 int primary key, i2 int, c varchar(10));
+INSERT INTO t1 VALUES (1,1,'a'), (2,2,'a'), (3,3,'a'), (4,4,'a'), (5,5,'a');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.i2=x2.i2
+WHERE x1.c <= CHAR(0xd83f);
+EXPLAIN
+-> Left hash join (x2.i2 = x1.i2)  (...)
+    -> Filter: (x1.c <= <cache>(char(0xd83f)))  (...)
+        -> Table scan on x1  (...)
+    -> Hash
+        -> Table scan on x2  (...)
+
+SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.i2=x2.i2
+WHERE x1.c <= CHAR(0xd83f);
+ERROR HY000: Cannot convert string '\xD8?' from binary to utf8mb4
+DROP TABLE t1;

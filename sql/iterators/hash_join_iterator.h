@@ -677,6 +677,16 @@ class HashJoinIterator final : public RowIterator {
   /// that input was empty. If so, we should process that row before reading
   /// another.
   bool m_probe_row_read{false};
+
+  /// Helper function for Init(). Read the first row from m_probe_input.
+  /// @returns 'true' if there was an error.
+  bool ReadFirstProbeRow();
+
+  /// Helper function for Init(). Build the hash table and check for empty query
+  /// results (empty build input or non-empty build input in case of degenerate
+  /// antijoin.)
+  /// @returns 'true' in case of error.
+  bool InitHashTable();
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_ITERATOR_H_

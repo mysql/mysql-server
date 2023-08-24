@@ -2713,3 +2713,33 @@ EXPLAIN ANALYZE FORMAT=tree SELECT * FROM t1 x1 WHERE x1.a < 0 AND x1.a NOT IN
   (SELECT a FROM t1 x2 WHERE x2.b = x1.b);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35703114 Assertion `m_psi_batch_mode == PSI_BATCH_MODE_NONE'
+--echo # failed.
+--echo #
+
+CREATE TABLE t1(i1 int primary key, i2 int, c varchar(10));
+
+INSERT INTO t1 VALUES (1,1,'a'), (2,2,'a'), (3,3,'a'), (4,4,'a'), (5,5,'a');
+
+ANALYZE TABLE t1;
+
+# To reproduce the bug we need a query with these properties:
+# - It should be planned as a hash join.
+# - We should start reading from the probe input (i.e. outer input).
+#   Therefore we use a left join.
+# - There should be a filter on the probe input.
+# - Evaluating this filter should give an error for the first row.
+#   Therefore we use an invalid Unicode code point.
+let $query =
+    SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x1.i2=x2.i2
+    WHERE x1.c <= CHAR(0xd83f);
+
+--replace_regex $elide_costs_and_rows
+--eval EXPLAIN FORMAT=TREE $query
+
+--error ER_CANNOT_CONVERT_STRING
+--eval $query
+
+DROP TABLE t1;
