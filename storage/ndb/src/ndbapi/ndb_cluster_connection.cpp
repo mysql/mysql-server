@@ -1041,6 +1041,7 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
        */
     case CONNECTION_TYPE_TCP:{
       // check for TLS requirement
+      tlsReq = 0;
       iter.get(CFG_TCP_REQUIRE_TLS, &tlsReq);
       if(tlsReq) m_tls_requirement = true;
 

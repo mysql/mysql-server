@@ -494,8 +494,8 @@ MgmtSrvr::start_mgm_service(const Config* config)
 
     if(openssl_version_ok)
     {
-      require(iter.get(CFG_MGM_REQUIRE_TLS, &requireTls) == 0);
-      require(iter.get(CFG_NODE_REQUIRE_CERT, &requireCert) == 0);
+      iter.get(CFG_MGM_REQUIRE_TLS, &requireTls);
+      iter.get(CFG_NODE_REQUIRE_CERT, &requireCert);
     }
     m_require_tls = requireTls;
     m_require_cert = requireCert;
