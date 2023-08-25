@@ -97,9 +97,6 @@ EXPLAIN
     -> Select #2 (subquery in condition; uncacheable)
         -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
             -> Table scan on x2  (cost=0.025..0.25 rows=10)
--> Select #2 (subquery in projection; uncacheable)
-    -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
-        -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 DROP TABLE num,t1;
 #

@@ -255,26 +255,49 @@ static bool AddSubqueryPaths(const Item *item_arg, const char *source_text,
 
     qe->finalize(current_thd);
     AccessPath *path;
+
     if (qe->root_access_path() != nullptr) {
       path = qe->root_access_path();
     } else {
       path = qe->item->root_access_path();
     }
-    Json_object *child_obj = new (std::nothrow) Json_object();
-    if (child_obj == nullptr) return true;
-    // Populate the subquery-specific json fields.
+
     bool error = false;
-    error |= AddMemberToObject<Json_boolean>(child_obj, "subquery", true);
-    error |= AddMemberToObject<Json_string>(child_obj, "subquery_location",
-                                            source_text);
-    if (query_block->is_dependent())
-      error |= AddMemberToObject<Json_boolean>(child_obj, "dependent", true);
-    if (query_block->is_cacheable())
-      error |= AddMemberToObject<Json_boolean>(child_obj, "cacheable", true);
 
-    children->push_back({path, description, query_block->join, child_obj});
+    // Add 'path' if not present in 'children' already.
+    if (std::none_of(children->cbegin(), children->cend(),
+                     [path](const ExplainChild &existing) {
+                       return existing.path == path;
+                     })) {
+      char description[256];
+      if (query_block->is_dependent()) {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in %s; dependent)",
+                 query_block->select_number, source_text);
+      } else if (!query_block->is_cacheable()) {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in %s; uncacheable)",
+                 query_block->select_number, source_text);
+      } else {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in %s; run only once)",
+                 query_block->select_number, source_text);
+      }
+      Json_object *child_obj = new (std::nothrow) Json_object();
+      if (child_obj == nullptr) return true;
+      // Populate the subquery-specific json fields.
+      error |= AddMemberToObject<Json_boolean>(child_obj, "subquery", true);
+      error |= AddMemberToObject<Json_string>(child_obj, "subquery_location",
+                                              source_text);
+      if (query_block->is_dependent())
+        error |= AddMemberToObject<Json_boolean>(child_obj, "dependent", true);
+      if (query_block->is_cacheable())
+        error |= AddMemberToObject<Json_boolean>(child_obj, "cacheable", true);
 
-    return error != 0;
+      children->push_back({path, description, query_block->join, child_obj});
+    }
+
+    return error;
   };
 
   return WalkItem(item_arg, enum_walk::POSTFIX, add_subqueries);
@@ -1517,6 +1540,15 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       error |= obj->add_alias("functions", std::move(funcs));
       error |= AddMemberToObject<Json_string>(obj, "access_type", "window");
       children->push_back({path->window().child});
+      // temp_table_param may be nullptr for secondary engine,
+      // see ExplainWindowForExternalExecutor in hypergraph_optimizer-t.cc.
+      if (path->window().temp_table_param != nullptr) {
+        for (const Func_ptr &func :
+             *path->window().temp_table_param->items_to_copy) {
+          AddSubqueryPaths(func.func(), "projection", children);
+        }
+      }
+
       break;
     }
     case AccessPath::WEEDOUT: {
@@ -1746,6 +1778,24 @@ static std::unique_ptr<Json_object> ExplainAccessPath(
     vector<ExplainChild> children_from_select;
     if (GetAccessPathsFromSelectList(join, &children_from_select))
       return nullptr;
+
+    // Return 'true' if 'children' contains an object with the same 'path'
+    // as 'sel_child'.
+    const auto in_children = [&children](const ExplainChild &sel_child) {
+      return std::any_of(children.cbegin(), children.cend(),
+                         [sel_child](const ExplainChild &child) {
+                           return sel_child.path == child.path;
+                         });
+    };
+
+    // Remove objects from children_from_select where 'children' has
+    // an object with the same 'path', so that we do not print the same path
+    // twice.
+    children_from_select.erase(
+        std::remove_if(children_from_select.begin(), children_from_select.end(),
+                       in_children),
+        children_from_select.end());
+
     if (AddChildrenToObject(obj, children_from_select, join,
                             /*is_root_of_join*/ true,
                             "inputs_from_select_list"))

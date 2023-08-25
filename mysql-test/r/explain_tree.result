@@ -1299,3 +1299,22 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1;
+#
+# Bug#34569685 No explain output for subquery
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+ANALYZE TABLE  t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT LAST_VALUE((SELECT x1.a FROM t1))
+OVER (PARTITION BY b) FROM t1 x1;
+EXPLAIN
+-> Window aggregate with buffering: last_value((select #2)) OVER (PARTITION BY x1.b ) 
+    -> Sort: x1.b  (...)
+        -> Table scan on x1  (...)
+    -> Select #2 (subquery in projection; dependent)
+        -> Covering index scan on t1 using PRIMARY  (...)
+
+Warnings:
+Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;
