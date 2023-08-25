@@ -71,6 +71,8 @@ TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
   keyring_test
   gunit_large
   server_unittest_library
+  boost_thread
+  uring
   )
 
 ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)

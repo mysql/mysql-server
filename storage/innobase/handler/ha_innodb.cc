@@ -199,6 +199,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0enc.h"
 #include "os0file.h"
 
+#include "log_uring/log_uring.h"
+
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -241,6 +243,7 @@ static bool intitialize_service_handles() {
     ib::warn(ER_IB_MSG_LOG_PFS_ACQUIRE_SERVICES_FAILED);
   }
 
+  log_uring_create(NUM_LOG_FILES, NUM_URING_SQES, USE_URING);
   return true;
 }
 
@@ -838,6 +841,10 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(log_files_governor_thread, "ib_log_files_g",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_writer_thread, "ib_log_writer", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_uring_thread, "ib_log_uring", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(log_stat_thread, "ib_log_stat", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_checkpointer_thread, "ib_log_checkpt",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),

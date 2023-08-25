@@ -92,6 +92,9 @@ MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
 
 ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
+TARGET_LINK_LIBRARIES(merge_innodb_tests-t 
+boost_thread uring)
+
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)

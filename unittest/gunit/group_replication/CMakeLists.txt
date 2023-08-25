@@ -53,8 +53,11 @@ FOREACH(test ${TESTS})
     server_unittest_library
     mysqlclient
     mysqlgcs
+    boost_thread
+    uring
     )
 ENDFOREACH()
+
 
 IF(WIN32)
   # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib

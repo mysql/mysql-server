@@ -75,6 +75,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* srv_redo_log_encrypt */
 #include "srv0srv.h"
 
+
+#include "log_uring/duration.h"
+#include "log_uring/log_uring.h"
+
+
+
 Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
 
 bool log_header_checksum_is_ok(const byte *buf) {
@@ -308,12 +314,18 @@ void Log_file_handle::fsync() {
   if (s_skip_fsyncs) {
     return;
   }
-
+  if (is_enable_io_stat()) {
+    log_sync_count_inc();
+  }
+  if (is_enable_log_uring()) {
+    log_uring_sync(0);
+  }
   s_total_fsyncs.fetch_add(1, std::memory_order_relaxed);
   s_fsyncs_in_progress.fetch_add(1);
-
-  const bool success = os_file_flush(m_raw_handle);
-
+  bool success = true;
+  if (!is_disable_file_io()) {
+      success = os_file_flush(m_raw_handle);
+  }
   s_fsyncs_in_progress.fetch_sub(1);
   ut_a(success);
 }
@@ -380,9 +392,16 @@ dberr_t Log_file_handle::write(os_offset_t write_offset, os_offset_t write_size,
   if (s_on_before_write) {
     s_on_before_write(m_file_id, m_file_type, write_offset, write_size);
   }
-
+  if (is_enable_io_stat()) {
+    log_append_count_inc(write_size);
+  }
+  if (is_enable_log_uring()) {
+    log_uring_append((void*)buf, write_size);
+  }
   m_is_modified = true;
-
+  if (is_disable_file_io()) {
+    return dberr_t::DB_SUCCESS;
+  }
   return os_file_write(io_request, m_file_path.c_str(), m_raw_handle, buf,
                        write_offset, static_cast<ulint>(write_size));
 }
