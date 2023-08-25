@@ -47,6 +47,7 @@
 
 #include <rapidjson/pointer.h>
 
+#include "exit_status.h"
 #include "hexify.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -63,6 +64,7 @@
 #include "mysqlrouter/http_request.h"
 #include "mysqlrouter/utils.h"
 #include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
+#include "process_launcher.h"
 #include "process_manager.h"
 #include "procs.h"
 #include "rest_api_testutils.h"
@@ -331,6 +333,48 @@ const ConnectionParam connection_params[] = {
         kRequired,
         kPreferred,
     },
+    {
+        "REQUIRED__REQUIRED",
+        kRequired,
+        kRequired,
+    },
+};
+
+// distinct set of ssl-mode combinations for slow tests.
+//
+// If the client does SSL, REQUIRED and PREFERRED are equivalent
+// if server_ssl_mode isn't "AS_CLIENT".
+//
+// If the client not use SSL, then DISABLED and PREFERRED are equivalent.
+//
+// For non-authentication related tests, it is enough to enable and disable SSL
+// on the client and server side once.
+//
+// Tests for Authentication MUST use "connection_params" which checks all
+// combinations.
+const ConnectionParam distinct_connection_params[] = {
+    // DISABLED
+    {
+        "DISABLED__DISABLED",
+        kDisabled,  // client_ssl_mode
+        kDisabled,  // server_ssl_mode
+    },
+
+    // PASSTHROUGH
+    {
+        "PASSTHROUGH__AS_CLIENT",
+        kPassthrough,
+        kAsClient,
+    },
+
+    // PREFERRED
+    {
+        "PREFERRED__AS_CLIENT",
+        kPreferred,
+        kAsClient,
+    },
+
+    // REQUIRED ...
     {
         "REQUIRED__REQUIRED",
         kRequired,
@@ -3499,6 +3543,206 @@ TEST_P(ConnectionTest, classic_protocol_charset_after_connect) {
 
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          ::testing::ValuesIn(connection_params),
+                         [](auto &info) {
+                           return "ssl_modes_" + info.param.testname;
+                         });
+
+class ConnectionTestSlow
+    : public ConnectionTestBase,
+      public ::testing::WithParamInterface<ConnectionParam> {};
+
+TEST_P(ConnectionTestSlow, classic_protocol_slow_query_abort_client) {
+  RecordProperty("Description",
+                 "check that close of the client connection while a query "
+                 "waits for a response aborts the query.");
+
+  using clock_type = std::chrono::steady_clock;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  auto admin_account = SharedServer::admin_account();
+
+  auto admin_cli_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_cli_res);
+  auto admin_cli = std::move(*admin_cli_res);
+
+  {
+    auto query_res =
+        query_one_result(admin_cli,
+                         "SELECT * FROM performance_schema.processlist "
+                         "WHERE user = '" +
+                             account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, testing::SizeIs(0));
+  }
+
+  TempDirectory testdir;
+  auto testfilename = testdir.file("sleep.test");
+
+  {
+    std::ofstream ofs(testfilename);
+    ofs << "SELECT SLEEP(20);\n";
+  }
+
+  const ExitStatus expected_exit_status{
+#ifndef _WIN32
+      ExitStatus::terminated_t{}, SIGKILL
+#else
+      EXIT_SUCCESS
+#endif
+  };
+  const auto host = shared_router()->host();
+  const auto port = shared_router()->port(GetParam());
+  auto &long_running_query =
+      launch_command(ProcessManager::get_origin().join("mysqltest").str(),
+                     {
+                         "--user", account.username,        //
+                         "--password=" + account.password,  //
+                         "--host", host,                    //
+                         "--protocol", "TCP",               //
+                         "--port", std::to_string(port),    //
+                         "--test-file", testfilename,       //
+                     },
+                     expected_exit_status, true, -1s);
+
+  // wait until the SLEEP appears in the processlist
+  for (auto start = clock_type::now();; std::this_thread::sleep_for(100ms)) {
+    ASSERT_LT(clock_type::now() - start, 10s);
+
+    auto query_res = query_one_result(admin_cli,
+                                      "SELECT id, command, state "
+                                      "FROM performance_schema.processlist "
+                                      "WHERE user = '" +
+                                          account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+    auto result = *query_res;
+
+    if (result.size() == 1 && result[0][1] == "Query") break;
+  }
+
+  // interrupt the SLEEP() query
+  long_running_query.send_shutdown_event(
+      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+
+  // wait until it is gone.
+  for (auto start = clock_type::now();; std::this_thread::sleep_for(500ms)) {
+    // the server will check that the query is killed every 5 seconds since it
+    // started to SLEEP()
+    ASSERT_LT(clock_type::now() - start, 12s);
+
+    auto query_res =
+        query_one_result(admin_cli,
+                         "SELECT * FROM performance_schema.processlist "
+                         "WHERE user = '" +
+                             account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+
+    if (query_res->empty()) break;
+
+#if 0
+    for (const auto &row : *query_res) {
+      std::cerr << mysql_harness::join(row, " | ") << "\n";
+    }
+#endif
+  }
+}
+
+TEST_P(ConnectionTestSlow, classic_protocol_execute_slow_query_abort_client) {
+  RecordProperty("Description",
+                 "check that close of the client connection while a prepared "
+                 "statement executes waits for a response aborts the execute.");
+
+  using clock_type = std::chrono::steady_clock;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  auto admin_account = SharedServer::admin_account();
+
+  auto admin_cli_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_cli_res);
+  auto admin_cli = std::move(*admin_cli_res);
+
+  {
+    auto query_res =
+        query_one_result(admin_cli,
+                         "SELECT * FROM performance_schema.processlist "
+                         "WHERE user = '" +
+                             account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+    EXPECT_THAT(*query_res, testing::SizeIs(0));
+  }
+
+  TempDirectory testdir;
+  auto testfilename = testdir.file("sleep.test");
+
+  {
+    std::ofstream ofs(testfilename);
+    ofs << "SELECT SLEEP(20);\n";
+  }
+
+  const ExitStatus expected_exit_status{
+#ifndef _WIN32
+      ExitStatus::terminated_t{}, SIGKILL
+#else
+      EXIT_SUCCESS
+#endif
+  };
+  const auto host = shared_router()->host();
+  const auto port = shared_router()->port(GetParam());
+  auto &long_running_query =
+      launch_command(ProcessManager::get_origin().join("mysqltest").str(),
+                     {"--user", account.username,        //
+                      "--password=" + account.password,  //
+                      "--host", host,                    //
+                      "--protocol", "TCP",               //
+                      "--port", std::to_string(port),    //
+                      "--test-file", testfilename,       //
+                      "--ps-protocol"},
+                     expected_exit_status, true, -1s);
+
+  // wait until the SLEEP appears in the processlist
+  for (auto start = clock_type::now();; std::this_thread::sleep_for(100ms)) {
+    ASSERT_LT(clock_type::now() - start, 10s);
+
+    auto query_res = query_one_result(admin_cli,
+                                      "SELECT id, command, state "
+                                      "FROM performance_schema.processlist "
+                                      "WHERE user = '" +
+                                          account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+    auto result = *query_res;
+
+    if (result.size() == 1 && result[0][1] == "Execute") break;
+  }
+
+  // interrupt the execute SLEEP()
+  long_running_query.send_shutdown_event(
+      mysql_harness::ProcessLauncher::ShutdownEvent::KILL);
+
+  // wait until it is gone.
+  for (auto start = clock_type::now();; std::this_thread::sleep_for(500ms)) {
+    // the server will check that the query is killed every 5 seconds since it
+    // started to SLEEP()
+    ASSERT_LT(clock_type::now() - start, 12s);
+
+    auto query_res =
+        query_one_result(admin_cli,
+                         "SELECT * FROM performance_schema.processlist "
+                         "WHERE user = '" +
+                             account.username + "'");
+    ASSERT_NO_ERROR(query_res);
+
+    if (query_res->empty()) break;
+#if 0
+    for (const auto &row : *query_res) {
+      std::cerr << mysql_harness::join(row, " | ") << "\n";
+    }
+#endif
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTestSlow,
+                         ::testing::ValuesIn(distinct_connection_params),
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
                          });

@@ -154,7 +154,9 @@ StmtExecuteForwarder::response() {
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
-  if (!read_res) return recv_server_failed(read_res.error());
+  if (!read_res) {
+    return recv_server_failed_and_check_client_socket(read_res.error());
+  }
 
   const uint8_t msg_type = src_protocol->current_msg_type().value();
 

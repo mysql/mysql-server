@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,40 +22,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
-#define ROUTING_CLASSIC_COMMAND_INCLUDED
+#ifndef ROUTING_CLASSIC_AWAIT_CLIENT_OR_SERVER_PROCESSOR_INCLUDED
+#define ROUTING_CLASSIC_AWAIT_CLIENT_OR_SERVER_PROCESSOR_INCLUDED
 
-#include "forwarding_processor.h"
+#include "processor.h"
 
-#include "await_client_or_server.h"
-
-class CommandProcessor : public ForwardingProcessor {
+class AwaitClientOrServerProcessor : public BasicProcessor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
-
-  enum class Stage {
-    IsAuthed,
-    WaitBoth,
-    Command,
-    Done,
+  enum class AwaitResult {
+    ClientReadable,
+    ServerReadable,
   };
 
+  AwaitClientOrServerProcessor(
+      MysqlRoutingClassicConnectionBase *conn,
+      std::function<void(stdx::expected<AwaitResult, std::error_code>)> on_done)
+      : BasicProcessor(conn), on_done_(std::move(on_done)) {}
+
   stdx::expected<Result, std::error_code> process() override;
+
+ private:
+  enum class Stage {
+    Init,
+    WaitBoth,
+    WaitClientCancelled,
+    WaitServerCancelled,
+    Done,
+  };
 
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
- private:
-  stdx::expected<Result, std::error_code> is_authed();
+  stdx::expected<Result, std::error_code> init();
   stdx::expected<Result, std::error_code> wait_both();
-  stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> wait_client_cancelled();
+  stdx::expected<Result, std::error_code> wait_server_cancelled();
 
-  void client_idle_timeout();
+  Stage stage_{Stage::Init};
 
-  Stage stage_{Stage::IsAuthed};
-
-  stdx::expected<AwaitClientOrServerProcessor::AwaitResult, std::error_code>
-      wait_both_result_{};
+  std::function<void(stdx::expected<AwaitResult, std::error_code>)> on_done_;
 };
 
 #endif

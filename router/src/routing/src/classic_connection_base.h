@@ -335,10 +335,10 @@ class MysqlRoutingClassicConnectionBase
   //     Server::Ok -> Command
   //   Command ->
   //
-  std::vector<std::unique_ptr<Processor>> processors_;
+  std::vector<std::unique_ptr<BasicProcessor>> processors_;
 
  public:
-  void push_processor(std::unique_ptr<Processor> processor) {
+  void push_processor(std::unique_ptr<BasicProcessor> processor) {
     return processors_.push_back(std::move(processor));
   }
 

@@ -28,6 +28,7 @@
 #include <memory>  // make_unique
 #include <string>
 
+#include "await_client_or_server.h"
 #include "classic_binlog_dump_forwarder.h"
 #include "classic_change_user_forwarder.h"
 #include "classic_clone_forwarder.h"
@@ -54,6 +55,7 @@
 #include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/connection_pool.h"
@@ -70,10 +72,6 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::process() {
       return is_authed();
     case Stage::WaitBoth:
       return wait_both();
-    case Stage::WaitClientCancelled:
-      return wait_client_cancelled();
-    case Stage::WaitServerCancelled:
-      return wait_server_cancelled();
     case Stage::Command:
       return command();
     case Stage::Done:
@@ -316,74 +314,43 @@ class SelectSessionCollationConnectionHandler : public QuerySender::Handler {
  */
 stdx::expected<Processor::Result, std::error_code>
 CommandProcessor::wait_both() {
-  auto *socket_splicer = connection()->socket_splicer();
+  if (wait_both_result_) {
+    switch (*wait_both_result_) {
+      case AwaitClientOrServerProcessor::AwaitResult::ClientReadable:
+        stage(Stage::Command);
 
-  if (connection()->recv_from_either() ==
-      MysqlRoutingClassicConnectionBase::FromEither::RecvedFromServer) {
-    // server side sent something.
-    //
-    // - cancel the client side
-    // - read from server in ::wait_client_cancelled
+        return Result::Again;
+      case AwaitClientOrServerProcessor::AwaitResult::ServerReadable: {
+        auto *socket_splicer = connection()->socket_splicer();
 
-    stage(Stage::WaitClientCancelled);
+        auto *src_channel = socket_splicer->server_channel();
+        auto *src_protocol = connection()->server_protocol();
 
-    (void)socket_splicer->client_conn().cancel();
+        auto read_res =
+            ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
+        if (!read_res) return recv_server_failed(read_res.error());
 
-    // end this execution branch.
-    return Result::Void;
-  } else if (connection()->recv_from_either() ==
-             MysqlRoutingClassicConnectionBase::FromEither::RecvedFromClient) {
-    // client side sent something
-    //
-    // - cancel the server side
-    // - read from client in ::wait_server_cancelled
-    stage(Stage::WaitServerCancelled);
+        stage(Stage::Done);
 
-    (void)socket_splicer->server_conn().cancel();
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("server::error"));
+        }
 
-    // end this execution branch.
-    return Result::Void;
+        // should be a Error packet.
+        return forward_server_to_client();
+      }
+    }
+
+    harness_assert_this_should_not_execute();
+  } else {
+    return stdx::make_unexpected(wait_both_result_.error());
   }
-
-  harness_assert_this_should_not_execute();
-}
-
-stdx::expected<Processor::Result, std::error_code>
-CommandProcessor::wait_server_cancelled() {
-  stage(Stage::Command);
-
-  return Result::Again;
-}
-
-/**
- * read-event from server while waiting for client command.
- *
- * - either a connection-close by the server or
- * - ERR packet before connection-close.
- */
-stdx::expected<Processor::Result, std::error_code>
-CommandProcessor::wait_client_cancelled() {
-  auto *socket_splicer = connection()->socket_splicer();
-
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
-
-  auto read_res =
-      ClassicFrame::ensure_has_msg_prefix(dst_channel, dst_protocol);
-  if (!read_res) return recv_server_failed(read_res.error());
-
-  if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("server::error"));
-  }
-
-  // should be a Error packet.
-  return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
   auto &server_conn = socket_splicer->server_conn();
 
   if (connection()->disconnect_requested()) {
@@ -469,12 +436,14 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
         //
         // watch server-side for connection-close
 
+        connection()->push_processor(
+            std::make_unique<AwaitClientOrServerProcessor>(
+                connection(),
+                [this](auto result) { wait_both_result_ = result; }));
+
         stage(Stage::WaitBoth);
 
-        connection()->recv_from_either(
-            MysqlRoutingClassicConnectionBase::FromEither::Started);
-
-        return Result::RecvFromBoth;
+        return Result::Again;
       }
     }
 
