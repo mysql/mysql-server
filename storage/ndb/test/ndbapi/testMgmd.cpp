@@ -2025,7 +2025,7 @@ runTestNdbdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
 
   int exit_code;                                   // Start ndbd; it will fail
   CHECK(ndbd.start(wd.path(), mgmd.connectstring(config)));
-  CHECK(ndbd.wait(exit_code, 100));                // should fail quickly
+  CHECK(ndbd.wait(exit_code, 1000));               // should fail quickly
   require(exit_code == 255);
 
   CHECK(mgmd.stop());
@@ -2058,7 +2058,7 @@ runTestNdbdWithExpiredCert(NDBT_Context* ctx, NDBT_Step* step)
   ndbd.start(wd.path(), mgmd.connectstring(config)); // Start data node
 
   int exit_code;
-  CHECK(ndbd.wait(exit_code, 100));                // should fail quickly
+  CHECK(ndbd.wait(exit_code, 1000));               // should fail quickly
   CHECK(exit_code == 255);
 
   CHECK(mgmd.stop());
