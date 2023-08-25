@@ -1,0 +1,38 @@
+--echo #
+--echo # Bug#32831765 CREATE FULLTEXT INDEX fails with ERROR 1062 (23000):
+--echo # Duplicate entry 'NULL-NULL' 
+--echo #
+
+# Conditions for reproduction:
+# - multiple columns covered fulltext index
+# - same token at same offset in more than one column in the same row
+
+CREATE TABLE tt (
+  `col1` varchar(255) DEFAULT NULL,
+  `col2` varchar(255) DEFAULT NULL
+)  ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DELIMITER %;
+
+# Failure is non-deterministic ant time sensitive, but reproduction was found
+# to be reliable given enough rows
+CREATE PROCEDURE populate()
+BEGIN
+  SET @rows = 30000;
+  REPEAT
+    INSERT INTO tt (col1, col2) VALUES (
+      'tokens which repeat in the the first and second columns at the same positions',
+      'tokens which repeat in the the first and second columns at the same positions'
+    );
+    SET @rows = @rows-1;
+  UNTIL @rows=0 END REPEAT;
+END%
+
+DELIMITER ;%
+
+CALL POPULATE;
+
+CREATE FULLTEXT INDEX search ON tt (col1, col2);
+
+DROP PROCEDURE populate;
+DROP TABLE tt;
