@@ -150,6 +150,7 @@ public:
 private:
   /* Functions used from 'start' */
   bool start_transporter(const Config*);
+  bool get_connection_config(const Config*);
   bool start_mgm_service(const Config*);
   bool connect_to_self(void);
 

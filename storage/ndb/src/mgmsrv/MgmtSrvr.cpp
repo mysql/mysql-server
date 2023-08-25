@@ -435,10 +435,19 @@ MgmtSrvr::start_transporter(const Config* config)
    */
   m_config_manager->set_facade(theFacade);
 
-  if (theFacade->start_instance(_ownNodeId,
-                                config->m_configuration) < 0)
+  int r = theFacade->start_instance(_ownNodeId,
+                                    config->m_configuration,
+                                    require_cert());
+  if (r < 0)
   {
-    g_eventLogger->error("Failed to start transporter");
+    if (r == -2)
+    {
+      g_eventLogger->error("This node does not have a valid TLS certificate.");
+    }
+    else
+    {
+      g_eventLogger->error("Failed to start transporter");
+    }
     delete theFacade;
     theFacade = 0;
     DBUG_RETURN(false);
@@ -461,9 +470,9 @@ MgmtSrvr::start_transporter(const Config* config)
 
 
 bool
-MgmtSrvr::start_mgm_service(const Config* config)
+MgmtSrvr::get_connection_config(const Config* config)
 {
-  DBUG_ENTER("MgmtSrvr::start_mgm_service");
+  DBUG_ENTER("MgmtSrvr::get_connection_config");
 
   assert(m_port == 0);
   {
@@ -500,6 +509,13 @@ MgmtSrvr::start_mgm_service(const Config* config)
     m_require_tls = requireTls;
     m_require_cert = requireCert;
   }
+  DBUG_RETURN(true);
+}
+
+bool
+MgmtSrvr::start_mgm_service(const Config* config)
+{
+  DBUG_ENTER("MgmtSrvr::start_mgm_service");
 
   unsigned short port= m_port;
   DBUG_PRINT("info", ("Using port %d", port));
@@ -593,6 +609,12 @@ MgmtSrvr::start()
   require(m_tls_search_path);
   theFacade->mgm_configure_tls(m_tls_search_path, m_client_tls_req);
 
+  if (!get_connection_config(m_local_config))
+  {
+    g_eventLogger->error( "Shutting down. Failed read config.");
+    DBUG_RETURN(false);
+  }
+
   /* Start transporter */
   if(!start_transporter(m_local_config))
   {
@@ -604,15 +626,6 @@ MgmtSrvr::start()
   if (!start_mgm_service(m_local_config))
   {
     g_eventLogger->error("Failed to start mangement service!");
-    DBUG_RETURN(false);
-  }
-
-  /* Check for required TLS certificate */
-  ssl_ctx_st * ctx = theFacade->get_registry()->getTlsKeyManager()->ctx();
-  if(require_cert() && ! ctx)
-  {
-    g_eventLogger->error(
-      "Shutting down. This node does not have a valid TLS certificate.");
     DBUG_RETURN(false);
   }
 
