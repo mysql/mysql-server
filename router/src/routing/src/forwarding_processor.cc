@@ -28,11 +28,13 @@
 
 #include <openssl/ssl.h>  // SSL_set_msg_callback_arg
 
+#include "await_client_or_server.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
+#include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // ER_...
 #include "mysqlrouter/connection_pool_component.h"
 
@@ -142,6 +144,34 @@ ForwardingProcessor::mysql_reconnect_start(TraceEvent *parent_event) {
       parent_event));
 
   return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::recv_server_failed_and_check_client_socket(
+    std::error_code ec) {
+  auto *socket_splicer = connection()->socket_splicer();
+
+  if (ec == TlsErrc::kWantRead && socket_splicer->client_conn().is_open()) {
+    // monitor the client side while we wait for the server to return the
+    // resultset.
+    //
+    // After AwaitClientOrServerProcessor returns, either client or server
+    // became readable. In both cases:
+    //
+    // if there was data: it has been added to the recv-buffers.
+    // if the connection was closed, the socket is now closed.
+    connection()->push_processor(std::make_unique<AwaitClientOrServerProcessor>(
+        connection(), [this](auto result) {
+          if (!result) {
+            connection()->recv_server_failed(result.error());
+            return;
+          }
+        }));
+
+    return Result::Again;
+  }
+
+  return recv_server_failed(ec);
 }
 
 stdx::expected<Processor::Result, std::error_code>

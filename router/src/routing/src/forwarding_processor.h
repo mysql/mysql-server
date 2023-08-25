@@ -131,6 +131,13 @@ class ForwardingProcessor : public Processor {
       TraceEvent *parent_event);
 
   /**
+   * handle error-code of a failed receive() from the server-socket and check
+   * the status of the client socket.
+   */
+  stdx::expected<Result, std::error_code>
+  recv_server_failed_and_check_client_socket(std::error_code ec);
+
+  /**
    * send a Error msg based on the reconnect_error().
    *
    * @retval Result::SendToClient on success.
