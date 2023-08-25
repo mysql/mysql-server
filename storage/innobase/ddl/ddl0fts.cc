@@ -960,9 +960,22 @@ void FTS::Parser::parse(Builder *builder) noexcept {
     clean_up(DB_SUCCESS);
   };
 
-  for (;;) {
-    doc_id_t last_doc_id{};
+  /* Items provided by get_next_doc_item are individual fields
+  of a potentially multi-field document. Subsequent fields in
+  multi-field document must arrive consecutively, not
+  interleaved by fields from other documents; last_doc_id
+  is used to determine whether a new item is part of the same
+  document as the previous one. */
+  doc_id_t last_doc_id{};
 
+  /* get_next_doc_item() reads items from a non-blocking queue.
+  It may therefore yield a nullptr result even when there are more
+  documents to be read. The inner loop reads doc items from the
+  queue as long as they are available and there is space to store
+  the item on the buffer. When either of these conditions is not
+  met, control will break out to the outer loop, which handles
+  buffer flushing and polling for more data. */
+  for (;;) {
     while (doc_item != nullptr) {
       auto dfield = doc_item->m_field;
 
