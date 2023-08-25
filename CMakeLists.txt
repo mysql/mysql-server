@@ -857,6 +857,17 @@ INCLUDE(fido2)
 INCLUDE(win_jemalloc)
 INCLUDE(libs_mysql_create_library)
 
+# To simplify building of JET, skip all dependencies for other targets.
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  OPTION(WITH_JET_ONLY "Build JET only. No C/C++ targets." OFF)
+  IF(WITH_JET_ONLY)
+    SET(WITH_JET ON)
+    SET(WITH_JET ON CACHE INTERNAL "Build JET" FORCE)
+    ADD_SUBDIRECTORY(internal/jet)
+    RETURN()
+  ENDIF()
+ENDIF()
+
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()
