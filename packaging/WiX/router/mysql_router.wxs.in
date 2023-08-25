@@ -1,5 +1,4 @@
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
    Copyright (c) 2010, 2023, Oracle and/or its affiliates.
@@ -24,24 +23,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 -->
-  <Product
-    Id="*"
+
+  <Package
     UpgradeCode="@UPGRADE_CODE@"
     Name="@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@"
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
     Language="1033"
-    Manufacturer="@MANUFACTURER@">
+    Manufacturer="@MANUFACTURER@"
+    InstallerVersion="200">
 
-    <Package Id='*'
+    <SummaryInformation
        Keywords='Installer'
        Description="@PRODUCT_DESCRIPTION@"
-       Manufacturer='@MANUFACTURER@'
-       InstallerVersion='301'
-       Languages='1033'
-       Compressed='yes'
-       SummaryCodepage='1252'
-       Platform='x64'
-       InstallScope="perMachine"/>
+       Manufacturer='@MANUFACTURER@' />
 
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
@@ -63,9 +57,8 @@
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
-    <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
-      NOT NEWERVERSIONDETECTED OR Installed
-    </Condition>
+    <Launch Condition="NOT NEWERVERSIONDETECTED OR Installed"
+      Message="A later version of [ProductName] is already installed. Setup will now exit." />
     <InstallExecuteSequence>
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
@@ -73,10 +66,7 @@
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
-      <Custom Action="SaveTargetDir" After="InstallValidate">
-        NOT
-        Installed
-      </Custom>
+      <Custom Action="SaveTargetDir" After="InstallValidate" Condition="NOT Installed" />
     </InstallExecuteSequence>
     <InstallUISequence>
       <!-- App search is what does FindInstallLocation, and it is dependent on FindRelatedProducts -->
@@ -87,7 +77,7 @@
     <Property Id="INSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          Win64="yes"
+          Bitness="always64"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
@@ -95,7 +85,7 @@
     <Property Id="OLDERVERSION">
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        Win64="yes"
+        Bitness="always64"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -109,7 +99,7 @@
     </Property>
     <CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" />
     <InstallUISequence>
-    <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom>
+      <Custom Action="SetInstallDir2" After="AppSearch" Condition="INSTALLDIR2" />
     </InstallUISequence>
 
 
@@ -136,15 +126,13 @@
       Value="@LICENSE_RTF@"/>
 
     <!-- Installation root-->
-    <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='ProgramFiles64Folder'>
+      <StandardDirectory Id='ProgramFiles6432Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
           <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
             <Directory Id='DOCDIR' Name='doc' />
           </Directory>
         </Directory>
-      </Directory>
-    </Directory>
+      </StandardDirectory>
 
     <!-- CPACK_WIX_FEATURES -->
     @CPACK_WIX_FEATURES@
@@ -160,6 +148,5 @@
 
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
-  </Product>
-
+  </Package>
 </Wix>

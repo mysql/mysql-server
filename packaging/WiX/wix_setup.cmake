@@ -20,46 +20,29 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(WIX_REQUIRED_VERSION "V3.11")
+# First we look for "wix.exe" using the CMake variable WIX_DIR, second using the
+# environment variable WIX, and then we add "$ENV{USERPROFILE}\\.dotnet\\tools"
+# to the PATH before searching the other default locations
+IF(NOT WIX_DIR AND "$ENV{WIX}")
+  SET(WIX_DIR "$ENV{WIX}")
+ENDIF()
+FIND_PATH(WIX_DIR wix.exe "$ENV{USERPROFILE}\\.dotnet\\tools")
 
-# Need an extra indirection to access ENV(ProgramFiles(x86))
-SET(MYENV "ProgramFiles(x86)")
-
-# Look in various paths for 'heat.exe'
-# Different installations have different layouts.
-MACRO(FIND_WIX_PATH VERSION)
-  FOREACH(path
-    "$ENV{ProgramFiles}/WiX Toolset ${VERSION}"
-    "$ENV{ProgramFiles}/WiX Toolset ${VERSION}/bin"
-    "$ENV{${MYENV}}/WiX Toolset ${VERSION}"
-    "$ENV{${MYENV}}/WiX Toolset ${VERSION}/bin")
-      FIND_PATH(WIX_DIR heat.exe "${path}")
-      MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
-      IF(WIX_DIR)
-        BREAK()
-      ENDIF()
-  ENDFOREACH()
-ENDMACRO()
-
-FIND_WIX_PATH(${WIX_REQUIRED_VERSION})
-
-# Finally, look in environment
-IF(NOT WIX_DIR)
-  FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
-  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} looked at $ENV{WIX}\n")
+# Just to avoid writing out the same thing 2-3 times
+IF(NOT _WIX_DIR_CHECKED)
+  SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
+  IF(WIX_DIR)
+    MESSAGE(STATUS "WIX_DIR ${WIX_DIR}")
+  ELSE()
+    MESSAGE(STATUS "Cannot find \"wix.exe\", installer project will not be generated")
+  ENDIF()
 ENDIF()
 
 IF(NOT WIX_DIR)
-  IF(NOT _WIX_DIR_CHECKED)
-    SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
-    MESSAGE(STATUS "Cannot find wix 3, installer project will not be generated")
-  ENDIF()
   RETURN()
 ENDIF()
 
-FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
-FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
-FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
+FIND_PROGRAM(WIX_EXECUTABLE wix ${WIX_DIR})
 
 FUNCTION (CREATE_WIX_LICENCE_AND_RTF license_file)
   # WiX wants the license text as rtf; if there is no rtf license,

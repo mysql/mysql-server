@@ -20,10 +20,6 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT WIN32)
-  RETURN()
-ENDIF()
-
 INCLUDE(${CMAKE_SOURCE_DIR}/packaging/WiX/wix_setup.cmake)
 
 IF(NOT WIX_DIR)
@@ -51,10 +47,13 @@ MY_ADD_CUSTOM_TARGET(
 INSTALL(FILES "${PROJECT_BINARY_DIR}/stage/\${CMAKE_INSTALL_CONFIG_NAME}/etc/mysqlrouter.conf.sample"
   DESTINATION "etc" COMPONENT Router) 
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_router_extra.wxs.in
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs)
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_router_extra.wxs.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs
+  @ONLY)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
+CONFIGURE_FILE(
+  ${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
   @ONLY)
 
@@ -69,4 +68,4 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM}
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI-Router configure_mysql_router_extra configure_redist_check)
+ADD_DEPENDENCIES(MSI-Router configure_mysql_router_extra)

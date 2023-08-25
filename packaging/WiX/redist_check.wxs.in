@@ -1,5 +1,4 @@
-<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
-         xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <!--
    Copyright (c) 2020, 2023, Oracle and/or its affiliates.
@@ -31,7 +30,7 @@
             Root="HKLM"
             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Major"
-            Win64="yes"
+            Bitness="always64"
             Type="raw" />
       </Property>
       <Property Id="VS14REDISTX64_64_MINOR">
@@ -39,7 +38,7 @@
             Root="HKLM"
             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Minor"
-            Win64="yes"
+            Bitness="always64"
             Type="raw" />
       </Property>
       <Property Id="VS14REDISTX64_32_MAJOR">
@@ -47,7 +46,7 @@
             Root="HKLM"
             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Major"
-            Win64="no"
+            Bitness="always32"
             Type="raw" />
       </Property>
       <Property Id="VS14REDISTX64_32_MINOR">
@@ -55,21 +54,14 @@
             Root="HKLM"
             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Minor"
-            Win64="no"
+            Bitness="always32"
             Type="raw" />
       </Property>
 
       <!-- For numbers (DWORD type in Windows Registry) WiX RegistrySearch uses a special prefix: '#'.
        We have to get rid of it before using properties in the condition check,
        We want to compare numbers, rather than strings. -->
-      <CustomAction Id="DwordToNumber" Script="vbscript">
-        <![CDATA[
-          Session.Property("VS14REDISTX64_64_MAJOR") = Replace(Session.Property("VS14REDISTX64_64_MAJOR"),"#","")
-          Session.Property("VS14REDISTX64_64_MINOR") = Replace(Session.Property("VS14REDISTX64_64_MINOR"),"#","")
-          Session.Property("VS14REDISTX64_32_MAJOR") = Replace(Session.Property("VS14REDISTX64_32_MAJOR"),"#","")
-          Session.Property("VS14REDISTX64_32_MINOR") = Replace(Session.Property("VS14REDISTX64_32_MINOR"),"#","")
-        ]]>
-      </CustomAction>
+      <CustomAction Id="DwordToNumber" Script="vbscript" ScriptSourceFile="@CMAKE_CURRENT_SOURCE_DIR@/DwordToNumber.vbs" />
 
       <InstallExecuteSequence>
         <Custom Action="DwordToNumber" Before="LaunchConditions"/>
@@ -78,8 +70,6 @@
         <Custom Action="DwordToNumber" Before="LaunchConditions"/>
       </InstallUISequence>
 
-      <Condition Message="This application requires Visual Studio 2019 x64 Redistributable. Please install the Redistributable then run this installer again.">
-        Installed OR (VS14REDISTX64_64_MAJOR = 14 AND VS14REDISTX64_64_MINOR >= 20) OR (VS14REDISTX64_32_MAJOR = 14 AND VS14REDISTX64_32_MINOR >= 20)
-      </Condition>
+      <Launch Condition="Installed OR (VS14REDISTX64_64_MAJOR = 14 AND VS14REDISTX64_64_MINOR &gt;= 20) OR (VS14REDISTX64_32_MAJOR = 14 AND VS14REDISTX64_32_MINOR &gt;= 20)" Message="This application requires Visual Studio 2019 x64 Redistributable. Please install the Redistributable then run this installer again." />
     <?endif?> 
 </Include>
