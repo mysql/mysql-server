@@ -297,7 +297,7 @@ int PushedJoinRefIterator::Read() {
     if (error) {
       return HandleError(error);
     }
-  } else if (not m_is_unique) {
+  } else if (!m_is_unique) {
     int error = table()->file->ha_index_next_pushed(table()->record[0]);
     if (error) {
       return HandleError(error);

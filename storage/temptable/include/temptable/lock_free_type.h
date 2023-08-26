@@ -121,7 +121,7 @@ struct Lock_free_type_selector {
  * */
 template <typename T>
 struct Lock_free_type_selector<
-    T, typename std::enable_if<std::is_class<T>::value and
+    T, typename std::enable_if<std::is_class<T>::value &&
                                std::is_trivially_copyable<T>::value>::type> {
   static_assert(!std::is_same<T, T>::value,
                 "Querying always-lock-free property of trivially-copyable "
@@ -145,7 +145,7 @@ struct Lock_free_type_selector<
 template <typename T>
 struct Lock_free_type_selector<
     T,
-    typename std::enable_if<std::is_same<T, long long>::value or
+    typename std::enable_if<std::is_same<T, long long>::value ||
                             std::is_same<T, unsigned long long>::value>::type> {
 #if (ATOMIC_LLONG_LOCK_FREE == 2) || (WORKAROUND_PR31864_CLANG_BUG == 1)
   using Type = T;
@@ -159,7 +159,7 @@ struct Lock_free_type_selector<
 /** Template-specialization for long types. */
 template <typename T>
 struct Lock_free_type_selector<
-    T, typename std::enable_if<std::is_same<T, long>::value or
+    T, typename std::enable_if<std::is_same<T, long>::value ||
                                std::is_same<T, unsigned long>::value>::type> {
 #if (ATOMIC_LONG_LOCK_FREE == 2)
   using Type = T;
@@ -173,7 +173,7 @@ struct Lock_free_type_selector<
 /** Template-specialization for int types. */
 template <typename T>
 struct Lock_free_type_selector<
-    T, typename std::enable_if<std::is_same<T, int>::value or
+    T, typename std::enable_if<std::is_same<T, int>::value ||
                                std::is_same<T, unsigned int>::value>::type> {
 #if (ATOMIC_INT_LOCK_FREE == 2)
   using Type = T;
@@ -187,7 +187,7 @@ struct Lock_free_type_selector<
 /** Template-specialization for short types. */
 template <typename T>
 struct Lock_free_type_selector<
-    T, typename std::enable_if<std::is_same<T, short>::value or
+    T, typename std::enable_if<std::is_same<T, short>::value ||
                                std::is_same<T, unsigned short>::value>::type> {
 #if (ATOMIC_SHORT_LOCK_FREE == 2)
   using Type = T;
@@ -201,7 +201,7 @@ struct Lock_free_type_selector<
 /** Template-specialization for char types. */
 template <typename T>
 struct Lock_free_type_selector<
-    T, typename std::enable_if<std::is_same<T, char>::value or
+    T, typename std::enable_if<std::is_same<T, char>::value ||
                                std::is_same<T, unsigned char>::value>::type> {
 #if (ATOMIC_CHAR_LOCK_FREE == 2)
   using Type = T;
