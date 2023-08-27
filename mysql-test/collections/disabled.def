@@ -5,9 +5,16 @@
 # Separate the test case name and the comment with ':'.
 #   <suite>.<test> [@platform|@!platform] : <BUG|WL>#<XXXX> [<comment>]
 #
+# You can also include a disabled file into another using the @import keyword
+# as following:
+#
+# @import <disabled_file>
+#
 # Note:
 #   - Do not use any TAB characters for whitespace.
 #   - Length of a comment section must not be more than 80 characters.
+#   - <disabled_file> could be the file name or a valid path. It should
+#     not be followed by a comment on that line.
 #
 ##############################################################################
 

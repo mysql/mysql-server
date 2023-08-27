@@ -122,14 +122,16 @@ sub init_pattern {
 ##   $line              An entry from a disabled.def file
 ##   $line_number       Line number
 ##   $disabled_def_file disabled.def file location
-sub report_disabled_test_format_error($$$) {
+sub report_disabled_entry_format_error($$$) {
   my $line              = shift;
   my $line_number       = shift;
   my $disabled_def_file = shift;
 
   mtr_error("The format of line '$line' at '$disabled_def_file:$line_number' " .
-            "is incorrect. The format is '<suitename>.<testcasename> " .
-            "[\@platform|\@!platform] : <BUG|WL>#<XXXX> [<comment>]'.");
+            "is incorrect. The format must be one of the following: \n\n" .
+            "#<comment>\n\n" .
+            "<suitename>.<testcasename> [\@platform|\@!platform] : " .
+            "<BUG|WL>#<XXXX> [<comment>]\n\n" . "\@import <path>\n");
 }
 
 ## Check if the test name format in a disabled.def file is correct. The
@@ -150,7 +152,7 @@ sub validate_test_name($$$$) {
   # Test name must be in "<suitename>.<testcasename>" format.
   my ($suite_name, $tname, $extension) = split_testname($test_name);
   if (not defined $suite_name || not defined $tname || defined $extension) {
-    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+    report_disabled_entry_format_error($line, $line_number, $disabled_def_file);
   }
 
   # disabled.def should contain only non-ndb suite tests, and disabled_ndb.def
@@ -198,8 +200,8 @@ sub validate_test_name_part($$$$) {
       return $test_name if ($2 ne $plat);
     } elsif ($test_name_part !~ /^\s*(\S+)\s+\@(\S*)\s*$/) {
       # Invalid format for a disabled test.
-      report_disabled_test_format_error($line, $line_number,
-                                        $disabled_def_file);
+      report_disabled_entry_format_error($line, $line_number,
+                                         $disabled_def_file);
     }
   } elsif ($test_name_part =~ /^\s*(\S+)\s*$/) {
     # No platform specified.
@@ -208,7 +210,7 @@ sub validate_test_name_part($$$$) {
     return $test_name;
   } else {
     # Invalid format, throw an error.
-    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+    report_disabled_entry_format_error($line, $line_number, $disabled_def_file);
   }
 }
 
@@ -263,7 +265,7 @@ sub validate_comment_part($$$$) {
     return $comment_part;
   } else {
     # Invalid format. throw an error.
-    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+    report_disabled_entry_format_error($line, $line_number, $disabled_def_file);
   }
 }
 
@@ -305,61 +307,200 @@ sub validate_disabled_test_entry($$$) {
   return ($test_name, $comment);
 }
 
-## Create a list of disabled tests from disabled.def file. This list
+## Validate the format of string followed by @import keyword
+## in a disabled.def file
+##
+## Arguments:
+##   $line                  An entry from a disabled.def file
+##   $line_number           Line number
+##   $import_string         String followed by the @import keyword
+##   $disabled_def_file     Disabled file from where $import_string is read
+##
+## Returns:
+##   file name to be imported
+sub validate_disabled_file_entry($$$$) {
+  my $line              = shift;
+  my $line_number       = shift;
+  my $import_string     = shift;
+  my $disabled_def_file = shift;
+
+  # Remove leading and trailing spaces
+  $import_string =~ s/^\s+|\s+$//g;
+
+  if (!defined $import_string || $import_string eq '') {
+    report_disabled_entry_format_error($line, $line_number, $disabled_def_file);
+  }
+
+  # collect the strings delimited by one or more space
+  my @disabled_files = split(/\s+|^#/, $import_string);
+
+  if (@disabled_files > 1) {
+    report_disabled_entry_format_error($line, $line_number, $disabled_def_file);
+  }
+  return $import_string;
+}
+
+# Prepare the absolute path of the specified disabled file
+# with respect to any of the known location(s)
+sub get_disabled_file_path($) {
+  my $file_path = shift;
+  # If path is relative to the source tree mysql-test.
+  if (!File::Spec->file_name_is_absolute($file_path)) {
+    my $build_test_dir           = "$ENV{MTR_BINDIR}/mysql-test";
+    my $internal_collections_dir = "$::basedir/internal/mysql-test/collections";
+    my $cloud_collections_dir =
+      "$::basedir/internal/cloud/mysql-test/collections";
+    # Check if file is present at out of the source build mysql-test dir.
+    if (-e "$build_test_dir/$file_path") {
+      return "$build_test_dir/$file_path";
+    }
+    # Check if file is present at the source mysql-test/collections dir
+    elsif (-e "$::glob_mysql_test_dir/collections/$file_path") {
+      return "$::glob_mysql_test_dir/collections/$file_path";
+    }
+    # Check if file is present at the internal mysql-test dir
+    elsif (-e "$internal_collections_dir/$file_path") {
+      return "$internal_collections_dir/$file_path";
+    }
+    # Check if file is present at the internal cloud mysql-test dir
+    elsif (-e "$cloud_collections_dir/$file_path") {
+      return "$cloud_collections_dir/$file_path";
+    }
+    # else
+    # file will be looked in source/mysql-test directory because
+    # ./mtr points to source/mysql-test/mysql-test-run.pl script
+  }
+  return $file_path;
+}
+
+## Add the disabled file path to the hash set. Skip if the file path
+## is already present in the hash set.
+##
+## Arguments:
+##   $disabled_file_path  File containing list of tests to be disabled
+##   $disabled_files_map  Hash to keep track of unique disabled files.
+sub add_to_disabled_files_map($$) {
+  my $disabled_file_path = shift;
+  my $disabled_files_map = shift;
+  if (exists $disabled_files_map->{$disabled_file_path}) {
+    mtr_warning("Skipping the disabled file '$disabled_file_path'" .
+                " because it has been added already.\n");
+    return 0;
+  }
+
+  mtr_verbose("Evaluating the disabled file '$disabled_file_path'\n");
+  $disabled_files_map->{$disabled_file_path} = 1;
+  return 1;
+}
+
+## Parse the disabled file passed to this method and add the tests
+## to the the $disabled hash.
+##
+## Arguments:
+##   $disabled_file_path  File containing list of tests to be disabled
+##   $disabled_files_map  Hash to keep track of unique disabled files.
+##   $disabled            Hash to store the disabled tests
+sub add_disabled_tests($$$) {
+  my $disabled_file_path = shift;
+  my $disabled_files_map = shift;
+  my $disabled           = shift;
+
+  my $file_handle = IO::File->new($disabled_file_path, '<') or
+    mtr_error("Can't open '$disabled_file_path' file: $!.");
+
+  while (my $line = <$file_handle>) {
+    # Skip a line if it starts with '#' or is an empty line.
+    next if ($line =~ /^#/ or $line =~ /^$/);
+
+    chomp($line);
+    my $line_number = $.;
+
+    # If line includes another disabled file then add the entries from
+    # that file as well. Skip if the file is included already.
+    if ($line =~ /^\@import(.*)/) {
+      my $imported_disabled_file =
+        validate_disabled_file_entry($line, $line_number, $1,
+                                     $disabled_file_path);
+      my $disabled_file_path = get_disabled_file_path($imported_disabled_file);
+      if (add_to_disabled_files_map($disabled_file_path, $disabled_files_map)) {
+        add_disabled_tests($disabled_file_path, $disabled_files_map, $disabled);
+      }
+    } else {
+      # Check the format of an entry in a disabled.def file.
+      my ($test_name, $comment) =
+        validate_disabled_test_entry($line, $line_number, $disabled_file_path);
+      # Disable the test case if defined.
+      $disabled->{$test_name} = $comment if defined $test_name;
+    }
+  }
+
+  $file_handle->close();
+}
+
+## Create a list of disabled tests from implicit disabled.def files and other
+## files specified by the caller to the --skip-test-list option. This list
 ## is used while collecting the test cases. If a test case is disabled,
 ## disabled flag is enabled for the test and the test run will be
 ## disabled.
 ##
 ## Arguments:
 ##   $disabled           List to store the disabled tests
-##   $opt_skip_test_list File containing list of tests to be disabled
-##
+##   $opt_skip_test_list Comma-separated list of file names(relative to the
+##                       known directories) or paths each of which contains
+##                       a list of tests to be disabled.
 ## Returns:
 ##   List of disabled tests
 sub create_disabled_test_list($$) {
   my $disabled           = shift;
   my $opt_skip_test_list = shift;
 
+  # A hash containing files listing the tests that should be disabled.
+  # It is used as a list of the unique disabled files.
+  # Usage:  key ==> disabled file path , value => dummy flag
+  my %disabled_files_map;
+
+  # Tokenize the comma separated disabled file names and add them to the hash
   if ($opt_skip_test_list) {
-    $opt_skip_test_list = get_bld_path($opt_skip_test_list);
+    $opt_skip_test_list = get_disabled_file_path($opt_skip_test_list);
+    add_to_disabled_files_map($opt_skip_test_list, \%disabled_files_map);
   }
 
-  # Array containing files listing tests that should be disabled.
-  my @disabled_collection = $opt_skip_test_list if $opt_skip_test_list;
+  # Add 'disabled.def' to the list of disabled files
+  add_to_disabled_files_map("$::glob_mysql_test_dir/collections/disabled.def",
+                            \%disabled_files_map);
 
-  # Add 'disabled.def' files.
-  unshift(@disabled_collection,
-          "$::glob_mysql_test_dir/collections/disabled.def");
-
-  # Add internal 'disabled.def' file only if it exists
-  my $internal_disabled_def_file =
+  # Add internal 'disabled.def' to the list of disabled files only if it exists
+  my $disabled_seed_file_path =
     "$::basedir/internal/mysql-test/collections/disabled.def";
-  unshift(@disabled_collection, $internal_disabled_def_file)
-    if -f $internal_disabled_def_file;
+  add_to_disabled_files_map($disabled_seed_file_path, \%disabled_files_map)
+    if -f $disabled_seed_file_path;
 
-  # 'disabled.def' file in cloud directory.
-  $internal_disabled_def_file =
+  # Add cloud 'disabled.def' to the list of disabled files only if it exists
+  $disabled_seed_file_path =
     "$::basedir/internal/cloud/mysql-test/collections/disabled.def";
-  unshift(@disabled_collection, $internal_disabled_def_file)
-    if -f $internal_disabled_def_file;
+  add_to_disabled_files_map($disabled_seed_file_path, \%disabled_files_map)
+    if -f $disabled_seed_file_path;
 
   # Add 'disabled_ndb.def' to the list of disabled files if ndb is enabled.
-  unshift(@disabled_collection,
-          "$::glob_mysql_test_dir/collections/disabled_ndb.def")
+  add_to_disabled_files_map(
+                          "$::glob_mysql_test_dir/collections/disabled_ndb.def",
+                          \%disabled_files_map)
     if $::ndbcluster_enabled;
 
   # Check for the tests to be skipped in a sanitizer which are listed
   # in "mysql-test/collections/disabled-<sanitizer>.list" file.
   if ($::opt_sanitize) {
     # Check for disabled-asan.list
-    if ($::mysql_version_extra =~ /asan/i &&
-        $opt_skip_test_list !~ /disabled-asan\.list$/) {
-      push(@disabled_collection, "collections/disabled-asan.list");
+    if ($::mysql_version_extra =~ /asan/i) {
+      add_to_disabled_files_map(
+                        "$::glob_mysql_test_dir/collections/disabled-asan.list",
+                        \%disabled_files_map);
     }
     # Check for disabled-ubsan.list
-    elsif ($::mysql_version_extra =~ /ubsan/i &&
-           $opt_skip_test_list !~ /disabled-ubsan\.list$/) {
-      push(@disabled_collection, "collections/disabled-ubsan.list");
+    elsif ($::mysql_version_extra =~ /ubsan/i) {
+      add_to_disabled_files_map(
+                       "$::glob_mysql_test_dir/collections/disabled-ubsan.list",
+                       \%disabled_files_map);
     }
   }
 
@@ -367,32 +508,19 @@ sub create_disabled_test_list($$) {
   # in "mysql-test/collections/disabled-valgrind.list" file.
   if ($::opt_valgrind) {
     # Check for disabled-valgrind.list
-    if ($opt_skip_test_list !~ /disabled-valgrind\.list$/) {
-      push(@disabled_collection, "collections/disabled-valgrind.list");
-    }
+    add_to_disabled_files_map(
+                    "$::glob_mysql_test_dir/collections/disabled-valgrind.list",
+                    \%disabled_files_map);
   }
 
-  for my $disabled_def_file (@disabled_collection) {
-    my $file_handle = IO::File->new($disabled_def_file, '<') or
-      mtr_error("Can't open '$disabled_def_file' file: $!.");
-
-    if (defined $file_handle) {
-      while (my $line = <$file_handle>) {
-        # Skip a line if it starts with '#' or is an empty line.
-        next if ($line =~ /^#/ or $line =~ /^$/);
-
-        chomp($line);
-        my $line_number = $.;
-
-        # Check the format of an entry in a disabled.def file.
-        my ($test_name, $comment) =
-          validate_disabled_test_entry($line, $line_number, $disabled_def_file);
-
-        # Disable the test case if defined.
-        $disabled->{$test_name} = $comment if defined $test_name;
-      }
-      $file_handle->close();
-    }
+  # It is not safe to modify the hash while iterating it.
+  # Create a copy of the disabled hash. Use copy to iterate and,
+  # original hash as a source of truth to detect duplicate disabled file
+  my %disabled_files_map_copy = %disabled_files_map;
+  # Iterate the disable files from the list, parse them,
+  # and add the tests to the list of disabled tests.
+  foreach my $disabled_file_path (keys %disabled_files_map_copy) {
+    add_disabled_tests($disabled_file_path, \%disabled_files_map, $disabled);
   }
 }
 
@@ -449,15 +577,9 @@ sub collect_test_cases ($$$$) {
 
     if ($parallel == 1 or !$threads_support or !$threads_shared_support) {
       foreach my $suite (split(",", $suites)) {
-        push(@$cases,
-             collect_one_suite($suite,              $opt_cases,
-                               $opt_skip_test_list, \%disabled
-             ));
+        push(@$cases, collect_one_suite($suite, $opt_cases, \%disabled));
         last if $some_test_found;
-        push(@$cases,
-             collect_one_suite("i_" . $suite,       $opt_cases,
-                               $opt_skip_test_list, \%disabled
-             ));
+        push(@$cases, collect_one_suite("i_" . $suite, $opt_cases, \%disabled));
       }
     } else {
       share(\$group_replication);
@@ -469,8 +591,7 @@ sub collect_test_cases ($$$$) {
       foreach my $suite (split(",", $suites)) {
         push(@collect_test_cases_thrds,
              threads->create("collect_one_suite", $suite,
-                             $opt_cases,          $opt_skip_test_list,
-                             \%disabled
+                             $opt_cases,          \%disabled
              ));
         while ($parallel <= scalar @collect_test_cases_thrds) {
           mtr_milli_sleep(100);
@@ -480,8 +601,7 @@ sub collect_test_cases ($$$$) {
 
         push(@collect_test_cases_thrds,
              threads->create("collect_one_suite", "i_" . $suite,
-                             $opt_cases,          $opt_skip_test_list,
-                             \%disabled
+                             $opt_cases,          \%disabled
              ));
         while ($parallel <= scalar @collect_test_cases_thrds) {
           mtr_milli_sleep(100);
@@ -763,21 +883,19 @@ sub create_test_combinations($$) {
 # Look through one test suite for tests named in the second parameter,
 # or all tests in the suite if that list is empty.
 #
-# It starts by finding the proper directory, then handle any
-# disabled.def file found. Then loop over either the list of test names
-# or all files in the suite directory ending with ".test", adding them
-# using collect_one_test_case().
+# It starts by finding the proper directory. Then loop over either the
+# list of test names or all files in the suite directory ending with ".test",
+# adding them using collect_one_test_case().
 #
 # After the list is complete (in local variable @cases), check if
 # combinations are being used, from command line or from a combination
 # file. If so, start building a new list of test cases in @new_cases
 # using those combinations, then assigns that over to @cases.
-sub collect_one_suite($$$$) {
-  my $suite              = shift;    # Test suite name
-  my $opt_cases          = shift;
-  my $opt_skip_test_list = shift;
-  my $disabled           = shift;
-  my @cases;                         # Array of hash
+sub collect_one_suite($$$) {
+  my $suite     = shift;    # Test suite name
+  my $opt_cases = shift;
+  my $disabled  = shift;    # List of tests to be disabled
+  my @cases;                # Array of hash
 
   mtr_verbose("Collecting: $suite");
 
@@ -1024,7 +1142,7 @@ sub optimize_cases {
         mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
-      $default_engine =~ tr/A-Z/a-z/;
+      $default_engine     =~ tr/A-Z/a-z/;
       $default_tmp_engine =~ tr/A-Z/a-z/;
 
       if (defined $default_engine) {
@@ -1051,7 +1169,7 @@ sub optimize_cases {
           if ($default_tmp_engine =~ /^myisam/i);
       }
 
-      if($secondary_engine_support) {
+      if ($secondary_engine_support) {
         optimize_secondary_engine_tests($dash_opt, $tinfo);
       }
     }
@@ -1499,12 +1617,12 @@ my @tags = (
   # An empty file to use test that needs myisam engine.
   [ "include/force_myisam_default.inc", "myisam_test", 1 ],
 
-  [ "include/big_test.inc",       "big_test",   1 ],
-  [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
-  [ "include/have_backup.inc",    "need_backup", 1 ],
-  [ "include/have_debug.inc",     "need_debug", 1 ],
-  [ "include/have_ndb.inc",       "ndb_test",   1 ],
-  [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
+  [ "include/big_test.inc",        "big_test",        1 ],
+  [ "include/asan_have_debug.inc", "asan_need_debug", 1 ],
+  [ "include/have_backup.inc",     "need_backup",     1 ],
+  [ "include/have_debug.inc",      "need_debug",      1 ],
+  [ "include/have_ndb.inc",        "ndb_test",        1 ],
+  [ "include/have_multi_ndb.inc",  "ndb_test",        1 ],
 
   # Any test sourcing the below inc file is considered to be an NDB
   # test not having its corresponding result file.
@@ -1533,7 +1651,7 @@ my @tags = (
   [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ]);
 
 if ($secondary_engine_support) {
-  push (@tags, get_secondary_engine_tags());
+  push(@tags, get_secondary_engine_tags());
 }
 
 sub tags_from_test_file {
@@ -1611,7 +1729,7 @@ sub opts_from_file ($) {
       $arg =~ tr/\x11\x0a\x0b/ \'\"/;
 
       # Put back real chars, the outermost quotes has to go
-      $arg =~ s/^([^\'\"]*)\'(.*)\'([^\'\"]*)$/$1$2$3/ or
+      $arg   =~ s/^([^\'\"]*)\'(.*)\'([^\'\"]*)$/$1$2$3/ or
         $arg =~ s/^([^\'\"]*)\"(.*)\"([^\'\"]*)$/$1$2$3/;
       $arg =~ s/\\\\/\\/g;
 
