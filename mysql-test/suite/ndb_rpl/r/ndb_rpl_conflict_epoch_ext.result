@@ -128,7 +128,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -168,7 +168,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -193,7 +193,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -240,7 +240,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -288,8 +288,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -340,10 +340,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -413,11 +413,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -472,13 +472,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -546,15 +546,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -620,15 +620,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -671,15 +671,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -811,7 +811,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -851,7 +851,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -876,7 +876,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -923,7 +923,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -971,8 +971,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -1023,10 +1023,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -1096,11 +1096,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -1155,13 +1155,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -1229,15 +1229,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1303,15 +1303,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1354,15 +1354,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1494,7 +1494,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -1534,7 +1534,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -1559,7 +1559,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -1606,7 +1606,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -1654,8 +1654,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -1706,10 +1706,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -1779,11 +1779,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -1838,13 +1838,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -1912,15 +1912,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1986,15 +1986,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2037,15 +2037,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2177,7 +2177,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -2217,7 +2217,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
 SELECT ndb$op_type, ndb$cft_cause FROM `t2$EX` ORDER BY ndb$op_type, ndb$cft_cause;
@@ -2242,7 +2242,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -2289,7 +2289,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -2337,8 +2337,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -2389,10 +2389,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -2462,11 +2462,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
 SELECT * FROM `t2$EX` ORDER BY ndb$count;
@@ -2521,13 +2521,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 SELECT * FROM `t2$EX` ORDER BY ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count;
@@ -2595,15 +2595,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2669,15 +2669,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2720,15 +2720,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
