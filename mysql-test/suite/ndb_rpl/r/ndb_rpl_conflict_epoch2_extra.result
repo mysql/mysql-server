@@ -144,7 +144,7 @@ stable_epoch_is_older_than_max_replicated
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
-3	30	NULL	Running	NULL	delete_row	row_already_exists
+3	30	NULL	Running	NULL	delete_row	row_does_not_exist
 Now check behaviour of Secondary when reflected ops should not be applied
 -------------------------------------------------------------------------
 The interpreted program attached to reflected ops at the Secondary slave
@@ -782,7 +782,7 @@ stable_epoch_is_older_than_max_replicated
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
-3	30	NULL	Running	NULL	delete_row	row_already_exists
+3	30	NULL	Running	NULL	delete_row	row_does_not_exist
 Now check behaviour of Secondary when reflected ops should not be applied
 -------------------------------------------------------------------------
 The interpreted program attached to reflected ops at the Secondary slave
@@ -1420,7 +1420,7 @@ stable_epoch_is_older_than_max_replicated
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
-3	30	NULL	Running	NULL	delete_row	row_already_exists
+3	30	NULL	Running	NULL	delete_row	row_does_not_exist
 Now check behaviour of Secondary when reflected ops should not be applied
 -------------------------------------------------------------------------
 The interpreted program attached to reflected ops at the Secondary slave
@@ -2058,7 +2058,7 @@ stable_epoch_is_older_than_max_replicated
 Look at PRIMARY exceptions table content
 SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
 k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
-3	30	NULL	Running	NULL	delete_row	row_already_exists
+3	30	NULL	Running	NULL	delete_row	row_does_not_exist
 Now check behaviour of Secondary when reflected ops should not be applied
 -------------------------------------------------------------------------
 The interpreted program attached to reflected ops at the Secondary slave

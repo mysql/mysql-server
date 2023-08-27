@@ -120,7 +120,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -161,7 +161,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -183,7 +183,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
@@ -231,7 +231,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, still missing
@@ -280,8 +280,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, should be as inserted
@@ -333,10 +333,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
@@ -413,11 +413,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
@@ -471,13 +471,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master (none)
@@ -546,15 +546,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -619,15 +619,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -667,15 +667,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -796,7 +796,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -837,7 +837,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -859,7 +859,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
@@ -907,7 +907,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, still missing
@@ -956,8 +956,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, should be as inserted
@@ -1009,10 +1009,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
@@ -1089,11 +1089,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
@@ -1147,13 +1147,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master (none)
@@ -1222,15 +1222,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1295,15 +1295,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1343,15 +1343,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1472,7 +1472,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -1513,7 +1513,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -1535,7 +1535,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
@@ -1583,7 +1583,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, still missing
@@ -1632,8 +1632,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, should be as inserted
@@ -1685,10 +1685,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
@@ -1765,11 +1765,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
@@ -1823,13 +1823,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master (none)
@@ -1898,15 +1898,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -1971,15 +1971,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2019,15 +2019,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2148,7 +2148,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Examine data on isolated secondary Master (should be as-set)
 select * from test.t1 order by a;
 a	b
@@ -2189,7 +2189,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	NULL	Cloisters	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 -- Update row on Secondary Master
 update test.t1 set b="Toast" where a=2;
 -- Examine data on Primary Master - should be unaffected
@@ -2211,7 +2211,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Loopy Lornas	Toast	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 -- Check data on secondary - should be as set
 select * from test.t1 order by a;
@@ -2259,7 +2259,7 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Peters Yard	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
+write_row	row_already_exists
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, still missing
@@ -2308,8 +2308,8 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	2	Pear tree	Black pig	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, should be as inserted
@@ -2361,10 +2361,10 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	1	Beach house	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 -- Examine data on Secondary Master before slave restart, no row
 select * from test.t1 order by a;
@@ -2441,11 +2441,11 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	3	Espy	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 ------------------------------------------------
 Test 9 : Insert, Insert-Update-Delete conflict
@@ -2499,13 +2499,13 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Mathers	NULL	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 -- Examine data on Secondary Master (none)
@@ -2574,15 +2574,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2647,15 +2647,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
@@ -2695,15 +2695,15 @@ ndb$server_id	ndb$master_server_id	ndb$master_epoch	ndb$count	a	b$old	b$new	d	nd
 1	3	#	#	4	Drouthy Neebors	The Tankard	#	#	#	#
 SELECT ndb$op_type, ndb$cft_cause FROM `t1$EX` ORDER BY ndb$op_type, ndb$cft_cause;
 ndb$op_type	ndb$cft_cause
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-write_row	row_does_not_exist
-update_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+write_row	row_already_exists
+update_row	row_does_not_exist
 update_row	data_in_conflict
 update_row	data_in_conflict
 update_row	data_in_conflict
-delete_row	row_already_exists
-delete_row	row_already_exists
+delete_row	row_does_not_exist
+delete_row	row_does_not_exist
 delete_row	data_in_conflict
 delete_row	data_in_conflict
 delete_row	data_in_conflict
