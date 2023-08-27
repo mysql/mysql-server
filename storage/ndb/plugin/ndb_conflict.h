@@ -144,8 +144,8 @@ struct st_conflict_fn_def {
 
 /* What sort of conflict was found */
 enum enum_conflict_cause {
-  ROW_ALREADY_EXISTS = 1, /* On insert */
-  ROW_DOES_NOT_EXIST = 2, /* On Update, Delete */
+  ROW_DOES_NOT_EXIST = 1, /* On Update, Delete */
+  ROW_ALREADY_EXISTS = 2, /* On insert */
   ROW_IN_CONFLICT = 3,    /* On Update, Delete */
   TRANS_IN_CONFLICT = 4   /* Any of above, or implied by transaction */
 };
