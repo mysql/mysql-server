@@ -1106,7 +1106,8 @@ NdbEventOperationImpl::receive_event()
       Uint32 tRecAttrId = dataRecAttr->attrId();
       const Uint32 tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
       const Uint32 tDataSz = AttributeHeader(*aAttrPtr).getByteSize();
-      assert(!m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey());
+      assert(m_eventImpl->m_tableImpl->getColumn(tAttrId) == nullptr || // Unknown column
+             !m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey());
 
       while (tAttrId > tRecAttrId) {
         DBUG_PRINT_EVENT("info",("undef [%u] %u 0x%x [%u] 0x%x",
@@ -1147,7 +1148,8 @@ NdbEventOperationImpl::receive_event()
 
       // recAttr is either a PK-BEFORE or a DATA-BEFORE-VALUE
       NdbRecAttr **recAttr;
-      if (m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey()) {
+      const NdbColumnImpl* const col = m_eventImpl->m_tableImpl->getColumn(tAttrId);
+      if (col && col->getPrimaryKey()) {
         recAttr = &pkRecAttr;
       } else {
         recAttr = &dataRecAttr;
@@ -1155,7 +1157,7 @@ NdbEventOperationImpl::receive_event()
       if ((*recAttr) != nullptr) {
         Uint32 tRecAttrId = (*recAttr)->attrId();
         while (tAttrId > tRecAttrId) {
-          if (!m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey()) {
+          if (col && !col->getPrimaryKey()) {
             // PK-values already set, do not UNDEFINE
             (*recAttr)->setUNDEFINED();
           }
