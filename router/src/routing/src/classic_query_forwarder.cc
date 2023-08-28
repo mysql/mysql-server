@@ -2820,12 +2820,14 @@ QueryForwarder::forward_done() {
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::response() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
-  if (!read_res) return recv_server_failed(read_res.error());
+  if (!read_res) {
+    return recv_server_failed_and_check_client_socket(read_res.error());
+  }
 
   uint8_t msg_type = src_protocol->current_msg_type().value();
 

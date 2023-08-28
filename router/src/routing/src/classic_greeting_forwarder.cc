@@ -26,6 +26,7 @@
 
 #include <cctype>
 #include <iostream>
+#include <memory>
 #include <random>  // uniform_int_distribution
 #include <sstream>
 #include <system_error>
@@ -34,6 +35,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include "await_client_or_server.h"
 #include "classic_auth.h"
 #include "classic_auth_caching_sha2.h"
 #include "classic_auth_cleartext.h"
@@ -1706,15 +1708,6 @@ static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
     const uint8_t tls_content_type = plain[0];
     const uint16_t tls_payload_size = (plain[3] << 8) | plain[4];
 
-#if defined(DEBUG_SSL)
-    const uint16_t tls_legacy_version = (plain[1] << 8) | plain[2];
-
-    log_debug("-- ssl: ver=%04x, len=%d, %s", tls_legacy_version,
-              tls_payload_size,
-              tls_content_type_to_string(
-                  static_cast<TlsContentType>(tls_content_type))
-                  .c_str());
-#endif
     if (plain.size() < tls_header_size + tls_payload_size) {
       src_channel->read_to_plain(tls_header_size + tls_payload_size -
                                  plain.size());
@@ -1744,48 +1737,63 @@ static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
   return TlsErrc::kWantRead;
 }
 
+template <bool toServer>
+class SendProcessor : public Processor {
+ public:
+  explicit SendProcessor(MysqlRoutingClassicConnectionBase *conn)
+      : Processor(conn) {}
+
+  stdx::expected<Result, std::error_code> process() override {
+    auto *socket_splicer = connection()->socket_splicer();
+    auto *dst_channel = toServer ? socket_splicer->server_channel()
+                                 : socket_splicer->client_channel();
+
+    if (dst_channel->send_buffer().empty()) return Result::Done;
+
+    return toServer ? Result::SendToServer : Result::SendToClient;
+  }
+};
+
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::tls_forward() {
-  auto *socket_splicer = connection()->socket_splicer();
+  connection()->push_processor(std::make_unique<AwaitClientOrServerProcessor>(
+      connection(), [this](auto result) {
+        if (!result) return;
 
-  auto client_channel = socket_splicer->client_channel();
-  auto server_channel = socket_splicer->server_channel();
+        switch (*result) {
+          case AwaitClientOrServerProcessor::AwaitResult::ClientReadable: {
+            auto *socket_splicer = connection()->socket_splicer();
+            auto *src_channel = socket_splicer->client_channel();
+            auto *dst_channel = socket_splicer->server_channel();
 
-  bool client_recv_buf_changed =
-      client_last_recv_buf_size_ != client_channel->recv_plain_view().size();
-  bool server_recv_buf_changed =
-      server_last_recv_buf_size_ != server_channel->recv_plain_view().size();
-  bool client_send_buf_changed =
-      client_last_send_buf_size_ != client_channel->send_buffer().size();
-  bool server_send_buf_changed =
-      server_last_send_buf_size_ != server_channel->send_buffer().size();
+            forward_tls(src_channel, dst_channel);
 
-  if (client_recv_buf_changed || server_send_buf_changed) {
-    forward_tls(client_channel, server_channel);
+            if (!dst_channel->send_buffer().empty()) {
+              connection()->push_processor(
+                  std::make_unique<SendProcessor<true>>(connection()));
+            }
+            return;
+          }
+          case AwaitClientOrServerProcessor::AwaitResult::ServerReadable: {
+            auto *socket_splicer = connection()->socket_splicer();
+            auto *src_channel = socket_splicer->server_channel();
+            auto *dst_channel = socket_splicer->client_channel();
 
-    client_last_recv_buf_size_ = client_channel->recv_plain_view().size();
-    server_last_send_buf_size_ = server_channel->send_buffer().size();
+            forward_tls(src_channel, dst_channel);
 
-    if (!server_channel->send_buffer().empty()) {
-      return Result::SendToServer;
-    }
+            if (!dst_channel->send_buffer().empty()) {
+              connection()->push_processor(
+                  std::make_unique<SendProcessor<false>>(connection()));
+            }
 
-    return Result::RecvFromClient;
+            return;
+          }
+        }
 
-  } else if (server_recv_buf_changed || client_send_buf_changed) {
-    forward_tls(server_channel, client_channel);
+        harness_assert_this_should_not_execute();
+      }));
 
-    server_last_recv_buf_size_ = server_channel->recv_plain_view().size();
-    client_last_send_buf_size_ = client_channel->send_buffer().size();
-
-    if (!client_channel->send_buffer().empty()) {
-      return Result::SendToClient;
-    }
-
-    return Result::RecvFromServer;
-  }
-
-  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -1804,7 +1812,7 @@ ServerFirstAuthenticator::tls_forward_init() {
   }
 
   stage(Stage::TlsForward);
-  return Result::RecvFromBoth;
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>

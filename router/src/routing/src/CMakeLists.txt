@@ -56,8 +56,9 @@ ADD_LIBRARY(routing SHARED
   connection.cc
   blocked_endpoints.cc
 
-  processor.cc
+  await_client_or_server.cc
   forwarding_processor.cc
+  processor.cc
 
   classic_auth.cc
   classic_auth_cleartext.cc
