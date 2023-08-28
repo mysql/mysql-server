@@ -740,18 +740,33 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       {
         if (block)
         {
-          g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
-                              instance(),
-                              nodeId);
-          globalTransporterRegistry.blockReceive(*recvdata, nodeId);
+          if (!globalTransporterRegistry.isBlocked(nodeId))
+          {
+            g_eventLogger->info("(%u)TRPMAN : Blocking receive from node %u",
+                                instance(),
+                                nodeId);
+            globalTransporterRegistry.blockReceive(*recvdata, nodeId);
+          }
+          else
+          {
+            g_eventLogger->info("TRPMAN : Ignoring dump %u"
+                  " for node %u (receive link already blocked)", arg, nodeId);
+          }
         }
         else
         {
-          g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
-                              instance(),
-                              nodeId);
+          if (globalTransporterRegistry.isBlocked(nodeId))
+          {
+            g_eventLogger->info("(%u)TRPMAN : Unblocking receive from node %u",
+                                instance(), nodeId);
 
-          globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
+            globalTransporterRegistry.unblockReceive(*recvdata, nodeId);
+          }
+          else
+          {
+            g_eventLogger->info("TRPMAN : Ignoring dump %u"
+                " for node %u (receive link is not blocked)", arg, nodeId);
+          }
         }
       }
       else
