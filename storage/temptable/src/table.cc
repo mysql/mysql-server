@@ -23,28 +23,34 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/table.cc
 TempTable Table implementation. */
 
+#include <algorithm>
+#include <cassert>
 #include <cstddef>
-#include <functional>
+#include <cstdint>
+#include <cstring>
 #include <new>
-#include <string>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/column.h"
 #include "storage/temptable/include/temptable/cursor.h"
 #include "storage/temptable/include/temptable/index.h"
 #include "storage/temptable/include/temptable/indexed_cells.h"
 #include "storage/temptable/include/temptable/result.h"
 #include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
 
 namespace temptable {
+class Block;
 
 Table::Table(TABLE *mysql_table, Block *shared_block,
              bool all_columns_are_fixed_size, size_t tmp_table_size_limit)

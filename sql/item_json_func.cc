@@ -3572,9 +3572,7 @@ longlong Item_func_json_storage_size::val_int() {
   null_value = args[0]->null_value;
   if (null_value) return 0;
 
-  if (wrapper.to_binary(&buffer, &JsonDepthErrorHandler,
-                        &JsonKeyTooBigErrorHandler,
-                        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler))
+  if (wrapper.to_binary(JsonSerializationDefaultErrorHandler(), &buffer))
     return error_int(); /* purecov: inspected */
 
   if (buffer.length() > current_thd->variables.max_allowed_packet) {

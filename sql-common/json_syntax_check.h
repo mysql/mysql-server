@@ -27,13 +27,16 @@
   JSON_DOCUMENT_MAX_DEPTH levels.
 */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-#include "sql-common/json_error_handler.h"
-
-#include <rapidjson/reader.h>
-#include <functional>
+#include <cstddef>
 #include <string>
 #include <utility>
+
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/encodings.h>
+#include <rapidjson/reader.h>
+
+#include "sql-common/json_error_handler.h"
 
 /**
   Check if the depth of a JSON document exceeds the maximum supported
@@ -46,6 +49,8 @@
   @return true if the maximum depth is exceeded, false otherwise
 */
 bool check_json_depth(size_t depth, const JsonErrorHandler &handler);
+bool check_json_depth(size_t depth,
+                      const JsonSerializationErrorHandler &handler);
 
 /**
   This class implements a handler for use with rapidjson::Reader when

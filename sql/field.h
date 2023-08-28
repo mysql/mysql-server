@@ -43,7 +43,6 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
-#include "my_sys.h"
 #include "my_time.h"  // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysql/binlog/event/export/binary_log_funcs.h"  // my_time_binary_length
 #include "mysql/strings/dtoa.h"
@@ -51,7 +50,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld_error.h"  // ER_*
 #include "sql/dd/types/column.h"
 #include "sql/field_common_properties.h"
 #include "sql/gis/srid.h"
@@ -108,8 +106,8 @@ class Send_field;
 class THD;
 class Time_zone;
 class my_decimal;
+struct my_timeval;
 struct TYPELIB;
-struct timeval;
 
 /*
   Inside an in-memory data record, memory pointers to pieces of the

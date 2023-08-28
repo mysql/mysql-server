@@ -464,9 +464,9 @@ void vet_wrapper_length(const char *text, size_t expected_length) {
       << "Wrapped DOM: " << text << "\n";
 
   String serialized_form;
-  EXPECT_FALSE(json_binary::serialize(
-      dom_wrapper.to_dom(), &serialized_form, &JsonDepthErrorHandler,
-      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
+  EXPECT_FALSE(json_binary::serialize(dom_wrapper.to_dom(),
+                                      JsonSerializationDefaultErrorHandler(),
+                                      &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
   Json_wrapper binary_wrapper(binary);
@@ -724,8 +724,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
 
   String buffer;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), &buffer, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-      &JsonValueTooBigErrorHandler));
+      dom.get(), JsonSerializationDefaultErrorHandler(), &buffer));
 
   json_binary::Value binary =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
@@ -984,9 +983,8 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes) {
     EXPECT_FALSE(m_field.val_json(&doc));
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
-    EXPECT_FALSE(doc.to_binary(
-        &original, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler));
+    EXPECT_FALSE(
+        doc.to_binary(JsonSerializationDefaultErrorHandler(), &original));
 
     Json_wrapper new_value(dom->clone());
 
@@ -1112,14 +1110,12 @@ void test_apply_json_diffs(Field_json *field, const Json_diff_vector &diffs,
 
   TABLE *table = field->table;
   if (table->is_binary_diff_enabled(field)) {
+    JsonSerializationDefaultErrorHandler error_handler;
     StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
-    EXPECT_FALSE(json_binary::serialize(
-        parse_json(orig_json).get(), &original, &JsonDepthErrorHandler,
-        &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
+    EXPECT_FALSE(json_binary::serialize(parse_json(orig_json).get(),
+                                        error_handler, &original));
     StringBuffer<STRING_BUFFER_USUAL_SIZE> updated;
-    EXPECT_FALSE(doc.to_binary(
-        &updated, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler));
+    EXPECT_FALSE(doc.to_binary(error_handler, &updated));
     verify_binary_diffs(field, table->get_binary_diffs(field), original,
                         updated);
   }
@@ -1349,8 +1345,7 @@ static void benchmark_dom_parse(size_t num_iterations, const char *json_text) {
 
   String buffer;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), &buffer, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-      &JsonValueTooBigErrorHandler));
+      dom.get(), JsonSerializationDefaultErrorHandler(), &buffer));
 
   json_binary::Value binary =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
@@ -1412,9 +1407,8 @@ static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
   initializer.SetUp();
 
   String buffer;
-  EXPECT_FALSE(json_binary::serialize(&o, &buffer, &JsonDepthErrorHandler,
-                                      &JsonKeyTooBigErrorHandler,
-                                      &JsonValueTooBigErrorHandler));
+  EXPECT_FALSE(json_binary::serialize(
+      &o, JsonSerializationDefaultErrorHandler(), &buffer));
   json_binary::Value val =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
 
@@ -1722,8 +1716,7 @@ static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
 
   String serialized_object;
   EXPECT_FALSE(json_binary::serialize(
-      &dom_object, &serialized_object, &JsonDepthErrorHandler,
-      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
+      &dom_object, JsonSerializationDefaultErrorHandler(), &serialized_object));
   Json_wrapper wrapper(json_binary::parse_binary(serialized_object.ptr(),
                                                  serialized_object.length()));
   EXPECT_EQ(enum_json_type::J_OBJECT, wrapper.type());

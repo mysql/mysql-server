@@ -151,9 +151,7 @@ size_t Json_diff::binary_length() const {
   if (operation() != enum_json_diff_operation::REMOVE) {
     // value
     buf.length(0);
-    if (value().to_binary(
-            &buf, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-            &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler))
+    if (value().to_binary(JsonSerializationDefaultErrorHandler(), &buf))
       assert(0); /* purecov: deadcode */
     if (buf.length() > current_thd->variables.max_allowed_packet) {
       my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
@@ -239,9 +237,7 @@ bool Json_diff::write_binary(String *to) const {
       DBUG_SET("+d,binlog_corrupt_write_length_and_string_bad_char");
     });
 #endif  // ifndef NDEBUG
-    if (value().to_binary(
-            &buf, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
-            &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler) ||
+    if (value().to_binary(JsonSerializationDefaultErrorHandler(), &buf) ||
         write_length_and_string(to, buf))
       return true; /* purecov: inspected */  // OOM, error is reported
     if (buf.length() > current_thd->variables.max_allowed_packet) {

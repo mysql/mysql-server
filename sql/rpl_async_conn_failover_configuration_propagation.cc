@@ -28,6 +28,7 @@
 #include <mysql/components/services/group_replication_status_service.h>
 #include "mysql/components/services/log_builtins.h"
 #include "sql-common/json_dom.h"
+#include "sql-common/json_error_handler.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"  // srv_registry
 #include "sql/rpl_async_conn_failover_table_operations.h"
@@ -604,9 +605,7 @@ bool Rpl_acf_configuration_handler::send_managed_data(
     // Convert Json_wrapper to binary format
     String buffer;
     if (std::get<3>(managed_detail)
-            .to_binary(&buffer, &JsonDepthErrorHandler,
-                       &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler,
-                       &InvalidJsonErrorHandler)) {
+            .to_binary(JsonSerializationDefaultErrorHandler(), &buffer)) {
       return true;
     }
     if (buffer.length() > current_thd->variables.max_allowed_packet) {
@@ -762,9 +761,7 @@ bool Rpl_acf_configuration_handler::get_configuration(
     // Convert Json_wrapper to binary format
     String buffer;
     if (std::get<3>(managed_tuple)
-            .to_binary(&buffer, &JsonDepthErrorHandler,
-                       &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler,
-                       &InvalidJsonErrorHandler)) {
+            .to_binary(JsonSerializationDefaultErrorHandler(), &buffer)) {
       return true;
     }
     if (buffer.length() > current_thd->variables.max_allowed_packet) {

@@ -39,14 +39,23 @@
 #include "mysql_time.h"
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
 #include "sql-common/my_decimal.h"
 #include "sql_string.h"
 
+namespace {
 void CoutDefaultDepthHandler() { std::cout << "Doc too deep"; }
-void CoutDefaultKeyErrorHandler() { std::cout << "Key too big"; }
-void CoutDefaultValueErrorHandler() { std::cout << "Value too big"; }
-void InvalidJsonErrorHandler() { std::cout << "Invalid JSON"; }
+
+class CoutSerializationErrorHandler : public JsonSerializationErrorHandler {
+ public:
+  void KeyTooBig() const override { std::cout << "Key too big"; }
+  void ValueTooBig() const override { std::cout << "Value too big"; }
+  void TooDeep() const override { CoutDefaultDepthHandler(); }
+  void InvalidJson() const override { std::cout << "Invalid JSON"; }
+};
+
+}  // namespace
 
 int main() {
   Json_object o;
@@ -68,8 +77,7 @@ int main() {
   wr.set_alias();
 
   StringBuffer<20000> buf;
-  if (wr.to_binary(&buf, CoutDefaultDepthHandler, CoutDefaultKeyErrorHandler,
-                   CoutDefaultValueErrorHandler, InvalidJsonErrorHandler)) {
+  if (wr.to_binary(CoutSerializationErrorHandler(), &buf)) {
     std::cout << "error";
   } else {
     const json_binary::Value v(
@@ -128,9 +136,7 @@ int main() {
     my_decimal m;
     double2my_decimal(0, 3.14000000001, &m);
     const Json_decimal jd(m);
-    if (json_binary::serialize(&jd, &buf, CoutDefaultDepthHandler,
-                               CoutDefaultKeyErrorHandler,
-                               CoutDefaultValueErrorHandler))
+    if (json_binary::serialize(&jd, CoutSerializationErrorHandler(), &buf))
       std::cout << "ERRROR!!" << std::endl;
 
     json_binary::Value v = json_binary::parse_binary(buf.ptr(), buf.length());
@@ -150,9 +156,7 @@ int main() {
     dt.time_type = MYSQL_TIMESTAMP_DATE;
     const Json_datetime jd(dt, MYSQL_TYPE_DATETIME);
 
-    if (json_binary::serialize(&jd, &buf, CoutDefaultDepthHandler,
-                               CoutDefaultKeyErrorHandler,
-                               CoutDefaultValueErrorHandler))
+    if (json_binary::serialize(&jd, CoutSerializationErrorHandler(), &buf))
       std::cout << "ERRROR!!" << std::endl;
 
     json_binary::Value v = json_binary::parse_binary(buf.ptr(), buf.length());

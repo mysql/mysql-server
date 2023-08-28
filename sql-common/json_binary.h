@@ -143,7 +143,6 @@
 #include <stddef.h>
 #include <cassert>
 #include <cstdint>
-#include <functional>
 #include <string>
 
 /*
@@ -177,20 +176,14 @@ namespace json_binary {
   destination string.
 
   @param[in]     dom   the input DOM tree
+  @param error_handler a handler that is invoked if an error occurs
   @param[in,out] dest  the destination string
-  @param json_depth_handler handler which will be called for JSON documents
-                            exceeding the maximum allowed depth
-  @param json_key_handler  handler which will be called for JSON documents
-                           having keys too large
-  @param json_value_handler handler which will be called for JSON documents
-                            having values too large
   @retval false on success
   @retval true if an error occurred
       */
-bool serialize(const Json_dom *dom, String *dest,
-               const JsonErrorHandler &json_depth_handler,
-               const JsonErrorHandler &json_key_handler,
-               const JsonErrorHandler &json_value_handler);
+bool serialize(const Json_dom *dom,
+               const JsonSerializationErrorHandler &error_handler,
+               String *dest);
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -318,9 +311,8 @@ class Value {
   bool is_backed_by(const String *str) const;
 
   EXPORT_JSON_FUNCTION
-  bool raw_binary(String *buf, const JsonErrorHandler &json_depth_handler,
-                  const JsonErrorHandler &json_key_handler,
-                  const JsonErrorHandler &json_value_handler) const;
+  bool raw_binary(const JsonSerializationErrorHandler &error_handler,
+                  String *buf) const;
 #ifdef MYSQL_SERVER
   bool get_free_space(const THD *thd, size_t *space) const;
   bool update_in_shadow(const Field_json *field, size_t pos,

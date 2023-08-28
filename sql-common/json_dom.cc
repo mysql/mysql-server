@@ -22,13 +22,16 @@
 
 #include "sql-common/json_dom.h"
 
+#ifdef MYSQL_SERVER
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#endif  // MYSQL_SERVER
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
-#include <algorithm>   // std::min, std::max
+#include <algorithm>  // std::min, std::max
+#include <array>
 #include <cmath>       // std::isfinite
 #include <functional>  // std::function
 #include <new>
@@ -36,54 +39,60 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <rapidjson/encodings.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
 #include <rapidjson/reader.h>
+#ifdef MYSQL_SERVER
+#include <rapidjson/allocators.h>
+#include <rapidjson/fwd.h>
+#endif  // MYSQL_SERVER
 
 #include "base64.h"
 #include "decimal.h"
 #include "dig_vec.h"
-#include "json_binary.h"
-#include "m_string.h"
 #include "my_byteorder.h"
-#include "my_compare.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/dtoa.h"
-#include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
-#include "mysql/strings/my_strtoll10.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
-#include "sql/malloc_allocator.h"
-#ifdef MYSQL_SERVER
-#include "sql/check_stack.h"
-#endif
 #include "sql-common/json_binary.h"
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
 #include "sql-common/json_syntax_check.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/derror.h"       // ER_THD
-#include "sql/field.h"
-#include "sql/psi_memory_key.h"  // key_memory_JSON
-#include "sql/sql_class.h"       // THD
-#include "sql/sql_const.h"       // STACK_MIN_SIZE
-#include "sql/sql_error.h"
-#include "sql/sql_sort.h"
-#include "sql/sql_time.h"
-#include "sql/system_variables.h"
-#include "sql/table.h"
+#include "sql/malloc_allocator.h"
+#include "sql/sql_const.h"  // STACK_MIN_SIZE
 #include "sql_string.h"
 #include "string_with_len.h"
 #include "template_utils.h"  // down_cast, pointer_cast
 
+#ifdef MYSQL_SERVER
+#include "m_string.h"
+#include "my_checksum.h"
+#include "my_compare.h"
+#include "my_double2ulonglong.h"
+#include "my_time_t.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/my_strtoll10.h"
+#include "mysql_com.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#endif  // MYSQL_SERVER
+
 #ifndef MYSQL_SERVER
+#include "mysql/components/services/bits/psi_bits.h"
 #define key_memory_JSON PSI_NOT_INSTRUMENTED
 #endif
 
@@ -1402,24 +1411,19 @@ Json_dom_ptr Json_wrapper::clone_dom() const {
   return Json_dom::parse(m_value);
 }
 
-bool Json_wrapper::to_binary(
-    String *str, const JsonErrorHandler &json_depth_handler,
-    const JsonErrorHandler &json_key_handler,
-    const JsonErrorHandler &json_value_handler,
-    const JsonErrorHandler &invalid_json_handler) const {
+bool Json_wrapper::to_binary(const JsonSerializationErrorHandler &error_handler,
+                             String *str) const {
   if (empty()) {
     /* purecov: begin inspected */
-    invalid_json_handler();
+    error_handler.InvalidJson();
     return true;
     /* purecov: end */
   }
 
   if (m_is_dom)
-    return json_binary::serialize(m_dom.m_value, str, json_depth_handler,
-                                  json_key_handler, json_value_handler);
+    return json_binary::serialize(m_dom.m_value, error_handler, str);
 
-  return m_value.raw_binary(str, json_depth_handler, json_key_handler,
-                            json_value_handler);
+  return m_value.raw_binary(error_handler, str);
 }
 
 /**
@@ -3561,9 +3565,7 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(result, &JsonDepthErrorHandler,
-                           &JsonKeyTooBigErrorHandler,
-                           &JsonValueTooBigErrorHandler))
+    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(), result))
       return true; /* purecov: inspected */
     original = field->get_binary();
   } else {
@@ -3641,9 +3643,7 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(result, &JsonDepthErrorHandler,
-                           &JsonKeyTooBigErrorHandler,
-                           &JsonValueTooBigErrorHandler)) {
+    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(), result)) {
       return true; /* purecov: inspected */
     }
     original = field->get_binary();

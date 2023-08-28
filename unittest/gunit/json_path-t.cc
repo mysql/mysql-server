@@ -351,8 +351,7 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), &serialized_form, &JsonDepthErrorHandler,
-      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
+      dom.get(), JsonSerializationDefaultErrorHandler(), &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
@@ -421,8 +420,7 @@ void vet_only_needs_one(const char *json_text, const char *path_text,
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), &serialized_form, &JsonDepthErrorHandler,
-      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
+      dom.get(), JsonSerializationDefaultErrorHandler(), &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
