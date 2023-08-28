@@ -952,8 +952,8 @@ class MysqlClient {
       return {};
     }
 
-    stdx::expected<void, MysqlError> prepare(const std::string &stmt) {
-      auto r = mysql_stmt_prepare(st_.get(), stmt.c_str(), stmt.size());
+    stdx::expected<void, MysqlError> prepare(std::string_view stmt) {
+      auto r = mysql_stmt_prepare(st_.get(), stmt.data(), stmt.size());
 
       if (r != 0) {
         return stdx::make_unexpected(make_mysql_error_code(st_.get()));
@@ -1191,8 +1191,7 @@ class MysqlClient {
     std::unique_ptr<MYSQL_STMT, StmtDeleter> st_{mysql_stmt_init(nullptr)};
   };
 
-  stdx::expected<PreparedStatement, MysqlError> prepare(
-      const std::string &stmt) {
+  stdx::expected<PreparedStatement, MysqlError> prepare(std::string_view stmt) {
     PreparedStatement st(m_.get());
 
     auto res = st.prepare(stmt);
