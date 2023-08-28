@@ -310,6 +310,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   }
 
 /**
+  Adds a Service implementation requirement with a pointer to placeholder to the
+  list of components.
+
+  @param service A referenced Service name.
+  @param implementation A referenced Service implementation name.
+*/
+#define REQUIRES_SERVICE_IMPLEMENTATION(service, implementation)               \
+  {                                                                            \
+#service "." #implementation,                                              \
+        static_cast < void **>                                                 \
+            (static_cast <void *>(const_cast <mysql_service_##service##_t **>( \
+                &mysql_service_##service)))                                    \
+  }
+
+/**
   Adds a Service requirement with a pointer to placeholder to the list of
   components.
 
@@ -321,6 +336,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define REQUIRES_SERVICE_AS(service, name)                                     \
   {                                                                            \
 #service,                                                                  \
+        static_cast < void **>(static_cast <void *>(                           \
+                          const_cast <mysql_service_##service##_t **>(&name))) \
+  }
+
+/**
+  Adds a Service implementation requirement with a pointer to placeholder to the
+  list of components.
+
+  Use with @ref REQUIRES_SERVICE_IMPLEMENTATION_AS().
+
+  @param service A referenced Service name.
+  @param implementation A referenced Service implementation name.
+  @param name Service handle name.
+*/
+#define REQUIRES_SERVICE_IMPLEMENTATION_AS(service, implementation, name)      \
+  {                                                                            \
+#service "." #implementation,                                              \
         static_cast < void **>(static_cast <void *>(                           \
                           const_cast <mysql_service_##service##_t **>(&name))) \
   }

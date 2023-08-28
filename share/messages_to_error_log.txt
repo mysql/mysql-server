@@ -12571,6 +12571,15 @@ ER_IB_ERR_CORRUPT_TABLESPACE_UNRECOVERABLE
 ER_IB_BULK_LOAD_STATS_WARN
   eng "%s: Failed to save statistics for table=%s err=%zu"
 
+ER_COMPONENT_MASKING_INVALID_FLUSH_INTERVAL_VALUE
+   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
+
+ER_COMPONENT_MASKING_VAR_REGISTRATION_FAILURE
+  eng "Cannot register variable '%s'.'%s'."
+
+ER_COMPONENT_MASKING_NOTIFICATION_REGISTRATION_FAILURE
+  eng "Masking component failed to register notification service. Periodical masking dictionaries flush will not work."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
