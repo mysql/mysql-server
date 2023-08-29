@@ -12,7 +12,6 @@ insert into test.t1 values
 ("3a","3b","3c","3d");
 Stall backup completion *after* table is scanned.
 ... We will still collect log entries on table updates.
-Connected to Management Server at: localhost:13000
 
 Run backup
 Starting backup
@@ -23,7 +22,6 @@ Create log entries with insert and delete as well
 insert into test.t1 values("6a","6b","6c","6d");
 delete from test.t1 where a="2a";
 Now allow backup to complete...
-Connected to Management Server at: localhost:13000
 
 Waiting for backup to complete
 Backup completed

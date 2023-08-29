@@ -27,7 +27,7 @@ insert into test.t1 values
 
 --echo Stall backup completion *after* table is scanned.
 --echo ... We will still collect log entries on table updates.
---exec $NDB_MGM -e "all error 10040"
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all error 10040"
 
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
@@ -40,7 +40,7 @@ insert into test.t1 values("6a","6b","6c","6d");
 delete from test.t1 where a="2a";
 
 --echo Now allow backup to complete...
---exec $NDB_MGM -e "all error 0"
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all error 0"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 truncate t1;
