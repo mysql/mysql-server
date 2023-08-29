@@ -23,6 +23,9 @@ let $pass = 0;
 
 while ($pass != 2) {
 
+  # The LSN calculation below works with cached undo segment. We use one
+  # rollback segment here to keep the test consistent.
+  set global innodb_rollback_segments=1;
   --echo Pass: $pass
 
   --echo # Initialization - create table, resets autoincrement value.
@@ -135,6 +138,9 @@ let $pass = 0;
 
 while ($pass != 4) {
 
+  # The LSN calculation below works with cached undo segment. We use one
+  # rollback segment here to keep the test consistent.
+  set global innodb_rollback_segments=1;
   --echo Pass: $pass
 
   --echo # Initialization - create table, resets autoincrement value.

@@ -11,6 +11,7 @@
 #        This should be fixed after data dictionary and DDL recovery later.
 # ... and the crash recovery has finally success.
 CALL mtr.add_suppression(".*Could not find a valid tablespace file for");
+let $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
 CREATE TABLE t2 (a INT);
 
@@ -58,5 +59,48 @@ SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
 TRUNCATE TABLE t2;
 SELECT * FROM t2;
 
+--echo # Test crash during truncate rollback
+set global innodb_ddl_log_crash_reset_debug = 1;
+
+let $crash_count=1;
+let $did_crash=1;
+
+while ($did_crash)
+{
+  --echo # Truncate rollback crash: $crash_count
+  SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+  eval SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_$crash_count";
+  let $did_crash= 0;
+
+  --source include/expect_crash.inc
+  --error CR_SERVER_LOST, ER_GET_ERRNO
+  TRUNCATE TABLE t2;
+
+  # 2013 - CR_SERVER_LOST: No crash
+  if ($mysql_errno != 2013)
+  {
+    --echo # No such crash injection, statement did not crash, cleaning up
+    --remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+    eval SET SESSION DEBUG = "-d,ddl_log_post_ddl_apply_step_$crash_count";
+    SET SESSION DEBUG = "-d,ib_truncate_rollback_test";
+  }
+
+  # 2013 - CR_SERVER_LOST
+  if ($mysql_errno == 2013)
+  {
+    let $did_crash= 1;
+    --echo # Recover the server.
+    --source include/start_mysqld.inc
+
+    --echo # Check the table
+    CHECK TABLE t2;
+    SELECT * FROM t2 ORDER BY a;
+    inc $crash_count;
+  }
+}
+
+CHECK TABLE t2;
+SELECT * FROM t2 ORDER BY a;
 DROP TABLE t2;
 
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
