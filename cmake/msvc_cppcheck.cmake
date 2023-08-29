@@ -50,6 +50,14 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
       STRING_APPEND(suppress_warnings " /wd26860") # Potentially empty optional ''...'' is unwrapped, may throw exception.: Lines: ...
     ENDIF()
 
+    IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION GREATER_EQUAL 1937)
+      STRING_APPEND(suppress_warnings " /wd26831") # Allocation size might be the result of a numerical overflow
+      STRING_APPEND(suppress_warnings " /wd26832") # Allocation size is the result of a narrowing conversion that could result in overflow
+      STRING_APPEND(suppress_warnings " /wd26833") # Allocation size might be the result of a numerical overflow before the bound check
+      STRING_APPEND(suppress_warnings " /wd26051") # Function with irreducible control flow graph
+      STRING_APPEND(suppress_warnings " /wd26111") # Caller failing to release lock ... before calling function ...
+    ENDIF()
+
     STRING_APPEND(suppress_warnings " /wd26110") # Caller failing to hold lock '...' before calling function 'ReleaseSRWLockExclusive'.
     STRING_APPEND(suppress_warnings " /wd26115") # Failing to release lock '..' in function '..'
     STRING_APPEND(suppress_warnings " /wd26135") # Missing annotation _Acquires_lock_(...) at function '...'.
