@@ -1,0 +1,3 @@
+--source suite/ndb_tls/include/check_openssl.inc
+--source suite/ndb/t/ndb_basic.test
+

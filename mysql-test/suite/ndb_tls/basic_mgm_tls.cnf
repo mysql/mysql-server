@@ -1,7 +1,1 @@
-!include suite/ndbcluster/my.cnf
-
-[mysql_cluster]
-ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
-
-[cluster_config.ndb_mgmd.1.1]
-RequireTls=true
+!include suite/ndb_tls/tls_info.cnf

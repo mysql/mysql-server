@@ -8,8 +8,8 @@
 SELECT 1;
 
 ## Expect 2 encrypted links
-SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
-WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;
+SELECT count(*) FROM ndbinfo.transporters
+WHERE status = 'CONNECTED' and encrypted = 1;
 
 # ndb_desc fails without TLS
 --replace_regex /^.*--//

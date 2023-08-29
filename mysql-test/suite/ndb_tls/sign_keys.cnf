@@ -1,0 +1,45 @@
+!include include/default_mysqld.cnf
+
+#
+# Define small two node cluster with only one mysqld
+#
+[cluster_config.1]
+ndbd=,
+ndb_mgmd=
+mysqld=
+ndbapi=,,
+
+[cluster_config]
+DataMemory=                    30M
+NoOfFragmentLogFiles=          4
+SharedGlobalMemory=            20M
+LongMessageBuffer=             4M
+RedoBuffer=                    4M
+BackupLogBufferSize=           2M
+HeartbeatIntervalDbDb=         30000
+HeartbeatIntervalDbApi=        30000
+
+[mysqld]
+ndbcluster
+ndb-wait-connected=30
+ndb-wait-setup=120
+ndb-extra-logging=99
+ndb-tls-search-path=$MYSQLTEST_VARDIR/mysql_cluster.1
+
+[cluster_config.mysqld.1.1]
+NodeId=51
+Dedicated=1
+
+[mysqld.1.1]
+ndb-nodeid=51
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MTR_NDBMTD= 1
+
+[ndb_mgmd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/mysql_cluster.1
+
+[ndb_sign_keys]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/mysql_cluster.1
+passphrase=Stockholm

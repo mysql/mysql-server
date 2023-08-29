@@ -1,7 +1,7 @@
 --source suite/ndb_tls/include/check_openssl.inc
 --source suite/ndbcluster/basic.test
 
-## Expect 6 encrypted links
+## Expect all encrypted links
 #
-SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
-WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;
+SELECT count(*) from ndbinfo.transporters
+WHERE status = 'CONNECTED' AND encrypted = 0;

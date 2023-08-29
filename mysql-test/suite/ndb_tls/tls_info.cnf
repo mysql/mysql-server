@@ -1,4 +1,4 @@
-!include suite/ndb_tls/my.cnf
+!include suite/ndbcluster/my.cnf
 
 [mysql_cluster]
 ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active

@@ -22,11 +22,11 @@
 # Commit the three new cert files, and discard the retired files.
 
 
-# Expect 3 keys and 3 certificates for 7 nodes
+# Expect 3 certificates
 #
-SELECT * FROM ndbinfo.certificates order by Node_id;
+ SELECT distinct name, expires, serial FROM ndbinfo.certificates order by name;
 
-## Expect 8 encrypted links
+## Expect all encrypted links
 #
 SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
 WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;

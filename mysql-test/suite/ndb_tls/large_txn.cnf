@@ -1,4 +1,4 @@
-!include suite/ndbcluster/my.cnf
+!include suite/ndb/t/large_txn.cnf
 
 [cluster_config.ndbd.1.1]
 RequireTls=On
@@ -9,3 +9,7 @@ RequireTls=On
 [mysql_cluster]
 ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
 
+[cluster_config]
+SendBufferMemory=4M
+ReceiveBufferMemory=4M
+ExtraSendBufferMemory=2M
