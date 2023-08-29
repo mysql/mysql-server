@@ -524,7 +524,6 @@ TransporterFacade::start_instance(NodeId nodeId,
 
   theTransporterRegistry->init_tls(m_tls_search_path,
                                    m_tls_node_type,
-                                   m_tls_primary_api,
                                    m_mgm_tls_level);
 
   if(tls_required && ! theTransporterRegistry->getTlsKeyManager()->ctx())
@@ -1681,8 +1680,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_send_thread_nodes(),
   m_has_data_trps(),
   m_tls_search_path(NDB_TLS_SEARCH_PATH),
-  m_tls_node_type(NODE_TYPE_API),
-  m_tls_primary_api(true)
+  m_tls_node_type(NODE_TYPE_API)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
@@ -1799,14 +1797,18 @@ TransporterFacade::set_up_node_active_in_send_buffers(NodeId nodeId,
 
 void
 TransporterFacade::configure_tls(const char * searchPath,
-                                 int nodeType, bool isPrimary,
-                                 int mgmTlsRequirement)
+                                 int nodeType, int mgmTlsRequirement)
 {
   assert(searchPath);
   m_tls_search_path = searchPath;
   m_tls_node_type = nodeType;
-  m_tls_primary_api = isPrimary;
   m_mgm_tls_level = mgmTlsRequirement;
+}
+
+const char *
+TransporterFacade::get_tls_certificate_path() const
+{
+  return theTransporterRegistry->getTlsKeyManager()->cert_path();
 }
 
 bool

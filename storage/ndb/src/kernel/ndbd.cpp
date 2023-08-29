@@ -1172,7 +1172,7 @@ ndbd_run(bool foreground, int report_fd,
 
   theConfig->setupConfiguration();
 
-  globalTransporterRegistry.init_tls(tls_search_path, NODE_TYPE_DB, true,
+  globalTransporterRegistry.init_tls(tls_search_path, NODE_TYPE_DB,
                                      opt_mgm_tls);
 
   const ndb_mgm_configuration_iterator *p =

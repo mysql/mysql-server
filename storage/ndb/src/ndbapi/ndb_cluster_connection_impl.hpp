@@ -135,6 +135,7 @@ private:
   void connect_thread();
   void set_name(const char *name);
   void configure_tls(const char * search_path, int mgm_tls_level);
+  const char * get_tls_certificate_path() const;
   int set_service_uri(const char *, const char *, int, const char *);
   void set_data_node_neighbour(Uint32 neighbour_node);
   void adjust_node_proximity(Uint32 node_id, Int32 adjustment);

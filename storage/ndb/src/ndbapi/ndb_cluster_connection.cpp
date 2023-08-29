@@ -945,13 +945,17 @@ void
 Ndb_cluster_connection_impl::configure_tls(const char * searchPath,
                                            int mgm_level)
 {
-  bool isPrimary = ! (bool) m_main_connection;
   m_tls_search_path = strdup(searchPath);
 
   m_config_retriever->init_mgm_tls(m_tls_search_path, ::Node::Type::Client,
                                    mgm_level);
-  m_transporter_facade->api_configure_tls(m_tls_search_path, isPrimary,
-                                          mgm_level);
+  m_transporter_facade->api_configure_tls(m_tls_search_path, mgm_level);
+}
+
+const char *
+Ndb_cluster_connection_impl::get_tls_certificate_path() const
+{
+  return m_transporter_facade->get_tls_certificate_path();
 }
 
 void
@@ -1415,6 +1419,11 @@ void Ndb_cluster_connection::configure_tls(const char * searchPath,
                                            int mgmTlsLevel)
 {
   m_impl.configure_tls(searchPath, mgmTlsLevel);
+}
+
+const char * Ndb_cluster_connection::get_tls_certificate_path() const
+{
+  return m_impl.get_tls_certificate_path();
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)

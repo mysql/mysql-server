@@ -59,8 +59,7 @@ public:
      All error and info messages are logged to g_EventLogger.
      You can test whether init() has succeeded by calling ctx().
   */
-  void init(const char * tls_search_path,
-            int node_id, int node_type, bool is_primary);
+  void init(const char * tls_search_path, int node_id, int node_type);
 
   /* init() for MGM Clients that will not have a node ID */
   void init_mgm_client(const char * tls_search_path,
@@ -69,6 +68,12 @@ public:
   /* Alternate versions of init() used for authentication testing */
   void init(int node_id, const NodeCertificate *);
   void init(int node_id, struct stack_st_X509 *, struct evp_pkey_st *);
+
+  /* Returns the path name of the active TLS certificate file
+  */
+  const char * cert_path() const {
+    return m_ctx ? m_cert_file.c_str() : nullptr;
+  }
 
   /* Get SSL_CTX */
   struct ssl_ctx_st * ctx() const { return m_ctx; }
@@ -79,10 +84,11 @@ public:
   bool iterate_cert_table(int & node_id, cert_table_entry *);
   static void describe_cert(cert_record &, struct x509_st *);
 
-  // Check replacement date of our own node certificate
-  // pct should be a number between 0.0 and 1.0, where 0 represents the
-  // not-valid-before date 1 represents the not-valid-after date.
-  // Returns true if the current time is strictly less than pct.
+  /* Check replacement date of our own node certificate.
+     pct should be a number between 0.0 and 1.0, where 0 represents the
+     not-valid-before date 1 represents the not-valid-after date.
+     Returns true if the current time is strictly less than pct.
+  */
   bool check_replace_date(float pct);
 
   /* Class method: TLS verification callback */
@@ -147,8 +153,6 @@ protected:
   };
 
 private:
-  enum UserType { Primary, SecondaryApi, MgmClient };
-
   PkiFile::PathName m_key_file, m_cert_file;
   char * m_path_string {nullptr};
   TlsSearchPath * m_search_path {nullptr};
@@ -160,7 +164,7 @@ private:
   Node::Type m_type;
   struct ssl_ctx_st * m_ctx {nullptr};
 
-  void init(const char *, int, Node::Type, UserType);
+  void init(const char *, int, Node::Type);
 
   bool cert_table_get(const cert_record &,
                       cert_table_entry *) const;
@@ -170,7 +174,7 @@ private:
 inline void TlsKeyManager::init_mgm_client(const char * tls_search_path,
                                            Node::Type type)
 {
-  init(tls_search_path, 0, type, MgmClient);
+  init(tls_search_path, 0, type);
 }
 
 #endif

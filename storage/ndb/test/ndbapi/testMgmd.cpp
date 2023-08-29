@@ -2130,7 +2130,7 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(mgmd.connect(config));                     // Connect to management node
   CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
 
-  tls_km.init(wd.path(), 0, NODE_TYPE_API, true);
+  tls_km.init_mgm_client(wd.path());
   CHECK(tls_km.ctx());
 
   r = ndb_mgm_get_version(mgmd.handle(), &major, &minor, &build, len, ver);

@@ -133,6 +133,19 @@ public:
    void configure_tls(const char * tls_search_path, int mgm_tls_level);
 
   /**
+   * Retrieve the actual pathname to the active TLS certificate file.
+   *
+   * This can be called after connect() to obtain the pathname to the
+   * active TLS certificate. It may return null if:
+   *   - connect() has not yet been called
+   *   - no valid key and certificate were found in the TLS search path that
+   *     was supplied to configure_tls()
+   *   - configure_tls() was not called, and no valid key and certificate were
+   *     found in the default TLS search path
+   */
+   const char * get_tls_certificate_path() const;
+
+  /**
    * For each Ndb_cluster_connection, NDB publishes a URI in the ndbinfo
    * processes table. A user may customize this URI using set_service_uri().
    *

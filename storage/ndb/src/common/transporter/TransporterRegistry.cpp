@@ -507,10 +507,10 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 
 bool
 TransporterRegistry::init_tls(const char * searchPath, int nodeType,
-                              bool isPrimary, int mgmReqLevel)
+                              int mgmReqLevel)
 {
   require(localNodeId);
-  m_tls_keys.init(searchPath, localNodeId, nodeType, isPrimary);
+  m_tls_keys.init(searchPath, localNodeId, nodeType);
   m_mgm_tls_req = mgmReqLevel;
   return m_tls_keys.ctx();
 }

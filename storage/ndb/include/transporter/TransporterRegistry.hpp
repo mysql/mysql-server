@@ -245,7 +245,7 @@ public:
    * Returns true on success.
    */
   bool init_tls(const char * search_path, int node_type,
-                bool is_primary, int mgm_tls_requirement_level);
+                int mgm_tls_requirement_level);
 
   /**
      Perform handshaking of a client connection to accept it

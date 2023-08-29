@@ -101,15 +101,14 @@ static void log_openssl_errors(intptr_t r) {
 }
 
 void TlsKeyManager::init(const char * tls_search_path, int node_id, 
-                         int ndb_node_type, bool is_primary) {
-  UserType userType = is_primary ? Primary : SecondaryApi;
+                         int ndb_node_type) {
   require(ndb_node_type >= NODE_TYPE_DB && ndb_node_type <= NODE_TYPE_MGM);
   Node::Type nodeType = cert_type[ndb_node_type];
-  init(tls_search_path, node_id, nodeType, userType);
+  init(tls_search_path, node_id, nodeType);
 }
 
 void TlsKeyManager::init(const char * tls_search_path, int node_id,
-                         Node::Type node_type, UserType user_type)
+                         Node::Type node_type)
 {
   if(m_ctx) return;   // already initialized
 
@@ -129,14 +128,9 @@ void TlsKeyManager::init(const char * tls_search_path, int node_id,
 
   initialize_context();
 
-  if(m_ctx) {
-    if(user_type == Primary)
-      g_eventLogger->info("NDB TLS 1.3 available using certificate file '%s'",
-                          m_cert_file.c_str());
-    else if(user_type == SecondaryApi)
-      g_eventLogger->info("NDB TLS available in secondary connection "
-                          "(node id %d)", node_id);
-  }
+  if(m_ctx && (node_type != Node::Type::Client))
+    g_eventLogger->info("NDB TLS 1.3 available using certificate file '%s'",
+                        m_cert_file.c_str());
 }
 
 /* Versions of init() used by test harness */

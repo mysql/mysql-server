@@ -327,6 +327,10 @@ int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
   }
 
   if (res == 0) {
+    if (g_ndb_cluster_connection->get_tls_certificate_path()) {
+      ndb_log_info("Using NDB TLS certificate file '%s'",
+                   g_ndb_cluster_connection->get_tls_certificate_path());
+    }
     for (uint i = 0; i < g_pool_alloc; i++) {
       int node_id = g_pool[i]->node_id();
       if (node_id == 0) {

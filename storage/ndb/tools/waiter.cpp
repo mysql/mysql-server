@@ -316,10 +316,12 @@ waitClusterStatus(const char* _addr,
   }
   ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
 
+  if(tlsKeyManager.ctx())
+    ndbout << "Using Certificate: " << tlsKeyManager.cert_path();
+
   char buf[1024];
   ndbout << "Connecting to management server at "
          << ndb_mgm_get_connectstring(handle, buf, sizeof(buf))
-         << (tlsKeyManager.ctx() ? " trying TLS" : "")
          << endl;
   if (ndb_mgm_connect_tls(handle,
                           opt_connect_retries - 1, opt_connect_retry_delay, 1,
