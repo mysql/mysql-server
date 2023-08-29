@@ -2844,14 +2844,25 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   pred.total_eligibility_set = GetNodeMapFromTableMap(
       total_eligibility_set, graph->table_num_to_node_num);
 
-  // Find the CompanionSet that represents an inner-join of
-  // condition->used_tables().
-  const CompanionSet *const companion_set =
-      (condition->used_tables() & ~PSEUDO_TABLE_BITS) == 0
-          ? root->companion_set  // No regular tables.
-          : companion_collection.Find(condition->used_tables());
+  if ((condition->used_tables() & ~PSEUDO_TABLE_BITS) ==
+      0) {  // No regular tables.
+    pred.selectivity =
+        EstimateSelectivity(thd, condition, CompanionSet(), trace);
 
-  pred.selectivity = EstimateSelectivity(thd, condition, *companion_set, trace);
+  } else {
+    const CompanionSet *const companion_set =
+        companion_collection.Find(condition->used_tables());
+
+    if (companion_set ==
+        nullptr) {  // No equijoin between condition->used_tables().
+      pred.selectivity =
+          EstimateSelectivity(thd, condition, CompanionSet(), trace);
+    } else {
+      pred.selectivity =
+          EstimateSelectivity(thd, condition, *companion_set, trace);
+    }
+  }
+
   pred.was_join_condition = was_join_condition;
   pred.source_multiple_equality_idx = source_multiple_equality_idx;
   pred.functional_dependencies_idx.init(thd->mem_root);
