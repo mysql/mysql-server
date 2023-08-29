@@ -1088,26 +1088,27 @@ bool create_dd_schema(THD *thd) {
                                     dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
 
-bool getprop(THD *thd, const char *key, uint *value, bool silent = false) {
+bool getprop(THD *thd, const char *key, uint *value, bool silent = false,
+             loglevel level = ERROR_LEVEL) {
   bool exists = false;
   if (dd::tables::DD_properties::instance().get(thd, key, value, &exists) ||
       !exists) {
     /* purecov: begin inspected */
-    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_GET_DD_PROPERTY, key);
-    return true;
+    if (!silent) LogErr(level, ER_FAILED_GET_DD_PROPERTY, key);
+    if (level == ERROR_LEVEL) return true;
     /* purecov: end */
   }
   return false;
 }
 
-bool getprop(THD *thd, const char *key, String_type *value,
-             bool silent = false) {
+bool getprop(THD *thd, const char *key, String_type *value, bool silent = false,
+             loglevel level = ERROR_LEVEL) {
   bool exists = false;
   if (dd::tables::DD_properties::instance().get(thd, key, value, &exists) ||
       !exists) {
     /* purecov: begin inspected */
-    if (!silent) LogErr(ERROR_LEVEL, ER_FAILED_GET_DD_PROPERTY, key);
-    return true;
+    if (!silent) LogErr(level, ER_FAILED_GET_DD_PROPERTY, key);
+    if (level == ERROR_LEVEL) return true;
     /* purecov: end */
   }
   return false;
@@ -1186,12 +1187,14 @@ bool initialize_dd_properties(THD *thd) {
     uint server_downgrade_threshold = 0;
     uint server_upgrade_threshold = 0;
     /* purecov: begin inspected */
-    if (actual_server_version >= 80035 && actual_server_version != 80100 &&
-        (getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_stability) ||
-         getprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
-                 &server_downgrade_threshold) ||
-         getprop(thd, "SERVER_UPGRADE_THRESHOLD", &server_upgrade_threshold)))
-      return true;
+    if (actual_server_version >= 80035 && actual_server_version != 80100) {
+      (void)getprop(thd, "MYSQL_VERSION_STABILITY", &mysql_version_stability,
+                    false, WARNING_LEVEL);
+      (void)getprop(thd, "SERVER_DOWNGRADE_THRESHOLD",
+                    &server_downgrade_threshold, false, WARNING_LEVEL);
+      (void)getprop(thd, "SERVER_UPGRADE_THRESHOLD", &server_upgrade_threshold,
+                    false, WARNING_LEVEL);
+    }
 
     /* Is there a server version change? */
     if (MYSQL_VERSION_ID != actual_server_version) {
