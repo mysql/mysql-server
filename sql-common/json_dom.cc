@@ -3565,7 +3565,8 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(), result))
+    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(current_thd),
+                           result))
       return true; /* purecov: inspected */
     original = field->get_binary();
   } else {
@@ -3643,7 +3644,8 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(), result)) {
+    if (m_value.raw_binary(JsonSerializationDefaultErrorHandler(current_thd),
+                           result)) {
       return true; /* purecov: inspected */
     }
     original = field->get_binary();

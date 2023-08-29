@@ -26,6 +26,8 @@
 #include <cstdlib>
 #include <functional>
 
+class THD;
+
 using JsonParseErrorHandler =
     std::function<void(const char *parse_err, size_t err_offset)>;
 using JsonErrorHandler = std::function<void()>;
@@ -55,6 +57,13 @@ class JsonSerializationErrorHandler {
 
   /// Called when an invalid JSON value is encountered.
   virtual void InvalidJson() const = 0;
+
+  /// Called when an internal error occurs.
+  virtual void InternalError(const char *message) const = 0;
+
+  /// Check if the stack is about to be exhausted, and report the error.
+  /// @return true if the stack is about to be exhausted, false otherwise.
+  virtual bool CheckStack() const = 0;
 };
 
 #ifdef MYSQL_SERVER
@@ -80,10 +89,16 @@ void JsonDepthErrorHandler();
 class JsonSerializationDefaultErrorHandler final
     : public JsonSerializationErrorHandler {
  public:
+  explicit JsonSerializationDefaultErrorHandler(const THD *thd) : m_thd(thd) {}
   void KeyTooBig() const override;
   void ValueTooBig() const override;
   void TooDeep() const override;
   void InvalidJson() const override;
+  void InternalError(const char *message) const override;
+  bool CheckStack() const override;
+
+ private:
+  const THD *m_thd;
 };
 
 #endif  // MYSQL_SERVER

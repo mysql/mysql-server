@@ -3572,13 +3572,13 @@ longlong Item_func_json_storage_size::val_int() {
   null_value = args[0]->null_value;
   if (null_value) return 0;
 
-  if (wrapper.to_binary(JsonSerializationDefaultErrorHandler(), &buffer))
+  const THD *const thd = current_thd;
+  if (wrapper.to_binary(JsonSerializationDefaultErrorHandler(thd), &buffer))
     return error_int(); /* purecov: inspected */
 
-  if (buffer.length() > current_thd->variables.max_allowed_packet) {
+  if (buffer.length() > thd->variables.max_allowed_packet) {
     my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-             "json_binary::serialize",
-             current_thd->variables.max_allowed_packet);
+             "json_binary::serialize", thd->variables.max_allowed_packet);
     return error_int();
   }
   return buffer.length();

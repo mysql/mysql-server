@@ -43,6 +43,7 @@
 #include "sql-common/json_dom.h"
 #include "sql-common/json_error_handler.h"
 #include "sql-common/my_decimal.h"
+#include "sql/current_thd.h"
 #include "sql/error_handler.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
@@ -85,7 +86,7 @@ static Json_dom_ptr parse_json(const char *json_text) {
 }
 
 TEST_F(JsonBinaryTest, BasicTest) {
-  JsonSerializationDefaultErrorHandler error_handler;
+  JsonSerializationDefaultErrorHandler error_handler{thd()};
   std::string std_string;
   Json_dom_ptr dom = parse_json("false");
   String buf;
@@ -394,7 +395,8 @@ TEST_F(JsonBinaryTest, DateAndTimeTest) {
 
   // Store the array ...
   String buf;
-  EXPECT_FALSE(serialize(&array, JsonSerializationDefaultErrorHandler(), &buf));
+  EXPECT_FALSE(
+      serialize(&array, JsonSerializationDefaultErrorHandler(thd()), &buf));
 
   // ... and read it back.
   Value val = parse_binary(buf.ptr(), buf.length());
@@ -494,7 +496,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
   }
   EXPECT_EQ(80000U, array.size());
 
-  JsonSerializationDefaultErrorHandler error_handler;
+  JsonSerializationDefaultErrorHandler error_handler{thd()};
   String buf;
   EXPECT_FALSE(serialize(&array, error_handler, &buf));
   Value val1 = parse_binary(buf.ptr(), buf.length());
@@ -649,7 +651,7 @@ TEST_F(JsonBinaryTest, RawBinaryTest) {
   array2.append_clone(&jbf);
   array.append_clone(&array2);
 
-  JsonSerializationDefaultErrorHandler error_handler;
+  JsonSerializationDefaultErrorHandler error_handler{thd()};
   String buf;
   EXPECT_FALSE(json_binary::serialize(&array, error_handler, &buf));
   Value v1 = parse_binary(buf.ptr(), buf.length());
@@ -729,7 +731,7 @@ TEST_F(JsonBinaryTest, RawBinaryTest) {
   Create a JSON string of the given size, serialize it as a JSON binary, and
   then deserialize it and verify that we get the same string back.
 */
-void serialize_deserialize_string(size_t size) {
+void serialize_deserialize_string(const THD *thd, size_t size) {
   SCOPED_TRACE(testing::Message() << "size = " << size);
   char *str = new char[size];
   memset(str, 'a', size);
@@ -737,7 +739,7 @@ void serialize_deserialize_string(size_t size) {
 
   String buf;
   EXPECT_FALSE(json_binary::serialize(
-      &jstr, JsonSerializationDefaultErrorHandler(), &buf));
+      &jstr, JsonSerializationDefaultErrorHandler(thd), &buf));
   Value v = parse_binary(buf.ptr(), buf.length());
   EXPECT_EQ(Value::STRING, v.type());
   EXPECT_EQ(size, v.get_data_length());
@@ -759,15 +761,15 @@ void serialize_deserialize_string(size_t size) {
   We probably don't have enough memory to test the last category here...
 */
 TEST_F(JsonBinaryTest, StringLengthTest) {
-  serialize_deserialize_string(0);
-  serialize_deserialize_string(1);
-  serialize_deserialize_string(127);
-  serialize_deserialize_string(128);
-  serialize_deserialize_string(16383);
-  serialize_deserialize_string(16384);
-  serialize_deserialize_string(2097151);
-  serialize_deserialize_string(2097152);
-  serialize_deserialize_string(3000000);
+  serialize_deserialize_string(thd(), 0);
+  serialize_deserialize_string(thd(), 1);
+  serialize_deserialize_string(thd(), 127);
+  serialize_deserialize_string(thd(), 128);
+  serialize_deserialize_string(thd(), 16383);
+  serialize_deserialize_string(thd(), 16384);
+  serialize_deserialize_string(thd(), 2097151);
+  serialize_deserialize_string(thd(), 2097152);
+  serialize_deserialize_string(thd(), 3000000);
 }
 
 /**
@@ -850,7 +852,7 @@ static void check_corruption(THD *thd, const Json_dom *dom) {
   // First create a valid binary representation of the DOM.
   String buf;
   EXPECT_FALSE(json_binary::serialize(
-      dom, JsonSerializationDefaultErrorHandler(), &buf));
+      dom, JsonSerializationDefaultErrorHandler(thd), &buf));
   EXPECT_TRUE(json_binary::parse_binary(buf.ptr(), buf.length()).is_valid());
 
   /*
@@ -919,10 +921,10 @@ TEST_F(JsonBinaryTest, CorruptedBinaryTest) {
 }
 
 /// How big is the serialized version of a Json_dom?
-static size_t binary_size(const Json_dom *dom) {
+static size_t binary_size(const THD *thd, const Json_dom *dom) {
   StringBuffer<256> buf;
   EXPECT_FALSE(json_binary::serialize(
-      dom, JsonSerializationDefaultErrorHandler(), &buf));
+      dom, JsonSerializationDefaultErrorHandler(thd), &buf));
   return buf.length();
 }
 
@@ -1013,7 +1015,7 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
       Not inlined. The size does not include the type byte, so expect
       one more byte.
     */
-    EXPECT_EQ(param.m_needed_small + 1, binary_size(dom));
+    EXPECT_EQ(param.m_needed_small + 1, binary_size(thd(), dom));
   } else {
     /*
       Inlined in the small storage format. Find the difference in size
@@ -1022,9 +1024,9 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
       type, 2 bytes for the inlined value).
     */
     Json_array a;
-    size_t base_size = binary_size(&a);
+    size_t base_size = binary_size(thd(), &a);
     a.append_clone(dom);
-    size_t full_size = binary_size(&a);
+    size_t full_size = binary_size(thd(), &a);
     EXPECT_EQ(base_size + 3, full_size);
   }
 
@@ -1036,9 +1038,9 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
     */
     Json_array a;
     a.append_alias(new (std::nothrow) Json_string(64 * 1024, 'a'));
-    size_t base_size = binary_size(&a);
+    size_t base_size = binary_size(thd(), &a);
     a.append_clone(dom);
-    size_t full_size = binary_size(&a);
+    size_t full_size = binary_size(thd(), &a);
     EXPECT_EQ(base_size + 5, full_size);
   }
 }
@@ -1138,7 +1140,7 @@ static void test_has_space(const Json_dom *container, Value::enum_type type,
                            size_t expected_offset) {
   StringBuffer<100> buf;
   EXPECT_FALSE(json_binary::serialize(
-      container, JsonSerializationDefaultErrorHandler(), &buf));
+      container, JsonSerializationDefaultErrorHandler(current_thd), &buf));
   Value v1 = parse_binary(buf.ptr(), buf.length());
   Value v2 = v1.element(element);
   EXPECT_EQ(type, v2.type());
@@ -1415,7 +1417,7 @@ TEST_F(JsonBinaryTest, HasSpace) {
 static void serialize_benchmark(const Json_dom *dom, size_t num_iterations) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  JsonSerializationDefaultErrorHandler error_handler;
+  JsonSerializationDefaultErrorHandler error_handler{initializer.thd()};
 
   StartBenchmarkTiming();
 

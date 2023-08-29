@@ -7699,15 +7699,15 @@ type_conversion_status Field_json::store(const char *from, size_t length,
 
   if (dom.get() == nullptr) return TYPE_ERR_BAD_VALUE;
 
-  if (json_binary::serialize(dom.get(), JsonSerializationDefaultErrorHandler(),
-                             &value)) {
+  const THD *const thd = current_thd;
+  if (json_binary::serialize(
+          dom.get(), JsonSerializationDefaultErrorHandler(thd), &value)) {
     return TYPE_ERR_BAD_VALUE;
   }
 
-  if (value.length() > current_thd->variables.max_allowed_packet) {
+  if (value.length() > thd->variables.max_allowed_packet) {
     my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-             "json_binary::serialize",
-             current_thd->variables.max_allowed_packet);
+             "json_binary::serialize", thd->variables.max_allowed_packet);
     return TYPE_ERR_BAD_VALUE;
   }
 
@@ -7802,13 +7802,13 @@ type_conversion_status Field_json::store_json(const Json_wrapper *json) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmpstr;
   String *buffer = json->is_binary_backed_by(&value) ? &tmpstr : &value;
 
-  if (json->to_binary(JsonSerializationDefaultErrorHandler(), buffer))
+  const THD *const thd = current_thd;
+  if (json->to_binary(JsonSerializationDefaultErrorHandler(thd), buffer))
     return TYPE_ERR_BAD_VALUE;
 
-  if (buffer->length() > current_thd->variables.max_allowed_packet) {
+  if (buffer->length() > thd->variables.max_allowed_packet) {
     my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-             "json_binary::serialize",
-             current_thd->variables.max_allowed_packet);
+             "json_binary::serialize", thd->variables.max_allowed_packet);
     return TYPE_ERR_BAD_VALUE;
   }
 

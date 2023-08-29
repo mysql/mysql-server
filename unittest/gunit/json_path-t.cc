@@ -351,7 +351,8 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), JsonSerializationDefaultErrorHandler(), &serialized_form));
+      dom.get(), JsonSerializationDefaultErrorHandler(thd()),
+      &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
@@ -408,19 +409,20 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
   Vet the short-circuiting effects of the only_needs_one argument
   of Json_wrapper.seek().
 
+  @param[in] thd                    Session object.
   @param[in] json_text              Text of the json document to search.
   @param[in] path_text              Text of the path expression to use.
   @param[in] expected_hits          Total number of expected matches.
 */
-void vet_only_needs_one(const char *json_text, const char *path_text,
-                        uint expected_hits) {
+void vet_only_needs_one(const THD *thd, const char *json_text,
+                        const char *path_text, uint expected_hits) {
   Json_dom_ptr dom = Json_dom::parse(
       json_text, std::strlen(json_text), [](const char *, size_t) {},
       [] { ASSERT_TRUE(false); });
 
   String serialized_form;
   EXPECT_FALSE(json_binary::serialize(
-      dom.get(), JsonSerializationDefaultErrorHandler(), &serialized_form));
+      dom.get(), JsonSerializationDefaultErrorHandler(thd), &serialized_form));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
@@ -1407,7 +1409,7 @@ static const Ono_tuple ono_tuples[] = {
 /** Test good paths without column scope */
 TEST_P(JsonGoodOnoTestP, GoodOno) {
   Ono_tuple param = GetParam();
-  vet_only_needs_one(param.m_json_text, param.m_path_expression,
+  vet_only_needs_one(thd(), param.m_json_text, param.m_path_expression,
                      param.m_expected_hits);
 }
 

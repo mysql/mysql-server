@@ -25,6 +25,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/check_stack.h"
+#include "sql/sql_const.h"
 
 void JsonParseDefaultErrorHandler::operator()(const char *parse_err,
                                               size_t err_offset) const {
@@ -48,4 +50,13 @@ void JsonSerializationDefaultErrorHandler::TooDeep() const {
 
 void JsonSerializationDefaultErrorHandler::InvalidJson() const {
   my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+}
+
+void JsonSerializationDefaultErrorHandler::InternalError(
+    const char *message) const {
+  my_error(ER_INTERNAL_ERROR, MYF(0), message);
+}
+
+bool JsonSerializationDefaultErrorHandler::CheckStack() const {
+  return check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr);
 }

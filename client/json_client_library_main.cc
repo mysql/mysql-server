@@ -53,6 +53,13 @@ class CoutSerializationErrorHandler : public JsonSerializationErrorHandler {
   void ValueTooBig() const override { std::cout << "Value too big"; }
   void TooDeep() const override { CoutDefaultDepthHandler(); }
   void InvalidJson() const override { std::cout << "Invalid JSON"; }
+  void InternalError(const char *message) const override {
+    std::cout << "Internal error: " << message;
+  }
+  bool CheckStack() const override {
+    std::cout << "Checking stack\n";
+    return false;
+  }
 };
 
 }  // namespace

@@ -521,10 +521,9 @@ static bool attempt_inline_value(const Json_dom *value, String *dest,
 static enum_serialization_result serialize_json_array(
     const Json_array *array, bool large, size_t depth,
     const JsonSerializationErrorHandler &error_handler, String *dest) {
-#ifdef MYSQL_SERVER
-  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+  if (error_handler.CheckStack()) {
     return FAILURE; /* purecov: inspected */
-#endif              // ifdef MYSQL_SERVER
+  }
 
   const size_t start_pos = dest->length();
   const size_t size = array->size();
@@ -586,10 +585,9 @@ static enum_serialization_result serialize_json_array(
 static enum_serialization_result serialize_json_object(
     const Json_object *object, bool large, size_t depth,
     const JsonSerializationErrorHandler &error_handler, String *dest) {
-#ifdef MYSQL_SERVER
-  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+  if (error_handler.CheckStack()) {
     return FAILURE; /* purecov: inspected */
-#endif              // ifdef MYSQL_SERVER
+  }
 
   const size_t start_pos = dest->length();
   const size_t size = object->cardinality();
@@ -878,9 +876,7 @@ static enum_serialization_result serialize_json_value(
     case enum_json_type::J_ERROR:
       /* purecov: begin deadcode */
       assert(false);
-#ifdef MYSQL_SERVER
-      my_error(ER_INTERNAL_ERROR, MYF(0), "JSON serialization failed");
-#endif
+      error_handler.InternalError("JSON serialization failed");
       return FAILURE;
       /* purecov: end */
   }
@@ -1569,8 +1565,10 @@ bool space_needed(const Json_wrapper *value, bool large, size_t *needed) {
 
   // Serialize the value to a temporary buffer to find out how big it is.
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
-  if (value->to_binary(JsonSerializationDefaultErrorHandler(), &buf))
+  if (value->to_binary(JsonSerializationDefaultErrorHandler(current_thd),
+                       &buf)) {
     return true; /* purecov: inspected */
+  }
 
   assert(buf.length() > 1);
 
@@ -1781,8 +1779,10 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     char *value_dest = destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(JsonSerializationDefaultErrorHandler(), &buffer))
+    if (new_value->to_binary(JsonSerializationDefaultErrorHandler(current_thd),
+                             &buffer)) {
       return true; /* purecov: inspected */
+    }
 
     assert(buffer.length() > 1);
 

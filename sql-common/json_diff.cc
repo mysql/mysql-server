@@ -151,12 +151,12 @@ size_t Json_diff::binary_length() const {
   if (operation() != enum_json_diff_operation::REMOVE) {
     // value
     buf.length(0);
-    if (value().to_binary(JsonSerializationDefaultErrorHandler(), &buf))
+    const THD *const thd = current_thd;
+    if (value().to_binary(JsonSerializationDefaultErrorHandler(thd), &buf))
       assert(0); /* purecov: deadcode */
-    if (buf.length() > current_thd->variables.max_allowed_packet) {
+    if (buf.length() > thd->variables.max_allowed_packet) {
       my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-               "json_binary::serialize",
-               current_thd->variables.max_allowed_packet);
+               "json_binary::serialize", thd->variables.max_allowed_packet);
       assert(0);
     }
     ret += length_of_length_and_string(buf.length());
@@ -237,13 +237,14 @@ bool Json_diff::write_binary(String *to) const {
       DBUG_SET("+d,binlog_corrupt_write_length_and_string_bad_char");
     });
 #endif  // ifndef NDEBUG
-    if (value().to_binary(JsonSerializationDefaultErrorHandler(), &buf) ||
-        write_length_and_string(to, buf))
+    const THD *const thd = current_thd;
+    if (value().to_binary(JsonSerializationDefaultErrorHandler(thd), &buf) ||
+        write_length_and_string(to, buf)) {
       return true; /* purecov: inspected */  // OOM, error is reported
-    if (buf.length() > current_thd->variables.max_allowed_packet) {
+    }
+    if (buf.length() > thd->variables.max_allowed_packet) {
       my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-               "json_binary::serialize",
-               current_thd->variables.max_allowed_packet);
+               "json_binary::serialize", thd->variables.max_allowed_packet);
       return true;
     }
     DBUG_PRINT("info",
