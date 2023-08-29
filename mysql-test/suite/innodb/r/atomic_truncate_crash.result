@@ -41,4 +41,157 @@ SELECT * FROM t2;
 a
 10
 11
+# Test crash during truncate rollback
+set global innodb_ddl_log_crash_reset_debug = 1;
+# Truncate rollback crash: 1
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_1";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 2
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_2";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 3
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_3";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 4
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_4";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 5
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_5";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 6
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_6";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 7
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_7";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 8
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_8";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 9
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_9";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# Recover the server.
+# restart
+# Check the table
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
+# Truncate rollback crash: 10
+SET SESSION DEBUG = "+d,ib_truncate_rollback_test";
+SET SESSION DEBUG = "+d,ddl_log_post_ddl_apply_step_10";
+TRUNCATE TABLE t2;
+Got one of the listed errors
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = "-d,ddl_log_post_ddl_apply_step_10";
+SET SESSION DEBUG = "-d,ib_truncate_rollback_test";
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT * FROM t2 ORDER BY a;
+a
+10
+11
 DROP TABLE t2;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;
