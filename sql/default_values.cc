@@ -255,7 +255,7 @@ bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
 err:
   // Destroy the field, despite being MEM_ROOT allocated, to avoid memory
   // leak for fields that allocate extra memory (e.g Field_blob::value).
-  ::destroy_at(regfield);
+  if (regfield != nullptr) ::destroy_at(regfield);
   return retval;
 }
 

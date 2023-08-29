@@ -505,6 +505,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
         body_utf8, sql_mode, definer_user_name, definer_host_name, client_cs,
         cn_cl, db_cl, enum_trigger_event_type::TRG_EVENT_MAX,
         enum_trigger_action_time_type::TRG_ACTION_MAX, 0, timestamp_value);
+    if (t == nullptr) return true;
 
     /*
       NOTE: new trigger object is not fully initialized here.

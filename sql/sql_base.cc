@@ -3821,7 +3821,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
   if (table != nullptr && table->has_trigger()) {
     Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(entry);
 
-    if (!d || d->check_n_load(thd, *table)) {
+    if (d == nullptr) return true;
+    if (d->check_n_load(thd, *table)) {
       ::destroy_at(d);
       return true;
     }

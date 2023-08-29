@@ -157,7 +157,7 @@ end:
 
 failure:
   table()->column_bitmaps_set(save_read_set, save_write_set);
-  ::destroy_at(file);
+  if (file != nullptr) ::destroy_at(file);
   file = save_file;
   return true;
 }

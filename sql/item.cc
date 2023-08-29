@@ -9996,7 +9996,9 @@ Item_cache_json::Item_cache_json()
       m_value(new (*THR_MALLOC) Json_wrapper()),
       m_is_sorted(false) {}
 
-Item_cache_json::~Item_cache_json() { ::destroy_at(m_value); }
+Item_cache_json::~Item_cache_json() {
+  if (m_value != nullptr) ::destroy_at(m_value);
+}
 
 /**
   Read the JSON value and cache it.

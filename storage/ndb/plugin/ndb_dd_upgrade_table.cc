@@ -124,7 +124,7 @@ class Table_upgrade_guard {
 
     free_table_share(m_table->s);
 
-    ::destroy_at(m_handler);
+    if (m_handler != nullptr) ::destroy_at(m_handler);
   }
 };
 

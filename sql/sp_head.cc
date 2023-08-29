@@ -2560,7 +2560,7 @@ err_with_cleanup:
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
-  ::destroy_at(trigger_runtime_ctx);
+  if (trigger_runtime_ctx != nullptr) ::destroy_at(trigger_runtime_ctx);
   call_arena.free_items();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;
 
@@ -2790,7 +2790,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   m_security_ctx.restore_security_context(thd, save_security_ctx);
 
 err_with_cleanup:
-  ::destroy_at(func_runtime_ctx);
+  if (func_runtime_ctx != nullptr) ::destroy_at(func_runtime_ctx);
   call_arena.free_items();
   call_mem_root.Clear();
   thd->sp_runtime_ctx = parent_sp_runtime_ctx;

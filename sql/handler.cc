@@ -8511,7 +8511,7 @@ int handler::ha_extra(enum ha_extra_function operation) {
         (!(m_unique = new (*THR_MALLOC) Unique_on_insert(ref_length)) ||
          m_unique->init())) {
       /* purecov: begin inspected */
-      ::destroy_at(m_unique);
+      if (m_unique != nullptr) ::destroy_at(m_unique);
       return HA_ERR_OUT_OF_MEM;
       /* purecov: end */
     }

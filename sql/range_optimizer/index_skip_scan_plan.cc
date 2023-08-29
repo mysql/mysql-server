@@ -526,6 +526,7 @@ bool find_skip_scans(
     if (find_all_skip_scans) {
       IndexSkipScanParameters *cur_skip_scan_info =
           new (param->return_mem_root) IndexSkipScanParameters;
+      if (cur_skip_scan_info == nullptr) return true;
 
       cur_skip_scan_info->index = cur_index;
       cur_skip_scan_info->index_info = cur_index_info;
@@ -569,6 +570,7 @@ bool find_skip_scans(
   if (!find_all_skip_scans && best_index_info) {  // save only the best scan
     IndexSkipScanParameters *best_skip_scan_info =
         new (param->return_mem_root) IndexSkipScanParameters;
+    if (best_skip_scan_info == nullptr) return true;
 
     best_skip_scan_info->index = best_index;
     best_skip_scan_info->index_info = best_index_info;
