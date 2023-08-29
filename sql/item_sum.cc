@@ -81,6 +81,7 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
@@ -4560,7 +4561,8 @@ bool Item_func_group_concat::setup(THD *thd) {
   for (uint i = 0; i < m_field_arg_count; i++) {
     Item *item = args[i];
     fields.push_back(item);
-    if (item->const_for_execution()) {
+    if (item->const_for_execution() &&
+        evaluate_during_optimization(item, aggr_query_block)) {
       if (item->is_null()) m_null_executed = true;
       if (thd->is_error()) return true;
       if (m_null_executed) return false;
