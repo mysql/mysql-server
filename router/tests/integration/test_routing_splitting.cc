@@ -2272,7 +2272,7 @@ TEST_P(SplittingConnectionTest, binlog_fails) {
   SCOPED_TRACE("// binlog_dump");
   {
     MYSQL_RPL rpl;
-    rpl.file_name = NULL;
+    rpl.file_name = nullptr;
     rpl.start_position = 4;
     rpl.server_id = 0;
     rpl.flags = 1 << 0 /* NON_BLOCK */;

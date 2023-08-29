@@ -131,7 +131,7 @@ bool generate_sha256(const unsigned char *in_key, unsigned int in_key_length,
   bool ret = true;
   EVP_MD *md_sha256 = nullptr;
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  md_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
+  md_sha256 = EVP_MD_fetch(nullptr, "sha256", nullptr);
 #endif
   EVP_MD_CTX *context = EVP_MD_CTX_create();
   if (context != nullptr) {
