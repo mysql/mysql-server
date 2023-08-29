@@ -734,7 +734,7 @@ class Item_func_make_set final : public Item_str_func {
     set_nullable(is_nullable() || item->is_nullable());
     return res;
   }
-  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
+  bool split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   bool resolve_type(THD *) override;
   void update_used_tables() override;

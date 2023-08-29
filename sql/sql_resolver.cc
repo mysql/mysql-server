@@ -463,8 +463,10 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   */
   if (m_having_cond && (m_having_cond->has_aggregation() ||
                         m_having_cond->has_grouping_func())) {
-    m_having_cond->split_sum_func2(thd, base_ref_items, &fields, &m_having_cond,
-                                   true);
+    if (m_having_cond->split_sum_func2(thd, base_ref_items, &fields,
+                                       &m_having_cond, true)) {
+      return true;
+    }
     added_new_sum_funcs = true;
   }
   if (inner_sum_func_list) {
@@ -472,7 +474,10 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     Item_sum *item_sum = end;
     do {
       item_sum = item_sum->next_sum;
-      item_sum->split_sum_func2(thd, base_ref_items, &fields, nullptr, false);
+      if (item_sum->split_sum_func2(thd, base_ref_items, &fields, nullptr,
+                                    false)) {
+        return true;
+      }
       added_new_sum_funcs = true;
     } while (item_sum != end);
   }
@@ -4374,8 +4379,9 @@ bool Query_block::setup_order_final(THD *thd) {
     if (is_grouped_aggregate) continue;
 
     if (item->has_aggregation() || item->has_wf()) {
-      item->split_sum_func(thd, base_ref_items, &fields);
-      if (thd->is_error()) return true; /* purecov: inspected */
+      if (item->split_sum_func(thd, base_ref_items, &fields)) {
+        return true; /* purecov: inspected */
+      }
     }
   }
   return false;
@@ -6341,10 +6347,13 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   // with a field, we need to recompute split_sum_func
   if ((new_item->has_aggregation() &&
        !(new_item->type() == Item::SUM_FUNC_ITEM &&
-         !new_item->m_is_window_function)) ||  //(1)
-      new_item->has_wf())                      // (2)
-    new_item->split_sum_func(thd, base_ref_items, &fields);
-  if (thd->is_error()) return true;
+         !new_item->m_is_window_function)) ||  // (1)
+      new_item->has_wf()) {                    // (2)
+    if (new_item->split_sum_func(thd, base_ref_items, &fields)) {
+      return true;
+    }
+  }
+  assert(!thd->is_error());
   return false;
 }
 

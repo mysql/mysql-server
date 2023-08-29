@@ -497,7 +497,7 @@ class Item_func : public Item_result_field {
     @return true on OOM, false otherwise
   */
   bool set_arguments(mem_root_deque<Item *> *list, bool context_free);
-  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
+  bool split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;

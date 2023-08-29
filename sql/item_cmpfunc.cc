@@ -2355,11 +2355,16 @@ void Item_in_optimizer::fix_after_pullout(Query_block *parent_query_block,
   not_null_tables_cache |= args[0]->not_null_tables();
 }
 
-void Item_in_optimizer::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_in_optimizer::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                        mem_root_deque<Item *> *fields) {
-  args[0]->split_sum_func2(thd, ref_item_array, fields, args, true);
+  if (args[0]->split_sum_func2(thd, ref_item_array, fields, args, true)) {
+    return true;
+  }
   Item **left = &down_cast<Item_in_subselect *>(args[0])->left_expr;
-  (*left)->split_sum_func2(thd, ref_item_array, fields, left, true);
+  if ((*left)->split_sum_func2(thd, ref_item_array, fields, left, true)) {
+    return true;
+  }
+  return false;
 }
 
 void Item_in_optimizer::print(const THD *thd, String *str,
@@ -5905,26 +5910,26 @@ void Item_cond::traverse_cond(Cond_traverser traverser, void *arg,
 /**
   Move SUM items out from item tree and replace with reference.
 
-  The split is done to get an unique item for each SUM function
+  The split is done to get a unique item for each SUM function
   so that we can easily find and calculate them.
   (Calculation done by update_sum_func() and copy_sum_funcs() in
   sql_select.cc)
-
-  @param thd            Thread handler
-  @param ref_item_array Pointer to array of pointers to items
-  @param fields         All fields in select
 
   @note
     This function is run on all expression (SELECT list, WHERE, HAVING etc)
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_cond::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                mem_root_deque<Item *> *fields) {
   List_iterator<Item> li(list);
   Item *item;
-  while ((item = li++))
-    item->split_sum_func2(thd, ref_item_array, fields, li.ref(), true);
+  while ((item = li++)) {
+    if (item->split_sum_func2(thd, ref_item_array, fields, li.ref(), true)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Item_cond::update_used_tables() {

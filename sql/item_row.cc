@@ -129,11 +129,15 @@ void Item_row::cleanup() {
   Item::cleanup();
 }
 
-void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *fields) {
   Item **arg, **arg_end;
-  for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++)
-    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true);
+  for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++) {
+    if ((*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Item_row::update_used_tables() {

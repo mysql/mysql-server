@@ -724,8 +724,9 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
       expression.
     */
     if (oi->has_aggregation() && oi->type() != Item::SUM_FUNC_ITEM) {
-      oi->split_sum_func(thd, ref_item_array, fields);
-      if (thd->is_error()) return true;
+      if (oi->split_sum_func(thd, ref_item_array, fields)) {
+        return true;
+      }
     }
   }
 

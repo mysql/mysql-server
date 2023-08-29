@@ -894,12 +894,15 @@ bool Item_sum::fix_fields(THD *thd, Item **ref [[maybe_unused]]) {
   return false;
 }
 
-void Item_sum::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_sum::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                               mem_root_deque<Item *> *fields) {
-  if (m_is_window_function) {
-    for (auto &it : Bounds_checked_array<Item *>(args, arg_count))
-      it->split_sum_func2(thd, ref_item_array, fields, &it, true);
+  if (!m_is_window_function) return false;
+  for (auto &it : Bounds_checked_array<Item *>(args, arg_count)) {
+    if (it->split_sum_func2(thd, ref_item_array, fields, &it, true)) {
+      return true;
+    }
   }
+  return false;
 }
 
 bool Item_sum::reset_wf_state(uchar *arg) {
@@ -3066,15 +3069,19 @@ bool Item_sum_hybrid::val_json(Json_wrapper *wr) {
   return ok;
 }
 
-void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                      mem_root_deque<Item *> *fields) {
-  super::split_sum_func(thd, ref_item_array, fields);
+  if (super::split_sum_func(thd, ref_item_array, fields)) {
+    return true;
+  }
   /*
     Grouped aggregate functions used as arguments to windowing functions get
     replaced with aggregate ref's in split_sum_func. So need to redo the cache
     setup.
   */
   update_after_wf_arguments_changed(thd);
+
+  return false;
 }
 
 void Item_sum_hybrid::cleanup() {
@@ -5157,12 +5164,16 @@ bool Item_first_last_value::fix_fields(THD *thd, Item **items) {
   return false;
 }
 
-void Item_first_last_value::split_sum_func(THD *thd,
+bool Item_first_last_value::split_sum_func(THD *thd,
                                            Ref_item_array ref_item_array,
                                            mem_root_deque<Item *> *fields) {
-  super::split_sum_func(thd, ref_item_array, fields);
+  if (super::split_sum_func(thd, ref_item_array, fields)) {
+    return true;
+  }
   // Need to redo this now:
   update_after_wf_arguments_changed(thd);
+
+  return false;
 }
 
 bool Item_first_last_value::setup_first_last() {
@@ -5332,11 +5343,15 @@ bool Item_nth_value::fix_fields(THD *thd, Item **items) {
   return false;
 }
 
-void Item_nth_value::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_nth_value::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                     mem_root_deque<Item *> *fields) {
-  super::split_sum_func(thd, ref_item_array, fields);
+  if (super::split_sum_func(thd, ref_item_array, fields)) {
+    return true;
+  }
   // If function was set up, need to redo this now:
   update_after_wf_arguments_changed(thd);
+
+  return false;
 }
 
 bool Item_nth_value::setup_nth() {
@@ -5573,11 +5588,15 @@ bool Item_lead_lag::check_wf_semantics2(Window_evaluation_requirements *r) {
   return false;
 }
 
-void Item_lead_lag::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_lead_lag::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                    mem_root_deque<Item *> *fields) {
-  super::split_sum_func(thd, ref_item_array, fields);
+  if (super::split_sum_func(thd, ref_item_array, fields)) {
+    return true;
+  }
   // If function was set up, need to redo these now:
   update_after_wf_arguments_changed(thd);
+
+  return false;
 }
 
 bool Item_lead_lag::setup_lead_lag() {

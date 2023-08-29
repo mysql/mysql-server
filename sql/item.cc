@@ -2245,42 +2245,43 @@ class Item_aggregate_ref : public Item_ref {
 };
 
 /**
-  1. Move SUM items out from item tree and replace with reference.
+  1. Replace set function and window function items with a reference.
 
-  The general goal of this is to get a list of group aggregates, and window
-  functions, and their arguments, so that the code which manages internal tmp
-  tables (creation, row copying) has a list of all aggregates (which require
-  special management) and a list of their arguments (which must be carried
-  from tmp table to tmp table until the aggregate can be computed).
+  The general goal of this is to get a list of set functions (aggregate
+  functions and the GROUPING function), and window functions, and their
+  arguments, so that the code which manages internal tmp tables (creation,
+  row copying) has a list of all such functions (which require special handling)
+  and a list of their arguments (which must be carried from tmp table to
+  tmp table until the function can be computed).
 
-  2. Move scalar subqueries out of the item tree and replace with reference
-  when used in arguments to window functions for similar reasons (tmp tables).
+  2. Replace scalar subqueries with reference when used in arguments to
+  window functions for similar reasons (tmp tables).
 
   @param thd             Current session
   @param ref_item_array  Pointer to array of reference fields
-  @param fields          All fields in select
+  @param fields          All fields of the current query block
   @param ref             Pointer to item. If nullptr, get it from
                          Item_sum::referenced_by[].
-  @param skip_registered <=> function be must skipped for registered SUM items
+  @param skip_registered <=> if aggregate function, item can be skipped.
 
-    All found SUM items are added FIRST in the fields list and
-    we replace the item with a reference.
+  @returns false if success, true if error
 
-    thd->fatal_error() may be called if we are out of memory
+    A set function item is added at the start of the fields list and then the
+    original use is replaced with a reference.
 
     The logic of skip_registered is:
 
-      - split_sum_func() is called when an aggregate is part of a bigger
+      - split_sum_func() is called when a set function is part of a bigger
         expression, example: '1+max()'.
 
-      - an Item_sum has referenced_by[0]!=nullptr when it is a group aggregate
-        located in a subquery but aggregating in a more outer query.
+      - an aggregate function has referenced_by[0] != nullptr when it is
+        located in a subquery but is aggregated in a more outer query block.
 
       - this referenced_by is necessary because for such aggregates, there are
         two phases:
 
-         - fix_fields() is called by the subquery, which puts the item into the
-           outer Query_block::inner_sum_func_list.
+         - fix_fields() is called for the subquery, which puts the item into the
+           outer query block's inner_sum_func_list.
 
          - the outer query scans that list, calls split_sum_func2(), it
            replaces the aggregate with an Item_ref, so it needs to correct the
@@ -2288,12 +2289,12 @@ class Item_aggregate_ref : public Item_ref {
            pointer; this is possible because fix_fields() has stored the
            address of this pointer into referenced_by[0].
 
-      - So when we call split_sum_func for any aggregate, if we are in the
-        subquery, we do not want to modify the outer-aggregated aggregates, and
-        as those are detectable because they have referenced_by[0]!=0: we pass
-        'skip_registered=true'.
+      - So when we call split_sum_func for any aggregate function, if we are
+        in the subquery, we do not want to modify the outer-aggregated
+        aggregate functions, and as those are detectable because they have
+        referenced_by[0] != nullptr: we pass 'skip_registered=true'.
 
-      - On the other hand, if we are in the outer query and scan
+      - On the other hand, if we are in the outer query block and scan
         inner_sum_func_list, it's time to modify the aggregate which was
         skipped by the subquery, so we pass 'skip_registered=false'.
 
@@ -2311,9 +2312,9 @@ class Item_aggregate_ref : public Item_ref {
       (1) SELECT a+FIRST_VALUE(b*SUM(c/d)) OVER (...)
 
   Assume we have done fix_fields() on this SELECT list, which list is so far
-  only '+'. This '+' contains a WF (and a group aggregate function), so the
+  only '+'. This '+' contains a WF (and an aggregate function), so the
   resolver (generally, Query_block::prepare()) calls Item::split_sum_func2 on
-  the '+'; as this '+' is neither a WF nor a group aggregate, but contains
+  the '+'; as this '+' is neither a WF nor an aggregate function, but contains
   some, it calls Item_func::split_sum_func which calls Item::split_sum_func2 on
   every argument of the '+':
 
@@ -2347,76 +2348,81 @@ class Item_aggregate_ref : public Item_ref {
        FROM t1 AS upper;
 */
 
-void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
+bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                            mem_root_deque<Item *> *fields, Item **ref,
                            bool skip_registered) {
   DBUG_TRACE;
-  /* An item of type Item_sum  is registered <=> referenced_by[0] != 0 */
-  if (type() == SUM_FUNC_ITEM && skip_registered &&
-      (down_cast<Item_sum *>(this))->referenced_by[0])
-    return;
 
-  // 'sum_func' means a group aggregate function
-  const bool is_sum_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
-  if ((!is_sum_func && has_aggregation() && !m_is_window_function) ||
-      (!m_is_window_function && has_wf()) ||
-      (type() == FUNC_ITEM && ((down_cast<Item_func *>(this))->functype() ==
+  const bool is_aggr_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
+  const bool is_grouping = is_function_of_type(this, Item_func::GROUPING_FUNC);
+
+  // An aggregate function is registered <=> referenced_by[0] != nullptr
+  if (is_aggr_func && skip_registered &&
+      down_cast<Item_sum *>(this)->referenced_by[0] != nullptr) {
+    return false;
+  }
+  /*
+    For an expressions that is not itself an aggregate function, a
+    grouping function or a window function but contain underlying
+    aggregate functions, grouping functions or window functions,
+    possibly split the expression.
+    Do not attempt to split helper functions from transformations
+    (ISNOTNULLTEST_FUNC or TRIG_COND_FUNC), or row constructs.
+  */
+  if (((has_aggregation() || has_wf() || has_grouping_func()) &&
+       !is_aggr_func && !m_is_window_function && !is_grouping) ||
+      (type() == FUNC_ITEM && (down_cast<Item_func *>(this)->functype() ==
                                    Item_func::ISNOTNULLTEST_FUNC ||
-                               (down_cast<Item_func *>(this))->functype() ==
+                               down_cast<Item_func *>(this)->functype() ==
                                    Item_func::TRIG_COND_FUNC)) ||
       type() == ROW_ITEM) {
     // Do not add item to hidden list; possibly split it
-    split_sum_func(thd, ref_item_array, fields);
-  } else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&  // (1)
-             (type() != SUBSELECT_ITEM ||                            // (2)
-              (down_cast<Item_subselect *>(this)->subquery_type() ==
+    if (split_sum_func(thd, ref_item_array, fields)) {
+      return true;
+    }
+  } else if (!const_for_execution() &&                                // (1)
+             (type() != REF_ITEM ||                                   // (2)
+              down_cast<Item_ref *>(this)->ref_type() ==              //
+                  Item_ref::VIEW_REF) &&                              //
+             (type() != SUBSELECT_ITEM ||                             // (3)
+              (down_cast<Item_subselect *>(this)->subquery_type() ==  //
                    Item_subselect::SCALAR_SUBQUERY &&
                down_cast<Item_subselect *>(this)
-                       ->query_expr()
-                       ->first_query_block()
-                       ->single_visible_field() != nullptr)) &&
-             (type() != REF_ITEM ||  // (3)
-              (down_cast<Item_ref *>(this))->ref_type() ==
-                  Item_ref::VIEW_REF)) {
+                   ->is_single_column_scalar_subquery()))) {
     /*
-      (1) Replace item with a reference so that we can easily calculate
-      it (in case of sum functions) or copy it (in case of fields)
+      (1) Replace non-constant item with a reference so that we can easily
+      calculate it (in case of aggregate functions, grouping functions or
+      window functions) or copy it (in case of fields).
 
-      The test above is to ensure we don't do a reference for things
-      that are constants (INNER_TABLE_BIT is in effect a constant)
-      or already referenced (for example an item in HAVING)
+      (2) Exception from (1) is Item_view_ref which we need to wrap in
+      Item_ref to allow fields from view being stored in tmp table.
 
-      (2) In order to handle queries like:
+      (3) In order to handle queries like:
         SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
-      we need to move subselects to hidden fields too. But since window
-      functions accept only single-row and single-column subqueries other
-      types are excluded.
+      we need to move scalar subqueries to hidden fields too. But since window
+      functions accept only scalar and row subqueries, other types are excluded.
       Indeed, a subquery of another type is wrapped in Item_in_optimizer at this
       stage, so when splitting Item_in_optimizer, if we added the underlying
       Item_subselect to "fields" below it would be later evaluated by
       copy_funcs() (in tmp table processing), which would be incorrect as the
       Item_subselect cannot be evaluated - as it must always be evaluated
       through its parent Item_in_optimizer.
-
-      (3) Exception from (1) is Item_view_ref which we need to wrap in
-      Item_ref to allow fields from view being stored in tmp table.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 
     const bool old_hidden = hidden;  // May be overwritten below.
 
     // See if the item is already there. If it's not there
-    // (the common case), we put it at the end.
+    // (the common case), add it at the end.
     //
     // However, if a scalar-subquery-to-derived rewrite needed to process
-    // a HAVING item, we might already be there (as a visible item).
-    // If so, we must not add ourselves twice, or we'd overwrite the hidden
-    // flag.
+    // a HAVING item, it might already be there (as a visible item).
+    // If so, we must not add it twice, or we'd overwrite the hidden flag.
     uint el =
         std::find(&ref_item_array[0], &ref_item_array[fields->size()], this) -
         &ref_item_array[0];
     if (el == fields->size()) {
-      // Was not there from before, so add ourselves as a hidden item.
+      // Was not there from before, so add it as a hidden item.
       ref_item_array[el] = this;
       // Should also be absent from 'fields', for consistency.
       assert(std::find(fields->begin(), fields->end(), this) == fields->end());
@@ -2428,7 +2434,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
 
     Query_block *base_query_block;
     Query_block *depended_from = nullptr;
-    if (type() == SUM_FUNC_ITEM && !m_is_window_function) {
+    if (is_aggr_func) {
       Item_sum *const item = down_cast<Item_sum *>(this);
       assert(thd->lex->current_query_block() == item->aggr_query_block);
       base_query_block = item->base_query_block;
@@ -2441,15 +2447,15 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     Item_aggregate_ref *const item_ref = new Item_aggregate_ref(
         &base_query_block->context, &ref_item_array[el], nullptr, nullptr,
         item_name.ptr(), depended_from);
-    if (!item_ref) return; /* purecov: inspected */
+    if (item_ref == nullptr) return true; /* purecov: inspected */
     item_ref->hidden = old_hidden;
     if (ref == nullptr) {
-      assert(is_sum_func);
+      assert(is_aggr_func);
       // Let 'ref' be the two elements of referenced_by[].
       ref = down_cast<Item_sum *>(this)->referenced_by[1];
       if (ref != nullptr) *ref = item_ref;
       ref = down_cast<Item_sum *>(this)->referenced_by[0];
-      assert(ref);
+      assert(ref != nullptr);
     }
     // WL#6570 remove-after-qa
     assert(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
@@ -2459,8 +2465,11 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       A WF must both be added to hidden list (done above), and be split so its
       arguments are added into the hidden list (done below):
     */
-    if (m_is_window_function) split_sum_func(thd, ref_item_array, fields);
+    if (m_is_window_function && split_sum_func(thd, ref_item_array, fields)) {
+      return true;
+    }
   }
+  return false;
 }
 
 static bool left_is_superset(DTCollation *left, DTCollation *right) {

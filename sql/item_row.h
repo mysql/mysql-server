@@ -133,7 +133,7 @@ class Item_row : public Item {
                          Query_block *removed_query_block) override;
   bool propagate_type(THD *thd, const Type_properties &type) override;
   void cleanup() override;
-  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
+  bool split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   table_map used_tables() const override { return used_tables_cache; }
   enum Item_result result_type() const override { return ROW_RESULT; }

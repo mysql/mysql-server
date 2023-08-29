@@ -2485,10 +2485,11 @@ class Item : public Parse_tree_node {
   */
   virtual void update_used_tables() {}
 
-  virtual void split_sum_func(THD *, Ref_item_array, mem_root_deque<Item *> *) {
+  virtual bool split_sum_func(THD *, Ref_item_array, mem_root_deque<Item *> *) {
+    return false;
   }
   /* Called for items that really have to be split */
-  void split_sum_func2(THD *thd, Ref_item_array ref_item_array,
+  bool split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                        mem_root_deque<Item *> *fields, Item **ref,
                        bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) = 0;

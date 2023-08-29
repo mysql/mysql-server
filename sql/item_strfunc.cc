@@ -2390,10 +2390,12 @@ bool Item_func_make_set::do_itemize(Parse_context *pc, Item **res) {
   return item->itemize(pc, &item) || super::do_itemize(pc, res);
 }
 
-void Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+bool Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                         mem_root_deque<Item *> *fields) {
-  item->split_sum_func2(thd, ref_item_array, fields, &item, true);
-  Item_str_func::split_sum_func(thd, ref_item_array, fields);
+  if (item->split_sum_func2(thd, ref_item_array, fields, &item, true)) {
+    return true;
+  }
+  return Item_str_func::split_sum_func(thd, ref_item_array, fields);
 }
 
 bool Item_func_make_set::resolve_type(THD *thd) {

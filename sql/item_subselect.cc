@@ -1121,6 +1121,10 @@ void Item_singlerow_subselect::store(uint i, Item *item) {
   m_row[i]->cache_value();
 }
 
+bool Item_singlerow_subselect::is_single_column_scalar_subquery() const {
+  return query_expr()->first_query_block()->single_visible_field() != nullptr;
+}
+
 enum Item_result Item_singlerow_subselect::result_type() const {
   if (cols() > 1) return ROW_RESULT;
   return type_to_result(data_type());

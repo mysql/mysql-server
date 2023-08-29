@@ -116,6 +116,13 @@ class Item_subselect : public Item_result_field {
 
   virtual Subquery_type subquery_type() const = 0;
 
+  /**
+    @returns whether this subquery is a single column scalar subquery.
+             (Note that scalar and row subqueries are both represented as
+              scalar subqueries, this function can be used to distinguish them)
+  */
+  virtual bool is_single_column_scalar_subquery() const { return false; }
+
   void cleanup() override;
   /**
     Reset state after a single execution of a subquery, useful when a
@@ -270,6 +277,8 @@ class Item_singlerow_subselect : public Item_subselect {
   Subquery_type subquery_type() const override { return SCALAR_SUBQUERY; }
   bool create_row(const mem_root_deque<Item *> &item_list, Item_cache **row,
                   bool possibly_empty);
+
+  bool is_single_column_scalar_subquery() const override;
 
   void reset() override;
   void store(uint i, Item *item);
