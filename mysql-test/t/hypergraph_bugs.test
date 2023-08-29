@@ -885,3 +885,16 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE EXISTS
   WHERE x2.b=x3.d AND x2.c=x3.e AND x3.d=x4.b AND x2.e=x4.e);
 
 DROP TABLE t1;
+
+# Test case for post-push fix for commit with
+# 'Change-Id: I40156663f32a407490b066a566abe72b356cfda9'. Fix for UBSAN
+# error: building reference to dereferenced null pointer.
+CREATE TABLE t1 (a int, b int);
+
+ANALYZE TABLE t1;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM  t1 x1 LEFT JOIN (t1 x2, t1 x3)
+ON x1.a=x3.a WHERE x1.b<x2.b OR x2.a IS NULL;
+
+DROP TABLE t1;
