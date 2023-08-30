@@ -14,7 +14,14 @@
 --source ../mysqlrouter_keyring.inc
 
 --let $extra_http_port=`SELECT $ROUTER_PORT + 1`
---let $extra_http_enable_ssl=1
+if (!$extra_http_enable_ssl)
+{
+  if ($extra_http_enable_ssl != 0)
+  {
+    echo  # Setting SSL;
+    --let $extra_http_enable_ssl=1
+  }
+}
 --let $extra_mrs_meta_user=root
 if (!$extra_mrs_read_write_route)
 {

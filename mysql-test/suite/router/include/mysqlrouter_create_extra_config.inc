@@ -105,6 +105,12 @@ if ($extra_keyring_file)
     --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"keyring_path=$extra_keyring_file\n");
 }
 
+if ($extra_logger_info)
+{
+  SET @variable_extra_config = CONCAT(@variable_extra_config,"[logger]\n");
+  SET @variable_extra_config = CONCAT(@variable_extra_config,"level=INFO\n");
+}
+
 
 --let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file
 --source ../include/mysqlrouter_remember_file_for_removal.inc
