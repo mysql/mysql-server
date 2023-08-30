@@ -3063,19 +3063,30 @@ int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
   assert(sampling_percentage >= 0.0);
   assert(sampling_percentage <= 100.0);
   assert(inited == NONE);
+  assert(m_random_number_engine == nullptr);
 
-  // Initialise the random number generator.
-  m_random_number_engine.seed(sampling_seed);
+  // Initialize the random number generator.
+  // The common use case is: the random number generator is used only once.
+  // If we call ha_sample_init/ha_sample_end multiple times for a handler
+  // object, we may have changed MEM_ROOT, so we need to create a new one.
+  m_random_number_engine = new (*THR_MALLOC) std::mt19937;
+  if (m_random_number_engine == nullptr) return HA_ERR_OUT_OF_MEM;
+  m_random_number_engine->seed(sampling_seed);
   m_sampling_percentage = sampling_percentage;
 
   const int result = sample_init(scan_ctx, sampling_percentage, sampling_seed,
                                  sampling_method, tablesample);
   inited = (result != 0) ? NONE : SAMPLING;
+  // Reset pointer here, since ha_sample_end() will not be called.
+  if (result != 0) m_random_number_engine = nullptr;
   return result;
 }
 
 int handler::ha_sample_end(void *scan_ctx) {
   DBUG_TRACE;
+  // There is no need to ::destroy_at(m_random_number_engine).
+  // std::mersenne_twister_engine is documented to have no DTOR.
+  m_random_number_engine = nullptr;
   assert(inited == SAMPLING);
   inited = NONE;
   const int result = sample_end(scan_ctx);
@@ -3115,7 +3126,7 @@ int handler::sample_next(void *scan_ctx [[maybe_unused]], uchar *buf) {
   int res = rnd_next(buf);
 
   std::uniform_real_distribution<double> rnd(0.0, 1.0);
-  while (!res && rnd(m_random_number_engine) > (m_sampling_percentage / 100.0))
+  while (!res && rnd(*m_random_number_engine) > (m_sampling_percentage / 100.0))
     res = rnd_next(buf);
 
   return res;

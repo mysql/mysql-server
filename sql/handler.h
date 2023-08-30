@@ -4629,7 +4629,7 @@ class handler {
   */
   PSI_table *m_psi;
 
-  std::mt19937 m_random_number_engine;
+  std::mt19937 *m_random_number_engine{nullptr};
   double m_sampling_percentage;
 
  private:
