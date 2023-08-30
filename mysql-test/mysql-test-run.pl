@@ -158,6 +158,7 @@ my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
 my $opt_valgrind_mysqld    = 0;
 my $opt_valgrind_mysqltest = 0;
+my $opt_accept_fail        = 0;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -475,6 +476,11 @@ sub main {
 
   if ($opt_lock_order) {
     lock_order_prepare($bindir);
+  }
+
+  if ($opt_accept_fail and not $opt_force) {
+    $opt_force = 1;
+    mtr_report("accept-test-fail turned on: enabling --force");
   }
 
   # Collect test cases from a file and put them into '@opt_cases'.
@@ -921,7 +927,7 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-  mtr_report_stats("Completed", $completed);
+  mtr_report_stats("Completed", $completed, $opt_accept_fail);
 
   remove_vardir_subs() if $opt_clean_vardir;
 
@@ -1755,6 +1761,7 @@ sub command_line_setup {
     'vardir=s'        => \$opt_vardir,
 
     # Misc
+    'accept-test-fail'      => \$opt_accept_fail,
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
     'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,
@@ -8032,6 +8039,9 @@ Options for valgrind
 
 Misc options
 
+  accept-test-fail      Do not print an error and do not give exit 1 if
+                        some tests failed, but test run was completed.
+                        This option also turns on --force.
   charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
   colored-diff          Colorize the diff part of the output.
   comment=STR           Write STR to the output.
