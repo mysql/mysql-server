@@ -427,5 +427,10 @@ bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
   if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))
     return true;
 
+  Table_ddl_hton_notification_guard notification_guard{
+      thd, &table_list->mdl_request.key, HA_ALTER_DDL};
+
+  if (notification_guard.notify()) return true;
+
   return mysql_secondary_load_or_unload(thd, table_list);
 }
