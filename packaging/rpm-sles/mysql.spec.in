@@ -72,16 +72,19 @@
 %if 0%{?suse_version} == 1315
 %global dist                  .sles12
 %global sles12                1
+%global add_fido_plugins      0
 %endif
 
 %if 0%{?suse_version} == 1500
 %global dist                  .sl15
 %global sles15                1
+%global add_fido_plugins      1
 %endif
 
 %if 0%{?suse_version} == 1550
 %global dist                  .sl16
 %global sles16                1
+%global add_fido_plugins      1
 %endif
 
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
@@ -886,8 +889,10 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
@@ -982,8 +987,10 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
@@ -1152,11 +1159,13 @@ rm -r $(readlink var) var
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.13.0
+%endif # add_fido_plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 
 %if 0%{?compatlib}
@@ -1286,8 +1295,10 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
+%if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
+%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so

@@ -1,0 +1,43 @@
+libfido2 can be fuzzed using AFL or libFuzzer, with or without
+ASAN/MSAN/UBSAN.
+
+AFL is more convenient when fuzzing the path from the authenticator to
+libfido2 in an existing application. To do so, use preload-snoop.c with a real
+authenticator to obtain an initial corpus, rebuild libfido2 with -DFUZZ=ON, and
+use preload-fuzz.c to read device data from stdin.
+
+libFuzzer is better suited for bespoke fuzzers; see fuzz_cred.c, fuzz_credman.c,
+fuzz_assert.c, fuzz_hid.c, and fuzz_mgmt.c for examples. To build these
+harnesses, use -DCMAKE_C_FLAGS=-fsanitize=fuzzer-no-link
+-DFUZZ_LDFLAGS=-fsanitize=fuzzer -DFUZZ=ON.
+
+If -DFUZZ=ON is enabled, symbols listed in wrapped.sym are wrapped in the
+resulting shared object. The wrapper functions simulate failure according to a
+deterministic RNG and probabilities defined in wrap.c. Harnesses wishing to
+use this functionality should call prng_init() with a seed obtained from the
+corpus. To mutate only the seed part of a libFuzzer harness's corpora,
+use '-reduce_inputs=0 --fido-mutate=seed'.
+
+To run under ASAN/MSAN/UBSAN, libfido2 needs to be linked against flavours of
+libcbor and OpenSSL built with the respective sanitiser. In order to keep
+memory utilisation at a manageable level, you can either enforce limits at
+the OS level (e.g. cgroups on Linux), or patch libcbor with the diff below.
+N.B., the patch below is relative to libcbor 0.10.1.
+
+diff --git src/cbor/internal/memory_utils.c src/cbor/internal/memory_utils.c
+index bbea63c..3f7c9af 100644
+--- src/cbor/internal/memory_utils.c
++++ src/cbor/internal/memory_utils.c
+@@ -41,7 +41,11 @@ size_t _cbor_safe_signaling_add(size_t a, size_t b) {
+ 
+ void* _cbor_alloc_multiple(size_t item_size, size_t item_count) {
+   if (_cbor_safe_to_multiply(item_size, item_count)) {
+-    return _cbor_malloc(item_size * item_count);
++    if (item_count > 1000) {
++      return NULL;
++    } else {
++      return _cbor_malloc(item_size * item_count);
++    }
+   } else {
+     return NULL;
+   }

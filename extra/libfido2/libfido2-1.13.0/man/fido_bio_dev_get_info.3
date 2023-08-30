@@ -1,0 +1,145 @@
+.\" Copyright (c) 2019 Yubico AB. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: September 13 2019 $
+.Dt FIDO_BIO_DEV_GET_INFO 3
+.Os
+.Sh NAME
+.Nm fido_bio_dev_get_info ,
+.Nm fido_bio_dev_enroll_begin ,
+.Nm fido_bio_dev_enroll_continue ,
+.Nm fido_bio_dev_enroll_cancel ,
+.Nm fido_bio_dev_enroll_remove ,
+.Nm fido_bio_dev_get_template_array ,
+.Nm fido_bio_dev_set_template_name
+.Nd FIDO2 biometric authenticator API
+.Sh SYNOPSIS
+.In fido.h
+.In fido/bio.h
+.Ft int
+.Fn fido_bio_dev_get_info "fido_dev_t *dev" "fido_bio_info_t *info"
+.Ft int
+.Fn fido_bio_dev_enroll_begin "fido_dev_t *dev" "fido_bio_template_t *template" "fido_bio_enroll_t *enroll" "uint32_t timeout_ms" "const char *pin"
+.Ft int
+.Fn fido_bio_dev_enroll_continue "fido_dev_t *dev" "const fido_bio_template_t *template" "fido_bio_enroll_t *enroll" "uint32_t timeout_ms"
+.Ft int
+.Fn fido_bio_dev_enroll_cancel "fido_dev_t *dev"
+.Ft int
+.Fn fido_bio_dev_enroll_remove "fido_dev_t *dev" "const fido_bio_template_t *template" "const char *pin"
+.Ft int
+.Fn fido_bio_dev_get_template_array "fido_dev_t *dev" "fido_bio_template_array_t *template_array" "const char *pin"
+.Ft int
+.Fn fido_bio_dev_set_template_name "fido_dev_t *dev" "const fido_bio_template_t *template" "const char *pin"
+.Sh DESCRIPTION
+The functions described in this page allow biometric
+templates on a FIDO2 authenticator to be listed, created,
+removed, and customised.
+Please note that not all FIDO2 authenticators support biometric
+enrollment.
+For a description of the types involved, please refer to
+.Xr fido_bio_info_new 3 ,
+.Xr fido_bio_enroll_new 3 ,
+and
+.Xr fido_bio_template 3 .
+.Pp
+The
+.Fn fido_bio_dev_get_info
+function populates
+.Fa info
+with sensor information from
+.Fa dev .
+.Pp
+The
+.Fn fido_bio_dev_enroll_begin
+function initiates a biometric enrollment on
+.Fa dev ,
+instructing the authenticator to wait
+.Fa timeout_ms
+milliseconds.
+On success,
+.Fa template
+and
+.Fa enroll
+will be populated with the newly created template's
+information and enrollment status, respectively.
+.Pp
+The
+.Fn fido_bio_dev_enroll_continue
+function continues an ongoing enrollment on
+.Fa dev ,
+instructing the authenticator to wait
+.Fa timeout_ms
+milliseconds.
+On success,
+.Fa enroll
+will be updated to reflect the status of the biometric
+enrollment.
+.Pp
+The
+.Fn fido_bio_dev_enroll_cancel
+function cancels an ongoing enrollment on
+.Fa dev .
+.Pp
+The
+.Fn fido_bio_dev_enroll_remove
+function removes
+.Fa template
+from
+.Fa dev .
+.Pp
+The
+.Fn fido_bio_dev_get_template_array
+function populates
+.Fa template_array
+with the templates currently enrolled on
+.Fa dev .
+.Pp
+The
+.Fn fido_bio_dev_set_template_name
+function sets the friendly name of
+.Fa template
+on
+.Fa dev .
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_bio_dev_get_info ,
+.Fn fido_bio_dev_enroll_begin ,
+.Fn fido_bio_dev_enroll_continue ,
+.Fn fido_bio_dev_enroll_cancel ,
+.Fn fido_bio_dev_enroll_remove ,
+.Fn fido_bio_dev_get_template_array ,
+and
+.Fn fido_bio_dev_set_template_name
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_bio_enroll_new 3 ,
+.Xr fido_bio_info_new 3 ,
+.Xr fido_bio_template 3
