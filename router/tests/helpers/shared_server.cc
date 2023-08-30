@@ -62,7 +62,11 @@ stdx::expected<void, MysqlError> SharedServer::shutdown() {
   auto cli_res = admin_cli();
   if (!cli_res) return stdx::make_unexpected(cli_res.error());
 
-  auto shutdown_res = cli_res->shutdown();
+  return shutdown(*cli_res);
+}
+
+stdx::expected<void, MysqlError> SharedServer::shutdown(MysqlClient &cli) {
+  auto shutdown_res = cli.shutdown();
   if (!shutdown_res) return stdx::make_unexpected(shutdown_res.error());
 
   return {};

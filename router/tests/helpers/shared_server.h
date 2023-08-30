@@ -49,6 +49,8 @@ class SharedServer {
 
   stdx::expected<void, MysqlError> shutdown();
 
+  static stdx::expected<void, MysqlError> shutdown(MysqlClient &cli);
+
   [[nodiscard]] std::string mysqld_init_once_dir_name() const;
 
   [[nodiscard]] std::string mysqld_dir_name() const;
@@ -85,9 +87,9 @@ class SharedServer {
   void grant_access(MysqlClient &cli, const Account &account,
                     const std::string &rights, const std::string &schema);
 
-  void create_account(MysqlClient &cli, Account account);
+  static void create_account(MysqlClient &cli, Account account);
 
-  void drop_account(MysqlClient &cli, Account account);
+  static void drop_account(MysqlClient &cli, Account account);
 
   void setup_mysqld_accounts();
 
@@ -97,7 +99,7 @@ class SharedServer {
 
   void flush_privileges();
 
-  void flush_privileges(MysqlClient &cli);
+  static void flush_privileges(MysqlClient &cli);
 
   // get all connections, but ignore internal connections and this
   // connection.
@@ -141,7 +143,7 @@ class SharedServer {
   // set some session-vars back to defaults.
   void reset_to_defaults();
 
-  void reset_to_defaults(MysqlClient &cli);
+  static void reset_to_defaults(MysqlClient &cli);
 
   [[nodiscard]] bool mysqld_failed_to_start() const {
     return mysqld_failed_to_start_;

@@ -79,16 +79,12 @@ using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
-using ::testing::AllOf;
 using ::testing::AnyOf;
-using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
-using ::testing::IsSupersetOf;
 using ::testing::Not;
 using ::testing::Pair;
 using ::testing::SizeIs;
-using ::testing::StartsWith;
 
 static constexpr const auto kIdleServerConnectionsSleepTime{10ms};
 
@@ -674,30 +670,50 @@ class SharedRestartableRouter {
 class TestEnv : public ::testing::Environment {
  public:
   void SetUp() override {
-    for (auto &s : shared_servers_) {
-      if (s == nullptr) {
-        s = new SharedServer(port_pool_);
-        s->prepare_datadir();
-        s->spawn_server();
+    auto account = SharedServer::admin_account();
 
-        if (s->mysqld_failed_to_start()) {
-          GTEST_SKIP() << "mysql-server failed to start.";
-        }
-        s->setup_mysqld_accounts();
-        s->install_plugins();
+    for (auto [ndx, s] : stdx::views::enumerate(shared_servers_)) {
+      if (s != nullptr) continue;
+      s = new SharedServer(port_pool_);
+      s->prepare_datadir();
+      s->spawn_server();
+
+      if (s->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
       }
+      s->setup_mysqld_accounts();
+      s->install_plugins();
+
+      auto cli = new MysqlClient;
+
+      cli->username(account.username);
+      cli->password(account.password);
+
+      auto connect_res = cli->connect(s->server_host(), s->server_port());
+      ASSERT_NO_ERROR(connect_res);
+
+      admin_clis_[ndx] = cli;
     }
 
     run_slow_tests_ = std::getenv("RUN_SLOW_TESTS") != nullptr;
   }
 
   std::array<SharedServer *, 4> servers() { return shared_servers_; }
+  std::array<MysqlClient *, 4> admin_clis() { return admin_clis_; }
 
   TcpPortPool &port_pool() { return port_pool_; }
 
   [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
 
   void TearDown() override {
+    for (auto &cli : admin_clis_) {
+      if (cli == nullptr) continue;
+
+      delete cli;
+
+      cli = nullptr;
+    }
+
     for (auto &s : shared_servers_) {
       if (s == nullptr || s->mysqld_failed_to_start()) continue;
 
@@ -723,6 +739,7 @@ class TestEnv : public ::testing::Environment {
   TcpPortPool port_pool_;
 
   std::array<SharedServer *, 4> shared_servers_{};
+  std::array<MysqlClient *, 4> admin_clis_{};
 
   bool run_slow_tests_{false};
 };
@@ -949,18 +966,32 @@ class ShareConnectionTestTemp
     return o;
   }
 
+  static std::array<MysqlClient *, kNumServers> admin_clis() {
+    std::array<MysqlClient *, kNumServers> o;
+
+    // get a subset of the started servers
+    for (auto [ndx, s] : stdx::views::enumerate(test_env->admin_clis())) {
+      if (ndx >= kNumServers) break;
+
+      o[ndx] = s;
+    }
+
+    return o;
+  }
+
   SharedRouter *shared_router() { return TestWithSharedRouter::router(); }
 
   void SetUp() override {
-    for (auto &s : shared_servers()) {
+    for (auto [ndx, s] : stdx::views::enumerate(shared_servers())) {
       // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        ASSERT_NO_ERROR(
-            s->close_all_connections());  // reset the router's connection-pool
-        s->reset_to_defaults();
+        auto cli = admin_clis()[ndx];
+
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*cli));
+        SharedServer::reset_to_defaults(*cli);
       }
     }
   }
@@ -1786,10 +1817,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   SCOPED_TRACE("// connecting to server");
 
-  auto admin_cli_res = shared_servers()[0]->admin_cli();
-  ASSERT_NO_ERROR(admin_cli_res);
-
-  auto admin_cli = std::move(*admin_cli_res);
+  auto &admin_cli = *(admin_clis()[0]);
   ASSERT_NO_ERROR(admin_cli.query("DROP USER IF EXISTS changeme"));
   ASSERT_NO_ERROR(
       admin_cli.query("CREATE USER changeme IDENTIFIED WITH "
@@ -1918,10 +1946,7 @@ WHERE t.thread_id = r.thread_id
     std::this_thread::sleep_for(100ms);
   }
 
-  auto source_res = shared_servers()[0]->admin_cli();
-  ASSERT_NO_ERROR(source_res);
-
-  auto source = std::move(*source_res);
+  auto &source = *(admin_clis()[0]);
 
   SCOPED_TRACE("// replica is registered.");
   // check that the replica registered to the source with the values provided
@@ -2398,10 +2423,12 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
       for (auto clean_pool_before_verify : {false, true}) {
         SCOPED_TRACE("// clean_pool_before_verify: " +
                      std::to_string(clean_pool_before_verify));
-        for (auto &s : shared_servers()) {
-          s->flush_privileges();                        // reset the auth-cache
-          ASSERT_NO_ERROR(s->close_all_connections());  // reset the router's
-                                                        // connection-pool
+        for (auto &admin_cli : admin_clis()) {
+          // reset the auth-cache
+          SharedServer::flush_privileges(*admin_cli);
+
+          // reset the router's connection-pool
+          ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
         }
 
         std::vector<MysqlClient> clis;
@@ -2446,8 +2473,8 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
               kMaxPoolSize, 10s));
 
           // only close the connections that are expected to be in the pool.
-          for (auto &s : shared_servers()) {
-            ASSERT_NO_ERROR(s->close_all_connections());
+          for (auto &admin_cli : admin_clis()) {
+            ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
           }
 
           // wait until all connections are pooled.
@@ -2910,27 +2937,19 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
   SCOPED_TRACE("// prepare servers");
 
   // step: 0
-  std::vector<MysqlClient> srv_clis;
-  for (auto &s : shared_servers()) {
-    auto cli_res = s->admin_cli();
-    ASSERT_NO_ERROR(cli_res);
-
-    auto cli = std::move(*cli_res);
-
-    ASSERT_NO_ERROR(cli.query("DROP TABLE IF EXISTS testing.t1"));
+  for (auto &cli : admin_clis()) {
+    ASSERT_NO_ERROR(cli->query("DROP TABLE IF EXISTS testing.t1"));
 
     // the FLUSH TABLES t1 WITH READ LOCK needs a table.
 
-    ASSERT_NO_ERROR(cli.query("CREATE TABLE testing.t1 (word varchar(20))"));
+    ASSERT_NO_ERROR(cli->query("CREATE TABLE testing.t1 (word varchar(20))"));
 
     // limit the number of connections to the backend.
-    ASSERT_NO_ERROR(cli.query("SET GLOBAL max_connections = 2"));
-
-    srv_clis.push_back(std::move(cli));
+    ASSERT_NO_ERROR(cli->query("SET GLOBAL max_connections = 2"));
   }
 
   // below, tests assume there is only one server.
-  ASSERT_THAT(srv_clis, SizeIs(1));
+  ASSERT_THAT(admin_clis(), SizeIs(1));
 
   const auto query_before_release_combinations =
       test_env->run_slow_tests() ? std::vector<bool>{false, true}
@@ -2952,17 +2971,13 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
           SCOPED_TRACE("// make second connection not sharable: " +
                        (make_second_connection_not_sharable ? "yes"s : "no"s));
 
-          for (auto [ndx, s] : stdx::views::enumerate(shared_servers())) {
-            SCOPED_TRACE("// reset server state: " +
-                         std::to_string(s->server_port()));
-
-            auto &srv_cli = srv_clis[ndx];
-
+          for (auto *srv_cli : admin_clis()) {
             // reset the auth-cache
-            ASSERT_NO_FATAL_FAILURE(s->flush_privileges(srv_cli));
+            ASSERT_NO_FATAL_FAILURE(SharedServer::flush_privileges(*srv_cli));
 
             // reset the router's connection-pool
-            ASSERT_NO_FATAL_FAILURE(s->close_all_connections(srv_cli));
+            ASSERT_NO_FATAL_FAILURE(
+                SharedServer::close_all_connections(*srv_cli));
           }
 
           uint16_t connection_id{};
@@ -2992,7 +3007,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
             }
 
             {
-              auto ids_res = SharedServer::user_connection_ids(srv_clis[0]);
+              auto &srv_cli = *(admin_clis()[0]);
+
+              auto ids_res = SharedServer::user_connection_ids(srv_cli);
               ASSERT_NO_ERROR(ids_res);
               ASSERT_THAT(*ids_res, SizeIs(1));
 
@@ -3030,7 +3047,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
               ASSERT_NO_ERROR(cli.query("DO 1"));
 
               {
-                auto ids_res = SharedServer::user_connection_ids(srv_clis[0]);
+                auto &srv_cli = *(admin_clis()[0]);
+
+                auto ids_res = SharedServer::user_connection_ids(srv_cli);
                 ASSERT_NO_ERROR(ids_res);
                 ASSERT_THAT(*ids_res, SizeIs(1));
 
@@ -3045,8 +3064,10 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
 
             SCOPED_TRACE("// capture the current com-events");
             {
+              auto &srv_cli = *(admin_clis()[0]);
+
               auto events_res = changed_event_counters(
-                  srv_clis[0], connection_id, "AND EVENT_NAME LIKE '%/com/%'");
+                  srv_cli, connection_id, "AND EVENT_NAME LIKE '%/com/%'");
               ASSERT_NO_ERROR(events_res);
 
               events = *events_res;
@@ -3089,7 +3110,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
 
             SCOPED_TRACE("// check the previous connection was reused.");
             {
-              auto ids_res = SharedServer::user_connection_ids(srv_clis[0]);
+              auto &srv_cli = *(admin_clis()[0]);
+
+              auto ids_res = SharedServer::user_connection_ids(srv_cli);
               ASSERT_NO_ERROR(ids_res);
               ASSERT_THAT(*ids_res, SizeIs(1));
 
@@ -3120,7 +3143,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
             {
               // connect directly to the backend as the client connection may
               // use LOCK TABLES
-              auto &srv_cli = srv_clis[0];
+              auto &srv_cli = *(admin_clis()[0]);
 
               auto events_res = changed_event_counters(
                   srv_cli, connection_id, "AND EVENT_NAME LIKE '%/com/%'");
@@ -3220,10 +3243,12 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, forbidden_statements_if_sharing) {
     for (auto &[checker_name, checker] : checkers) {
       SCOPED_TRACE("// checker: " + checker_name);
 
-      for (auto &s : shared_servers()) {
-        s->flush_privileges();  // reset the auth-cache
-        ASSERT_NO_ERROR(
-            s->close_all_connections());  // reset the router's connection-pool
+      for (auto admin_cli : admin_clis()) {
+        // reset the auth-cache
+        SharedServer::flush_privileges(*admin_cli);
+
+        // reset the router's connection-pool
+        SharedServer::close_all_connections(*admin_cli);
       }
 
       std::string connection_id;
@@ -3344,11 +3369,10 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, forbidden_statements_if_sharing) {
 
           // connect directly to the backend as the client connection may use
           // LOCK TABLES
-          auto srv_cli_res = shared_servers()[0]->admin_cli();
-          ASSERT_NO_ERROR(srv_cli_res);
+          auto &srv_cli = *(admin_clis()[0]);
 
           auto events_res = changed_event_counters(
-              *srv_cli_res, *conn_id_res, "AND EVENT_NAME LIKE '%/com/%'");
+              srv_cli, *conn_id_res, "AND EVENT_NAME LIKE '%/com/%'");
           ASSERT_NO_ERROR(events_res);
           if (can_share) {
             EXPECT_EQ(events[0].first, "statement/com/Reset Connection");
@@ -3414,44 +3438,25 @@ static stdx::expected<void, MysqlError> try_until_connection_available(
  */
 TEST_P(ShareConnectionTinyPoolOneServerTest,
        classic_protocol_server_greeting_error) {
-  SCOPED_TRACE("// set max-connections = 1, globally");
-  {
-    MysqlClient admin_cli;
-
-    auto admin_account = SharedServer::admin_account();
-
-    admin_cli.username(admin_account.username);
-    admin_cli.password(admin_account.password);
-
-    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
-                                      shared_router()->port(GetParam())));
-
-    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
-  }
-
+  SCOPED_TRACE("// set max-connections = 2, globally");
   // close all connections that are currently in the pool to get a stable
   // baseline.
-  for (auto &srv : shared_servers()) {
-    ASSERT_NO_ERROR(
-        srv->close_all_connections());  // reset the router's connection-pool
+  for (auto admin_cli : admin_clis()) {
+    SharedServer::close_all_connections(*admin_cli);
+
+    // there is one admin connection connection all the time.
+    ASSERT_NO_ERROR(admin_cli->query("SET GLOBAL max_connections = 2"));
   }
+
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
-  Scope_guard restore_at_end{[this]() {
-    auto reset_globals = [this]() -> stdx::expected<void, MysqlError> {
-      auto admin_account = SharedServer::admin_account();
-
-      MysqlClient admin_cli;
-
-      admin_cli.username(admin_account.username);
-      admin_cli.password(admin_account.password);
-
-      auto connect_res = admin_cli.connect(shared_router()->host(),
-                                           shared_router()->port(GetParam()));
-      if (!connect_res) return stdx::make_unexpected(connect_res.error());
-
-      auto query_res = admin_cli.query("SET GLOBAL max_connections = DEFAULT");
-      if (!query_res) return stdx::make_unexpected(query_res.error());
+  Scope_guard restore_at_end{[]() {
+    auto reset_globals = []() -> stdx::expected<void, MysqlError> {
+      for (auto *admin_cli : admin_clis()) {
+        auto query_res =
+            admin_cli->query("SET GLOBAL max_connections = DEFAULT");
+        if (!query_res) return stdx::make_unexpected(query_res.error());
+      }
 
       return {};
     };
@@ -3537,10 +3542,10 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   // close all connections that are currently in the pool to get a stable
   // baseline.
-  for (auto &srv : shared_servers()) {
+  for (auto *admin_cli : admin_clis()) {
     ASSERT_NO_ERROR(try_until_connection_available([&]() {
       // reset the router's connection-pool
-      return srv->close_all_connections();
+      return SharedServer::close_all_connections(*admin_cli);
     }));
   }
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
@@ -3562,41 +3567,38 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
        classic_protocol_server_greeting_error_at_query) {
   const bool can_share = GetParam().can_share();
 
-  SCOPED_TRACE("// set max-connections = 1, globally");
-  {
-    MysqlClient admin_cli;
-
-    auto admin_account = SharedServer::admin_account();
-
-    admin_cli.username(admin_account.username);
-    admin_cli.password(admin_account.password);
-
-    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
-                                      shared_router()->port(GetParam())));
-
-    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
-  }
+  SCOPED_TRACE("// set max-connections = 2, globally");
 
   // close all connections that are currently in the pool to get a stable
   // baseline.
-  for (auto &srv : shared_servers()) {
-    ASSERT_NO_ERROR(
-        srv->close_all_connections());  // reset the router's connection-pool
+  for (auto *admin_cli : admin_clis()) {
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
   }
+
+  for (auto admin_cli : admin_clis()) {
+    SharedServer::close_all_connections(*admin_cli);
+
+    // there is one admin connection connection all the time.
+    ASSERT_NO_ERROR(admin_cli->query("SET GLOBAL max_connections = 2"));
+  }
+
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
 
-  Scope_guard restore_at_end{[this]() {
-    MysqlClient admin_cli;
+  Scope_guard restore_at_end{[]() {
+    auto reset_globals = []() -> stdx::expected<void, MysqlError> {
+      for (auto *admin_cli : admin_clis()) {
+        auto query_res =
+            admin_cli->query("SET GLOBAL max_connections = DEFAULT");
+        if (!query_res) return stdx::make_unexpected(query_res.error());
+      }
 
-    auto admin_account = SharedServer::admin_account();
+      return {};
+    };
 
-    admin_cli.username(admin_account.username);
-    admin_cli.password(admin_account.password);
-
-    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
-                                      shared_router()->port(GetParam())));
-
-    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+    // it may take a while until the last connection of the test is closed
+    // before this admin connection can be opened to reset the globals again.
+    ASSERT_NO_ERROR(
+        try_until_connection_available([&]() { return reset_globals(); }));
   }};
 
   SCOPED_TRACE("// testing");
@@ -3653,10 +3655,10 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   // close all connections that are currently in the pool to get a stable
   // baseline.
-  for (auto &srv : shared_servers()) {
+  for (auto *admin_cli : admin_clis()) {
     ASSERT_NO_ERROR(try_until_connection_available([&]() {
       // reset the router's connection-pool
-      return srv->close_all_connections();
+      return SharedServer::close_all_connections(*admin_cli);
     }));
   }
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
@@ -3744,10 +3746,11 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
 
     if (can_share && can_fetch_password) {
       // purge
-      for (auto &s : shared_servers()) {
-        s->flush_privileges();  // reset the auth-cache
-        ASSERT_NO_ERROR(
-            s->close_all_connections());  // reset the router's connection-pool
+      for (auto *admin_cli : admin_clis()) {
+        // reset the auth-cache
+        SharedServer::flush_privileges(*admin_cli);
+        // reset the router's connection-pool
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
     }
   }
@@ -3757,10 +3760,9 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
 
   // get the connection-id and the port of the server each connection is
   // assigned to.
-  for (size_t ndx{}; ndx < clis.size(); ++ndx) {
+  for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     {
-      auto cmd_res =
-          query_one_result(clis[ndx], "SELECT @@port, CONNECTION_ID()");
+      auto cmd_res = query_one_result(cli, "SELECT @@port, CONNECTION_ID()");
       ASSERT_NO_ERROR(cmd_res);
 
       auto result = std::move(*cmd_res);
@@ -3771,9 +3773,9 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
     }
 
     if (can_share && can_fetch_password) {
-      for (auto &s : shared_servers()) {
-        ASSERT_NO_ERROR(
-            s->close_all_connections());  // reset the router's connection-pool
+      for (auto *admin_cli : admin_clis()) {
+        // reset the router's connection-pool
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
     }
 

@@ -99,6 +99,18 @@ static constexpr const std::string_view kPreferred{"PREFERRED"};
 static constexpr const std::string_view kPassthrough{"PASSTHROUGH"};
 static constexpr const std::string_view kAsClient{"AS_CLIENT"};
 
+namespace std {
+// pretty printer for std::chrono::duration<>
+
+template <class T, class R>
+std::ostream &operator<<(std::ostream &os,
+                         const std::chrono::duration<T, R> &duration) {
+  return os << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                   .count()
+            << "ms";
+}
+}  // namespace std
+
 std::ostream &operator<<(std::ostream &os, MysqlError e) {
   os << e.sql_state() << " (" << e.value() << ") " << e.message();
   return os;
@@ -662,29 +674,49 @@ class SharedRestartableRouter {
 class TestEnv : public ::testing::Environment {
  public:
   void SetUp() override {
-    for (auto &s : shared_servers_) {
-      if (s == nullptr) {
-        s = new SharedServer(port_pool_);
-        s->prepare_datadir();
-        s->spawn_server();
+    auto account = SharedServer::admin_account();
 
-        if (s->mysqld_failed_to_start()) {
-          GTEST_SKIP() << "mysql-server failed to start.";
-        }
-        s->setup_mysqld_accounts();
+    for (auto [ndx, s] : stdx::views::enumerate(shared_servers_)) {
+      if (s != nullptr) continue;
+      s = new SharedServer(port_pool_);
+      s->prepare_datadir();
+      s->spawn_server();
+
+      if (s->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "mysql-server failed to start.";
       }
+      s->setup_mysqld_accounts();
+
+      auto cli = new MysqlClient;
+
+      cli->username(account.username);
+      cli->password(account.password);
+
+      auto connect_res = cli->connect(s->server_host(), s->server_port());
+      ASSERT_NO_ERROR(connect_res);
+
+      admin_clis_[ndx] = cli;
     }
 
     run_slow_tests_ = std::getenv("RUN_SLOW_TESTS") != nullptr;
   }
 
   std::array<SharedServer *, 4> servers() { return shared_servers_; }
+  std::array<MysqlClient *, 4> admin_clis() { return admin_clis_; }
 
   TcpPortPool &port_pool() { return port_pool_; }
 
   [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
 
   void TearDown() override {
+    for (auto &cli : admin_clis_) {
+      if (cli == nullptr) continue;
+
+      delete cli;
+
+      cli = nullptr;
+    }
+
     for (auto &s : shared_servers_) {
       if (s == nullptr || s->mysqld_failed_to_start()) continue;
 
@@ -710,6 +742,7 @@ class TestEnv : public ::testing::Environment {
   TcpPortPool port_pool_;
 
   std::array<SharedServer *, 4> shared_servers_{};
+  std::array<MysqlClient *, 4> admin_clis_{};
 
   bool run_slow_tests_{false};
 };
@@ -953,6 +986,19 @@ class ShareConnectionTestBase : public RouterComponentTest {
     return o;
   }
 
+  static std::array<MysqlClient *, kNumServers> admin_clis() {
+    std::array<MysqlClient *, kNumServers> o;
+
+    // get a subset of the started servers
+    for (auto [ndx, s] : stdx::views::enumerate(test_env->admin_clis())) {
+      if (ndx >= kNumServers) break;
+
+      o[ndx] = s;
+    }
+
+    return o;
+  }
+
   SharedRouter *shared_router() { return TestWithSharedRouter::router(); }
 
   ~ShareConnectionTestBase() override {
@@ -974,19 +1020,44 @@ class ShareConnectionTest
     : public ShareConnectionTestBase,
       public ::testing::WithParamInterface<ShareConnectionParam> {
  public:
+#if 0
+#define TRACE(desc) trace(__func__, __LINE__, (desc))
+#else
+#define TRACE(desc)
+#endif
+
   void SetUp() override {
-    for (auto &s : shared_servers()) {
+    TRACE("");
+
+    for (auto [ndx, s] : stdx::views::enumerate(shared_servers())) {
       // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        ASSERT_NO_ERROR(
-            s->close_all_connections());  // reset the router's connection-pool
-        s->reset_to_defaults();
+        auto cli = admin_clis()[ndx];
+
+        // reset the router's connection-pool
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*cli));
+        SharedServer::reset_to_defaults(*cli);
       }
     }
+    TRACE("");
   }
+
+  void trace(std::string_view func_name, int line, std::string_view desc) {
+    std::ostringstream oss;
+
+    oss << func_name << "." << line << ": " << (clock_type::now() - started_)
+        << ": " << desc << "\n";
+
+    std::cerr << oss.str();
+  }
+
+ protected:
+  using clock_type = std::chrono::steady_clock;
+
+  clock_type::time_point started_{clock_type::now()};
 };
 
 /**
@@ -1128,6 +1199,8 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
  * - check they share the same connection
  */
 TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
+  TRACE("start");
+
   // 4 connections are needed as router does round-robin over 3 endpoints
   std::array<MysqlClient, 7> clis;
 
@@ -1149,23 +1222,25 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
     cli.username(account.username);
     cli.password(account.password);
 
+    TRACE("connect");
+
     ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
                                 shared_router()->port(GetParam())));
+
+    TRACE("connected " + std::to_string(ndx));
 
     // wait until the connection is in the pool.
     if (can_share) {
       ASSERT_NO_ERROR(
           shared_router()->wait_for_idle_server_connections(1, 10s));
+      TRACE("waited is-idle " + std::to_string(ndx));
     }
 
     // find it on one of the servers and kill it.
-    for (auto &s : shared_servers()) {
-      auto cli_res = s->admin_cli();
-      ASSERT_NO_ERROR(cli_res);
+    for (auto [s_ndx, s] : stdx::views::enumerate(shared_servers())) {
+      auto *srv_cli = admin_clis()[s_ndx];
 
-      auto srv_cli = std::move(*cli_res);
-
-      auto ids_res = s->user_connection_ids(srv_cli);
+      auto ids_res = SharedServer::user_connection_ids(*srv_cli);
       ASSERT_NO_ERROR(ids_res);
 
       auto ids = *ids_res;
@@ -1175,15 +1250,19 @@ TEST_P(ShareConnectionTest, classic_protocol_purge_after_connect_same_user) {
       EXPECT_THAT(ids, ::testing::SizeIs(1));
 
       for (auto id : ids) {
-        ASSERT_NO_ERROR(srv_cli.kill(id));
+        ASSERT_NO_ERROR(srv_cli->kill(id));
 
         cli_ids[ndx] = std::make_pair(s->server_port(), id);
       }
     }
 
+    TRACE("killed connection for " + std::to_string(ndx));
+
     // wait until it is gone from the pool.
     ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }
+
+  TRACE("check result");
 
   // check that no connection is reused ...
   EXPECT_THAT(cli_ids,
@@ -1245,13 +1324,10 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
     }
 
     // find the server which received the connection attempt.
-    for (auto &s : shared_servers()) {
-      auto cli_res = s->admin_cli();
-      ASSERT_NO_ERROR(cli_res);
+    for (auto [s_ndx, s] : stdx::views::enumerate(shared_servers())) {
+      auto *srv_cli = admin_clis()[s_ndx];
 
-      auto srv_cli = std::move(*cli_res);
-
-      auto ids_res = s->user_connection_ids(srv_cli);
+      auto ids_res = SharedServer::user_connection_ids(*srv_cli);
       ASSERT_NO_ERROR(ids_res);
 
       auto ids = *ids_res;
@@ -1261,7 +1337,7 @@ TEST_P(ShareConnectionTest, classic_protocol_pool_after_connect_same_user) {
       }
 
       for (auto id : ids) {
-        auto events_res = changed_event_counters(srv_cli, id);
+        auto events_res = changed_event_counters(*srv_cli, id);
         ASSERT_NO_ERROR(events_res);
 
         auto connection_id = std::make_pair(s->server_port(), id);
@@ -1490,8 +1566,8 @@ TEST_P(ShareConnectionTest, classic_protocol_connection_is_sticky_purged) {
       ASSERT_NO_ERROR(
           shared_router()->wait_for_idle_server_connections(1, 10s));
 
-      for (auto &s : shared_servers()) {
-        ASSERT_NO_ERROR(s->close_all_connections());
+      for (auto *admin_cli : admin_clis()) {
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
 
       ASSERT_NO_ERROR(
@@ -2255,8 +2331,9 @@ TEST_P(ShareConnectionTest, classic_protocol_list_fields_fails) {
 
 TEST_P(ShareConnectionTest,
        classic_protocol_change_user_caching_sha2_with_attributes_with_pool) {
-  for (auto &srv : shared_servers()) {
-    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
+  // reset auth-cache for caching-sha2-password
+  for (auto admin_cli : admin_clis()) {
+    SharedServer::flush_privileges(*admin_cli);
   }
 
   shared_router()->populate_connection_pool(GetParam());
@@ -2751,8 +2828,8 @@ TEST_P(ShareConnectionTest,
   }
 
   // close all connections to force a new connection.
-  for (auto &s : shared_servers()) {
-    ASSERT_NO_ERROR(s->close_all_connections());
+  for (auto *admin_cli : admin_clis()) {
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
   }
 
   // check if the new connection has the same schema.
@@ -2840,8 +2917,8 @@ TEST_P(ShareConnectionTest, classic_protocol_use_schema_pool_new_connection) {
   }
 
   // close the pooled server-connection.
-  for (auto &s : shared_servers()) {
-    ASSERT_NO_ERROR(s->close_all_connections());
+  for (auto *admin_cli : admin_clis()) {
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
   }
 
   {
@@ -3390,8 +3467,8 @@ TEST_P(ShareConnectionTest,
 
   ASSERT_NO_ERROR(cli.query("DO 0/0"));
 
-  for (auto &s : shared_servers()) {
-    ASSERT_NO_ERROR(s->close_all_connections());
+  for (auto *admin_cli : admin_clis()) {
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
   }
 
   {
@@ -3719,6 +3796,8 @@ class SelectErrorCountChecker : public Checker {
  * check errors and warnings are handled correctly.
  */
 TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
+  TRACE("start");
+
   const bool can_share = GetParam().can_share();
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
 
@@ -3803,14 +3882,23 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
                             }));
 
   for (auto &[checker_name, checker] : checkers) {
+    TRACE("running" + checker_name);
+
     SCOPED_TRACE("// checker: " + checker_name);
     for (const bool close_connection_before_verify : {false, true}) {
+      TRACE("close connection before verify " +
+            std::to_string(close_connection_before_verify));
+
       SCOPED_TRACE("// close-connection-before verify: " +
                    std::to_string(close_connection_before_verify));
 
-      for (auto &s : shared_servers()) {
-        ASSERT_NO_ERROR(s->close_all_connections());
+      for (auto *admin_cli : admin_clis()) {
+        ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
+
+      TRACE("closed all connections");
+      SCOPED_TRACE("// close-connection-before verify: " +
+                   std::to_string(close_connection_before_verify));
 
       MysqlClient cli;
 
@@ -3822,7 +3910,11 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
       ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
                                   shared_router()->port(GetParam())));
 
+      TRACE("connected");
+
       ASSERT_NO_FATAL_FAILURE(checker->apply(cli));
+
+      TRACE("checked");
 
       if (can_share && can_fetch_password) {
         ASSERT_NO_ERROR(
@@ -3830,14 +3922,16 @@ TEST_P(ShareConnectionTest, classic_protocol_warnings_and_errors) {
       }
 
       if (close_connection_before_verify) {
-        for (auto &s : shared_servers()) {
-          s->close_all_connections();
+        for (auto *admin_cli : admin_clis()) {
+          ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
         }
       }
 
       if (can_share && can_fetch_password) {
         ASSERT_NO_FATAL_FAILURE(checker->verifier()(cli));
       }
+
+      TRACE("verified");
     }
   }
 }
@@ -6353,24 +6447,14 @@ TEST_P(ShareConnectionTest,
   std::string username(account.username);
   std::string password(account.password);
 
-  for (auto &s : shared_servers()) {
-    auto cli_res = s->admin_cli();
-    ASSERT_NO_ERROR(cli_res);
-
-    auto admin_cli = std::move(cli_res.value());
-
-    s->create_account(admin_cli, account);
+  for (auto *admin_cli : admin_clis()) {
+    SharedServer::create_account(*admin_cli, account);
   }
 
   // remove the account at the end of the test again.
   Scope_guard drop_at_end([account]() {
-    for (auto &s : shared_servers()) {
-      auto cli_res = s->admin_cli();
-      ASSERT_NO_ERROR(cli_res);
-
-      auto admin_cli = std::move(cli_res.value());
-
-      s->drop_account(admin_cli, account);
+    for (auto *admin_cli : admin_clis()) {
+      SharedServer::drop_account(*admin_cli, account);
     }
   });
 
