@@ -439,17 +439,21 @@ class ha_innobase : public handler {
   be used across all parallel_scan methods. Also, gets the number of threads
   that would be spawned for parallel scan.
   @param[out]   scan_ctx              A scan context created by this method
-                                      that has to be used in
-                                      parallel_scan
+                                      that has to be used in parallel_scan
   @param[out]   num_threads           Number of threads to be spawned
   @param[in]    use_reserved_threads  true if reserved threads are to be used
                                       if we exhaust the max cap of number of
                                       parallel read threads that can be
                                       spawned at a time
+  @param[in]    max_desired_threads   Maximum number of desired read threads;
+                                      passing 0 has no effect, it is ignored;
+                                      upper-limited by the current value of
+                                      innodb_parallel_read_threads.
   @return error code
   @retval 0 on success */
   int parallel_scan_init(void *&scan_ctx, size_t *num_threads,
-                         bool use_reserved_threads) override;
+                         bool use_reserved_threads,
+                         size_t max_desired_threads) override;
 
   /** Start parallel read of InnoDB records.
   @param[in]  scan_ctx          A scan context created by parallel_scan_init
