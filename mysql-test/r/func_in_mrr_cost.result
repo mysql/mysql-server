@@ -267,12 +267,12 @@ a	filler
 19	yes
 explain select * from t2 force index(a) where a NOT IN (2,2,2,2,2,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	910	100.00	Using where
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` not in (2,2,2,2,2,2))
 explain select * from t2 force index(a) where a <> 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	910	100.00	Using where
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` <> 2)
 drop table t2;
