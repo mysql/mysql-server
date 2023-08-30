@@ -1,4 +1,5 @@
 --source include/have_router.inc
+--let $rpl_skip_group_replication_configuration=1
 --source include/have_group_replication_plugin.inc
 
 --let $s1_uuid=8a94f357-aab4-11df-86ab-c80aa9429562
