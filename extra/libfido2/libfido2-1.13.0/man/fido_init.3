@@ -1,0 +1,95 @@
+.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: May 25 2018 $
+.Dt FIDO_INIT 3
+.Os
+.Sh NAME
+.Nm fido_init ,
+.Nm fido_set_log_handler
+.Nd initialise the FIDO2 library
+.Sh SYNOPSIS
+.In fido.h
+.Bd -literal
+typedef void fido_log_handler_t(const char *);
+.Ed
+.Pp
+.Ft void
+.Fn fido_init "int flags"
+.Ft void
+.Fn fido_set_log_handler "fido_log_handler_t *handler"
+.Sh DESCRIPTION
+The
+.Fn fido_init
+function initialises the
+.Em libfido2
+library.
+Its invocation must precede that of any other
+.Em libfido2
+function in the context of the executing thread.
+.Pp
+If
+.Dv FIDO_DEBUG
+is set in
+.Fa flags ,
+then
+debug output will be emitted by
+.Em libfido2
+on
+.Em stderr .
+Alternatively, the
+.Ev FIDO_DEBUG
+environment variable may be set.
+.Pp
+If
+.Dv FIDO_DISABLE_U2F_FALLBACK
+is set in
+.Fa flags ,
+then
+.Em libfido2
+will not fallback to U2F in
+.Xr fido_dev_open 3
+if a device claims to support FIDO2 but fails to respond to
+a CTAP 2.0 greeting.
+.Pp
+The
+.Fn fido_set_log_handler
+function causes
+.Fa handler
+to be called for each log line generated in the context of the
+executing thread.
+Lines passed to
+.Fa handler
+include a trailing newline character and are not printed by
+.Em libfido2
+on
+.Em stderr .
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_cred_new 3 ,
+.Xr fido_dev_info_manifest 3 ,
+.Xr fido_dev_open 3

@@ -1,0 +1,15 @@
+## Description
+
+What changes and why
+
+## Checklist
+
+- [ ] I have read followed [CONTRIBUTING.md](https://github.com/PJK/libcbor/blob/master/CONTRIBUTING.md)
+	- [ ] I have added tests
+	- [ ] I have updated the documentation
+	- [ ] I have updated the CHANGELOG
+- [ ] Are there any breaking changes?
+	- [ ] If yes: I have marked them in the CHANGELOG ([example](https://github.com/PJK/libcbor/blob/87e2d48a127968d39f158cbfc2b79d6285bd039d/CHANGELOG.md?plain=1#L16))
+- [ ] Does this PR introduce any platform specific code?
+- [ ] Security: Does this PR potentially affect security?
+- [ ] Performance: Does this PR potentially affect performance?

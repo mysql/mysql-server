@@ -1,0 +1,80 @@
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\"
+.\"    1. Redistributions of source code must retain the above copyright
+.\"       notice, this list of conditions and the following disclaimer.
+.\"    2. Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in
+.\"       the documentation and/or other materials provided with the
+.\"       distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd $Mdocdate: December 1 2022 $
+.Dt FIDO_ASSERT_ALLOW_CRED 3
+.Os
+.Sh NAME
+.Nm fido_assert_allow_cred ,
+.Nm fido_assert_empty_allow_list
+.Nd manage allow lists in a FIDO2 assertion
+.Sh SYNOPSIS
+.In fido.h
+.Ft int
+.Fn fido_assert_allow_cred "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_assert_empty_allow_list "fido_assert_t *assert"
+.Sh DESCRIPTION
+The
+.Fn fido_assert_allow_cred
+function adds
+.Fa ptr
+to the list of credentials allowed in
+.Fa assert ,
+where
+.Fa ptr
+points to a credential ID of
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+If
+.Fn fido_assert_allow_cred
+fails, the existing list of allowed credentials is preserved.
+.Pp
+For the format of a FIDO2 credential ID, please refer to the
+Web Authentication (webauthn) standard.
+.Pp
+The
+.Fn fido_assert_empty_allow_list
+function empties the list of credentials allowed in
+.Fa assert .
+.Sh RETURN VALUES
+The error codes returned by
+.Fn fido_assert_allow_cred
+and
+.Fn fido_assert_empty_allow_list
+are defined in
+.In fido/err.h .
+On success,
+.Dv FIDO_OK
+is returned.
+.Sh SEE ALSO
+.Xr fido_assert_new 3 ,
+.Xr fido_assert_set_authdata 3 ,
+.Xr fido_dev_get_assert 3

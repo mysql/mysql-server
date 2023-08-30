@@ -1,0 +1,25 @@
+# A quick CIFuzz sanity check. Fuzzing time is kept low provide fast feedback
+# on PRs; fuzz.yml schedules a daily long-running fuzzing job.
+name: CIFuzz PR check
+on: [pull_request]
+jobs:
+  Fuzzing:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build Fuzzers
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'libcbor'
+        dry-run: false
+    - name: Smoke Test Fuzzers
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'libcbor'
+        fuzz-seconds: 10
+        dry-run: false
+    - name: Upload Crash
+      uses: actions/upload-artifact@v1
+      if: failure()
+      with:
+        name: artifacts
+        path: ./out/artifacts
