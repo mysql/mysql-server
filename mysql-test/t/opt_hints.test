@@ -1003,3 +1003,50 @@ drop table t1,t2,t3;
 
 --error ER_PARSE_ERROR
 PREPARE stmt FROM 'SELECT /*+ 10';
+
+
+--echo #
+--echo # Bug#34976138 records_in_range does too many disk reads
+--echo #
+CREATE TABLE t (id int AUTO_INCREMENT, cid int NOT NULL, price float NOT NULL,
+  PRIMARY KEY (id), KEY key1 (price, cid));
+
+INSERT INTO t(cid, price) values(1, 10), (2, 100), (3, 55), (4, 20), (5, 30),
+    (6, 27), (7, 217), (8, 927), (9, 207);
+ANALYZE TABLE t;
+
+SET SESSION OPTIMIZER_TRACE="enabled=on";
+--echo # Case without FORCE INDEX, this should do an index dive during query
+--echo # optimization.
+EXPLAIN SELECT price, cid FROM t WHERE (price >= 10)
+    ORDER BY price, cid LIMIT 3;
+SELECT price, cid FROM t WHERE (price >= 10) ORDER BY price, cid LIMIT 3;
+SELECT REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n') FROM
+    INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Case with ORDER BY and FORCE INDEX, this should skip the index dive
+--echo # during query optimization.
+EXPLAIN SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 10)
+    ORDER BY price, cid LIMIT 3;
+SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 10)
+    ORDER BY price, cid LIMIT 3;
+SELECT REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n') FROM
+    INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Case with DESC ORDER BY and FORCE INDEX, this should skip index dive
+--echo # during query optimization.
+EXPLAIN SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 10)
+    ORDER BY price DESC, cid DESC LIMIT 3;
+SELECT price, cid FROM t FORCE INDEX (key1) WHERE (price >= 200)
+    ORDER BY price DESC, cid DESC LIMIT 3;
+SELECT REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n') FROM
+    INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+--echo # Case where FORCE INDEX can't provide order. This should not skip
+--echo # Index dives.
+SELECT price, cid FROM t FORCE INDEX(key1) WHERE price >= 20 ORDER BY cid;
+SELECT REGEXP_SUBSTR(trace, 'index_dive[^,]*',1,1,'n') FROM
+    INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET SESSION OPTIMIZER_TRACE="enabled=off";
+DROP TABLE t;

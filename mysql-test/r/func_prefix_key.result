@@ -749,7 +749,7 @@ b like 'ab%'
 # Index access is used since k3 is forced and covering.
 EXPLAIN SELECT b like 'ab%'  FROM t1 FORCE INDEX(k3) WHERE a > 4 AND b like 'a%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	k3	k3	11	NULL	6	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	range	k3	k3	15	NULL	1	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`b` like 'ab%') AS `b like 'ab%'` from `test`.`t1` FORCE INDEX (`k3`) where ((`test`.`t1`.`a` > 4) and (`test`.`t1`.`b` like 'a%'))
 SELECT b like 'ab%'  FROM t1 FORCE INDEX(k3) WHERE a > 4 AND b like 'a%';
