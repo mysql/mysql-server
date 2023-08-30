@@ -39,15 +39,6 @@
 #include "util/TlsKeyManager.hpp"
 
 
-/* This is the list of allowed ciphers.
- * It includes all TLS 1.3 cipher suites, plus one TLS 1.2 cipher suite,
- * ECDHE-ECDSA-AES128-GCM-SHA256.
- */
-static constexpr const char * cipher_list =
- "TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:"
- "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_128_CCM_8_SHA256:"
- "ECDHE-ECDSA-AES128-GCM-SHA256";
-
 TlsKeyManager::TlsKeyManager() {
   NdbMutex_Init(& m_cert_table_mutex);
 }
@@ -89,6 +80,15 @@ void TlsKeyManager::init(const char *, int, Node::Type, UserType) { }
 void TlsKeyManager::init(int, struct stack_st_X509 *, struct evp_pkey_st *) { }
 
 #else
+
+/* This is the list of allowed ciphers.
+ * It includes all TLS 1.3 cipher suites, plus one TLS 1.2 cipher suite,
+ * ECDHE-ECDSA-AES128-GCM-SHA256.
+ */
+static constexpr const char * cipher_list =
+ "TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:"
+ "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_128_CCM_8_SHA256:"
+ "ECDHE-ECDSA-AES128-GCM-SHA256";
 
 static int error_callback(const char *str, size_t, void * vp) {
   intptr_t r = reinterpret_cast<intptr_t>(vp);
