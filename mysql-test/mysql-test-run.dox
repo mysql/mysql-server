@@ -3975,6 +3975,13 @@
     </li>
 
     <li>
+      <tt>`--accept-test-fail`</tt>
+
+      Do not print an error and do not give exit 1 if some tests failed,
+      but test run was completed. This also enables --force.
+    </li>
+
+    <li>
       <tt>`--big-test`</tt>
 
       Allow tests marked as "big" to run. Tests can be thus marked by
