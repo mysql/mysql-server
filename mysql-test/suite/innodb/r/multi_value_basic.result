@@ -1113,7 +1113,7 @@ id	doc_id	doc
 1	2	{"val": [1, 2, 3, 4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	mv_id	mv_id	4	const	5	100.00	NULL
+1	SIMPLE	t	NULL	ref	mv_id	mv_id	4	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_id`) where (`test`.`t`.`id` = 1)
 SELECT * FROM t FORCE INDEX (mv_id) WHERE id = '1';
@@ -1121,7 +1121,7 @@ id	doc_id	doc
 1	2	{"val": [1, 2, 3, 4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref	mv_doc_id	mv_doc_id	5	const	11	100.00	NULL
+1	SIMPLE	t	NULL	ref	mv_doc_id	mv_doc_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` = 2)
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2';
@@ -1131,7 +1131,7 @@ id	doc_id	doc
 5	2	{"val": [4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ref_or_null	mv_doc_id	mv_doc_id	5	const	14	100.00	Using where
+1	SIMPLE	t	NULL	ref_or_null	mv_doc_id	mv_doc_id	5	const	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` = 2) or (`test`.`t`.`doc_id` is null))
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id = '2' OR doc_id IS NULL;
@@ -1164,7 +1164,7 @@ id	doc_id	doc
 5	2	{"val": [4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	16	100.00	Using where
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` <> 0)
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id <> 0;
@@ -1175,7 +1175,7 @@ id	doc_id	doc
 5	2	{"val": [4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	15	100.00	Using where
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where (`test`.`t`.`doc_id` > 0)
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id > 0;
@@ -1186,7 +1186,7 @@ id	doc_id	doc
 5	2	{"val": [4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	7	100.00	Using where
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` < 2) or (`test`.`t`.`doc_id` is null))
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id < 2 OR doc_id IS NULL;
@@ -1195,7 +1195,7 @@ id	doc_id	doc
 4	NULL	{"val": [3, 4, 5]}
 EXPLAIN SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	4	100.00	Using where
+1	SIMPLE	t	NULL	range	mv_doc_id	mv_doc_id	5	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`doc_id` AS `doc_id`,`test`.`t`.`doc` AS `doc` from `test`.`t` FORCE INDEX (`mv_doc_id`) where ((`test`.`t`.`doc_id` >= 1) and (`test`.`t`.`doc_id` < 2))
 SELECT * FROM t FORCE INDEX (mv_doc_id) WHERE doc_id >= 1 AND doc_id < 2;
