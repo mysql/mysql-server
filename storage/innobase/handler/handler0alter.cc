@@ -1449,7 +1449,8 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
 }
 
 int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
-                                    bool use_reserved_threads) {
+                                    bool use_reserved_threads,
+                                    size_t max_desired_threads) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1470,6 +1471,10 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
   trx_assign_read_view(trx);
 
   size_t max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+
+  if (max_desired_threads > 0) {
+    max_threads = std::min(max_threads, max_desired_threads);
+  }
 
   max_threads =
       Parallel_reader::available_threads(max_threads, use_reserved_threads);
@@ -10006,8 +10011,13 @@ static inline Instant_Type innopart_support_instant(
 }
 
 int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
-                                    bool use_reserved_threads) {
+                                    bool use_reserved_threads,
+                                    size_t max_desired_threads) {
   auto max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  if (max_desired_threads > 0) {
+    max_threads = std::min(max_threads, max_desired_threads);
+  }
+
   ut_a(max_threads <= Parallel_reader::MAX_THREADS);
 
   max_threads = static_cast<ulong>(

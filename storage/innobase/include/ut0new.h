@@ -2121,7 +2121,7 @@ struct allocator_base {
   explicit allocator_base(PSI_memory_key /*key*/) {}
 
   template <typename U>
-  allocator_base(const allocator_base<U> &other) {}
+  allocator_base(const allocator_base<U> & /*other*/) {}
 
   void *allocate_impl(size_t n_bytes) { return ut::malloc(n_bytes); }
 };

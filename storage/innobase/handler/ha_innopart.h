@@ -584,10 +584,15 @@ class ha_innopart : public ha_innobase,
                                       if we exhaust the max cap of number of
                                       parallel read threads that can be
                                       spawned at a time
+  @param[in]    max_desired_threads   Maximum number of desired read threads;
+                                      passing 0 has no effect, it is ignored;
+                                      upper-limited by the current value of
+                                      innodb_parallel_read_threads.
   @return error code
   @return 0 on success */
   int parallel_scan_init(void *&scan_ctx, size_t *num_threads,
-                         bool use_reserved_threads) override;
+                         bool use_reserved_threads,
+                         size_t max_desired_threads) override;
 
   using Reader = Parallel_reader_adapter;
 

@@ -4903,12 +4903,15 @@ class handler {
                                       if we exhaust the max cap of number of
                                       parallel read threads that can be
                                       spawned at a time
+    @param[in]  max_desired_threads   Maximum number of desired scan threads;
+                                      passing 0 has no effect, it is ignored.
     @return error code
     @retval 0 on success
   */
   virtual int parallel_scan_init(void *&scan_ctx [[maybe_unused]],
                                  size_t *num_threads [[maybe_unused]],
-                                 bool use_reserved_threads [[maybe_unused]]) {
+                                 bool use_reserved_threads [[maybe_unused]],
+                                 size_t max_desired_threads [[maybe_unused]]) {
     return 0;
   }
 
