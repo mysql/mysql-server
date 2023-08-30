@@ -1,0 +1,38 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap the group with a server that is one patch version
+#    higher than the current version (8.0.35 or higher).
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Join a 8.0.35 to the group.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_35';
+include/start_group_replication.inc
+
+############################################################
+# 3. Validate that the group has two primaries and both are
+#    writable.
+[connection server1]
+include/assert.inc [There are two primaries on the group]
+include/assert.inc [The super_read_only must be disabled.]
+include/assert.inc [The read_only must be disabled.]
+[connection server2]
+include/assert.inc [There are two primaries on the group]
+include/assert.inc [The super_read_only must be disabled.]
+include/assert.inc [The read_only must be disabled.]
+
+############################################################
+# 4. Clean up.
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_35';
+include/group_replication_end.inc

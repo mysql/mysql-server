@@ -18,6 +18,7 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Member version is read compatible with the group.");
 SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
+include/assert.inc [The super_read_only mode should be 1 on server2.]
 
 # 2. Block slave thread of applier on M1.
 
@@ -50,9 +51,9 @@ SET @@GLOBAL.group_replication_allow_local_lower_version_join=1;
 
 # 5. Verify M3 is ONLINE and writable since its new lowest version.
 
-include/assert.inc [The super_read_only mode should be 0 on server1.]
+include/assert.inc [The super_read_only mode should be 0 on server3.]
 [connection server2]
-include/assert.inc [The super_read_only mode should be 1 on server3.]
+include/assert.inc [The super_read_only mode should be 1 on server2.]
 
 # 6. Cleanup.
 

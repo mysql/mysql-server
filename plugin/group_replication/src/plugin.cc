@@ -943,6 +943,8 @@ int configure_group_member_manager() {
                   { local_version = 0x080015; };);
   DBUG_EXECUTE_IF("group_replication_version_8_0_28",
                   { local_version = 0x080028; };);
+  DBUG_EXECUTE_IF("group_replication_version_8_0_35",
+                  { local_version = 0x080035; };);
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -1072,6 +1074,10 @@ int configure_compatibility_manager() {
   DBUG_EXECUTE_IF("group_replication_legacy_election_version2", {
     Member_version higher_version(0x080015);
     compatibility_mgr->set_local_version(higher_version);
+  };);
+  DBUG_EXECUTE_IF("group_replication_version_8_0_35", {
+    Member_version version(0x080035);
+    compatibility_mgr->set_local_version(version);
   };);
 
   return 0;

@@ -1562,6 +1562,7 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
   Group_member_info_list_iterator all_members_it;
 
   Member_version lowest_version(0xFFFFFF);
+  /* Does not include local member version. */
   std::set<Member_version> unique_version_set;
   /* Find lowest member version and unique versions of the group for
    * comparison. */
@@ -1574,12 +1575,20 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
       unique_version_set.insert((*all_members_it)->get_member_version());
     }
   }
+
+  /* Fetch all unique server versions in the group. */
+  std::set<Member_version> all_members_versions;
+  for (all_members_it = all_members->begin();
+       all_members_it != all_members->end(); all_members_it++) {
+    all_members_versions.insert((*all_members_it)->get_member_version());
+  }
+
   for (auto it = unique_version_set.begin();
        it != unique_version_set.end() && compatibility_type != INCOMPATIBLE;
        ++it) {
     Member_version ver(*it);
     compatibility_type = compatibility_manager->check_local_incompatibility(
-        ver, (ver == lowest_version));
+        ver, (ver == lowest_version), all_members_versions);
 
     if (compatibility_type == READ_COMPATIBLE) {
       read_compatible = true;

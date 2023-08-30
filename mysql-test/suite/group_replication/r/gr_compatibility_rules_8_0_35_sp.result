@@ -1,0 +1,80 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap the group with a server that is one patch version
+#    higher than the current version (8.0.35 or higher).
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Join a server that is one patch version
+#    higher than the current version (8.0.35 or higher).
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+include/start_group_replication.inc
+
+############################################################
+# 3. Join a 8.0.35 to the group.
+[connection server3]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_35';
+include/start_group_replication.inc
+SELECT MEMBER_STATE, MEMBER_ROLE, MEMBER_VERSION FROM performance_schema.replication_group_members WHERE MEMBER_ID='SERVER3_UUID';
+MEMBER_STATE	MEMBER_ROLE	MEMBER_VERSION
+ONLINE	SECONDARY	8.0.35
+
+############################################################
+# 4. Validate that the group has one primary and two secondaries.
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 5. Try to make server2, a higher version, the primary.
+#    It must fail.
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+ERROR HY000: The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.
+include/gr_assert_secondary_member.inc
+[connection server1]
+include/gr_assert_primary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 6. After the primary, server1, leaves, server3 is the new
+#    primary.
+[connection server1]
+include/stop_group_replication.inc
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 7. Clean up.
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+[connection server3]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_35';
+include/group_replication_end.inc

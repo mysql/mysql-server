@@ -28,6 +28,43 @@
 --let $_saved_connection= $CURRENT_CONNECTION
 --disable_query_log
 
+# Discover if all servers are 8.0.35 or higher version.
+--let $_server_8_0_lts= true
+while ($_server_index <= $rpl_server_count)
+{
+  --let $rpl_connection_name= server_spm_consistency$_server_index
+  --let $rpl_server_number= $_server_index
+  --source include/rpl_connect.inc
+  --let $rpl_connection_name= server_spm_consistency$_server_index
+  --source include/rpl_connection.inc
+
+  --let $_version_major= `SELECT sys.version_major()`
+  --let $_version_minor= `SELECT sys.version_minor()`
+  --let $_version_patch= `SELECT sys.version_patch()`
+
+  if ($_version_major != 8)
+  {
+    --let $_server_8_0_lts= false
+    --let $_server_index= $rpl_server_count
+  }
+
+  if ($_version_minor != 0)
+  {
+    --let $_server_8_0_lts= false
+    --let $_server_index= $rpl_server_count
+  }
+
+  if ($_version_patch < 35)
+  {
+    --let $_server_8_0_lts= false
+    --let $_server_index= $rpl_server_count
+  }
+
+  --connection default
+  --disconnect server_spm_consistency$_server_index
+  --inc $_server_index
+}
+
 while ($_server_index <= $rpl_server_count)
 {
   --let $rpl_connection_name= server_spm_consistency$_server_index
@@ -55,6 +92,14 @@ while ($_server_index <= $rpl_server_count)
       --let lowest_version_of_group = query_get_value(SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1,member_version,1)
     }
     --let $_am_i_writable= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.replication_group_members WHERE member_version="$lowest_version_of_group" AND member_id="$_this_member_id", COUNT, 1)
+
+    # Starting on 8.0.35, inclusive, all 8.0 patch versions are compatible,
+    # thence allowed to do writes.
+    if ($_server_8_0_lts)
+    {
+      --let $_am_i_writable= true
+    }
+
     if ($_am_i_writable)
     {
       --let $assert_text= The super_read_only mode should be 0 here.

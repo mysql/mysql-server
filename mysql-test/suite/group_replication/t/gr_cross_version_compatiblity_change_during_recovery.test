@@ -45,6 +45,11 @@ SET SESSION sql_log_bin=1;
 
 --source include/start_group_replication.inc
 
+# server1 is 8.0.34, thence LTS rules do not apply.
+--let $assert_text= The super_read_only mode should be 1 on server2.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
 --echo
 --echo # 2. Block slave thread of applier on M1.
 --echo
@@ -115,14 +120,15 @@ SET @@GLOBAL.group_replication_allow_local_lower_version_join=1;
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE" AND MEMBER_ID = '$server3_uuid'
 --source include/wait_condition.inc
 
---let $assert_text= The super_read_only mode should be 0 on server1.
+--let $assert_text= The super_read_only mode should be 0 on server3.
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $assert_text= The super_read_only mode should be 1 on server3.
+# When server2 joined, server1 was 8.0.34, thence super_read_only was enabled.
+--let $assert_text= The super_read_only mode should be 1 on server2.
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
 --source include/assert.inc
 

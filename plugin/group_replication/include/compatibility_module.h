@@ -24,6 +24,7 @@
 #define COMPATIBILITY_MODULE_INCLUDED
 
 #include <map>
+#include <set>
 
 #include "plugin/group_replication/include/member_version.h"
 
@@ -73,14 +74,15 @@ class Compatibility_module {
     @param from  The member that may be not compatible with 'to'
     @param to    The member with which 'from' may be not compatible with
     @param do_version_check If version compatibility check is needed
+    @param all_members_versions The version of all members on the group
     @return the compatibility status
       @retval INCOMPATIBLE     The versions are not compatible with each other
       @retval COMPATIBLE       The versions are compatible with each other
       @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
   */
-  Compatibility_type check_incompatibility(Member_version &from,
-                                           Member_version &to,
-                                           bool do_version_check);
+  Compatibility_type check_incompatibility(
+      Member_version &from, Member_version &to, bool do_version_check,
+      const std::set<Member_version> &all_members_versions);
 
   /**
     Checks if the given version is incompatible with another version.
@@ -111,13 +113,36 @@ class Compatibility_module {
     Checks if the given version is compatible with this member local version.
     @param to    The member with which 'from' may be not compatible with
     @param is_lowest_version If to version is lowest in the group
+    @param all_members_versions The version of all members on the group
     @return the compatibility status
       @retval INCOMPATIBLE     The versions are not compatible with each other
       @retval COMPATIBLE       The versions are compatible with each other
       @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
   */
-  Compatibility_type check_local_incompatibility(Member_version &to,
-                                                 bool is_lowest_version);
+  Compatibility_type check_local_incompatibility(
+      Member_version &to, bool is_lowest_version,
+      const std::set<Member_version> &all_members_versions);
+
+  /**
+    Checks if the provided versions are 8.0.35 or a higher 8.0 patch version.
+    @param all_members_versions  The versions
+
+    @return
+      @retval true   All versions are 8.0.35 or a higher 8.0 patch version
+      @retval false  Otherwise
+  */
+  static bool are_all_versions_8_0_lts(
+      const std::set<Member_version> &all_members_versions);
+
+  /**
+    Checks if the version is 8.0.35 or a higher 8.0 patch version.
+    @param version  A server version
+
+    @return
+      @retval true   The version is 8.0.35 or a higher 8.0 patch version
+      @retval false  Otherwise
+  */
+  static bool is_version_8_0_lts(const Member_version &version);
 
   virtual ~Compatibility_module();
 

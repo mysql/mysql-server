@@ -87,4 +87,9 @@
 */
 #define MEMBER_VERSION_INTRODUCING_RUNNING_TRANSACTION_TIMEOUT 0x080029
 
+/*
+  Starting on 8.0.35, inclusive, all 8.0 patch versions are compatible.
+*/
+#define MEMBER_8_0_LTS_VERSION 0x080035
+
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

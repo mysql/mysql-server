@@ -1,0 +1,81 @@
+################################################################################
+# Validate that a 8.0.35 server can join a group in multi-primary mode which
+# version is a higher 8.0 patch version.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap the group with a server that is one patch version
+#    higher than the current version (8.0.35 or higher).
+# 2. Join a 8.0.35 to the group.
+# 3. Validate that the group has two primaries and both are
+#    writable.
+# 4. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap the group with a server that is one patch version
+--echo #    higher than the current version (8.0.35 or higher).
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_patch_version';
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Join a 8.0.35 to the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_8_0_35';
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Validate that the group has two primaries and both are
+--echo #    writable.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= There are two primaries on the group
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY", count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= The super_read_only must be disabled.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+--let $assert_text= The read_only must be disabled.
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= There are two primaries on the group
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_members WHERE MEMBER_ROLE="PRIMARY", count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= The super_read_only must be disabled.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+--let $assert_text= The read_only must be disabled.
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_patch_version';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_8_0_35';
+
+--source include/group_replication_end.inc
