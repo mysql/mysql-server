@@ -93,6 +93,15 @@ typedef struct PSI_data_lock_bootstrap PSI_data_lock_bootstrap;
 
 #ifdef HAVE_PSI_DATA_LOCK_1
 
+enum PSI_identifier {
+  PSI_IDENTIFIER_NONE = 0,
+  PSI_IDENTIFIER_SCHEMA = 1,
+  PSI_IDENTIFIER_TABLE = 2,
+  PSI_IDENTIFIER_INDEX = 3,
+  PSI_IDENTIFIER_PARTITION = 4,
+  PSI_IDENTIFIER_SUBPARTITION = 5
+};
+
 /**
   Server interface, row lock container.
   This is the interface exposed
@@ -124,6 +133,23 @@ class PSI_server_data_lock_container {
     @sa cache_string
   */
   virtual const char *cache_data(const char *ptr, size_t length) = 0;
+
+  /**
+    Add an identifier in the container cache.
+    Depending on the identifier kind, the string given may be
+    normalized, to comply with lower_case_table_names,
+    before adding the string into the cache.
+    Beware that the normalized string length may differ
+    from the input string length.
+    @param[in] kind Identifier kind, used for string normalization
+    @param[in] str Identifier input string
+    @param[in] length Identifier input string length
+    @param[out] cached_ptr Cached, possibly normalized, identifier string
+    @param[out] cached_length Cached identifier string length
+  */
+  virtual void cache_identifier(PSI_identifier kind, const char *str,
+                                size_t length, const char **cached_ptr,
+                                size_t *cached_length) = 0;
 
   /**
     Check if the container accepts data for a particular engine.

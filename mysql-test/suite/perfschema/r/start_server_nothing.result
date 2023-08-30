@@ -171,6 +171,7 @@ idle	YES	YES	user	0	NULL
 memory/performance_schema/accounts	YES	NULL	global_statistics	1	Memory used for table performance_schema.accounts
 memory/performance_schema/cond_class	YES	NULL	global_statistics	1	Memory used for cond instrument classes
 memory/performance_schema/cond_instances	YES	NULL	global_statistics	1	Memory used for table performance_schema.cond_instances
+memory/performance_schema/data_container	YES	NULL	global_statistics	8	Memory used during queries on tables performance_schema.data_locks or performance_schema.data_lock_waits
 memory/performance_schema/events_errors_summary_by_account_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_account_by_error
 memory/performance_schema/events_errors_summary_by_host_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_host_by_error
 memory/performance_schema/events_errors_summary_by_thread_by_error	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_errors_summary_by_thread_by_error

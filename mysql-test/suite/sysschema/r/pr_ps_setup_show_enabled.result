@@ -72,6 +72,7 @@ idle	YES
 memory/performance_schema/accounts	NULL
 memory/performance_schema/cond_class	NULL
 memory/performance_schema/cond_instances	NULL
+memory/performance_schema/data_container	NULL
 memory/performance_schema/events_errors_summary_by_account_by_error	NULL
 memory/performance_schema/events_errors_summary_by_host_by_error	NULL
 memory/performance_schema/events_errors_summary_by_thread_by_error	NULL
@@ -298,6 +299,7 @@ idle	YES
 memory/performance_schema/accounts	NULL
 memory/performance_schema/cond_class	NULL
 memory/performance_schema/cond_instances	NULL
+memory/performance_schema/data_container	NULL
 memory/performance_schema/events_errors_summary_by_account_by_error	NULL
 memory/performance_schema/events_errors_summary_by_host_by_error	NULL
 memory/performance_schema/events_errors_summary_by_thread_by_error	NULL

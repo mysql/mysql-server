@@ -30,6 +30,7 @@
 #include "my_thread.h"
 #include "sql/mysqld_cs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_data_lock.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
@@ -1794,33 +1795,6 @@ static void test_file_instrumentation_leak() {
   shutdown_performance_schema();
 }
 
-#ifdef LATER
-static void test_enabled() {
-  PSI *psi;
-
-  diag("test_enabled");
-
-  psi = load_perfschema();
-
-  PSI_mutex_key mutex_key_A;
-  PSI_mutex_key mutex_key_B;
-  PSI_mutex_info all_mutex[] = {{&mutex_key_A, "M-A", 0, 0, ""},
-                                {&mutex_key_B, "M-B", 0, 0, ""}};
-
-  PSI_rwlock_key rwlock_key_A;
-  PSI_rwlock_key rwlock_key_B;
-  PSI_rwlock_info all_rwlock[] = {{&rwlock_key_A, "RW-A", 0, 0, ""},
-                                  {&rwlock_key_B, "RW-B", 0, 0, ""}};
-
-  PSI_cond_key cond_key_A;
-  PSI_cond_key cond_key_B;
-  PSI_cond_info all_cond[] = {{&cond_key_A, "C-A", 0, 0, ""},
-                              {&cond_key_B, "C-B", 0, 0, ""}};
-
-  shutdown_performance_schema();
-}
-#endif
-
 static void test_event_name_index() {
   PSI_thread_service_t *thread_service;
   PSI_mutex_service_t *mutex_service;
@@ -2644,6 +2618,158 @@ static void test_terminology_use_previous() {
   }
 }
 
+static void dump_builtin_memory(PFS_builtin_memory_class *klass) {
+  char message[1024];
+  const char *class_name = klass->m_class.m_name.str();
+  size_t value;
+
+  /*
+    Note:
+    Trying to predict how many bytes the class PFS_data_container
+    will allocate is hopeless, as this ultimately depends on
+    implementation optimizations in the C++ STL.
+    Here we just print stats in the test output,
+    but do not verify exact values.
+  */
+
+  value = klass->m_stat.m_alloc_count;
+  snprintf(message, sizeof(message), "%s::m_alloc_count=%zu", class_name,
+           value);
+  diag("%s", message);
+
+  value = klass->m_stat.m_free_count;
+  snprintf(message, sizeof(message), "%s::m_free_count=%zu", class_name, value);
+  diag("%s", message);
+
+  value = klass->m_stat.m_alloc_size;
+  snprintf(message, sizeof(message), "%s::m_alloc_size=%zu", class_name, value);
+  diag("%s", message);
+
+  value = klass->m_stat.m_free_size;
+  snprintf(message, sizeof(message), "%s::m_free_size=%zu", class_name, value);
+  diag("%s", message);
+}
+
+static void test_data_container() {
+  PSI_thread_service_t *thread_service;
+  PSI_mutex_service_t *mutex_service;
+  PSI_rwlock_service_t *rwlock_service;
+  PSI_cond_service_t *cond_service;
+  PSI_file_service_t *file_service;
+  PSI_socket_service_t *socket_service;
+  PSI_table_service_t *table_service;
+  PSI_mdl_service_t *mdl_service;
+  PSI_idle_service_t *idle_service;
+  PSI_stage_service_t *stage_service;
+  PSI_statement_service_t *statement_service;
+  PSI_transaction_service_t *transaction_service;
+  PSI_memory_service_t *memory_service;
+  PSI_error_service_t *error_service;
+  PSI_data_lock_service_t *data_lock_service;
+  PSI_system_service_t *system_service;
+  PSI_tls_channel_service_t *tls_channel_service;
+
+  diag("test_data_container");
+
+  load_perfschema(&thread_service, &mutex_service, &rwlock_service,
+                  &cond_service, &file_service, &socket_service, &table_service,
+                  &mdl_service, &idle_service, &stage_service,
+                  &statement_service, &transaction_service, &memory_service,
+                  &error_service, &data_lock_service, &system_service,
+                  &tls_channel_service);
+
+  PFS_builtin_memory_class *klass = &builtin_memory_data_container;
+
+  diag("initial state");
+  dump_builtin_memory(klass);
+
+  ok(klass->m_stat.m_alloc_count.load() == 0, "m_alloc_count = 0");
+  ok(klass->m_stat.m_free_count.load() == 0, "m_free_count = 0");
+
+  ok(sizeof(row_data_lock) <= 296, "sizeof(row_data_lock)");
+
+  {
+    PFS_data_lock_container container;
+
+    std::string item;
+    const char *cached;
+    bool test_null_failed = false;
+    bool test_equal_failed = false;
+
+    for (int i = 0; i < 1000; i++) {
+      item = "item_";
+      item.append(std::to_string(i));
+
+      cached = container.cache_data(item.c_str(), item.length());
+      test_null_failed |= (cached == nullptr);
+      test_equal_failed |= (strncmp(cached, item.c_str(), item.length()) != 0);
+    }
+
+    ok(!test_null_failed, "test_null");
+    ok(!test_equal_failed, "test_equal");
+
+    diag("after cache");
+    dump_builtin_memory(klass);
+
+    ok(klass->m_stat.m_alloc_count.load() >= 1000, "m_alloc_count > 1000");
+
+    for (int i = 0; i < 1000; i++) {
+      std::string schema;
+      std::string table;
+      std::string index;
+
+      schema = "schema_";
+      schema.append(std::to_string(i));
+
+      table = "table_";
+      table.append(std::to_string(i));
+
+      index = "index_";
+      index.append(std::to_string(i));
+
+      const char *cached_schema =
+          container.cache_data(schema.c_str(), schema.length());
+      const char *cached_table =
+          container.cache_data(table.c_str(), table.length());
+      const char *cached_index =
+          container.cache_data(index.c_str(), index.length());
+
+      container.add_lock_row(
+          "TEST", 4, "fake id", 7, 12, 34, 56, cached_schema, schema.length(),
+          cached_table, table.length(), "PART", 4, "SUBPART", 7, cached_index,
+          index.length(), nullptr, "MODE", "TYPE", "STATUS", "LOCK_DATA");
+    }
+
+    diag("after container");
+    dump_builtin_memory(klass);
+
+    ok(klass->m_stat.m_alloc_count.load() >= 4000, "m_alloc_count >= 4000");
+    ok(klass->m_stat.m_free_count.load() <= 100, "m_free_count <= 100");
+
+    container.shrink();
+    diag("after container shrink");
+    dump_builtin_memory(klass);
+
+    ok(klass->m_stat.m_alloc_count.load() >= 4000, "m_alloc_count >= 4000");
+    ok(klass->m_stat.m_free_count.load() >= 4000, "m_free_count >= 4000");
+
+    // std::vector keeps the underlying array after clear()
+    ok(klass->m_stat.m_alloc_count.load() <=
+           klass->m_stat.m_free_count.load() + 100,
+       "almost empty (count)");
+  }
+
+  diag("after container destroy");
+  dump_builtin_memory(klass);
+
+  ok(klass->m_stat.m_alloc_count.load() == klass->m_stat.m_free_count.load(),
+     "now empty (count)");
+  ok(klass->m_stat.m_alloc_size.load() == klass->m_stat.m_free_size.load(),
+     "now empty (size)");
+
+  shutdown_performance_schema();
+}
+
 static void do_all_tests() {
   /* system charset needed by pfs_statements_digest */
   system_charset_info = &my_charset_latin1;
@@ -2659,10 +2785,11 @@ static void do_all_tests() {
   test_leaks();
   test_file_operations();
   test_terminology_use_previous();
+  test_data_container();
 }
 
 int main(int, char **) {
-  plan(417);
+  plan(430);
 
   MY_INIT("pfs-t");
   do_all_tests();
