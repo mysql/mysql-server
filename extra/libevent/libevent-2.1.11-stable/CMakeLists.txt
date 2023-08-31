@@ -76,6 +76,7 @@ IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unreachable-code-return")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unsafe-buffer-usage")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-but-set-variable")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-function")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-macros")
 ENDIF()
 
@@ -318,7 +319,7 @@ if (${MSVC})
 endif()
 
 # GNUC specific options.
-if (${GNUC})
+if (${GNUC} AND NOT WIN32_CLANG)
     option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
     option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
