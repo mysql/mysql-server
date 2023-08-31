@@ -488,12 +488,16 @@ class MysqlRoutingClassicConnectionBase
         : read_write_destination_id(id);
   }
 
-  std::string read_only_destination_id() const { return ro_destination_id_; }
+  std::string read_only_destination_id() const override {
+    return ro_destination_id_;
+  }
   void read_only_destination_id(const std::string &destination_id) {
     ro_destination_id_ = destination_id;
   }
 
-  std::string read_write_destination_id() const { return rw_destination_id_; }
+  std::string read_write_destination_id() const override {
+    return rw_destination_id_;
+  }
   void read_write_destination_id(const std::string &destination_id) {
     rw_destination_id_ = destination_id;
   }

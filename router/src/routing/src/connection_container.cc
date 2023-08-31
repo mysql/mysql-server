@@ -35,24 +35,52 @@ void ConnectionContainer::add_connection(
 unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
   unsigned number_of_disconnected_connections = 0;
 
-  auto mark_to_diconnect_if_not_allowed =
-      [&nodes, &number_of_disconnected_connections](auto &connection) {
-        if (std::find_if(nodes.begin(), nodes.end(),
-                         [&connection](const auto &node) {
-                           return node.address.str() ==
-                                  connection.first->get_destination_id();
-                         }) == nodes.end()) {
-          const auto server_address = connection.first->get_server_address();
-          const auto client_address = connection.first->get_client_address();
+#if 0
+  for (const auto &allowed_node : nodes) {
+    std::cerr << "allowed: " << allowed_node.address.str() << "\n";
+  }
+#endif
 
-          log_info("Disconnecting client %s from server %s",
-                   client_address.c_str(), server_address.c_str());
-          connection.first->disconnect();
-          ++number_of_disconnected_connections;
+  auto mark_to_disconnect_if_not_allowed =
+      [&allowed_nodes = nodes,
+       &number_of_disconnected_connections](auto &connection_element) {
+        auto *conn = connection_element.first;
+
+        auto conn_ro_dest_id = conn->read_only_destination_id();
+        auto conn_rw_dest_id = conn->read_write_destination_id();
+#if 0
+        std::cerr << "conn: "
+                  << "ro: " << conn_ro_dest_id << ", "
+                  << "rw: " << conn_rw_dest_id << "\n";
+#endif
+
+        bool ro_allowed{conn_ro_dest_id.empty()};
+        bool rw_allowed{conn_rw_dest_id.empty()};
+
+        for (const auto &allowed_node : allowed_nodes) {
+          auto allowed_dest_id = allowed_node.address.str();
+
+          if (allowed_dest_id == conn_ro_dest_id) ro_allowed = true;
+          if (allowed_dest_id == conn_rw_dest_id) rw_allowed = true;
+
+          // both are allowed.
+          if (ro_allowed && rw_allowed) return;
         }
+
+        const auto server_address = conn->get_server_address();
+        const auto client_address = conn->get_client_address();
+
+        log_info("Disconnecting client %s from server %s",
+                 client_address.c_str(), server_address.c_str());
+        conn->disconnect();
+
+        ++number_of_disconnected_connections;
       };
 
-  connections_.for_each(mark_to_diconnect_if_not_allowed);
+  connections_.for_each(mark_to_disconnect_if_not_allowed);
+#if 0
+  std::cerr << "marked: " << number_of_disconnected_connections << "\n";
+#endif
 
   return number_of_disconnected_connections;
 }

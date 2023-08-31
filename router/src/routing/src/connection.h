@@ -53,6 +53,14 @@ class MySQLRoutingConnectionBase {
 
   virtual std::string get_destination_id() const = 0;
 
+  virtual std::string read_only_destination_id() const {
+    return get_destination_id();
+  }
+
+  virtual std::string read_write_destination_id() const {
+    return get_destination_id();
+  }
+
   virtual net::impl::socket::native_handle_type get_client_fd() const = 0;
 
   /**
