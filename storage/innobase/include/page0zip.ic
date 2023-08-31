@@ -302,9 +302,9 @@ static inline void page_zip_compress_write_log_no_data(
 
 /** Parses a log record of compressing an index page without the data.
  @return end of log record or NULL */
-static inline byte *page_zip_parse_compress_no_data(
-    byte *ptr,                /*!< in: buffer */
-    byte *end_ptr,            /*!< in: buffer end */
+static inline const byte *page_zip_parse_compress_no_data(
+    const byte *ptr,          /*!< in: buffer */
+    const byte *end_ptr,      /*!< in: buffer end */
     page_t *page,             /*!< in: uncompressed page */
     page_zip_des_t *page_zip, /*!< out: compressed page */
     dict_index_t *index)      /*!< in: index */

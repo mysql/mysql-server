@@ -666,7 +666,8 @@ static inline bool fsp_descr_page(const page_id_t &page_id,
 @param[in] end_ptr Buffer end.
 @param[in] block Block or nullptr.
 @return end of log record or nullptr */
-byte *fsp_parse_init_file_page(byte *ptr, byte *end_ptr, buf_block_t *block);
+const byte *fsp_parse_init_file_page(const byte *ptr, const byte *end_ptr,
+                                     buf_block_t *block);
 
 #ifdef UNIV_BTR_PRINT
 /** Writes info of a segment. */

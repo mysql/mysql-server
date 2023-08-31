@@ -312,7 +312,6 @@ retry:
 static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
                                         MDL_ticket **mdl) {
   dict_index_t *clust_index;
-  byte *ptr;
   undo_no_t undo_no;
   table_id_t table_id;
   ulint type;
@@ -322,8 +321,8 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
 
   ut_ad(node);
 
-  ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy, &dummy_extern,
-                              &undo_no, &table_id, type_cmpl);
+  auto ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy, &dummy_extern,
+                                   &undo_no, &table_id, type_cmpl);
   ut_ad(type == TRX_UNDO_INSERT_REC);
   node->rec_type = type;
 

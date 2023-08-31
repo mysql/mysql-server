@@ -158,8 +158,9 @@ byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value,
   return ptr;
 }
 
-byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
-                               lsn_t &start_lsn, lsn_t &end_lsn) {
+const byte *Log_test::parse_mlog_rec(const byte *begin, const byte *end,
+                                     Key &key, Value &value, lsn_t &start_lsn,
+                                     lsn_t &end_lsn) {
   if (begin + 2 * 8 + 2 > end) {
     return nullptr;
   }
@@ -188,12 +189,12 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
   return begin;
 }
 
-byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
+const byte *Log_test::parse_mlog_rec(const byte *begin, const byte *end) {
   Key key;
   Value value;
   lsn_t start_lsn, end_lsn;
 
-  byte *ptr = parse_mlog_rec(begin, end, key, value, start_lsn, end_lsn);
+  auto ptr = parse_mlog_rec(begin, end, key, value, start_lsn, end_lsn);
 
   if (ptr == nullptr) {
     return nullptr;

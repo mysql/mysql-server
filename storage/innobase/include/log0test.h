@@ -103,10 +103,11 @@ class Log_test {
 
   static byte *create_mlog_rec(byte *rec, Key key, Value value);
 
-  static byte *parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
-                              lsn_t &start_lsn, lsn_t &end_lsn);
+  static const byte *parse_mlog_rec(const byte *begin, const byte *end,
+                                    Key &key, Value &value, lsn_t &start_lsn,
+                                    lsn_t &end_lsn);
 
-  byte *parse_mlog_rec(byte *begin, byte *end);
+  const byte *parse_mlog_rec(const byte *begin, const byte *end);
 
   const Pages &flushed() const;
 

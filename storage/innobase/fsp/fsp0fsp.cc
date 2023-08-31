@@ -776,8 +776,9 @@ static void fsp_init_file_page(buf_block_t *block, mtr_t *mtr) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-byte *fsp_parse_init_file_page(byte *ptr, byte *end_ptr [[maybe_unused]],
-                               buf_block_t *block) {
+const byte *fsp_parse_init_file_page(const byte *ptr,
+                                     const byte *end_ptr [[maybe_unused]],
+                                     buf_block_t *block) {
   if (block) {
     fsp_init_file_page_low(block);
   }

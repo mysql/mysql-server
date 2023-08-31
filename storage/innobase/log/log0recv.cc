@@ -293,8 +293,9 @@ the metadata locally
 @param[in]      end     end of redo log
 @retval ptr to next redo log record, nullptr if this log record
 was truncated */
-byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
-                                        byte *ptr, byte *end) {
+const byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
+                                              const byte *ptr,
+                                              const byte *end) {
   if (ptr + 2 > end) {
     /* At least we should get type byte and another one byte
     for data, if not, it's an incomplete log */
@@ -1581,8 +1582,8 @@ specified.
 @param[in]      parsed_bytes    Number of bytes parsed so far
 @param[in]      start_lsn       lsn for REDO record
 @return log record end, nullptr if not a complete record */
-static byte *recv_parse_or_apply_log_rec_body(
-    mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
+static const byte *recv_parse_or_apply_log_rec_body(
+    mlog_id_t type, const byte *ptr, const byte *end_ptr, space_id_t space_id,
     page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes,
     lsn_t start_lsn) {
   bool applying_redo = (block != nullptr);
@@ -2401,8 +2402,9 @@ static byte *recv_parse_or_apply_log_rec_body(
 @param[in]      start_lsn       start lsn of the mtr
 @param[in]      end_lsn         end lsn of the mtr */
 static void recv_add_to_hash_table(mlog_id_t type, space_id_t space_id,
-                                   page_no_t page_no, byte *body, byte *rec_end,
-                                   lsn_t start_lsn, lsn_t end_lsn) {
+                                   page_no_t page_no, const byte *body,
+                                   const byte *rec_end, lsn_t start_lsn,
+                                   lsn_t end_lsn) {
   ut_ad(type != MLOG_FILE_DELETE);
   ut_ad(type != MLOG_FILE_CREATE);
   ut_ad(type != MLOG_FILE_RENAME);
@@ -2815,10 +2817,10 @@ void recv_recover_page_func(
 @param[out]     page_no         page number
 @param[out]     body            start of log record body
 @return length of the record, or 0 if the record was not complete */
-static ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
-                                space_id_t *space_id, page_no_t *page_no,
-                                byte **body) {
-  byte *new_ptr;
+static ulint recv_parse_log_rec(mlog_id_t *type, const byte *ptr,
+                                const byte *end_ptr, space_id_t *space_id,
+                                page_no_t *page_no, const byte **body) {
+  const byte *new_ptr;
 
   *body = nullptr;
 
@@ -2959,7 +2961,7 @@ static void recv_track_changes_of_recovered_lsn() {
 @param[in]      ptr             start of buffer
 @param[in]      end_ptr         end of buffer
 @return true if end of processing */
-static bool recv_single_rec(byte *ptr, byte *end_ptr) {
+static bool recv_single_rec(const byte *ptr, const byte *end_ptr) {
   /* The mtr did not modify multiple pages */
 
   lsn_t old_lsn = recv_sys->recovered_lsn;
@@ -2967,7 +2969,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
   /* Try to parse a log record, fetching its type, space id,
   page no, and a pointer to the body of the log record */
 
-  byte *body;
+  const byte *body;
   mlog_id_t type;
   page_no_t page_no;
   space_id_t space_id;
@@ -3069,7 +3071,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
 @param[in]      ptr             start of buffer
 @param[in]      end_ptr         end of buffer
 @return true if end of processing */
-static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
+static bool recv_multi_rec(const byte *ptr, const byte *end_ptr) {
   /* Check that all the records associated with the single mtr
   are included within the buffer */
 
@@ -3078,7 +3080,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
   for (;;) {
     mlog_id_t type = MLOG_BIGGEST_TYPE;
-    byte *body;
+    const byte *body;
     page_no_t page_no = 0;
     space_id_t space_id = 0;
 
@@ -3154,7 +3156,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     mlog_id_t type = MLOG_BIGGEST_TYPE;
 
-    byte *body = nullptr;
+    const byte *body = nullptr;
     size_t len = 0;
 
     /* Avoid parsing if we have the record saved already. */
@@ -3238,9 +3240,9 @@ static void recv_parse_log_recs() {
   ut_ad(recv_sys->parse_start_lsn != 0);
 
   for (;;) {
-    byte *ptr = recv_sys->buf + recv_sys->recovered_offset;
+    const byte *ptr = recv_sys->buf + recv_sys->recovered_offset;
 
-    byte *end_ptr = recv_sys->buf + recv_sys->len;
+    const byte *end_ptr = recv_sys->buf + recv_sys->len;
 
     if (ptr == end_ptr) {
       return;

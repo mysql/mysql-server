@@ -3179,9 +3179,9 @@ void btr_cur_update_in_place_log(ulint flags, const rec_t *rec,
 
 /** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */
-byte *btr_cur_parse_update_in_place(
-    byte *ptr,                /*!< in: buffer */
-    byte *end_ptr,            /*!< in: buffer end */
+const byte *btr_cur_parse_update_in_place(
+    const byte *ptr,          /*!< in: buffer */
+    const byte *end_ptr,      /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     dict_index_t *index)      /*!< in: index corresponding to page */
@@ -4203,9 +4203,9 @@ static inline void btr_cur_del_mark_set_clust_rec_log(
 /** Parses the redo log record for delete marking or unmarking of a clustered
  index record.
  @return end of log record or NULL */
-byte *btr_cur_parse_del_mark_set_clust_rec(
-    byte *ptr,                /*!< in: buffer */
-    byte *end_ptr,            /*!< in: buffer end */
+const byte *btr_cur_parse_del_mark_set_clust_rec(
+    const byte *ptr,          /*!< in: buffer */
+    const byte *end_ptr,      /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     dict_index_t *index)      /*!< in: index corresponding to page */
@@ -4385,9 +4385,9 @@ static inline void btr_cur_del_mark_set_sec_rec_log(
 /** Parses the redo log record for delete marking or unmarking of a secondary
  index record.
  @return end of log record or NULL */
-byte *btr_cur_parse_del_mark_set_sec_rec(
-    byte *ptr,                /*!< in: buffer */
-    byte *end_ptr,            /*!< in: buffer end */
+const byte *btr_cur_parse_del_mark_set_sec_rec(
+    const byte *ptr,          /*!< in: buffer */
+    const byte *end_ptr,      /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
     page_zip_des_t *page_zip) /*!< in/out: compressed page, or NULL */
 {

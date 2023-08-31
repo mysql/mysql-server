@@ -10107,8 +10107,9 @@ bool fil_check_missing_tablespaces() {
                                 error_str is set to a non empty string
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated or corrupted */
-static byte *parse_path_from_redo(byte *ptr, const byte *end, bool check_suffix,
-                                  std::string &path, std::string &error_str) {
+const static byte *parse_path_from_redo(const byte *ptr, const byte *end,
+                                        bool check_suffix, std::string &path,
+                                        std::string &error_str) {
   ut_a(ptr != nullptr);
 
   error_str.clear();
@@ -10131,7 +10132,8 @@ static byte *parse_path_from_redo(byte *ptr, const byte *end, bool check_suffix,
   including the null terminator.
   Expecting a C string, with no null characters, except at the
   end, as specified by the length field */
-  path = {reinterpret_cast<char *>(ptr), (size_t)((len > 0) ? len - 1 : 0)};
+  path = {reinterpret_cast<const char *>(ptr),
+          (size_t)((len > 0) ? len - 1 : 0)};
   if (len < 5) {
     error_str = "The length must be >= 5.";
   } else if (memchr(ptr, 0, len) != ptr + len - 1) {
@@ -10159,9 +10161,9 @@ static byte *parse_path_from_redo(byte *ptr, const byte *end, bool check_suffix,
 @param[in]      parse_only      Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
-byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes,
-                                 bool parse_only) {
+const byte *fil_tablespace_redo_create(const byte *ptr, const byte *end,
+                                       const page_id_t &page_id,
+                                       ulint parsed_bytes, bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -10234,9 +10236,10 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
   return ptr;
 }
 
-byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes,
-                                 bool parse_only [[maybe_unused]]) {
+const byte *fil_tablespace_redo_rename(const byte *ptr, const byte *end,
+                                       const page_id_t &page_id,
+                                       ulint parsed_bytes,
+                                       bool parse_only [[maybe_unused]]) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -10285,9 +10288,9 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
   return ptr;
 }
 
-byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes,
-                                 bool parse_only) {
+const byte *fil_tablespace_redo_extend(const byte *ptr, const byte *end,
+                                       const page_id_t &page_id,
+                                       ulint parsed_bytes, bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -10452,9 +10455,9 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
 @param[in]      parse_only      Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
-byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes,
-                                 bool parse_only) {
+const byte *fil_tablespace_redo_delete(const byte *ptr, const byte *end,
+                                       const page_id_t &page_id,
+                                       ulint parsed_bytes, bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -10512,8 +10515,8 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
   return ptr;
 }
 
-byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
-                                     space_id_t space_id, lsn_t lsn) {
+const byte *fil_tablespace_redo_encryption(const byte *ptr, const byte *end,
+                                           space_id_t space_id, lsn_t lsn) {
   fil_space_t *space = fil_space_get(space_id);
 
   /* An undo space might be open but not have the ENCRYPTION bit set
@@ -10542,7 +10545,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     return (nullptr);
   }
 
-  byte *encryption_ptr = ptr;
+  const byte *encryption_ptr = ptr;
   ptr += len;
 
   /* If space is already loaded and have header_page_flushed_lsn greater than

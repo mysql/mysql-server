@@ -1201,7 +1201,6 @@ static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
 static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
                                         MDL_ticket **mdl) {
   dict_index_t *clust_index;
-  byte *ptr;
   undo_no_t undo_no;
   table_id_t table_id;
   trx_id_t trx_id;
@@ -1212,8 +1211,9 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   bool dummy_extern;
   type_cmpl_t type_cmpl;
 
-  ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info, &dummy_extern,
-                              &undo_no, &table_id, type_cmpl);
+  auto ptr =
+      trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info, &dummy_extern,
+                            &undo_no, &table_id, type_cmpl);
   node->rec_type = type;
 
   /* Although table IX lock is held now, DROP TABLE could still be

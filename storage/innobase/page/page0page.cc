@@ -819,13 +819,13 @@ static inline void page_delete_rec_list_write_log(
 
 /** Parses a log record of a record list end or start deletion.
  @return end of log record or NULL */
-byte *page_parse_delete_rec_list(
+const byte *page_parse_delete_rec_list(
     mlog_id_t type,      /*!< in: MLOG_LIST_END_DELETE,
                          MLOG_LIST_START_DELETE,
                          MLOG_COMP_LIST_END_DELETE or
                          MLOG_COMP_LIST_START_DELETE */
-    byte *ptr,           /*!< in: buffer */
-    byte *end_ptr,       /*!< in: buffer end */
+    const byte *ptr,     /*!< in: buffer */
+    const byte *end_ptr, /*!< in: buffer end */
     buf_block_t *block,  /*!< in/out: buffer block or NULL */
     dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr)          /*!< in: mtr or NULL */

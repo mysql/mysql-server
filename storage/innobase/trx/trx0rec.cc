@@ -99,9 +99,10 @@ static inline void trx_undof_page_add_undo_rec_log(
 
 /** Parses a redo log record of adding an undo log record.
  @return end of log record or NULL */
-byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
-                                  byte *end_ptr, /*!< in: buffer end */
-                                  page_t *page)  /*!< in: page or NULL */
+const byte *trx_undo_parse_add_undo_rec(
+    const byte *ptr,     /*!< in: buffer */
+    const byte *end_ptr, /*!< in: buffer end */
+    page_t *page)        /*!< in: page or NULL */
 {
   ulint len;
   byte *rec;
@@ -548,7 +549,7 @@ static ulint trx_undo_page_report_insert(
 
 /** Reads from an undo log record the general parameters.
  @return remaining part of undo log record after reading these values */
-byte *trx_undo_rec_get_pars(
+const byte *trx_undo_rec_get_pars(
     trx_undo_rec_t *undo_rec, /*!< in: undo log record */
     ulint *type,              /*!< out: undo record type:
                               TRX_UNDO_INSERT_REC, ... */
@@ -582,7 +583,7 @@ byte *trx_undo_rec_get_pars(
   *undo_no = mach_read_next_much_compressed(&ptr);
   *table_id = mach_read_next_much_compressed(&ptr);
 
-  return (const_cast<byte *>(ptr));
+  return ptr;
 }
 
 /** Reads from an undo log record the table ID
@@ -634,8 +635,8 @@ const byte *trx_undo_rec_get_multi_value(const byte *ptr, dfield_t *field,
 @param[in,out]  orig_len        original length of the locally stored part
 of an externally stored column, or 0
 @return remaining part of undo log record after reading these values */
-byte *trx_undo_rec_get_col_val(const byte *ptr, const byte **field, ulint *len,
-                               ulint *orig_len) {
+const byte *trx_undo_rec_get_col_val(const byte *ptr, const byte **field,
+                                     ulint *len, ulint *orig_len) {
   *len = mach_read_next_compressed(&ptr);
   *orig_len = 0;
 
@@ -671,18 +672,18 @@ byte *trx_undo_rec_get_col_val(const byte *ptr, const byte **field, ulint *len,
       }
   }
 
-  return (const_cast<byte *>(ptr));
+  return ptr;
 }
 
 /** Builds a row reference from an undo log record.
  @return pointer to remaining part of undo record */
-byte *trx_undo_rec_get_row_ref(
-    byte *ptr,           /*!< in: remaining part of a copy of an undo log
-                         record, at the start of the row reference;
-                         NOTE that this copy of the undo log record must
-                         be preserved as long as the row reference is
-                         used, as we do NOT copy the data in the
-                         record! */
+const byte *trx_undo_rec_get_row_ref(
+    const byte *ptr,     /*!< in: remaining part of a copy of an undo log
+                   record, at the start of the row reference;
+                   NOTE that this copy of the undo log record must
+                   be preserved as long as the row reference is
+                   used, as we do NOT copy the data in the
+                   record! */
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t **ref,      /*!< out, own: row reference */
     mem_heap_t *heap)    /*!< in: memory heap from which the memory
@@ -718,9 +719,9 @@ byte *trx_undo_rec_get_row_ref(
 
 /** Skips a row reference from an undo log record.
  @return pointer to remaining part of undo record */
-static byte *trx_undo_rec_skip_row_ref(
-    byte *ptr,                 /*!< in: remaining part in update undo log
-                               record, at the start of the row reference */
+static const byte *trx_undo_rec_skip_row_ref(
+    const byte *ptr,           /*!< in: remaining part in update undo log
+                         record, at the start of the row reference */
     const dict_index_t *index) /*!< in: clustered index */
 {
   ulint ref_len;
@@ -1700,7 +1701,7 @@ static ulint trx_undo_page_report_modify(
 /** Reads from an undo log update record the system field values of the old
  version.
  @return remaining part of undo log record after reading these values */
-byte *trx_undo_update_rec_get_sys_cols(
+const byte *trx_undo_update_rec_get_sys_cols(
     const byte *ptr,      /*!< in: remaining part of undo
                           log record after reading
                           general parameters */
@@ -1717,15 +1718,13 @@ byte *trx_undo_update_rec_get_sys_cols(
   *trx_id = mach_u64_read_next_compressed(&ptr);
   *roll_ptr = mach_u64_read_next_compressed(&ptr);
 
-  return (const_cast<byte *>(ptr));
+  return ptr;
 }
 
-byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
-                                     ulint type, trx_id_t trx_id,
-                                     roll_ptr_t roll_ptr, ulint info_bits,
-                                     mem_heap_t *heap, upd_t **upd,
-                                     lob::undo_vers_t *lob_undo,
-                                     type_cmpl_t &type_cmpl) {
+const byte *trx_undo_update_rec_get_update(
+    const byte *ptr, const dict_index_t *index, ulint type, trx_id_t trx_id,
+    roll_ptr_t roll_ptr, ulint info_bits, mem_heap_t *heap, upd_t **upd,
+    lob::undo_vers_t *lob_undo, type_cmpl_t &type_cmpl) {
   DBUG_TRACE;
 
   upd_field_t *upd_field;
@@ -1910,14 +1909,14 @@ byte *trx_undo_update_rec_get_update(const byte *ptr, const dict_index_t *index,
     *upd = update;
   }
 
-  return const_cast<byte *>(ptr);
+  return ptr;
 }
 
 /** Builds a partial row from an update undo log record, for purge.
  It contains the columns which occur as ordering in any index of the table.
  Any missing columns are indicated by col->mtype == DATA_MISSING.
  @return pointer to remaining part of undo record */
-byte *trx_undo_rec_get_partial_row(
+const byte *trx_undo_rec_get_partial_row(
     const byte *ptr,     /*!< in: remaining part in update undo log
                          record of a suitable type, at the start of
                          the stored index columns;
@@ -2073,7 +2072,7 @@ byte *trx_undo_rec_get_partial_row(
     }
   }
 
-  return (const_cast<byte *>(ptr));
+  return ptr;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2094,8 +2093,9 @@ static bool trx_undo_erase_page_end(
   return (first_free != TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 }
 
-byte *trx_undo_parse_erase_page_end(byte *ptr, byte *end_ptr [[maybe_unused]],
-                                    page_t *page, mtr_t *mtr) {
+const byte *trx_undo_parse_erase_page_end(const byte *ptr,
+                                          const byte *end_ptr [[maybe_unused]],
+                                          page_t *page, mtr_t *mtr) {
   if (page == nullptr) {
     return (ptr);
   }
@@ -2458,7 +2458,7 @@ bool trx_undo_prev_version_build(
   trx_id_t trx_id;
   roll_ptr_t roll_ptr;
   upd_t *update = nullptr;
-  byte *ptr;
+  const byte *ptr;
   ulint info_bits;
   ulint cmpl_info;
   bool dummy_extern;
@@ -2682,7 +2682,7 @@ void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
     dict_v_col_t *vcol = nullptr;
     ulint col_no;
 
-    field_no = mach_read_next_compressed(const_cast<const byte **>(&ptr));
+    field_no = mach_read_next_compressed(&ptr);
 
     is_virtual = (field_no >= REC_MAX_N_FIELDS);
 

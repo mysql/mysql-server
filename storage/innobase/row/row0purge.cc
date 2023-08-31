@@ -844,7 +844,7 @@ static bool row_purge_parse_undo_rec(purge_node_t *node,
                                      bool *updated_extern, THD *thd,
                                      que_thr_t *thr) {
   dict_index_t *clust_index;
-  byte *ptr;
+  const byte *ptr;
   undo_no_t undo_no;
   table_id_t table_id;
   trx_id_t trx_id;

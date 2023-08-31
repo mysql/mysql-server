@@ -353,7 +353,8 @@ class MetadataRecover {
   @param[in]    end     end of redo log
   @retval ptr to next redo log record, nullptr if this log record
   was truncated */
-  byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
+  const byte *parseMetadataLog(table_id_t id, uint64_t version, const byte *ptr,
+                               const byte *end);
 
   /** Store the collected persistent dynamic metadata to
   mysql.innodb_dynamic_metadata */
@@ -495,7 +496,7 @@ struct recv_sys_t {
   @param[out]   len             length of the log record
   @return true iff saved record data is found. */
   bool get_saved_rec(size_t rec_num, space_id_t &space_id, page_no_t &page_no,
-                     mlog_id_t &type, byte *&body, size_t &len) {
+                     mlog_id_t &type, const byte *&body, size_t &len) {
     if (rec_num >= MAX_SAVED_MLOG_RECS) {
       return false;
     }

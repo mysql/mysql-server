@@ -203,13 +203,14 @@ static inline byte *mlog_write_initial_log_record_fast(const byte *ptr,
 @param[out]     id              table id
 @param[out]     version         table dynamic metadata version
 @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_initial_dict_log_record(const byte *ptr, const byte *end_ptr,
-                                         mlog_id_t *type, table_id_t *id,
-                                         uint64_t *version);
+const byte *mlog_parse_initial_dict_log_record(const byte *ptr,
+                                               const byte *end_ptr,
+                                               mlog_id_t *type, table_id_t *id,
+                                               uint64_t *version);
 
 /** Parses an initial log record written by mlog_write_initial_log_record.
  @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_initial_log_record(
+const byte *mlog_parse_initial_log_record(
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
     mlog_id_t *type,     /*!< out: log record type: MLOG_1BYTE, ... */
@@ -217,7 +218,7 @@ byte *mlog_parse_initial_log_record(
     page_no_t *page_no); /*!< out: page number */
 /** Parses a log record written by mlog_write_ulint or mlog_write_ull.
  @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_nbytes(
+const byte *mlog_parse_nbytes(
     mlog_id_t type,      /*!< in: log record type: MLOG_1BYTE, ... */
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
@@ -226,11 +227,11 @@ byte *mlog_parse_nbytes(
     void *page_zip);     /*!< in/out: compressed page, or NULL */
 /** Parses a log record written by mlog_write_string.
  @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_string(
-    byte *ptr,       /*!< in: buffer */
-    byte *end_ptr,   /*!< in: buffer end */
-    byte *page,      /*!< in: page where to apply the log record, or NULL */
-    void *page_zip); /*!< in/out: compressed page, or NULL */
+const byte *mlog_parse_string(
+    const byte *ptr,     /*!< in: buffer */
+    const byte *end_ptr, /*!< in: buffer end */
+    byte *page,          /*!< in: page where to apply the log record, or NULL */
+    void *page_zip);     /*!< in/out: compressed page, or NULL */
 
 /** Opens a buffer for mlog, writes the initial log record and, if needed, the
 field lengths of an index. Reserves space for further log entries. The log
@@ -253,7 +254,8 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
 @param[in]  end_ptr  buffer end
 @param[out] index    own: dummy index
 @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_index(byte *ptr, const byte *end_ptr, dict_index_t **index);
+const byte *mlog_parse_index(const byte *ptr, const byte *end_ptr,
+                             dict_index_t **index);
 
 /** Parses a log record written by mlog_open_and_write_index in version <= 8027.
 This function should never be changed and should be removed once recovery from
@@ -263,8 +265,8 @@ mysql-8.0.27 is not needed anymore.
 @param[in]  comp     true=compact row format
 @param[out] index    own: dummy index
 @return parsed record end, NULL if not a complete record */
-byte *mlog_parse_index_8027(byte *ptr, const byte *end_ptr, bool comp,
-                            dict_index_t **index);
+const byte *mlog_parse_index_8027(const byte *ptr, const byte *end_ptr,
+                                  bool comp, dict_index_t **index);
 
 /** Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */

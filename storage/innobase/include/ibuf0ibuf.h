@@ -296,8 +296,8 @@ ulint ibuf_merge_space(space_id_t space); /*!< in: space id */
 @param[in] block Block or nullptr.
 @param[in] mtr MTR or nullptr.
 @return end of log record or NULL */
-byte *ibuf_parse_bitmap_init(byte *ptr, byte *end_ptr, buf_block_t *block,
-                             mtr_t *mtr);
+const byte *ibuf_parse_bitmap_init(const byte *ptr, const byte *end_ptr,
+                                   buf_block_t *block, mtr_t *mtr);
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
