@@ -10825,10 +10825,11 @@ int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   int result = NDBT_OK;
+  unsigned int timeout = 240; // To suite many node/replica tests
   const int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
   const Uint32 lcp_max_lag = ctx->getProperty("MaxLcpLag",
                                               Uint32(60));
-  const Uint32 clear_error_insert_seconds = 20;
+  const Uint32 clear_error_insert_seconds = 60;
 
   for (int scenario=1; scenario < 4; scenario++)
   {
@@ -10846,13 +10847,13 @@ int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
                                        false, /* abort */
                                        false  /* force */) == 0);
       g_err << "Waiting until node " << victim << " stops" << endl;
-      restarter.waitNodesNoStart(&victim, 1);
+      restarter.waitNodesNoStart(&victim, 1, timeout);
       break;
     case 3:
       g_err << "Scenario 3 : Start node, block GCP, check no LCP stall" << endl;
       g_err << "Starting node " << victim << endl;
       CHECK2(restarter.startNodes(&victim, 1) == 0);
-      CHECK2(restarter.waitClusterStarted() == 0);
+      CHECK2(restarter.waitClusterStarted(timeout) == 0);
       break;
     default:
       abort();
@@ -10861,9 +10862,9 @@ int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Inserting err delaying GCP_SAVEREQ" << endl;
     CHECK2(restarter.insertErrorInAllNodes(7237) == 0);
 
-    g_err << "Sleeping for 3 * MaxLcpLag = " << 3*lcp_max_lag << " seconds."
+    g_err << "Sleeping for 3 * MaxLcpLag = " << 3 * lcp_max_lag << " seconds."
           << endl;
-    NdbSleep_SecSleep(3*lcp_max_lag);
+    NdbSleep_SecSleep(3 * lcp_max_lag);
 
     // Remove the error insertion and let the GCP and LCP to finish
     CHECK2(restarter.insertErrorInAllNodes(0) == 0);
