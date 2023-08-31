@@ -558,6 +558,156 @@ class QuorumConnectionLostStandaloneClusterTest : public GRStateTest {
   std::vector<uint16_t> classic_ports, http_ports;
 };
 
+/* @test Checks that invalid existing connections are dropped when one of the
+ * destination nodes is no longer part of the Cluster. */
+TEST_F(QuorumConnectionLostStandaloneClusterTest, CheckInvalidConDropped) {
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch the 3-nodes cluster, first node is PRIMARY
+  for (size_t i = 0; i < classic_ports.size(); ++i) {
+    launch_mysql_server_mock(json_metadata, classic_ports[i], EXIT_SUCCESS,
+                             false, http_ports[i]);
+
+    ::set_mock_metadata(http_ports[i], "uuid",
+                        classic_ports_to_gr_nodes(classic_ports), i,
+                        classic_ports_to_cluster_nodes(classic_ports));
+  }
+
+  // start the Router
+  const auto router_ro_port = port_pool_.get_next_available();
+  const auto router_rw_port = port_pool_.get_next_available();
+  const auto router_rw_split_port = port_pool_.get_next_available();
+
+  std::vector<uint16_t> metadata_server_ports{
+      classic_ports[0], classic_ports[1], classic_ports[2]};
+
+  auto writer = config_writer(get_test_temp_dir_name());
+  writer
+      .section("connection_pool",
+               {
+                   {"max_idle_server_connections", "16"},
+               })
+      .section("metadata_cache",
+               {
+                   {"cluster_type", "gr"},
+                   {"router_id", "1"},
+                   {"user", router_metadata_username},
+                   {"connect_timeout", "1"},
+                   {"metadata_cluster", "test"},
+                   {"ttl", "0.2"},  // for faster test-runs
+               })
+      .section(
+          "routing:rw",
+          {
+              {"bind_port", std::to_string(router_rw_port)},
+              {"destinations", "metadata-cache://test/default?role=PRIMARY"},
+              {"protocol", "classic"},
+              {"routing_strategy", "first-available"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "PREFERRED"},
+          })
+      .section(
+          "routing:ro",
+          {
+              {"bind_port", std::to_string(router_ro_port)},
+              {"destinations", "metadata-cache://test/default?role=SECONDARY"},
+              {"protocol", "classic"},
+              {"routing_strategy", "round-robin-with-fallback"},
+              {"client_ssl_mode", "DISABLED"},
+              {"server_ssl_mode", "PREFERRED"},
+          })
+      .section("routing:rwsplit",
+               {
+                   {"bind_port", std::to_string(router_rw_split_port)},
+                   {"destinations",
+                    "metadata-cache://test/default?role=PRIMARY_AND_SECONDARY"},
+                   {"protocol", "classic"},
+                   {"routing_strategy", "round-robin"},
+                   {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+                   {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
+                   {"client_ssl_mode", "PREFERRED"},
+                   {"server_ssl_mode", "PREFERRED"},
+                   {"access_mode", "auto"},
+                   {"connection_sharing", "1"},
+               });
+  auto &default_section = writer.sections()["DEFAULT"];
+
+  state_file_ = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", metadata_server_ports, 0));
+  init_keyring(default_section, get_test_temp_dir_name());
+  default_section["dynamic_state"] = state_file_;
+
+  /*auto &router = */ router_spawner().spawn({"-c", writer.write()});
+
+  // make the classic connections to each classic port
+  MySQLSession con_rw;
+  ASSERT_NO_THROW(con_rw.connect("127.0.0.1", router_rw_port, "username",
+                                 "password", "", ""));
+  {
+    auto port_res = con_rw.query_one("select @@port");
+    ASSERT_TRUE(port_res);
+    ASSERT_THAT(*port_res, testing::SizeIs(1));
+    EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[0]));
+  }
+
+  MySQLSession con_ro;
+  ASSERT_NO_THROW(con_ro.connect("127.0.0.1", router_ro_port, "username",
+                                 "password", "", ""));
+  {
+    auto port_res = con_ro.query_one("select @@port");
+    ASSERT_TRUE(port_res);
+    ASSERT_THAT(*port_res, testing::SizeIs(1));
+    EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[1]));
+  }
+
+  MySQLSession con_rw_split;
+  ASSERT_NO_THROW(con_rw_split.connect("127.0.0.1", router_rw_split_port,
+                                       "username", "password", "", ""));
+  {
+    auto port_res = con_rw_split.query_one("select @@port");
+    ASSERT_TRUE(port_res);
+    ASSERT_THAT(*port_res, testing::SizeIs(1));
+    EXPECT_EQ((*port_res)[0], std::to_string(classic_ports[1]));
+  }
+
+  // simulate removing the PRIMARY from the cluster (c.removeInstance(primary))
+  std::vector<::ClusterNode> cluster_nodes{{classic_ports[1], "uuid-2"},
+                                           {classic_ports[2], "uuid-3"}};
+
+  // removed node sees itself as OFFLINE
+  std::vector<GRNode> gr_nodes_partition1{
+      {classic_ports[0], "uuid-1", "OFFLINE"}};
+
+  ::set_mock_metadata(http_ports[0], "uuid", gr_nodes_partition1, 0,
+                      cluster_nodes);
+
+  // the 2 remaining ones do not see the one that was removed in GR status
+  std::vector<GRNode> gr_nodes_partition2{
+      {classic_ports[1], "uuid-2", "ONLINE"},
+      {classic_ports[2], "uuid-3", "ONLINE"}};
+
+  for (size_t i = 0; i < cluster_nodes.size(); ++i) {
+    ::set_mock_metadata(http_ports[i + 1], "uuid", gr_nodes_partition2, i,
+                        cluster_nodes);
+  }
+
+  // wait for the Router to notice the change in the Cluster
+  ASSERT_TRUE(wait_for_transaction_count_increase(http_ports[1], 2));
+
+  // check that read-write & read-write-split connection got dropped
+  verify_existing_connection_dropped(&con_rw);
+  verify_existing_connection_dropped(&con_rw_split);
+  // read-only should be fine
+  verify_existing_connection_ok(&con_ro);
+
+  // check that the new rw and rw-split connections don't go to the node that is
+  // gone
+  make_new_connection_ok(router_rw_port, classic_ports[1]);
+  make_new_connection_ok(router_rw_split_port, classic_ports[2]);
+}
+
 struct AccessToPartitionWithNoQuorumTestParam {
   std::string test_name;
   std::string test_requirements;
