@@ -26,25 +26,51 @@
 #include "portlib/NdbSleep.h"
 #include "portlib/NdbTick.h"
 #include "portlib/ndb_socket.h"
-#include "portlib/ndb_socket_poller.h"
 
 #include "util/BaseString.hpp"
 
 #include "unittest/mytap/tap.h"
 
-int run_child_1(void);
-int run_child_2(void);
-int run_parent(const char * argv0);
+/* The unresponsive child process sleeps for this long and then exits */
+static constexpr int SleeperProcessTimeMsec = 5000;
 
+int run_parent(void);
+
+const char * argv0 = nullptr;
+
+/* Child process reads and writes to pipes as expected, then exits */
+int run_child_responsive() {
+  /* Read "hello." */
+  char buff[32];
+  int r = fread(buff, 6, 1, stdin);
+
+  /* Write "goodbye." */
+  if(r == 1 && strncmp("hello.", buff, 6) == 0)
+    fprintf(stdout, "goodbye.");
+  else perror("fread()");
+
+  return 0;
+}
+
+/* Child process sleeps for some time, then exits with code 93 */
+int run_child_sleeper() {
+  NdbSleep_MilliSleep(SleeperProcessTimeMsec);
+  return 93;
+}
+
+/* main()
+   Depending on arguments, run a child process, or set argv0 and run parent
+*/
 int main(int argc, const char * argv[]) {
   if(argc > 1) {
-    if(strcmp(argv[1], "child1") == 0)
-      return run_child_1();
-    if(strcmp(argv[1], "child2") == 0)
-      return run_child_2();
+    if(strcmp(argv[1], "responsive") == 0)
+      return run_child_responsive();
+    if(strcmp(argv[1], "sleeper") == 0)
+      return run_child_sleeper();
     BAIL_OUT("Unrecognized option: %s", argv[1]);
   }
-  return run_parent(argv[0]);
+  argv0 = argv[0];
+  return run_parent();
 }
 
 int pollReadable(NdbProcess::pipe_handle_t fd, int timeout)
@@ -65,92 +91,116 @@ int pollReadable(NdbProcess::pipe_handle_t fd, int timeout)
 #endif
 }
 
-void read_response(NdbProcess::Pipes & pipes, FILE * rfp) {
+bool read_response(NdbProcess::Pipes & pipes, FILE * rfp) {
   char response[32];
   response[0] = 'F';
+  bool match = false;
 
-  /* Poll; 20 ms */
-  int r = pollReadable(pipes.parentRead(), 20);
-  ok(r == 1, "poll readable");
-
-  /* Read response */
-  if(r) {
-    puts("Reading response.");
-    r = fread(response, 8, 1, rfp);
-    ok(r > 0, "got response %d", r);
-    response[8] = '\0';
-    ok(strcmp(response, "goodbye.") == 0, "got expected response");
+  /* Wait 50ms for socket to become readable, then read response */
+  if(pollReadable(pipes.parentRead(), 50) == 1) {
+    if(fread(response, 8, 1, rfp) == 1) {
+      response[8] = '\0';
+      match = ! strcmp(response, "goodbye.");
+    }
   }
+  return match;
 }
 
-NdbProcess * create_peer(const char * argv0, const char * argv1,
-                         NdbProcess::Pipes & pipes) {
+std::unique_ptr<NdbProcess> create_peer(const char * argv1,
+                                        NdbProcess::Pipes & pipes) {
   BaseString cmd;
   NdbProcess::Args args;
 
   cmd.assign(argv0);
   args.add(argv1);
 
-  ok(pipes.connected(), "pipes connected");
-  NdbProcess * p = NdbProcess::create("TestPeer", cmd, nullptr, args, &pipes);
+  assert(pipes.connected());
+  std::unique_ptr<NdbProcess> p = NdbProcess::create(
+      "TestPeer", cmd, nullptr, args, &pipes);
   ok((p != nullptr), "created process");
   return p;
 }
 
-int test(const char * argv0, const char * argv1, bool expectResponse) {
+class Test {
+  const char * child_argv1;
+  int waitTime1{0}, waitTime2{0}, expectExitCode{0};
+  bool expectResponse{false};
+
+public:
+  Test(const char * a) : child_argv1(a) {}
+  Test & setResponse(bool b)    { expectResponse=b ; return *this; }
+  Test & setWait1(int t)        { waitTime1=t; return *this; }
+  Test & setWait2(int t)        { waitTime2=t; return *this; }
+  Test & setExitCode(int i)     { expectExitCode = i; return *this; }
+  void run();
+};
+
+const char * trueFalse(bool r) { return r ? "true" : "false"; }
+
+void Test::run() {
   NdbProcess::Pipes pipes;
-  NdbProcess * proc = create_peer(argv0, argv1, pipes);
-  int r1 = -100;
+  ok(pipes.connected(), "created pipes");
+  std::unique_ptr<NdbProcess> proc = create_peer(child_argv1, pipes);
+  bool stopped = false;
+  int actualExitCode = -100;
 
   FILE *wfp = pipes.open(pipes.parentWrite(), "w");
   FILE *rfp = pipes.open(pipes.parentRead(), "r");
 
-  ok((wfp != nullptr), "Parent write pipe");
-  ok((rfp != nullptr), "Parent read pipe");
-
   fprintf(wfp, "hello.");
   fclose(wfp);
 
-  if(expectResponse)
-    read_response(pipes, rfp);
+  bool r = read_response(pipes, rfp);
+  ok(r == expectResponse, "read_response => %s", trueFalse(expectResponse));
+  fclose(rfp);
 
-  bool r = proc->wait(r1, 100);
+  bool expectWait1, expectWait2;
+  if(expectResponse) {
+    expectWait1 = true;
+    expectWait2 = false;
+    assert(waitTime2 == 0);
+  } else {
+    expectWait1 = (waitTime1 >= SleeperProcessTimeMsec);
+    expectWait2 = ((waitTime1 + waitTime2) >= SleeperProcessTimeMsec);
+  }
 
-  /* Kill it */
-  if(!r) ok(proc->stop(), "proc->stop()");
+  /* Timing is unreliable, so the first wait might succeed */
+  if(waitTime1) {
+    stopped = proc->wait(actualExitCode, waitTime1);
+    ok(stopped || ! expectWait1, "wait1() (%s)", trueFalse(stopped));
+  }
 
-  delete proc;
-  return (r == expectResponse);
+  if(waitTime2 && ! stopped) {
+    stopped = proc->wait(actualExitCode, waitTime2);
+    ok(stopped == expectWait2, "wait2() => %s", trueFalse(expectWait2));
+  }
+
+  /* Kill it if necessary */
+  if(stopped) {
+    ok(actualExitCode == expectExitCode, "exit code %d == %d",
+       actualExitCode, expectExitCode);
+  } else {
+    r = proc->stop();
+    ok(r, "force kill process");
+    ok(proc->wait(actualExitCode, 500), "wait() after kill");
+  }
 }
 
-int run_parent(const char * argv0) {
+int run_parent() {
   NdbTick_Init();
-  bool r;
 
-  r = test(argv0, "child1", true);
-  ok(r, "test1: response arrives and wait() succeeds");
+  puts("Test 1: response arrives and wait() succeeds");
+  Test("responsive").setResponse(true).setWait1(500).run();
+  puts("");
 
-  bool t2 = test(argv0, "child2", false);
-  ok(t2, "test2: response does not arrive and wait() fails");
+  puts("Test 2: no response; wait() may fail; stop() succeeds");
+  Test("sleeper").setResponse(false).setWait1(1000).setExitCode(93).run();
+  puts("");
+
+  puts("Test 3: no response; first wait() may fail; second wait() succeeds");
+  Test("sleeper").setResponse(false).setWait1(1500).setWait2(4000).
+    setExitCode(93).run();
+  puts("");
 
   return exit_status();
-}
-
-/* Child process reads and writes to pipes as expected, then exits */
-int run_child_1() {
-  /* Read "hello" */
-  char buff[32];
-  int r = fread(buff, 32, 1, stdin);
-
-  /* Write "goodbye." */
-  if(r >= 0)
-    fprintf(stdout, "goodbye.");
-
-  return 0;
-}
-
-/* Child process sleeps for 10 seconds, then exits */
-int run_child_2() {
-  NdbSleep_SecSleep(10);
-  return 0;
 }

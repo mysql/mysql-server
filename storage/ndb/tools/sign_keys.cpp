@@ -244,7 +244,7 @@ bool check_options() {
 
   if(opt_node_id && opt_noconfig)
     return message("Error: --node-id cannot be used in --no-config mode;\n"
-                   "       use -t to specify a node type");
+                   "       use -t to specify a node type.\n");
 
   /* Begin determining mode of operation: */
   if(opt_create_ca || opt_periodic || opt_promote)
@@ -991,6 +991,7 @@ int main(int argc, char** argv) {
     const NodeCertificate * nc = sign_key(csr, ca_certs, ca_key);
     if(! nc) return fatal(TlsKeyError::signing_error);
     Certificate::write(nc->all_certs(), stdout);
+    fclose(stdout);
     return 0;
   }
 
@@ -1149,8 +1150,8 @@ int remote_signing_method(BaseString & cmd, NdbProcess::Args & args,
       args.add("--CA-key=", opt_ca_key);
       if(opt_ca_host)
         args.add("--remote-CA-host=", opt_ca_host);
-      if(strcmp(ndb_basename(opt_ca_tool), "ndb_sign_keys") == 0) {
-        /* ndb_sign_keys is also the utility */
+      /* Check whether ndb_sign_keys is also the utility */
+      if(strstr(opt_ca_tool, "ndb_sign_keys")) {
         args.add("--stdio");
         if(remote_ca_path)
           args.add("--ndb-tls-search-path=", remote_ca_path);
@@ -1163,6 +1164,9 @@ int remote_signing_method(BaseString & cmd, NdbProcess::Args & args,
   }
 }
 
+/* remote_key_signing() returns an internal error code between 130 and 140,
+   or the exit code of the remote signing process.
+*/
 int remote_key_signing(const SigningRequest * csr, EVP_PKEY * key,
                        stack_st_X509 * local_certs,
                        stack_st_X509 * all_certs) {
@@ -1185,8 +1189,8 @@ int remote_key_signing(const SigningRequest * csr, EVP_PKEY * key,
   /* Create process */
   int protocol = remote_signing_method(cmd, args, csr, key);
   if(protocol == 0) return 132;
-  NdbProcess * proc = NdbProcess::create("RemoteKeySigning", cmd,
-                                         nullptr, args, &pipes);
+  std::unique_ptr<NdbProcess> proc =
+    NdbProcess::create("RemoteKeySigning", cmd, nullptr, args, &pipes);
   if(! proc) return fatal_error(133, "Failed to create process.\n");
 
   /* Write CSR and passphrase to coprocess */
@@ -1201,12 +1205,18 @@ int remote_key_signing(const SigningRequest * csr, EVP_PKEY * key,
   Certificate::read(all_certs, rfp);
   fclose(rfp);
 
-  /* Wait for coprocess to exit */
-  int r1;
-  proc->wait(r1, 100);
+  /* Wait up to 10 seconds for coprocess to exit.
+     Return value 137 will indicate that wait() has failed. */
+  int r1 = 137;
+  proc->wait(r1, 10000);
+
+  /* Check if any certs were read */
+  int ncerts = sk_X509_num(all_certs);
+  if(ncerts == 0)
+    return 136;
 
   /* If the signer did not return CA certs, attach them */
-  if(sk_X509_num(all_certs) == 1)
+  if(ncerts == 1)
     for(int i = 0 ; i < sk_X509_num(local_certs) ; i++)
       sk_X509_push(all_certs, sk_X509_value(local_certs, i));
 

@@ -28,16 +28,14 @@
 #define NDB_PROCESS_HPP
 
 #include <array>
+#include <filesystem>
 
 #include "util/BaseString.hpp"
 #include "util/require.h"
 
 #include "portlib/ndb_socket.h"
+#include "portlib/ndb_socket_poller.h"
 #include "portlib/NdbSleep.h"
-
-#ifdef _WIN32
-inline bool S_ISDIR(int mode) { return (mode & _S_IFDIR); }
-#endif
 
 class NdbProcess
 {
@@ -45,9 +43,13 @@ public:
 #ifdef _WIN32
   using process_handle_t = PROCESS_INFORMATION;
   using pipe_handle_t = HANDLE;
+  static constexpr pipe_handle_t InvalidHandle = INVALID_HANDLE_VALUE;
+  inline static bool S_ISDIR(int mode) { return (mode & _S_IFDIR); }
 #else
   using process_handle_t = pid_t;
   using pipe_handle_t = socket_t;
+  static constexpr pipe_handle_t InvalidHandle = -1;
+  inline static void CloseHandle(int fd) { (void) close(fd); }
 #endif
 
   class Pipes {
@@ -57,6 +59,7 @@ public:
   public:
     enum { parent_read, child_write, child_read, parent_write };
     Pipes();
+    ~Pipes();
     pipe_handle_t operator [](size_t idx) const { return fd[idx]; }
     bool connected() const                      { return is_setup; }
 
@@ -66,6 +69,9 @@ public:
     pipe_handle_t parentWrite() const           { return fd[parent_write]; }
 
     static FILE * open(pipe_handle_t, const char * mode);
+    void closePipe(size_t);
+    void closeChildHandles();
+    void closeParentHandles();
   };
 
   class Args {
@@ -80,22 +86,24 @@ public:
     const Vector<BaseString>& args(void) const  { return m_args; }
   };
 
+  ~NdbProcess()                                 { assert(! running()); }
   void closeHandles();
   static void printerror();
   bool stop(void);
   bool wait(int& ret, int timeout_msec = 0);
+  bool running() const;
 
-  static NdbProcess* create(const BaseString& name,
-                            const BaseString& path,
-                            const BaseString& cwd,
-                            const Args& args,
-                            Pipes * const fds = nullptr)
+  static std::unique_ptr<NdbProcess> create(const BaseString& name,
+                                            const BaseString& path,
+                                            const BaseString& cwd,
+                                            const Args& args,
+                                            Pipes * const fds = nullptr)
   {
-    NdbProcess* proc = new NdbProcess(name, fds);
+    std::unique_ptr<NdbProcess> proc(new NdbProcess(name, fds));
+
     if (!proc)
     {
       fprintf(stderr, "Failed to allocate memory for new process\n");
-      return nullptr;
     }
 
     // Check cwd
@@ -108,18 +116,17 @@ public:
       {
         fprintf(stderr, "The specified working directory '%s' cannot be used\n",
                 cwd.c_str());
-        delete proc;
-        return nullptr;
+        proc.reset(nullptr);
       }
     }
 
-    if (!start_process(proc->m_proc, path.c_str(), cwd.c_str(),
-                       args, proc->m_pipes))
+    if (proc && ! start_process(proc->m_proc, path.c_str(), cwd.c_str(),
+                                args, proc->m_pipes))
     {
       fprintf(stderr, "Failed to create process '%s'\n", name.c_str());
-      delete proc;
-      proc = nullptr;
+      proc.reset(nullptr);
     }
+
     return proc;
   }
 
@@ -136,16 +143,39 @@ private:
 
 
 inline NdbProcess::Pipes::Pipes() {
+  fd[0] = fd[1] = fd[2] = fd[3] = InvalidHandle;
   bool r1, r2;
 #ifdef _WIN32
-  r1 = CreatePipe(& fd[0], & fd[1], nullptr, 0);
-  r2 = CreatePipe(& fd[2], & fd[3], nullptr, 0);
+  r1 = CreatePipe(& fd[parent_read], & fd[child_write], nullptr, 0);
+  r2 = CreatePipe(& fd[child_read], & fd[parent_write], nullptr, 0);
 #else
   r1 = (pipe(&fd[0]) == 0);
   r2 = (pipe(&fd[2]) == 0);
 #endif
   is_setup = r1 && r2;
 }
+
+inline void NdbProcess::Pipes::closePipe(size_t i) {
+  assert(i < 4);
+  CloseHandle(fd[i]);
+  fd[i] = InvalidHandle;
+}
+
+inline void NdbProcess::Pipes::closeChildHandles() {
+  closePipe(child_read);
+  closePipe(child_write);
+}
+
+inline void NdbProcess::Pipes::closeParentHandles() {
+  closePipe(parent_read);
+  closePipe(parent_write);
+}
+
+inline NdbProcess::Pipes::~Pipes() {
+  closeParentHandles();
+  closeChildHandles();
+}
+
 
 inline FILE * NdbProcess::Pipes::open(pipe_handle_t p, const char * mode) {
 #ifdef _WIN32
@@ -196,7 +226,14 @@ inline void NdbProcess::Args::add(const Args & args)
 inline void NdbProcess::closeHandles()
 {
   CloseHandle(m_proc.hProcess);
+  m_proc.hProcess = InvalidHandle;
   CloseHandle(m_proc.hThread);
+  m_proc.hThread = InvalidHandle;
+}
+
+inline bool NdbProcess::running() const
+{
+  return (m_proc.hProcess != InvalidHandle);
 }
 
 inline void NdbProcess::printerror()
@@ -215,43 +252,36 @@ inline void NdbProcess::printerror()
 
 inline bool NdbProcess::stop()
 {
-  if (!TerminateProcess(m_proc.hProcess,9999))
-  {
+  bool r = TerminateProcess(m_proc.hProcess,9999);
+  if(! r)
     printerror();
-    closeHandles();
-    return false;
-  }
-  closeHandles();
-  return true;
+  return r;
 }
 
 inline bool NdbProcess::wait(int & ret, int timeout)
 {
+  require(m_proc.hProcess != INVALID_HANDLE_VALUE);
+
   const DWORD result = WaitForSingleObject(m_proc.hProcess, timeout);
-  bool fun_ret = true;
-  if (result == WAIT_TIMEOUT)
+  if (result != WAIT_OBJECT_0)
   {
-    fprintf(stderr, "Timeout when waiting for process\n");
+    if (result == WAIT_TIMEOUT)
+      fprintf(stderr, "Timeout when waiting for process\n");
+    else
+      printerror();
     return false;
   }
-  if (result == WAIT_FAILED)
-  {
-    printerror();
-    fun_ret = false;
-  }
+
   DWORD exitCode = 0;
-  if (GetExitCodeProcess(m_proc.hProcess, &exitCode) == FALSE)
-  {
-    fprintf(stderr, "Error occurred when getting exit code of process\n");
-    closeHandles();
+  if (! GetExitCodeProcess(m_proc.hProcess, &exitCode)) {
+    printerror();
     return false;
   }
+  assert(exitCode != STILL_ACTIVE);
+
   closeHandles();
-  if (exitCode != 9999)
-  {
-    ret = static_cast<int>(exitCode);
-  }
-  return fun_ret;
+  ret = (int) exitCode;
+  return true;
 }
 
 inline bool NdbProcess::start_process(process_handle_t & pid,
@@ -260,47 +290,51 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
                                       const Args& args,
                                       Pipes * pipes)
 {
-  STARTUPINFO si;
+  /* Extract the command name from the full path, then append the arguments */
+  std::filesystem::path cmdName(std::filesystem::path(path).filename());
+  BaseString cmdLine(cmdName.string().c_str());
+  BaseString argStr;
+  argStr.assign(args.args(), " ");
+  cmdLine.append(" ");
+  cmdLine.append(argStr);
+  char * command_line = strdup(cmdLine.c_str());
 
+  STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
-  BaseString args_str;
-
-  args_str.assign(args.args(), " ");
-  std::string final_arg(path);
-  final_arg.append(" ");
-  final_arg.append(args_str.c_str());
-
   if(pipes) {
     static constexpr int Inherit = HANDLE_FLAG_INHERIT;
     SetHandleInformation(pipes->childRead(), Inherit, Inherit);
     SetHandleInformation(pipes->childWrite(), Inherit, Inherit);
-    si.cb = sizeof(si);
     si.hStdOutput = pipes->childWrite();
     si.hStdInput = pipes->childRead();
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
     si.dwFlags = STARTF_USESTDHANDLES;
   }
 
   // Start the child process.
   if (!CreateProcess(
-    path,     // Application Name
-    (LPSTR)const_cast<char *>(final_arg.c_str()), // command line
-    nullptr,  // process security attributes
-    nullptr,  // primary thread security attributes
-    (bool) pipes, // Flag allowing pipe handles to be inherited
-    0,        // creation flags
-    nullptr,  // use parent's environment
-    cwd,      // current directory
-    &si,      // lpStartupInfo
-    &pid)     // lpProcessInformation
+    path,           // "the full path and file name of the module to execute"
+    command_line,   // lpCommandLine: command line including arguments
+    nullptr,        // lpProcessAttributes: process security attributes
+    nullptr,        // lpThreadAttributes: primary thread security attributes
+    (bool) pipes,   // bInheritHandles: allow pipe handles to be inherited
+    0,              // dwCreationFlags
+    nullptr,        // lpEnvironment: use parent's environment
+    cwd,            // lpCurrentDirectory: current directory
+    &si,            // lpStartupInfo
+    &pid)           // lpProcessInformation
     ) {
     printerror();
+    free(command_line);
     return false;
   }
-  else
-  {
-    fprintf(stderr, "Started process.\n");
-  }
+
+  fprintf(stderr, "Started process.\n");
+  if(pipes)
+    pipes->closeChildHandles();
+
+  free(command_line);
   return true;
 }
 
@@ -311,21 +345,19 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
         NdbProcess Posix implementation
                                         *********/
 
-inline void NdbProcess::closeHandles() { }
-inline void NdbProcess::printerror() { }
+inline bool NdbProcess::running() const
+{
+  return (m_proc != InvalidHandle);
+}
 
 inline bool NdbProcess::stop()
 {
   int ret = kill(m_proc, 9);
-  if (ret != 0)
-  {
+  if(ret)
     fprintf(stderr,
             "Failed to kill process %d, ret: %d, errno: %d\n",
             m_proc, ret, errno);
-    return false;
-  }
-  printf("Stopped process %d\n", m_proc);
-  return true;
+  return (ret == 0);
 }
 
 inline bool NdbProcess::wait(int & ret, int timeout)
@@ -335,6 +367,7 @@ inline bool NdbProcess::wait(int & ret, int timeout)
   while (true)
   {
     pid_t ret_pid = waitpid(m_proc, &status, WNOHANG);
+
     if (ret_pid == -1)
     {
       fprintf(stderr,
@@ -353,6 +386,7 @@ inline bool NdbProcess::wait(int & ret, int timeout)
         ret = 37; // Unknown exit status
 
       printf("Got process %d, status: %d, ret: %d\n", m_proc, status, ret);
+      m_proc = InvalidHandle;
       return true;
     }
 
@@ -376,6 +410,7 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
                                       const Args& args,
                                       Pipes * pipes)
 {
+  pid = InvalidHandle;
   int retries = 5;
   pid_t tmp;
   while ((tmp = fork()) == -1)
@@ -395,9 +430,9 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
   {
     pid = tmp;
     printf("Started process: %d\n", pid);
-    if(pipes) {
-      close(pipes->childRead());
-      close(pipes->childWrite());
+    if(pipes)
+    {
+      pipes->closeChildHandles();
     }
     return true;
   }
@@ -411,8 +446,7 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
 
   // Dup second half of socketpair to child STDIN & STDOUT
   if(pipes != nullptr) {
-    close(pipes->parentRead());
-    close(pipes->parentWrite());
+    pipes->closeParentHandles();
 
     if(dup2(pipes->childRead(), STDIN_FILENO) != STDIN_FILENO) {
       fprintf(stderr, "STDIN dup2() failed\n");
@@ -430,7 +464,6 @@ inline bool NdbProcess::start_process(process_handle_t & pid,
   args_str.assign(args.args(), " ");
 
   char **argv = BaseString::argify(path, args_str.c_str());
-  //printf("name: %s\n", path);
   execvp(path, argv);
 
   fprintf(stderr, "execv failed, errno: %d\n", errno);

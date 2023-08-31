@@ -1,14 +1,6 @@
 --source include/have_ndb.inc
 --source suite/ndb_tls/include/check_openssl.inc
 
-## TEMPORARILY SKIP THIS TEST ON WINDOWS
-##
-## Remote Key Signing (at line 106) will time out very slowly and create
-## crash dumps.  Use the testNdbProcess-t unit test to isolate this issue,
-## then re-enable this test on Windows.
-##
---source include/not_windows.inc
-
 # The MySQL server is up
 SELECT 1;
 

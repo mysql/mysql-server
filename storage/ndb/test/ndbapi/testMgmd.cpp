@@ -33,6 +33,7 @@
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <portlib/NdbDir.hpp>
+#include "portlib/ssl_applink.h"
 #include "ConfigFactory.hpp"
 #include <NdbMgmd.hpp>
 #include <NdbProcess.hpp>
@@ -92,7 +93,7 @@ static BaseString path(const char* first, ...)
 class Mgmd
 {
 protected:
-  NdbProcess* m_proc;
+  std::unique_ptr<NdbProcess> m_proc;
   int m_nodeid;
   BaseString m_name;
   BaseString m_exe;
@@ -102,7 +103,6 @@ protected:
 public:
 
   Mgmd(int nodeid) :
-  m_proc(NULL),
   m_nodeid(nodeid)
   {
     m_name.assfmt("ndb_mgmd_%d", nodeid);
@@ -110,8 +110,7 @@ public:
     NDBT_find_ndb_mgmd(m_exe);
   }
 
-  Mgmd() :
-  m_proc(NULL)
+  Mgmd()
   {
     no_node_config = no_node_config + 1;
     m_name.assfmt("ndb_mgmd_autonode_%d", no_node_config);
@@ -122,7 +121,6 @@ public:
   {
     if (m_proc)
     {
-      //stop the process
       stop();
     }
 
@@ -166,7 +164,7 @@ public:
                                   working_dir,
                                   copy);
     }
-    return (m_proc != NULL);
+    return (bool) m_proc;
   }
 
   void common_args(NdbProcess::Args & args, const char * working_dir)
@@ -239,7 +237,7 @@ public:
     // Diconnect and close our "builtin" client
     m_mgmd_client.close();
 
-    if (m_proc == 0 || !m_proc->stop())
+    if ( !m_proc || !m_proc->stop())
     {
       fprintf(stderr, "Failed to stop process %s\n", name());
       return false; // Can't kill with -9 -> fatal error
@@ -261,27 +259,22 @@ public:
       fprintf(stderr, "Process %s stopped with ret: %u\n", name(), ret);
     }
 
-    delete m_proc;
-    m_proc = 0;
-
+    m_proc.reset();
     return true;
-
   }
 
   bool wait(int& ret, int timeout = 30000)
   {
     g_info << "Waiting for " << name() << endl;
 
-    if (m_proc == 0 || !m_proc->wait(ret, timeout))
+    if (!m_proc || !m_proc->wait(ret, timeout))
     {
       fprintf(stderr, "Failed to wait for process %s\n", name());
       return false;
     }
-    delete m_proc;
-    m_proc = 0;
 
+    m_proc.reset();
     return true;
-
   }
 
   const BaseString connectstring(const Properties& config)
@@ -470,9 +463,8 @@ bool create_CA(NDBT_Workingdir & wd, const BaseString &exe)
   args.add("--passphrase=", "Trondheim");
   args.add("--create-CA");
   args.add("--CA-search-path=", wd.path());
-  NdbProcess * proc = NdbProcess::create("Create CA", exe, wd.path(), args);
+  auto proc = NdbProcess::create("Create CA", exe, wd.path(), args);
   bool r = proc->wait(ret, 3000);
-  delete proc;
 
   return (r && (ret == 0));
 }
@@ -497,9 +489,8 @@ bool sign_tls_keys(NDBT_Workingdir & wd)
   args.add("--passphrase=", "Trondheim");
   args.add("--ndb-tls-search-path=", wd.path());
   args.add("--create-key");
-  NdbProcess * proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+  auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
   bool r = proc->wait(ret, 3000);
-  delete proc;
   return (r && (ret == 0));
 }
 
@@ -527,9 +518,8 @@ bool create_expired_cert(NDBT_Workingdir & wd)
   args.add("-t db"); // type db
   args.add("--duration=", "-50000");  // negative seconds; already expired
 
-  NdbProcess * proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+  auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
   bool r = proc->wait(ret, 3000);
-  delete proc;
   return (r && (ret == 0));
 }
 
@@ -1939,15 +1929,48 @@ runTestSshKeySigning(NDBT_Context* ctx, NDBT_Step* step)
   args.add("--create-key");
   args.add("--remote-exec-path=", exe.c_str());
   args.add("--remote-CA-host=", "localhost");
-  NdbProcess * proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+  auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
   bool r = proc->wait(ret, 3000);
-  CHECK(r);
   if(! r) proc->stop();
-  delete proc;
+  CHECK(r);
 
   CHECK(ret == 0);
   return NDBT_OK;
 }
+
+int
+runTestKeySigningTool(NDBT_Context *, NDBT_Step *)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+  Properties config = ConfigFactory::create();
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  /* Find executable */
+  BaseString exe;
+  NDBT_find_sign_keys(exe);
+
+  /* Create CA */
+  if(! create_CA(wd, exe))
+    return false;
+
+  /* Create key and certificate for node 2 */
+  NdbProcess::Args args;
+  int ret = -1;
+  args.add("--config-file=", cfg_path.c_str());
+  args.add("--passphrase=", "Trondheim");
+  args.add("--ndb-tls-search-path=", wd.path());
+  args.add("--create-key");
+  args.add("-n", 2);
+  args.add("--CA-tool=", exe.c_str());
+  auto proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+  bool r = proc->wait(ret, 3000);
+  if(! r) proc->stop();
+  CHECK(r);
+  CHECK(ret == 0);
+  return NDBT_OK;
+}
+
 
 int
 runTestMgmdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
@@ -2318,12 +2341,6 @@ TESTCASE("MultiMGMDDisconnection",
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
 
-TESTCASE("SshKeySigning",
-         "Test remote key signing over ssh using ndb_sign_keys")
-{
-  INITIALIZER(runTestSshKeySigning);
-}
-
 TESTCASE("MgmdWithoutCertificate",
          "Test MGM server startup with TLS required but no certificate")
 {
@@ -2361,6 +2378,17 @@ TESTCASE("StartTls", "Test START TLS in MGM protocol")
 TESTCASE("RequireTls", "Test MGM server that requires TLS")
 {
   INITIALIZER(runTestRequireTls);
+}
+
+TESTCASE("KeySigningTool", "Test key signing using a co-process tool")
+{
+   INITIALIZER(runTestKeySigningTool);
+}
+
+TESTCASE("SshKeySigning",
+         "Test remote key signing over ssh using ndb_sign_keys")
+{
+  INITIALIZER(runTestSshKeySigning);
 }
 
 #endif
