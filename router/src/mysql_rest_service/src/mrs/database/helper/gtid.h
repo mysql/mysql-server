@@ -49,7 +49,7 @@ class GTIDuuid : public entry::UniversalId {
       os << std::setfill('0') << std::setw(2) << std::hex << std::uppercase;
     }
 
-    int operator()(const uint8_t v) { return (v & 0xf) << 4 | (v & 0xf0) >> 4; }
+    int operator()(const uint8_t v) { return v; }
 
     bool insert_separator(int pos) {
       switch (pos) {
