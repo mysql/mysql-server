@@ -24,6 +24,8 @@
 
 #include "collector/mysql_cache_manager.h"
 
+#include <vector>
+
 #include "mrs/router_observation_entities.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -36,12 +38,20 @@ namespace collector {
 using Object = MysqlCacheManager::Object;
 
 Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate(bool wait) {
+  using namespace std::string_literals;
   std::unique_ptr<CountedMySQLSession> obj{new CountedMySQLSession()};
+  std::vector<std::string> sqls{"SET @@SESSION.sql_mode=DEFAULT;"};
 
-  obj->connect_and_set_opts(new_connection_params(wait));
+  if (!role_.empty()) {
+    sqls.push_back("SET ROLE "s + role_);
+  }
+
+  if (connection_configuration_.is_rw())
+    sqls.push_back("SET @@SESSION.session_track_gtids=\"OWN_GTID\";");
+
+  obj->connect_and_set_opts(new_connection_params(wait), sqls);
   mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
 
-  initalize(obj.get());
   return obj.release();
 }
 
@@ -50,13 +60,14 @@ void MysqlCacheManager::MysqlCacheCallbacks::object_remove(Object obj) {
   delete obj;
 }
 
-bool MysqlCacheManager::MysqlCacheCallbacks::object_before_cache(Object obj) {
+bool MysqlCacheManager::MysqlCacheCallbacks::object_before_cache(Object obj,
+                                                                 bool dirty) {
   // If we are at other server, then just drop such connection,
   // we only need to cache the connections to default server.
   if (!is_default_server(obj)) return false;
 
   try {
-    object_restore_defaults(obj);
+    object_restore_defaults(obj, dirty);
   } catch (...) {
     return false;
   }
@@ -66,24 +77,29 @@ bool MysqlCacheManager::MysqlCacheCallbacks::object_before_cache(Object obj) {
 
 bool MysqlCacheManager::MysqlCacheCallbacks::object_retrived_from_cache(
     Object connection) {
-  auto can_be_used = connection->ping();
+  auto can_be_used = !connection->has_data_on_socket();
 
-  if (can_be_used)
+  if (can_be_used) {
     mrs::Counter<kEntityCounterMySQLConnectionsReused>::increment();
+    connection->allow_failure_at_next_query();
+  }
 
   return can_be_used;
 }
 
 void MysqlCacheManager::MysqlCacheCallbacks::object_restore_defaults(
-    Object &obj) {
+    Object &obj, bool dirty) {
   if (!is_default_user(obj)) {
     obj->change_user(connection_configuration_.mysql_user_,
                      connection_configuration_.mysql_password_, "");
+    obj->execute_initial_sqls();
     return;
   }
 
-  obj->reset();
-  initalize(obj);
+  if (dirty) {
+    obj->reset();
+    obj->execute_initial_sqls();
+  }
 }
 
 bool MysqlCacheManager::MysqlCacheCallbacks::is_default_server(
@@ -98,16 +114,6 @@ bool MysqlCacheManager::MysqlCacheCallbacks::is_default_server(
   return connection_configuration_.provider_->is_node_supported(
       {active_params.conn_opts.host,
        static_cast<uint16_t>(active_params.conn_opts.port)});
-}
-
-void MysqlCacheManager::MysqlCacheCallbacks::initalize(Object obj) {
-  using namespace std::literals::string_literals;
-  if (!role_.empty()) {
-    obj->execute("SET ROLE "s + role_);
-  }
-
-  if (connection_configuration_.is_rw())
-    obj->execute("SET @@SESSION.session_track_gtids=\"OWN_GTID\";");
 }
 
 bool MysqlCacheManager::MysqlCacheCallbacks::is_default_user(

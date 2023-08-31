@@ -501,6 +501,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   virtual const char *ssl_cipher();
   virtual bool ping();
+  virtual bool has_data_on_socket();
   virtual std::vector<std::string> get_session_tracker_data(
       enum enum_session_state_type type);
 

@@ -249,6 +249,11 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
     }
   }
 
+  // Stored procedures may change the state of the SQL session,
+  // we need ensure that its going to be reseted.
+  // Set as dirty, directly before executing queries.
+  session.set_dirty();
+
   database::QueryRestSP db;
   try {
     db.query_entries(session.get(), route_->get_schema_name(),
@@ -326,6 +331,10 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  // Stored procedures may change the state of the SQL session,
+  // we need ensure that its going to be reseted.
+  // Set as dirty, directly before executing queries.
+  session.set_dirty();
 
   const auto format = route_->get_format();
   log_debug("HandlerSP::handle_get start format=%i", (int)format);

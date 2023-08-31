@@ -33,7 +33,8 @@
 #include <sstream>
 #include <string>
 
-#include <mysql.h>
+#include "mysql.h"
+#include "violite.h"
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
@@ -827,6 +828,10 @@ uint64_t MySQLSession::affected_rows() noexcept {
 }
 
 bool MySQLSession::ping() { return 0 == mysql_ping(connection_); }
+
+bool MySQLSession::has_data_on_socket() {
+  return 0 < vio_io_wait(connection_->net.vio, VIO_IO_EVENT_READ, 0);
+}
 
 std::vector<std::string> MySQLSession::get_session_tracker_data(
     enum enum_session_state_type type) {

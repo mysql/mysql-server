@@ -35,6 +35,8 @@ template <typename Obj>
 class CacheManager {
  public:
   using Object = Obj;
+  class Callbacks;
+
   class CachedObject {
    public:
     CachedObject(CacheManager *parent = nullptr)
@@ -93,11 +95,15 @@ class CacheManager {
      */
     void set_clean() { dirty_ = false; }
 
-    // TODO(lkotula): Make those fields private (Shouldn't be in review)
-    //   private:
+    bool is_dirty() const { return dirty_; }
+
+    CacheManager *get_parent() const { return parent_; }
+
     CacheManager *parent_;
     bool wait_{false};
     Object object_;
+
+   private:
     bool dirty_{false};
   };
 
@@ -106,7 +112,7 @@ class CacheManager {
     using Object = CacheManager::Object;
     virtual ~Callbacks() = default;
 
-    virtual bool object_before_cache(Object) = 0;
+    virtual bool object_before_cache(Object, bool dirty) = 0;
     virtual bool object_retrived_from_cache(Object) = 0;
     virtual void object_remove(Object) = 0;
     virtual Object object_allocate(bool wait) = 0;
@@ -132,8 +138,9 @@ class CacheManager {
     object.parent_ = nullptr;
     {
       std::unique_lock<std::mutex> lock(object_container_mutex_);
-      if (objects_.size() < objects_limit_ && !object.dirty_) {
-        if (callbacks_->object_before_cache(object.object_)) {
+      if (objects_.size() < objects_limit_) {
+        if (callbacks_->object_before_cache(object.object_,
+                                            object.is_dirty())) {
           objects_.push_back(std::move(object.object_));
           return;
         }

@@ -27,10 +27,13 @@
 
 #include "mysqlrouter/mysql_session.h"
 
+#include <vector>
+
 namespace collector {
 
 class CountedMySQLSession : public mysqlrouter::MySQLSession {
  public:
+  using Sqls = std::vector<std::string>;
   struct ConnectionParameters {
     struct SslOptions {
       mysql_ssl_mode ssl_mode;
@@ -61,9 +64,12 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   CountedMySQLSession();
   ~CountedMySQLSession() override;
 
+  virtual void allow_failure_at_next_query();
   virtual ConnectionParameters get_connection_parameters() const;
+  virtual void execute_initial_sqls();
+  virtual Sqls get_initial_sqls() const;
   virtual void connect_and_set_opts(
-      const ConnectionParameters &connection_params);
+      const ConnectionParameters &connection_params, const Sqls &initial_sqls);
 
   void connect(const MySQLSession &other, const std::string &username,
                const std::string &password) override;
@@ -98,6 +104,8 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
 
  private:
   ConnectionParameters connections_;
+  bool reconnect_at_next_query_{false};
+  Sqls initial_sqls_;
 };
 
 }  // namespace collector

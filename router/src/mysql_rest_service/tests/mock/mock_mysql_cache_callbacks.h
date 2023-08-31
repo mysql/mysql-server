@@ -31,7 +31,7 @@
 
 class MockMySqlCacheCallbacks : public collector::MysqlCacheManager::Callbacks {
  public:
-  MOCK_METHOD(bool, object_before_cache, (Object), (override));
+  MOCK_METHOD(bool, object_before_cache, (Object, bool), (override));
   MOCK_METHOD(bool, object_retrived_from_cache, (Object), (override));
   MOCK_METHOD(void, object_remove, (Object), (override));
   MOCK_METHOD(Object, object_allocate, (bool wait), (override));
