@@ -28,6 +28,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Smart ALTER TABLE
  *******************************************************/
 
+#include <algorithm>
+
 /* Include necessary SQL headers */
 #include <assert.h>
 #include <current_thd.h>
@@ -10013,7 +10015,7 @@ static inline Instant_Type innopart_support_instant(
 int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
                                     bool use_reserved_threads,
                                     size_t max_desired_threads) {
-  auto max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  size_t max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
   if (max_desired_threads > 0) {
     max_threads = std::min(max_threads, max_desired_threads);
   }
