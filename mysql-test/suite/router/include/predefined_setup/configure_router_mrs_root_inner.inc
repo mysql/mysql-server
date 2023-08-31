@@ -18,7 +18,6 @@ if (!$extra_http_enable_ssl)
 {
   if ($extra_http_enable_ssl != 0)
   {
-    echo  # Setting SSL;
     --let $extra_http_enable_ssl=1
   }
 }
