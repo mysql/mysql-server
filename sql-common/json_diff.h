@@ -37,6 +37,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <memory>  // std::unique_ptr
+#include <optional>
 #include <vector>
 
 #include "sql-common/json_path.h"
@@ -151,6 +152,11 @@ class Json_diff_vector {
     @param arg Mem_root_allocator to use for the vector
   */
   explicit Json_diff_vector(allocator_type arg);
+  /**
+    Append a new diff at the end of this vector.
+    @param diff The diff to add.
+  */
+  void add_diff(Json_diff diff);
   /**
     Append a new diff at the end of this vector.
     @param path Path to update
@@ -290,5 +296,27 @@ enum class enum_json_diff_status {
   successfully.
  */
 enum_json_diff_status apply_json_diff(const Json_diff &diff, Json_dom *dom);
+
+/// The result of a call to read_json_diff().
+struct ReadJsonDiffResult {
+  /// The JSON diff that was read from the buffer.
+  Json_diff diff;
+  /// The number of bytes read from the buffer.
+  size_t bytes_read;
+};
+
+/**
+  Read one JSON diff from a buffer.
+
+  @param pos The position to start reading from in the buffer. When the function
+  returns, it will be set to the position right after the last byte read.
+  @param length The maximum number of bytes to read from the buffer.
+
+  @return An object containing the Json_diff value and the number of bytes read,
+  if successful. An empty value if an error was raised, or if the buffer did not
+  contain a valid diff.
+ */
+std::optional<ReadJsonDiffResult> read_json_diff(const unsigned char *pos,
+                                                 size_t length);
 
 #endif /* JSON_DIFF_INCLUDED */

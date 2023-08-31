@@ -22,8 +22,8 @@
 
 #include "sql-common/json_diff.h"
 
-#include <sys/types.h>
 #include <cassert>
+#include <optional>
 #include <utility>
 
 #include "my_alloc.h"
@@ -47,6 +47,9 @@
 #include "sql/table.h"
 #include "sql_string.h"  // StringBuffer
 #include "template_utils.h"
+
+using std::nullopt;
+using std::optional;
 
 // Define constructor and destructor here instead of in the header file, to
 // avoid dependencies on psi_memory_key.h and json_dom.h from the header file.
@@ -262,17 +265,20 @@ static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256);
 const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{
     Json_diff_vector::allocator_type{&empty_json_diff_vector_mem_root}};
 
+void Json_diff_vector::add_diff(Json_diff diff) {
+  m_vector.push_back(std::move(diff));
+  m_binary_length += m_vector.back().binary_length();
+}
+
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation,
                                 std::unique_ptr<Json_dom> dom) {
-  m_vector.emplace_back(path, operation, std::move(dom));
-  m_binary_length += at(size() - 1).binary_length();
+  add_diff({path, operation, std::move(dom)});
 }
 
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation) {
-  m_vector.emplace_back(path, operation, nullptr);
-  m_binary_length += at(size() - 1).binary_length();
+  add_diff({path, operation, /*value=*/nullptr});
 }
 
 void Json_diff_vector::clear() {
@@ -316,74 +322,92 @@ bool Json_diff_vector::read_binary(const char **from, const TABLE *table,
   size_t length = uint4korr(p);
   p += 4;
 
-  DBUG_PRINT("info", ("length=%d p=%p", (int)length, p));
+  DBUG_PRINT("info", ("length=%zu p=%p", length, p));
 
-  while (length) {
-    DBUG_PRINT("info",
-               ("length=%u bytes remaining to decode into Json_diff_vector",
-                (uint)length));
-    // Read operation
-    if (length < 1) goto corrupted;
-    const int operation_number = *p;
-    DBUG_PRINT("info", ("operation_number=%d", operation_number));
-    if (operation_number >= JSON_DIFF_OPERATION_COUNT) goto corrupted;
-    const enum_json_diff_operation operation =
-        static_cast<enum_json_diff_operation>(operation_number);
-    length--;
-    p++;
+  while (length > 0) {
+    DBUG_PRINT(
+        "info",
+        ("length=%zu bytes remaining to decode into Json_diff_vector", length));
 
-    // Read path length
-    size_t path_length;
-    if (net_field_length_checked<size_t>(&p, &length, &path_length))
-      goto corrupted;
-    if (length < path_length) goto corrupted;
-
-    // Read path
-    Json_path path(key_memory_JSON);
-    size_t bad_index;
-    DBUG_PRINT("info", ("path='%.*s'", (int)path_length, p));
-    if (parse_path(path_length, pointer_cast<const char *>(p), &path,
-                   &bad_index))
-      goto corrupted;
-    p += path_length;
-    length -= path_length;
-
-    if (operation != enum_json_diff_operation::REMOVE) {
-      // Read value length
-      size_t value_length;
-      if (net_field_length_checked<size_t>(&p, &length, &value_length))
-        goto corrupted;
-
-      if (length < value_length) goto corrupted;
-
-      // Read value
-      json_binary::Value value = json_binary::parse_binary(
-          pointer_cast<const char *>(p), value_length);
-      if (value.type() == json_binary::Value::ERROR) goto corrupted;
-      const Json_wrapper wrapper(value);
-      std::unique_ptr<Json_dom> dom = wrapper.clone_dom();
-      if (dom == nullptr)
-        return true; /* purecov: inspected */  // OOM, error is reported
-      wrapper.dbug_print("", JsonDepthErrorHandler);
-
-      // Store diff
-      add_diff(path, operation, std::move(dom));
-
-      p += value_length;
-      length -= value_length;
-    } else {
-      // Store diff
-      add_diff(path, operation);
+    optional<ReadJsonDiffResult> result = read_json_diff(p, length);
+    if (!result.has_value()) {
+      if (current_thd->is_error()) return true;
+      my_error(ER_CORRUPTED_JSON_DIFF, MYF(0),
+               static_cast<int>(table->s->table_name.length),
+               table->s->table_name.str, field_name);
+      return true;
     }
+
+    auto &[diff, bytes_read] = result.value();
+#ifndef NDEBUG
+    if (Json_wrapper wrapper = diff.value(); !wrapper.empty()) {
+      wrapper.dbug_print("", JsonDepthErrorHandler);
+    }
+#endif
+
+    p += bytes_read;
+    length -= bytes_read;
+    add_diff(std::move(diff));
   }
 
   *from = pointer_cast<const char *>(p);
   return false;
+}
 
-corrupted:
-  my_error(ER_CORRUPTED_JSON_DIFF, MYF(0), (int)table->s->table_name.length,
-           table->s->table_name.str, field_name);
-  return true;
+optional<ReadJsonDiffResult> read_json_diff(const unsigned char *pos,
+                                            size_t length) {
+  const unsigned char *const start = pos;
+  const unsigned char *const end = pos + length;
+
+  // Read operation.
+  if (pos >= end) return nullopt;
+  const int operation_number = *pos;
+  DBUG_PRINT("info", ("operation_number=%d", operation_number));
+  if (operation_number >= JSON_DIFF_OPERATION_COUNT) return nullopt;
+  const enum_json_diff_operation operation =
+      static_cast<enum_json_diff_operation>(operation_number);
+  ++pos;
+
+  // Read path length.
+  size_t path_length;
+  if (size_t max_length = end - pos;
+      net_field_length_checked<size_t>(&pos, &max_length, &path_length) ||
+      path_length > max_length) {
+    return nullopt;
+  }
+
+  // Read path.
+  Json_path path{key_memory_JSON};
+  DBUG_PRINT("info", ("path='%.*s'", static_cast<int>(path_length), pos));
+  if (size_t bad_index; parse_path(path_length, pointer_cast<const char *>(pos),
+                                   &path, &bad_index)) {
+    return nullopt;
+  }
+  pos += path_length;
+
+  if (operation == enum_json_diff_operation::REMOVE) {
+    return ReadJsonDiffResult{{path, operation, /*value=*/nullptr},
+                              static_cast<size_t>(pos - start)};
+  }
+
+  // Read value length.
+  size_t value_length;
+  if (size_t max_length = end - pos;
+      net_field_length_checked<size_t>(&pos, &max_length, &value_length) ||
+      value_length > max_length) {
+    return std::nullopt;
+  }
+
+  // Read value.
+  json_binary::Value value =
+      json_binary::parse_binary(pointer_cast<const char *>(pos), value_length);
+  if (value.type() == json_binary::Value::ERROR) return nullopt;
+  std::unique_ptr<Json_dom> dom = Json_dom::parse(value);
+  if (dom == nullptr) return nullopt;
+  pos += value_length;
+
+  return ReadJsonDiffResult{{path, operation, std::move(dom)},
+                            static_cast<size_t>(pos - start)};
 }
 
 /**
