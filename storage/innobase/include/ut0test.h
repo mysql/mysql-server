@@ -278,6 +278,7 @@ struct Tester {
   crash the server after flushing the page to dblwr.
   @return RET_PASS on success, or the error code. */
   DISPATCH_FUNCTION(dblwr_force_crash);
+  DISPATCH_FUNCTION(print_tree);
 
   /** Destroy the tester object. */
   void destroy() noexcept;

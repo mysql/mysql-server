@@ -522,6 +522,10 @@ struct dtype_t {
 
   bool is_virtual() const { return ((prtype & DATA_VIRTUAL) == DATA_VIRTUAL); }
 
+  /** Check if the value in mtype is valid.
+  @return true if mtype is valid, false otherwise. */
+  bool is_mtype_valid() const;
+
   std::ostream &print(std::ostream &out) const;
 };
 
@@ -536,6 +540,13 @@ static_assert(DATA_TRX_ID_LEN == 6, "DATA_TRX_ID_LEN != 6!");
 static_assert(DATA_ROLL_PTR_LEN == 7, "DATA_PTR_LEN != 7!");
 
 static_assert(DATA_TRX_ID + 1 == DATA_ROLL_PTR, "DATA_TRX_ID value invalid!");
+
+inline bool dtype_t::is_mtype_valid() const {
+  const bool is_valid =
+      (mtype >= DATA_MTYPE_CURRENT_MIN) && (mtype <= DATA_MTYPE_CURRENT_MAX);
+  ut_ad(is_valid);
+  return is_valid;
+}
 
 #include "data0type.ic"
 

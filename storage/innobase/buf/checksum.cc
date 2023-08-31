@@ -545,9 +545,7 @@ bool BlockReporter::verify_zip_checksum() const {
         break;
       }
     }
-
     report_empty_page(empty);
-
     /* Empty page */
     return (empty);
   }
@@ -561,11 +559,8 @@ bool BlockReporter::verify_zip_checksum() const {
   page_no_t page_no = mach_read_from_4(m_read_buf + FIL_PAGE_OFFSET);
   space_id_t space_id = mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_ID);
   const page_id_t page_id(space_id, page_no);
-
   const uint32_t calc = calc_zip_checksum(curr_algo);
-
   print_compressed_checksum(calc, stored);
-
   if (stored == calc) {
     return (true);
   }
@@ -581,7 +576,6 @@ bool BlockReporter::verify_zip_checksum() const {
           page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_NONE,
                                     page_id);
         }
-
         return (true);
       }
 
@@ -602,7 +596,6 @@ bool BlockReporter::verify_zip_checksum() const {
           page_warn_strict_checksum(curr_algo, SRV_CHECKSUM_ALGORITHM_INNODB,
                                     page_id);
         }
-
         return (true);
       }
 
@@ -658,7 +651,6 @@ bool BlockReporter::verify_zip_checksum() const {
       /* no default so the compiler will emit a warning if new enum
       is added and not handled here */
   }
-
   return (false);
 }
 

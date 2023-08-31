@@ -3750,14 +3750,24 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
 
   /* Fix lock for LOAD DATA CONCURRENT REPLACE */
   thr_lock_type lock_type = m_lock_type;
-  if (lex->duplicates == DUP_REPLACE && lock_type == TL_WRITE_CONCURRENT_INSERT)
-    lock_type = TL_WRITE_DEFAULT;
+  enum_mdl_type mdl_type = MDL_SHARED_WRITE;
 
-  if (!select->add_table_to_list(
-          thd, m_cmd.m_table, nullptr, TL_OPTION_UPDATING, lock_type,
-          lock_type == TL_WRITE_LOW_PRIORITY ? MDL_SHARED_WRITE_LOW_PRIO
-                                             : MDL_SHARED_WRITE,
-          nullptr, m_cmd.m_opt_partitions))
+  if (m_cmd.is_bulk_load()) {
+    lock_type = TL_WRITE;
+    mdl_type = MDL_EXCLUSIVE;
+  } else {
+    if (lex->duplicates == DUP_REPLACE &&
+        lock_type == TL_WRITE_CONCURRENT_INSERT) {
+      lock_type = TL_WRITE_DEFAULT;
+    }
+    if (lock_type == TL_WRITE_LOW_PRIORITY) {
+      mdl_type = MDL_SHARED_WRITE_LOW_PRIO;
+    }
+  }
+
+  if (!select->add_table_to_list(thd, m_cmd.m_table, nullptr,
+                                 TL_OPTION_UPDATING, lock_type, mdl_type,
+                                 nullptr, m_cmd.m_opt_partitions))
     return nullptr;
 
   /* We can't give an error in the middle when using LOCAL files */

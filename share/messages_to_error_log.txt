@@ -11950,7 +11950,7 @@ ER_IB_MSG_INVALID_PAGE_TYPE
   eng "Found page type mismatch. Expected %u, found %u, in page: space_id=%lu page_no= %lu"
 
 ER_IB_PARALLEL_READER_WORKER_INFO
-  eng "preader: space_id=%zu, table=%s, index=%s, scan_ctx=%zu, ctx=%zu, thread_id=%zu, n_threads=%zu"
+  eng "preader: thread_id=%zu, n_threads=%zu, n_ctx=%zu, one_range_per_thread=%s, n_index=%zu, index_list=%s, err=%zu"
 
 ER_IB_BULK_LOAD_SUBTREE_INFO
   eng "bulkload: space_id=%zu, table=%s, index=%s, height=%zu, n_extents=%zu, n_pages=%zu"
@@ -12390,6 +12390,36 @@ ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
 
 ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER
    eng "'%s' (granted to '%s@%s') is deprecated and will be removed in a future release."
+
+ER_BULK_MULTI_READER_INFO
+  eng "Bulk Multi Reader: %s"
+
+ER_BULK_MERGE_LOADER_INFO
+  eng "Bulk Merge Loader: %s"
+
+ER_BULK_SORTING_LOADER_INFO
+  eng "Bulk Sorting Loader: %s"
+
+ER_BULK_WRITER_INFO
+  eng "Bulk Writer: %s"
+
+ER_BULK_WRITER_LIBCURL_INIT_FAILED_LOG
+  eng "Bulk writer failed to initialize libcurl"
+
+ER_BULK_WRITER_LIBCURL_ERROR_LOG
+  eng "Bulk writer got libcurl error: %s"
+
+ER_IB_WRONG_PAGE_ID
+  eng "Detected wrong page_id: buf_block_t[space_id=%zu, page_no=%zu], buf_frame_t[space_id=%zu, page_no=%zu], file=%s"
+
+ER_IB_FIXED_PAGE_ID
+  eng "Fixed wrong page_id with sync read: buf_block_t[space_id=%zu, page_no=%zu], buf_frame_t[space_id=%zu, page_no=%zu], file=%s, retry=%zu"
+
+ER_IB_WRONG_PAGEID_AFTER_SYNC_READ
+  eng "Wrong page_id after sync read: buf_block_t[space_id=%zu, page_no=%zu], buf_frame_t[space_id=%zu, page_no=%zu], file=%s, retry=%zu"
+
+ER_IB_SYNC_READ_FAILED
+  eng "Sync read to fix wrong page_id failed: buf_block_t[space_id=%zu, page_no=%zu], file=%s, err=%zu, retry=%zu"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

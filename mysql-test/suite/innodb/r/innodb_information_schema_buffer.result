@@ -1,3 +1,29 @@
+show variables like '%buffer_pool_size%';
+Variable_name	Value
+innodb_buffer_pool_size	25165824
+describe INFORMATION_SCHEMA.INNODB_BUFFER_PAGE;
+Field	Type	Null	Key	Default	Extra
+POOL_ID	bigint unsigned	NO			
+BLOCK_ID	bigint unsigned	NO			
+SPACE	bigint unsigned	NO			
+PAGE_NUMBER	bigint unsigned	NO			
+PAGE_TYPE	varchar(64)	YES			
+FLUSH_TYPE	bigint unsigned	NO			
+FIX_COUNT	bigint unsigned	NO			
+IS_HASHED	varchar(3)	YES			
+NEWEST_MODIFICATION	bigint unsigned	NO			
+OLDEST_MODIFICATION	bigint unsigned	NO			
+ACCESS_TIME	bigint unsigned	NO			
+TABLE_NAME	varchar(1024)	YES			
+INDEX_NAME	varchar(1024)	YES			
+NUMBER_RECORDS	bigint unsigned	NO			
+DATA_SIZE	bigint unsigned	NO			
+COMPRESSED_SIZE	bigint unsigned	NO			
+PAGE_STATE	varchar(64)	YES			
+IO_FIX	varchar(64)	YES			
+IS_OLD	varchar(3)	YES			
+FREE_PAGE_CLOCK	bigint unsigned	NO			
+IS_STALE	varchar(3)	YES			
 SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE;
@@ -18,6 +44,13 @@ WHERE TABLE_NAME like "%infoschema_buffer_test%"
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
 `test`.`infoschema_buffer_test`	GEN_CLUST_INDEX	2	58	FILE_PAGE	INDEX
 CREATE INDEX idx ON infoschema_buffer_test(col1);
+SELECT * FROM infoschema_buffer_test;
+col1
+9
+19
+SELECT * FROM infoschema_buffer_test WHERE col1 = 19;
+col1
+19
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%"

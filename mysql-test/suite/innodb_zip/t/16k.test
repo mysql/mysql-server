@@ -8,6 +8,7 @@ SET default_storage_engine=InnoDB;
 let $MYSQLD_DATADIR = `select @@datadir`;
 let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 # These values can change during the test
 --enable_query_log

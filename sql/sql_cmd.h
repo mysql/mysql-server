@@ -186,6 +186,9 @@ class Sql_cmd {
     return nullptr;
   }
 
+  /** @return true if the operation is BULK LOAD. */
+  virtual bool is_bulk_load() const { return false; }
+
   /**
     Disable use of secondary storage engines in this statement. After
     a call to this function, the statement will not try to use a

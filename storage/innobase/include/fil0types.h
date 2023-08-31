@@ -143,6 +143,14 @@ struct Fil_page_header {
   @return the page number. */
   [[nodiscard]] page_no_t get_page_no() const noexcept;
 
+  /** Get the FIL_PAGE_PREV header value.
+  @return the previous page number. */
+  [[nodiscard]] page_no_t get_page_prev() const noexcept;
+
+  /** Get the FIL_PAGE_NEXT header value.
+  @return the next page number. */
+  [[nodiscard]] page_no_t get_page_next() const noexcept;
+
   /** Get the page type from the page header.
   @return the page type. */
   [[nodiscard]] uint16_t get_page_type() const noexcept;

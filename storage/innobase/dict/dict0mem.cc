@@ -894,3 +894,10 @@ std::ostream &operator<<(std::ostream &out, const dict_foreign_set &fk_set) {
 page_size_t dict_index_t::get_page_size() const {
   return (dict_table_page_size(table));
 }
+
+bool dict_table_t::has_pk() const {
+  const dict_index_t *first = first_index();
+  const size_t len = strlen(innobase_index_reserve_name);
+  const int cmp = strncmp(innobase_index_reserve_name, first->name(), len);
+  return cmp != 0;
+}

@@ -1,0 +1,22 @@
+--echo #
+--echo # Bug#34672493 Alter Table with KEY_BLOCK_SIZE=1 ROW_FORMAT=COMPRESSED crashes after upgrade
+--echo #
+
+--source include/have_innodb_max_16k.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 varchar(20)) KEY_BLOCK_SIZE=1 ROW_FORMAT=COMPRESSED;
+let $i = 0;
+
+START TRANSACTION;
+--echo # Inserting 100 records.
+--disable_query_log
+while ($i < 100) {
+    eval INSERT INTO t1 VALUES($i, REPEAT(CHAR(65 + MOD(FLOOR(RAND() * 27),26)), 20));
+    inc $i;
+}
+--enable_query_log
+COMMIT WORK;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+CHECK TABLE t1;
+DROP TABLE t1;

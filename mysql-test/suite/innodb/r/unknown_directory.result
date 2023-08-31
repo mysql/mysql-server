@@ -63,7 +63,7 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB,
   SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (20)
- (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB,
+ (SUBPARTITION `s3` DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir/' ENGINE = InnoDB)) */
 #
 # Create two undo tablespaces in a known remote directory.
@@ -129,7 +129,7 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (20)
- (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
+ (SUBPARTITION `s3` DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
@@ -263,7 +263,7 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s2 ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (20)
- (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
+ (SUBPARTITION `s3` DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
@@ -360,7 +360,7 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s2 ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (20)
- (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
+ (SUBPARTITION `s3` DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
@@ -479,7 +479,7 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s1 ENGINE = InnoDB,
   SUBPARTITION s2 ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (20)
- (SUBPARTITION s3 ENGINE = InnoDB,
+ (SUBPARTITION `s3` ENGINE = InnoDB,
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path

@@ -1413,6 +1413,9 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> LOG_SYM                    1206   /* MYSQL */
 %token<lexer.keyword> GTIDS_SYM                  1207   /* MYSQL */
 
+%token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
+%token<lexer.keyword> S3_SYM             1209      /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1554,10 +1557,11 @@ void warn_on_deprecated_user_defined_collation(
         profile_def
         factor
         opt_source_count
+        opt_load_parallel
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
-        option_autoextend_size
+        option_autoextend_size opt_load_memory
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
@@ -14582,7 +14586,9 @@ load_stmt:
           opt_ignore_lines              /* 19 */
           opt_field_or_var_spec         /* 20 */
           opt_load_data_set_spec        /* 21 */
-          opt_load_algorithm            /* 22 */
+          opt_load_parallel             /* 22 */
+          opt_load_memory               /* 23 */
+          opt_load_algorithm            /* 24 */
           {
             $$= NEW_PTN PT_load_table(@$, $2,  // data_or_xml
                                       $3,  // load_data_lock
@@ -14603,7 +14609,9 @@ load_stmt:
                                       $21.set_var_list,// opt_load_data_set_spec
                                       $21.set_expr_list,
                                       $21.set_expr_str_list,
-                                      $22); // opt_load_algorithm
+                                      $22,  // opt_load_parallel
+                                      $23,  // opt_load_memory
+                                      $24); // opt_load_algorithm
           }
         ;
 
@@ -14631,7 +14639,7 @@ load_data_lock:
 load_source_type:
           INFILE_SYM { $$ = LOAD_SOURCE_FILE; }
         | URL_SYM    { $$ = LOAD_SOURCE_URL; }
-     // | S3_SYM     { $$ = LOAD_SOURCE_S3; }
+        | S3_SYM     { $$ = LOAD_SOURCE_S3; }
         ;
 
 opt_source_count:
@@ -14828,6 +14836,16 @@ load_data_set_elem:
 opt_load_algorithm:
           %empty                    { $$ = false; }
         | ALGORITHM_SYM EQ BULK_SYM { $$ = true; }
+        ;
+
+opt_load_parallel:
+          %empty              { $$ = 0; }
+        | PARALLEL_SYM EQ NUM { $$= atol($3.str); }
+        ;
+
+opt_load_memory:
+          %empty                    { $$ = 0; }
+        | MEMORY_SYM EQ size_number { $$ = $3; }
         ;
 
 /* Common definitions */
@@ -15777,6 +15795,7 @@ ident_keywords_unambiguous:
         | ROW_COUNT_SYM
         | ROW_FORMAT_SYM
         | RTREE_SYM
+        | S3_SYM
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
         | SECONDARY_ENGINE_SYM

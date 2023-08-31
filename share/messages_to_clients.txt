@@ -9864,7 +9864,7 @@ ER_INDEX_OTHER_THAN_PK
   eng "Table '%-.192s' has indexes other than primary key."
 
 ER_LOAD_BULK_DATA_UNSORTED
-  eng "[IN PRIMARY KEY ORDER] specified but data not sorted: LOAD BULK DATA into table '%-.192s' failed: %s"
+  eng "[IN PRIMARY KEY ORDER] specified but data not sorted: '%-.64s'"
 
 ER_BULK_EXECUTOR_ERROR
   eng "Bulk executor error: %s"
@@ -9878,11 +9878,13 @@ ER_BULK_READER_LIBCURL_ERROR
 ER_BULK_READER_SERVER_ERROR
   eng "Bulk reader got error response from server: %ld"
 
+
+
 ER_BULK_READER_COMMUNICATION_ERROR
   eng "Bulk reader got error in communication with source server, check the error log for additional details."
 
 ER_BULK_LOAD_DATA_FAILED
-  eng "Bulk loader failed, mysql_load->load returned an error, check the error log for additional details."
+  eng "Bulk loader failed in Innodb storage engine, check the error log for additional details."
 
 ER_BULK_LOADER_COLUMN_TOO_BIG_FOR_LEFTOVER_BUFFER
   eng "CSV column too big for leftover buffer."
@@ -10050,6 +10052,51 @@ ER_SIMULATED_INJECTION_ERROR
 
 ER_WARN_DEPRECATED_DYNAMIC_PRIV_IN_GRANT
   eng "The privilege '%s' is deprecated."
+
+ER_BULK_MULTI_READER_OPEN_FILE_FAILED
+  eng "Bulk Multi Reader: Failed to open file"
+
+ER_BULK_MULTI_READER_READ_FILE_FAILED
+  eng "Bulk Multi Reader: Failed to read file"
+
+ER_BULK_MERGE_INVALID_CHUNK
+  eng "Bulk Merge Loader: Invalid Chunk"
+
+ER_BULK_MERGE_NOT_ALL_CHUNKS_CONSUMED
+  eng "Bulk Merge Loader: Not all chunks consumed"
+
+ER_BULK_WRITER_LIBCURL_INIT_FAILED
+  eng "Bulk writer failed to initialize libcurl"
+
+ER_BULK_WRITER_LIBCURL_ERROR
+  eng "Bulk writer got libcurl error: %s"
+
+ER_BULK_SORTING_LOADER_WRITE
+  eng "Bulk Sorting Loader: Failed to write data to temporary file"
+
+ER_BULK_SORTING_LOADER_WAIT
+  eng "Bulk Sorting Loader: Interrupted while waiting"
+
+ER_BULK_READER_OPEN_FILE_FAILED
+  eng "Bulk Reader: Failed to access file %s"
+
+ER_BULK_LOAD_TABLE_HAS_INSTANT_COLS
+  eng "Bulk Loader: Table '%-.192s' has instantly added/dropped columns. Please TRUNCATE TABLE and retry."
+
+ER_BULK_LOAD_RESOURCE
+  eng "Bulk Loader: Not enough memory available. Memory needed for loading %s data: %s for %u threads, %s with minimal configuration. Total configured memory is %s, Available memory is %s."
+
+ER_BULK_LOAD_SECONDARY_ENGINE
+  eng "LOAD DATA with BULK Algorithm is not supported on a table with secondary engine."
+
+ER_BULK_READER_ERROR
+  eng "Bulk reader error: %s"
+
+ER_BULK_READER_FILE_DOESNT_EXIST
+  eng "File not found, check whether it exists: %s"
+
+ER_BULK_READER_COULDNT_RESOLVE_HOST
+  eng "Couldn't resolve host: %s"
 
 #
 #  End of 8.1+ error messages (server-to-client).

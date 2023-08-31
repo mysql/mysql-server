@@ -404,6 +404,11 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
   DBUG_TRACE;
   const LEX *lex = thd->lex;
 
+  /* LOAD DATA ALGORITHM=BULK need to commit implicitly. */
+  if (lex->sql_command == SQLCOM_LOAD && lex->m_sql_cmd->is_bulk_load()) {
+    return true;
+  }
+
   if ((sql_command_flags[lex->sql_command] & mask) == 0 ||
       thd->is_plugin_fake_ddl())
     return false;

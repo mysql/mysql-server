@@ -26,10 +26,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifdef UNIV_DEBUG
 #include "ut0test.h"
+#include "btr0load.h"
+#include "btr0mtib.h"
 #include "buf0flu.h"
+#include "ddl0impl-builder.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "fil0fil.h"
+#include "scope_guard.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
@@ -67,6 +71,7 @@ Tester::Tester() noexcept {
   DISPATCH(make_page_dirty);
   DISPATCH(open_table);
   DISPATCH(print_dblwr_has_encrypted_pages);
+  DISPATCH(print_tree);
 }
 
 void Tester::init() noexcept {
@@ -277,7 +282,12 @@ Ret_t Tester::find_fil_page_lsn(std::vector<std::string> &tokens) noexcept {
 
 Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   TLOG("Tester::find_ondisk_page_type()");
-  ut_ad(tokens.size() == 3);
+  if (tokens.size() != 3) {
+    for (auto token : tokens) {
+      TLOG("TOKEN: " << token);
+    }
+    ut_ad(tokens.size() == 3);
+  }
 
   ut_ad(tokens[0] == "find_ondisk_page_type");
   const std::string space_id_str = tokens[1];
@@ -571,6 +581,7 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
   }
 
   mtr.commit();
+  mtr.wait_for_flush();
 
   fil_space_release(space);
 
@@ -578,6 +589,31 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
     buf_flush_sync_all_buf_pools();
   }
 
+  return RET_PASS;
+}
+
+DISPATCH_FUNCTION_DEF(Tester::print_tree) {
+  TLOG("Tester::print_tree()");
+  ut_ad(tokens.size() == 2);
+  ut_ad(tokens[0] == "print_tree");
+
+  std::string table_name = tokens[1];
+
+  dict_table_t *table = dict_table_open_on_name(table_name.c_str(), false,
+                                                false, DICT_ERR_IGNORE_NONE);
+  if (table == nullptr) {
+    TLOG("Could not open table: " << table_name);
+    return RET_FAIL;
+  }
+
+  auto guard =
+      create_scope_guard([table]() { dict_table_close(table, false, false); });
+
+  const dict_index_t *clust_index = table->first_index();
+  BFT::Callback cb;
+  BFT bft(clust_index, cb);
+  bft.traverse();
+  TLOG(cb);
   return RET_PASS;
 }
 
@@ -646,15 +682,20 @@ Ret_t Tester::run(const std::string &cmdline) noexcept {
   /* Save the current command token.  This will be the value of the
   innodb_interpreter variable. */
   m_command = command;
+  m_thd = current_thd;
 
   if (command == "init") {
-    init();
+    /* do nothing. */
   } else if (command == "destroy") {
     destroy();
   } else if (command == "buf_flush_sync_all_buf_pools") {
     buf_flush_sync_all_buf_pools();
     TLOG("Executed buf_flush_sync_all_buf_pools()");
     ret = RET_PASS;
+  } else if (command == "bulk_load_enable_slow_io") {
+    Btree_multi::bulk_load_enable_slow_io_debug();
+  } else if (command == "bulk_load_disable_slow_io") {
+    Btree_multi::bulk_load_disable_slow_io_debug();
   } else {
     ret = RET_CMD_TBD;
   }

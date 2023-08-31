@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 
 namespace ddl {
+
 /** Buffer for sorting in main memory. */
 struct Key_sort_buffer : private ut::Non_copyable {
   /** Callback for writing serialized data to to disk.
@@ -136,6 +137,7 @@ struct Key_sort_buffer : private ut::Non_copyable {
   [[nodiscard]] static int compare(const dfield_t *lhs, const dfield_t *rhs,
                                    Dup *dup) noexcept;
 
+  /** DTuple is an array of dfield_t objects. */
   using DTuple = dfield_t *;
   using DTuples = std::vector<DTuple, ut::allocator<DTuple>>;
 

@@ -1,3 +1,7 @@
+--disable_query_log
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
+--enable_query_log
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

@@ -886,7 +886,10 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(parallel_rseg_init_thread, "ib_par_rseg", 0, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(meb::redo_log_archive_consumer_thread, "ib_meb_rl",
-                   PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME)};
+                   PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(bulk_flusher_thread, "ib_bl_flush", 0, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(bulk_alloc_thread, "ib_bl_alloc", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_IO
@@ -5487,11 +5490,11 @@ static int innodb_init(void *p) {
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
   innobase_hton->fill_is_table = innobase_fill_i_s_table;
-  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
-                         HTON_SUPPORTS_TABLE_ENCRYPTION |
-                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK;
+  innobase_hton->flags =
+      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
+      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
+      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -15407,7 +15410,8 @@ int ha_innobase::create(const char *name, TABLE *form,
                         HA_CREATE_INFO *create_info, dd::Table *table_def) {
   THD *thd = ha_thd();
 
-  if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE ||
+      thd_sql_command(thd) == SQLCOM_LOAD) {
     return (truncate_impl(name, form, table_def));
   }
 
