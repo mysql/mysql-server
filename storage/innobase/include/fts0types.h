@@ -263,7 +263,11 @@ struct fts_index_selector_t {
   const char *suffix; /*!< FTS aux index suffix */
 };
 
-/** This type represents a single document. */
+/** This type represents a single document field.
+ When fulltext index spans multiple columns, the
+ entire document (all indexed text in a row)
+ is comprised of multiple fields, one per indexed
+ column. */
 struct fts_doc_t {
   fts_string_t text; /*!< document text */
 
