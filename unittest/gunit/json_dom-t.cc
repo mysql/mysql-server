@@ -20,21 +20,43 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include <atomic>
+#include <cassert>
 #include <cstring>
+#include <initializer_list>
+#include <map>
 #include <memory>
+#include <new>
+#include <string>
+#include <utility>
+
+#include "gtest/gtest.h"
 
 #include "base64.h"
+#include "decimal.h"
+#include "field_types.h"
 #include "my_byteorder.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
 #include "sql-common/json_binary.h"
 #include "sql-common/json_diff.h"
 #include "sql-common/json_dom.h"
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
 #include "sql-common/my_decimal.h"
+#include "sql/field.h"
 #include "sql/item_json_func.h"
+#include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_time.h"
+#include "sql/table.h"
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast
 #include "unittest/gunit/base_mock_field.h"
@@ -107,8 +129,7 @@ static Json_dom_ptr parse_json(const char *json_text) {
 static Json_path parse_path(const char *json_path) {
   Json_path path(key_memory_JSON);
   size_t bad_index;
-  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index,
-                          [] { ASSERT_TRUE(false); }))
+  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index))
       << "bad index: " << bad_index;
   return path;
 }

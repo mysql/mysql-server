@@ -34,17 +34,13 @@
 #include <assert.h>
 #include <stddef.h>
 #include <algorithm>
-#include <functional>
 #include <new>
 #include <string>
 #include <utility>
 
 #include "my_alloc.h"  // MEM_ROOT
-                       // assert
-#include "my_inttypes.h"
-#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "sql-common/json_error_handler.h"
 
 class String;
 
@@ -476,13 +472,10 @@ class Json_path_clone final : public Json_seekable_path {
    @param[in] path_expression The string form of the path expression.
    @param[out] path The Json_path object to be initialized.
    @param[out] bad_index If null is returned, the parsing failed around here.
-   @param[in] depth_handler Pointer to a function that should handle error
-                            occurred when depth is exceeded.
    @return false on success, true on error
 */
 bool parse_path(size_t path_length, const char *path_expression,
-                Json_path *path, size_t *bad_index,
-                const JsonErrorHandler &depth_handler);
+                Json_path *path, size_t *bad_index);
 
 /**
   A helper function that uses the above one as workhorse. Entry point for

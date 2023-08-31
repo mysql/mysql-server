@@ -25,15 +25,22 @@
   Json_dom::seek, Json_dom::parse, json_binary::parse_binary,
   json_binary::serialize functions are visible and can be called.
  */
+
+#include <cassert>
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <new>
 #include <string>
+#include <string_view>
 
+#include "field_types.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql_time.h"
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
-
-#include "sql-common/json_error_handler.h"
+#include "sql-common/my_decimal.h"
 #include "sql_string.h"
 
 void CoutDefaultDepthHandler() { std::cout << "Doc too deep"; }
@@ -55,8 +62,7 @@ int main() {
   const char *json_path = R"($**."512")";
   Json_path path(PSI_NOT_INSTRUMENTED);
   size_t bad_index;
-  parse_path(std::strlen(json_path), json_path, &path, &bad_index,
-             [] { assert(false); });
+  parse_path(std::strlen(json_path), json_path, &path, &bad_index);
 
   Json_wrapper wr(&o);
   wr.set_alias();

@@ -26,12 +26,14 @@
 #include <assert.h>
 #include <sys/types.h>
 
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>  // std::forward
 
+#include "field_types.h"
+#include "my_alloc.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
@@ -53,7 +55,9 @@
 
 class Json_schema_validator;
 class Json_array;
+class Json_diff_vector;
 class Json_dom;
+class Json_object;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;

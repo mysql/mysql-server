@@ -346,7 +346,7 @@ bool Json_diff_vector::read_binary(const char **from, const TABLE *table,
     size_t bad_index;
     DBUG_PRINT("info", ("path='%.*s'", (int)path_length, p));
     if (parse_path(path_length, pointer_cast<const char *>(p), &path,
-                   &bad_index, JsonDepthErrorHandler))
+                   &bad_index))
       goto corrupted;
     p += path_length;
     length -= path_length;

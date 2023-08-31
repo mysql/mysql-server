@@ -20,20 +20,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 #include <sys/types.h>
 #include <cstring>
-#include <fstream>
-#include <iostream>
+#include <memory>
+#include <new>
 #include <string>
 #include <utility>
 
-#include "mysql/strings/m_ctype.h"
+#include "gtest/gtest.h"
+
+#include "mysql/components/services/bits/psi_bits.h"
+#include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"
+#include "sql/psi_memory_key.h"
 #include "sql_string.h"
 #include "unittest/gunit/test_utils.h"
+
+class THD;
 
 /**
  Test json path abstraction.
@@ -152,7 +157,7 @@ char *concat(char *dest, const char *left, const char *right) {
 void good_path_common(const char *path_expression, Json_path *json_path) {
   size_t bad_idx = 0;
   EXPECT_FALSE(parse_path(strlen(path_expression), path_expression, json_path,
-                          &bad_idx, [] { ASSERT_TRUE(false); }));
+                          &bad_idx));
 
   EXPECT_EQ(0U, bad_idx) << "bad_idx != 0 for " << path_expression;
 }
@@ -270,7 +275,7 @@ void bad_path(const char *path_expression, size_t expected_index) {
   size_t actual_index = 0;
   Json_path json_path(key_memory_JSON);
   EXPECT_TRUE(parse_path(strlen(path_expression), path_expression, &json_path,
-                         &actual_index, [] { ASSERT_TRUE(false); }))
+                         &actual_index))
       << "Unexpectedly parsed " << path_expression;
   EXPECT_EQ(expected_index, actual_index)
       << "Unexpected index for " << path_expression;
@@ -1441,8 +1446,7 @@ TEST_P(JsonPathLegAutowrapP, Autowrap) {
 
   Json_path path(key_memory_JSON);
   size_t idx = 0;
-  EXPECT_FALSE(parse_path(path_text.length(), path_text.data(), &path, &idx,
-                          [] { ASSERT_TRUE(false); }));
+  EXPECT_FALSE(parse_path(path_text.length(), path_text.data(), &path, &idx));
   EXPECT_EQ(0U, idx);
   EXPECT_EQ(2U, path.leg_count());
   EXPECT_EQ(expected_result, (*path.begin())->is_autowrap());

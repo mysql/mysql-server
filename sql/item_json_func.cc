@@ -25,22 +25,20 @@
 #include "sql/item_json_func.h"
 
 #include <assert.h>
-#include <stdint.h>
-#include <string.h>
 #include <algorithm>  // std::fill
-#include <cassert>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <new>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_alloc.h"
-
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/strings/m_ctype.h"
@@ -53,11 +51,12 @@
 #include "sql-common/json_syntax_check.h"
 #include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"  // current_thd
+#include "sql/debug_sync.h"
 #include "sql/error_handler.h"
 #include "sql/field.h"
+#include "sql/field_common_properties.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_create.h"
-#include "sql/item_subselect.h"
 #include "sql/json_schema.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
@@ -550,8 +549,7 @@ bool parse_path(const String &path_value, bool forbid_wildcards,
 
   // OK, we have a string encoded in utf-8. Does it parse?
   size_t bad_idx = 0;
-  if (parse_path(path_length, path_chars, json_path, &bad_idx,
-                 JsonDepthErrorHandler)) {
+  if (parse_path(path_length, path_chars, json_path, &bad_idx)) {
     /*
       Issue an error message. The last argument is no longer used, but kept to
       avoid changing error message format.
