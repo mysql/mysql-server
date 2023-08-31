@@ -348,12 +348,12 @@ MACRO (MYSQL_CHECK_SSL)
   ENDIF()
 ENDMACRO()
 
-# Downgrade OpenSSL 3 deprecation warnings.
+# Silence OpenSSL 3 deprecation warnings.
 MACRO(DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS)
   IF(OPENSSL_MAJOR_VERSION VERSION_EQUAL 3)
     IF(MY_COMPILER_IS_GNU_OR_CLANG)
       ADD_COMPILE_FLAGS(${ARGV}
-        COMPILE_FLAGS "-Wno-error=deprecated-declarations")
+        COMPILE_FLAGS "-Wno-deprecated-declarations")
     ELSEIF(WIN32)
       ADD_COMPILE_FLAGS(${ARGV}
         COMPILE_FLAGS "/wd4996")
