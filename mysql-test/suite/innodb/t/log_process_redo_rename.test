@@ -1,0 +1,12 @@
+--source include/have_asan.inc
+--source include/have_debug.inc
+
+CREATE TABLE t (id INT PRIMARY KEY);
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
+RENAME TABLE t TO t1;
+RENAME TABLE t1 TO t2;
+
+--let $restart_parameters = restart: --debug=+d,innodb_recover_byte_by_byte
+--source include/kill_and_restart_mysqld.inc
+DROP TABLE t2;
+SET GLOBAL DEBUG="-d,innodb_recover_byte_by_byte";

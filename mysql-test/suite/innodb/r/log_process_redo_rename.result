@@ -1,0 +1,9 @@
+CREATE TABLE t (id INT PRIMARY KEY);
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+RENAME TABLE t TO t1;
+RENAME TABLE t1 TO t2;
+# Kill and restart: --debug=+d,innodb_recover_byte_by_byte
+DROP TABLE t2;
+SET GLOBAL DEBUG="-d,innodb_recover_byte_by_byte";

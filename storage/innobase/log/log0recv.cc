@@ -56,6 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0chkp.h"       /* log_next_checkpoint_header */
 #include "log0encryption.h" /* log_encryption_read */
 #include "log0files_io.h"
+#include "log0log.h"
 #include "log0pre_8_0_30.h"
 #include "log0recv.h"
 #include "log0test.h"
@@ -80,6 +81,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #else /* !UNIV_HOTBACKUP */
 #include "../meb/mutex.h"
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 std::list<space_id_t> recv_encr_ts_list;
 
@@ -3340,6 +3345,36 @@ static void recv_reset_buffer() {
   recv_sys->recovered_offset = 0;
 }
 
+#if defined(UNIV_DEBUG) && defined(HAVE_ASAN)
+static bool recv_sys_parse_byte_by_byte(const byte *log_block,
+                                        lsn_t scanned_lsn) {
+  if (recv_sys->parse_start_lsn == 0) {
+    return false;
+  }
+
+  bool more_data = false;
+  auto lsn = std::max(recv_sys->scanned_lsn, recv_sys->parse_start_lsn);
+
+  /* Make sure Address Sanitizer detects accesss past buf_len, at least
+  those still inside the allocated buffer */
+  ASAN_POISON_MEMORY_REGION(recv_sys->buf + recv_sys->len,
+                            recv_sys->buf_len - recv_sys->len);
+  for (; lsn < scanned_lsn; ++lsn) {
+    recv_sys->scanned_lsn = lsn + 1;
+    if (log_is_data_lsn(lsn)) {
+      /* Extending the buffer to be processed by one byte */
+      ASAN_UNPOISON_MEMORY_REGION(recv_sys->buf + recv_sys->len, 1);
+      recv_sys->buf[recv_sys->len++] = log_block[lsn % OS_FILE_LOG_BLOCK_SIZE];
+      more_data = true;
+      recv_parse_log_recs();
+    }
+  }
+  ASAN_UNPOISON_MEMORY_REGION(recv_sys->buf + recv_sys->len,
+                              recv_sys->buf_len - recv_sys->len);
+  return more_data;
+}
+#endif /* defined(UNIV_DEBUG) && defined(HAVE_ASAN) */
+
 /** Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
@@ -3519,7 +3554,19 @@ bool meb_scan_log_recs(
       }
 
       if (!recv_sys->found_corrupt_log) {
-        more_data = recv_sys_add_to_parsing_buf(log_block, scanned_lsn);
+        /* Since the recv_sys_add_to_parsing_buf is "idempotent" if the
+        scanned_lsn is not larger than the one already processed. Therefore,
+        it is fine to call recv_sys_add_to_parsing_buf after the
+        recv_sys_parse_byte_by_byte. Latter is  properly updating
+        the recv_sys->scanned_lsn */
+#if defined(UNIV_DEBUG) && defined(HAVE_ASAN)
+        if (DBUG_EVALUATE_IF("innodb_recover_byte_by_byte", true, false)) {
+          more_data =
+              recv_sys_parse_byte_by_byte(log_block, scanned_lsn) || more_data;
+        }
+#endif /* UNIV_DEBUG && HAVE_ASAN */
+        more_data =
+            recv_sys_add_to_parsing_buf(log_block, scanned_lsn) || more_data;
       }
 
       recv_sys->scanned_lsn = scanned_lsn;
