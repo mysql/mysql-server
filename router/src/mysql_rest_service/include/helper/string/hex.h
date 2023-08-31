@@ -127,7 +127,7 @@ Container unhex(const std::string &h) {
   for (auto i = h.begin(); i != h.end();) {
     if (!get_hex_skip<converter>(i, h.end(), &v2)) break;
     if (!get_hex_skip<converter>(i, h.end(), &v1)) break;
-    uint8_t v = v1 * 16 + v2;
+    uint8_t v = v2 * 16 + v1;
     result.push_back(v);
   }
   return result;
