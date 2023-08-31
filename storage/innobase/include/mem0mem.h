@@ -459,6 +459,10 @@ struct Scoped_heap {
     reset(ptr);
   }
 
+  /** Check if the memory heap has been created.
+  @return true if memory heap is not created, false if memory heap is created.*/
+  bool is_null() const noexcept { return m_ptr.get() == nullptr; }
+
   /** @return the heap pointer. */
   Type *get() noexcept { return m_ptr.get(); }
 

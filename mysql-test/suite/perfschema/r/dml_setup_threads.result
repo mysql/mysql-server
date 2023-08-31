@@ -4,6 +4,8 @@ order by name limit 12;
 NAME	ENABLED	HISTORY	PROPERTIES	VOLATILITY	DOCUMENTATION
 thread/innodb/buf_dump_thread	YES	YES	singleton	0	NULL
 thread/innodb/buf_resize_thread	YES	YES	singleton	0	NULL
+thread/innodb/bulk_alloc_thread	YES	YES	singleton	0	NULL
+thread/innodb/bulk_flusher_thread	YES	YES		0	NULL
 thread/innodb/clone_ddl_thread	YES	YES	singleton	0	NULL
 thread/innodb/clone_gtid_thread	YES	YES	singleton	0	NULL
 thread/innodb/ddl_thread	YES	YES		0	NULL
@@ -12,8 +14,6 @@ thread/innodb/fts_optimize_thread	YES	YES	singleton	0	NULL
 thread/innodb/fts_parallel_merge_thread	YES	YES		0	NULL
 thread/innodb/fts_parallel_tokenization_thread	YES	YES		0	NULL
 thread/innodb/io_ibuf_thread	YES	YES	singleton	0	NULL
-thread/innodb/io_read_thread	YES	YES		0	NULL
-thread/innodb/io_write_thread	YES	YES		0	NULL
 select * from performance_schema.setup_threads
 where enabled='YES';
 insert into performance_schema.setup_threads

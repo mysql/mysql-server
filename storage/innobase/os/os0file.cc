@@ -107,9 +107,6 @@ unsigned long long os_fsync_threshold = 0;
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
-/** Number of retries for partial I/O's */
-static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
-
 /** For storing the allocated blocks */
 using Blocks = std::vector<file::Block>;
 
@@ -318,6 +315,8 @@ struct Slot {
   when partial IO is required and not buf */
   byte *ptr{nullptr};
 
+  bool is_read() const { return type.is_read(); }
+
   /** OS_FILE_READ or OS_FILE_WRITE */
   IORequest type{IORequest::UNSET};
 
@@ -407,11 +406,12 @@ struct Slot {
 
 std::string Slot::to_json() const noexcept {
   std::ostringstream out;
-  out << "{";
-  out << "\"className\": \"Slot\",";
-  out << "\"objectPtr\": \"" << (void *)this << "\",";
-  out << "\"buf_block\": \"" << (void *)buf_block << "\"";
-  out << "}";
+  out << "{\"type\": \"Slot\", \"pos\":" << pos << ", \"objectPtr\": \""
+      << (void *)this << "\", "
+      << "\"buf_block\": \"" << (void *)buf_block << "\""
+      << ", \"n_bytes\": " << n_bytes << ", \"len\":" << len
+      << ", \"orig_len\":" << type.get_original_size()
+      << ", \"offset\":" << offset << "}";
   return out.str();
 }
 
@@ -1102,55 +1102,6 @@ class AIOHandler {
   static dberr_t check_read(Slot *slot, ulint n_bytes);
 };
 #endif /* !UNIV_HOTBACKUP */
-
-/** Helper class for doing synchronous file IO. Currently, the objective
-is to hide the OS specific code, so that the higher level functions aren't
-peppered with "#ifdef". Makes the code flow difficult to follow.  */
-class SyncFileIO {
- public:
-  /** Constructor
-  @param[in]    fh      File handle
-  @param[in,out]        buf     Buffer to read/write
-  @param[in]    n       Number of bytes to read/write
-  @param[in]    offset  Offset where to read or write */
-  SyncFileIO(os_file_t fh, void *buf, ulint n, os_offset_t offset)
-      : m_fh(fh), m_buf(buf), m_n(static_cast<ssize_t>(n)), m_offset(offset) {
-    ut_ad(m_n > 0);
-  }
-
-  /** Destructor */
-  ~SyncFileIO() = default;
-
-  /** Do the read/write
-  @param[in]    request The IO context and type
-  @return the number of bytes read/written or negative value on error */
-  ssize_t execute(const IORequest &request);
-
-  /** Move the read/write offset up to where the partial IO succeeded.
-  @param[in]    n_bytes The number of bytes to advance */
-  void advance(ssize_t n_bytes) {
-    m_offset += n_bytes;
-
-    ut_ad(m_n >= n_bytes);
-
-    m_n -= n_bytes;
-
-    m_buf = reinterpret_cast<uchar *>(m_buf) + n_bytes;
-  }
-
- private:
-  /** Open file handle */
-  os_file_t m_fh;
-
-  /** Buffer to read/write */
-  void *m_buf;
-
-  /** Number of bytes to read/write */
-  ssize_t m_n;
-
-  /** Offset from where to read/write */
-  os_offset_t m_offset;
-};
 
 /** If it is a compressed page return the compressed page data + footer size
 @param[in]      buf             Buffer to check, must include header + 10 bytes
@@ -1948,6 +1899,7 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
 
     buf = buf_ptr;
     *n = compressed_len;
+    block->m_size = compressed_len;
 
     if (compressed_len >= old_compressed_len &&
         !type.is_punch_hole_optimisation_disabled()) {
@@ -2035,6 +1987,31 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
   }
   buf = buf_ptr;
   return block;
+}
+
+dberr_t SyncFileIO::execute_with_retry(const IORequest &request,
+                                       const size_t max_retries) {
+  dberr_t err{DB_SUCCESS};
+  size_t total_bytes = 0;
+  for (size_t i = 0; i < max_retries; ++i) {
+    ssize_t n_bytes = execute(request);
+    if (n_bytes < 0) {
+      err = DB_IO_ERROR;
+      break;
+    }
+    total_bytes += n_bytes;
+    if (total_bytes == m_orig_bytes) {
+      break;
+    }
+    advance(n_bytes);
+  }
+  if (total_bytes != m_orig_bytes) {
+    /* If the number of retries has reached the maximum allowed, and still the
+    requested number of bytes is not read/written, then an error is returned.
+    So, ensure that the number of retries is high enough. */
+    err = DB_IO_ERROR;
+  }
+  return err;
 }
 
 #ifndef _WIN32
@@ -2220,7 +2197,7 @@ dberr_t LinuxAIOHandler::resubmit(Slot *slot) {
     errno = -ret;
   }
 
-  return (ret < 0 ? DB_IO_PARTIAL_FAILED : DB_SUCCESS);
+  return (ret == 1 ? DB_SUCCESS : DB_IO_PARTIAL_FAILED);
 }
 
 /** Check if the AIO succeeded
@@ -2310,10 +2287,10 @@ void LinuxAIOHandler::collect() {
   io_context *io_ctx = m_array->io_ctx(m_segment);
 
   /* Starting point of the m_segment we will be working on. */
-  ulint start_pos = m_segment * m_n_slots;
+  const ulint start_pos = m_segment * m_n_slots;
 
   /* End point. */
-  ulint end_pos = start_pos + m_n_slots;
+  const ulint end_pos = start_pos + m_n_slots;
 
   for (;;) {
     struct io_event *events;
@@ -2333,6 +2310,9 @@ void LinuxAIOHandler::collect() {
 
     auto ret = io_getevents(io_ctx, 1, m_n_slots, events, &timeout);
 
+    /* Cannot be bigger than the events array provided. */
+    ut_a(ret < 0 || (ulint)ret <= m_n_slots);
+
     for (int i = 0; i < ret; ++i) {
       auto iocb = reinterpret_cast<struct iocb *>(events[i].obj);
       ut_a(iocb != nullptr);
@@ -2342,6 +2322,11 @@ void LinuxAIOHandler::collect() {
       /* Some sanity checks. */
       ut_a(slot != nullptr);
       ut_a(slot->is_reserved);
+      ut_a(!slot->io_already_done);
+
+      /* What is provided in iocb->data is returned in the data member of the
+      completion event i.e., io_event::data */
+      ut_a(iocb->data == events[i].data);
 
       /* We are not scribbling previous segment. */
       ut_a(slot->pos >= start_pos);
@@ -2547,11 +2532,9 @@ bool AIO::linux_dispatch(Slot *slot) {
   /* Find out what we are going to work with.
   The iocb struct is directly in the slot.
   The io_context is one per segment. */
-
-  ulint io_ctx_index;
   struct iocb *iocb = &slot->control;
-
-  io_ctx_index = (slot->pos * m_n_segments) / m_slots.size();
+  const ulint io_ctx_index = (slot->pos * m_n_segments) / m_slots.size();
+  ut_a(io_ctx_index < m_n_segments);
 
   int ret = io_submit(m_aio_ctx[io_ctx_index], 1, &iocb);
 
@@ -3712,6 +3695,7 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 @return the number of bytes read/written or negative value on error */
 ssize_t SyncFileIO::execute(const IORequest &request) {
   OVERLAPPED overlapped{};
+  ut_ad(buf_page_t::is_zeroes((page_t *)&overlapped, sizeof(overlapped)));
 
   /* We need a fresh, not shared instance of Event for the OVERLAPPED structure.
   Both are stopped being used at most at the end of this method, as we wait for
@@ -3747,7 +3731,9 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   }
 
   if (!result) {
-    if (GetLastError() == ERROR_IO_PENDING) {
+    const DWORD error = GetLastError();
+    ut_a(error != ERROR_INVALID_PARAMETER);
+    if (error == ERROR_IO_PENDING) {
       result =
           GetOverlappedResult(m_fh, &overlapped, &n_bytes_transfered, true);
     }
@@ -5114,8 +5100,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
         << "Retry attempts for " << (type.is_read() ? "reading" : "writing")
         << " partial data failed.";
   }
-
-  return (bytes_returned);
+  return bytes_returned;
 }
 
 /** Does a synchronous write operation in Posix.
@@ -6740,6 +6725,9 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->type = type;
   slot->buf = static_cast<byte *>(buf);
   slot->ptr = slot->buf;
+
+  ut_ad(m1->is_offset_valid(offset));
+
   slot->offset = offset;
   slot->err = DB_SUCCESS;
   if (type.is_read()) {
@@ -7964,4 +7952,47 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
     }
   }
   return err;
+}
+
+std::string IORequest::type_str(const ulint type) {
+  std::ostringstream os;
+  if (type & READ) {
+    os << " READ";
+  } else if (type & WRITE) {
+    os << " WRITE";
+  } else if (type & DBLWR) {
+    os << " DBLWR";
+  }
+
+  /** Enumerations below can be ORed to READ/WRITE above*/
+
+  /** Data file */
+  if (type & DATA_FILE) {
+    os << " | DATA_FILE";
+  }
+
+  if (type & LOG) {
+    os << " | LOG";
+  }
+
+  if (type & DISABLE_PARTIAL_IO_WARNINGS) {
+    os << " | DISABLE_PARTIAL_IO_WARNINGS";
+  }
+
+  if (type & DO_NOT_WAKE) {
+    os << " | DO_NOT_WAKE";
+  }
+
+  if (type & IGNORE_MISSING) {
+    os << " | IGNORE_MISSING";
+  }
+
+  if (type & PUNCH_HOLE) {
+    os << " | PUNCH_HOLE";
+  }
+
+  if (type & NO_COMPRESSION) {
+    os << " | NO_COMPRESSION";
+  }
+  return os.str();
 }

@@ -2,15 +2,33 @@
 # Some simple test of load data
 #
 
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
-
 create table t1 (a date, b date, c date not null, d date);
 load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',';
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
 truncate table t1;
+
+# Support optional FROM keyword in syntax
+load data from infile '../../std_data/loaddata1.dat'
+into table t1 fields terminated by ',' ignore 2 lines;
+SELECT * from t1;
+truncate table t1;
+
+# Support but ignore directive about file sorted in primary key order:
+load data infile '../../std_data/loaddata1.dat' in primary key order
+into table t1 fields terminated by ',' ignore 2 lines;
+SELECT * from t1;
+truncate table t1;
+
+# Using multiple files is not allowed without BULK
+--error ER_WRONG_USAGE
+load data infile '../../std_data/loaddata1.dat' count 1 into table t1;
+--error ER_WRONG_USAGE
+load data infile '../../std_data/loaddata1.dat' count 10 into table t1;
+
+# Source other than file is not allowed without BULK
+--error ER_WRONG_USAGE
+load data url '../../std_data/loaddata1.dat' into table t1;
 
 load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 SELECT * from t1;

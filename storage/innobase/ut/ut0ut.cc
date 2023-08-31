@@ -483,6 +483,10 @@ const char *ut_strerr(dberr_t num) {
       return "Auto-increment read failed";
     case DB_FILE_READ_BEYOND_SIZE:
       return "File read failure because of the read being beyond file size.";
+    case DB_DATA_NOT_SORTED:
+      return "Data is not sorted.";
+    case DB_BULK_TOO_BIG_RECORD:
+      return "Row is too big for LOAD BULK DATA operation.";
     case DB_ERROR_UNSET:;
       /* Fall through. */
 

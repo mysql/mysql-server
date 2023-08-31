@@ -1,0 +1,39 @@
+--source include/have_innodb_16k.inc
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 char(255), f3 char(255),
+   f4 char(255), f5 char(255));
+
+SHOW VARIABLES LIKE 'innodb_ddl_threads';
+SHOW VARIABLES LIKE 'innodb_parallel_read_threads';
+SET innodb_ddl_threads = 64;
+SET innodb_parallel_read_threads = 75;
+SHOW VARIABLES LIKE 'innodb_ddl_threads';
+SHOW VARIABLES LIKE 'innodb_parallel_read_threads';
+
+let $i = 0;
+begin;
+--disable_query_log
+while ($i < 10000) {
+  eval INSERT INTO t1 (f1, f2, f3, f4, f5) VALUES ($i,
+     repeat('b', 255),
+     repeat('c', 255),
+     repeat('d', 255),
+     repeat('e', 255)
+  );
+  inc $i;
+}
+--enable_query_log
+commit;
+
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+ALTER TABLE t1 DROP INDEX k1;
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+ALTER TABLE t1 DROP INDEX k1;
+SET GLOBAL innodb_compression_level = 0;
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

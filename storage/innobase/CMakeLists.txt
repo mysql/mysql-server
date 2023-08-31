@@ -91,6 +91,7 @@ SET(INNOBASE_SOURCES
   buf/buf0dump.cc
   buf/buf0flu.cc
   btr/btr0load.cc
+  btr/btr0mtib.cc
   buf/buf0lru.cc
   buf/buf0rea.cc
   clone/clone0api.cc
@@ -115,6 +116,7 @@ SET(INNOBASE_SOURCES
   dict/dict0upgrade.cc
   ddl/ddl0buffer.cc
   ddl/ddl0builder.cc
+  ddl/ddl0bulk.cc
   ddl/ddl0ctx.cc
   ddl/ddl0ddl.cc
   ddl/ddl0fts.cc

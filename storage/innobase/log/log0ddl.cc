@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <current_thd.h>
 #include <sql_thd_internal_api.h>
 
+#include <scope_guard.h>
 #include "btr0sea.h"
 #include "dict0dd.h"
 #include "dict0mem.h"
@@ -463,6 +464,7 @@ void DDL_Log_Table::create_tuple(ulint id, const dict_index_t *index) {
 }
 
 dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
+  ut_ad(record.validate());
   dberr_t error;
   dict_index_t *index = m_table->first_index();
   dtuple_t *entry;

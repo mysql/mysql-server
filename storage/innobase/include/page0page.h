@@ -711,7 +711,7 @@ void page_parse_create(buf_block_t *block, ulint comp, page_type_t page_type);
 @param[in] rec Physical record
 @param[in] offsets Record descriptor */
 void page_rec_print(const rec_t *rec, const ulint *offsets);
-#ifdef UNIV_BTR_PRINT
+#ifdef UNIV_DEBUG
 /** This is used to print the contents of the directory for
  debugging purposes. */
 void page_dir_print(page_t *page, /*!< in: index page */
@@ -732,7 +732,7 @@ void page_print(buf_block_t *block,  /*!< in: index page */
                                      in directory */
                 ulint rn);           /*!< in: print rn first and last records
                                      in directory */
-#endif                               /* UNIV_BTR_PRINT */
+#endif                               /* UNIV_DEBUG */
 #endif                               /* !UNIV_HOTBACKUP */
 /** The following is used to validate a record on a page. This function
  differs from rec_validate as it can also check the n_owned field and
@@ -764,8 +764,11 @@ bool page_simple_validate_new(
 @param[in]  page   index page
 @param[in]  index  data dictionary index containing the page record type
 definition
+@param[in]  check_min_rec  check whether min rec flag (REC_INFO_MIN_REC_FLAG)
+is correctly set in the page. The default value is true.
 @return true if ok */
-bool page_validate(const page_t *page, dict_index_t *index);
+bool page_validate(const page_t *page, dict_index_t *index,
+                   bool check_min_rec = true);
 
 /** Looks in the page record list for a record with the given heap number.
  @return record, NULL if not found */
@@ -800,6 +803,8 @@ param[in]       rec     Btree record
 param[in]       index   index
 @return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
+
+page_t *page_create_low(buf_block_t *block, ulint comp, page_type_t page_type);
 
 #include "page0page.ic"
 

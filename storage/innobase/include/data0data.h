@@ -770,6 +770,12 @@ struct dtuple_t {
     return n_ext;
   }
 
+  /** Set the flag REC_INFO_MIN_REC_FLAG in the info bits. */
+  void set_min_rec_flag();
+
+  /** Unset the flag REC_INFO_MIN_REC_FLAG in the info bits. */
+  void unset_min_rec_flag();
+
   /** Does tuple has externally stored fields.
   @retval true if there is externally stored fields. */
   inline bool has_ext() const {
@@ -780,6 +786,8 @@ struct dtuple_t {
     }
     return false;
   }
+
+  dtuple_t *deep_copy(mem_heap_t *heap) const;
 };
 
 /** A slot for a field in a big rec vector */

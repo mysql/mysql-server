@@ -2823,7 +2823,7 @@ SUBPARTITION BY HASH (to_days("col2"))
   SUBPARTITION s1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB)) */
+  SUBPARTITION "s3" TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION
@@ -2846,7 +2846,7 @@ SUBPARTITION BY HASH (to_days(`col2`))
   SUBPARTITION s1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+  SUBPARTITION `s3` TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION
@@ -2868,7 +2868,7 @@ SUBPARTITION BY HASH (to_days(col2))
   SUBPARTITION s1 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
+  SUBPARTITION `s3` TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION

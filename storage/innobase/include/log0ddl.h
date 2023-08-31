@@ -184,6 +184,8 @@ class DDL_Record {
   @param[in]    len     length of the data. */
   void set_new_file_path(const byte *data, ulint len);
 
+  bool validate() const;
+
   /** Print the DDL record to specified output stream
   @param[in,out]        out     output stream
   @return output stream */
@@ -224,6 +226,12 @@ class DDL_Record {
   /** If this record can be deleted */
   bool m_deletable;
 };
+
+inline bool DDL_Record::validate() const {
+  ut_a(m_type >= Log_Type::SMALLEST_LOG);
+  ut_a(m_type <= Log_Type::BIGGEST_LOG);
+  return true;
+}
 
 /** Forward declaration */
 class THD;

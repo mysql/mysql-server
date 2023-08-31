@@ -43,6 +43,7 @@
 #include <string>
 #include <string_view>
 
+#include <mysql/components/services/bulk_data_service.h>
 #include <mysql/components/services/page_track_service.h>
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
@@ -3031,6 +3032,8 @@ constexpr const decltype(
  */
 #define HTON_SUPPORTS_EXTERNAL_SOURCE (1 << 21)
 
+constexpr const decltype(handlerton::flags) HTON_SUPPORTS_BULK_LOAD{1 << 22};
+
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 
@@ -4986,6 +4989,61 @@ class handler {
     @param[in]      scan_ctx      A scan context created by parallel_scan_init.
   */
   virtual void parallel_scan_end(void *scan_ctx [[maybe_unused]]) { return; }
+
+  /** Check if the table is ready for bulk load
+  @param[in] thd user session
+  @return true iff bulk load can be done on the table. */
+  virtual bool bulk_load_check(THD *thd [[maybe_unused]]) const {
+    return false;
+  }
+
+  /** Get the total memory available for bulk load in SE.
+   @param[in] thd user session
+   @return available memory for bulk load */
+  virtual size_t bulk_load_available_memory(THD *thd [[maybe_unused]]) const {
+    return 0;
+  }
+
+  /** Begin parallel bulk data load to the table.
+  @param[in] thd user session
+  @param[in] data_size total data size to load
+  @param[in] memory memory to be used by SE
+  @param[in] num_threads number of concurrent threads used for load.
+  @return bulk load context or nullptr if unsuccessful. */
+  virtual void *bulk_load_begin(THD *thd [[maybe_unused]],
+                                size_t data_size [[maybe_unused]],
+                                size_t memory [[maybe_unused]],
+                                size_t num_threads [[maybe_unused]]) {
+    return nullptr;
+  }
+
+  /** Execute bulk load operation. To be called by each of the concurrent
+  threads idenified by thread index.
+  @param[in,out]  thd         user session
+  @param[in,out]  load_ctx    load execution context
+  @param[in]      thread_idx  index of the thread executing
+  @param[in]      rows        rows to be loaded to the table
+  @return error code. */
+  virtual int bulk_load_execute(THD *thd [[maybe_unused]],
+                                void *load_ctx [[maybe_unused]],
+                                size_t thread_idx [[maybe_unused]],
+                                const Rows_mysql &rows [[maybe_unused]],
+                                Bulk_load::Stat_callbacks &wait_cbk
+                                [[maybe_unused]]) {
+    return HA_ERR_UNSUPPORTED;
+  }
+
+  /** End bulk load operation. Must be called after all execution threads have
+  completed. Must be called even if the bulk load execution failed.
+  @param[in,out]  thd       user session
+  @param[in,out]  load_ctx  load execution context
+  @param[in]      is_error  true, if bulk load execution have failed
+  @return error code. */
+  virtual int bulk_load_end(THD *thd [[maybe_unused]],
+                            void *load_ctx [[maybe_unused]],
+                            bool is_error [[maybe_unused]]) {
+    return false;
+  }
 
   /**
     Submit a dd::Table object representing a core DD table having
