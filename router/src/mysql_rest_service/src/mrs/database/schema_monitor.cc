@@ -93,7 +93,6 @@ void SchemaMonitor::run() {
       using namespace observability;
       auto session =
           cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
-      session.set_dirty();
 
       turn_state->query_state(session.get());
       authentication_fetcher->query_entries(session.get());

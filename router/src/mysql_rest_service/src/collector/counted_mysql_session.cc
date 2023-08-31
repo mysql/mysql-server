@@ -28,6 +28,61 @@
 
 namespace collector {
 
+static bool did_server_disconnect(unsigned int code) {
+  switch (code) {
+    case CR_SERVER_GONE_ERROR:
+    case CR_SERVER_LOST:
+    case CR_SERVER_LOST_EXTENDED:
+      return true;
+    default:
+      return false;
+  }
+}
+
+class GuardBoolSetFalse {
+ public:
+  GuardBoolSetFalse(bool &value) : value_{value} {}
+  ~GuardBoolSetFalse() { value_ = false; }
+
+  bool &value_;
+};
+
+#define CHECK_DISCONNECTION_RETURN(X)                                       \
+  {                                                                         \
+    GuardBoolSetFalse guard{reconnect_at_next_query_};                      \
+    try {                                                                   \
+      return X;                                                             \
+    } catch (const CountedMySQLSession::Error &e) {                         \
+      if (reconnect_at_next_query_ && did_server_disconnect(e.code())) {    \
+        try {                                                               \
+          connect_and_set_opts(get_connection_parameters(), initial_sqls_); \
+        } catch (...) {                                                     \
+          throw e;                                                          \
+        }                                                                   \
+        return X;                                                           \
+      }                                                                     \
+      throw;                                                                \
+    }                                                                       \
+  }
+
+#define CHECK_DISCONNECTION_VOID(X)                                         \
+  {                                                                         \
+    GuardBoolSetFalse guard{reconnect_at_next_query_};                      \
+    try {                                                                   \
+      X;                                                                    \
+    } catch (const CountedMySQLSession::Error &e) {                         \
+      if (reconnect_at_next_query_ && did_server_disconnect(e.code())) {    \
+        try {                                                               \
+          connect_and_set_opts(get_connection_parameters(), initial_sqls_); \
+        } catch (...) {                                                     \
+          throw e;                                                          \
+        }                                                                   \
+        X;                                                                  \
+      }                                                                     \
+      throw;                                                                \
+    }                                                                       \
+  }
+
 using MySQLSession = mysqlrouter::MySQLSession;
 
 CountedMySQLSession::CountedMySQLSession() {
@@ -38,14 +93,29 @@ CountedMySQLSession::~CountedMySQLSession() {
   mrs::Counter<kEntityCounterMySQLConnectionsActive>::increment(-1);
 }
 
+void CountedMySQLSession::allow_failure_at_next_query() {
+  reconnect_at_next_query_ = true;
+}
+
 CountedMySQLSession::ConnectionParameters
 CountedMySQLSession::get_connection_parameters() const {
   return connections_;
 }
 
+void CountedMySQLSession::execute_initial_sqls() {
+  for (const auto &sql : initial_sqls_) {
+    execute(sql);
+  }
+}
+
+CountedMySQLSession::Sqls CountedMySQLSession::get_initial_sqls() const {
+  return initial_sqls_;
+}
+
 void CountedMySQLSession::connect_and_set_opts(
-    const ConnectionParameters &connection_params) {
+    const ConnectionParameters &connection_params, const Sqls &initial_sqls) {
   connections_ = connection_params;
+  initial_sqls_ = initial_sqls;
   connect(connections_.conn_opts.host, connections_.conn_opts.port,
           connections_.conn_opts.username, connections_.conn_opts.password,
           connections_.conn_opts.unix_socket,
@@ -53,6 +123,8 @@ void CountedMySQLSession::connect_and_set_opts(
           connections_.conn_opts.connect_timeout,
           connections_.conn_opts.read_timeout,
           connections_.conn_opts.extra_client_flags);
+  reconnect_at_next_query_ = false;
+  execute_initial_sqls();
 }
 
 void CountedMySQLSession::connect(const std::string &host, unsigned int port,
@@ -65,6 +137,7 @@ void CountedMySQLSession::connect(const std::string &host, unsigned int port,
   MySQLSession::connect(host, port, username, password, unix_socket,
                         default_schema, connect_timeout, read_timeout,
                         extra_client_flags);
+  reconnect_at_next_query_ = false;
 
   connections_.conn_opts.host = host;
   connections_.conn_opts.port = port;
@@ -83,17 +156,18 @@ void CountedMySQLSession::connect(const MySQLSession &other,
   auto other_counted = dynamic_cast<const CountedMySQLSession *>(&other);
   assert(other_counted && "Must be instance of CountedMySQLSession.");
   auto params = other_counted->get_connection_parameters();
+  auto sqls = other_counted->get_initial_sqls();
   params.conn_opts.username = username;
   params.conn_opts.password = password;
 
-  connect_and_set_opts(params);
+  connect_and_set_opts(params, sqls);
 }
 
 void CountedMySQLSession::change_user(const std::string &user,
                                       const std::string &password,
                                       const std::string &db) {
   mrs::Counter<kEntityCounterMySQLChangeUser>::increment();
-  MySQLSession::change_user(user, password, db);
+  CHECK_DISCONNECTION_VOID(MySQLSession::change_user(user, password, db));
   connections_.conn_opts.username = user;
   connections_.conn_opts.password = password;
   connections_.conn_opts.default_schema = db;
@@ -103,7 +177,7 @@ void CountedMySQLSession::reset() { MySQLSession::reset(); }
 
 uint64_t CountedMySQLSession::prepare(const std::string &query) {
   mrs::Counter<kEntityCounterMySQLPrepare>::increment();
-  return MySQLSession::prepare(query);
+  CHECK_DISCONNECTION_RETURN(MySQLSession::prepare(query));
 }
 
 void CountedMySQLSession::prepare_execute(uint64_t ps_id,
@@ -111,37 +185,38 @@ void CountedMySQLSession::prepare_execute(uint64_t ps_id,
                                           const ResultRowProcessor &processor,
                                           const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLPrepareExecute>::increment();
-  MySQLSession::prepare_execute(ps_id, pt, processor, validator);
+  CHECK_DISCONNECTION_VOID(
+      MySQLSession::prepare_execute(ps_id, pt, processor, validator));
 }
 
 void CountedMySQLSession::prepare_remove(uint64_t ps_id) {
   mrs::Counter<kEntityCounterMySQLPrepareRemove>::increment();
-  MySQLSession::prepare_remove(ps_id);
+  CHECK_DISCONNECTION_VOID(MySQLSession::prepare_remove(ps_id));
 }
 
 void CountedMySQLSession::execute(const std::string &query) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  MySQLSession::execute(query);
+  CHECK_DISCONNECTION_VOID(MySQLSession::execute(query));
 }
 
 void CountedMySQLSession::query(const std::string &query,
                                 const ResultRowProcessor &processor,
                                 const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  MySQLSession::query(query, processor, validator);
+  CHECK_DISCONNECTION_VOID(MySQLSession::query(query, processor, validator));
 }
 
 std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
     const std::string &query, const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
-  return MySQLSession::query_one(query, validator);
+  CHECK_DISCONNECTION_RETURN(MySQLSession::query_one(query, validator));
 }
 
 std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
     const std::string &query) {
   // It calls query_one with two arguments. There is no need to count this
   // call.
-  return MySQLSession::query_one(query);
+  CHECK_DISCONNECTION_RETURN(MySQLSession::query_one(query));
 }
 
 }  // namespace collector

@@ -62,7 +62,7 @@ TEST_F(MysqlCacheManagerTest, multiple_objects_deallocate_themself) {
     auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
 
-    EXPECT_CALL(mock_callbacks_, object_before_cache(_)).Times(4);
+    EXPECT_CALL(mock_callbacks_, object_before_cache(_, _)).Times(4);
     EXPECT_CALL(mock_callbacks_, object_remove(_)).Times(4);
   }
   Mock::VerifyAndClearExpectations(&mock_callbacks_);
@@ -74,7 +74,7 @@ TEST_F(MysqlCacheManagerTest, object_deallocates_itself) {
   {
     auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
-    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
+    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_, _))
         .WillOnce(Return(false));
     EXPECT_CALL(mock_callbacks_, object_remove(&mock_session_)).Times(1);
   }
@@ -88,7 +88,7 @@ TEST_F(MysqlCacheManagerTest,
   {
     auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
-    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
+    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_, _))
         .WillOnce(Return(true));
   }
   Mock::VerifyAndClearExpectations(&mock_callbacks_);
@@ -107,7 +107,7 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_three_objects) {
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)
       obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
-    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
+    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_, _))
         .Times(3)
         .WillRepeatedly(Return(true));
     EXPECT_CALL(mock_callbacks_, object_remove(&mock_session_))
@@ -129,7 +129,7 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_one_object_and_reuseit) {
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)
       obj[i] = sut_.get_instance(collector::kMySQLConnectionMetadataRO, false);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
-    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_))
+    EXPECT_CALL(mock_callbacks_, object_before_cache(&mock_session_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(mock_callbacks_, object_remove(&mock_session_))
         .Times(k_number_of_allocated_objects_at_once - 1);

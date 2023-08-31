@@ -97,7 +97,7 @@ class MysqlCacheManager {
                         const std::string &role = {})
         : connection_configuration_{configuration}, role_{role} {}
 
-    bool object_before_cache(Object) override;
+    bool object_before_cache(Object, bool dirty) override;
     bool object_retrived_from_cache(Object) override;
     void object_remove(Object) override;
     Object object_allocate(bool wait) override;
@@ -106,8 +106,7 @@ class MysqlCacheManager {
     const ConnectionConfiguration &get_connection_configuration() const;
 
    private:
-    void initalize(Object);
-    void object_restore_defaults(Object &);
+    void object_restore_defaults(Object &, bool dirty);
     bool is_default_server(Object &) const;
 
     ConnectionParameters new_connection_params(bool wait);
