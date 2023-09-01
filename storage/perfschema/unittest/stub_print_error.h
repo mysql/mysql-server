@@ -22,23 +22,18 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "storage/perfschema/pfs_builtin_memory.h"
 #include "storage/perfschema/pfs_global.h"
 
 bool pfs_initialized = false;
 
-void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
+void *pfs_malloc(PFS_builtin_memory_class *, size_t size, myf flags) {
   void *ptr = malloc(size);
-  klass->count_alloc(size);
   if (ptr && (flags & MY_ZEROFILL)) memset(ptr, 0, size);
   return ptr;
 }
 
-void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
-  if (ptr != nullptr) {
-    free(ptr);
-    klass->count_free(size);
-  }
+void pfs_free(PFS_builtin_memory_class *, size_t, void *ptr) {
+  if (ptr != nullptr) free(ptr);
 }
 
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
