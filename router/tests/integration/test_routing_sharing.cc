@@ -7111,6 +7111,28 @@ TEST_P(ShareConnectionTest, select_overlong) {
   ASSERT_NO_ERROR(cli.query("DO 1"));
 }
 
+TEST_P(ShareConnectionTest, aborted_lexing) {
+  RecordProperty("Description",
+                 "Check that lexing a statement with a non-closed comment "
+                 "fails properly.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  auto query_res = cli.query("DO 1 /*");
+  ASSERT_ERROR(query_res);
+
+  // parse-error at /*
+  EXPECT_EQ(query_res.error().value(), 1064) << query_res.error();
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
