@@ -2164,6 +2164,7 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   /* Now convert the socket to a transporter */
   NdbSocket s = mgmd.convert_to_transporter();
   CHECK(s.is_valid());
+  CHECK(s.close() == 0);
 
   return NDBT_OK;
 }
