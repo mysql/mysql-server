@@ -251,6 +251,13 @@ class Channel {
   const recv_buffer_type &send_buffer() const { return send_buffer_; }
 
   /**
+   * payload buffer for
+   */
+  const recv_buffer_type &payload_buffer() const { return payload_buffer_; }
+
+  recv_buffer_type &payload_buffer() { return payload_buffer_; }
+
+  /**
    * decrypted data after a recv().
    */
   const recv_view_type &recv_plain_view() const;
@@ -311,6 +318,8 @@ class Channel {
   recv_view_type recv_view_;
   recv_buffer_type recv_plain_buffer_;
   recv_view_type recv_plain_view_;
+
+  recv_buffer_type payload_buffer_;
 
   recv_buffer_type send_plain_buffer_;
   recv_buffer_type send_buffer_;

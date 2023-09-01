@@ -43,7 +43,7 @@ class ClassicFrame {
   /**
    * recv a full message sequence into the channel's recv_plain_buffer()
    */
-  [[nodiscard]] static stdx::expected<void, std::error_code>
+  [[nodiscard]] static stdx::expected<size_t, std::error_code>
   recv_frame_sequence(Channel *src_channel, ClassicProtocolState *src_protocol);
 
   static stdx::expected<void, std::error_code> ensure_server_greeting(
@@ -68,16 +68,51 @@ class ClassicFrame {
         ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
     if (!read_res) return stdx::make_unexpected(read_res.error());
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto num_of_frames = *read_res;
+    if (num_of_frames > 1) {
+      // more than one frame.
+      auto frame_sequence_buf = src_channel->recv_plain_view();
 
-    auto decode_res =
-        classic_protocol::decode<classic_protocol::frame::Frame<Msg>>(
-            net::buffer(recv_buf), caps);
-    if (!decode_res) return stdx::make_unexpected(decode_res.error());
+      // assemble the payload from multiple frames.
 
-    src_protocol->seq_id(decode_res->second.seq_id());
+      auto &payload_buf = src_channel->payload_buffer();
+      payload_buf.clear();
 
-    return decode_res->second.payload();
+      while (!frame_sequence_buf.empty()) {
+        auto hdr_res =
+            classic_protocol::decode<classic_protocol::frame::Header>(
+                net::buffer(frame_sequence_buf), caps);
+        if (!hdr_res) return stdx::make_unexpected(hdr_res.error());
+
+        // skip the hdr.
+        frame_sequence_buf =
+            frame_sequence_buf.last(frame_sequence_buf.size() - hdr_res->first);
+
+        auto frame_payload =
+            frame_sequence_buf.first(hdr_res->second.payload_size());
+
+        payload_buf.insert(payload_buf.end(), frame_payload.begin(),
+                           frame_payload.end());
+
+        frame_sequence_buf = frame_sequence_buf.last(
+            frame_sequence_buf.size() - hdr_res->second.payload_size());
+      }
+
+      auto decode_res =
+          classic_protocol::decode<Msg>(net::buffer(payload_buf), caps);
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second;
+    } else {
+      auto &recv_buf = src_channel->recv_plain_view();
+
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::frame::Frame<Msg>>(
+              net::buffer(recv_buf), caps);
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.payload();
+    }
   }
 
   template <class Msg>
