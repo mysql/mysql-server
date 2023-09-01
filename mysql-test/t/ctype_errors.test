@@ -11,7 +11,7 @@ SET lc_messages=ru_RU;
 SHOW VARIABLES LIKE 'lc_messages';
 --error ER_TABLE_EXISTS_ERROR
 CREATE TABLE t1(f1 INT);
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --error ER_TABLE_EXISTS_ERROR
 CREATE TABLE t1(f1 INT);
 connection default;
@@ -39,7 +39,7 @@ drop table `ק`;
 connect (con1,localhost,root,,test);
 connection con1;
 SET lc_messages=cs_CZ;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 --error ER_BAD_DB_ERROR
 USE nonexistant;
 disconnect con1;

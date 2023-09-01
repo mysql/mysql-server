@@ -1,8 +1,8 @@
 call mtr.add_suppression("Plugin \'InnoDB\'");
 DROP TABLE IF EXISTS t1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set collation_connection=utf8_unicode_ci;
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -27,9 +27,9 @@ select 'a  a' > 'a', 'a  \t' < 'a';
 select 'c' like '\_' as want0;
 want0
 0
-create table t1 (c1 char(10) character set utf8 collate utf8_bin);
+create table t1 (c1 char(10) character set utf8mb3 COLLATE utf8mb3_bin);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('A'),('a');
 insert into t1 values ('B'),('b');
@@ -705,7 +705,7 @@ insert into t1 values ('NJ'),('Nj'),('nj'),('nJ');
 insert into t1 values ('OE'),('Oe'),('oe'),('oE');
 insert into t1 values ('SS'),('Ss'),('ss'),('sS');
 insert into t1 values ('RR'),('Rr'),('rr'),('rR');
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_unicode_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_unicode_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -810,7 +810,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_icelandic_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_icelandic_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -924,7 +924,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_latvian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_latvian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1039,7 +1039,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_romanian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_romanian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1149,7 +1149,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovenian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_slovenian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1258,7 +1258,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_polish_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_polish_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1371,7 +1371,7 @@ Z,z,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_estonian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_estonian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1485,7 +1485,7 @@ Y,y,Ý,ý,ÿ,Ŷ,ŷ,Ÿ
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_spanish_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1591,7 +1591,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_swedish_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_swedish_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1699,7 +1699,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_turkish_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_turkish_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1810,7 +1810,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_czech_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_czech_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -1921,7 +1921,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_danish_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_danish_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2029,7 +2029,7 @@ AA,Aa,aa,Å,å
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_lithuanian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_lithuanian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2138,7 +2138,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovak_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_slovak_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2250,7 +2250,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_spanish2_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2358,7 +2358,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_roman_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2466,7 +2466,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_esperanto_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2577,7 +2577,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_hungarian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_hungarian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2684,7 +2684,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_croatian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_croatian_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2794,7 +2794,7 @@ Z,z,Ź,ź,Ż,ż
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_german2_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_german2_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2900,7 +2900,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_unicode_520_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_unicode_520_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -2998,7 +2998,7 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_vietnamese_ci;
+select group_concat(c1 order by c1) from t1 group by c1 COLLATE utf8mb3_vietnamese_ci;
 group_concat(c1 order by c1)
 ÷
 ×
@@ -5518,35 +5518,35 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǂ
 ǃ
 drop table t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_general_ci, INDEX (c));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8mb3_general_ci, INDEX (c));
 Warnings:
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
-COLLATE utf8_general_ci;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8mb3)
+COLLATE utf8mb3_general_ci;
 c
 Μωδαί̈
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
-COLLATE utf8_general_ci ORDER BY c;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8mb3)
+COLLATE utf8mb3_general_ci ORDER BY c;
 c
 Μωδ
 Μωδαί̈
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE ucs2_unicode_ci, INDEX (c));
 Warnings:
@@ -5570,774 +5570,774 @@ c
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_unicode_ci, INDEX (c));
+CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8mb3_unicode_ci, INDEX (c));
 Warnings:
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8) COLLATE utf8_unicode_ci;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8mb3) COLLATE utf8mb3_unicode_ci;
 c
 Μωδαί̈
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
-COLLATE utf8_unicode_ci ORDER BY c;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8mb3)
+COLLATE utf8mb3_unicode_ci ORDER BY c;
 c
 Μωδ
 Μωδαί̈
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (
-col1 CHAR(32) CHARACTER SET utf8 NOT NULL
+col1 CHAR(32) CHARACTER SET utf8mb3 NOT NULL
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410628 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410628 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410648 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0041004100410648 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0633064A0651062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0633064A0651062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D06330646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D06330646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0642064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0642064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06320627062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06320627062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062806310627064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062806310627064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064706450647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064706450647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F062706460634062C0648064A06270646064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F062706460634062C0648064A06270646064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A06270631064A062E USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A06270631064A062E USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062706460642064406270628 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062706460642064406270628 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A0631062706460650 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A0631062706460650 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062F064806270631062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062F064806270631062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280631062706480646200C06310627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280631062706480646200C06310627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E064806270646062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E064806270646062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A062D062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A062D062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0623062B064A0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0623062B064A0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0642063106270631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0642063106270631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF06310641062A0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF06310641062A0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270646062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270646062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062E0635064A0651062A064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062E0635064A0651062A064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628062706310632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628062706310632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270633062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270633062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906A90633 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906A90633 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270648060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270648060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D062F0648062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D062F0648062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628064A0633062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628064A0633062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648067E0646062C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648067E0646062C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06330627064406AF064A060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06330627064406AF064A060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063306270644 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063306270644 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606450627064A0646062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606450627064A0646062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A06280631064A0632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A06280631064A0632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062C06440633 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062C06440633 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628064A0646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628064A0646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06350641062D0627062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06350641062D0627062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A0646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A0646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9062A06270628 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9062A06270628 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x068606340645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x068606340645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E06480631062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E06480631062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0686064706310647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0686064706310647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06420648064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06420648064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450635064506510645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450635064506510645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06310627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06310627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646063406270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646063406270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645064A200C062F0647062F060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645064A200C062F0647062F060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647063106860646062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647063106860646062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06390645064400BB USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06390645064400BB USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9064806340634 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9064806340634 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064706500646064A064606AF USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064706500646064A064606AF USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062D063306270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062D063306270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A062706310634062706370631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A062706310634062706370631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646062A06340631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646062A06340631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0633062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0633062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064806270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064806270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064506270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064506270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064806510644 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064806510644 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0634062E064A0635 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0634062E064A0635 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0627062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0627062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064106270648062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064106270648062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D06270644062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D06270644062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064106A906510631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064106A906510631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063A064406280647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063A064406280647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06270631062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06270631062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063106470628063106270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063106470628063106270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606470636062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606470636062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506340631064806370647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506340631064806370647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646064A0632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646064A0632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062D064206510642 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062D064206510642 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0637063106270632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0637063106270632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064106310647064606AF USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064106310647064606AF USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0645062F06510646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0645062F06510646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627063106470627064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627063106470627064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270648 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270648 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0639063106350647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0639063106350647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064506480631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064506480631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0633064A06270633064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0633064A06270633064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064A063106270646060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D064806320647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D064806320647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906440645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906440645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F062706460634 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F062706460634 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450642062706440627062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450642062706440627062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064A06AF0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064A06AF0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648064A06980647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648064A06980647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646062706450647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0646062706450647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506480631062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506480631062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628062D062B USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628062D062B USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628063106310633064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0628063106310633064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606480634062A0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606480634062A0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064606470627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A064606470627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0622064606860647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0622064606860647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064806310647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064806310647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064206270645062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064206270645062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0631062F062706320645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0631062F062706320645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0698062706460648064A0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0698062706460648064A0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0648064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06390648062A0650 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06390648062A0650 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063306500631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063306500631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0646064A0633064F0646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0646064A0633064F0646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063106270633 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063106270633 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064A0626062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064A0626062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0639064406480645200C063406310642064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0639064406480645200C063406310642064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280639062F0627064B USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280639062F0627064B USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062F063106330647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062F063106330647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062206410631064A06420627064A064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062206410631064A06420627064A064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06270646063406AF06270647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06270646063406AF06270647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06440646062F0646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06440646062F0646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E064A06480633062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E064A06480633062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064606AF06270645064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064606AF06270645064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0633 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0633 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0622063A06270632 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0622063A06270632 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062C064606AF USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062C064606AF USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062C064706270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062C064706270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064806510645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064806510645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063406470631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063406470631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9064506280631064A062C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A9064506280631064A062C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646062A06420644 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450646062A06420644 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90631062F0646062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90631062F0646062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06470645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06470645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06310641062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06310641062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646062C0627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646062C0627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506270646062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506270646062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0627 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0627 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062706A9062A06280631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062706A9062A06280631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606380631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606380631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06480644062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06480644062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06480628062706310647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F06480628062706310647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606330628062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606330628062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645063306270639062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645063306270639062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0634062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06480632064A0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06480632064A0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062E062A06270631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0645062E062A06270631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06330641064A0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06330641064A0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064606AF0644064A0633 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627064606AF0644064A0633 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0642064A200C06320627062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0642064A200C06320627062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280627063206AF0634062A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280627063206AF0634062A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064506330631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0647064506330631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220644064506270646064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220644064506270646064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270634 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06270634 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220645062F0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220645062F0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A906270631064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A906270631064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0631062F0627062E062A0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x067E0631062F0627062E062A0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906440645064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906440645064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062F0628064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x0627062F0628064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D062F0651 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062D062F0651 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606280648062F060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064606280648062F060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06480644064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06480644064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906480636060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x063906480636060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06340627064A062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06340627064A062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506470645 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064506470645 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062A0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646060C USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06220646060C USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06470645063306310634 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06470645063306310634 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627064606480646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627064606480646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E0627064606480627062F06AF064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062E0627064606480627062F06AF064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF06310645064A USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF06310645064A USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062C0648062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062C0648062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062206480631062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062206480631062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0648 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F0648 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627064506440627064B USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06A90627064506440627064B USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9062F064A06AF0631 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x064A06A9062F064A06AF0631 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06AF USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064406280633062A0647 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x062F064406280633062A0647 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F0646062F USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F0646062F USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450647064506270646 USING utf8));
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450647064506270646 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT HEX(CONVERT(col1 USING ucs2)) FROM t1 ORDER BY col1 COLLATE utf8_persian_ci, col1 COLLATE utf8_bin;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT HEX(CONVERT(col1 USING ucs2)) FROM t1 ORDER BY col1 COLLATE utf8mb3_persian_ci, col1 COLLATE utf8mb3_bin;
 HEX(CONVERT(col1 USING ucs2))
 0041004100410627
 0041004100410628
@@ -6527,11 +6527,11 @@ Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (
-a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_persian_ci,
+a VARCHAR(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_persian_ci,
 offs INT NOT NULL
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES
 (_ucs2 0x066D, 1),(_ucs2 0x064E, 2),(_ucs2 0xFE76, 3),(_ucs2 0xFE77, 4),
@@ -6760,7 +6760,7 @@ Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
-SET @test_character_set= 'utf8';
+SET @test_character_set= 'utf8mb3';
 SET @test_collation= 'utf8_swedish_ci';
 SET @safe_character_set_server= @@character_set_server;
 SET @safe_collation_server= @@collation_server;
@@ -6768,7 +6768,7 @@ SET @safe_character_set_client= @@character_set_client;
 SET @safe_character_set_results= @@character_set_results;
 SET character_set_server= @test_character_set;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_server= @test_collation;
 Warnings:
 Warning	3778	'utf8mb3_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -6863,9 +6863,9 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SET character_set_results= @safe_character_set_results;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-create table t1 (a varchar(1)) character set utf8 collate utf8_estonian_ci;
+create table t1 (a varchar(1)) character set utf8mb3 COLLATE utf8mb3_estonian_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('A'),('B'),('C'),('a'),('b'),('c');
 select a, a regexp '[a]' from t1 order by binary a;
@@ -7007,9 +7007,9 @@ Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
-CREATE TABLE t1 (id int, a varchar(30) character set utf8);
+CREATE TABLE t1 (id int, a varchar(30) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (1, _ucs2 0x01310069), (2, _ucs2 0x01310131);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -7034,9 +7034,9 @@ II	2	ii	2	II	2
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8 collate utf8_turkish_ci;
+ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf8mb3 COLLATE utf8mb3_turkish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
 FROM t1 ORDER BY id;
@@ -7051,15 +7051,15 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 (
 a varchar(255),
 key a(a)
-) character set utf8 collate utf8_danish_ci;
+) character set utf8mb3 COLLATE utf8mb3_danish_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('åaaaa'),('ååaaa'),('aaaaa');
 select a as like_a from t1 where a like 'a%';
@@ -7100,9 +7100,9 @@ drop table t1;
 create table t1 (
 a varchar(255),
 key(a)
-) character set utf8 collate utf8_spanish2_ci;
+) character set utf8mb3 COLLATE utf8mb3_spanish2_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('aaaaa'),('lllll'),('zzzzz');
 select a as like_l from t1 where a like 'l%';
@@ -7143,9 +7143,9 @@ drop table t1;
 create table t1 (
 a varchar(255),
 key a(a)
-) character set utf8 collate utf8_czech_ci;
+) character set utf8mb3 COLLATE utf8mb3_czech_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values
 ('b'),('c'),('d'),('e'),('f'),('g'),('h'),('ch'),('i'),('j');
@@ -7225,9 +7225,9 @@ a	hex(b)	c
 3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	NULL
 DROP TABLE t1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 End for 5.0 tests
 End of 5.1 tests
 #
@@ -7947,7 +7947,7 @@ FFFD
 #
 # Bug#53064 garbled data when using utf8_german2_ci collation
 #
-CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_german2_ci);
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8mb3_german2_ci);
 Warnings:
 Warning	3778	'utf8mb3_german2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES ('a'),('ae'),('af');
@@ -8384,8 +8384,8 @@ SHOW COLLATION LIKE 'utf8_test';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf8_test	utf8mb3	999			8	PAD SPACE
 # Create a table with the unknown collation.
-CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8_test);
-ERROR HY000: Unknown collation: 'utf8_test'
+CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8mb3_test);
+ERROR HY000: Unknown collation: 'utf8mb3_test'
 # Below error is caused as a result of this test. The error message
 # contains collation name which is added as a part of the fix.
 call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
@@ -8448,7 +8448,7 @@ INSERT INTO t1 VALUES
 (-99999999999999),
 (-999999999999999),
 (-9999999999999999);
-SELECT GROUP_CONCAT(c1) FROM t1 GROUP BY c1 COLLATE utf8_icelandic_ci;
+SELECT GROUP_CONCAT(c1) FROM t1 GROUP BY c1 COLLATE utf8mb3_icelandic_ci;
 GROUP_CONCAT(c1)
 -1e13
 -1e14
@@ -8466,7 +8466,7 @@ CONCAT(c1)
 SELECT CAST(CONCAT(c1) AS DOUBLE) FROM t1double;
 CAST(CONCAT(c1) AS DOUBLE)
 0.000000000000021234567891234568
-SELECT GROUP_CONCAT(c1) FROM t1double GROUP BY c1 COLLATE utf8_icelandic_ci;
+SELECT GROUP_CONCAT(c1) FROM t1double GROUP BY c1 COLLATE utf8mb3_icelandic_ci;
 GROUP_CONCAT(c1)
 2.1234567891234568e-14
 DROP TABLE t1double;

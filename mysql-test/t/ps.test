@@ -128,7 +128,7 @@ deallocate prepare stmt5;
 # Bug #4105: Server crash on attempt to prepare a statement with character
 # set introducer
 #
-PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+PREPARE stmt1 FROM "select _utf8mb3 'A' COLLATE utf8mb3_bin = ?";
 set @var='A';
 EXECUTE stmt1 USING @var;
 DEALLOCATE PREPARE stmt1;
@@ -269,7 +269,7 @@ deallocate prepare StMt1;
 deallocate prepare Stmt1;
 
 # also check that statement names are in right charset.
-set names utf8;
+set names utf8mb3;
 prepare `ü` from 'select 1234';
 execute `ü` ;
 set names latin1;
@@ -281,13 +281,13 @@ set names default;
 
 
 # 
-# BUG#4368 "select * from t1 where a like ?" crashes server if a is in utf8
+# BUG#4368 "select * from t1 where a like ?" crashes server if a is in utf8mb3
 # and ? is in latin1
-# Check that Item converting latin1 to utf8 (for LIKE function) is created
+# Check that Item converting latin1 to utf8mb3 (for LIKE function) is created
 # in memory of prepared statement.
 #
 
-create table t1 (a varchar(10)) charset=utf8;
+create table t1 (a varchar(10)) charset=utf8mb3;
 insert into t1 (a) values ('yahoo');
 set character_set_connection=latin1;
 prepare stmt from 'select a from t1 where a like ?';
@@ -328,7 +328,7 @@ drop table t1;
 # Just another place where we used wrong memory root for Items created
 # during statement prepare.
 # 
-prepare stmt from "select 'abc' like convert('abc' using utf8)";
+prepare stmt from "select 'abc' like convert('abc' using utf8mb3)";
 execute stmt;
 execute stmt;
 deallocate prepare stmt;
@@ -592,8 +592,8 @@ drop table t1;
 
 create table t1 (
    id bigint(20) not null auto_increment,
-   code varchar(20) character set utf8 collate utf8_bin not null default '',
-   company_name varchar(250) character set utf8 collate utf8_bin default null,
+   code varchar(20) character set utf8mb3 COLLATE utf8mb3_bin not null default '',
+   company_name varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
    setup_mode tinyint(4) default null,
    start_date datetime default null,
    primary key  (id), unique key code (code)
@@ -601,10 +601,10 @@ create table t1 (
 
 create table t2 (
    id bigint(20) not null auto_increment,
-   email varchar(250) character set utf8 collate utf8_bin default null,
-   name varchar(250) character set utf8 collate utf8_bin default null,
+   email varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
+   name varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
    t1_id bigint(20) default null,
-   password varchar(250) character set utf8 collate utf8_bin default null,
+   password varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
    primary_contact tinyint(4) not null default '0',
    email_opt_in tinyint(4) not null default '1',
    primary key  (id), unique key email (email), key t1_id (t1_id),
@@ -782,7 +782,7 @@ drop table t1;
 # the new item is # created in the statement memory root.
 set names latin1;
 prepare stmt from "create table t1 (a enum('test') default 'test')
- character set utf8";
+ character set utf8mb3";
 execute stmt;
 drop table t1;
 execute stmt;
@@ -824,11 +824,11 @@ deallocate prepare stmt;
 drop table t1;
 
 #
-# Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
+# Bug#13134 "Length of VARCHAR() utf8mb3 column is increasing when table is
 # recreated with PS/SP"
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
+prepare stmt from 'create table t1 (a varchar(10) character set utf8mb3)';
 execute stmt;
 --disable_warnings WARN_DATA_TRUNCATED ONCE
 insert into t1 (a) values (repeat('a', 20));
@@ -1175,7 +1175,7 @@ drop database if exists mysqltest;
 drop table if exists t1, t2;
 --enable_warnings
 # CREATE TABLE and CREATE TABLE ... SELECT
-create database mysqltest character set utf8;
+create database mysqltest character set utf8mb3;
 prepare stmt1 from "create table mysqltest.t1 (c char(10))";
 prepare stmt2 from "create table mysqltest.t2 select 'test'";
 execute stmt1;
@@ -1756,7 +1756,7 @@ prepare stmt from "create database mysqltest_1";
 execute stmt;
 show create database mysqltest_1;
 drop database mysqltest_1;
-set @@character_set_server= utf8; 
+set @@character_set_server= utf8mb3; 
 execute stmt;
 show create database mysqltest_1;
 drop database mysqltest_1;
@@ -2841,7 +2841,7 @@ connection default;
 DROP TABLE t1, t2;
 
 #
-# Bug #24879 Prepared Statements: CREATE TABLE (UTF8 KEY) produces a growing
+# Bug #24879 Prepared Statements: CREATE TABLE (utf8mb3 KEY) produces a growing
 # key length
 #
 # Test that parse information is not altered by subsequent executions of a
@@ -2849,7 +2849,7 @@ DROP TABLE t1, t2;
 #
 drop table if exists t1;
 prepare stmt
-from "create table t1 (c char(100) character set utf8, key (c(10)))";
+from "create table t1 (c char(100) character set utf8mb3, key (c(10)))";
 execute stmt;
 show create table t1;
 drop table t1;

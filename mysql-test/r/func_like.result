@@ -310,11 +310,11 @@ SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
 'aa' LIKE '%a' COLLATE gb2312_bin
 1
 SET NAMES DEFAULT;
-SELECT 'aa' LIKE CONVERT('%a' USING utf8);
-'aa' LIKE CONVERT('%a' USING utf8)
+SELECT 'aa' LIKE CONVERT('%a' USING utf8mb3);
+'aa' LIKE CONVERT('%a' USING utf8mb3)
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug#29175461: LIKE RESULT ERROR IF ESCAPE IS % OF WILDCARD CHARACTERS
 #
@@ -372,9 +372,9 @@ select 1 where 'b%a' like '#%a' escape '#';
 1
 select 1 where 'b_a' like '#_a' escape '#';
 1
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select 1 where 'b%a' like '%%a' escape '%';
 1
 select 1 where 'b_a' like '__a' escape '_';

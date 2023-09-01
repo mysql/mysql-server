@@ -295,13 +295,13 @@ t1	CREATE TABLE `t1` (
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
 create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
-default charset=utf8
+default charset=utf8mb3
 partition by list (a)
 subpartition by key (b)
 (partition p0 values in (1),
 partition p1 values in (2));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table t1;
 create table t1 (a int, b int, key(a))
 partition by list (a)
@@ -3305,12 +3305,12 @@ DROP TABLE t1;
 CREATE TABLE t(  id int unsigned NOT NULL,
 data varchar(2) DEFAULT NULL,
 KEY data_idx (data(1),id)
-) DEFAULT CHARSET=utf8
+) DEFAULT CHARSET=utf8mb3
 /*!50100 PARTITION BY RANGE (id)
 (PARTITION p10 VALUES LESS THAN (10) ,
 PARTITION p20 VALUES LESS THAN (20) ) */;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
 SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
 id

@@ -315,7 +315,7 @@ CREATE TABLE t1 (
   country varchar(45) NOT NULL,    
   funds_requested float NOT NULL,
   schooltype varchar(45) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 insert into t1 values ("the school", "USA", 1200, "Human");
 

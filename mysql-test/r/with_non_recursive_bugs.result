@@ -1073,7 +1073,7 @@ JOIN c AS outr3
 ON ( outr1 . col_datetime_key = outr3 . col_date_key )
 LEFT JOIN cte AS outrcte
 ON outr1 . col_blob = outrcte.field1
-WHERE ( _utf8 'g' )  IN (
+WHERE ( _utf8mb3 'g' )  IN (
 SELECT  innrcte . field1 AS x
 FROM aa AS innr1 JOIN cte AS innrcte
 ON innr1.pk = innrcte.field1

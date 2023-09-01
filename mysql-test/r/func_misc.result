@@ -47,12 +47,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	/* select#1 */ select inet_aton('122.256') AS `inet_aton("122.256")`,inet_aton('122.226.') AS `inet_aton("122.226.")`,inet_aton('') AS `inet_aton("")`
-select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
-length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
+select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8mb3'-',_utf8mb3'')));
+length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8mb3'-',_utf8mb3'')))
 36	utf8mb3	16
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set @a= uuid_short();
 set @b= uuid_short();
 select @b - @a;
@@ -87,11 +87,11 @@ select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
 a
 2004-01-06 12:34:00
 drop table t1;
-select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
-export_set(3, _latin1'foo', _utf8'bar', ',', 4)
+select export_set(3, _latin1'foo', _utf8mb3'bar', ',', 4);
+export_set(3, _latin1'foo', _utf8mb3'bar', ',', 4)
 foo,foo,bar,bar
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 End of 4.1 tests
 create table t1 as select uuid(), length(uuid());
 show create table t1;

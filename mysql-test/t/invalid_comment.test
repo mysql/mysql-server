@@ -2,7 +2,7 @@
 ## EDIT WITH CARE USING AN APPROPRIATE TOOL.
 
 --echo #
---echo # Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+--echo # Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID utf8mb3 CHARACTER STRING
 --echo #
 --echo # Test for invalid comment strings when creating table, field, index,
 --echo # partition, subpartition, tablespace, procedure, function, event.

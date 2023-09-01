@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS ‘¡¬Ã…√¡, t1, t2;
 
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
-CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
+CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8mb3);
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -32,7 +32,7 @@ DROP TABLE t1;
 
 # same with TEXT
 CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
-CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
+CREATE TABLE t2 (a TEXT CHARACTER SET utf8mb3);
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -64,7 +64,7 @@ SHOW CREATE TABLE Ú‡·ÎËˆ‡;
 SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 
 
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 --character_set utf8mb4
 SHOW TABLES;
 
@@ -79,8 +79,8 @@ DROP TABLE ‘¡¬Ã…√¡;
 SET CHARACTER SET default;
 
 # Test for Item_func_conv_charset::fix_fields (bug #3704)
-SET NAMES UTF8;
-CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+SET NAMES utf8mb3;
+CREATE TABLE t1 (t text) DEFAULT CHARSET utf8mb3;
 INSERT INTO t1 (t) VALUES ('x');
 SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
 DROP TABLE t1;
@@ -114,7 +114,7 @@ CREATE TABLE `—Ç–µ—Å—Ç` (`—Ç–µ—Å—Ç` int);
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --character_set utf8mb4
 
 #Replace default engine value with static engine string 
@@ -122,9 +122,9 @@ SET NAMES utf8;
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 DROP TABLE `—Ç–µ—Å—Ç`;
 SET NAMES binary;
-SET character_set_connection=utf8;
+SET character_set_connection=utf8mb3;
 SELECT '—Ç–µ—Å—Ç' as s;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET character_set_connection=binary;
 SELECT '—Ç–µ—Å—Ç' as s;
 
@@ -133,7 +133,7 @@ SELECT '—Ç–µ—Å—Ç' as s;
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
 # Check that both "SHOW CREATE TABLE" and "SHOW COLUMNS"
-# return column names and default values in UTF8 after "SET NAMES BINARY"
+# return column names and default values in utf8mb3 after "SET NAMES BINARY"
 
 SET NAMES latin1;
 --character_set latin1
@@ -154,12 +154,12 @@ DROP TABLE t1;
 
 
 #
-# Test that we allow only well-formed UTF8 identitiers
+# Test that we allow only well-formed utf8mb3 identitiers
 #
 SET NAMES binary;
 --error 1300
 CREATE TABLE `good–Ãœ»œ` (a int);
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --error 1300
 CREATE TABLE `good–Ãœ»œ` (a int);
 
@@ -206,7 +206,7 @@ set names latin1;
 #
 # Bug#10446 Illegal mix of collations
 #
-create table t1 (a char(10) character set utf8 collate utf8_bin);
+create table t1 (a char(10) character set utf8mb3 COLLATE utf8mb3_bin);
 insert into t1 values ('       xxx');
 select * from t1 where a=lpad('xxx',10,' ');
 drop table t1;

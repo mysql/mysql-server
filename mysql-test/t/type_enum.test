@@ -93,10 +93,10 @@ DROP TABLE t1;
 #
 # Bug #6379: ENUM values are incorrectly converted
 #
-# Check latin1 -> utf8 conversion
+# Check latin1 -> utf8mb3 conversion
 #
 CREATE TABLE t1 (
-  a ENUM('ä','ö','ü') character set utf8 default 'ü'
+  a ENUM('ä','ö','ü') character set utf8mb3 default 'ü'
 );
 
 #Replace default engine value with static engine string 
@@ -107,10 +107,10 @@ select a from t1 order by a;
 drop table t1;
 
 #
-# Now check utf8 -> latin1 conversion
+# Now check utf8mb3 -> latin1 conversion
 # This test emulates loading a script generated with mysqldump
 #
-set names utf8;
+set names utf8mb3;
 --character_set utf8mb4
 CREATE TABLE t1 (
   a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
@@ -130,10 +130,10 @@ drop table t1;
 # Test bug where enum fields where extended for each ALTER TABLE
 #
 
-create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+create table t1 (a enum ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin);
 insert into t1 values ('Y');
-alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
-alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add b set ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
+alter table t1 add c enum ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 --enable_metadata
 select * from t1;
 --disable_metadata

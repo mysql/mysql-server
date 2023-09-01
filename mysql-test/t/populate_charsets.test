@@ -16,7 +16,7 @@ SHOW COLLATION LIKE 'utf8_phone_ci';
 
 --echo #
 --echo # Create and drop a table using the new collation:
-CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8mb3_phone_ci;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -38,7 +38,7 @@ SHOW COLLATION LIKE 'utf8_phone_ci';
 --echo #
 --echo # Create a table using the deleted collation, expected to fail:
 --error ER_UNKNOWN_COLLATION
-CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+CREATE TABLE t1 (pk INTEGER) COLLATE utf8mb3_phone_ci;
 
 # restore default values
 --let $restart_parameters = restart:

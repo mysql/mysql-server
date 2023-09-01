@@ -8,22 +8,22 @@ utf8mb3
 select database() = "test";
 database() = "test"
 1
-select database() = _utf8"test";
-database() = _utf8"test"
+select database() = _utf8mb3"test";
+database() = _utf8mb3"test"
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select database() = _latin1"test";
 database() = _latin1"test"
 1
 select user() like "%@%";
 user() like "%@%"
 1
-select user() like _utf8"%@%";
-user() like _utf8"%@%"
+select user() like _utf8mb3"%@%";
+user() like _utf8mb3"%@%"
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select user() like _latin1"%@%";
 user() like _latin1"%@%"
 1
@@ -33,11 +33,11 @@ utf8mb3
 select version()>="3.23.29";
 version()>="3.23.29"
 1
-select version()>=_utf8"3.23.29";
-version()>=_utf8"3.23.29"
+select version()>=_utf8mb3"3.23.29";
+version()>=_utf8mb3"3.23.29"
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select version()>=_latin1"3.23.29";
 version()>=_latin1"3.23.29"
 1
@@ -58,27 +58,27 @@ t1	CREATE TABLE `t1` (
   `version` char(60) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
-charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
+select charset(charset(_utf8mb3'a')), charset(collation(_utf8mb3'a'));
+charset(charset(_utf8mb3'a'))	charset(collation(_utf8mb3'a'))
 utf8mb3	utf8mb3
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
-collation(charset(_utf8'a'))	collation(collation(_utf8'a'))
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+select collation(charset(_utf8mb3'a')), collation(collation(_utf8mb3'a'));
+collation(charset(_utf8mb3'a'))	collation(collation(_utf8mb3'a'))
 utf8mb3_general_ci	utf8mb3_general_ci
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-create table t1 select charset(_utf8'a'), collation(_utf8'a');
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t1 select charset(_utf8mb3'a'), collation(_utf8mb3'a');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `charset(_utf8'a')` varchar(64) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
-  `collation(_utf8'a')` varchar(64) CHARACTER SET utf8mb3 NOT NULL DEFAULT ''
+  `charset(_utf8mb3'a')` varchar(64) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
+  `collation(_utf8mb3'a')` varchar(64) CHARACTER SET utf8mb3 NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select TRUE,FALSE,NULL;

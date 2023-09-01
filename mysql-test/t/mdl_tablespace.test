@@ -776,8 +776,8 @@ SET DEBUG_SYNC= 'RESET';
 --echo #
 
 --echo #
---echo # Set UTF8 character set to allow multi byte characters.
-SET CHARACTER SET UTF8;
+--echo # Set utf8mb3 character set to allow multi byte characters.
+SET CHARACTER SET utf8mb3;
 
 --echo #
 --echo # An empty tablespace name should be rejected.

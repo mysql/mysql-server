@@ -754,8 +754,8 @@ drop table t1;
 # Enum merging test
 #
 CREATE TABLE t1 (
-  a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
-  b ENUM("one", "two") character set utf8,
+  a ENUM('ä','ö','ü') character set utf8mb3 not null default 'ü',
+  b ENUM("one", "two") character set utf8mb3,
   c ENUM("one", "two")
 );
 show create table t1;
@@ -884,7 +884,7 @@ drop table t1;
 # Bug#12185: Data type aggregation may produce wrong result
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8mb3 COLLATE utf8mb3_general_ci, f7 text);
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 drop table t1, t2;
@@ -941,7 +941,7 @@ SET sql_mode = default;
 # Bug #16881: password() and union select
 # (The issue was poor handling of character set aggregation.)
 #
-select _utf8'12' union select _latin1'12345';
+select _utf8mb3'12' union select _latin1'12345';
 
 #
 # Bug #26661: UNION with ORDER BY undefined column in FROM list

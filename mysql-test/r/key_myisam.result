@@ -74,9 +74,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`id` = 2)
 drop table t1;
-create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
+create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8mb3 engine=myisam;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

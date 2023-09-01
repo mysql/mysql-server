@@ -605,7 +605,7 @@ drop table t1;
 # bug9188 - Corruption Cannot open file: 'table.MYI' (errno: 145)
 #
 create table t1 (c1 int, c2 varchar(4) not null default '',
-                 key(c2(3))) default charset=utf8;
+                 key(c2(3))) default charset=utf8mb3;
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
 update t1 set c2='A  B' where c1=2;
 check table t1;
@@ -1041,7 +1041,7 @@ drop table if exists t1;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
-create table t1 (v varchar(65530) character set utf8);
+create table t1 (v varchar(65530) character set utf8mb3);
 show create table t1;
 drop table t1;
 
@@ -1445,9 +1445,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 # Using Tamil Letter A, Unicode U+0B85
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
 CHECK TABLE t1;
 REPAIR TABLE t1;
@@ -1461,9 +1461,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 # Using Tamil Letter A, Unicode U+0B85
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 SELECT COUNT(*) FROM t1;
 CHECK TABLE t1 EXTENDED;
 REPAIR TABLE t1 EXTENDED;
@@ -1477,9 +1477,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 # Using Tamil Letter A, Unicode U+0B85
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 # Insert more rows and delete one in the middle to force optimize.
 INSERT INTO t1 VALUES('b', 'b');
 INSERT INTO t1 VALUES('c', 'b');
@@ -1497,7 +1497,7 @@ CREATE TABLE t1 (
   c1 CHAR(50),
   c2 VARCHAR(1),
   KEY (c1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 #
 # Insert 100 rows. This turns bulk insert on during the copy phase of
 # ALTER TABLE. Bulk insert disables keys before the insert and re-enables
@@ -1514,7 +1514,7 @@ while ($count)
 #
 # Change most of the rows into long character values with > 42 characters.
 # Using Tamil Letter A, Unicode U+0B85
-UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
+UPDATE t1 SET c1=REPEAT(_utf8mb3 x'e0ae85',43) LIMIT 90;
 SELECT COUNT(*) FROM t1;
 ALTER TABLE t1 ENGINE=MyISAM;
 #
@@ -1533,7 +1533,7 @@ CREATE TABLE t1 (
   c3 VARCHAR(10) NOT NULL,
   KEY (c1),
   KEY (c2)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 PACK_KEYS=0;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --exec $MYISAMCHK -d $MYSQLD_DATADIR/test/t1

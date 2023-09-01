@@ -1297,7 +1297,7 @@ select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
 drop table t1;
 
-set names utf8;
+set names utf8mb3;
 create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*123456789*';
 show create table t1;

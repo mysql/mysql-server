@@ -604,7 +604,7 @@ SHOW GRANTS FOR u1@localhost;
 connect(con1, localhost, u1, foo, test);
 --echo ++ Shows default r1.
 SELECT CURRENT_ROLE();
---echo ++ charset should be utf8
+--echo ++ charset should be utf8mb3
 SELECT CHARSET(CURRENT_ROLE());
 SET ROLE DEFAULT;
 SELECT CURRENT_ROLE();

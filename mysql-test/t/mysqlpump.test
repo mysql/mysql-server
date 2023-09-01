@@ -99,7 +99,7 @@ DROP DATABASE db3;
 # --compress-output testing
 --exec $MYSQL_PUMP --default-parallelism=1 --parallel-schemas=3:db1 --include-databases=db1,db2 --compress-output=LZ4 > $MYSQLTEST_VARDIR/tmp/output_file_6.sql
 --exec $MYSQL_PUMP --parallel-schemas=3:db2 --include-databases=db2 --compress-output=ZLIB > $MYSQLTEST_VARDIR/tmp/output_file_7.sql
---exec $MYSQL_PUMP --host=localhost --include-databases=db1_1gb --parallel-schemas=2:db1_1gb --complete-insert --compress --default-character-set=utf8 > $MYSQLTEST_VARDIR/tmp/output_file_8.sql
+--exec $MYSQL_PUMP --host=localhost --include-databases=db1_1gb --parallel-schemas=2:db1_1gb --complete-insert --compress --default-character-set=utf8mb3 > $MYSQLTEST_VARDIR/tmp/output_file_8.sql
 
 --exec $MYSQL_PUMP --parallel-schemas=1:db1_1gb --include-databases=db1_1gb --extended-insert=10 > $MYSQLTEST_VARDIR/tmp/output_file_9.sql
 --exec $MYSQL_PUMP --parallel-schemas=3:db1_1gb --include-databases=db1_1gb --insert-ignore  > $MYSQLTEST_VARDIR/tmp/output_file_10.sql

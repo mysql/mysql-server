@@ -68,7 +68,7 @@ select concat((select x from (select 'a' as x) as t1 ),
 #
 # Bug#15962: CONCAT() in UNION may lead to a data trucation.
 #
-create table t1(f1 varchar(6)) charset=utf8;
+create table t1(f1 varchar(6)) charset=utf8mb3;
 insert into t1 values ("123456");
 select concat(f1, 2) a from t1 union select 'x' a from t1;
 drop table t1;
@@ -94,7 +94,7 @@ CREATE TABLE t1 (
   d TEXT NOT NULL,
   PRIMARY KEY (a, b, c),
   KEY (a)
-) DEFAULT CHARSET=utf8;
+) DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 VALUES ('gui_A', 'a', 'b', 'str1'),
   ('gui_AB', 'a', 'b', 'str2'), ('gui_ABC', 'a', 'b', 'str3');

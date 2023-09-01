@@ -584,7 +584,7 @@ CREATE TABLE t1 (
   flag_name varchar(64) default NULL,
   flag_value text,
   UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 CREATE TABLE t2 (
   ts_id bigint(20) default NULL,
@@ -592,7 +592,7 @@ CREATE TABLE t2 (
   flag_name varchar(64) default NULL,
   flag_value text,
   UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 VALUES
   (111056548820001, 0, 'flag1', NULL),
@@ -1531,7 +1531,7 @@ CREATE TABLE t4 (
 INSERT INTO t4 VALUES (1,1,1,'1');
 CREATE TABLE t5 (
   col_int int(11) DEFAULT NULL,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t5 VALUES (1,'1');
 CREATE TABLE t6 (

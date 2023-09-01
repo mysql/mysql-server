@@ -244,7 +244,7 @@ connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
 # DDL statement will block waiting for GRL.
-ALTER DATABASE test CHARACTER SET utf8;;
+ALTER DATABASE test CHARACTER SET utf8mb3;;
 connection con2;
 # Wait until statement is blocked waiting for GRL.
 SET GLOBAL READ_ONLY= 1;

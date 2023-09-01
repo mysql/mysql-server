@@ -2290,7 +2290,7 @@ $a"b"$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a"b"$
 return x-1;
 $a"b"$' at line 3
-# Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+# Test multi-byte characters in code (∂ is 3 bytes in utf8mb3)
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -3686,7 +3686,7 @@ $a"b"$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a"b"$
 let b = a;
 $a"b"$' at line 3
-# Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+# Test multi-byte characters in code (∂ is 3 bytes in utf8mb3)
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$

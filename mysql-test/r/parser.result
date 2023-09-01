@@ -2211,7 +2211,7 @@ ALTER DATABASE db COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
 ALTER TABLE t COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
-SET NAMES utf8 COLLATE DEFAULT;
+SET NAMES utf8mb3 COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
 SET NAMES DEFAULT COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLLATE DEFAULT' at line 1

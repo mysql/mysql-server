@@ -2,15 +2,15 @@
 # Bug#26475312 VALGRIND MEMORY LEAK ( CMP_FIELD_VALUE(FIELD*, LONG) (SQL_EXECUTOR.CC:3598)
 #
 CREATE TABLE H (
-col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8mb3,
 col_varchar_255_latin1_key varchar(255)  CHARACTER SET latin1,
 col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
 col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
-col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
-col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8mb3,
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8mb3,
 col_int int,
 col_int_key int,
-col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8,
+col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8mb3,
 pk integer auto_increment,
 col_varchar_255_latin1 varchar(255)  CHARACTER SET latin1,
 /*Indices*/
@@ -21,10 +21,10 @@ key (col_varchar_255_utf8_key ),
 key (col_int_key ),
 primary key (pk)) ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT IGNORE INTO H VALUES
 ('about', 'z', 'they', 'm', 'x', 'could',
 3, 155189248,
@@ -33,16 +33,16 @@ Warnings:
 Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 1
 CREATE TABLE DD (
 col_varchar_255_latin1_key varchar(255)  CHARACTER SET latin1,
-col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8,
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8mb3,
 col_varchar_255_latin1 varchar(255)  CHARACTER SET latin1,
 col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
 col_int_key int,
-col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8,
+col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8mb3,
 pk integer auto_increment,
-col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8mb3,
 col_int int,
 col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
-col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8mb3,
 /*Indices*/
 key (col_varchar_255_latin1_key ),
 key (col_varchar_255_utf8_key ),
@@ -51,10 +51,10 @@ key (col_int_key ),
 primary key (pk),
 key (col_varchar_10_utf8_key )) ENGINE=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT IGNORE INTO DD VALUES  ('q',
 'brmucbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuzndvkxkf', 'now',
 'you\'re', 1811152896, 'or', NULL, 'this', 6, 'then', 'e') ,  ('did', 'j',

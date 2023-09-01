@@ -1099,7 +1099,7 @@ CREATE TABLE `t1` (
   `col_1023` tinyint(1) default NULL,
   `col_1024` tinyint(1) default NULL,
   `col_1025` tinyint(1) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 --enable_query_log
 CREATE VIEW v1 AS SELECT * FROM t1;
 

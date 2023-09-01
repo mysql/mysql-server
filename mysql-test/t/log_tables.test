@@ -157,15 +157,15 @@ set names binary;
 select _koi8r'����' as test;
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from mysql.general_log;
-set names utf8;
+set names utf8mb3;
 
 #
 # Bug #16905    Log tables: unicode statements are logged incorrectly
 #
 
 truncate table mysql.general_log;
-set names utf8;
-create table bug16905 (s char(15) character set utf8 default 'пусто');
+set names utf8mb3;
+create table bug16905 (s char(15) character set utf8mb3 default 'пусто');
 insert into bug16905 values ('новое');
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from mysql.general_log;

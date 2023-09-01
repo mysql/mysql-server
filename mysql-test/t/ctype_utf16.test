@@ -77,7 +77,7 @@ SET NAMES latin1;
 SET character_set_connection=utf16;
 --source include/ctype_like.inc
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET character_set_connection=utf16;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
@@ -175,7 +175,7 @@ execute stmt1 using @ivar;
 #
 # Check that utf16 works with ENUM and SET type
 #
-set names utf8;
+set names utf8mb3;
 create table t1 (a enum('x','y','z') character set utf16);
 show create table t1;
 insert into t1 values ('x');
@@ -571,7 +571,7 @@ drop table t1;
 create table t1 (a varchar(334) character set utf16 primary key) ROW_FORMAT=COMPACT;
 
 #
-# Conversion to utf8
+# Conversion to utf8mb3
 #
 create table t1 (a char(1) character set utf16);
 insert into t1 values (0xD800DC00),(0xD800DCFF),(0xDB7FDC00),(0xDB7FDCFF);
@@ -618,11 +618,11 @@ CREATE TABLE t1 (
   s4 LONGTEXT CHARACTER SET utf16
 );
 --enable_metadata
-SET NAMES utf8, @@character_set_results=NULL;
+SET NAMES utf8mb3, @@character_set_results=NULL;
 SELECT *, HEX(s1) FROM t1;
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT *, HEX(s1) FROM t1;
 --disable_metadata
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
@@ -651,7 +651,7 @@ SELECT space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second));
 --echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 --echo #
 
-SET NAMES utf8, @@character_set_connection=utf16;
+SET NAMES utf8mb3, @@character_set_connection=utf16;
 SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
 FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
 UNION ALL

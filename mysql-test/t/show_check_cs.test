@@ -543,7 +543,7 @@ CREATE FUNCTION f1() RETURNS INT RETURN 1;
 
 # Test.
 
-set names utf8;
+set names utf8mb3;
 
 --echo -- Here we enable metadata just to check that the collation of the
 --echo -- resultset is non-binary for string type. This should be changed
@@ -553,7 +553,7 @@ set names utf8;
 
 --echo ----------------------------------------------------------------
 
-SHOW CHARACTER SET LIKE 'utf8';
+SHOW CHARACTER SET LIKE 'utf8mb3';
 
 --echo ----------------------------------------------------------------
 
@@ -862,7 +862,7 @@ show engine csv mutex;
 #
 # Bug#25081 SHOW FULL TABLES on table with latin chars in name fails
 #
-set names utf8;
+set names utf8mb3;
 --disable_warnings
 drop table if exists `√©t√©`;
 --enable_warnings
@@ -1007,7 +1007,7 @@ CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
 # Test: switch the character set and show that SHOW CREATE output is
 # automatically converted to the new character_set_client.
 
-set names utf8;
+set names utf8mb3;
 
 SHOW CREATE VIEW v1;
 
@@ -1137,7 +1137,7 @@ SHOW CREATE TABLE t1;
 --echo # Connection con1
 connection con1;
 # Used to block
-ALTER TABLE t1 CHARACTER SET = utf8;
+ALTER TABLE t1 CHARACTER SET = utf8mb3;
 UNLOCK TABLES;
 
 --echo # Connection default
@@ -1185,7 +1185,7 @@ SHOW CREATE TRIGGER t1_bi;
 --echo # Connection con1
 connection con1;
 # Should not block.
-ALTER TABLE t1 CHARACTER SET = utf8;
+ALTER TABLE t1 CHARACTER SET = utf8mb3;
 
 disconnect con1;
 --source include/wait_until_disconnected.inc
@@ -1215,7 +1215,7 @@ let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE I
 --replace_column 1 ### 3 ### 6 ### 7 ###
 --sorted_result
 SHOW PROCESSLIST;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --replace_column 1 ### 3 ### 6 ### 7 ###
 --sorted_result
 SHOW PROCESSLIST;
@@ -1270,7 +1270,7 @@ SHOW CONTRIBUTORS;
 --echo #
 
 CREATE TABLE t1 (i CHAR(3),
-                 n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+                 n CHAR(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)));
 
 --echo # Use SHOW CREATE TABLE output below unmodified to re-create table
 SHOW CREATE TABLE t1;
@@ -1279,7 +1279,7 @@ DROP TABLE t1;
 
 CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
-  `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+  `n` char(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 DROP TABLE t1;
@@ -1375,7 +1375,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (f1 CHAR(1),
-                 f2 CHAR(1) COLLATE UTF8_BIN,
+                 f2 CHAR(1) COLLATE utf8mb3_BIN,
                  f3 CHAR(1) CHARSET UTF8MB3,
                  f4 CHAR(1) CHARSET UTF8MB4);
 

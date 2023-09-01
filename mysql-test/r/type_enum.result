@@ -1697,10 +1697,10 @@ ue
 ss
 DROP TABLE t1;
 CREATE TABLE t1 (
-a ENUM('ä','ö','ü') character set utf8 default 'ü'
+a ENUM('ä','ö','ü') character set utf8mb3 default 'ü'
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1713,9 +1713,9 @@ a
 ö
 ü
 drop table t1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
 );
@@ -1732,18 +1732,18 @@ a
 ö
 ü
 drop table t1;
-create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+create table t1 (a enum ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('Y');
-alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add b set ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add c enum ('Y','N') CHARACTER SET utf8mb3 COLLATE utf8mb3_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

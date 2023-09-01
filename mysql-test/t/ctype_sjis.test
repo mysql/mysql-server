@@ -14,10 +14,10 @@ set @sjis2= _sjis 0xb0b1b2b3b4b5b6b7b8b9babbbcbdbebf;
 set @sjis3= _sjis 0xc0c1c2c3c4c5c6c7c8c9cacbcccdcecf;
 set @sjis4= _sjis 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedf;
 
-set @utf81= CONVERT(@sjis1 USING utf8);
-set @utf82= CONVERT(@sjis2 USING utf8);
-set @utf83= CONVERT(@sjis3 USING utf8);
-set @utf84= CONVERT(@sjis4 USING utf8);
+set @utf81= CONVERT(@sjis1 USING utf8mb3);
+set @utf82= CONVERT(@sjis2 USING utf8mb3);
+set @utf83= CONVERT(@sjis3 USING utf8mb3);
+set @utf84= CONVERT(@sjis4 USING utf8mb3);
 
 select hex(@utf81);
 select hex(@utf82);
@@ -110,7 +110,7 @@ SELECT QUOTE('ƒ\');
 #
 # Populate t1 with all hex digits
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=sjis_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -159,20 +159,20 @@ ORDER BY code;
 # Expect U+212B ANGSTROM SIGN
 #
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 #
 # Expect no results
 #
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 
 --echo #
 --echo # WL#3090 Japanese Character Set adjustments
 --echo # Test sjis->Unicode conversion
 --echo #
-SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb3)) as b FROM t1
 WHERE a<>'' HAVING b<>'3F' ORDER BY code;
 
 DROP TABLE t1;

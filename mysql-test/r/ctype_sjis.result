@@ -12,18 +12,18 @@ set @sjis1= _sjis   0xa1a2a3a4a5a6a7a8a9aaabacadaeaf;
 set @sjis2= _sjis 0xb0b1b2b3b4b5b6b7b8b9babbbcbdbebf;
 set @sjis3= _sjis 0xc0c1c2c3c4c5c6c7c8c9cacbcccdcecf;
 set @sjis4= _sjis 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedf;
-set @utf81= CONVERT(@sjis1 USING utf8);
+set @utf81= CONVERT(@sjis1 USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-set @utf82= CONVERT(@sjis2 USING utf8);
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+set @utf82= CONVERT(@sjis2 USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-set @utf83= CONVERT(@sjis3 USING utf8);
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+set @utf83= CONVERT(@sjis3 USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-set @utf84= CONVERT(@sjis4 USING utf8);
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+set @utf84= CONVERT(@sjis4 USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select hex(@utf81);
 hex(@utf81)
 EFBDA1EFBDA2EFBDA3EFBDA4EFBDA5EFBDA6EFBDA7EFBDA8EFBDA9EFBDAAEFBDABEFBDACEFBDADEFBDAEEFBDAF
@@ -240,9 +240,9 @@ QUOTE('�\')
 #
 # Testing WL#4583 Case conversion in Asian character sets 
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_connection=sjis_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -513,25 +513,25 @@ code	hex(upper(a))	hex(lower(a))	a	upper(a)	lower(a)
 8490	845F	8490	ю	Ю	ю
 8491	8460	8491	я	Я	я
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 81F0	Å
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # WL#3090 Japanese Character Set adjustments
 # Test sjis->Unicode conversion
 #
-SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb3)) as b FROM t1
 WHERE a<>'' HAVING b<>'3F' ORDER BY code;
 HEX(a)	b
 8140	E38080
@@ -7477,7 +7477,7 @@ EAA2	E791A4
 EAA3	E5879C
 EAA4	E78699
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 #
 # WL#3090 Japanese Character Set adjustments

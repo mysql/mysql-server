@@ -122,9 +122,9 @@ count(*)
 0
 drop event event3;
 drop table t_event3;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
 SHOW CREATE EVENT root6;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation

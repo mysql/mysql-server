@@ -7830,7 +7830,7 @@ SET sql_mode = default;
 --echo # Bug#20565160 ASSERTION `SORT_FIELD->LENGTH >= LENGTH' FAILED
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 CREATE TABLE t1 (
   c datetime(1) NOT NULL,

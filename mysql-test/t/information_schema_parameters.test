@@ -237,7 +237,7 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 -- echo # ========== parameters.12 ==========
 DROP DATABASE IF EXISTS i_s_parameters_test;
 
-CREATE DATABASE i_s_parameters_test CHARACTER SET  utf8;
+CREATE DATABASE i_s_parameters_test CHARACTER SET  utf8mb3;
 USE i_s_parameters_test;
 
 CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)

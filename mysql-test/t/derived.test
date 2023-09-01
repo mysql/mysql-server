@@ -968,7 +968,7 @@ DROP TABLE t1,t2;
 --echo #
 --echo # Bug#12799731 - CRASH IN END_READ_RECORD.
 --echo #
-create table t1(f1 char(255) charset utf8);
+create table t1(f1 char(255) charset utf8mb3);
 insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 # We only need the temp SE to overflow here, so use 'memory' for this purpose.
 set @save_internal_tmp_mem_storage_engine= @@internal_tmp_mem_storage_engine;
@@ -1166,10 +1166,10 @@ DROP VIEW v1;
 --echo # Bug#13261277: Unchecked key length caused missing records.
 --echo #
 CREATE TABLE t1 (
-  col_varchar varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
-  stub1 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
-  stub2 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
-  stub3 varchar(1024) CHARACTER SET utf8 DEFAULT NULL
+  col_varchar varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
+  stub1 varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
+  stub2 varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
+  stub3 varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL
 );
 
 INSERT INTO t1 VALUES

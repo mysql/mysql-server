@@ -852,7 +852,7 @@ SELECT @var1, @var2;
 DROP TABLE t1;
 
 --echo
---echo # Items are UTF8 (utf8_general_ci default collation)
+--echo # Items are utf8mb3 (utf8_general_ci default collation)
 --echo
 
 SELECT CAST(-19999999999999999999 AS SIGNED);

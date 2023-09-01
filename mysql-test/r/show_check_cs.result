@@ -696,20 +696,21 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 CREATE VIEW v1 AS SELECT 1;
 CREATE PROCEDURE p1() SELECT 1;
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.
 ----------------------------------------------------------------
-SHOW CHARACTER SET LIKE 'utf8';
+SHOW CHARACTER SET LIKE 'utf8mb3';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	0	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	0	N	4097	0	33
-def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	0	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	0	N	36897	0	63
+def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	7	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
+def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	18	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
 Charset	Description	Default collation	Maxlen
+utf8mb3	UTF-8 Unicode	utf8mb3_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1107,9 +1108,9 @@ show engine csv logs;
 Type	Name	Status
 show engine csv mutex;
 Type	Name	Status
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table if exists `√©t√©`;
 create table `√©t√©` (field1 int);
 show full tables;
@@ -1220,9 +1221,9 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
 SET NEW.c1 = '‘≈”‘';
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `test`	koi8r	koi8r_general_ci
@@ -1291,9 +1292,9 @@ t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Connection con1
-ALTER TABLE t1 CHARACTER SET = utf8;
+ALTER TABLE t1 CHARACTER SET = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 UNLOCK TABLES;
 # Connection default
 COMMIT;
@@ -1320,9 +1321,9 @@ SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8mb3	utf8mb3_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
-ALTER TABLE t1 CHARACTER SET = utf8;
+ALTER TABLE t1 CHARACTER SET = utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Connection default
 COMMIT;
 DROP TRIGGER t1_bi;
@@ -1343,9 +1344,9 @@ Id	User	Host	db	Command	Time	State	Info
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS '√≥√≥√≥√≥'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 Warnings:
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 ###	1287	###
@@ -1389,9 +1390,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #               SHOW CREATE TABLE
 #
 CREATE TABLE t1 (i CHAR(3),
-n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+n CHAR(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Use SHOW CREATE TABLE output below unmodified to re-create table
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1402,10 +1403,10 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE `t1` (
 `i` char(3) DEFAULT NULL,
-`n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+`n` char(20) CHARACTER SET utf8mb3 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 #
 # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
@@ -1529,7 +1530,7 @@ DROP TABLE t1;
 # COLLATION IS THE DEFAU
 #
 CREATE TABLE t1 (f1 CHAR(1),
-f2 CHAR(1) COLLATE UTF8_BIN,
+f2 CHAR(1) COLLATE utf8mb3_BIN,
 f3 CHAR(1) CHARSET UTF8MB3,
 f4 CHAR(1) CHARSET UTF8MB4);
 Warnings:

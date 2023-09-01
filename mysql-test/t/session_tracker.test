@@ -32,15 +32,15 @@ SELECT @@global.session_track_system_variables;
 
 --echo # SET NAMES ..
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 SET NAMES 'big5';
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
-SET @@session.character_set_client=utf8;
+SET @@session.character_set_client=utf8mb3;
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
-SET @@session.character_set_results=utf8;
+SET @@session.character_set_results=utf8mb3;
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
-SET @@session.character_set_connection=utf8;
+SET @@session.character_set_connection=utf8mb3;
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 --echo
 
@@ -321,11 +321,11 @@ DEALLOCATE PREPARE p1;
 SET @@session.session_track_state_change=ON;
 --echo # Change system variable
 --echo expect 1
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 
 SET @@session.session_track_state_change=OFF;
 --echo # Change system variable
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 
 --echo # reset the session.
 --reset_connection

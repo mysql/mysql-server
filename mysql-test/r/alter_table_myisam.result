@@ -460,10 +460,10 @@ select (@orig_max_data_length > @changed_max_data_length);
 0
 drop table t1;
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
-f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 this should affect no rows as there is no real change
 ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
@@ -767,11 +767,11 @@ info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
+ALTER TABLE tm1 DEFAULT CHARACTER SET utf8mb3;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE tm1 FORCE;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0

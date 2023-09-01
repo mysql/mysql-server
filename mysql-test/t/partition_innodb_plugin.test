@@ -16,7 +16,7 @@ CREATE TABLE t1 (
   time date,
   id2 bigint not null,
   PRIMARY KEY (id,time)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb3
 /*!50100 PARTITION BY RANGE(TO_DAYS(time))
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
@@ -94,7 +94,7 @@ SET GLOBAL innodb_file_per_table = default;
 # is tested in an own unit test instead.
 if (0)
 {
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE `t``\""e` (a INT, PRIMARY KEY (a))
 ENGINE=InnoDB
 PARTITION BY RANGE (a)
@@ -109,7 +109,7 @@ INSERT INTO `t``\""e` VALUES (0), (2), (6), (10), (14), (18), (22);
 START TRANSACTION;
 --echo # con1
 connect(con1,localhost,root,,);
-SET NAMES utf8;
+SET NAMES utf8mb3;
 START TRANSACTION;
 --echo # default connection
 connection default;

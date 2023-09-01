@@ -137,7 +137,7 @@ with_check_option=0
 timestamp=2017-10-20 06:39:41
 create-version=1
 source=select 1
-client_cs_name=utf8
+client_cs_name=utf8mb3
 connection_cl_name=utf8_general_ci
 view_body_utf8=select 1 AS `a123456789012345678901234567890123456789012345678901234567890123456789`
 EOF
@@ -333,7 +333,7 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo
 --echo # -----------------------------------------------------------------------
---echo # Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+--echo # Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID utf8mb3 CHARACTER STRING
 --echo # -----------------------------------------------------------------------
 
 --echo

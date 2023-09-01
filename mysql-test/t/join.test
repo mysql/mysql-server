@@ -1158,7 +1158,7 @@ CREATE TABLE t1
 (pk INT,
  col_int_key INT DEFAULT NULL,
  col_varchar_10_latin1_key VARCHAR(10) DEFAULT NULL,
- col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+ col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8mb3 DEFAULT NULL,
  col_int INT DEFAULT NULL,
  col_datetime_key datetime DEFAULT NULL,
  col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,

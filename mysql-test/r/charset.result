@@ -14,9 +14,9 @@ SELECT CAST(_latin1'abcd' AS CHAR CHARACTER SET filename);
 ERROR 42000: Unknown character set: 'filename'
 SET NAMES 'filename';
 ERROR 42000: Unknown character set: 'filename'
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET CHARACTER_SET_CLIENT=17;
 ERROR 42000: Unknown character set: '17'
 SET CHARACTER_SET_CLIENT=33;
@@ -27,9 +27,9 @@ CREATE DATABASE db21958734 CHARACTER SET filename;
 ERROR 42000: Unknown character set: 'filename'
 CREATE DATABASE db21958734 COLLATE filename;
 ERROR HY000: Unknown collation: 'filename'
-CREATE DATABASE db21958734 CHARACTER SET utf8;
+CREATE DATABASE db21958734 CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER DATABASE db21958734 CHARACTER SET filename;
 ERROR 42000: Unknown character set: 'filename'
 ALTER DATABASE db21958734 COLLATE filename;
@@ -44,9 +44,9 @@ CREATE TABLE t1(a VARCHAR(10) CHARACTER SET filename);
 ERROR 42000: Unknown character set: 'filename'
 CREATE TABLE t1(a VARCHAR(10) COLLATE filename);
 ERROR HY000: Unknown collation: 'filename'
-CREATE TABLE t1(a VARCHAR(10) CHARACTER SET utf8) CHARACTER SET latin1;
+CREATE TABLE t1(a VARCHAR(10) CHARACTER SET utf8mb3) CHARACTER SET latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 CHARACTER SET filename;
 ERROR 42000: Unknown character set: 'filename'
 ALTER TABLE t1 COLLATE filename;

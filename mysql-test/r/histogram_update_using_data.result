@@ -78,7 +78,7 @@ ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25
 Table	Op	Msg_type	Msg_text
 test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
 test.tbl_int	histogram	Error	Missing attribute at '$."collation-id"'.
-ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": "utf8", "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 USING DATA '{"buckets": [[4, 0.25], [12, 0.5], [23, 0.625], [52, 0.75]], "data-type": "int", "null-values": 0.25, "collation-id": "utf8mb3", "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 4}';
 Table	Op	Msg_type	Msg_text
 test.tbl_int	histogram	Error	Unable to build histogram statistics for column 'col1' in table 'test'.'tbl_int'
 test.tbl_int	histogram	Error	Wrong attribute type at '$."collation-id"'.

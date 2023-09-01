@@ -54,7 +54,7 @@ INSERT INTO t1 VALUES (0xF8),(0xF9),(0xFA),(0xFB),(0xFC),(0xFD),(0xFE),(0xFF);
 #
 SELECT 
   hex(a), 
-  hex(@u:=convert(a using utf8)),
+  hex(@u:=convert(a using utf8mb3)),
   hex(@l:=convert(@u using latin1)),
   a=@l FROM t1;
 DROP TABLE t1;
@@ -103,16 +103,16 @@ SELECT 'Ña' as str;
 
 #
 # Bug#18321: Can't store EuroSign with latin1_german1_ci and latin1_general_ci
-# The problem was in latin1->utf8->latin1 round trip.
+# The problem was in latin1->utf8mb3->latin1 round trip.
 #
 set @str= _latin1 'ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc';
-SELECT convert(@str collate latin1_bin using utf8);
-SELECT convert(@str collate latin1_general_ci using utf8);
-SELECT convert(@str collate latin1_german1_ci using utf8);
-SELECT convert(@str collate latin1_danish_ci using utf8);
-SELECT convert(@str collate latin1_spanish_ci using utf8);
-SELECT convert(@str collate latin1_german2_ci using utf8);
-SELECT convert(@str collate latin1_swedish_ci using utf8);
+SELECT convert(@str collate latin1_bin using utf8mb3);
+SELECT convert(@str collate latin1_general_ci using utf8mb3);
+SELECT convert(@str collate latin1_german1_ci using utf8mb3);
+SELECT convert(@str collate latin1_danish_ci using utf8mb3);
+SELECT convert(@str collate latin1_spanish_ci using utf8mb3);
+SELECT convert(@str collate latin1_german2_ci using utf8mb3);
+SELECT convert(@str collate latin1_swedish_ci using utf8mb3);
 
 # End of 4.1 tests
 

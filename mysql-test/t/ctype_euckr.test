@@ -53,7 +53,7 @@ insert into t1 values (0xA160);
 insert into t1 values (0xA17B);
 insert into t1 values (0xA180);
 insert into t1 values (0xA1FF);
-select hex(s1), hex(convert(s1 using utf8)) from t1 order by binary s1;
+select hex(s1), hex(convert(s1 using utf8mb3)) from t1 order by binary s1;
 drop table t1;
 SET sql_mode = default;
 --echo End of 5.0 tests
@@ -64,10 +64,10 @@ SET sql_mode = default;
 --echo #
 --echo # WL#3997 New euckr characters
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (a varchar(10) character set euckr);
 INSERT INTO t1 VALUES (0xA2E6), (0xA2E7);
-SELECT hex(a), hex(@utf8:=convert(a using utf8)), hex(convert(@utf8 using euckr)) FROM t1;
+SELECT hex(a), hex(@utf8mb3:=convert(a using utf8mb3)), hex(convert(@utf8mb3 using euckr)) FROM t1;
 DROP TABLE t1;
 
 --echo #
@@ -96,13 +96,13 @@ ORDER BY t11.a, t12.a;
 --enable_warnings
 SELECT s as bad_code FROM t2 WHERE a='' ORDER BY s;
 DELETE FROM t2 WHERE a='';
-ALTER TABLE t2 ADD u VARCHAR(1) CHARACTER SET utf8, ADD a2 VARCHAR(1) CHARACTER SET euckr;
+ALTER TABLE t2 ADD u VARCHAR(1) CHARACTER SET utf8mb3, ADD a2 VARCHAR(1) CHARACTER SET euckr;
 --disable_warnings
 UPDATE t2 SET u=a, a2=u;
 --enable_warnings
 SELECT s as unassigned_code FROM t2 WHERE u='?';
 DELETE FROM t2 WHERE u='?';
-# Make sure there are no euckr->utf8->euckr roundtrip problems
+# Make sure there are no euckr->utf8mb3->euckr roundtrip problems
 SELECT count(*) as roundtrip_problem_chars FROM t2 WHERE hex(a) <> hex(a2);
 SELECT s, hex(a), hex(u), hex(a2) FROM t2 ORDER BY s;
 DROP TABLE t1, t2;
@@ -122,7 +122,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Populate t1 with all hex digits
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=euckr_korean_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -159,15 +159,15 @@ SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE he
 # Expect U+212B ANGSTROM SIGN
 #
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 #
 # Expect U+0111 LATIN SMALL LETTER D WITH STROKE
 # Expect U+24D0 to U+24E9 CIRCLED LATIN SMALL LETTER A to Z
 #
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 
 DROP TABLE t1;
 SET sql_mode = default;

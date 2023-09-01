@@ -2,9 +2,9 @@ SET CHARACTER SET koi8r;
 DROP TABLE IF EXISTS ‘¡¬Ã…√¡, t1, t2;
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
-CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
+CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -28,9 +28,9 @@ description
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasssssssssssaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddde
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
-CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
+CREATE TABLE t2 (a TEXT CHARACTER SET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -71,7 +71,7 @@ Table	Create Table
 SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 Field	Type	Null	Key	Default	Extra
 ÔÓÎÂ	char(32)	NO		NULL	
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 SHOW TABLES;
 Tables_in_test
 —Ç–∞–±–ª–∏—Ü–∞
@@ -86,12 +86,12 @@ Field	Type	Null	Key	Default	Extra
 SET CHARACTER SET koi8r;
 DROP TABLE ‘¡¬Ã…√¡;
 SET CHARACTER SET default;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE t1 (t text) DEFAULT CHARSET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (t) VALUES ('x');
 SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
 1
@@ -127,9 +127,9 @@ Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
   `—Ç–µ—Å—Ç` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
@@ -137,15 +137,15 @@ Table	Create Table
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `—Ç–µ—Å—Ç`;
 SET NAMES binary;
-SET character_set_connection=utf8;
+SET character_set_connection=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT '—Ç–µ—Å—Ç' as s;
 s
 —Ç–µ—Å—Ç
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET character_set_connection=binary;
 SELECT '—Ç–µ—Å—Ç' as s;
 s
@@ -177,9 +177,9 @@ DROP TABLE t1;
 SET NAMES binary;
 CREATE TABLE `good–Ãœ»œ` (a int);
 ERROR HY000: Invalid utf8mb3 character string: 'good\xD0\xCC\xCF\xC8\xCF'
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `good–Ãœ»œ` (a int);
 ERROR HY000: Invalid utf8mb3 character string: 'good\xD0\xCC\xCF\xC8\xCF'
 set names latin1;
@@ -211,9 +211,9 @@ a
 a
 drop table t1;
 set names latin1;
-create table t1 (a char(10) character set utf8 collate utf8_bin);
+create table t1 (a char(10) character set utf8mb3 COLLATE utf8mb3_bin);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('       xxx');
 select * from t1 where a=lpad('xxx',10,' ');

@@ -16,7 +16,7 @@ if (!$TABLE)
   --error ER_NO_SYSTEM_SCHEMA_ACCESS
   CREATE SCHEMA mysql;
   --error ER_NO_SYSTEM_SCHEMA_ACCESS
-  ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+  ALTER SCHEMA mysql DEFAULT COLLATE utf8mb3_general_ci;
 
   --echo # DD tablespace DDL
   --error ER_WRONG_TABLESPACE_NAME

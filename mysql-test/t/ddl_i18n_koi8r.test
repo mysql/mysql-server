@@ -26,7 +26,7 @@
 
 ###########################################################################
 #
-# NOTE: this file contains text in UTF8 and KOI8-R encodings.
+# NOTE: this file contains text in utf8mb3 and KOI8-R encodings.
 #
 ###########################################################################
 
@@ -58,7 +58,7 @@ delimiter |;
 DROP DATABASE IF EXISTS mysqltest1|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
 
 use mysqltest1|
 
@@ -75,11 +75,11 @@ CREATE VIEW v1 AS
 
 --echo
 
-CREATE VIEW v2 AS SELECT _utf8'я┌п╣я│я┌' as c1|
+CREATE VIEW v2 AS SELECT _utf8mb3'я┌п╣я│я┌' as c1|
 
 --echo
 
-CREATE VIEW v3 AS SELECT _utf8'я┌п╣я│я┌'|
+CREATE VIEW v3 AS SELECT _utf8mb3'я┌п╣я│я┌'|
 
 --echo
 
@@ -231,8 +231,8 @@ DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
 
 use mysqltest1|
 
@@ -258,7 +258,7 @@ BEGIN
   SELECT
     COLLATION('текст') AS c4,
     COLLATION(_koi8r    'текст') AS c5,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c6,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c6,
     @@collation_connection AS c7,
     @@character_set_client AS c8;
 
@@ -271,10 +271,10 @@ END|
 #     - Procedure p2
 
 CREATE PROCEDURE p2(
-  INOUT парам1 CHAR(10) CHARACTER SET utf8,
-  OUT парам2 CHAR(10) CHARACTER SET utf8)
+  INOUT парам1 CHAR(10) CHARACTER SET utf8mb3,
+  OUT парам2 CHAR(10) CHARACTER SET utf8mb3)
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   SELECT
     COLLATION(перем1) AS c1,
@@ -284,7 +284,7 @@ BEGIN
   SELECT
     COLLATION('текст') AS c4,
     COLLATION(_koi8r    'текст') AS c5,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c6,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c6,
     @@collation_connection AS c7,
     @@character_set_client AS c8;
 
@@ -310,7 +310,7 @@ BEGIN
   SELECT
     COLLATION('текст') AS c4,
     COLLATION(_koi8r    'текст') AS c5,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c6,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c6,
     @@collation_connection AS c7,
     @@character_set_client AS c8;
 
@@ -323,10 +323,10 @@ END|
 #     - Procedure p4
 
 CREATE PROCEDURE mysqltest2.p4(
-  INOUT парам1 CHAR(10) CHARACTER SET utf8,
-  OUT парам2 CHAR(10) CHARACTER SET utf8)
+  INOUT парам1 CHAR(10) CHARACTER SET utf8mb3,
+  OUT парам2 CHAR(10) CHARACTER SET utf8mb3)
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   SELECT
     COLLATION(перем1) AS c1,
@@ -336,7 +336,7 @@ BEGIN
   SELECT
     COLLATION('текст') AS c4,
     COLLATION(_koi8r    'текст') AS c5,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c6,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c6,
     @@collation_connection AS c7,
     @@character_set_client AS c8;
 
@@ -509,8 +509,8 @@ DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
 
 use mysqltest1|
 
@@ -540,13 +540,13 @@ BEGIN
   INSERT INTO log VALUES(COLLATION(перем1));
   INSERT INTO log VALUES(COLLATION('текст'));
   INSERT INTO log VALUES(COLLATION(_koi8r    'текст'));
-  INSERT INTO log VALUES(COLLATION(_utf8 'я┌п╣п╨я│я┌'));
+  INSERT INTO log VALUES(COLLATION(_utf8mb3 'я┌п╣п╨я│я┌'));
   INSERT INTO log VALUES(@@collation_connection);
   INSERT INTO log VALUES(@@character_set_client);
 
   SET @a1 = 'текст';
   SET @a1 = _koi8r    'текст';
-  SET @a2 = _utf8 'я┌п╣п╨я│я┌';
+  SET @a2 = _utf8mb3 'я┌п╣п╨я│я┌';
 END|
 
 --echo
@@ -555,18 +555,18 @@ END|
 
 CREATE TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   INSERT INTO log VALUES(COLLATION(перем1));
   INSERT INTO log VALUES(COLLATION('текст'));
   INSERT INTO log VALUES(COLLATION(_koi8r    'текст'));
-  INSERT INTO log VALUES(COLLATION(_utf8 'я┌п╣п╨я│я┌'));
+  INSERT INTO log VALUES(COLLATION(_utf8mb3 'я┌п╣п╨я│я┌'));
   INSERT INTO log VALUES(@@collation_connection);
   INSERT INTO log VALUES(@@character_set_client);
 
   SET @b1 = 'текст';
   SET @b1 = _koi8r    'текст';
-  SET @b2 = _utf8 'я┌п╣п╨я│я┌';
+  SET @b2 = _utf8mb3 'я┌п╣п╨я│я┌';
 END|
 
 --echo
@@ -580,13 +580,13 @@ BEGIN
   INSERT INTO log VALUES(COLLATION(перем1));
   INSERT INTO log VALUES(COLLATION('текст'));
   INSERT INTO log VALUES(COLLATION(_koi8r    'текст'));
-  INSERT INTO log VALUES(COLLATION(_utf8 'я┌п╣п╨я│я┌'));
+  INSERT INTO log VALUES(COLLATION(_utf8mb3 'я┌п╣п╨я│я┌'));
   INSERT INTO log VALUES(@@collation_connection);
   INSERT INTO log VALUES(@@character_set_client);
 
   SET @a1 = 'текст';
   SET @a1 = _koi8r    'текст';
-  SET @a2 = _utf8 'я┌п╣п╨я│я┌';
+  SET @a2 = _utf8mb3 'я┌п╣п╨я│я┌';
 END|
 
 --echo
@@ -595,18 +595,18 @@ END|
 
 CREATE TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   INSERT INTO log VALUES(COLLATION(перем1));
   INSERT INTO log VALUES(COLLATION('текст'));
   INSERT INTO log VALUES(COLLATION(_koi8r    'текст'));
-  INSERT INTO log VALUES(COLLATION(_utf8 'я┌п╣п╨я│я┌'));
+  INSERT INTO log VALUES(COLLATION(_utf8mb3 'я┌п╣п╨я│я┌'));
   INSERT INTO log VALUES(@@collation_connection);
   INSERT INTO log VALUES(@@character_set_client);
 
   SET @b1 = 'текст';
   SET @b1 = _koi8r    'текст';
-  SET @b2 = _utf8 'я┌п╣п╨я│я┌';
+  SET @b2 = _utf8mb3 'я┌п╣п╨я│я┌';
 END|
 
 --echo
@@ -800,8 +800,8 @@ DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
 
 use mysqltest1|
 
@@ -821,7 +821,7 @@ BEGIN
     COLLATION(перем1) AS c1,
     COLLATION('текст') AS c2,
     COLLATION(_koi8r    'текст') AS c3,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c4,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c4,
     @@collation_connection AS c5,
     @@character_set_client AS c6;
 END|
@@ -832,13 +832,13 @@ END|
 
 CREATE EVENT ev2 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   SELECT
     COLLATION(перем1) AS c1,
     COLLATION('текст') AS c2,
     COLLATION(_koi8r    'текст') AS c3,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c4,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c4,
     @@collation_connection AS c5,
     @@character_set_client AS c6;
 END|
@@ -849,13 +849,13 @@ END|
 
 CREATE EVENT mysqltest2.ev3 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   SELECT
     COLLATION(перем1) AS c1,
     COLLATION('текст') AS c2,
     COLLATION(_koi8r    'текст') AS c3,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c4,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c4,
     @@collation_connection AS c5,
     @@character_set_client AS c6;
 END|
@@ -866,13 +866,13 @@ END|
 
 CREATE EVENT mysqltest2.ev4 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
-  DECLARE перем1 CHAR(10) CHARACTER SET utf8;
+  DECLARE перем1 CHAR(10) CHARACTER SET utf8mb3;
 
   SELECT
     COLLATION(перем1) AS c1,
     COLLATION('текст') AS c2,
     COLLATION(_koi8r    'текст') AS c3,
-    COLLATION(_utf8 'я┌п╣п╨я│я┌') AS c4,
+    COLLATION(_utf8mb3 'я┌п╣п╨я│я┌') AS c4,
     @@collation_connection AS c5,
     @@character_set_client AS c6;
 END|
@@ -1036,8 +1036,8 @@ DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3 DEFAULT COLLATE utf8mb3_unicode_ci|
 
 use mysqltest1|
 

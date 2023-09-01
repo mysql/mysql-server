@@ -190,7 +190,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #27041543: ASSERTION `MAX_LENGTH >= LENGTH' FAILED.
 --echo #
-SET NAMES utf8,@@character_set_results=NULL;
+SET NAMES utf8mb3,@@character_set_results=NULL;
 CREATE TEMPORARY TABLE t1(a INT);
 INSERT INTO t1 VALUES(1);
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);

@@ -3295,7 +3295,7 @@ call bug11529()|
 call bug11529()|
 delete from t1|
 drop procedure bug11529|
-set character set utf8|
+set character set utf8mb3|
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
@@ -4897,12 +4897,12 @@ mysqltest1.bug18444(i)
 2
 3
 drop database mysqltest1|
-create database mysqltest1 charset=utf8|
+create database mysqltest1 charset=utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-create database mysqltest2 charset=utf8|
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create database mysqltest2 charset=utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create procedure mysqltest1.p1()
 begin
 -- alters the default collation of database test 
@@ -4916,9 +4916,9 @@ mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */ 
 show create database mysqltest2|
 Database	Create Database
 mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
-alter database mysqltest1 character set utf8|
+alter database mysqltest1 character set utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 use mysqltest2|
 call mysqltest1.p1()|
 show create database mysqltest1|
@@ -4965,12 +4965,12 @@ CALL bug21013(10) |
 DROP PROCEDURE bug21013 |
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8|
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 use mysqltest1|
 CREATE FUNCTION bug16211_f1() RETURNS CHAR(10)
 RETURN ""|
@@ -5081,9 +5081,9 @@ koi8r
 use test|
 DROP DATABASE mysqltest1|
 DROP DATABASE mysqltest2|
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 use mysqltest1|
 CREATE PROCEDURE bug16676_p1(
 IN p1 CHAR(10),
@@ -6791,19 +6791,17 @@ drop function f1;
 drop view v1;
 drop table t1;
 drop procedure if exists `p2` $
-create procedure `p2`(in `a` text charset utf8)
+create procedure `p2`(in `a` text charset utf8mb3)
 begin
 declare `pos` int default 1;
-declare `str` text charset utf8;
+declare `str` text charset utf8mb3;
 set `str` := `a`;
 select substr(`str`, `pos`+ 1 ) into `str`;
 end $
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 call `p2`('s s s s s s');
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop procedure `p2`;
 drop table if exists t1;
 drop procedure if exists p1;
@@ -7514,9 +7512,9 @@ DROP PROCEDURE p1;
 # --- 
 DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
-CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8);
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('a');
 CREATE PROCEDURE p1(dt DATETIME, i INT)
 BEGIN
@@ -7527,11 +7525,11 @@ ELSE dt
 END AS x1;
 SELECT
 CASE _latin1'a'
-      WHEN _utf8'a' THEN 'A'
+      WHEN _utf8mb3'a' THEN 'A'
     END AS x2;
 SELECT
-CASE _utf8'a'
-      WHEN _latin1'a' THEN _utf8'A'
+CASE _utf8mb3'a'
+      WHEN _latin1'a' THEN _utf8mb3'A'
     END AS x3;
 SELECT
 CASE s1
@@ -7541,9 +7539,9 @@ WHEN _latin1'a' THEN _latin1'b'
 FROM t1;
 END|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 CALL p1('2011-04-03 05:14:10', 1);
 x1
@@ -7554,10 +7552,6 @@ x3
 A
 x4
 b
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p1('2011-04-03 05:14:11', 2);
 x1
 2011-04-03 05:14:11

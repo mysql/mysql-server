@@ -111,9 +111,9 @@ DROP TABLE t1;
 #
 # Also see mysqldump.test
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
@@ -236,17 +236,17 @@ a	b	c
 1	ABC-АБВ	DEF-ÂÃÄ
 2	NULL	NULL
 # UTF-8 charset:
-SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' CHARACTER SET utf8 FROM t1;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' CHARACTER SET utf8mb3 FROM t1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ##################################################
 1	ABC-АБВ	DEF-ÂÃÄ
 2	\N	\N
 ##################################################
 TRUNCATE t2;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET utf8;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 a	b	c
 1	ABC-АБВ	DEF-ÂÃÄ

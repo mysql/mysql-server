@@ -161,7 +161,7 @@ INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'¯','CYR CAPIT SOFT SIGN');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'¸','CYR CAPIT E');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'‡','CYR CAPIT YU');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'Ò','CYR CAPIT YA');
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 SELECT koi8_ru_f,MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
 koi8_ru_f	MIN(comment)	COUNT(*)
 a	LAT CAPIT A	2
@@ -222,12 +222,12 @@ z	LAT CAPIT Z	2
 —ç	CYR CAPIT E	2
 —é	CYR CAPIT YU	2
 —è	CYR CAPIT YA	2
-ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL default '';
+ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8mb3 NOT NULL default '';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 comment	koi8_ru_f	utf8_f
@@ -827,7 +827,7 @@ b
 a
 a
 SELECT t11.comment,t12.comment 
-FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8)=t12.utf8_f
+FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8mb3)=t12.utf8_f
 ORDER BY t11.koi8_ru_f,t11.comment,t12.comment;
 comment	comment
 LAT CAPIT A	LAT CAPIT A
@@ -1071,7 +1071,7 @@ CYR CAPIT YA	CYR SMALL YA
 CYR SMALL YA	CYR CAPIT YA
 CYR SMALL YA	CYR SMALL YA
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
@@ -1309,7 +1309,7 @@ CYR CAPIT YA	CYR CAPIT YA
 CYR CAPIT YA	CYR SMALL YA
 CYR SMALL YA	CYR CAPIT YA
 CYR SMALL YA	CYR SMALL YA
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1340,10 +1340,10 @@ ALTER TABLE t1 ADD armscii8_f CHAR(32) CHARACTER SET armscii8 NOT NULL;
 ALTER TABLE t1 ADD greek_f CHAR(32) CHARACTER SET greek NOT NULL;
 UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE%';
 UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
-UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
+UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8mb3) WHERE utf8_f=_utf8mb3'';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -1708,9 +1708,9 @@ DROP TABLE t1;
 #
 SET NAMES latin1;
 DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
-AS BINARY(0)) USING utf8);
+AS BINARY(0)) USING utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Truncated incorrect INTEGER value: 'Zpq'
 Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 #
@@ -1720,33 +1720,33 @@ Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 # Start of 5.5 tests
 #
 #
-# WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
+# WL#1213 Implement 4-byte utf8mb3, UTF16 and UTF32
 # Testing that utf8mb4 and utf32 are superset for all Unicode
 # No other Unicode character set pairs have superset/subset relations
 #
 CREATE TABLE t1 (
-utf8 CHAR CHARACTER SET utf8,
+utf8mb3 CHAR CHARACTER SET utf8mb3,
 utf8mb4 CHAR CHARACTER SET utf8mb4,
 ucs2 CHAR CHARACTER SET ucs2,
 utf16 CHAR CHARACTER SET utf16,
 utf32 CHAR CHARACTER SET utf32
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('','','','','');
-SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
-CHARSET(CONCAT(utf8, utf8mb4))
+SELECT CHARSET(CONCAT(utf8mb3, utf8mb4)) FROM t1;
+CHARSET(CONCAT(utf8mb3, utf8mb4))
 utf8mb4
-SELECT CHARSET(CONCAT(utf8, ucs2)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb3, ucs2)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb3_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
-SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb3, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb3_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
-SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
-CHARSET(CONCAT(utf8, utf32))
+SELECT CHARSET(CONCAT(utf8mb3, utf32)) FROM t1;
+CHARSET(CONCAT(utf8mb3, utf32))
 utf32
-SELECT CHARSET(CONCAT(utf8mb4, utf8)) FROM t1;
-CHARSET(CONCAT(utf8mb4, utf8))
+SELECT CHARSET(CONCAT(utf8mb4, utf8mb3)) FROM t1;
+CHARSET(CONCAT(utf8mb4, utf8mb3))
 utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, ucs2)) FROM t1;
 CHARSET(CONCAT(utf8mb4, ucs2))
@@ -1757,7 +1757,7 @@ utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
 CHARSET(CONCAT(utf8mb4, utf32))
 utf8mb4
-SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(ucs2, utf8mb3)) FROM t1;
 ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8mb3_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
 CHARSET(CONCAT(ucs2, utf8mb4))
@@ -1767,7 +1767,7 @@ ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf16_gen
 SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
 CHARSET(CONCAT(ucs2, utf32))
 utf32
-SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(utf16, utf8mb3)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8mb3_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
@@ -1777,8 +1777,8 @@ utf8mb4
 SELECT CHARSET(CONCAT(utf16, utf32)) FROM t1;
 CHARSET(CONCAT(utf16, utf32))
 utf32
-SELECT CHARSET(CONCAT(utf32, utf8)) FROM t1;
-CHARSET(CONCAT(utf32, utf8))
+SELECT CHARSET(CONCAT(utf32, utf8mb3)) FROM t1;
+CHARSET(CONCAT(utf32, utf8mb3))
 utf32
 SELECT CHARSET(CONCAT(utf32, ucs2)) FROM t1;
 CHARSET(CONCAT(utf32, ucs2))
@@ -1815,9 +1815,9 @@ DROP TABLE t2;
 # Bug#11766143 59185: ASSERTION FAILED: (FIXED == 1), FILE
 # ITEM_STRFUNC.CC, LINE 2760
 #
-CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
+CREATE TABLE t1 (a CHAR(1) CHARSET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
 INSERT INTO t2 VALUES ('x'),('z');

@@ -138,7 +138,7 @@ DROP TABLE t1;
 # MyISAM when testing.
 SET timestamp=UNIX_TIMESTAMP('2001-01-01 00:00:00');
 --disable_warnings
-create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
+create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8mb3;
 --enable_warnings
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
@@ -173,21 +173,21 @@ select truncate(-5000111000111000155,-1);
 select truncate(15000111000111000155,-1);
 
 #
-# Bug#16678 FORMAT gives wrong result if client run with default-character-set=utf8
+# Bug#16678 FORMAT gives wrong result if client run with default-character-set=utf8mb3
 #
-set names utf8;
+set names utf8mb3;
 create table t1
 (f1 varchar(32) not null,
  f2 smallint(5) unsigned not null,
  f3 int(10) unsigned not null default '0')
-default charset=utf8;
+default charset=utf8mb3;
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 
 create table t2
 (f1 int(10) unsigned not null,
  f2 int(10) unsigned not null,
  f3 smallint(5) unsigned not null)
-default charset=utf8;
+default charset=utf8mb3;
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 
 select format(t2.f2-t2.f1+1,0) from t1,t2
@@ -932,9 +932,9 @@ EXECUTE stmt1 USING @val;
 DEALLOCATE PREPARE stmt;
 
 # Test case for checksum on contents of a file
-SET NAMES utf8;
-CREATE TABLE t1 (a TEXT) CHARACTER SET = utf8;
-LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8;
+SET NAMES utf8mb3;
+CREATE TABLE t1 (a TEXT) CHARACTER SET = utf8mb3;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8mb3;
 SELECT HEX(a), CRC32(a) from t1;
 DROP TABLE t1;
 SET NAMES default;

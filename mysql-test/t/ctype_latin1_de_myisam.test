@@ -34,7 +34,7 @@ drop table t1;
 #
 # Bug#7878 with utf8_general_ci, equals (=) has problem with
 # accent insensitivity.
-# Although originally this problem was found with UTF8 character set,
+# Although originally this problem was found with utf8mb3 character set,
 # '=' behaved wrong for latin1_german2_ci as well.
 # Let's check it does not work incorrect anymore.
 # 

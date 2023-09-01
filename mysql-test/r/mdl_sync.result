@@ -3692,9 +3692,9 @@ SET DEBUG_SYNC= 'now WAIT_FOR locked';
 CREATE DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3709,30 +3709,30 @@ ERROR HY000: Can't create database 'db1'; database exists
 # Connection default
 SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
 # Sending:
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 # Connection con2
 SET DEBUG_SYNC= 'now WAIT_FOR locked';
 # Sending:
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 # Connection con3
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
-# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Connection con2
-# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Connection default
 SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
 # Sending:
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 # Connection con2
 SET DEBUG_SYNC= 'now WAIT_FOR locked';
 # Sending:
@@ -3740,9 +3740,9 @@ DROP DATABASE db1;
 # Connection con3
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
-# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Connection con2
 # Reaping: DROP DATABASE db1
 CREATE DATABASE db1;
@@ -3760,9 +3760,9 @@ SET DEBUG_SYNC= 'now WAIT_FOR locked';
 DROP DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3778,13 +3778,13 @@ DROP DATABASE db1;
 # Connection con2
 SET DEBUG_SYNC= 'now WAIT_FOR locked';
 # Sending:
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 # Connection con3
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: DROP DATABASE db1
 # Connection con2
-# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3
 ERROR 42Y07: Database 'db1' doesn't exist
 # Test 4:
 # Locked database name prevents CREATE of tables in that database.
@@ -3887,13 +3887,13 @@ UNLOCK TABLES;
 # Connection default
 FLUSH TABLE WITH READ LOCK;
 # Connection con2
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 # Connection default
 UNLOCK TABLES;
 # Connection con2
-# Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Connection default
 FLUSH TABLE WITH READ LOCK;
 # Connection con2

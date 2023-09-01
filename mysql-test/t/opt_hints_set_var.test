@@ -208,7 +208,7 @@ CALL test_hint("SET_VAR(max_execution_time=1)", "max_execution_time");
 
 # Testing max_heap_table_size, internal_tmp_mem_storage_engine variables,
 # 'Handler_write' status variable changes its value with the hint.
-CREATE TABLE t1(f1 CHAR(255) CHARSET utf8);
+CREATE TABLE t1(f1 CHAR(255) CHARSET utf8mb3);
 INSERT INTO t1 VALUES('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";

@@ -657,7 +657,7 @@ b`) */ 1;
 --echo # hint syntax error: empty quoted identifier
 EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --character_set latin1
 EXPLAIN SELECT /*+ QB_NAME(`¿``¿`) */ 1;
 --character_set utf8mb4

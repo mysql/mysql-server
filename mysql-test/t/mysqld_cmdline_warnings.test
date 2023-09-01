@@ -18,17 +18,17 @@
 
 --mkdir $WL11109_DATADIR
 
-# 1. Start the server to test 'utf8'
+# 1. Start the server to test 'utf8mb3'
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
 --error 1
---exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8 --character-set-filesystem=utf8 2>&1
+--exec $MYSQLD $MYSQLD_ARGS --character_set_server=utf8mb3 --character-set-filesystem=utf8mb3 2>&1
 
---echo # Warning on --character-set-server=utf8:
---let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+] \[Server\] --character-set-server: 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release\. Please consider using UTF8MB4 in order to be unambiguous\.
+--echo # Warning on --character-set-server=utf8mb3:
+--let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+] \[Server\] --character-set-server: 'utf8mb3' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release\. Please consider using UTF8MB4 in order to be unambiguous\.
 --source include/search_pattern.inc
 
---echo # Warning on --character-set-filesystem=utf8:
---let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+] \[Server\] --character-set-filesystem: 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release\. Please consider using UTF8MB4 in order to be unambiguous\.
+--echo # Warning on --character-set-filesystem=utf8mb3:
+--let SEARCH_PATTERN= \[Warning\] \[MY-[0-9]+] \[Server\] --character-set-filesystem: 'utf8mb3' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release\. Please consider using UTF8MB4 in order to be unambiguous\.
 --source include/search_pattern.inc
 
 

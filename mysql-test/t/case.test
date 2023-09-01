@@ -191,7 +191,7 @@ SET sql_mode = default;
 
 --echo #
 --echo # Bug#19875294 ASSERTION `SRC' FAILED IN MY_STRNXFRM_UNICODE
---echo #              (SIG 6 -STRINGS/CTYPE-UTF8.C:5151)
+--echo #              (SIG 6 -STRINGS/CTYPE-utf8mb3.C:5151)
 --echo #
 
 set @@sql_mode='';

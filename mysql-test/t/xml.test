@@ -341,7 +341,7 @@ select extractValue('<e><a>1</a></e>','/e/');
 #
 # Bug#16233: XML: ExtractValue() fails with special characters
 #
-set names utf8;
+set names utf8mb3;
 select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
 select extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ');
 select extractValue('<Ñ r="r"/>','/Ñ/@r');
@@ -352,7 +352,7 @@ DROP PROCEDURE IF EXISTS p2;
 DELIMITER //;
 CREATE PROCEDURE p2 ()
 BEGIN
- DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+ DECLARE p LONGTEXT CHARACTER SET utf8mb3 DEFAULT '<Ñ><r>A</r></Ñ>';
  SELECT EXTRACTVALUE(p,'/Ñ/r');
 END//
 DELIMITER ;//
@@ -627,7 +627,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
 
 
@@ -649,8 +649,8 @@ SELECT EXTRACTVALUE('', LPAD(0.1111E-15, '2011', 1));
 --echo #
 --echo # Bug #44332 	my_xml_scan reads behind the end of buffer
 --echo #
-SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1');
-SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
+SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8mb3),'1','1');
+SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8mb3),'1','1');
 
 --echo #
 --echo # Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
@@ -687,7 +687,7 @@ SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
 --echo # Bug#13358486 WEIGHT_STRING = MY_STRNXFRM_UNICODE:
 --echo #              ASSERTION `SRC' FAILED
 --echo #
-set names utf8;
+set names utf8mb3;
 do weight_string(extractvalue('','/*/a'));
 do char((weight_string(extractvalue((''),('tX')))) using cp852);
 set names default;

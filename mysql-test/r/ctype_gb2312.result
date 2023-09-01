@@ -332,9 +332,9 @@ DROP TABLE t1;
 #
 # Testing WL#4583 Case conversion in Asian character sets 
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_connection=gb2312_chinese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -594,8 +594,8 @@ A7EF	A7BF	A7EF	э	Э	э
 A7F0	A7C0	A7F0	ю	Ю	ю
 A7F1	A7C1	A7F1	я	Я	я
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 A2F1	Ⅰ
 A2F2	Ⅱ
@@ -610,11 +610,11 @@ A2FA	Ⅹ
 A2FB	Ⅺ
 A2FC	Ⅻ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 A8A1	ā
 A8A2	á
@@ -643,8 +643,8 @@ A8B8	ǜ
 A8B9	ü
 A8BA	ê
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 #
 # End of 5.5 tests

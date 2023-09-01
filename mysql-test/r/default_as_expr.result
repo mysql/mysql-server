@@ -245,7 +245,7 @@ ALTER TABLE t3 DROP COLUMN d;
 ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t3;
 #
-# Test UTF8
+# Test utf8mb3
 #
 CREATE TABLE `t1` (i varchar(200) DEFAULT (_utf8mb4"\U+1F9DB♀"));
 SELECT COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE, EXTRA, GENERATION_EXPRESSION

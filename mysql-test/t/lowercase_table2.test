@@ -177,7 +177,7 @@ delimiter ;|
 
 SELECT trigger_schema, trigger_name, event_object_table FROM
 INFORMATION_SCHEMA.TRIGGERS
-  WHERE trigger_schema COLLATE utf8_bin = 'BUP_XPFM_COMPAT_DB2'
+  WHERE trigger_schema COLLATE utf8mb3_bin = 'BUP_XPFM_COMPAT_DB2'
   ORDER BY trigger_schema, trigger_name;
 
 DROP DATABASE BUP_XPFM_COMPAT_DB2;

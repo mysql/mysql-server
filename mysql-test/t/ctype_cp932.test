@@ -6,9 +6,9 @@
 SET @old_character_set_client= @@character_set_client;
 SET @old_character_set_connection= @@character_set_connection;
 SET @old_character_set_results= @@character_set_results;
-SET character_set_client= 'utf8';
-SET character_set_connection= 'utf8';
-SET character_set_results= 'utf8';
+SET character_set_client= 'utf8mb3';
+SET character_set_connection= 'utf8mb3';
+SET character_set_results= 'utf8mb3';
 
 CREATE TABLE t1 (a VARCHAR(10) COLLATE cp932_bin);
 INSERT INTO t1 VALUES('ｶｶ');

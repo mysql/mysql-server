@@ -114,12 +114,12 @@ drop table t1,t2;
 deallocate prepare stmt3;
 deallocate prepare stmt4;
 deallocate prepare stmt5;
-PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+PREPARE stmt1 FROM "select _utf8mb3 'A' COLLATE utf8mb3_bin = ?";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set @var='A';
 EXECUTE stmt1 USING @var;
-_utf8 'A' collate utf8_bin = ?
+_utf8mb3 'A' COLLATE utf8mb3_bin = ?
 1
 DEALLOCATE PREPARE stmt1;
 create table t1 (id int);
@@ -273,9 +273,9 @@ execute sTmT1;
 deallocate prepare StMt1;
 deallocate prepare Stmt1;
 ERROR HY000: Unknown prepared statement handler (Stmt1) given to DEALLOCATE PREPARE
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 prepare `Ã¼` from 'select 1234';
 execute `Ã¼` ;
 1234
@@ -286,9 +286,9 @@ execute `ü`;
 1234
 deallocate prepare `ü`;
 set names default;
-create table t1 (a varchar(10)) charset=utf8;
+create table t1 (a varchar(10)) charset=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 (a) values ('yahoo');
 set character_set_connection=latin1;
 prepare stmt from 'select a from t1 where a like ?';
@@ -320,14 +320,14 @@ execute stmt;
 select * from t1;
 deallocate prepare stmt;
 drop table t1;
-prepare stmt from "select 'abc' like convert('abc' using utf8)";
+prepare stmt from "select 'abc' like convert('abc' using utf8mb3)";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 execute stmt;
-'abc' like convert('abc' using utf8)
+'abc' like convert('abc' using utf8mb3)
 1
 execute stmt;
-'abc' like convert('abc' using utf8)
+'abc' like convert('abc' using utf8mb3)
 1
 deallocate prepare stmt;
 create table t1 ( a bigint );
@@ -602,25 +602,25 @@ deallocate prepare stmt;
 drop table t1;
 create table t1 (
 id bigint(20) not null auto_increment,
-code varchar(20) character set utf8 collate utf8_bin not null default '',
-company_name varchar(250) character set utf8 collate utf8_bin default null,
+code varchar(20) character set utf8mb3 COLLATE utf8mb3_bin not null default '',
+company_name varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
 setup_mode tinyint(4) default null,
 start_date datetime default null,
 primary key  (id), unique key code (code)
 );
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (
 id bigint(20) not null auto_increment,
-email varchar(250) character set utf8 collate utf8_bin default null,
-name varchar(250) character set utf8 collate utf8_bin default null,
+email varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
+name varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
 t1_id bigint(20) default null,
-password varchar(250) character set utf8 collate utf8_bin default null,
+password varchar(250) character set utf8mb3 COLLATE utf8mb3_bin default null,
 primary_contact tinyint(4) not null default '0',
 email_opt_in tinyint(4) not null default '1',
 primary key  (id), unique key email (email), key t1_id (t1_id),
@@ -628,12 +628,12 @@ constraint t2_fk1 foreign key (t1_id) references t1 (id)
 );
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -803,9 +803,9 @@ execute stmt;
 drop table t1;
 set names latin1;
 prepare stmt from "create table t1 (a enum('test') default 'test')
- character set utf8";
+ character set utf8mb3";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 execute stmt;
 drop table t1;
 execute stmt;
@@ -851,9 +851,9 @@ count(*)
 deallocate prepare stmt;
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
+prepare stmt from 'create table t1 (a varchar(10) character set utf8mb3)';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 execute stmt;
 insert into t1 (a) values (repeat('a', 20));
 select length(a) from t1;
@@ -1182,9 +1182,9 @@ DEALLOCATE PREPARE st_19182;
 DROP TABLE t2, t1;
 drop database if exists mysqltest;
 drop table if exists t1, t2;
-create database mysqltest character set utf8;
+create database mysqltest character set utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 prepare stmt1 from "create table mysqltest.t1 (c char(10))";
 prepare stmt2 from "create table mysqltest.t2 select 'test'";
 execute stmt1;
@@ -1764,9 +1764,9 @@ show create database mysqltest_1;
 Database	Create Database
 mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
-set @@character_set_server= utf8;
+set @@character_set_server= utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
@@ -2919,9 +2919,9 @@ drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 prepare stmt
-from "create table t1 (c char(100) character set utf8, key (c(10)))";
+from "create table t1 (c char(100) character set utf8mb3, key (c(10)))";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 execute stmt;
 show create table t1;
 Table	Create Table

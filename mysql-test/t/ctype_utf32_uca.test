@@ -6,13 +6,13 @@ DROP TABLE IF EXISTS t1;
 --echo # Start of 5.5 tests
 --echo #
 
-set names utf8;
+set names utf8mb3;
 set collation_connection=utf32_unicode_ci;
 select hex('a'), hex('a ');
 -- source include/endspace.inc
 
 #
-# Bug #6787 LIKE not working properly with _ and utf8 data
+# Bug #6787 LIKE not working properly with _ and utf8mb3 data
 #
 select 'c' like '\_' as want0; 
 
@@ -48,14 +48,14 @@ drop table t1;
 #
 # Bug#5324
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 #test1
 #Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
 CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 #Check one row
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_general_ci;
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 #Check two rows
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025
 COLLATE utf32_general_ci ORDER BY c;
@@ -77,14 +77,14 @@ CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_unicode_ci NOT
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 #Check one row row
 SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf32) COLLATE utf32_unicode_ci;
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 #Check two rows
 SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf32)
 COLLATE utf32_unicode_ci ORDER BY c;
 DROP TABLE t1;
 
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET @test_character_set='utf32';
 SET @test_collation='utf32_swedish_ci';
 -- source include/ctype_common.inc
@@ -172,7 +172,7 @@ set @@collation_connection=utf32_czech_ci;
 #
 # WL#4013 Unicode german2 collation
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=utf32_german2_ci;
 --source include/ctype_german.inc
 

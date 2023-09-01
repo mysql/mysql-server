@@ -240,7 +240,7 @@ SET NAMES gb2312;
 SELECT 'aa' LIKE '%a' COLLATE gb2312_bin;
 SET NAMES DEFAULT;
 # Unicode wildcmp
-SELECT 'aa' LIKE CONVERT('%a' USING utf8);
+SELECT 'aa' LIKE CONVERT('%a' USING utf8mb3);
 
 --echo #
 --echo # Bug#29175461: LIKE RESULT ERROR IF ESCAPE IS % OF WILDCARD CHARACTERS
@@ -282,7 +282,7 @@ select 1 where 'b_a' like '__a' escape '_';
 select 1 where 'b%a' like '#%a' escape '#';
 select 1 where 'b_a' like '#_a' escape '#';
 # Unicode wildcmp
-SET NAMES utf8;
+SET NAMES utf8mb3;
 select 1 where 'b%a' like '%%a' escape '%';
 select 1 where 'b_a' like '__a' escape '_';
 select 1 where 'b%a' like '#%a' escape '#';

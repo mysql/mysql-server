@@ -3829,10 +3829,10 @@ drop procedure bug11529|
 
 #
 # BUG#6063: Stored procedure labels are subject to restrictions (partial)
-# BUG#7088: Stored procedures: labels won't work if character set is utf8
+# BUG#7088: Stored procedures: labels won't work if character set is utf8mb3
 #
 
-set character set utf8|
+set character set utf8mb3|
 
 --disable_warnings
 drop procedure if exists bug6063|
@@ -5636,8 +5636,8 @@ drop database mysqltest1|
 #
 # Check that current database has no influence to a stored procedure
 #
-create database mysqltest1 charset=utf8|
-create database mysqltest2 charset=utf8|
+create database mysqltest1 charset=utf8mb3|
+create database mysqltest2 charset=utf8mb3|
 create procedure mysqltest1.p1()
 begin
 -- alters the default collation of database test 
@@ -5647,7 +5647,7 @@ use mysqltest1|
 call p1()|
 show create database mysqltest1|
 show create database mysqltest2|
-alter database mysqltest1 character set utf8|
+alter database mysqltest1 character set utf8mb3|
 use mysqltest2|
 call mysqltest1.p1()|
 show create database mysqltest1|
@@ -5722,8 +5722,8 @@ DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 --enable_warnings
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
-CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8mb3|
 
 # Test case:
 
@@ -5823,7 +5823,7 @@ DROP DATABASE mysqltest2|
 
 # Prepare: create database with fixed, pre-defined character set.
 
-CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8mb3|
 
 # Test case:
 
@@ -7752,15 +7752,15 @@ drop view v1;
 drop table t1;
 
 #
-# Bug#38469 invalid memory read and/or crash with utf8 text field, stored procedure, uservar 
+# Bug#38469 invalid memory read and/or crash with utf8mb3 text field, stored procedure, uservar 
 #
 delimiter $;
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists `p2` $
-create procedure `p2`(in `a` text charset utf8)
+create procedure `p2`(in `a` text charset utf8mb3)
 begin
         declare `pos` int default 1;
-        declare `str` text charset utf8;
+        declare `str` text charset utf8mb3;
         set `str` := `a`;
         select substr(`str`, `pos`+ 1 ) into `str`;
 end $
@@ -8637,7 +8637,7 @@ DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
 --enable_warnings
 
-CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8);
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8mb3);
 INSERT INTO t1 VALUES ('a');
 
 delimiter |;
@@ -8652,12 +8652,12 @@ BEGIN
 
   SELECT
     CASE _latin1'a'
-      WHEN _utf8'a' THEN 'A'
+      WHEN _utf8mb3'a' THEN 'A'
     END AS x2;
 
   SELECT
-    CASE _utf8'a'
-      WHEN _latin1'a' THEN _utf8'A'
+    CASE _utf8mb3'a'
+      WHEN _latin1'a' THEN _utf8mb3'A'
     END AS x3;
 
   SELECT

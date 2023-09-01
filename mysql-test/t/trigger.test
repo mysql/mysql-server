@@ -4075,7 +4075,7 @@ DROP TABLE t1;
 --echo #                Even trigger names are case and accent insensitive. Test case to
 --echo #                verify the same.
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 CREATE TABLE t1 (f1 INT, f2 INT);
 

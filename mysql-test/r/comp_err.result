@@ -1,4 +1,4 @@
-# WL#13423: Split errmgs-utf8.txt into one file for messages to clients and another for messages to the error log
+# WL#13423: Split errmgs-utf8mb3.txt into one file for messages to clients and another for messages to the error log
 SHOULD PASS:
 srv2client: msg_srv2client 	 [errlog: msg_errlog]
 

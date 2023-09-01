@@ -93,9 +93,9 @@ SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
 SET character_set_client= @safe_character_set_client;
 SET character_set_results= @safe_character_set_results;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_connection='gb18030_chinese_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -325,11 +325,11 @@ HEX(CONVERT(_gb18030 0xA14041 USING ucs2))
 E4C60041
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8));
-HEX(CONVERT(_gb18030 0xA14041 USING utf8))
+SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8mb3));
+HEX(CONVERT(_gb18030 0xA14041 USING utf8mb3))
 EE938641
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_gb18030 0xFEFEFEFD814040 USING utf32));
 HEX(CONVERT(_gb18030 0xFEFEFEFD814040 USING utf32))
 0000E4C50000E4C400004E0200000040

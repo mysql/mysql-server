@@ -56,8 +56,8 @@ insert into t5 values (10);
 create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest') AND
-table_name COLLATE utf8_general_ci not like 'ndb_%' AND
-table_name COLLATE utf8_general_ci not like 'innodb_%';
+table_name COLLATE utf8mb3_general_ci not like 'ndb_%' AND
+table_name COLLATE utf8mb3_general_ci not like 'innodb_%';
 select * from v1;
 c
 ADMINISTRABLE_ROLE_AUTHORIZATIONS
@@ -575,9 +575,9 @@ where CHARACTER_SET_NAME like "latin1" order by character_set_name;
 select * from t1;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 latin1	latin1_swedish_ci	cp1252 West European	1
-alter table t1 default character set utf8;
+alter table t1 default character set utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -634,7 +634,7 @@ drop view vo;
 select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables
 where table_schema='information_schema'
-order by table_name collate utf8_general_ci limit 2;
+order by table_name COLLATE utf8mb3_general_ci limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 ADMINISTRABLE_ROLE_AUTHORIZATIONS	SYSTEM VIEW	NULL
 APPLICABLE_ROLES	SYSTEM VIEW	NULL
@@ -813,7 +813,7 @@ information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
 and data_type = 'datetime'
-  and table_name COLLATE utf8_general_ci not like 'innodb_%' order by table_name, column_name;
+  and table_name COLLATE utf8mb3_general_ci not like 'innodb_%' order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME	DATA_TYPE
 EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
@@ -855,7 +855,7 @@ drop table t1;
 create user mysqltest_4@localhost;
 grant select on test.* to mysqltest_4@localhost;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE UTF8_GENERAL_CI;
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE utf8mb3_GENERAL_CI;
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMNS_EXTENSIONS	TABLE_NAME	select
@@ -886,7 +886,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
 table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
+AND table_name not like 'ndb%' AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
 information_schema	48
@@ -1196,9 +1196,9 @@ varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
 varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.ST_UNITS_OF_MEASURE,information_schema.VIEWS	3
 varchar(20)	information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	4
 create table t1(f1 char(1) not null, f2 char(9) not null)
-default character set utf8;
+default character set utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
 information_schema.columns where table_schema='test' and table_name = 't1';
 CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
@@ -1281,17 +1281,17 @@ TABLE_NAME
 VIEWS
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
-SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT)
+SELECT COLUMN_NAME, SHA2(COLUMN_DEFAULT, 0), LENGTH(COLUMN_DEFAULT)
 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037'
   ORDER BY COLUMN_NAME;
-COLUMN_NAME	MD5(COLUMN_DEFAULT)	LENGTH(COLUMN_DEFAULT)
-fld1	7cf7a6782be951a1f2464a350da926a5	65532
-SELECT MD5(get_value());
-MD5(get_value())
-7cf7a6782be951a1f2464a350da926a5
-SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=get_value() FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037' ORDER BY COLUMN_NAME;
-COLUMN_NAME	MD5(COLUMN_DEFAULT)	LENGTH(COLUMN_DEFAULT)	COLUMN_DEFAULT=get_value()
-fld1	7cf7a6782be951a1f2464a350da926a5	65532	1
+COLUMN_NAME	SHA2(COLUMN_DEFAULT, 0)	LENGTH(COLUMN_DEFAULT)
+fld1	303d94cf1f155d4bf3ffcf2e91c97d16cc99b2ac7a2ff57afbe93706c412e104	65532
+SELECT SHA2(get_value(), 0);
+SHA2(get_value(), 0)
+303d94cf1f155d4bf3ffcf2e91c97d16cc99b2ac7a2ff57afbe93706c412e104
+SELECT COLUMN_NAME, SHA2(COLUMN_DEFAULT, 0), LENGTH(COLUMN_DEFAULT), COLUMN_DEFAULT=get_value() FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037' ORDER BY COLUMN_NAME;
+COLUMN_NAME	SHA2(COLUMN_DEFAULT, 0)	LENGTH(COLUMN_DEFAULT)	COLUMN_DEFAULT=get_value()
+fld1	303d94cf1f155d4bf3ffcf2e91c97d16cc99b2ac7a2ff57afbe93706c412e104	65532	1
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
 create view v1 as
@@ -1338,7 +1338,7 @@ c2.table_schema='information_schema' and
 (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
 group by c2.column_type order by num limit 1)
 and t.table_name not like 'INNODB_%'
-group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
+group by t.table_name order by num1, t.table_name COLLATE utf8mb3_general_ci;
 TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
 ADMINISTRABLE_ROLE_AUTHORIZATIONS	information_schema.ADMINISTRABLE_ROLE_AUTHORIZATIONS	1
 APPLICABLE_ROLES	information_schema.APPLICABLE_ROLES	1
@@ -1466,12 +1466,12 @@ SET max_heap_table_size = 16384;
 CREATE TABLE test.t1( a INT );
 SELECT *
 FROM tables ta
-JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8))
-JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8));
+JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8mb3))
+JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8mb3));
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
 USE test;
@@ -2112,9 +2112,9 @@ F1
 #
 # WL#2284: Increase the length of a user name
 #
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE USER user_name_len_22_01234@localhost;
 GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
 SELECT user,db FROM information_schema.processlist;
@@ -2476,8 +2476,8 @@ c2.column_name LIKE '%SCHEMA%'
         )
 AND t.table_name NOT LIKE 'ndb%'
   AND t.table_name NOT LIKE 'INNODB%'
-  ORDER BY t.table_name COLLATE utf8_general_ci,
-c1.column_name COLLATE utf8_general_ci;
+  ORDER BY t.table_name COLLATE utf8mb3_general_ci,
+c1.column_name COLLATE utf8mb3_general_ci;
 TABLE_NAME	COLUMN_NAME
 ADMINISTRABLE_ROLE_AUTHORIZATIONS	USER
 APPLICABLE_ROLES	USER
@@ -2543,8 +2543,8 @@ c2.column_name LIKE '%SCHEMA%'
         )
 AND t.table_name NOT LIKE 'ndb%'
   AND t.table_name NOT LIKE 'INNODB%'
-  ORDER BY t.table_name COLLATE utf8_general_ci,
-c1.column_name COLLATE utf8_general_ci;
+  ORDER BY t.table_name COLLATE utf8mb3_general_ci,
+c1.column_name COLLATE utf8mb3_general_ci;
 TABLE_NAME	COLUMN_NAME
 ADMINISTRABLE_ROLE_AUTHORIZATIONS	USER
 APPLICABLE_ROLES	USER

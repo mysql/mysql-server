@@ -5,7 +5,7 @@
 --echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
 --echo #                (This issue is observed with Resource groups too.)
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --echo #
 --echo # Test case to verify Resource group with case and accent insensitive names.

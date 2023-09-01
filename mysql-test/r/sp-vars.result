@@ -989,20 +989,20 @@ CREATE PROCEDURE p1(arg VARCHAR(255))
 BEGIN
 SELECT CHARSET(arg);
 END|
-CREATE PROCEDURE p2(arg VARCHAR(255) CHARACTER SET UTF8)
+CREATE PROCEDURE p2(arg VARCHAR(255) CHARACTER SET utf8mb3)
 BEGIN
 SELECT CHARSET(arg);
 END|
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CALL p1('t');
 CHARSET(arg)
 utf8mb4
-CALL p1(_UTF8 't');
+CALL p1(_UTF8MB3 't');
 CHARSET(arg)
 utf8mb4
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CALL p2('t');
 CHARSET(arg)
 utf8mb3

@@ -70,14 +70,14 @@ CREATE TABLE t1 (
   PRIMARY KEY  (id),
   KEY thread (thread),
   FULLTEXT KEY beitrag (beitrag)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=7923 ;
 
 CREATE TABLE t2 (
   id int(11) NOT NULL auto_increment,
   text varchar(100) NOT NULL default '',
   PRIMARY KEY  (id),
   KEY text (text)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=63 ;
 
 CREATE TABLE t3 (
   id int(11) NOT NULL auto_increment,
@@ -86,7 +86,7 @@ CREATE TABLE t3 (
   PRIMARY KEY  (id),
   KEY forum (forum),
   FULLTEXT KEY betreff (betreff)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 AUTO_INCREMENT=996 ;
 
 --error ER_TABLENAME_NOT_ALLOWED_HERE
 select a.text, b.id, b.betreff

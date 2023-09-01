@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS t1;
 --echo # WL#4642 Greek locale for DAYNAME, MONTHNAME, DATE_FORMAT
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 SET @@lc_time_names=109;
 SELECT @@lc_time_names;
@@ -45,7 +45,7 @@ SELECT format(123456.789, 3, 'sr_RS');
 --echo #
 --echo # Bug#43207 wrong LC_TIME names for romanian locale
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET lc_time_names=ro_RO;
 SELECT DATE_FORMAT('2001-01-01', '%w %a %W');
 SELECT DATE_FORMAT('2001-01-02', '%w %a %W');
@@ -65,7 +65,7 @@ SELECT DATE_FORMAT('2001-01-07', '%w %a %W');
 --echo # WL#5303 Romansh locale for DAYNAME, MONTHNAME, DATE_FORMAT
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET @old_50915_lc_time_names := @@lc_time_names;
 SET lc_time_names=en_US;
 SELECT DATE_FORMAT('2001-01-01', '%w %a %W');

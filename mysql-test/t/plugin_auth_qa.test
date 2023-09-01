@@ -110,7 +110,7 @@ DROP USER plug,plug_dest;
 
 --echo ========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 # 
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 --source include/plugin_auth_check_non_default_users.inc
@@ -140,7 +140,7 @@ CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg_dest';
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 # 
 --error ER_PLUGIN_IS_NOT_LOADED
 CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';

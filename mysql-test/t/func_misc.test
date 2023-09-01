@@ -24,7 +24,7 @@ select inet_aton("122.226.");
 select inet_aton("");
 explain select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 
-select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
+select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8mb3'-',_utf8mb3'')));
 
 # As we can assume we are the only user for the mysqld server, the difference
 # between two calls should be -1
@@ -60,7 +60,7 @@ drop table t1;
 #
 # Bug #21531: EXPORT_SET() does not accept args with coercible character sets
 #
-select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
+select export_set(3, _latin1'foo', _utf8mb3'bar', ',', 4);
 
 --echo End of 4.1 tests
 

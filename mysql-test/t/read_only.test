@@ -402,7 +402,7 @@ connect (con2,localhost,root,,test);
 let $query= CREATE DATABASE new;
 --source include/read_only_bug28438114.inc
 --echo # Test ALTER DATABASE statement
---let query= ALTER DATABASE test CHARACTER SET utf8;
+--let query= ALTER DATABASE test CHARACTER SET utf8mb3;
 --source include/read_only_bug28438114.inc
 CREATE DATABASE new;
 --echo # Test CREATE DATABASE statement which doesn't update DD tables.

@@ -6,13 +6,13 @@ DROP TABLE IF EXISTS t1;
 --echo # Start of 5.5 tests
 --echo #
 
-set names utf8;
+set names utf8mb3;
 set collation_connection=utf16_unicode_ci;
 select hex('a'), hex('a ');
 -- source include/endspace.inc
 
 #
-# Bug #6787 LIKE not working properly with _ and utf8 data
+# Bug #6787 LIKE not working properly with _ and utf8mb3 data
 #
 select 'c' like '\_' as want0; 
 
@@ -48,7 +48,7 @@ drop table t1;
 #
 # Bug#5324
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 #Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
 CREATE TABLE t1 (c varchar(150) CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL, INDEX (c));
@@ -84,7 +84,7 @@ COLLATE utf16_unicode_ci ORDER BY c;
 DROP TABLE t1;
 
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET @test_character_set='utf16';
 SET @test_collation='utf16_swedish_ci';
 -- source include/ctype_common.inc
@@ -150,7 +150,7 @@ set @@collation_connection=utf16_czech_ci;
 #
 # WL#4013 Unicode german2 collation
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=utf16_german2_ci;
 --source include/ctype_german.inc
 

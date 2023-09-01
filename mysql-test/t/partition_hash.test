@@ -211,7 +211,7 @@ drop table t1;
 --echo #
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 let $c= `SELECT UNHEX('C8')`;
 --error ER_INVALID_CHARACTER_STRING
 eval CREATE TABLE T (a INT) PARTITION BY HASH('$c') PARTITIONS 1;

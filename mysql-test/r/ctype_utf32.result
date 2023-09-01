@@ -244,9 +244,9 @@ select 'AZ' like '_Z';
 select 'AMZ'like 'A%M%Z';
 'AMZ'like 'A%M%Z'
 1
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET character_set_connection=utf32;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
@@ -424,9 +424,9 @@ prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 ?
 1234
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 (a enum('x','y','z') character set utf32);
 show create table t1;
 Table	Create Table
@@ -1091,9 +1091,9 @@ DROP TABLE t1;
 #
 # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 #
-SET NAMES utf8, @@character_set_connection=utf32;
+SET NAMES utf8mb3, @@character_set_connection=utf32;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
 FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
 UNION ALL

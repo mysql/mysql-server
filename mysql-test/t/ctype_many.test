@@ -158,11 +158,11 @@ INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'ü','CYR CAPIT E');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'à','CYR CAPIT YU');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'ñ','CYR CAPIT YA');
 
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 SELECT koi8_ru_f,MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
 
-ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL default '';
-UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
+ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8mb3 NOT NULL default '';
+UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8mb3);
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 
@@ -179,7 +179,7 @@ SELECT lower(koi8_ru_f) FROM t1 ORDER BY 1 DESC;
 SELECT lower(utf8_f) FROM t1 ORDER BY 1 DESC;
 
 SELECT t11.comment,t12.comment 
-FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8)=t12.utf8_f
+FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8mb3)=t12.utf8_f
 ORDER BY t11.koi8_ru_f,t11.comment,t12.comment;
 
 SELECT t11.comment,t12.comment 
@@ -187,7 +187,7 @@ FROM t1 t11,t1 t12
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
 ORDER BY t12.utf8_f,t11.comment,t12.comment;
 
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;
 
 --disable_warnings
@@ -221,7 +221,7 @@ ALTER TABLE t1 ADD armscii8_f CHAR(32) CHARACTER SET armscii8 NOT NULL;
 ALTER TABLE t1 ADD greek_f CHAR(32) CHARACTER SET greek NOT NULL;
 UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE%';
 UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
-UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
+UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8mb3) WHERE utf8_f=_utf8mb3'';
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
 SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 SET CHARACTER SET 'binary';
@@ -244,7 +244,7 @@ DROP TABLE t1;
 
 SET NAMES latin1;
 DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
-                AS BINARY(0)) USING utf8);
+                AS BINARY(0)) USING utf8mb3);
 --echo #
 --echo # End of 5.1 tests
 --echo #
@@ -254,13 +254,13 @@ DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1)
 --echo #
 
 --echo #
---echo # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
+--echo # WL#1213 Implement 4-byte utf8mb3, UTF16 and UTF32
 --echo # Testing that utf8mb4 and utf32 are superset for all Unicode
 --echo # No other Unicode character set pairs have superset/subset relations
 --echo #
 
 CREATE TABLE t1 (
-  utf8 CHAR CHARACTER SET utf8,
+  utf8mb3 CHAR CHARACTER SET utf8mb3,
   utf8mb4 CHAR CHARACTER SET utf8mb4,
   ucs2 CHAR CHARACTER SET ucs2,
   utf16 CHAR CHARACTER SET utf16,
@@ -268,17 +268,17 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 VALUES ('','','','','');
 
-# utf8mb4 and utf32 are the only supersets for utf8
-SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
+# utf8mb4 and utf32 are the only supersets for utf8mb3
+SELECT CHARSET(CONCAT(utf8mb3, utf8mb4)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
-SELECT CHARSET(CONCAT(utf8, ucs2)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb3, ucs2)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
-SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
-SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb3, utf16)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb3, utf32)) FROM t1;
 
 
 # utf8mb4 is superset for everything
-SELECT CHARSET(CONCAT(utf8mb4, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(utf8mb4, utf8mb3)) FROM t1;
 SELECT CHARSET(CONCAT(utf8mb4, ucs2)) FROM t1;
 SELECT CHARSET(CONCAT(utf8mb4, utf16)) FROM t1;
 SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
@@ -286,7 +286,7 @@ SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
 
 # ucs2 is not a superset for the other Unicode character sets
 --error ER_CANT_AGGREGATE_2COLLATIONS
-SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(ucs2, utf8mb3)) FROM t1;
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(ucs2, utf16)) FROM t1;
@@ -295,7 +295,7 @@ SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
 
 # utf16 is not a superset for the other Unicode character sets
 --error ER_CANT_AGGREGATE_2COLLATIONS
-SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(utf16, utf8mb3)) FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
 SELECT CHARSET(CONCAT(utf16, utf8mb4)) FROM t1;
@@ -303,7 +303,7 @@ SELECT CHARSET(CONCAT(utf16, utf32)) FROM t1;
 
 
 # utf32 is a superset for the other Unicode character sets
-SELECT CHARSET(CONCAT(utf32, utf8)) FROM t1;
+SELECT CHARSET(CONCAT(utf32, utf8mb3)) FROM t1;
 SELECT CHARSET(CONCAT(utf32, ucs2)) FROM t1;
 SELECT CHARSET(CONCAT(utf32, utf8mb4)) FROM t1;
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
@@ -330,7 +330,7 @@ DROP TABLE t2;
 --echo # Bug#11766143 59185: ASSERTION FAILED: (FIXED == 1), FILE
 --echo # ITEM_STRFUNC.CC, LINE 2760
 --echo #
-CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
+CREATE TABLE t1 (a CHAR(1) CHARSET utf8mb3);
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
 INSERT INTO t2 VALUES ('x'),('z');

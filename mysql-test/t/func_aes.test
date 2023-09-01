@@ -138,7 +138,7 @@ SELECT LENGTH(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'));
 SELECT AES_DECRYPT(AES_ENCRYPT('a','a'), 'a') = 'a';
 
 --echo # must be equal
-SELECT AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро';
+SELECT AES_DECRYPT(AES_ENCRYPT(_UTF8MB3'Жоро', 'a'), 'a') = _UTF8'Жоро';
 SELECT AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро';
 
 --echo # must be NULL

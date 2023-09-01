@@ -3,5 +3,5 @@
 #
 call mtr.add_suppression("Too big collation id");
 call mtr.add_suppression("Error while parsing");
-CREATE TABLE t1 (a VARCHAR(10)) COLLATE utf8_hugeid_ci;
-ERROR HY000: Unknown collation: 'utf8_hugeid_ci'
+CREATE TABLE t1 (a VARCHAR(10)) COLLATE utf8mb3_hugeid_ci;
+ERROR HY000: Unknown collation: 'utf8mb3_hugeid_ci'

@@ -97,7 +97,7 @@ show tables;
 --replace_result $DEFAULT_ENGINE ENGINE
 # Bug#20404: SHOW CREATE TABLE fails with Turkish I
 #
-set names utf8;
+set names utf8mb3;
 --disable_warnings
 drop table if exists İ,İİ;
 --enable_warnings

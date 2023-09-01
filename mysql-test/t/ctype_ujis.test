@@ -45,17 +45,17 @@ select 'A' like 'a' collate ujis_bin;
 
 #
 # Bug 3290: Hald-width Katakana conversion problem.
-# Check ujis-utf8-ujis round trip.
+# Check ujis-utf8mb3-ujis round trip.
 #
 set @ujis1= _ujis     0x8EA18EA28EA38EA48EA58EA68EA78EA88EA98EAA8EAB8EAC8EAD8EAE8EAF;
 set @ujis2= _ujis 0x8EB08EB18EB28EB38EB48EB58EB68EB78EB88EB98EBA8EBB8EBC8EBD8EBE8EBF;
 set @ujis3= _ujis 0x8EC08EC18EC28EC38EC48EC58EC68EC78EC88EC98ECA8ECB8ECC8ECD8ECE8ECF;
 set @ujis4= _ujis 0x8ED08ED18ED28ED38ED48ED58ED68ED78ED88ED98EDA8EDB8EDC8EDD8EDE8EDF;
 
-select hex(@utf81:= CONVERT(@ujis1 USING utf8));
-select hex(@utf82:= CONVERT(@ujis2 USING utf8));
-select hex(@utf83:= CONVERT(@ujis3 USING utf8));
-select hex(@utf84:= CONVERT(@ujis4 USING utf8));
+select hex(@utf81:= CONVERT(@ujis1 USING utf8mb3));
+select hex(@utf82:= CONVERT(@ujis2 USING utf8mb3));
+select hex(@utf83:= CONVERT(@ujis3 USING utf8mb3));
+select hex(@utf84:= CONVERT(@ujis4 USING utf8mb3));
 
 select @ujis1 = CONVERT(@utf81 USING ujis);
 select @ujis2 = CONVERT(@utf82 USING ujis);
@@ -1200,7 +1200,7 @@ DROP TABLE t2;
 --echo #
 --echo # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT CONVERT(REPLACE(EXPORT_SET('a','a','a','','a'),'00','') USING ujis);
 
 
@@ -1220,7 +1220,7 @@ set character_set_server=default;
 #
 # Populate t1 with all hex digits
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=ujis_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -1281,21 +1281,21 @@ SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE he
 # Expect U+0122 LATIN CAPITAL LETTER G WITH CEDILLA
 #
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 #
 # U+00F0 LATIN SMALL LETTER ETH
 # U+01F5 LATIN SMALL LETTER G WITH ACUTE
 #
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 
 --echo #
 --echo # WL#3090 Japanese Character Set adjustments
 --echo # Test sjis->Unicode conversion
 --echo #
-SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb3)) as b FROM t1
 WHERE a<>'' HAVING b<>'3F' ORDER BY code;
 
 DROP TABLE t1;

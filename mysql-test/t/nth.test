@@ -1,7 +1,7 @@
 --echo # Test of SQL window functions NTH_VALUE
 --echo # ----------------------------------------------------------------------
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 SELECT NTH_VALUE(6,1)    OVER ();
 SELECT NTH_VALUE(NULL,1) OVER ();

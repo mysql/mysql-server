@@ -227,7 +227,7 @@ DROP TABLE t10, t20;
 UNINSTALL PLUGIN example;
 
 --echo #
---echo # BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-UTF8.CC:9437
+--echo # BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-utf8mb3.CC:9437
 --echo #
 SET GLOBAL DEBUG='+d,set_uninstall_sync_point';
 connect(con1, localhost, root,,);

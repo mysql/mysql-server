@@ -2,9 +2,9 @@ DROP TABLE IF EXISTS t1;
 #
 # Start of 5.5 tests
 #
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set collation_connection=utf32_unicode_ci;
 select hex('a'), hex('a ');
 hex('a')	hex('a ')
@@ -3161,9 +3161,9 @@ ZzŹźŻżŽž
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (c varchar(150) CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
 Warnings:
@@ -3171,10 +3171,10 @@ Warning	1287	'ucs2' is deprecated and will be removed in a future release. Pleas
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025 COLLATE utf32_general_ci;
 c
 Μωδαί̈
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1 WHERE c LIKE _utf32 0x0000039C00000025
 COLLATE utf32_general_ci ORDER BY c;
 c
@@ -3206,10 +3206,10 @@ c
 Μωδαί̈
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8mb3));
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf32)
 COLLATE utf32_unicode_ci ORDER BY c;
 c
@@ -3218,9 +3218,9 @@ c
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET @test_character_set='utf32';
 SET @test_collation='utf32_swedish_ci';
 SET @safe_character_set_server= @@character_set_server;
@@ -3809,9 +3809,9 @@ hex(weight_string(cast(_latin1 0xDF6368 as char), 4, 4,0xC0))
 select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0))
 0FEA0FEA0EE202090209020902090209020902090209020902
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_connection=utf32_german2_ci;
 "BEGIN ctype_german.inc"
 drop table if exists t1;

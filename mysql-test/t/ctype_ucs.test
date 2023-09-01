@@ -468,7 +468,7 @@ set names latin1;
 #
 # Bug #14290: character_maximum_length for text fields
 #
-create table t1(a blob, b text charset utf8, c text charset ucs2);
+create table t1(a blob, b text charset utf8mb3, c text charset ucs2);
 --sorted_result
 select data_type, character_octet_length, character_maximum_length
   from information_schema.columns where table_name='t1';
@@ -562,7 +562,7 @@ SELECT UPPER(MONTHNAME(19700101));
 SELECT HEX(MONTHNAME(19700101));
 SELECT HEX(DAYNAME(19700101));
 SET LC_TIME_NAMES=ru_RU;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET character_set_connection=ucs2;
 SELECT CHARSET(DAYNAME(19700101));
 SELECT CHARSET(MONTHNAME(19700101));

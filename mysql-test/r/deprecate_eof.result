@@ -318,7 +318,7 @@ CREATE FUNCTION f4() RETURNS int
 BEGIN
 DECLARE x int;
 DECLARE c CURSOR FOR SELECT * FROM t1 limit 1;
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 SET @var1=20;
 OPEN c;
 FETCH c INTO x;
@@ -330,7 +330,7 @@ END |
 -- 89
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT f4();
 f4()
 1
@@ -347,8 +347,6 @@ f4()
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 #CASE3: SELECT with CURSORS
 
@@ -371,14 +369,14 @@ CLOSE cur1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 98
+-- 97
 
 CALL cursor1();
 v1
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 112
+-- 111
 -- transaction_isolation
 -- READ-COMMITTED
 
@@ -403,14 +401,14 @@ CLOSE c2;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 113
+-- 112
 
 CALL cursor2();
 (x+y)
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 120
+-- 119
 -- transaction_isolation
 -- READ-COMMITTED
 
@@ -422,7 +420,7 @@ session state sent as part of above SELECT
 DROP DATABASE wl7766;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 122
+-- 121
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- 
@@ -436,17 +434,17 @@ SET @@session.session_track_state_change=ON;
 -- session_track_state_change
 -- ON
 -- statement_id
--- 123
+-- 122
 
 CREATE DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 124
+-- 123
 
 USE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 125
+-- 124
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- bug19550875
@@ -457,12 +455,12 @@ USE bug19550875;
 CREATE TABLE t1 (a int);
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 126
+-- 125
 
 INSERT INTO t1 VALUES (1), (2);
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 127
+-- 126
 
 CREATE PROCEDURE t_cache()
 BEGIN
@@ -475,7 +473,7 @@ SELECT * FROM t1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 128
+-- 127
 
 CALL t_cache();
 a
@@ -483,7 +481,7 @@ a
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 131
+-- 130
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -507,7 +505,7 @@ SELECT * FROM t1 ORDER BY 1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 136
+-- 135
 
 CREATE PROCEDURE sel_with_no_session()
 BEGIN
@@ -515,13 +513,13 @@ SELECT * FROM t1 ORDER BY 1;
 END |
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 137
+-- 136
 
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- statement_id
--- 138
+-- 137
 
 -- Tracker : SESSION_TRACK_SCHEMA
 -- 

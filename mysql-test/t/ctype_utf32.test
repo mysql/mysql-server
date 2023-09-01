@@ -81,7 +81,7 @@ SET NAMES latin1;
 SET character_set_connection=utf32;
 --source include/ctype_like.inc
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET character_set_connection=utf32;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
@@ -178,7 +178,7 @@ execute stmt1 using @ivar;
 #
 # Check that utf32 works with ENUM and SET type
 #
-set names utf8;
+set names utf8mb3;
 create table t1 (a enum('x','y','z') character set utf32);
 show create table t1;
 insert into t1 values ('x');
@@ -447,7 +447,7 @@ select hex(a) from t1;
 drop table t1;
 
 #
-# Bug#32914 Character sets: illegal characters in utf8 and utf32 columns
+# Bug#32914 Character sets: illegal characters in utf8mb3 and utf32 columns
 #
 SET sql_mode = '';
 create table t1 (utf32 varchar(2) character set utf32);
@@ -707,7 +707,7 @@ DROP TABLE t1;
 --echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 --echo #
 
-SET NAMES utf8, @@character_set_connection=utf32;
+SET NAMES utf8mb3, @@character_set_connection=utf32;
 SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
 FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
 UNION ALL

@@ -114,7 +114,7 @@ DROP TABLE t1;
 ########################################################
 
 #
-# Bug#9557 MyISAM utf8 table crash
+# Bug#9557 MyISAM utf8mb3 table crash
 #
 CREATE TABLE t1 (
   a varchar(255) NOT NULL default '',

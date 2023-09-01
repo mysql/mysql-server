@@ -118,7 +118,7 @@ Pattern "The schema "xyz" referenced by routine "p1" does not exist\. Please cle
 # Cleanup.
 
 # -----------------------------------------------------------------------
-# Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+# Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID utf8mb3 CHARACTER STRING
 # -----------------------------------------------------------------------
 
 # Upgrade 5.7 data directory containing a table, index, column, and

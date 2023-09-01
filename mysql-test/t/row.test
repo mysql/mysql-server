@@ -254,7 +254,7 @@ DROP TABLE t1;
 #
 create table t1 (a varchar(200),
                  b int unsigned not null primary key auto_increment)
-default character set 'utf8';
+default character set 'utf8mb3';
 
 create table t2 (c varchar(200),
                  d int unsigned not null primary key auto_increment)

@@ -9869,7 +9869,7 @@ hex(convert(_eucjpms 0x8FABF841 using ucs2))
 003F0041
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
+set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8mb3);
 ERROR HY000: Unknown locale: 'c'
 #
 # Start of 5.5 tests
@@ -9877,9 +9877,9 @@ ERROR HY000: Unknown locale: 'c'
 #
 # Testing WL#4583 Case conversion in Asian character sets 
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET collation_connection=eucjpms_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -10425,27 +10425,27 @@ ADBC	ADBC	8FF3FA	Ⅷ	Ⅷ	ⅷ
 ADBD	ADBD	8FF3FB	Ⅸ	Ⅸ	ⅸ
 ADBE	ADBE	8FF3FC	Ⅹ	Ⅹ	ⅹ
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 8FAABC	Ģ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 code	a
 8FA9C3	ð
 8FABB9	ǵ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # WL#3090 Japanese Character Set adjustments
 # Test sjis->Unicode conversion
 #
-SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb3)) as b FROM t1
 WHERE a<>'' HAVING b<>'3F' ORDER BY code;
 HEX(a)	b
 8EA1	EFBDA1
@@ -25527,7 +25527,7 @@ FEFC	EE8EA9
 FEFD	EE8EAA
 FEFE	EE8EAB
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 #
 # WL#3090 Japanese Character Set adjustments

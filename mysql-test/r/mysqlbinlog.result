@@ -838,9 +838,9 @@ call p1();
 1
 drop procedure p1;
 flush logs;
-create table t1 (a varchar(64) character set utf8);
+create table t1 (a varchar(64) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set character_set_database=koi8r;
 Warnings:
@@ -896,7 +896,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 /*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
-create table t1 (a varchar(64) character set utf8)
+create table t1 (a varchar(64) character set utf8mb3)
 /*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)

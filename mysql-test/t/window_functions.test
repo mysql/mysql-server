@@ -1,7 +1,7 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --echo
 --echo Flag unsupported aggregates as window functions
@@ -2719,7 +2719,7 @@ CREATE TABLE G (
 INSERT INTO G VALUES (1,7);
 
 CREATE TABLE H (
-  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_varchar_10_latin1 varchar(10) DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (pk)
@@ -2894,17 +2894,17 @@ SET SQL_MODE='';
 --disable_query_log
 
 CREATE TABLE `B` (
-  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_10_latin1_2` varchar(10) DEFAULT NULL,
   `col_datetime_2` datetime DEFAULT NULL,
-  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_date` date DEFAULT NULL,
-  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_date_2` date DEFAULT NULL,
   `col_varchar_255_latin1_2` varchar(255) DEFAULT NULL,
   `pk` int(11) NOT NULL AUTO_INCREMENT,
   `col_int` int(11) DEFAULT NULL,
-  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
   `col_int_2` int(11) DEFAULT NULL,
@@ -2918,9 +2918,9 @@ INSERT INTO `B` VALUES ('HGEFW','q','0000-00-00 00:00:00','eejtkhpxkwzyojewtgvas
 
 CREATE TABLE `C` (
   `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
-  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
-  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
-  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_int_2` int(11) DEFAULT NULL,
   `col_datetime_2` datetime DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
@@ -2929,7 +2929,7 @@ CREATE TABLE `C` (
   `col_varchar_255_latin1_2` varchar(255) DEFAULT NULL,
   `col_varchar_10_latin1_2` varchar(10) DEFAULT NULL,
   `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
-  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_date_2` date DEFAULT NULL,
   `col_date` date DEFAULT NULL,
   PRIMARY KEY (`pk`)
@@ -2991,7 +2991,7 @@ INSERT INTO t1 VALUES (1,8,'2004-03-26 11:59:45'),(2,-692387840,'2000-11-03
 
 CREATE TEMPORARY TABLE t2 (
   pk int(11) NOT NULL AUTO_INCREMENT,
-  col1 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col1 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   PRIMARY KEY (pk)
 ) ENGINE=Memory;
 
@@ -3367,17 +3367,17 @@ DROP TABLE te2;
 set sql_mode='';
 
 CREATE TABLE `A` (
-  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
   `col_int` int(11) DEFAULT NULL,
   `col_date` date DEFAULT NULL,
   `col_date_key` date DEFAULT NULL,
-  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `pk` int(11) NOT NULL AUTO_INCREMENT,
   `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
-  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
-  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
   `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
@@ -3398,17 +3398,17 @@ CREATE TABLE `AA` (
   `col_datetime` datetime DEFAULT NULL,
   `col_date` date DEFAULT NULL,
   `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
-  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
   `col_int` int(11) DEFAULT NULL,
-  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_date_key` date DEFAULT NULL,
   `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
-  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
   `pk` int(11) NOT NULL AUTO_INCREMENT,
   `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
-  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_int_key` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `col_varchar_255_utf8_key` (`col_varchar_255_utf8_key`),
@@ -3425,15 +3425,15 @@ INSERT INTO `AA` VALUES (NULL,'0000-00-00','b','r','2003-08-19 23:01:25',154,'zg
 CREATE TABLE `B` (
   `pk` int(11) NOT NULL AUTO_INCREMENT,
   `col_int` int(11) DEFAULT NULL,
-  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
   `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
-  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
-  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
   `col_date` date DEFAULT NULL,
-  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
   `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
   `col_int_key` int(11) DEFAULT NULL,
@@ -3648,13 +3648,13 @@ DROP TABLE t1;
 
 CREATE TABLE E (
   col_int int(11) DEFAULT NULL,
-  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
   col_varchar_10_latin1 varchar(10) DEFAULT NULL,
-  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_varchar_255_latin1 varchar(255) DEFAULT NULL,
   col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
-  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8mb3
    GENERATED ALWAYS AS
    (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
    VIRTUAL,
@@ -3662,7 +3662,7 @@ CREATE TABLE E (
    GENERATED ALWAYS AS
    (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
    VIRTUAL,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3
    GENERATED ALWAYS AS
    (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
   col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
@@ -3708,20 +3708,20 @@ INSERT INTO E (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
 
 CREATE TABLE C (
   col_int int(11) DEFAULT NULL,
-  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
   col_varchar_10_latin1 varchar(10) DEFAULT NULL,
-  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_varchar_255_latin1 varchar(255) DEFAULT NULL,
   col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
-  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8mb3
   GENERATED ALWAYS AS
    (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
    VIRTUAL,
   col_varchar_255_latin1_key varchar(255) GENERATED ALWAYS AS
    (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
    VIRTUAL,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 GENERATED ALWAYS AS
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 GENERATED ALWAYS AS
    (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
   col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
    (repeat(substr(col_varchar_10_latin1,-(1)),7)) VIRTUAL,

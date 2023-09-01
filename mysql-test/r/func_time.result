@@ -2048,7 +2048,7 @@ c0000 text
 );
 WITH cte1 AS
 (SELECT(replace(sha2(0x9025c5c7, 0),
-convert((1) using utf8),
+convert((1) using utf8mb3),
 (!(cast((555) AS char(20)))))) AS a1 FROM t0022)
 SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);

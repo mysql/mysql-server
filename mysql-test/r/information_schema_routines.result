@@ -807,9 +807,9 @@ SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE
 test_func5	def	i_s_routines_test	test_func5	FUNCTION	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp	SQL	RETURN CURRENT_TIMESTAMP	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	new comment added	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # ========== routines.9 ==========
 DROP DATABASE IF EXISTS i_s_routines_test;
-CREATE DATABASE i_s_routines_test CHARACTER SET  utf8;
+CREATE DATABASE i_s_routines_test CHARACTER SET  utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE i_s_routines_test;
 CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
 RETURN CONCAT('XYZ, ' ,s);

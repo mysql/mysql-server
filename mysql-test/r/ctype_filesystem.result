@@ -1,4 +1,4 @@
-SET CHARACTER SET utf8;
+SET CHARACTER SET utf8mb3;
 SHOW VARIABLES like 'character_sets_dir';
 Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/ß/

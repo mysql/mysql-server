@@ -5,27 +5,27 @@ drop procedure if exists p2;
 drop procedure if exists p3;
 create procedure p()
 begin
-declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+declare utf8_var VARCHAR(128) CHARACTER SET utf8mb3;
 set utf8_var = concat(repeat('A', 128), 'X');
 show warnings;
 select length(utf8_var), utf8_var;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create procedure p2()
 begin
-declare msg VARCHAR(129) CHARACTER SET UTF8;
+declare msg VARCHAR(129) CHARACTER SET utf8mb3;
 set msg = concat(repeat('A', 128), 'X');
 select length(msg), msg;
 signal sqlstate '55555' set message_text = msg;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create procedure p3()
 begin
-declare name VARCHAR(65) CHARACTER SET UTF8;
+declare name VARCHAR(65) CHARACTER SET utf8mb3;
 set name = concat(repeat('A', 64), 'X');
 select length(name), name;
 signal sqlstate '55555' set
@@ -34,14 +34,12 @@ table_name = name;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 call p;
 Level	Code	Message
 Warning	1265	Data truncated for column 'utf8_var' at row 1
 length(utf8_var)	utf8_var
 128	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 call p2;
 length(msg)	msg
 129	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX
@@ -56,26 +54,26 @@ drop procedure p3;
 SET sql_mode=default;
 create procedure p()
 begin
-declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+declare utf8_var VARCHAR(128) CHARACTER SET utf8mb3;
 set utf8_var = concat(repeat('A', 128), 'X');
 select length(utf8_var), utf8_var;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create procedure p2()
 begin
-declare msg VARCHAR(129) CHARACTER SET UTF8;
+declare msg VARCHAR(129) CHARACTER SET utf8mb3;
 set msg = concat(repeat('A', 128), 'X');
 select length(msg), msg;
 signal sqlstate '55555' set message_text = msg;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create procedure p3()
 begin
-declare name VARCHAR(65) CHARACTER SET UTF8;
+declare name VARCHAR(65) CHARACTER SET utf8mb3;
 set name = concat(repeat('A', 64), 'X');
 select length(name), name;
 signal sqlstate '55555' set
@@ -84,7 +82,7 @@ table_name = name;
 end
 $$
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 call p;
 ERROR 22001: Data too long for column 'utf8_var' at row 1
 call p2;

@@ -86,7 +86,7 @@ drop table t1;
 #
 # Bug#33791 Wrong ORDER BY with latin2_czech_cs
 #
-set names utf8;
+set names utf8mb3;
 create table t1 (
 ch varchar(1),
 name varchar(64)

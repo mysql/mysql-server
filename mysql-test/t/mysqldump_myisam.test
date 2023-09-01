@@ -177,7 +177,7 @@ DROP TABLE t1, t2, t3;
 
 CREATE DATABASE `test-database`;
 USE `test-database`;
-CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 
 DELIMITER |;
 CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
@@ -185,7 +185,7 @@ END |
 DELIMITER ;|
 
 ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci;
-ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
+ALTER DATABASE `test-database` CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci ;
 
 --exec $MYSQL_DUMP --quote-names --compact test-database
 

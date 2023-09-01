@@ -683,9 +683,9 @@ count(*)
 2
 drop table t1;
 create table t1 (c1 int, c2 varchar(4) not null default '',
-key(c2(3))) default charset=utf8;
+key(c2(3))) default charset=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
 update t1 set c2='A  B' where c1=2;
 check table t1;
@@ -1812,9 +1812,9 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1 (v varchar(65530) character set utf8);
+create table t1 (v varchar(65530) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
@@ -2331,12 +2331,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
@@ -2356,12 +2356,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1
@@ -2381,12 +2381,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES(REPEAT(_utf8mb3 x'e0ae85',43), 'b');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES('b', 'b');
 INSERT INTO t1 VALUES('c', 'b');
 DELETE FROM t1 WHERE c1='b';
@@ -2404,13 +2404,13 @@ CREATE TABLE t1 (
 c1 CHAR(50),
 c2 VARCHAR(1),
 KEY (c1)
-) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+) ENGINE=MyISAM DEFAULT CHARSET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # Insert 100 rows. Query log disabled.
-UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
+UPDATE t1 SET c1=REPEAT(_utf8mb3 x'e0ae85',43) LIMIT 90;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100
@@ -2431,9 +2431,9 @@ c2 CHAR(10) DEFAULT NULL,
 c3 VARCHAR(10) NOT NULL,
 KEY (c1),
 KEY (c2)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 PACK_KEYS=0;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 MyISAM file:         MYSQLD_DATADIR/test/t1
 Record format:       Packed

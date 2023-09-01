@@ -405,9 +405,9 @@ CREATE TABLE t2 (a int, b int);
 INSERT INTO t1 VALUES (1,1),(2,2);
 INSERT INTO t2 VALUES (2,2),(3,3);
 select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
-where collation(t2.a) = _utf8'binary' order by t1.a,t2.a;
+where collation(t2.a) = _utf8mb3'binary' order by t1.a,t2.a;
 select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
-where charset(t2.a) = _utf8'binary' order by t1.a,t2.a;
+where charset(t2.a) = _utf8mb3'binary' order by t1.a,t2.a;
 select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
 where coercibility(t2.a) = 5 order by t1.a,t2.a;
 DROP TABLE t1, t2;
@@ -496,9 +496,9 @@ SELECT conv(71, 10, 37), conv('1Z', 37, 10), conv(0,1,10),conv(0,0,10), conv(0,-
 # Bug in SUBSTRING when mixed with CONCAT and ORDER BY (Bug #3089)
 #
 
-create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8mb3;
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
-create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8mb3;
 insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
 select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
 where t2.id=t1.id order by name;
@@ -1005,8 +1005,8 @@ select lpad('hello', 18446744073709551617, '1');
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
 
-SELECT CHAR(0xff,0x8f USING utf8);
-SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
+SELECT CHAR(0xff,0x8f USING utf8mb3);
+SELECT CHAR(0xff,0x8f USING utf8mb3) IS NULL;
 
 SET SQL_MODE=@orig_sql_mode;
 
@@ -1573,7 +1573,7 @@ DROP TABLE t;
 --echo #
 --echo # Bug#13812875 ILLEGAL MIX OF COLLATIONS WITH FUNCTIONS THAT USED TO WORK
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (a varchar(1));
 SELECT * FROM t1 WHERE a=hex('a');
 SELECT * FROM t1 WHERE a=to_base64('a');
@@ -1652,17 +1652,17 @@ SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY
 DROP TABLE t1;
 
 --echo #
---echo # Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+--echo # Bug#21317406 TRUNCATED DATA WITH SUBQUERY & utf8mb3
 --echo #
 
-SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
+SELECT length(rpad(_utf8mb3 0xD0B1, 65536, _utf8mb3 0xD0B2)) AS data;
 SELECT length(data) AS len FROM (
-  SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
+  SELECT rpad(_utf8mb3 0xD0B1, 65536, _utf8mb3 0xD0B2) AS data
 ) AS sub;
 
-SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
+SELECT length(rpad(_utf8mb3 0xD0B1, 65535, _utf8mb3 0xD0B2)) AS data;
 SELECT length(data) AS len FROM (
-  SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
+  SELECT rpad(_utf8mb3 0xD0B1, 65535, _utf8mb3 0xD0B2) AS data
 ) AS sub;
 
 SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
@@ -1677,7 +1677,7 @@ FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
 --echo # Bug #22884187 RTRIM GETS EXPONENTIALLY SLOWER ON LARGE STRINGS
 --echo #
 
-set names utf8;
+set names utf8mb3;
 SELECT TRIM(BOTH 'å' FROM 'aæaå');
 set names default;
 SELECT HEX(TRIM(CONVERT(_gb18030 0x20202081408141208144202020 USING utf32)));
@@ -1783,7 +1783,7 @@ SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
 SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
 SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
 
-set names utf8;
+set names utf8mb3;
 SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
 SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
 SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
@@ -1819,7 +1819,7 @@ from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
                         rand(to_days('2028-12-04 15:50:01.284969'))));
 
 do from_base64(cast(right(11,1)as binary(24)));
-do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
+do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8mb3);
 do from_base64(cast((left(collation(4097),((repeat('1',32))or((-18772)))))
                     as binary(40)));
 
@@ -1832,10 +1832,10 @@ do inet_aton(aes_encrypt(left(@e,1),5));
 
 --echo #
 --echo # Bug#23194118 WEIGHT_STRING: ASSERTION FAILED:
---echo #              SRC, FILE .\STRINGS\CTYPE-UTF8.CC, LINE 8686
+--echo #              SRC, FILE .\STRINGS\CTYPE-utf8mb3.CC, LINE 8686
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t(a INT) engine=innodb;
 INSERT INTO t VALUES(1);
 SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
@@ -1846,27 +1846,27 @@ DROP TABLE t;
 --echo #
 --echo # Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
 --echo #              CONSIDERING INDEXES
-CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
+CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8mb3_tolower_ci, UNIQUE KEY(name));
 INSERT INTO dd_table VALUES('t1'), ('t2');
 CREATE VIEW view1 AS SELECT name AS table_name FROM dd_table;
-CREATE VIEW view2 AS SELECT name COLLATE utf8_tolower_ci AS table_name FROM dd_table;
+CREATE VIEW view2 AS SELECT name COLLATE utf8mb3_tolower_ci AS table_name FROM dd_table;
 DELIMITER |;
-CREATE PROCEDURE sub1(id CHAR(10) CHARACTER SET utf8)
+CREATE PROCEDURE sub1(id CHAR(10) CHARACTER SET utf8mb3)
 BEGIN
-SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
-EXPLAIN SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
+SELECT * FROM view1 WHERE table_name=id COLLATE utf8mb3_tolower_ci;
+EXPLAIN SELECT * FROM view1 WHERE table_name=id COLLATE utf8mb3_tolower_ci;
 SELECT * FROM view2 WHERE table_name=id;
 EXPLAIN SELECT * FROM view2 WHERE table_name=id;
-SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
-EXPLAIN SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
-SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
-EXPLAIN SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
+SELECT * FROM dd_table WHERE name COLLATE utf8mb3_tolower_ci = id;
+EXPLAIN SELECT * FROM dd_table WHERE name COLLATE utf8mb3_tolower_ci = id;
+SELECT * FROM view1 WHERE id COLLATE utf8mb3_tolower_ci=table_name;
+EXPLAIN SELECT * FROM view1 WHERE id COLLATE utf8mb3_tolower_ci=table_name;
 SELECT * FROM view2 WHERE id=table_name;
 EXPLAIN SELECT * FROM view2 WHERE id=table_name;
-SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
-EXPLAIN SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
-SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
-EXPLAIN SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
+SELECT * FROM dd_table WHERE id = name COLLATE utf8mb3_tolower_ci;
+EXPLAIN SELECT * FROM dd_table WHERE id = name COLLATE utf8mb3_tolower_ci;
+SELECT * FROM view1 WHERE table_name COLLATE utf8mb3_tolower_ci = id;
+EXPLAIN SELECT * FROM view1 WHERE table_name COLLATE utf8mb3_tolower_ci = id;
 END |
 DELIMITER ;|
 CALL sub1('t1');
@@ -1942,7 +1942,7 @@ DROP TABLE t;
 SET NAMES latin1;
 CREATE TABLE t1 AS SELECT quote('a');
 SHOW CREATE TABLE t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t2 AS SELECT quote('a');
 SHOW CREATE TABLE t2;
 SET NAMES utf8mb4;
@@ -1961,7 +1961,7 @@ BEGIN
   DECLARE i INT DEFAULT ofs;
   WHILE i < count DO
     SELECT i AS i;
-    IF LOWER(CHAR(i USING utf8)) <> LOWER(CHAR(i USING utf8mb4)) THEN
+    IF LOWER(CHAR(i USING utf8mb3)) <> LOWER(CHAR(i USING utf8mb4)) THEN
       SELECT i AS 'found funny character';
     END IF;
     SET i = i + 1;
@@ -2182,7 +2182,7 @@ SELECT UNHEX(x) FROM t;
 --disable_metadata
 DROP TABLE t;
 
---echo Bug#32501472: Concatenation may create invalid UTF8 strings
+--echo Bug#32501472: Concatenation may create invalid utf8mb3 strings
 
 CREATE TABLE t1(a CHAR(1) CHARACTER SET utf8mb4);
 INSERT INTO t1 VALUES('a');

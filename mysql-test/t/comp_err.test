@@ -2,7 +2,7 @@
 
 --source include/not_windows.inc
 
---echo # WL#13423: Split errmgs-utf8.txt into one file for messages to clients and another for messages to the error log
+--echo # WL#13423: Split errmgs-utf8mb3.txt into one file for messages to clients and another for messages to the error log
 
 --source include/have_perror.inc
 

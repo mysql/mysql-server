@@ -768,7 +768,7 @@ a	b	c	d	e
 3	4	100	1	2
 4	100	1	2	3
 100	1	2	3	4
-SELECT * FROM t1 ORDER BY a COLLATE utf8_bin;
+SELECT * FROM t1 ORDER BY a COLLATE utf8mb3_bin;
 a	b	c	d	e
 1	2	3	4	100
 100	1	2	3	4
@@ -848,7 +848,7 @@ a	b
 100.49	1.01
 1.01	2.99
 2.99	100.49
-SELECT * FROM t3 ORDER BY b COLLATE utf8_general_ci;
+SELECT * FROM t3 ORDER BY b COLLATE utf8mb3_general_ci;
 a	b
 100.49	1.01
 2.99	100.49

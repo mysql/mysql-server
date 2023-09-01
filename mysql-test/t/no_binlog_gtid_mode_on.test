@@ -282,7 +282,7 @@ SELECT GTID_EXECUTED_FROM_TABLE();
 --connection default
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:21'
-ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8mb3;
 
 --connection connection_for_table_check
 --source include/gtid_step_assert.inc

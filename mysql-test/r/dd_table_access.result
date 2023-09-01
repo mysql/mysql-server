@@ -10,7 +10,7 @@ DROP SCHEMA mysql;
 ERROR HY000: Access to system schema 'mysql' is rejected.
 CREATE SCHEMA mysql;
 ERROR HY000: Access to system schema 'mysql' is rejected.
-ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+ALTER SCHEMA mysql DEFAULT COLLATE utf8mb3_general_ci;
 ERROR HY000: Access to system schema 'mysql' is rejected.
 # DD tablespace DDL
 DROP TABLESPACE mysql;

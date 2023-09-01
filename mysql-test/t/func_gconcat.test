@@ -495,15 +495,15 @@ SELECT GROUP_CONCAT(a), x
 
 DROP TABLE t1;
 #
-# Bug#23451 GROUP_CONCAT truncates a multibyte utf8 character
+# Bug#23451 GROUP_CONCAT truncates a multibyte utf8mb3 character
 #
-set names utf8;
+set names utf8mb3;
 create table t1
 (
-  x text character set utf8 not null,
+  x text character set utf8mb3 not null,
   y integer not null
 );
-insert into t1 values (repeat('a', 1022), 0), (repeat(_utf8 0xc3b7, 4), 0);
+insert into t1 values (repeat('a', 1022), 0), (repeat(_utf8mb3 0xc3b7, 4), 0);
 let $1= 10;
 while ($1)
 {
@@ -587,7 +587,7 @@ DROP TABLE t1, t2, t3;
 #            a temporary table.
 #
 set names latin1;
-create table t1 (id int, name varchar(20)) DEFAULT CHARSET=utf8;
+create table t1 (id int, name varchar(20)) DEFAULT CHARSET=utf8mb3;
 insert into t1 (id, name) values (1, "óra");
 insert into t1 (id, name) values (2, "óra");
 select b.id, group_concat(b.name) from t1 a, t1 b group by b.id;

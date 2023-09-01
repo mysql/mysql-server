@@ -1,7 +1,7 @@
 --source include/big_test.inc
 
 --disable_query_log
-CALL mtr.add_suppression("--character-set-server: 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.");
+CALL mtr.add_suppression("--character-set-server: 'utf8mb3' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.");
 --enable_query_log
 
 let BASEDIR=    `select @@basedir`;
@@ -22,18 +22,18 @@ EOF
 --echo # 1 First start the server with --initialize and --lower-case-table-names=1.
 --echo #   We need to make sure l-c-t-n is set during database initialization.
 --echo #   Otherwise the mysql.tables.name do not pick right collation.
---echo #   This test also requires to be run with --character-set-server=utf8
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL --lower-case-table-names=1 --character-set-server=utf8
+--echo #   This test also requires to be run with --character-set-server=utf8mb3
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL --lower-case-table-names=1 --character-set-server=utf8mb3
 
 --echo # 2 Restart the server against DDIR
---exec echo "restart: --datadir=$DDIR --character-set-server=utf8 --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$DDIR --character-set-server=utf8mb3 --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
 #
 # Bug#25830 SHOW TABLE STATUS behaves differently depending on table name
 #
-set names utf8;
+set names utf8mb3;
 create table `Ö` (id int);
 show tables from test like 'Ö';
 show tables from test like 'ö';

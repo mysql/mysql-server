@@ -156,9 +156,9 @@ drop database mysqldump_test_db;
 
 --echo #
 --echo # Bug#7020 mysqldump --compatible=mysql40 should set --skip-set-charset --default-char...
---echo # Check that we don't dump in UTF8 in compatible mode by default,
+--echo # Check that we don't dump in utf8mb3 in compatible mode by default,
 --echo # but use the default compiled values, or the values given in
---echo # --default-character-set=xxx. However, we should dump in UTF8
+--echo # --default-character-set=xxx. However, we should dump in utf8mb3
 --echo # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
@@ -645,7 +645,7 @@ drop table t1, t2;
 --echo # Bug#12123 mysqldump --tab results in text file which can't be imported
 --echo #
 
-create table t1 (a text character set utf8, b text character set latin1);
+create table t1 (a text character set utf8mb3, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
 --exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ test
@@ -1816,7 +1816,7 @@ DROP DATABASE mysqldump_test_db;
 --echo
 --echo # Check the view.
 
-set names utf8;
+set names utf8mb3;
 
 SHOW CREATE VIEW mysqldump_test_db.v1;
 SHOW CREATE VIEW mysqldump_test_db.v2;
@@ -2028,7 +2028,7 @@ DROP TABLE IF EXISTS t1;
 --echo # Also see outfile_loaddata.test
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
@@ -2057,15 +2057,15 @@ TRUNCATE t2;
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
 
---echo # utf8:
+--echo # utf8mb3:
 
---exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=utf8 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=utf8mb3 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
 TRUNCATE t2;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET utf8
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET utf8mb3
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
@@ -2159,7 +2159,7 @@ DROP TABLE `comment_table`;
 
 CREATE DATABASE `test-database`;
 USE `test-database`;
-CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 
 DELIMITER |;
 CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
@@ -2167,7 +2167,7 @@ END |
 DELIMITER ;|
 
 ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci;
-ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
+ALTER DATABASE `test-database` CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci ;
 
 --exec $MYSQL_DUMP --quote-names --compact test-database
 

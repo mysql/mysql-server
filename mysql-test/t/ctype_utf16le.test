@@ -2,7 +2,7 @@
 --echo # Start of 5.6 tests
 --echo #
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 SELECT HEX('a'), HEX('a ');
 -- source include/endspace.inc
 
@@ -71,7 +71,7 @@ DROP TABLE t1;
 --echo # Testing LIKE
 --echo #
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 --source include/ctype_like.inc
 
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le);
@@ -167,7 +167,7 @@ EXECUTE stmt1 USING @ivar;
 --echo #
 --echo # Check that utf16le works with ENUM and SET type
 --echo #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 CREATE TABLE t1 (a ENUM('x','y','z') CHARACTER SET utf16le);
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES ('x');
@@ -204,10 +204,10 @@ SHOW WARNINGS;
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
-SET NAMES utf8, collation_connection='utf16le_general_ci';
+SET NAMES utf8mb3, collation_connection='utf16le_general_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
-SET NAMES utf8, collation_connection='utf16le_bin';
+SET NAMES utf8mb3, collation_connection='utf16le_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_filesort2.inc
 -- source include/ctype_like_escape.inc
@@ -231,7 +231,7 @@ INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, -3);
 SELECT HEX(SUBSTR(a, pos)), SUBSTR(a, pos) FROM t1;
 DROP TABLE t1;
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 
 --echo #
 --echo # Bug#9442 Set parameter make query fail if column CHARACTER SET is UCS2
@@ -285,7 +285,7 @@ DEALLOCATE PREPARE stmt;
 --echo #
 --echo # Bug#22638 SOUNDEX broken for international characters
 --echo #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 SELECT SOUNDEX(''),SOUNDEX('he'),SOUNDEX('hello all folks'),SOUNDEX('#3556 in bugdb');
 SELECT HEX(SOUNDEX('')),HEX(SOUNDEX('he')),HEX(SOUNDEX('hello all folks')),HEX(SOUNDEX('#3556 in bugdb'));
 SELECT 'mood' sounds like 'mud';
@@ -304,7 +304,7 @@ SELECT data_type, character_octet_length, character_maximum_length
 DROP TABLE t1;
 
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 
 --echo #
 --echo # Testing cs->coll->instr()
@@ -314,9 +314,9 @@ SELECT POSITION('bb' IN 'abba');
 --echo #
 --echo # Testing cs->coll->hash_sort()
 --echo #
-SET NAMES utf8, collation_connection=utf16le_bin;
+SET NAMES utf8mb3, collation_connection=utf16le_bin;
 --source include/ctype_heap.inc
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 --source include/ctype_heap.inc
 
 --echo #
@@ -434,13 +434,13 @@ DROP TABLE t1;
 SET NAMES latin1;
 SELECT HEX(CONV(CONVERT('123' USING utf16le), -10, 16));
 SELECT HEX(CONV(CONVERT('123' USING utf16le), 10, 16));
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 
 
 --echo #
 --echo # Testing cs->cset->strntod
 --echo #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 SELECT 1.1 + '1.2';
 SELECT 1.1 + '1.2xxx';
 
@@ -527,7 +527,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) ROW_FORMAT=COMPACT;
 
 --echo #
---echo # Conversion to utf8
+--echo # Conversion to utf8mb3
 --echo #
 CREATE TABLE t1 (a CHAR(1) CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x00D800DC),(0x00D8FFDC),(0x7FDB00DC),(0x7FDBFFDC);
@@ -539,7 +539,7 @@ DROP TABLE t1;
 --echo #
 --echo # Test basic regex functionality
 --echo #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 --source include/ctype_regex.inc
 
 
@@ -552,7 +552,7 @@ SET NAMES utf8, collation_connection=utf16le_general_ci;
 --echo #
 --echo # Bug#33073 Character sets: ordering fails with utf32
 --echo #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 CREATE TABLE t1 AS SELECT REPEAT('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
@@ -573,11 +573,11 @@ CREATE TABLE t1 (
   s4 LONGTEXT CHARACTER SET utf16le
 );
 --enable_metadata
-SET NAMES utf8, @@character_set_results=NULL;
+SET NAMES utf8mb3, @@character_set_results=NULL;
 SELECT *, HEX(s1) FROM t1;
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT *, HEX(s1) FROM t1;
 --disable_metadata
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
@@ -589,7 +589,7 @@ DROP TABLE t1, t2;
 --echo # MY_CS_BINSORT was not set for utf16le_bin,
 --echo # so filesort did not work well
 --echo # 
-SET NAMES utf8, @@collation_connection=utf16le_bin;
+SET NAMES utf8mb3, @@collation_connection=utf16le_bin;
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) as c LIMIT 0;
 # the problem in fact reproduced even without the primary key:
 ALTER TABLE t1 ADD PRIMARY KEY(c);
@@ -603,13 +603,13 @@ DROP TABLE t1;
 --echo # WL#3664 WEIGHT_STRING
 --echo #
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
 SELECT HEX(WEIGHT_STRING(_utf16le 0x00D800DC));
 SELECT HEX(WEIGHT_STRING(_utf16le 0x00D801DC));
 
-SET NAMES utf8, collation_connection=utf16le_bin;
+SET NAMES utf8mb3, collation_connection=utf16le_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
 

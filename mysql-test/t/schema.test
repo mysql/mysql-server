@@ -59,7 +59,7 @@ let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
 --error ER_NO_SUCH_DB
-ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8mb3;
 SET autocommit= TRUE;
 
 --echo # Connection 2
@@ -141,7 +141,7 @@ let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
 connection con1;
 # All these statements before resulted in deadlock.
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 DROP DATABASE db2;
 HANDLER t1 CLOSE;
 
@@ -188,7 +188,7 @@ let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
 
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 DROP DATABASE db2;
 
 --echo # Connection default

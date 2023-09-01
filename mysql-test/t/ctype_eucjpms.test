@@ -392,7 +392,7 @@ select hex(convert(_eucjpms 0x8FABF841 using ucs2));
 #  (see also ctype_eucjpms.test, ctype_cp1250.test, ctype_cp1251.test)
 #
 --error 1649
-set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
+set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8mb3);
 
 
 --echo #
@@ -405,7 +405,7 @@ set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
 #
 # Populate t1 with all hex digits
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=eucjpms_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -470,21 +470,21 @@ SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE he
 # Expect U+0122 LATIN CAPITAL LETTER G WITH CEDILLA
 #
 SELECT * FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 #
 # Expect U+00F0 LATIN SMALL LETTER ETH
 # Expect U+01F5 LATIN SMALL LETTER G WITH ACUTE
 #
 SELECT * FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 
 --echo #
 --echo # WL#3090 Japanese Character Set adjustments
 --echo # Test sjis->Unicode conversion
 --echo #
-SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+SELECT HEX(a), HEX(CONVERT(a USING utf8mb3)) as b FROM t1
 WHERE a<>'' HAVING b<>'3F' ORDER BY code;
 
 DROP TABLE t1;

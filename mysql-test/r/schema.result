@@ -19,7 +19,7 @@ INSERT INTO schema1.t1 VALUES (1);
 # Connection 2
 DROP SCHEMA schema1;
 # Connection default
-ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8mb3;
 ERROR 42Y07: Database 'schema1' doesn't exist
 SET autocommit= TRUE;
 # Connection 2
@@ -57,9 +57,9 @@ DROP DATABASE db1;
 # Connection con2
 # Connection con1
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE db2;
 HANDLER t1 CLOSE;
 # Connection default
@@ -82,9 +82,9 @@ DROP DATABASE db1;
 # Connection 3
 # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;
-ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE db2;
 # Connection default
 # End the transaction so DROP DATABASE db1 can continue

@@ -1,4 +1,4 @@
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --echo Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);

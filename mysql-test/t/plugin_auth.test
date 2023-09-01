@@ -621,8 +621,8 @@ connection plug_user22;
 SELECT USER(),CURRENT_USER();
 connection default;
 
---character_set utf8
-SET NAMES utf8;
+--character_set utf8mb3
+SET NAMES utf8mb3;
 
 # 32 characters user name
 CREATE USER очень_очень_очень_длинный_юзер__ IDENTIFIED WITH 'test_plugin_server' AS 'очень_очень_очень_длинный_дест__';
@@ -714,8 +714,8 @@ DROP USER user_name_len_32_012345678901234@localhost;
 
 --echo # Testing 32 utf users with different authentication plugins
 
---character_set utf8
-SET NAMES utf8;
+--character_set utf8mb3
+SET NAMES utf8mb3;
 
 # 32 characters user name
 CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';

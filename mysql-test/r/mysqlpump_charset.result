@@ -143,41 +143,41 @@ SELECT COUNT(*) FROM t_ucs2;
 COUNT(*)
 2526
 DROP DATABASE db1_ucs2_csets;
-CREATE DATABASE db1_utf8_csets CHARACTER SET utf8;
+CREATE DATABASE db1_utf8_csets CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE db1_utf8_csets;
-CREATE TABLE t_utf8 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_bin) CHARACTER SET utf8 COLLATE utf8_bin;
+CREATE TABLE t_utf8mb3 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8_bin) CHARACTER SET utf8mb3 COLLATE utf8_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8;
-SELECT COUNT(*) FROM t_utf8;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8mb3;
+SELECT COUNT(*) FROM t_utf8mb3;
 COUNT(*)
 2526
-RENAME TABLE t_utf8 TO old_t_utf8;
-SELECT COUNT(*) FROM t_utf8;
+RENAME TABLE t_utf8mb3 TO old_t_utf8mb3;
+SELECT COUNT(*) FROM t_utf8mb3;
 COUNT(*)
 2526
 DROP DATABASE db1_utf8_csets;
-CREATE DATABASE db1_utf8_csets CHARACTER SET utf8;
+CREATE DATABASE db1_utf8_csets CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE db1_utf8_csets;
-CREATE TABLE t_utf8 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_unicode_ci) CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+CREATE TABLE t_utf8mb3 (a CHAR(4) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8;
-SELECT COUNT(*) FROM t_utf8;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_utf8mb3;
+SELECT COUNT(*) FROM t_utf8mb3;
 COUNT(*)
 2526
-RENAME TABLE t_utf8 TO old_t_utf8;
-SELECT COUNT(*) FROM t_utf8;
+RENAME TABLE t_utf8mb3 TO old_t_utf8mb3;
+SELECT COUNT(*) FROM t_utf8mb3;
 COUNT(*)
 2526
 DROP DATABASE db1_utf8_csets;
@@ -405,9 +405,9 @@ USE db1_charset;
 CREATE TABLE t_latin1(c CHAR(40)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 INSERT INTO t_latin1 VALUES ('aaa'), ('ÁÂÃÄ');
 INSERT INTO t_latin1 VALUES (_latin1'ςσ');
-CREATE TABLE t_utf8(c CHAR(40)) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t_utf8(c CHAR(40)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t_utf8 VALUES ('aaa'), ('ÁÂÃÄ');
 CREATE TABLE t_koi8r (c1 VARBINARY(255), c2 VARBINARY(255));
 SET CHARACTER_SET_CLIENT=koi8r,
@@ -417,9 +417,9 @@ INSERT INTO t_koi8r (c1, c2) VALUES ('îÕ, ÚÁ ÒÙÂÁÌËÕ','îÕ, ÚÁ Ò�
 Warnings:
 Warning	1300	Cannot convert string '\xC3\xAE\xC3\x95, ...' from koi8r to cp1251
 Warning	1300	Cannot convert string '\xC3\xAE\xC3\x95, ...' from koi8r to cp1251
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t_latin1 ORDER BY 1;
 c
 aaa
@@ -435,9 +435,9 @@ F63FF63F2C20F6A0F63F20F63FF63FF63FF63FF63FF63FF63F	F63FF63F2C20F6A0F63F20F63FF63
 DROP DATABASE db1_charset;
 CREATE DATABASE db1_charset;
 USE db1_charset;
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t_latin1 ORDER BY 1;
 c
 aaa
@@ -455,7 +455,7 @@ CREATE DATABASE db1_charset;
 USE db1_charset;
 CREATE TABLE t_allcharsets
 (ucs2 CHAR(40) character set ucs2,
-utf8 CHAR(40) character set utf8,
+utf8mb3 CHAR(40) character set utf8mb3,
 big5 CHAR(40) character set big5,
 cp932 CHAR(40) character set cp932,
 eucjpms CHAR(40) character set eucjpms,
@@ -466,10 +466,10 @@ sjis CHAR(40) character set sjis,
 ujis CHAR(40) character set ujis);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t_allcharsets (ucs2) VALUES (0x30da);
 UPDATE t_allcharsets
-SET utf8=ucs2,
+SET utf8mb3=ucs2,
 big5=ucs2,
 cp932=ucs2,
 eucjpms=ucs2,
@@ -479,11 +479,11 @@ gbk=ucs2,
 sjis=ucs2,
 ujis=ucs2;
 SELECT * FROM t_allcharsets;
-ucs2	utf8	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
+ucs2	utf8mb3	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
 ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ
 DROP DATABASE db1_charset;
 USE db1_charset;
 SELECT * FROM t_allcharsets;
-ucs2	utf8	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
+ucs2	utf8mb3	big5	cp932	eucjpms	euckr	gb2312	gbk	sjis	ujis
 ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ	ペ
 DROP DATABASE db1_charset;

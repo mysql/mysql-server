@@ -1939,7 +1939,7 @@ select 'aaa\\','aa''a',"aa""a";
 let $message= Here comes a message;
 --source include/show_msg.inc
 
-# The message could also contain a string with character set utf8
+# The message could also contain a string with character set utf8mb3
 let $message= `SELECT USER()`;
 --source include/show_msg.inc
 

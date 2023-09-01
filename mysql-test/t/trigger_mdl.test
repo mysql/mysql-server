@@ -165,7 +165,7 @@ UNLOCK TABLES;
 --echo #
 
 --enable_connect_log
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (f1 INT);
 
 --echo # Case 1: Test case to verify MDL locking from concurrent SHOW CREATE TRIGGER

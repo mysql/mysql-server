@@ -559,11 +559,11 @@ SELECT RELEASE_LOCK('a');
 --echo # to do this use 'тест' in various encodings as lock name.
 SELECT GET_LOCK(_cp1251 0xf2e5f1f2, 0);
 connection con1;
-SELECT GET_LOCK(_utf8 0xd182d0b5d181d182, 0);
+SELECT GET_LOCK(_utf8mb3 0xd182d0b5d181d182, 0);
 connection default;
 SELECT IS_USED_LOCK(_koi8r 0xd4c5d3d4) = CONNECTION_ID();
-SELECT IS_FREE_LOCK(_utf8 0xd182d0b5d181d182);
-SELECT RELEASE_LOCK(_utf8 0xd182d0b5d181d182);
+SELECT IS_FREE_LOCK(_utf8mb3 0xd182d0b5d181d182);
+SELECT RELEASE_LOCK(_utf8mb3 0xd182d0b5d181d182);
 
 --echo # FT-14.6: Check wrong number of parameters.
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT

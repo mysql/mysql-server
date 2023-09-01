@@ -27,7 +27,7 @@ time_zone,autocommit,character_set_client,character_set_results,character_set_co
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8mb4	utf8mb4	utf8mb4
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8mb3
@@ -37,7 +37,7 @@ SET NAMES 'utf8';
 -- utf8mb3
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8mb3	utf8mb3	utf8mb3
@@ -53,33 +53,33 @@ SET NAMES 'big5';
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 big5	big5	big5
-SET @@session.character_set_client=utf8;
+SET @@session.character_set_client=utf8mb3;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8mb3
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8mb3	big5	big5
-SET @@session.character_set_results=utf8;
+SET @@session.character_set_results=utf8mb3;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_results
 -- utf8mb3
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8mb3	utf8mb3	big5
-SET @@session.character_set_connection=utf8;
+SET @@session.character_set_connection=utf8mb3;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
 -- utf8mb3
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8mb3	utf8mb3	utf8mb3
@@ -493,7 +493,7 @@ DEALLOCATE PREPARE p1;
 SET @@session.session_track_state_change=ON;
 # Change system variable
 expect 1
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8mb3
@@ -506,10 +506,10 @@ SET NAMES 'utf8';
 -- 1
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET @@session.session_track_state_change=OFF;
 # Change system variable
-SET NAMES 'utf8';
+SET NAMES 'utf8mb3';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8mb3
@@ -519,7 +519,7 @@ SET NAMES 'utf8';
 -- utf8mb3
 
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # reset the session.
 SET @@session.session_track_state_change=ON;
 # Change database

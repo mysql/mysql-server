@@ -122,7 +122,7 @@ DROP TABLE t1;
 --echo # Also see mysqldump.test
 --echo #
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (a INT, b CHAR(10) CHARSET koi8r, c CHAR(10) CHARSET latin1);
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
@@ -241,13 +241,13 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 --echo # UTF-8 charset:
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval SELECT * INTO OUTFILE '$file' CHARACTER SET utf8 FROM t1
+--eval SELECT * INTO OUTFILE '$file' CHARACTER SET utf8mb3 FROM t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
 TRUNCATE t2;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET utf8
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET utf8mb3
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 

@@ -1058,7 +1058,7 @@ drop procedure test_signal $$
 create procedure test_signal()
 begin
   DECLARE something CONDITION FOR SQLSTATE "01000";
-  SIGNAL something SET MESSAGE_TEXT = _utf8 "This is a UTF8 text";
+  SIGNAL something SET MESSAGE_TEXT = _utf8mb3 "This is a utf8mb3 text";
 end $$
 
 call test_signal() $$

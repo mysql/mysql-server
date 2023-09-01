@@ -7,7 +7,7 @@
 #
 CREATE TABLE t (
   c char(20) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 INSERT INTO t VALUES ('a'),('ab'),('aba');
 ALTER TABLE t ADD INDEX (c);
 SELECT c FROM t WHERE c LIKE 'a%';

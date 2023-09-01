@@ -70,11 +70,11 @@ SHOW TABLES in mysql LIKE '%tables%';
 --echo # The DD table 'mysql.tables' will not be visible.
 SELECT table_name FROM information_schema.tables
   WHERE TABLE_NAME LIKE 'tables' AND TABLE_SCHEMA LIKE 'mysql'
-  ORDER BY table_name COLLATE utf8_general_ci;
+  ORDER BY table_name COLLATE utf8mb3_general_ci;
 --echo # But the privilege table 'mysql.tables_priv' will.
 SELECT table_name FROM information_schema.tables
   WHERE TABLE_NAME LIKE '%tables%' AND TABLE_SCHEMA LIKE 'mysql'
-  ORDER BY table_name COLLATE utf8_general_ci;
+  ORDER BY table_name COLLATE utf8mb3_general_ci;
 
 --echo # The DD table 'mysql.tables' will be visible in the
 --echo # I_S view definitions.
@@ -165,7 +165,7 @@ CREATE VIEW v1 AS SELECT table_name
   WHERE table_schema LIKE 'information_schema'
         AND table_name NOT LIKE 'INNODB%'
         AND table_name NOT LIKE 'ndb%'
-  ORDER BY table_name COLLATE UTF8_GENERAL_CI;
+  ORDER BY table_name COLLATE utf8mb3_GENERAL_CI;
 SELECT * FROM v1;
 DROP VIEW v1;
 

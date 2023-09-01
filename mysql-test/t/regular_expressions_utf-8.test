@@ -287,7 +287,7 @@ SELECT regexp_instr( _latin1 x'61F662', _utf8mb4'ö' );
 SELECT regexp_instr( concat('a', _utf8mb4 x'F09F8DA3'), _utf8mb4 x'F09F8DA3' );
 
 SELECT regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' );
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT regexp_instr( 'aöb', 'ö' );
 SET NAMES DEFAULT;
 
@@ -307,7 +307,7 @@ SET NAMES DEFAULT;
 --echo #
 --echo # Bug#30241: Regular expression problems
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT regexp_instr( 'אב רק', /*k*/'^[^ב]' );
 
 PREPARE stmt1 FROM "select 'a' rlike ?";

@@ -92,12 +92,12 @@ drop table t1;
 drop table t2;
 drop function f1;
 drop function f2;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET sql_quote_show_create= _binary x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœE'
 SET sql_quote_show_create=_latin1 x'5452DC45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœE'
@@ -108,7 +108,7 @@ ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœ
 SET NAMES latin1;
 SET sql_quote_show_create= _binary x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
 SET sql_quote_show_create=_latin1 x'5452DC45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
@@ -119,7 +119,7 @@ ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE
 SET NAMES binary;
 SET sql_quote_show_create= _binary x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœE'
 SET sql_quote_show_create=_latin1 x'5452DC45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœE'
@@ -141,11 +141,11 @@ DROP TABLE t1;
 # Bug#57882: Item_func_conv_charset::val_str(String*): 
 #            Assertion `fixed == 1' failed
 #
-SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
+SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8mb3),''));
 ERROR 22003: DOUBLE value is out of range in 'cot('v')'
-SET NAMES utf8 COLLATE utf8_latvian_ci ;
+SET NAMES utf8mb3 COLLATE utf8mb3_latvian_ci ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
 ERROR 22003: BIGINT value is out of range in '(-(73) * -(2465717823867977728))'

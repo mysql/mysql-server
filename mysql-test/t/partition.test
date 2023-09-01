@@ -256,10 +256,10 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
-# Bug#45904: Error when CHARSET=utf8 and subpartitioning
+# Bug#45904: Error when CHARSET=utf8mb3 and subpartitioning
 #
 create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
-default charset=utf8
+default charset=utf8mb3
 partition by list (a)
 subpartition by key (b)
 (partition p0 values in (1),
@@ -3056,7 +3056,7 @@ DROP TABLE t1;
 CREATE TABLE t(  id int unsigned NOT NULL,
         data varchar(2) DEFAULT NULL,
         KEY data_idx (data(1),id)
-        ) DEFAULT CHARSET=utf8
+        ) DEFAULT CHARSET=utf8mb3
         /*!50100 PARTITION BY RANGE (id)
         (PARTITION p10 VALUES LESS THAN (10) ,
          PARTITION p20 VALUES LESS THAN (20) ) */;

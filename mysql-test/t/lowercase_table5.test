@@ -19,7 +19,7 @@
 --echo #
 
 CREATE DATABASE FoO COLLATE ascii_bin;
-CREATE DATABASE Foo COLLATE utf8_unicode_ci;
+CREATE DATABASE Foo COLLATE utf8mb3_unicode_ci;
 
 USE FoO;
 CREATE TABLE t1(a INT);

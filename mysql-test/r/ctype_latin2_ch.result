@@ -105,9 +105,9 @@ w	name
 1C013C0176017600	LATIN SMALL LETTER U WITH DOUBLE ACUTE
 1C013C0177017700	LATIN CAPITAL LETTER U WITH DOUBLE ACUTE
 drop table t1;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 (
 ch varchar(1),
 name varchar(64)

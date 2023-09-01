@@ -480,14 +480,14 @@ b VARCHAR(20) CHARACTER SET gb2312,
 c TEXT(20) CHARACTER SET gb2312
 );
 CREATE TABLE t_utf8(
-a CHAR(20) CHARACTER SET utf8,
-b VARCHAR(20) CHARACTER SET utf8,
-c TEXT(20) CHARACTER SET utf8
+a CHAR(20) CHARACTER SET utf8mb3,
+b VARCHAR(20) CHARACTER SET utf8mb3,
+c TEXT(20) CHARACTER SET utf8mb3
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_MODE="STRICT_TRANS_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.

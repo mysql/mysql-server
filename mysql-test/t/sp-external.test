@@ -1544,7 +1544,7 @@ AS $a"b"$
   return x-1;
 $a"b"$ //
 
---echo # Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+--echo # Test multi-byte characters in code (∂ is 3 bytes in utf8mb3)
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -1648,7 +1648,7 @@ WHERE routine_schema = "test" //
 SELECT foo(2)//
 DROP FUNCTION foo//
 
-# The 4-byte UTF8 characters below may not be correctly displayed in an editor
+# The 4-byte utf8mb3 characters below may not be correctly displayed in an editor
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
@@ -2439,7 +2439,7 @@ AS $a"b"$
   let b = a;
 $a"b"$ //
 
---echo # Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+--echo # Test multi-byte characters in code (∂ is 3 bytes in utf8mb3)
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -2543,7 +2543,7 @@ WHERE routine_schema = "test" //
 CALL bar(2)//
 DROP procedure bar//
 
-# The 4-byte UTF8 characters below may not be correctly displayed in an editor
+# The 4-byte utf8mb3 characters below may not be correctly displayed in an editor
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$

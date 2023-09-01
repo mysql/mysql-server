@@ -190,7 +190,7 @@ DROP TABLE t1, t2;
 --echo #              MULTIBYTE STRINGS TO NUMBERS
 --echo #
 --error ER_CANT_AGGREGATE_3COLLATIONS
-select greatest(1,_utf16'.',_utf8'');
+select greatest(1,_utf16'.',_utf8mb3'');
 
 -- echo #
 -- echo # Bug#25123839: LEAST AND GREATEST MAKES INCONSISTENT DATA TYPES,

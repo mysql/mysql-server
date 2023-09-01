@@ -884,7 +884,7 @@ GRANT `r1`@`%` TO `u1`@`localhost`
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
 `r1`@`%`
-++ charset should be utf8
+++ charset should be utf8mb3
 SELECT CHARSET(CURRENT_ROLE());
 CHARSET(CURRENT_ROLE())
 utf8mb3

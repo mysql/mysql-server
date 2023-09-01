@@ -35,10 +35,10 @@ INSERT INTO t1 VALUES (0xF0),(0xF1),(0xF2),(0xF3),(0xF4),(0xF5),(0xF6),(0xF7);
 INSERT INTO t1 VALUES (0xF8),(0xF9),(0xFA),(0xFB),(0xFC),(0xFD),(0xFE),(0xFF);
 SELECT 
 hex(a), 
-hex(@u:=convert(a using utf8)),
+hex(@u:=convert(a using utf8mb3)),
 hex(@l:=convert(@u using latin1)),
 a=@l FROM t1;
-hex(a)	hex(@u:=convert(a using utf8))	hex(@l:=convert(@u using latin1))	a=@l
+hex(a)	hex(@u:=convert(a using utf8mb3))	hex(@l:=convert(@u using latin1))	a=@l
 00	00	00	1
 01	01	01	1
 02	02	02	1
@@ -296,7 +296,7 @@ FD	C3BD	FD	1
 FE	C3BE	FE	1
 FF	C3BF	FF	1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
@@ -374,41 +374,41 @@ SELECT '„a' as str;
 str
 „a
 set @str= _latin1 'ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc';
-SELECT convert(@str collate latin1_bin using utf8);
-convert(@str collate latin1_bin using utf8)
+SELECT convert(@str collate latin1_bin using utf8mb3);
+convert(@str collate latin1_bin using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_general_ci using utf8);
-convert(@str collate latin1_general_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_general_ci using utf8mb3);
+convert(@str collate latin1_general_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_german1_ci using utf8);
-convert(@str collate latin1_german1_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_german1_ci using utf8mb3);
+convert(@str collate latin1_german1_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_danish_ci using utf8);
-convert(@str collate latin1_danish_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_danish_ci using utf8mb3);
+convert(@str collate latin1_danish_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_spanish_ci using utf8);
-convert(@str collate latin1_spanish_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_spanish_ci using utf8mb3);
+convert(@str collate latin1_spanish_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_german2_ci using utf8);
-convert(@str collate latin1_german2_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_german2_ci using utf8mb3);
+convert(@str collate latin1_german2_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT convert(@str collate latin1_swedish_ci using utf8);
-convert(@str collate latin1_swedish_ci using utf8)
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SELECT convert(@str collate latin1_swedish_ci using utf8mb3);
+convert(@str collate latin1_swedish_ci using utf8mb3)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET NAMES latin1;
 DROP TABLE IF EXISTS `abcÿdef`;
 CREATE TABLE `abcÿdef` (i int);

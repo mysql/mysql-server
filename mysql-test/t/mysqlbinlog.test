@@ -111,7 +111,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 drop table t1,t2;
 
 #
-# Bug#14157 utf8 encoding in binlog without set character_set_client
+# Bug#14157 utf8mb3 encoding in binlog without set character_set_client
 #
 flush logs;
 --write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
@@ -124,7 +124,7 @@ EOF
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
-# resulted binlog, parly consisting of multi-byte utf8 chars,
+# resulted binlog, parly consisting of multi-byte utf8mb3 chars,
 # must be digestable for both client and server. In 4.1 the client
 # should use default-character-set same as the server.
 flush logs;
@@ -197,7 +197,7 @@ drop procedure p1;
 #
 
 flush logs;
-create table t1 (a varchar(64) character set utf8);
+create table t1 (a varchar(64) character set utf8mb3);
 load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set character_set_database=koi8r;
 load data infile '../../std_data/loaddata6.dat' into table t1;

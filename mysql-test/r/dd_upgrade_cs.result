@@ -134,7 +134,7 @@ COUNT(*)
 # Set different paths for --datadir
 # Check that the file exits after unzip
 # Stop / start DB server which was created by MTR default
-# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8mb3 --collation-server=utf8_unicode_ci
 #
 # Bug##29865428: UPGRADE OF HELP TABLES FAILED ON 8.0.16
 #
@@ -196,7 +196,7 @@ ALTER TABLE test.t ENGINE = InnoDB;
 # Set different paths for --datadir
 # Check that the file exits after unzip
 # Start DB server which was created by MTR default
-# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8mb3 --collation-server=utf8_unicode_ci
 # Verify that we can add a column (instant) to upgraded table with
 # subpartitions
 SHOW CREATE TABLE t1;

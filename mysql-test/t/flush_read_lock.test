@@ -142,7 +142,7 @@ let $cleanup_stmt= alter table t1_temp drop column c1;
 --echo #
 --echo # 1.2) ALTER DATABASE should be incompatible with FTWRL.
 --echo #
-let $statement= alter database mysqltest1 default character set utf8;
+let $statement= alter database mysqltest1 default character set utf8mb3;
 let $cleanup_stmt1= alter database mysqltest1 default character set latin1;
 --source include/check_ftwrl_incompatible.inc
 

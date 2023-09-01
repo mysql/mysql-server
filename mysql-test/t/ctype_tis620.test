@@ -7,7 +7,7 @@ drop table if exists t1;
 
 #
 # Bug 1552: tis620 <-> unicode conversion crashed
-# Check tis620 -> utf8 -> tis620 round trip conversion
+# Check tis620 -> utf8mb3 -> tis620 round trip conversion
 #
 
 SET @pl0= _tis620 0x000102030405060708090A0B0C0D0E0F;
@@ -27,22 +27,22 @@ SET @plD= _tis620 0xD0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF;
 SET @plE= _tis620 0xE0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF;
 SET @plF= _tis620 0xF0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF;
 
-SELECT hex(@u0:=convert(@pl0 using utf8));
-SELECT hex(@u1:=convert(@pl1 using utf8));
-SELECT hex(@u2:=convert(@pl2 using utf8));
-SELECT hex(@u3:=convert(@pl3 using utf8));
-SELECT hex(@u4:=convert(@pl4 using utf8));
-SELECT hex(@u5:=convert(@pl5 using utf8));
-SELECT hex(@u6:=convert(@pl6 using utf8));
-SELECT hex(@u7:=convert(@pl7 using utf8));
-SELECT hex(@u8:=convert(@pl8 using utf8));
-SELECT hex(@u9:=convert(@pl9 using utf8));
-SELECT hex(@uA:=convert(@plA using utf8));
-SELECT hex(@uB:=convert(@plB using utf8));
-SELECT hex(@uC:=convert(@plC using utf8));
-SELECT hex(@uD:=convert(@plD using utf8));
-SELECT hex(@uE:=convert(@plE using utf8));
-SELECT hex(@uF:=convert(@plF using utf8));
+SELECT hex(@u0:=convert(@pl0 using utf8mb3));
+SELECT hex(@u1:=convert(@pl1 using utf8mb3));
+SELECT hex(@u2:=convert(@pl2 using utf8mb3));
+SELECT hex(@u3:=convert(@pl3 using utf8mb3));
+SELECT hex(@u4:=convert(@pl4 using utf8mb3));
+SELECT hex(@u5:=convert(@pl5 using utf8mb3));
+SELECT hex(@u6:=convert(@pl6 using utf8mb3));
+SELECT hex(@u7:=convert(@pl7 using utf8mb3));
+SELECT hex(@u8:=convert(@pl8 using utf8mb3));
+SELECT hex(@u9:=convert(@pl9 using utf8mb3));
+SELECT hex(@uA:=convert(@plA using utf8mb3));
+SELECT hex(@uB:=convert(@plB using utf8mb3));
+SELECT hex(@uC:=convert(@plC using utf8mb3));
+SELECT hex(@uD:=convert(@plD using utf8mb3));
+SELECT hex(@uE:=convert(@plE using utf8mb3));
+SELECT hex(@uF:=convert(@plF using utf8mb3));
 
 SELECT hex(convert(@u0 USING tis620));
 SELECT hex(convert(@u1 USING tis620));

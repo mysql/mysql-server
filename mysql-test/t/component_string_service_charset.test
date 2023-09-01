@@ -1,6 +1,6 @@
-SET character_set_client= 'utf8';
-SET character_set_connection= 'utf8';
-SET character_set_results= 'utf8';
+SET character_set_client= 'utf8mb3';
+SET character_set_connection= 'utf8mb3';
+SET character_set_results= 'utf8mb3';
 
 SET character_set_client= 'latin1';
 SET character_set_connection= 'latin1';

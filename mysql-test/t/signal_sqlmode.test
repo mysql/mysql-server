@@ -15,7 +15,7 @@ delimiter $$;
 
 create procedure p()
 begin
-  declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+  declare utf8_var VARCHAR(128) CHARACTER SET utf8mb3;
   set utf8_var = concat(repeat('A', 128), 'X');
   show warnings;
   select length(utf8_var), utf8_var;
@@ -24,7 +24,7 @@ $$
 
 create procedure p2()
 begin
-  declare msg VARCHAR(129) CHARACTER SET UTF8;
+  declare msg VARCHAR(129) CHARACTER SET utf8mb3;
   set msg = concat(repeat('A', 128), 'X');
   select length(msg), msg;
 
@@ -34,7 +34,7 @@ $$
 
 create procedure p3()
 begin
-  declare name VARCHAR(65) CHARACTER SET UTF8;
+  declare name VARCHAR(65) CHARACTER SET utf8mb3;
   set name = concat(repeat('A', 64), 'X');
   select length(name), name;
 
@@ -63,7 +63,7 @@ delimiter $$;
 
 create procedure p()
 begin
-  declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
+  declare utf8_var VARCHAR(128) CHARACTER SET utf8mb3;
   set utf8_var = concat(repeat('A', 128), 'X');
   select length(utf8_var), utf8_var;
 end
@@ -71,7 +71,7 @@ $$
 
 create procedure p2()
 begin
-  declare msg VARCHAR(129) CHARACTER SET UTF8;
+  declare msg VARCHAR(129) CHARACTER SET utf8mb3;
   set msg = concat(repeat('A', 128), 'X');
   select length(msg), msg;
 
@@ -81,7 +81,7 @@ $$
 
 create procedure p3()
 begin
-  declare name VARCHAR(65) CHARACTER SET UTF8;
+  declare name VARCHAR(65) CHARACTER SET utf8mb3;
   set name = concat(repeat('A', 64), 'X');
   select length(name), name;
 

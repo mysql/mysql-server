@@ -1,9 +1,9 @@
 #
 # Start of 5.6 tests
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX('a'), HEX('a ');
 HEX('a')	HEX('a ')
 6100	61002000
@@ -149,9 +149,9 @@ DROP TABLE t1;
 #
 # Testing LIKE
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -481,9 +481,9 @@ EXECUTE stmt1 USING @ivar;
 #
 # Check that utf16le works with ENUM and SET type
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (a ENUM('x','y','z') CHARACTER SET utf16le);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -553,9 +553,9 @@ a	NULL
 b	NULL
 c	NULL
 DROP TABLE t1;
-SET NAMES utf8, collation_connection='utf16le_general_ci';
+SET NAMES utf8mb3, collation_connection='utf16le_general_ci';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -583,9 +583,9 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
-SET NAMES utf8, collation_connection='utf16le_bin';
+SET NAMES utf8mb3, collation_connection='utf16le_bin';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
@@ -703,9 +703,9 @@ E50000D800DC	å?
 E50000D800DC	å?
 E400E50000D800DC	äå?
 DROP TABLE t1;
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug#9442 Set parameter make query fail if column CHARACTER SET is UCS2
 #
@@ -784,9 +784,9 @@ DEALLOCATE PREPARE stmt;
 #
 # Bug#22638 SOUNDEX broken for international characters
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT SOUNDEX(''),SOUNDEX('he'),SOUNDEX('hello all folks'),SOUNDEX('#3556 in bugdb');
 SOUNDEX('')	SOUNDEX('he')	SOUNDEX('hello all folks')	SOUNDEX('#3556 in bugdb')
 	H000	H4142	I51231
@@ -814,9 +814,9 @@ DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
 text	65535	32767
 DROP TABLE t1;
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Testing cs->coll->instr()
 #
@@ -826,9 +826,9 @@ POSITION('bb' IN 'abba')
 #
 # Testing cs->coll->hash_sort()
 #
-SET NAMES utf8, collation_connection=utf16le_bin;
+SET NAMES utf8mb3, collation_connection=utf16le_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@collation_connection;
 @@collation_connection
 utf16le_bin
@@ -844,9 +844,9 @@ SELECT a, HEX(a) FROM t1 WHERE a='a';
 a	HEX(a)
 a 	61002000
 DROP TABLE t1;
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -1009,15 +1009,15 @@ HEX(CONV(CONVERT('123' USING utf16le), -10, 16))
 SELECT HEX(CONV(CONVERT('123' USING utf16le), 10, 16));
 HEX(CONV(CONVERT('123' USING utf16le), 10, 16))
 3742
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Testing cs->cset->strntod
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT 1.1 + '1.2';
 1.1 + '1.2'
 2.3
@@ -1191,7 +1191,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) ROW_FORMAT=COMPACT;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 #
-# Conversion to utf8
+# Conversion to utf8mb3
 #
 CREATE TABLE t1 (a CHAR(1) CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x00D800DC),(0x00D8FFDC),(0x7FDB00DC),(0x7FDBFFDC);
@@ -1212,9 +1212,9 @@ DROP TABLE t1;
 #
 # Test basic regex functionality
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 drop table if exists t1;
 create table t1 as
 select repeat(' ', 64) as s1, repeat(' ',64) as s2
@@ -1276,9 +1276,9 @@ SET timestamp=0;
 #
 # Bug#33073 Character sets: ordering fails with utf32
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 AS SELECT REPEAT('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1310,9 +1310,9 @@ s2 TEXT CHARACTER SET utf16le,
 s3 MEDIUMTEXT CHARACTER SET utf16le,
 s4 LONGTEXT CHARACTER SET utf16le
 );
-SET NAMES utf8, @@character_set_results=NULL;
+SET NAMES utf8mb3, @@character_set_results=NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	255	0	Y	16	0	56
@@ -1330,9 +1330,9 @@ def	test	t1	t1	s3	s3	252	8388607	0	Y	16	0	8
 def	test	t1	t1	s4	s4	252	2147483647	0	Y	16	0	8
 def					HEX(s1)	253	2040	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	381	0	Y	16	0	33
@@ -1353,9 +1353,9 @@ DROP TABLE t1, t2;
 # MY_CS_BINSORT was not set for utf16le_bin,
 # so filesort did not work well
 # 
-SET NAMES utf8, @@collation_connection=utf16le_bin;
+SET NAMES utf8mb3, @@collation_connection=utf16le_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) as c LIMIT 0;
 ALTER TABLE t1 ADD PRIMARY KEY(c);
 SHOW CREATE TABLE t1;
@@ -1374,9 +1374,9 @@ DROP TABLE t1;
 #
 # WL#3664 WEIGHT_STRING
 #
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@collation_connection;
 @@collation_connection
 utf16le_general_ci
@@ -1530,9 +1530,9 @@ FFFD
 SELECT HEX(WEIGHT_STRING(_utf16le 0x00D801DC));
 HEX(WEIGHT_STRING(_utf16le 0x00D801DC))
 FFFD
-SET NAMES utf8, collation_connection=utf16le_bin;
+SET NAMES utf8mb3, collation_connection=utf16le_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select @@collation_connection;
 @@collation_connection
 utf16le_bin

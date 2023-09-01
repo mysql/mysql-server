@@ -8,7 +8,7 @@ SET @test_character_set= 'gb18030';
 SET @test_collation= 'gb18030_chinese_ci';
 -- source include/ctype_common.inc
 
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection='gb18030_chinese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
@@ -24,7 +24,7 @@ SET collation_connection='gb18030_bin';
 #
 # Test some conversions
 SELECT HEX(CONVERT(_gb18030 0xA14041 USING ucs2));
-SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8));
+SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8mb3));
 SELECT HEX(CONVERT(_gb18030 0xFEFEFEFD814040 USING utf32));
 SELECT HEX(CONVERT(_gb18030 0x813081304041A140 USING utf32));
 SELECT HEX(CONVERT(_gb18030 0xE3329A34 USING utf32));

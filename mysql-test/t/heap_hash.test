@@ -255,8 +255,8 @@ drop table t1;
 # Check that HASH indexes disregard trailing spaces when comparing 
 # strings with binary collations
 
-CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
-                col2 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
+CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL, 
+                col2 VARCHAR(32) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL, 
                 UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
 INSERT INTO t1 VALUES('A', 'A');
 --error ER_DUP_ENTRY

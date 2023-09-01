@@ -1,5 +1,5 @@
 #
-# Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID UTF8 CHARACTER STRING
+# Bug#33148961 FAILURE TO UPGRADE FROM 5.7, INVALID utf8mb3 CHARACTER STRING
 #
 # Test for invalid comment strings when creating table, field, index,
 # partition, subpartition, tablespace, procedure, function, event.

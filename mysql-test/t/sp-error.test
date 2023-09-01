@@ -857,7 +857,7 @@ return 1; end|
 # BUG#9529: Stored Procedures: No Warning on truncation of procedure name
 #           during creation.
 # BUG#17015: Routine name truncation not an error
-#            When we started using utf8 for mysql.proc, this limit appeared
+#            When we started using utf8mb3 for mysql.proc, this limit appeared
 #            to be higher, but in reality the names were truncated.
 --error ER_TOO_LONG_IDENT
 create procedure bug9529_901234567890123456789012345678901234567890123456789012345()
@@ -3687,7 +3687,7 @@ drop function mysqltest111111111122222222223333333333444444444455555555556666666
 --disable_query_log
 
 SET @orig_character_set_client = @@character_set_client;
-SET character_set_client = utf8;
+SET character_set_client = utf8mb3;
 
 --echo # Case 1. Test case to verify length of stored routine name length.
 let $object_name_64= oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo;

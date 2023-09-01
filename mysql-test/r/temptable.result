@@ -3,7 +3,7 @@ USE temptable_test;
 # Test 01
 SELECT * FROM information_schema.table_constraints
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
-ORDER BY table_schema,table_name,constraint_name COLLATE utf8_general_ci;
+ORDER BY table_schema,table_name,constraint_name COLLATE utf8mb3_general_ci;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
 def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY	YES
 def	mysql	PRIMARY	mysql	component	PRIMARY KEY	YES

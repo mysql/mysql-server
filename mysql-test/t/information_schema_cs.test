@@ -61,8 +61,8 @@ insert into t5 values (10);
 create view v1 (c) as
  SELECT table_name FROM information_schema.TABLES
   WHERE table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest') AND
-        table_name COLLATE utf8_general_ci not like 'ndb_%' AND
-        table_name COLLATE utf8_general_ci not like 'innodb_%';
+        table_name COLLATE utf8mb3_general_ci not like 'ndb_%' AND
+        table_name COLLATE utf8mb3_general_ci not like 'innodb_%';
 --sorted_result
 select * from v1;
 
@@ -346,7 +346,7 @@ set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1" order by character_set_name;
 select * from t1;
-alter table t1 default character set utf8;
+alter table t1 default character set utf8mb3;
 show create table t1;
 drop table t1;
 
@@ -385,7 +385,7 @@ drop view vo;
 select TABLE_NAME,TABLE_TYPE,ENGINE
 from information_schema.tables
 where table_schema='information_schema'
-order by table_name collate utf8_general_ci limit 2;
+order by table_name COLLATE utf8mb3_general_ci limit 2;
 --sorted_result
 show tables from information_schema like "T%";
 
@@ -525,7 +525,7 @@ where table_schema not in ('performance_schema', 'sys', 'mysql')
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
   and data_type = 'datetime'
-  and table_name COLLATE utf8_general_ci not like 'innodb_%' order by table_name, column_name;
+  and table_name COLLATE utf8mb3_general_ci not like 'innodb_%' order by table_name, column_name;
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
@@ -564,7 +564,7 @@ grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE UTF8_GENERAL_CI;
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME COLLATE utf8mb3_GENERAL_CI;
 connection default;
 disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
@@ -577,7 +577,7 @@ flush privileges;
 #
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
 table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
+AND table_name not like 'ndb%' AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 
 
@@ -881,7 +881,7 @@ GROUP BY column_type ORDER BY num, column_type;
 # Bug#19236 bad COLUMNS.CHARACTER_MAXIMUM_LENGHT and CHARACTER_OCTET_LENGTH
 #
 create table t1(f1 char(1) not null, f2 char(9) not null)
-default character set utf8;
+default character set utf8mb3;
 --sorted_result
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
 information_schema.columns where table_schema='test' and table_name = 't1';
@@ -1061,7 +1061,7 @@ where t.table_name not like 'ndb%' and
          (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
           group by c2.column_type order by num limit 1)
         and t.table_name not like 'INNODB_%'
-group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
+group by t.table_name order by num1, t.table_name COLLATE utf8mb3_general_ci;
 #
 # Bug#28266 IS_UPDATABLE field on VIEWS table in I_S database is wrong
 #
@@ -1156,8 +1156,8 @@ CREATE TABLE test.t1( a INT );
 # MyISAM. This and only this triggers the bug.
 SELECT *
 FROM tables ta
-JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8))
-JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8));
+JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8mb3))
+JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8mb3));
 
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
@@ -1897,8 +1897,8 @@ eval $query;
 
 connection default;
 
---character_set utf8
-set names utf8;
+--character_set utf8mb3
+set names utf8mb3;
 
 CREATE USER user_name_len_22_01234@localhost;
 GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
@@ -2291,8 +2291,8 @@ SELECT t.table_name, c1.column_name
         )
   AND t.table_name NOT LIKE 'ndb%'
   AND t.table_name NOT LIKE 'INNODB%'
-  ORDER BY t.table_name COLLATE utf8_general_ci,
-           c1.column_name COLLATE utf8_general_ci;
+  ORDER BY t.table_name COLLATE utf8mb3_general_ci,
+           c1.column_name COLLATE utf8mb3_general_ci;
 --skip_if_hypergraph  # Chooses an extremely slow plan due to lack of indexes, causing the test to time out.
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
@@ -2310,8 +2310,8 @@ SELECT t.table_name, c1.column_name
         )
   AND t.table_name NOT LIKE 'ndb%'
   AND t.table_name NOT LIKE 'INNODB%'
-  ORDER BY t.table_name COLLATE utf8_general_ci,
-           c1.column_name COLLATE utf8_general_ci;
+  ORDER BY t.table_name COLLATE utf8mb3_general_ci,
+           c1.column_name COLLATE utf8mb3_general_ci;
 
 
 --echo #

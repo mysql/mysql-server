@@ -1,4 +1,4 @@
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --let $required_icu_version=58
 --source include/require_icu_version.inc

@@ -106,9 +106,9 @@ Success: Was able to run FTWRL while 'alter table t1_temp add column c1 int' was
 #
 # 1.2) ALTER DATABASE should be incompatible with FTWRL.
 #
-Success: Was not able to run 'alter database mysqltest1 default character set utf8' under FTWRL.
-Success: 'alter database mysqltest1 default character set utf8' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'alter database mysqltest1 default character set utf8' is active in another connection.
+Success: Was not able to run 'alter database mysqltest1 default character set utf8mb3' under FTWRL.
+Success: 'alter database mysqltest1 default character set utf8mb3' is blocked by FTWRL active in another connection.
+Success: FTWRL is blocked when 'alter database mysqltest1 default character set utf8mb3' is active in another connection.
 #
 # 1.3) ALTER PROCEDURE should be incompatible with FTWRL.
 #

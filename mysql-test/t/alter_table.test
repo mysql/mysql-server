@@ -353,7 +353,7 @@ DROP TABLE T12207;
 #
 # The column's character set was changed but the actual data was not
 # modified. In other words, the values were reinterpreted
-# as UTF8 instead of being converted.
+# as utf8mb3 instead of being converted.
 create table t1 (a text) character set koi8r;
 insert into t1 values ('тест');
 select hex(a) from t1;
@@ -748,11 +748,11 @@ DROP TABLE t1;
 # Bug#31291 ALTER TABLE CONVERT TO CHARACTER SET does not change some data types
 #
 create table t1 (a tinytext character set latin1);
-alter table t1 convert to character set utf8;
+alter table t1 convert to character set utf8mb3;
 show create table t1;
 drop table t1;
 create table t1 (a mediumtext character set latin1);
-alter table t1 convert to character set utf8;
+alter table t1 convert to character set utf8mb3;
 show create table t1;
 drop table t1;
 
@@ -926,7 +926,7 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 --disable_info
 DROP TABLE t1;
 
-CREATE TABLE t1 (id int, c int) character set utf8;
+CREATE TABLE t1 (id int, c int) character set utf8mb3;
 INSERT INTO t1 VALUES (1,1);
 --enable_info
 ALTER TABLE t1 CHANGE c d int;
@@ -1025,7 +1025,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
-                 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+                 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 
@@ -1145,7 +1145,7 @@ DROP TABLE t1;
 --echo # Bug#11754461 CANNOT ALTER TABLE WHEN KEY PREFIX TOO LONG
 --echo #
 
-CREATE DATABASE db1 CHARACTER SET utf8;
+CREATE DATABASE db1 CHARACTER SET utf8mb3;
 --error ER_TOO_LONG_KEY
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
@@ -1452,8 +1452,8 @@ ALTER TABLE tm1 ORDER BY b;
 
 ALTER TABLE ti1 CONVERT TO CHARACTER SET utf16;
 ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
-ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
-ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
+ALTER TABLE ti1 DEFAULT CHARACTER SET utf8mb3;
+ALTER TABLE tm1 DEFAULT CHARACTER SET utf8mb3;
 
 ALTER TABLE ti1 FORCE;
 ALTER TABLE tm1 FORCE;
@@ -2154,7 +2154,7 @@ DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
 
 --echo #
---echo # Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
+--echo # Bug#20279241 - ALTER TABLE ... CHARACTER SET utf8mb3, CONVERT TO
 --echo #                CHARACTER SET LATIN1 SHOULD FAIL
 --echo #
 
@@ -2162,49 +2162,49 @@ CREATE TABLE t1 (f1 INT);
 
 --echo # Case 1: Alter table with CHARACTER SET X, CHARACTER SET X
 --echo #         ALTER table operation should pass.
-ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
+ALTER TABLE t1 CHARACTER SET utf8mb3, CHARACTER SET utf8mb3;
 
 --echo # Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
 --echo #         ALTER table operation should pass.
-ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+ALTER TABLE t1 CHARACTER SET utf8mb3, CONVERT TO CHARACTER SET utf8mb3;
 
 --echo # Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
 --echo #         ALTER table operation should pass.
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, CHARACTER SET utf8mb3;
 
 --echo # Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
 --echo #         ALTER table operation should pass.
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, CONVERT TO CHARACTER SET utf8mb3;
 
 --echo # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
 --echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 --error ER_CONFLICTING_DECLARATIONS
-ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ALTER TABLE t1 CHARACTER SET utf8mb3, CONVERT TO CHARACTER SET latin1;
 
 --echo # Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
 --echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 --error ER_CONFLICTING_DECLARATIONS
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, CHARACTER SET latin1;
 
 --echo # Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
 --echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 --error ER_CONFLICTING_DECLARATIONS
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, CONVERT TO CHARACTER SET latin1;
 
 --echo # Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 --echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 --error ER_COLLATION_CHARSET_MISMATCH
-ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ALTER TABLE t1 CHARACTER SET utf8mb3 COLLATE latin1_danish_ci;
 
 --echo # Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 --echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 --error ER_COLLATION_CHARSET_MISMATCH
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3 COLLATE latin1_danish_ci;
 
 --echo # Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
 --echo #          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 --error ER_COLLATION_CHARSET_MISMATCH
-ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8mb3 COLLATE latin1_danish_ci;
 
 # Clean-up
 DROP TABLE t1;
@@ -2329,7 +2329,7 @@ DROP TABLE t;
 --echo #               AND REMAIN A TEMP TABLE
 
 CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE = INNODB CHARACTER SET gbk;
-ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, ALGORITHM = INPLACE;
 
 --echo # Without fix, the CHARSET SET for table remains gbk.
 SHOW CREATE TABLE t1;
@@ -2349,7 +2349,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (fld1 CHAR(10) PRIMARY KEY) ENGINE = INNODB CHARACTER SET gbk;
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3, ALGORITHM = INPLACE;
 
 DROP TABLE t1;
 
@@ -2357,7 +2357,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (fld1 INT PRIMARY KEY, fld2 CHAR(10)) ENGINE = INNODB
 CHARACTER SET gbk;
-ALTER TABLE t1 CHARACTER SET UTF8, ALGORITHM = INPLACE;
+ALTER TABLE t1 CHARACTER SET utf8mb3, ALGORITHM = INPLACE;
 
 SHOW CREATE TABLE t1;
 

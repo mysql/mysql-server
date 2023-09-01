@@ -154,7 +154,7 @@ CREATE TABLE t1 (
  Provincia varchar(255) default NULL,
  Poblacion varchar(255) default NULL,
  PRIMARY KEY  (Codigo)
-) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb3;
 --enable_metadata
 show create table t1;
 --disable_metadata

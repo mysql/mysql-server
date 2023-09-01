@@ -54,10 +54,10 @@ create table t1 (a char character set big5);
 insert into t1 values (0xF9D6),(0xF9D7),(0xF9D8),(0xF9D9);
 insert into t1 values (0xF9DA),(0xF9DB),(0xF9DC);
 # Check round trip
-select hex(a) a, hex(@u:=convert(a using utf8)) b,
+select hex(a) a, hex(@u:=convert(a using utf8mb3)) b,
 hex(convert(@u using big5)) c from t1 order by a;
 # Check that there is no "illegal mix of collations" error with Unicode.
-alter table t1 convert to character set utf8;
+alter table t1 convert to character set utf8mb3;
 --sorted_result
 select hex(a) from t1 where a = _big5 0xF9DC;
 drop table t1;
@@ -105,7 +105,7 @@ drop table t1;
 #
 # Populate t1 with all hex digits
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SET collation_connection=big5_chinese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -149,15 +149,15 @@ WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a));
 # Expect U+2160 to U+2169 ROMAN NUMERAL ONE to ROMAN NUMERAL TEN
 #
 SELECT code, HEX(a) FROM t1
-WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 #
 # Expect U+0430 to U+0433 CYRILLIC SMALL LETTER A, BE, VE, GHE
 # Expect U+043D to U+0442 CYRILLIC SMALL LETTER EN, O, PE, ER, ES, TE
 #
 SELECT code, HEX(a) FROM t1
-WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
-      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8mb3)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8mb3))) ORDER BY code;
 DROP TABLE t1;
 
 --echo #

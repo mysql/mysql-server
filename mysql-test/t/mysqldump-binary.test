@@ -7,7 +7,7 @@ blo BLOB,
 g GEOMETRY,
 bi BIT(64));
 
-# These bytes are not valid utf8, except for the first column.
+# These bytes are not valid utf8mb3, except for the first column.
 INSERT INTO t1 VALUES(
 'basic',
 x'EE0C6D03C34C11E5B1640026B977EB17',

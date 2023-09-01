@@ -205,7 +205,7 @@ drop table t1;
 
 #
 # Bug#19960: Inconsistent results when joining
-# InnoDB tables using partial UTF8 indexes
+# InnoDB tables using partial utf8mb3 indexes
 #
 --disable_warnings
 CREATE TABLE t1 (

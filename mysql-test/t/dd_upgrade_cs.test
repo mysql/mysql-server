@@ -219,7 +219,7 @@ SELECT COUNT(*) FROM mysql.global_grants
 --echo # Stop / start DB server which was created by MTR default
 --let $shutdown_server_timeout= 300
 --let $wait_counter= 3000
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8mb3 --collation-server=utf8_unicode_ci
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
 --source include/restart_mysqld.inc
 
@@ -382,7 +382,7 @@ ALTER TABLE test.t ENGINE = InnoDB;
 --let $shutdown_server_timeout= 300
 
 --let $wait_counter= 3000
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8mb3 --collation-server=utf8_unicode_ci
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
 

@@ -1420,9 +1420,9 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					sha2('1',224)	253	56	56	Y	128	31	63
 sha2('1',224)
 e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT sha2('1',224);
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					sha2('1',224)	253	168	56	Y	0	31	33
@@ -1437,9 +1437,9 @@ e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
 #
 # Bug#13812875 ILLEGAL MIX OF COLLATIONS WITH FUNCTIONS THAT USED TO WORK
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (a varchar(1));
 SELECT * FROM t1 WHERE a=sha1('a');
 a
@@ -1803,7 +1803,7 @@ ERROR HY000: Expression of generated column 'digest' contains a disallowed funct
 # actually be part of the digest text. Four-byte-characters will not
 # work, i.e. they will be replaced by a "?". The limitation here is the
 # character set encoding in the table
-# performance_schema.events_statements_history, which is "utf8", a.k.a
+# performance_schema.events_statements_history, which is "utf8mb3", a.k.a
 # utf8mb3. But we still test that the strings are equal.
 # Nonetheless we test that they get converted the same way.
 #

@@ -109,11 +109,11 @@ drop function f2;
 #
 # should be TR\xC3\x9CE, TRÜE, TRÜE
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create= _binary x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
 --error ER_WRONG_VALUE_FOR_VAR
@@ -125,7 +125,7 @@ SET NAMES latin1;
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create= _binary x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
 --error ER_WRONG_VALUE_FOR_VAR
@@ -137,7 +137,7 @@ SET NAMES binary;
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create= _binary x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
-SET sql_quote_show_create= _utf8 x'5452C39C45';
+SET sql_quote_show_create= _utf8mb3 x'5452C39C45';
 --error ER_WRONG_VALUE_FOR_VAR
 SET sql_quote_show_create=_latin1 x'5452DC45';
 
@@ -163,9 +163,9 @@ DROP TABLE t1;
 --echo #
 
 --error ER_DATA_OUT_OF_RANGE
-SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
+SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8mb3),''));
 
-SET NAMES utf8 COLLATE utf8_latvian_ci ;
+SET NAMES utf8mb3 COLLATE utf8mb3_latvian_ci ;
 --error ER_DATA_OUT_OF_RANGE
 SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
 

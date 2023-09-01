@@ -565,8 +565,8 @@ SET DEBUG_SYNC= 'RESET';
 #       properly.
 #
 #
-# Set UTF8 character set to allow multi byte characters.
-SET CHARACTER SET UTF8;
+# Set utf8mb3 character set to allow multi byte characters.
+SET CHARACTER SET utf8mb3;
 #
 # An empty tablespace name should be rejected.
 CREATE TABLESPACE `` ADD DATAFILE 'x.ibd';

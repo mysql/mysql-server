@@ -420,7 +420,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 
 --echo #
 --echo # Test case to verify stored procedure with case and accent insensitive names.

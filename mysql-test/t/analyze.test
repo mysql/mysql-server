@@ -45,7 +45,7 @@ drop table t1;
 # contains stopwords only. The first execution of analyze table should
 # mark index statistics as up to date so that next execution of this
 # statement will end up with Table is up to date status.
-create table t1 (a mediumtext, fulltext key key1(a)) charset utf8 collate utf8_general_ci;
+create table t1 (a mediumtext, fulltext key key1(a)) charset utf8mb3 COLLATE utf8mb3_general_ci;
 insert into t1 values ('hello');
 
 analyze table t1;

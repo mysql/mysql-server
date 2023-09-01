@@ -1,6 +1,6 @@
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)
 ( partition p0 values in (0x81));
@@ -32,13 +32,13 @@ create table t1 (a varchar(1500), b varchar(1570))
 partition by list columns(a,b)
 ( partition p0 values in (('a','b')));
 ERROR HY000: The total length of the partitioning fields is too large
-create table t1 (a varchar(1023) character set utf8 collate utf8_spanish2_ci)
+create table t1 (a varchar(1023) character set utf8mb3 COLLATE utf8mb3_spanish2_ci)
 partition by range columns(a)
 ( partition p0 values less than ('CZ'),
 partition p1 values less than ('CH'),
 partition p2 values less than ('D'));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values ('czz'),('chi'),('ci'),('cg');
 select * from t1 where a between 'cg' AND 'ci';

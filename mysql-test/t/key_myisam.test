@@ -55,7 +55,7 @@ drop table t1;
 # UNIQUE prefix keys and multi-byte charsets
 #
 
-create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
+create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8mb3 engine=myisam;
 show create table t1;
 insert t1 values ('cccc', 'tttt'),
   (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),

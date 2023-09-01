@@ -881,9 +881,9 @@ drop view v1;
 SET @old_cs_client = @@character_set_client;
 SET @old_cs_results = @@character_set_results;
 SET @old_cs_connection = @@character_set_connection;
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 create table tü (cü char);
 create view vü as select cü from tü;
 insert into vü values ('ü');
@@ -4094,9 +4094,9 @@ DROP TABLE t1;
 #
 # Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
 #
-CREATE TABLE t1 (a CHAR(1) CHARSET latin1, b CHAR(1) CHARSET utf8);
+CREATE TABLE t1 (a CHAR(1) CHARSET latin1, b CHAR(1) CHARSET utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE VIEW v1 AS SELECT 1 from t1
 WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;

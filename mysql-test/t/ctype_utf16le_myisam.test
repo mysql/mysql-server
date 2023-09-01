@@ -22,7 +22,7 @@
 # are not part of the index sorted on, it does a filesort, which fails.
 # Using a straight index yields correct results.
 
-SET NAMES utf8, collation_connection=utf16le_general_ci;
+SET NAMES utf8mb3, collation_connection=utf16le_general_ci;
 
 --echo #
 --echo # Two fields, index

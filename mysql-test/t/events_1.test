@@ -134,7 +134,7 @@ drop event event3;
 drop table t_event3;
 
 
-set names utf8;
+set names utf8mb3;
 #
 # SHOW CREATE EVENT test begin
 #

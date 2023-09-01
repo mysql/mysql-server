@@ -170,7 +170,7 @@ CREATE FUNCTION f4() RETURNS int
  BEGIN
    DECLARE x int;
    DECLARE c CURSOR FOR SELECT * FROM t1 limit 1;
-   SET NAMES 'utf8';
+   SET NAMES 'utf8mb3';
    SET @var1=20;
    OPEN c;
    FETCH c INTO x;

@@ -276,7 +276,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1(a INT, b VARCHAR(250), PRIMARY KEY(a,b))
-  engine=innodb default charset=utf8;
+  engine=innodb default charset=utf8mb3;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
 
 # Check that 0 rows are affected

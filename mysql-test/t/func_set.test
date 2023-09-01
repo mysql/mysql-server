@@ -80,7 +80,7 @@ SELECT INTERVAL(0.0, CAST(DATE(NULL) AS DECIMAL), CAST(DATE(NULL) AS DECIMAL),
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
+create table t1 (f1 set('test1','test2','test3') character set utf8mb3 default null)
 default charset=latin1;
 insert into t1 values (''),(null),(null),(''),(''),('');
 --sorted_result

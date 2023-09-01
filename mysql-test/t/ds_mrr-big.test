@@ -61,7 +61,7 @@ INSERT INTO t3
 
 CREATE TABLE t4 (
   pk int(11) NOT NULL,
-  c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+  c1_key varchar(10) CHARACTER SET utf8mb3 NOT NULL,
   c2 varchar(10) NOT NULL,
   c3 varchar(10) NOT NULL,
   PRIMARY KEY (pk),

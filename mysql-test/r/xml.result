@@ -681,9 +681,9 @@ select extractValue('<e>1</e>','last()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
 extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r')
 r
@@ -699,16 +699,14 @@ extractValue('<r Ñ="Ñ"/>','/r/@Ñ')
 DROP PROCEDURE IF EXISTS p2;
 CREATE PROCEDURE p2 ()
 BEGIN
-DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+DECLARE p LONGTEXT CHARACTER SET utf8mb3 DEFAULT '<Ñ><r>A</r></Ñ>';
 SELECT EXTRACTVALUE(p,'/Ñ/r');
 END//
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CALL p2();
 EXTRACTVALUE(p,'/Ñ/r')
 A
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE p2;
 select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
 extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)')
@@ -1108,9 +1106,9 @@ DROP TABLE t1;
 #
 # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
 #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
 REPLACE(EXTRACTVALUE('1', '/a'),'ds','')
 
@@ -1130,17 +1128,17 @@ ERROR 22007: Illegal double '111111111111111111111111111111111111111111111111111
 #
 # Bug #44332 	my_xml_scan reads behind the end of buffer
 #
-SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1');
-UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1')
+SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8mb3),'1','1');
+UPDATEXML(CONVERT(_latin1'<' USING utf8mb3),'1','1')
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: END-OF-INPUT unexpected (ident or '/' wanted)'
-SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
-UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1')
+SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8mb3),'1','1');
+UPDATEXML(CONVERT(_latin1'<!--' USING utf8mb3),'1','1')
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
 #
@@ -1185,9 +1183,9 @@ aa bb
 # Bug#13358486 WEIGHT_STRING = MY_STRNXFRM_UNICODE:
 #              ASSERTION `SRC' FAILED
 #
-set names utf8;
+set names utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 do weight_string(extractvalue('','/*/a'));
 do char((weight_string(extractvalue((''),('tX')))) using cp852);
 Warnings:

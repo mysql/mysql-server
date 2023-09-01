@@ -488,7 +488,7 @@ SELECT LENGTH(SHA2( 'computed', 512 )) / 2 * 8   = 512;
 --enable_metadata
 SET NAMES binary;
 SELECT sha2('1',224);
-SET NAMES utf8;
+SET NAMES utf8mb3;
 SELECT sha2('1',224);
 SET NAMES latin1;
 SELECT sha2('1',224);
@@ -497,7 +497,7 @@ SELECT sha2('1',224);
 --echo #
 --echo # Bug#13812875 ILLEGAL MIX OF COLLATIONS WITH FUNCTIONS THAT USED TO WORK
 --echo #
-SET NAMES utf8;
+SET NAMES utf8mb3;
 CREATE TABLE t1 (a varchar(1));
 SELECT * FROM t1 WHERE a=sha1('a');
 SELECT * FROM t1 WHERE a=sha2('a',224);
@@ -642,7 +642,7 @@ CREATE TABLE digest_gcol (
 --echo # actually be part of the digest text. Four-byte-characters will not
 --echo # work, i.e. they will be replaced by a "?". The limitation here is the
 --echo # character set encoding in the table
---echo # performance_schema.events_statements_history, which is "utf8", a.k.a
+--echo # performance_schema.events_statements_history, which is "utf8mb3", a.k.a
 --echo # utf8mb3. But we still test that the strings are equal.
 --echo # Nonetheless we test that they get converted the same way.
 --echo #

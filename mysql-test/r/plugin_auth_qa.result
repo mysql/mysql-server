@@ -112,9 +112,9 @@ plug	test_plugin_server
 plug_dest	test_plugin_server
 DROP USER plug,plug_dest;
 ========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
@@ -159,9 +159,9 @@ SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysq
 user	plugin
 plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';

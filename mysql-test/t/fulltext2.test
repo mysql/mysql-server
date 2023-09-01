@@ -197,7 +197,7 @@ drop table t1;
 # they still don't, the bug was fixed by avoiding strnncollsp
 #
 
-set names utf8;
+set names utf8mb3;
 create table t1(a text,fulltext(a)) collate=utf8_swedish_ci;
 insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
@@ -218,7 +218,7 @@ insert into t1 values('test test '),('test'),('test'),('test'),
 delete from t1 limit 1;
 
 #
-# BUG#16489: utf8 + fulltext leads to corrupt index file.
+# BUG#16489: utf8mb3 + fulltext leads to corrupt index file.
 #
 truncate table t1;
 insert into t1 values('ab c d');
@@ -232,8 +232,8 @@ set names latin1;
 #
 # BUG#19580 - FULLTEXT search produces wrong results on UTF-8 columns
 #
-SET NAMES utf8;
-CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+SET NAMES utf8mb3;
+CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 DROP TABLE t1;

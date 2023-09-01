@@ -1164,9 +1164,9 @@ hex(soundex(_ucs2 0x00BF00C0))
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set names latin1;
-create table t1(a blob, b text charset utf8, c text charset ucs2);
+create table t1(a blob, b text charset utf8mb3, c text charset ucs2);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';
@@ -1348,9 +1348,9 @@ SELECT HEX(DAYNAME(19700101));
 HEX(DAYNAME(19700101))
 00540068007500720073006400610079
 SET LC_TIME_NAMES=ru_RU;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET character_set_connection=ucs2;
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
