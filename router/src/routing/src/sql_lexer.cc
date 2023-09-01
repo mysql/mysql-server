@@ -1297,9 +1297,19 @@ SqlLexer::iterator::Token SqlLexer::iterator::next_token() {
   return {get_token_text(token_id), token_id};
 }
 
+static bool is_final_token(const SqlLexer::iterator::Token &tkn) {
+  switch (tkn.id) {
+    case END_OF_INPUT:  // end-of-input
+    case ABORT_SYM:     // broken comment, string, hex-number, ...
+      return true;
+  }
+
+  return false;
+}
+
 SqlLexer::iterator SqlLexer::iterator::operator++(int) {
-  // the last token as END_OF_INPUT, +1 is past the "end()"
-  if (token_.id == END_OF_INPUT) {
+  // the last token is END_OF_INPUT, +1 is past the "end()"
+  if (is_final_token(token_)) {
     return {nullptr};
   }
 
@@ -1307,8 +1317,8 @@ SqlLexer::iterator SqlLexer::iterator::operator++(int) {
 }
 
 SqlLexer::iterator &SqlLexer::iterator::operator++() {
-  // the last token as END_OF_INPUT, +1 is past the "end()"
-  if (token_.id == END_OF_INPUT) {
+  // the last token is END_OF_INPUT, +1 is past the "end()"
+  if (is_final_token(token_)) {
     token_ = {};
   } else {
     token_ = next_token();
