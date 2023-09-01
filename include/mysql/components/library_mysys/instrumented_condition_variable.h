@@ -23,10 +23,16 @@
 #ifndef INSTRUMENTED_CONDITION_VARIABLE_H
 #define INSTRUMENTED_CONDITION_VARIABLE_H
 #include <condition_variable>
+#include <ctime>
+#include <mutex>
 #include "mysql/components/library_mysys/instrumented_mutex.h"
 #include "mysql/components/services/mysql_cond.h"
 
 namespace mysql {
+
+using std::cv_status;
+using std::unique_lock;
+using std::chrono::time_point;
 
 /**
   condition_variable is a C++ STL conditional variable
@@ -34,6 +40,8 @@ namespace mysql {
   conditional variable component API.
 
   This allows for P_S instrumentation of conditional variables in components.
+
+  @note Some methods are missing. Implement as needed.
 
   Example usage:
   @code
@@ -60,64 +68,30 @@ class condition_variable {
   ~condition_variable() { mysql_cond_destroy(&m_cond); }
   void notify_one() noexcept { mysql_cond_signal(&m_cond); }
   void notify_all() noexcept { mysql_cond_broadcast(&m_cond); }
-  void wait(std::unique_lock<mutex> &lock) {
+  void wait(unique_lock<mutex> &lock) {
     mysql_cond_wait(&m_cond, lock.mutex()->native_handle());
   }
   template <class Predicate>
-  void wait(std::unique_lock<mutex> &lock, Predicate stop_waiting) {
+  void wait(unique_lock<mutex> &lock, Predicate stop_waiting) {
     while (!stop_waiting()) wait(lock);
   }
-  template <class Rep, class Period>
-  std::cv_status wait_for(std::unique_lock<mutex> &lock,
-                          const std::chrono::duration<Rep, Period> &rel_time) {
+  template <class Clock, class Duration>
+  cv_status wait_until(unique_lock<mutex> &lock,
+                       const time_point<Clock, Duration> &abs_time) {
     struct timespec tm {
-      0, 0
+      Clock::to_time_t(abs_time), 0
     };
-    tm.tv_sec =
-        std::chrono::duration_cast<std::chrono::seconds>(rel_time).count();
-    tm.tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                     rel_time - std::chrono::seconds(tm.tv_sec))
-                     .count();
     return (0 == mysql_cond_timedwait(&m_cond,
                                       reinterpret_cast<mysql_mutex_t *>(
                                           lock.mutex()->native_handle()),
                                       &tm)
-                ? std::cv_status::no_timeout
-                : std::cv_status::timeout);
-  }
-
-  template <class Rep, class Period, class Predicate>
-  bool wait_for(std::unique_lock<mutex> &lock,
-                const std::chrono::duration<Rep, Period> &rel_time,
-                Predicate stop_waiting) {
-    return wait_until(lock, std::chrono::system_clock::now() + rel_time,
-                      std::move(stop_waiting));
-  }
-
-  template <class Clock, class Duration>
-  std::cv_status wait_until(
-      std::unique_lock<mutex> &lock,
-      const std::chrono::time_point<Clock, Duration> &timeout_time) {
-    auto now = std::chrono::system_clock::now();
-    if (timeout_time < now) return std::cv_status::timeout;
-    return wait_for(lock, timeout_time - now);
-  }
-
-  template <class Clock, class Duration, class Predicate>
-  bool wait_until(std::unique_lock<mutex> &lock,
-                  const std::chrono::time_point<Clock, Duration> &timeout_time,
-                  Predicate stop_waiting) {
-    while (!stop_waiting()) {
-      if (wait_until(lock, timeout_time) == std::cv_status::timeout) {
-        return stop_waiting();
-      }
-    }
-    return true;
+                ? cv_status::no_timeout
+                : cv_status::timeout);
   }
 
  protected:
-  mysql_cond_t m_cond;
   PSI_cond_key m_key;
+  mysql_cond_t m_cond;
 };
 
 }  // namespace mysql
