@@ -128,4 +128,16 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     )
   LIBFUZZER_ADD_TEST(routertest_fuzz_routing_parser_show_warnings
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/show_warnings)
+
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_routing_sql_lexer
+    fuzz_sql_lexer.cc
+    ../src/sql_lexer.cc
+    ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
+    COMPONENT Router
+    DEPENDENCIES GenServerSource
+    LINK_LIBRARIES harness_stdx;mysys
+    SKIP_INSTALL
+    )
+  LIBFUZZER_ADD_TEST(routertest_fuzz_routing_sql_lexer
+    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/sql_lexer)
 ENDIF()
