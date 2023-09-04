@@ -1,6 +1,6 @@
 Licensing Information User Manual
 
-MySQL 8.0
+MySQL 8.0.35 Community
      __________________________________________________________________
 
 Introduction
@@ -8,24 +8,24 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
-   MySQL 8.0.
+   MySQL 8.0.35 Community.
 
-   Last updated: June 2023
+   Last updated: August 2023
 
 Licensing Information
 
-   This is a release of MySQL 8.0, brought to you by the MySQL team at
-   Oracle. This software is released under version 2 of the GNU General
-   Public License (GPLv2), as set forth below, with the following
+   This release of MySQL 8.0.35 Community is brought to you by the MySQL
+   team at Oracle. This software is released under version 2 of the GNU
+   General Public License (GPLv2), as set forth below, with the following
    additional permissions:
 
-   This distribution of MySQL 8.0 is distributed with certain software
-   (including but not limited to OpenSSL) that is licensed under separate
-   terms, as designated in a particular file or component or in the
-   license documentation. Without limiting your rights under the GPLv2,
-   the authors of MySQL hereby grant you an additional permission to link
-   the program and your derivative works with the separately licensed
-   software that they have included with the program.
+   This distribution of MySQL 8.0.35 Community is distributed with certain
+   software (including but not limited to OpenSSL) that is licensed under
+   separate terms, as designated in a particular file or component or in
+   the license documentation. Without limiting your rights under the
+   GPLv2, the authors of MySQL hereby grant you an additional permission
+   to link the program and your derivative works with the separately
+   licensed software that they have included with the program.
 
    This distribution includes the MySQL C API client library
    (libmysqlclient) otherwise known as MySQL Connector/C. Without limiting
@@ -661,138 +661,122 @@ PURPOSE.
 
 Editline Library (libedit)
 
-Some files are:
-----------------------------------------------------------------
-
 Copyright (c) 1992, 1993
-The Regents of the University of California. All rights reserved.
+ The Regents of the University of California.  All rights reserved.
 
-This code is derived from software contributed to
-Berkeley by Christos Zoulas of Cornell University.
+This code is derived from software contributed to Berkeley by
+Christos Zoulas of Cornell University.
 
-Redistribution and use in source and binary forms,
-with or without modification, are permitted provided
-that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the name of the University nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
 
-1. Redistributions of source code must retain the
-  above copyright notice, this list of conditions
-  and the following disclaimer.
-2. Redistributions in binary form must reproduce the
-  above copyright notice, this list of conditions and
-  the following disclaimer in the documentation and/or
-  other materials provided with the distribution.
-3. Neither the name of the University nor the names of
-  its contributors may be used to endorse or promote
-  products derived from this software without specific
-  prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
 
-THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-OF THE POSSIBILITY OF SUCH DAMAGE.
+Files with different/specific license header
+======================
+src/readline.c
+src/literal.h
+src/literal.c
+src/getline.c
+src/filecomplete.h
+src/filecomplete.c
+src/eln.c
+src/chartype.h
+src/chartype.c
+src/read.h
+-----------------------
+/*-
+ * Copyright (c) 1997 The NetBSD Foundation, Inc.
+ * Copyright (c) 2001 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Jaromir Dolecek.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 
-Some files are:
-----------------------------------------------------------------
-Copyright (c) 2001 The NetBSD Foundation, Inc.
-All rights reserved.
+src/wcsdup.c
+-------------
+*
+ * Copyright (C) 2006 Aleksey Cheusov
+ *
+ * This material is provided "as is", with absolutely no warranty expressed
+ * or implied. Any use is at your own risk.
+ *
+ * Permission to use or copy this software for any purpose is hereby granted
+ * without fee. Permission to modify the code and to distribute modified
+ * code is also granted without any restrictions.
+ */
 
-This code is derived from software contributed to The NetBSD Foundation
-
-by Anthony Mallet.
-
-Redistribution and use in source and binary forms,
-with or without modification, are permitted provided
-that the following conditions are met:
-
-1. Redistributions of source code must retain the
-   above copyright notice, this list of conditions
-   and the following disclaimer.
-2. Redistributions in binary form must reproduce the
-    above copyright notice, this list of conditions and the
-    following disclaimer in the documentation and/or
-    other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC.
-AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED  TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
-THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGE.
-
-Some files are:
-----------------------------------------------------------------
-Copyright (c) 1997 The NetBSD Foundation, Inc.
-All rights reserved.
-
-This code is derived from software contributed to The NetBSD Foundation
-
-by Jaromir Dolecek.
-
-Redistribution and use in source and binary forms,
-with or without modification, are permitted provided
-that the following conditions are met:
-
-1. Redistributions of source code must retain the
-   above copyright notice, this list of conditions
-   and the following disclaimer.
-2. Redistributions in binary form must reproduce
-    the above copyright notice, this list of conditions
-    and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC.
-AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED  TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
-THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
-USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGE.
-
-Some files are:
-----------------------------------------------------------------
-Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
-
-Permission to use, copy, modify, and distribute this
-software for any purpose with or without fee is hereby
-granted, provided that the above copyright notice and
-this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND TODD C. MILLER
-DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE
-INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL TODD C. MILLER BE LIABLE
-FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
-ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
+src/reallocarr.c
+----------------
+/*-
+ * Copyright (c) 2015 Joerg Sonnenberger <joerg@NetBSD.org>.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
    ======================================================================
    ======================================================================
@@ -848,11 +832,7 @@ Foundation; either version 1, or (at your option) any later version, or
 
         b) the "Artistic License" which comes with the Expect/pr code.
 
-Oracle elects to use the GPLv2 for version of MySQL that are licensed under
-the GPL.
-
-Oracle elects to use the Artistic license for all other (commercial) versions
-of MySQL.
+Oracle elects to use the Artistic license for all versions of MySQL
 
 A copy of the GPLv2 and the Artistic License (Perl) 1.0 must be included with
 any distribution:
@@ -3860,11 +3840,7 @@ Foundation; either version 1, or (at your option) any later version, or
 
         b) the "Artistic License" which comes with the Expect/pr code.
 
-Oracle elects to use the GPLv2 for version of MySQL that are licensed under
-the GPL.
-
-Oracle elects to use the Artistic license for all other (commercial) versions
-of MySQL.
+Oracle elects to use the Artistic license for all versions of MySQL
 
 A copy of the GPLv2 and the Artistic License (Perl) 1.0 must be included with
 any distribution.
