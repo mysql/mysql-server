@@ -6167,9 +6167,13 @@ AccessPath MakeSortPathForDistinct(
   // copy of the ordering so that ReplaceOrderItemsWithTempTableFields()
   // doesn't accidentally rewrite the items in a sort on the same
   // sort-ahead ordering before the materialization.
-  ORDER *order_copy =
-      BuildSortAheadOrdering(thd, &orderings, orderings.ordering(ordering_idx));
-  sort_path.sort().order = order_copy;
+  sort_path.sort().order = BuildSortAheadOrdering(
+      thd, &orderings, ReduceFinalOrdering(thd, orderings, ordering_idx));
+
+  // If the distinct grouping can be satisfied with an empty ordering, we should
+  // already have elided the sort in ApplyDistinctAndOrder(), so we expect that
+  // the reduced ordering is always non-empty here.
+  assert(sort_path.sort().order != nullptr);
 
   EstimateSortCost(&sort_path);
   return sort_path;

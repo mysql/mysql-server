@@ -92,6 +92,7 @@ using std::to_string;
 using std::unordered_map;
 using std::vector;
 using testing::_;
+using testing::AnyOf;
 using testing::ElementsAre;
 using testing::Pair;
 using testing::Return;
@@ -4268,6 +4269,35 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 
   query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctWithEquivalence) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT DISTINCT t1.x, t2.x FROM t1, t2 WHERE t1.x = t2.x",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect a sort with duplicate removal. Because of the equivalence in the
+  // join condition, it should suffice to sort on one column.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  EXPECT_TRUE(root->sort().remove_duplicates);
+  const ORDER *order = root->sort().order;
+  // Sort on exactly one column.
+  ASSERT_NE(nullptr, order);
+  EXPECT_EQ(nullptr, order->next);
+  // The result should be sorted on t1.x or on t2.x. We don't care which.
+  EXPECT_THAT(ItemToString(*order->item), AnyOf("t1.x", "t2.x"));
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
