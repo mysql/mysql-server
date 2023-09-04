@@ -1576,7 +1576,7 @@ void page_print_list(
   page_cur_t cur;
   ulint count;
   ulint n_recs;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
