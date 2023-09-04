@@ -25,6 +25,7 @@
 
 #ifdef TEST_MGMCONFIG
 
+#include <memory>
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
 #include "ConfigInfo.hpp"
@@ -38,7 +39,7 @@
   }
 
 
-static const ConfigInfo g_info;
+static const ConfigInfo* g_info = nullptr;
 
 /*
   Create a small config.ini with the given parameter and run
@@ -50,7 +51,7 @@ check_param(const ConfigInfo::ParamInfo & param)
   FILE* config_file= tmpfile();
   CHECK(config_file);
 
-  const char* section= g_info.nameToAlias(param._section);
+  const char* section= g_info->nameToAlias(param._section);
   if (section == NULL)
     section= param._section;
 
@@ -105,8 +106,8 @@ bool
 check_params(void)
 {
   bool ok [[maybe_unused]] = true;
-  for (int j=0; j<g_info.m_NoOfParams; j++) {
-    const ConfigInfo::ParamInfo & param= g_info.m_ParamInfo[j];
+  for (int j=0; j<g_info->m_NoOfParams; j++) {
+    const ConfigInfo::ParamInfo & param= g_info->m_ParamInfo[j];
     printf("Checking %s...\n", param._fname);
     if (!check_param(param))
     {
@@ -300,8 +301,8 @@ print_restart_info(void)
   Vector<const char*> system;
   Vector<const char*> initial_system;
 
-  for (int i = 0; i < g_info.m_NoOfParams; i++) {
-    const ConfigInfo::ParamInfo & param = g_info.m_ParamInfo[i];
+  for (int i = 0; i < g_info->m_NoOfParams; i++) {
+    const ConfigInfo::ParamInfo & param = g_info->m_ParamInfo[i];
     if ((param._flags & ConfigInfo::CI_RESTART_INITIAL) &&
         (param._flags & ConfigInfo::CI_RESTART_SYSTEM))
       initial_system.push_back(param._fname);
@@ -517,6 +518,8 @@ test_hostname_mycnf(void)
 
 TAPTEST(MgmConfig)
 {
+  auto config = std::make_unique<ConfigInfo>();
+  g_info = config.get();
   ndb_init();
   g_eventLogger->createConsoleHandler();
   diff_config();

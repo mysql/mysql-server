@@ -41,6 +41,13 @@
  * @brief  Metainformation about ALL cluster configuration parameters 
  *
  * Use the getters to find out metainformation about parameters.
+ *
+ * Note that the static data member m_ParamInfo is dynamically initialized in
+ * debug build due to the asserts.
+ *
+ * This prohibits the use of static ConfigInfo objects since the initialization
+ * order is not determined and the constructor of ConfigInfo accesses
+ * m_ParamInfo.
  */
 class ConfigInfo {
 public:
