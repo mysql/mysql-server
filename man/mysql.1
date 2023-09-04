@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/20/2023
+.\"      Date: 08/31/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "06/20/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYSQL" "1" "08/31/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-\m[blue]\fBMySQL Shell 8\&.0\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBMySQL Shell 8\&.1\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -1417,6 +1417,18 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-oci\-config\-file=\fR\fB\fIPATH\fR\fR
+Alternate path to the Oracle Cloud Infrastructure CLI configuration file\&. Specify the location of the configuration file\&. If your existing default profile is the correct one, you do not need to specify this option\&. However, if you have an existing configuration file, with multiple profiles or a different default from the tenancy of the user you want to connect with, specify this option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-one\-database\fR,
 \fB\-o\fR
 Ignore statements except those that occur while the default database is the one named on the command line\&. This option is rudimentary and should be used with care\&. Statement filtering is based only on
@@ -2370,6 +2382,43 @@ compression\&.
 .sp
 For more information, see
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtelemetry_client\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--telemetry_client
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+OFF
+T}
+.TE
+.sp 1
+Enables the telemetry client plugin (Linux only)\&.
+.sp
+For more information, see
+Chapter\ \&33, Telemetry\&.
 .RE
 .SH "MYSQL CLIENT COMMANDS"
 .PP
@@ -4894,9 +4943,9 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-MySQL Shell 8.0
+MySQL Shell 8.1
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/8.0/en/
+\%https://dev.mysql.com/doc/mysql-shell/8.1/en/
 .RE
 .IP " 2." 4
 C API Basic Data Structures
