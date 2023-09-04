@@ -11,7 +11,7 @@ replace_regex
   /thread id [0-9]+/thread id %NUMBER%/
   /TRANSACTION [0-9]+/TRANSACTION %NUMBER%/
   /hex [0-9a-f]+/hex %HEXADECIMAL%/
-  /query id [0-9]+ [^ ]+ [^ ]+ statistics/query id %NUMBER% %ADDRESS% %USER% statistics/
+  /query id [0-9]+ ([^ ]+|[^ ]+ [^ ]+) [^ ]+ statistics/query id %NUMBER% %ADDRESS% %USER% statistics/
   /trx id [0-9]+/trx id %NUMBER%/
   /asc [^;]*;;;?([^;])/asc %ASC%;;\1/
   /space id [0-9]+/space id %NUMBER%/
