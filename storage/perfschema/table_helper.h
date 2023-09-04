@@ -615,6 +615,20 @@ struct PFS_object_row {
   void set_nullable_field(uint index, Field *f);
 };
 
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
+struct PFS_object_view_row {
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  PFS_schema_name_view m_schema_name;
+  /** Column OBJECT_NAME. */
+  PFS_object_name_view m_object_name;
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
+};
+
 /** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME.
  */
 struct PFS_column_row {
@@ -639,7 +653,8 @@ struct PFS_column_row {
   void set_nullable_field(uint index, Field *f);
 };
 
-/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME.
+/**
+  Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME.
  */
 struct PFS_index_row {
   PFS_object_row m_object_row;
@@ -652,6 +667,18 @@ struct PFS_index_row {
   int make_index_name(PFS_table_share_index *pfs_index, uint table_index);
   int make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_index,
                uint table_index);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
+};
+
+/**
+  Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME.
+ */
+struct PFS_index_view_row {
+  PFS_object_view_row m_object_row;
+  PFS_index_name_view m_index_name;
+
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
   void set_nullable_field(uint index, Field *f);

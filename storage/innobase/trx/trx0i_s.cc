@@ -66,16 +66,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 
 #include "storage/perfschema/pfs_data_lock.h"
-static_assert(sizeof(pk_pos_data_lock::m_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock::m_engine_lock_id must be able to hold "
               "engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
-static_assert(sizeof(pk_pos_data_lock_wait::m_requesting_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock_wait::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock_wait::m_requesting_engine_lock_id must be able "
               "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
-static_assert(sizeof(pk_pos_data_lock_wait::m_blocking_engine_lock_id) >
-                  TRX_I_S_LOCK_ID_MAX_LEN,
+static_assert(pk_pos_data_lock_wait::max_len > TRX_I_S_LOCK_ID_MAX_LEN,
               "pk_pos_data_lock_wait::m_blocking_engine_lock_id must be able "
               "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
 

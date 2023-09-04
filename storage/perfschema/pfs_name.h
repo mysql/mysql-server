@@ -114,8 +114,82 @@ struct PFS_any_name {
   size_t m_length;
 };
 
+template <int max_length>
+struct PFS_any_name_view {
+ public:
+  PFS_any_name_view() {
+    m_data = nullptr;
+    m_length = 0;
+  }
+
+  PFS_any_name_view(const PFS_any_name_view &other) {
+    assert(other.m_length <= max_length);
+
+    if (0 < other.m_length && other.m_length <= max_length) {
+      m_data = other.m_data;
+      m_length = other.m_length;
+    } else {
+      m_data = nullptr;
+      m_length = 0;
+    }
+  }
+
+  PFS_any_name_view<max_length> &operator=(
+      const PFS_any_name_view<max_length> &other) {
+    assert(other.m_length <= max_length);
+
+    if (0 < other.m_length && other.m_length <= max_length) {
+      m_data = other.m_data;
+      m_length = other.m_length;
+    } else {
+      m_data = nullptr;
+      m_length = 0;
+    }
+    return *this;
+  }
+
+  void reset() {
+    m_data = nullptr;
+    m_length = 0;
+  }
+
+  void set_view(const char *str, size_t len) {
+    assert(len <= max_length);
+
+    if (0 < len && len <= max_length) {
+      m_data = reinterpret_cast<const uchar *>(str);
+      m_length = len;
+    } else {
+      m_data = nullptr;
+      m_length = 0;
+    }
+  }
+
+  size_t length() const { return m_length; }
+
+  const char *ptr() const { return reinterpret_cast<const char *>(m_data); }
+
+  void hash(const CHARSET_INFO *cs, uint64 *nr1, uint64 *nr2) const {
+    cs->coll->hash_sort(cs, m_data, m_length, nr1, nr2);
+  }
+
+  int sort(const CHARSET_INFO *cs,
+           const PFS_any_name_view<max_length> *other) const {
+    int cmp;
+    cmp = my_strnncoll(cs, m_data, m_length, other->m_data, other->m_length);
+    return cmp;
+  }
+
+  const uchar *m_data;
+  size_t m_length;
+};
+
 struct PFS_schema_name {
  public:
+  static void normalize(const char *name, size_t name_len, char *buffer,
+                        size_t buffer_len, const char **normalized_name,
+                        size_t *normalized_len);
+
   void reset() { m_name.reset(); }
 
   void set(const char *str, size_t len);
@@ -131,12 +205,39 @@ struct PFS_schema_name {
   const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
+  friend struct PFS_schema_name_view;
+
   static const CHARSET_INFO *get_cs();
   PFS_any_name<NAME_LEN> m_name;
 };
 
+struct PFS_schema_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_schema_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<NAME_LEN> m_name;
+};
+
 struct PFS_table_name {
  public:
+  static void normalize(const char *name, size_t name_len, char *buffer,
+                        size_t buffer_len, const char **normalized_name,
+                        size_t *normalized_len);
+
   void reset() { m_name.reset(); }
 
   void set(const char *str, size_t len);
@@ -153,32 +254,84 @@ struct PFS_table_name {
 
  private:
   friend struct PFS_object_name;
+  friend struct PFS_table_name_view;
 
   static const CHARSET_INFO *get_cs();
   PFS_any_name<NAME_LEN> m_name;
 };
 
-struct PFS_routine_name {
+struct PFS_table_name_view {
  public:
   void reset() { m_name.reset(); }
 
-  void set(const char *str, size_t len);
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
 
-  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(m_cs, nr1, nr2); }
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
 
-  int sort(const PFS_routine_name *other) const {
-    return m_name.sort(m_cs, &other->m_name);
+  int sort(const PFS_table_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
   }
 
   size_t length() const { return m_name.length(); }
   const char *ptr() const { return m_name.ptr(); }
-  const CHARSET_INFO *charset() const { return m_cs; }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  friend struct PFS_object_name_view;
+
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<NAME_LEN> m_name;
+};
+
+struct PFS_routine_name {
+ public:
+  static void normalize(const char *name, size_t name_len, char *buffer,
+                        size_t buffer_len, const char **normalized_name,
+                        size_t *normalized_len);
+
+  void reset() { m_name.reset(); }
+
+  void set(const char *str, size_t len);
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_routine_name *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
   friend struct PFS_object_name;
+  friend struct PFS_routine_name_view;
 
-  static const CHARSET_INFO *m_cs;
+  static const CHARSET_INFO *get_cs();
   PFS_any_name<NAME_LEN> m_name;
+};
+
+struct PFS_routine_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_routine_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  friend struct PFS_object_name_view;
+
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<NAME_LEN> m_name;
 };
 
 struct PFS_object_name {
@@ -197,11 +350,11 @@ struct PFS_object_name {
   }
 
   void hash_as_routine(uint64 *nr1, uint64 *nr2) const {
-    m_name.hash(PFS_routine_name::m_cs, nr1, nr2);
+    m_name.hash(PFS_routine_name::get_cs(), nr1, nr2);
   }
 
   int sort_as_routine(const PFS_object_name *other) const {
-    return m_name.sort(PFS_routine_name::m_cs, &other->m_name);
+    return m_name.sort(PFS_routine_name::get_cs(), &other->m_name);
   }
 
   PFS_object_name &operator=(const PFS_routine_name &other) {
@@ -218,7 +371,101 @@ struct PFS_object_name {
   const char *ptr() const { return m_name.ptr(); }
 
  private:
+  friend struct PFS_object_name_view;
+
   PFS_any_name<NAME_LEN> m_name;
+};
+
+struct PFS_object_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view_as_table(const char *str, size_t len) {
+    m_name.set_view(str, len);
+  }
+  void set_view_as_routine(const char *str, size_t len) {
+    m_name.set_view(str, len);
+  }
+
+  void hash_as_table(uint64 *nr1, uint64 *nr2) const {
+    m_name.hash(PFS_table_name_view::get_cs(), nr1, nr2);
+  }
+
+  int sort_as_table(const PFS_object_name_view *other) const {
+    return m_name.sort(PFS_table_name_view::get_cs(), &other->m_name);
+  }
+
+  void hash_as_routine(uint64 *nr1, uint64 *nr2) const {
+    m_name.hash(PFS_routine_name_view::get_cs(), nr1, nr2);
+  }
+
+  int sort_as_routine(const PFS_object_name_view *other) const {
+    return m_name.sort(PFS_routine_name_view::get_cs(), &other->m_name);
+  }
+
+  PFS_object_name_view &operator=(const PFS_routine_name_view &other) {
+    m_name = other.m_name;
+    return *this;
+  }
+
+  PFS_object_name_view &operator=(const PFS_table_name_view &other) {
+    m_name = other.m_name;
+    return *this;
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+
+ private:
+  PFS_any_name_view<NAME_LEN> m_name;
+};
+
+struct PFS_index_name {
+ public:
+  static void normalize(const char *name, size_t name_len, char *buffer,
+                        size_t buffer_len, const char **normalized_name,
+                        size_t *normalized_len);
+
+  void reset() { m_name.reset(); }
+
+  void set(const char *str, size_t len);
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_index_name *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  friend struct PFS_index_name_view;
+
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name<NAME_LEN> m_name;
+};
+
+struct PFS_index_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_index_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<NAME_LEN> m_name;
 };
 
 struct PFS_user_name {
@@ -227,19 +474,42 @@ struct PFS_user_name {
 
   void set(const char *str, size_t len);
 
-  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(m_cs, nr1, nr2); }
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
 
   int sort(const PFS_user_name *other) const {
-    return m_name.sort(m_cs, &other->m_name);
+    return m_name.sort(get_cs(), &other->m_name);
   }
 
   size_t length() const { return m_name.length(); }
   const char *ptr() const { return m_name.ptr(); }
-  const CHARSET_INFO *charset() const { return m_cs; }
+  const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
-  static const CHARSET_INFO *m_cs;
+  friend struct PFS_user_name_view;
+
+  static const CHARSET_INFO *get_cs();
   PFS_any_name<USERNAME_LENGTH> m_name;
+};
+
+struct PFS_user_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_user_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<USERNAME_LENGTH> m_name;
 };
 
 struct PFS_host_name {
@@ -248,19 +518,42 @@ struct PFS_host_name {
 
   void set(const char *str, size_t len);
 
-  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(m_cs, nr1, nr2); }
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
 
   int sort(const PFS_host_name *other) const {
-    return m_name.sort(m_cs, &other->m_name);
+    return m_name.sort(get_cs(), &other->m_name);
   }
 
   size_t length() const { return m_name.length(); }
   const char *ptr() const { return m_name.ptr(); }
-  const CHARSET_INFO *charset() const { return m_cs; }
+  const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
-  static const CHARSET_INFO *m_cs;
+  friend struct PFS_host_name_view;
+
+  static const CHARSET_INFO *get_cs();
   PFS_any_name<HOSTNAME_LENGTH> m_name;
+};
+
+struct PFS_host_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_host_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<HOSTNAME_LENGTH> m_name;
 };
 
 struct PFS_role_name {
@@ -269,19 +562,42 @@ struct PFS_role_name {
 
   void set(const char *str, size_t len);
 
-  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(m_cs, nr1, nr2); }
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
 
   int sort(const PFS_role_name *other) const {
-    return m_name.sort(m_cs, &other->m_name);
+    return m_name.sort(get_cs(), &other->m_name);
   }
 
   size_t length() const { return m_name.length(); }
   const char *ptr() const { return m_name.ptr(); }
-  const CHARSET_INFO *charset() const { return m_cs; }
+  const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
-  static const CHARSET_INFO *m_cs;
+  friend struct PFS_role_name_view;
+
+  static const CHARSET_INFO *get_cs();
   PFS_any_name<ROLENAME_LENGTH> m_name;
+};
+
+struct PFS_role_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_role_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<ROLENAME_LENGTH> m_name;
 };
 
 struct PFS_file_name {
@@ -290,19 +606,42 @@ struct PFS_file_name {
 
   void set(const char *str, size_t len);
 
-  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(m_cs, nr1, nr2); }
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
 
   int sort(const PFS_file_name *other) const {
-    return m_name.sort(m_cs, &other->m_name);
+    return m_name.sort(get_cs(), &other->m_name);
   }
 
   size_t length() const { return m_name.length(); }
   const char *ptr() const { return m_name.ptr(); }
-  const CHARSET_INFO *charset() const { return m_cs; }
+  const CHARSET_INFO *charset() const { return get_cs(); }
 
  private:
-  static const CHARSET_INFO *m_cs;
+  friend struct PFS_file_name_view;
+
+  static const CHARSET_INFO *get_cs();
   PFS_any_name<FN_REFLEN> m_name;
+};
+
+struct PFS_file_name_view {
+ public:
+  void reset() { m_name.reset(); }
+
+  void set_view(const char *str, size_t len) { m_name.set_view(str, len); }
+
+  void hash(uint64 *nr1, uint64 *nr2) const { m_name.hash(get_cs(), nr1, nr2); }
+
+  int sort(const PFS_file_name_view *other) const {
+    return m_name.sort(get_cs(), &other->m_name);
+  }
+
+  size_t length() const { return m_name.length(); }
+  const char *ptr() const { return m_name.ptr(); }
+  const CHARSET_INFO *charset() const { return get_cs(); }
+
+ private:
+  static const CHARSET_INFO *get_cs();
+  PFS_any_name_view<FN_REFLEN> m_name;
 };
 
 #endif
