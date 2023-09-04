@@ -285,8 +285,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_SECTION,
-    nullptr,
-    nullptr, nullptr },
+    0 },
   
   {
     KEY_INTERNAL,
@@ -321,8 +320,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)CFG_SECTION_SYSTEM,
-    nullptr, nullptr },
+    CFG_SECTION_SYSTEM },
 
   {
     CFG_SYS_NAME,
@@ -374,8 +372,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)NODE_TYPE_DB,
-    nullptr, nullptr
+    NODE_TYPE_DB
   },
 
   {
@@ -1470,8 +1467,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_ENUM,
     "Default", /* Default value */
-    (const char*)arbit_method_typelib,
-    nullptr
+    arbit_method_typelib
   },
 
   {
@@ -2815,8 +2811,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)NODE_TYPE_API, 
-    nullptr, nullptr
+    NODE_TYPE_API
   },
 
   {
@@ -3045,8 +3040,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 #else
     "queue", /* Default value */
 #endif
-    (const char*)default_operation_redo_problem_action_typelib,
-    nullptr
+    default_operation_redo_problem_action_typelib
   },
 
   {
@@ -3134,8 +3128,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)NODE_TYPE_MGM, 
-    nullptr, nullptr
+    NODE_TYPE_MGM
   },
 
   {
@@ -3396,8 +3389,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)CONNECTION_TYPE_TCP, 
-    nullptr, nullptr
+    CONNECTION_TYPE_TCP
   },
 
   {
@@ -3698,8 +3690,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)CONNECTION_TYPE_SHM, 
-    nullptr, nullptr },
+    CONNECTION_TYPE_SHM },
 
   {
     CFG_CONNECTION_HOSTNAME_1,
@@ -3927,8 +3918,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_SECTION,
-    (const char *)CONNECTION_TYPE_SCI,
-    nullptr, nullptr
+    CONNECTION_TYPE_SCI
   },
 
   {
