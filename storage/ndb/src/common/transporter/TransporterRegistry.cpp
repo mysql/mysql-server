@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1983,6 +1983,9 @@ TransporterRegistry::do_connect(NodeId node_id)
                            localNodeId, node_id));
     t->resetBuffers();
   }
+
+  m_error_states[node_id].m_code = TE_NO_ERROR;
+  m_error_states[node_id].m_info = (const char *)~(UintPtr)0;
 
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
