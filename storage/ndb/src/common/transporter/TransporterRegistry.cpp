@@ -2530,7 +2530,10 @@ TransporterRegistry::do_connect(NodeId node_id)
                            localNodeId, node_id));
     t->resetBuffers();
   }
- 
+
+  m_error_states[node_id].m_code = TE_NO_ERROR;
+  m_error_states[node_id].m_info = (const char *)~(UintPtr)0;
+
   DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = CONNECTING\n",
                  localNodeId, node_id));
   curr_state= CONNECTING;
