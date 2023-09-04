@@ -1504,7 +1504,11 @@ dberr_t Log_DDL::replay_all() {
   }
 
   for (auto record : records) {
-    ut::delete_(record);
+    /* Skip delete if the record object is already added to
+    ts_encrypt_ddl_records. */
+    if (record->get_deletable()) {
+      ut::delete_(record);
+    }
   }
   return (err);
 }
@@ -1527,38 +1531,40 @@ dberr_t Log_DDL::replay_by_thread_id(ulint thread_id) {
       DBUG_INJECT_CRASH("ddl_log_post_ddl_apply_step",
                         crash_post_ddl_apply_step_counter++);
       log_ddl->replay(*record);
-      /* Delete the DDL log immediately after applying. Applying the whole set
-      of logs is not idempotent e.g. typically the rollback actions of a DDL
-      rebuilding a table are as follows.
-      1. Delete the newly created tablespace file t1.ibd
-      2. Rename the saved old tablespace file tmp_name.ibd to t1.ibd
+    }
+    /* Delete the DDL log immediately after applying. Applying the whole set
+    of logs is not idempotent e.g. typically the rollback actions of a DDL
+    rebuilding a table are as follows.
+    1. Delete the newly created tablespace file t1.ibd
+    2. Rename the saved old tablespace file tmp_name.ibd to t1.ibd
 
-      If there is a crash after performing both [1] and [2] before removing the
-      log entries, we would try to repeat the actions again post recovery and
-      end up deleting the file for the base table. We should remove each log
-      entry immediately after applying it. */
-      DBUG_INJECT_CRASH("ddl_log_post_ddl_apply_step",
-                        crash_post_ddl_apply_step_counter++);
+    If there is a crash after performing both [1] and [2] before removing the
+    log entries, we would try to repeat the actions again post recovery and
+    end up deleting the file for the base table. We should remove each log
+    entry immediately after applying it. */
+    DBUG_INJECT_CRASH("ddl_log_post_ddl_apply_step",
+                      crash_post_ddl_apply_step_counter++);
 
-      /* A crash at this point would replay the last ddl log again. It is fine
-      as a single ddl log execution for a table/tablespace is idempotent. */
-      DDL_Records current_records;
-      current_records.push_back(record);
-      err = delete_by_ids(current_records);
+    /* A crash at this point would replay the last ddl log again. It is fine
+    as a single ddl log execution for a table/tablespace is idempotent. */
+    DDL_Records current_records;
+    current_records.push_back(record);
+    err = delete_by_ids(current_records);
 
-      ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
-      if (err != DB_SUCCESS) {
-        /* ER_IB_MSG_DDL_LOG_DELETE_BY_ID_TMCT must have already been logged. */
-        break;
-      }
+    ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
+    if (err != DB_SUCCESS) {
+      /* ER_IB_MSG_DDL_LOG_DELETE_BY_ID_TMCT must have already been logged. */
+      break;
     }
   }
   DBUG_INJECT_CRASH("ddl_log_post_ddl_apply_step",
                     crash_post_ddl_apply_step_counter++);
   for (auto record : records) {
-    /* Should not skip non deletable records here. The allocated memory must be
-    freed: record->get_deletable() */
-    ut::delete_(record);
+    /* Skip delete if the record object is already added to
+    ts_encrypt_ddl_records. */
+    if (record->get_deletable()) {
+      ut::delete_(record);
+    }
   }
   return (err);
 }
