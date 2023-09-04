@@ -120,3 +120,75 @@ INSTALL(FILES ${NDB_NDBAPI_HEADERS}
 INSTALL(FILES ${NDB_MGMAPI_HEADERS}
   DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
   COMPONENT Development)
+
+# Test that public headers can be compiled with different language standards.
+
+SET(NDBAPI_CXX_STANDARD 11)
+SET(NDBAPI_C_STANDARD 99)
+
+# Different versions of cmake recognize different language versions.
+IF(CMAKE_VERSION VERSION_LESS 3.21)
+  SET(RECENT_C_STANDARD 11)
+ELSE()
+  SET(RECENT_C_STANDARD 23)
+ENDIF()
+
+SET(INCLUDE_DIRECTORIES
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_BINARY_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}
+  )
+
+# Check all C and C++ header files compiles with C++11 (NDBAPI_CXX_STANDARD)
+# They will also implicitly be checked to build with the current C++ version
+# used to compile the whole MySQL.
+
+STRING(REGEX REPLACE
+  "(${CMAKE_CURRENT_BINARY_DIR}/)?([^;}]+);*" "#include \"\\2\"\n"
+  CXX_HEADERS_CONTENT
+  "${NDB_GENERAL_HEADERS};${NDB_MGMAPI_HEADERS};${NDB_NDBAPI_HEADERS}")
+STRING_APPEND(CXX_HEADERS_CONTENT "\nint main(){}\n")
+
+CONFIGURE_FILE_CONTENT("${CXX_HEADERS_CONTENT}"
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb-api-cxx.cpp
+  )
+
+MYSQL_ADD_EXECUTABLE(ndb_installed_cxx
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb-api-cxx.cpp
+  DEPENDENCIES GenError
+  SKIP_INSTALL
+  )
+SET_PROPERTY(TARGET ndb_installed_cxx
+  PROPERTY CXX_STANDARD ${NDBAPI_CXX_STANDARD})
+SET_PROPERTY(TARGET ndb_installed_cxx PROPERTY CXX_EXTENSIONS OFF)
+SET_PROPERTY(TARGET ndb_installed_cxx PROPERTY CXX_STANDARD_REQUIRED ON)
+
+# Check all C header files compiles with C99 (NDBAPI_C_STANDARD) and recent C
+# standard.
+
+STRING(REGEX REPLACE
+  "(${CMAKE_CURRENT_BINARY_DIR}/)?([^;}]+);*" "#include \"\\2\"\n"
+  C_HEADERS_CONTENT "${NDB_GENERAL_HEADERS};${NDB_MGMAPI_HEADERS}")
+STRING_APPEND(C_HEADERS_CONTENT "\nint main(){}\n")
+
+CONFIGURE_FILE_CONTENT("${C_HEADERS_CONTENT}"
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb-api-c.c
+  )
+
+FOREACH(VER ${NDBAPI_C_STANDARD} ${RECENT_C_STANDARD})
+  MYSQL_ADD_EXECUTABLE(ndb_installed_c${VER}
+    ${CMAKE_CURRENT_BINARY_DIR}/ndb-api-c.c
+    DEPENDENCIES GenError
+    SKIP_INSTALL
+    )
+  SET_PROPERTY(TARGET ndb_installed_c${VER} PROPERTY C_STANDARD ${VER})
+  SET_PROPERTY(TARGET ndb_installed_c${VER} PROPERTY C_EXTENSIONS OFF)
+ENDFOREACH()
+
+SET_PROPERTY(TARGET ndb_installed_c${NDBAPI_C_STANDARD}
+  PROPERTY C_STANDARD_REQUIRED ON)
+# All platforms may not have support for recent C standard allow fallback to
+# older standard.
+SET_PROPERTY(TARGET ndb_installed_c${RECENT_C_STANDARD}
+  PROPERTY C_STANDARD_REQUIRED OFF)
