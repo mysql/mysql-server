@@ -153,7 +153,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Session 2's view
 /*Session_2*/ SELECT host FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
@@ -165,7 +165,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 Session 2 : srv_session_info_set/get_client_port
@@ -183,7 +183,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Session 2's view
 /*Session_2*/ SELECT host FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
@@ -195,7 +195,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 Session 1 : srv_session_info_set_connection_type
@@ -297,7 +297,7 @@ num_cols      : 6
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 srv_session_info_killed(Session_1) : 0
@@ -362,7 +362,7 @@ num_cols      : 6
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Closing Session 2
 Closing Session 3
@@ -504,7 +504,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Session 2's view
 /*Session_2*/ SELECT host FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
@@ -516,7 +516,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 Session 2 : srv_session_info_set/get_client_port
@@ -534,7 +534,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Session 2's view
 /*Session_2*/ SELECT host FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
@@ -546,7 +546,7 @@ num_cols      : 1
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 Session 1 : srv_session_info_set_connection_type
@@ -648,7 +648,7 @@ num_cols      : 6
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 ============================================================================================
 srv_session_info_killed(Session_1) : 0
@@ -713,7 +713,7 @@ num_cols      : 6
 nb rows       : 2
 affected rows : 0
 server status : 34
-warn count    : 0
+warn count    : 1
 
 Closing Session 2
 Closing Session 3

@@ -32,6 +32,8 @@ SELECT COUNT(*) FROM information_schema.processlist WHERE id = @id AND
 INFO = 'SELECT count(*) FROM t1' AND state="executing";
 COUNT(*)
 0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 ERROR 70100: Query execution was interrupted
 COMMIT;
 # Cleanup

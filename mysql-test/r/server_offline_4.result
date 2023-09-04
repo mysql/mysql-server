@@ -18,6 +18,8 @@ t2_XXX.sdi
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode = OFF;
 UNLOCK TABLES;
 disconnect conu1;
@@ -32,6 +34,8 @@ SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 disconnect conu1;
 DROP USER 'user1'@'localhost';
 # Restoring the original values.

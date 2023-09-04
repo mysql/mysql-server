@@ -33,6 +33,8 @@ from information_schema.processlist
 where (user='event_scheduler')
 order by info;
 user	host	db	command	state	info
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select release_lock("test_lock1");
 release_lock("test_lock1")
 1
@@ -56,6 +58,8 @@ order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -73,6 +77,8 @@ order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 set global event_scheduler=off;
 "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info
@@ -81,6 +87,8 @@ where (info like "select get_lock%" OR user='event_scheduler')
 order by info;
 user	host	db	command	state	info
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
 1

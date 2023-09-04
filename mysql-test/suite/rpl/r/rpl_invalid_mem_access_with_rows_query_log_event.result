@@ -32,6 +32,10 @@ SET DEBUG_SYNC= "now WAIT_FOR deleted_rows_query_ev";
 SELECT state,info FROM information_schema.processlist WHERE state like 'debug%';;
 state	debug sync point: now
 info	NULL
+Warnings:
+Level	Warning
+Code	1287
+Message	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET DEBUG_SYNC = "now SIGNAL go_ahead";
 #
 # Step 6) Cleanup

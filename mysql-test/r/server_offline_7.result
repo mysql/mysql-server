@@ -8,6 +8,8 @@ USE wl3836;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
 COUNT(USER)
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE USER 'user1'@'localhost';
 CREATE USER 'user2'@'localhost';
 GRANT ALL ON wl3836.* TO 'user1'@'localhost', 'user2'@'localhost';
@@ -30,16 +32,22 @@ HAVING a.id BETWEEN 10 AND 20);
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
 COUNT(USER)
 3
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode = ON;
 # Should report 1
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
 COUNT(USER)
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 # Root user should be allowed to connect
 # Should report 2
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
 COUNT(USER)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode=OFF;
 DROP DATABASE wl3836;
 DROP USER 'user1'@'localhost';
@@ -54,21 +62,29 @@ Note	####	Storing MySQL user name or password information in the connection meta
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 8
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode=ON;
 # Should report 7 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 8
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET @slave_saved_tmp = @@global.offline_mode;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 11
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode=ON;
 # Should report 6 root processes
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 11
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET GLOBAL offline_mode = @slave_saved_tmp;
 include/rpl_end.inc
 # Restoring the original values.

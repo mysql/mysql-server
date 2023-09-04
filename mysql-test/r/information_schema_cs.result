@@ -1490,6 +1490,8 @@ grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;
 user	db
 user3148	test
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 drop user user3148@localhost;
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
@@ -1497,6 +1499,8 @@ SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE user = 'event_scheduler' AND command = 'Daemon';
 COUNT(*) = 1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE EVENT event_status
 ON SCHEDULE AT NOW()
 ON COMPLETION NOT PRESERVE
@@ -1678,6 +1682,8 @@ SET TIMESTAMP=@@TIMESTAMP + 10000000;
 SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
 OK
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET TIMESTAMP=DEFAULT;
 #
 # Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
@@ -2114,11 +2120,15 @@ GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
 SELECT user,db FROM information_schema.processlist;
 user	db
 user_name_len_22_01234	test
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE USER очень_очень_очень_длинный_юзер__@localhost;
 GRANT SELECT ON *.* TO очень_очень_очень_длинный_юзер__@localhost;
 SELECT user,db FROM information_schema.processlist;
 user	db
 очень_очень_очень_длинный_юзер__	test
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 DROP USER user_name_len_22_01234@localhost;
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;

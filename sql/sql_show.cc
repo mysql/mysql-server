@@ -2814,7 +2814,10 @@ class List_process_list : public Do_THD_Impl {
       : m_user(user_value),
         m_thread_infos(thread_infos),
         m_client_thd(thd_value),
-        m_max_query_length(max_query_length) {}
+        m_max_query_length(max_query_length) {
+    push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
+                         "performance_schema.processlist");
+  }
 
   void operator()(THD *inspect_thd) override {
     DBUG_TRACE;
@@ -3043,7 +3046,10 @@ class Fill_process_list : public Do_THD_Impl {
 
  public:
   Fill_process_list(THD *thd_value, Table_ref *tables_value)
-      : m_client_thd(thd_value), m_tables(tables_value) {}
+      : m_client_thd(thd_value), m_tables(tables_value) {
+    push_deprecated_warn(m_client_thd, "INFORMATION_SCHEMA.PROCESSLIST",
+                         "performance_schema.processlist");
+  }
 
   ~Fill_process_list() override {
     DBUG_EXECUTE_IF("test_fill_proc_with_x_root",

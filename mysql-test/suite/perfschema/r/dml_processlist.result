@@ -1,5 +1,7 @@
 select @@global.performance_schema_show_processlist into @save_processlist;
 set @@global.performance_schema_show_processlist = 'on';
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select * from performance_schema.processlist
 where user like 'event_scheduler';
 select * from performance_schema.processlist
@@ -22,3 +24,5 @@ LOCK TABLES performance_schema.processlist WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'processlist'
 UNLOCK TABLES;
 set @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.

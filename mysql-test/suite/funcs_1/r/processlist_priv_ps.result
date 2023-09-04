@@ -35,20 +35,28 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
+Warnings:
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM processlist  ORDER BY id
+Warnings:
 SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Execute	TIME	executing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
+Warnings:
 CREATE TEMPORARY TABLE test.t_processlist AS SELECT * FROM processlist;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 UPDATE test.t_processlist SET user='horst' WHERE id=1  ;
 INSERT INTO processlist SELECT * FROM test.t_processlist;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -70,7 +78,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 SHOW GRANTS;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,TELEMETRY_LOG_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT ALLOW_NONEXISTENT_DEFINER,APPLICATION_PASSWORD_ADMIN,AUDIT_ABORT_EXEMPT,AUDIT_ADMIN,AUTHENTICATION_POLICY_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FIREWALL_EXEMPT,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,GROUP_REPLICATION_STREAM,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PASSWORDLESS_USER_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SENSITIVE_VARIABLES_OBSERVER,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_ANY_DEFINER,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,TELEMETRY_LOG_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ``@`` TO `root`@`localhost` WITH GRANT OPTION
 CREATE INDEX i_processlist ON processlist (user);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -108,14 +116,22 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
+Warnings:
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM processlist  ORDER BY id
+Warnings:
 SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
+Warnings:
 CREATE TEMPORARY TABLE test.t_processlist AS SELECT * FROM processlist;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 UPDATE test.t_processlist SET user='horst' WHERE id=1  ;
 INSERT INTO processlist SELECT * FROM test.t_processlist;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
@@ -171,10 +187,14 @@ Grants for ddicttestuser1@localhost
 GRANT PROCESS ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
+Warnings:
 ####################################################################################
 4.2 New connection con101 (ddicttestuser1 with PROCESS privilege)
 SHOW/SELECT shows all processes/threads.
@@ -184,16 +204,20 @@ Grants for ddicttestuser1@localhost
 GRANT PROCESS ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 5 Grant PROCESS privilege to anonymous user.
 connection default (user=root)
@@ -211,17 +235,21 @@ GRANT PROCESS ON *.* TO ``@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 6 Revoke PROCESS privilege from ddicttestuser1
 connection default (user=root)
@@ -237,14 +265,18 @@ Grants for ddicttestuser1@localhost
 GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 7 Revoke PROCESS privilege from anonymous user
 connection default (user=root)
@@ -262,6 +294,8 @@ SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	1287	HOST_NAME
+Warnings:
 ####################################################################################
 8 Grant SUPER (does not imply PROCESS) privilege to ddicttestuser1
 connection default (user=root)
@@ -278,16 +312,20 @@ Grants for ddicttestuser1@localhost
 GRANT SUPER ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 9 Revoke SUPER privilege from user ddicttestuser1
 connection default (user=root)
@@ -305,18 +343,22 @@ Grants for ddicttestuser1@localhost
 GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 10 Grant SUPER privilege with grant option to user ddicttestuser1.
 connection default (user=root)
@@ -359,6 +401,7 @@ SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -369,10 +412,12 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
 ID		HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -383,6 +428,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser2	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 11 User ddicttestuser1 revokes PROCESS privilege from user ddicttestuser2
 connection ddicttestuser1;
@@ -397,12 +443,16 @@ Grants for ddicttestuser2@localhost
 GRANT USAGE ON *.* TO `ddicttestuser2`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser2	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser2	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser2	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 11.2 Revoke SUPER,PROCESS,GRANT OPTION privilege from user ddicttestuser1
 connection default (user=root)
@@ -422,6 +472,7 @@ GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
 ERROR 28000: Access denied for user 'ddicttestuser1'@'localhost' (using password: YES)
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -430,8 +481,10 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -440,6 +493,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 12 Revoke the SELECT privilege from user ddicttestuser1
 connection default (user=root)
@@ -457,6 +511,7 @@ Grants for ddicttestuser1@localhost
 GRANT USAGE ON *.* TO `ddicttestuser1`@`localhost`
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	STATE	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -466,8 +521,10 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+ID	1287	HOST_NAME
 ID	ddicttestuser1	HOST_NAME	information_schema	Execute	TIME	executing	SELECT * FROM information_schema.processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
@@ -477,6 +534,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
+Warnings:
 ####################################################################################
 12.2 Revoke only the SELECT privilege on the information_schema from ddicttestuser1.
 connection default (user=root)
