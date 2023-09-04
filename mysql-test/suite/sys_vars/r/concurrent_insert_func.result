@@ -40,6 +40,8 @@ SELECT state,info FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE state= "Waiting for table level lock" AND info LIKE "INSERT INTO t1%";
 state	info
 Waiting for table level lock	INSERT INTO t1(name) VALUES('Record_7')
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 ## table contents befor UNLOCK ##
 SELECT * FROM t1;
 name

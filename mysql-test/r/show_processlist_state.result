@@ -3,3 +3,5 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	event_scheduler	HOST	NULL	Daemon	TIME	WAITING	NULL
 ID	root	HOST	test	Query	TIME	init	show processlist
+Warnings:
+ID	1287	HOST

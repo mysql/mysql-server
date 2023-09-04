@@ -14,7 +14,7 @@ SELECT id,info FROM information_schema.processlist
 info	
 num_cols: 2
 server status: 34
-warn count: 0
+warn count: 1
 -----------------------------------------------------------------
 SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'
 -----------------------------------------------------------------

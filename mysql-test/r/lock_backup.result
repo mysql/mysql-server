@@ -51,6 +51,8 @@ connection con1;
 SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = default_con_id;
 info	state
 CREATE TABLE t2 (a INT)	Waiting for backup lock
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 UNLOCK INSTANCE;
 connection con2;
 # Show that default connection is still waiting until Backup Lock be released
@@ -58,6 +60,8 @@ connection con2;
 SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = default_con_id;
 info	state
 CREATE TABLE t2 (a INT)	Waiting for backup lock
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 UNLOCK INSTANCE;
 # Waiting until connection default acquire Backup Lock and resume execution
 connection default;

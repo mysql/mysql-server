@@ -19983,7 +19983,7 @@ static void test_bug20821550() {
   mysql_close(mysql_ptr);
 }
 
-static void check_warning(MYSQL *conn) {
+static void check_warning(MYSQL *conn, int warn_count) {
   MYSQL_RES *result;
   int rc;
 
@@ -19992,9 +19992,11 @@ static void check_warning(MYSQL *conn) {
   result = mysql_store_result(conn);
   mytest(result);
   rc = my_process_result_set(result);
-  DIE_UNLESS(rc == 1);
+  DIE_UNLESS(rc == warn_count);
   mysql_free_result(result);
 }
+
+static void check_warning(MYSQL *conn) { return check_warning(conn, 1); }
 
 static void test_wl8754() {
   MYSQL_RES *res;
@@ -20040,7 +20042,7 @@ static void test_wl8754() {
   res = mysql_list_processes(mysql);
   mysql_free_result(res);
 
-  check_warning(mysql);
+  check_warning(mysql, 2);
 
   /* Check that mysql_kill() reports deprecated warning. */
   if (!(conn = mysql_client_init(nullptr))) {
@@ -21778,7 +21780,7 @@ static void test_bug30032302() {
   res = mysql_list_processes(mysql);
   mysql_free_result(res);
 
-  check_warning(mysql);
+  check_warning(mysql, 2);
 }
 
 static void test_wl13168() {

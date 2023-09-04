@@ -66,6 +66,8 @@ select /*1*/ user, host, db, info from information_schema.processlist
 where state = 'User lock' and info = 'select get_lock(\'test_bug16407\', 60)';
 user	host	db	info
 root	localhost	events_test	select get_lock('test_bug16407', 60)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
@@ -124,6 +126,8 @@ user	host	db	info
 root	localhost	events_test	select get_lock('ee_16407_2', 60)
 root	localhost	events_test	select get_lock('ee_16407_2', 60)
 root	localhost	events_test	select get_lock('ee_16407_2', 60)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
@@ -173,6 +177,8 @@ where state = 'User lock' and info = 'select get_lock(\'ee_16407_5\', 60)';
 user	host	db	info
 root	localhost	events_test	select get_lock('ee_16407_5', 60)
 root	localhost	events_test	select get_lock('ee_16407_5', 60)
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1

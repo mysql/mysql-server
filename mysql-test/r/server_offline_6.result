@@ -6,6 +6,8 @@ CREATE USER 'user1'@'localhost';
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	1
@@ -13,6 +15,8 @@ connect conu4,localhost,root;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 3
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
@@ -21,6 +25,8 @@ SET GLOBAL offline_mode = OFF;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 3
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	2
@@ -32,6 +38,8 @@ connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 4
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SHOW STATUS LIKE 'threads_connected';
 Variable_name	Value
 Threads_connected	3

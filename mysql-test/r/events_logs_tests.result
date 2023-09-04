@@ -33,6 +33,8 @@ SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE user = 'event_scheduler' AND command = 'Daemon';
 COUNT(*) = 1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 truncate mysql.general_log;
 create event ev_log_general on schedule at now() on completion not preserve do select 'events_logs_test' as inside_event;
 call select_general_log();

@@ -71,6 +71,8 @@ select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 USER	COMMAND	STATE
 root	Query	executing
 event_scheduler	Daemon	Waiting on empty queue
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 RUN set @current := connection_id()
 
 0 rows affected
@@ -91,6 +93,8 @@ select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 USER	COMMAND	STATE
 root	Query	executing
 event_scheduler	Daemon	Waiting on empty queue
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 show status like 'Mysqlx_sessions%';
 Variable_name	Value
 Mysqlx_sessions	0

@@ -92,6 +92,8 @@ SELECT * FROM t;
 SET DEBUG_SYNC = 'now WAIT_FOR mock';
 SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE INFO = 'SELECT * FROM t' INTO @thread_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 KILL QUERY @thread_id;
 SET DEBUG_SYNC = 'now SIGNAL continue';
 ERROR 70100: Query execution was interrupted

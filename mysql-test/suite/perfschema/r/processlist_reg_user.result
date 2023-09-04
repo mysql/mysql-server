@@ -4,6 +4,8 @@
 ##
 SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
 SET @@global.performance_schema_show_processlist = OFF;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 CREATE USER 'regular'@'localhost';
 SHOW GRANTS;
 Grants for regular@localhost
@@ -11,6 +13,8 @@ GRANT USAGE ON *.* TO `regular`@`localhost`
 SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 USER	INFO
 regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT USER, INFO FROM performance_schema.processlist;
 USER	INFO
 regular	SELECT USER, INFO FROM performance_schema.processlist
@@ -25,12 +29,16 @@ EVENT_NAME	SQL_TEXT	BROKEN_ROWS_SENT
 statement/sql/show_processlist	SHOW PROCESSLIST	0
 TRUNCATE TABLE performance_schema.events_statements_history;
 SET @@global.performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT USAGE ON *.* TO `regular`@`localhost`
 SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 USER	INFO
 regular	SELECT USER, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT USER, INFO FROM performance_schema.processlist;
 USER	INFO
 regular	SELECT USER, INFO FROM performance_schema.processlist
@@ -46,12 +54,16 @@ statement/sql/show_processlist	SHOW PROCESSLIST	1
 TRUNCATE TABLE performance_schema.events_statements_history;
 GRANT PROCESS ON *.* TO 'regular'@'localhost';
 SET @@global.performance_schema_show_processlist = OFF;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT PROCESS ON *.* TO `regular`@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
@@ -66,12 +78,16 @@ EVENT_NAME	SQL_TEXT	BROKEN_ROWS_SENT
 statement/sql/show_processlist	SHOW PROCESSLIST	0
 TRUNCATE TABLE performance_schema.events_statements_history;
 SET @@global.performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for regular@localhost
 GRANT PROCESS ON *.* TO `regular`@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
@@ -86,4 +102,6 @@ EVENT_NAME	SQL_TEXT	ROWS_SENT >= 2
 statement/sql/show_processlist	SHOW PROCESSLIST	1
 TRUNCATE TABLE performance_schema.events_statements_history;
 SET @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 DROP USER 'regular'@'localhost';

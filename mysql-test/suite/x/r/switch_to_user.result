@@ -36,6 +36,8 @@ SET SESSION DEBUG_SYNC="now SIGNAL continue_sql_show";
 # I.4
 NoClients
 Grater than zero
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 # Removing debug point 'syncpoint_xpl_switch_to_user_enter' from @@GLOBAL.debug
 # Removing debug point 'syncpoint_xpl_switch_to_user_execute' from @@GLOBAL.debug
 # Removing debug point 'test_fill_proc_with_x_root' from @@GLOBAL.debug
