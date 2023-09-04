@@ -53,10 +53,6 @@ ENDFOREACH()
 SET(SRC_FILES
 gtid_set-t.cc)
 
-IF(WIN32)
-  LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
-ENDIF()
-
 MYSQL_ADD_EXECUTABLE(gtid_set-t ${SRC_FILES}
   ADD_TEST gtid_set
   LINK_LIBRARIES gunit_large server_unittest_library
