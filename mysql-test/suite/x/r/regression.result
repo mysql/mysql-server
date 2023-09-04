@@ -8,6 +8,8 @@ Id	User	Host	db	Command		State	Info
 $PROC_1_ID	root	localhost	test	Sleep		null
 $PROC_2_ID	x_root	localhost	null	Query	init	PLUGIN: show processlist
 0 rows affected
+Warnings generated:
+WARNING | 1287 | 'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
 id	user	command	state
 5	event_scheduler	Daemon	Waiting on empty queue

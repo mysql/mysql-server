@@ -20,6 +20,8 @@ SET GLOBAL debug= '+d,dbug.block_do_refresh';
 SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
 COUNT(user)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 # We have to do this in order to avoid deadlock on the memory table's
 # mutex.
 SET @@global.rewriter_enabled = OFF;
@@ -31,6 +33,8 @@ SET debug_sync = 'now WAIT_FOR parked';
 SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
 COUNT(user)
 2
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 #
 # Restart the server
 #
@@ -43,6 +47,8 @@ Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query 
 SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
 COUNT(user)
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

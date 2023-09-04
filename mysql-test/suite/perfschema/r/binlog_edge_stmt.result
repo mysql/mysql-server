@@ -31,8 +31,12 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas.
 insert into my_tx_table(a)
 select id from information_schema.processlist;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 insert into my_bh_table(a)
 select id from information_schema.processlist;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 insert into my_tx_table(a)
 select thread_id from mysql.general_log;
 Warnings:

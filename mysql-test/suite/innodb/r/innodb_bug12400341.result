@@ -22,13 +22,19 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 select count(*) from information_schema.processlist;
 count(*)
 12
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=InnoDB;
 ERROR HY000: Too many active concurrent transactions
 select count(*) from information_schema.processlist;
 count(*)
 12
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 select count(*) from information_schema.processlist;
 count(*)
 12
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 drop database mysqltest;
 set global innodb_rollback_segments = @old_innodb_rollback_segments;

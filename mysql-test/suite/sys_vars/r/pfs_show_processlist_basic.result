@@ -23,27 +23,41 @@ ERROR 42000: Variable 'performance_schema_show_processlist' can't be set to the 
 set global performance_schema_show_processlist = 'FOO';
 ERROR 42000: Variable 'performance_schema_show_processlist' can't be set to the value of 'FOO'
 set global performance_schema_show_processlist = 1;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 1
 set global performance_schema_show_processlist = 0;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 0
 set global performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 1
 set global performance_schema_show_processlist = OFF;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 0
 set global performance_schema_show_processlist = TRUE;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 1
 set global performance_schema_show_processlist = FALSE;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 select @@global.performance_schema_show_processlist;
 @@global.performance_schema_show_processlist
 0
 set @@global.performance_schema_show_processlist = @save;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.

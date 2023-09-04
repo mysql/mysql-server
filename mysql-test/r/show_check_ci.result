@@ -1338,17 +1338,21 @@ SET NAMES latin1;
 SELECT GET_LOCK('t',1000) AS 'óóóó';;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	1287	###
 ###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
+Warnings:
 SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	1287	###
 ###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
+Warnings:
 SELECT RELEASE_LOCK('t');
 RELEASE_LOCK('t')
 1

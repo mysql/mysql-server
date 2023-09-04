@@ -36,4 +36,6 @@ event_scheduler
 root
 root
 x_root
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 # Removing debug point 'test_fill_proc_with_x_root' from @@GLOBAL.debug

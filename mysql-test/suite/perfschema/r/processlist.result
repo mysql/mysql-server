@@ -56,6 +56,8 @@ insert into test.t1 values (4, 4, 4, 4);
 ### Execute new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
 
 set @@global.performance_schema_show_processlist = on;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -90,14 +92,19 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+Warnings:
+<Id>	1287	<Host>
 
 
 ### Execute legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
 
 set @@global.performance_schema_show_processlist = off;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<Id>	1287	<Host>
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
@@ -105,6 +112,7 @@ Id	User	Host	db	Command	Time	State	Info
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+Warnings:
 
 # Performance Schema processlist table
 
@@ -129,12 +137,16 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
 <Id>	user4	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (4, 4, 4, 4)
+Warnings:
+<Id>	1287	<Host>
 
 
 ### Verify feature code path
 
 # Enable SHOW PROCESSLIST via the Performance Schema
 set @@global.performance_schema_show_processlist = on;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 # Connection default, send SHOW PROCESSLIST
 SET DEBUG_SYNC='pfs_show_processlist_performance_schema SIGNAL pfs_processlist_pfs WAIT_FOR continue';
@@ -159,6 +171,8 @@ Id	User	Host	db	Command	Time	State	Info
 
 # Enable the legacy SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = off;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 # Connection default, send SHOW PROCESSLIST
 SET DEBUG_SYNC='RESET';
@@ -171,6 +185,7 @@ SET DEBUG_SYNC='now SIGNAL continue';
 
 # Connection default, reap
 Id	User	Host	db	Command	Time	State	Info
+<Id>	1287	<Host>
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	<Info>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
@@ -178,6 +193,7 @@ Id	User	Host	db	Command	Time	State	Info
 <Id>	user2	<Host>	test	<Command>	<Time>	<State>	<Info>
 <Id>	user3	<Host>	test	<Command>	<Time>	<State>	<Info>
 <Id>	user4	<Host>	test	<Command>	<Time>	<State>	<Info>
+Warnings:
 
 
 ### Clean up ###
@@ -199,3 +215,5 @@ drop user user3@localhost;
 drop user user4@localhost;
 
 set @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.

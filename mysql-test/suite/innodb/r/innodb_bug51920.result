@@ -8,6 +8,8 @@ UPDATE bug51920 SET i=2;
 SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE INFO="UPDATE bug51920 SET i=2"
 INTO @thread_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 KILL @thread_id;
 Got one of the listed errors
 DROP TABLE bug51920;
