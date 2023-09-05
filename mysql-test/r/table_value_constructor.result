@@ -699,3 +699,25 @@ ROW(TIME '-719:0:0.2323049640');
 column_0
 NULL
 -719:00:00.232304
+#
+# Bug#35512099: hypergraph_optimizer SEGV
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (0);
+EXPLAIN FORMAT=TREE INSERT INTO t VALUES ROW(1), ROW(2) UNION ALL VALUES ROW(2), ROW(3);
+EXPLAIN
+-> Insert into t
+    -> Table scan on <union temporary>  (rows=4)
+        -> Union all materialize  (rows=4)
+            -> Rows fetched before execution  (rows=2)
+            -> Rows fetched before execution  (rows=2)
+
+INSERT INTO t VALUES ROW(1), ROW(2) UNION ALL VALUES ROW(2), ROW(3);
+SELECT * FROM t;
+x
+0
+1
+2
+2
+3
+DROP TABLE t;

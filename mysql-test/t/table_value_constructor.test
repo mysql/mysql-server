@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 --echo #
 --echo # WL#10358 Implement table value constructors: VALUES.
 --echo #
@@ -498,3 +500,18 @@ VALUES ROW(CASE 1 WHEN 2
 # Last row's single column's value was NULL before fix.
 VALUES ROW(NULL),
        ROW(TIME '-719:0:0.2323049640');
+
+--echo #
+--echo # Bug#35512099: hypergraph_optimizer SEGV
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (0);
+let $query =
+  INSERT INTO t VALUES ROW(1), ROW(2) UNION ALL VALUES ROW(2), ROW(3);
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+--sorted_result
+SELECT * FROM t;
+DROP TABLE t;

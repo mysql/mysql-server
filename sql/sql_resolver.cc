@@ -653,6 +653,10 @@ bool Query_block::prepare_values(THD *thd) {
 
   if (resolve_table_value_constructor_values(thd)) return true;
 
+  if (setup_tables(thd, get_table_list(), /*select_insert=*/false)) {
+    return true;
+  }
+
   // Setup the HAVING clause, duplicating code from Query_block::prepare. This
   // is strictly necessary in the case of PREPARE statements, where
   // subquery transformations may rewrite its Query_block to use m_having_cond.

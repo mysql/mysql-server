@@ -7128,6 +7128,10 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       IsSubset(OPTION_NO_CONST_TABLES | OPTION_NO_SUBQUERY_DURING_OPTIMIZATION,
                query_block->active_options()));
 
+  // Table value constructors are supposed to be short-circuited earlier, so we
+  // don't expect to see them here.
+  assert(!query_block->is_table_value_constructor);
+
   // In the case of rollup (only): After the base slice list was made, we may
   // have modified the field list to add rollup group items and sum switchers.
   // The resolver also takes care to update these in query_block->order_list.
