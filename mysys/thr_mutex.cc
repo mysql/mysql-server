@@ -156,7 +156,7 @@ int safe_mutex_unlock(safe_mutex_t *mp, const char *file, uint line) {
     fflush(stderr);
     abort();
   }
-  mp->thread = 0;
+  mp->thread = null_thread_initializer;
   mp->count--;
   error = native_mutex_unlock(&mp->mutex);
   if (error) {

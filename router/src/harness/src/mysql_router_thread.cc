@@ -74,7 +74,7 @@ static inline int mysql_router_thread_attr_setdetachstate(
 static inline bool mysql_router_thread_started(
     const mysql_router_thread_handle *thread) {
 #ifndef _WIN32
-  return thread->thread != 0;
+  return thread->thread != null_thread_initializer;
 #else
   return thread->handle != INVALID_HANDLE_VALUE;
 #endif

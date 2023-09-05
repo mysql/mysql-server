@@ -53,8 +53,11 @@ typedef pthread_t mysql_router_thread_t;
 typedef pthread_attr_t mysql_router_thread_attr_t;
 #endif
 
+static constexpr mysql_router_thread_t null_thread_initializer =
+    mysql_router_thread_t{};
+
 struct mysql_router_thread_handle {
-  mysql_router_thread_t thread{0};
+  mysql_router_thread_t thread{null_thread_initializer};
 #ifdef _WIN32
   HANDLE handle{INVALID_HANDLE_VALUE};
 #endif

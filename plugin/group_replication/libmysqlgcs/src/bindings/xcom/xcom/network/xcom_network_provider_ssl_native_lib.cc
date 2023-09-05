@@ -543,7 +543,7 @@ error:
 
 void Xcom_network_provider_ssl_library::xcom_cleanup_ssl() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 }
 

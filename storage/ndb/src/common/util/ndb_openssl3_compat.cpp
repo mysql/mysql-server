@@ -50,7 +50,7 @@ static RSA * RSA_gen(unsigned int bits) {
     exponent = BN_new();
     if(exponent)
       if(BN_set_word(exponent, RSA_F4))
-        if(RSA_generate_key_ex(rsa, bits, exponent, 0))
+        if(RSA_generate_key_ex(rsa, bits, exponent, nullptr))
           success = true;
   }
 

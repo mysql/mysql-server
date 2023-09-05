@@ -499,7 +499,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
   if (p_wait_thread == nullptr)
     return 0;
 
-  if (p_wait_thread->thread == 0)
+  if (p_wait_thread->thread == null_thread_initializer)
     return 0;
 
 #ifdef _WIN32

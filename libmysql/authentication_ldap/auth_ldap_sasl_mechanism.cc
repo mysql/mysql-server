@@ -36,7 +36,7 @@
 extern Ldap_logger *g_logger_client;
 using namespace auth_ldap_client_kerberos_context;
 #else
-Ldap_logger *g_logger_client = NULL;
+Ldap_logger *g_logger_client = nullptr;
 #endif
 
 #if defined(KERBEROS_LIB_CONFIGURED)

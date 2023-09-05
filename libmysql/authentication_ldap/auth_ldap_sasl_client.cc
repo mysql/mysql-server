@@ -116,7 +116,7 @@ int Sasl_client::read_method_name_from_server() {
 #if defined(KERBEROS_LIB_CONFIGURED)
       m_sasl_mechanism = new Sasl_mechanism_kerberos();
 #else
-      m_sasl_mechanism = NULL;
+      m_sasl_mechanism = nullptr;
       log_info("Kerberos lib not installed, not creting kerberos objects.");
 #endif
     } else if ((strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) ||

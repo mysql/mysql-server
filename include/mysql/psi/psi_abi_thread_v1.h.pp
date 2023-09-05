@@ -27,8 +27,9 @@ typedef int my_socket;
 #include <mysql/components/services/bits/my_thread_bits.h>
 typedef pthread_t my_thread_t;
 typedef pthread_attr_t my_thread_attr_t;
+static constexpr my_thread_t null_thread_initializer = my_thread_t{};
 struct my_thread_handle {
-  my_thread_t thread{0};
+  my_thread_t thread{null_thread_initializer};
 };
 #include <mysql/components/services/bits/psi_bits.h>
 static constexpr unsigned PSI_INSTRUMENT_ME = 0;

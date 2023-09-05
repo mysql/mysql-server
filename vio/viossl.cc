@@ -397,7 +397,7 @@ void vio_ssl_delete(Vio *vio) {
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   vio_delete(vio);

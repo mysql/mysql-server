@@ -1729,7 +1729,7 @@ void THD::store_globals() {
 */
 void THD::restore_globals() {
   // Remove reference to specific OS thread.
-  real_id = 0;
+  real_id = null_thread_initializer;
   /*
     Assert that thread_stack is initialized: it's necessary to be able
     to track stack overrun.

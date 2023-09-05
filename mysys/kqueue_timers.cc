@@ -59,7 +59,7 @@ static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
   my_thread_init();
 
   while (1) {
-    if (kevent(kq_fd, NULL, 0, &kev, 1, NULL) < 0) {
+    if (kevent(kq_fd, nullptr, 0, &kev, 1, nullptr) < 0) {
       if (errno == EINTR)
         continue;
       else {
@@ -79,7 +79,7 @@ static void *timer_notify_thread_func(void *arg [[maybe_unused]]) {
   close(kq_fd);
   my_thread_end();
 
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -93,13 +93,13 @@ static int start_helper_thread(void) {
 
   EV_SET(&kev, 0, EVFILT_USER, EV_ADD, 0, 0, 0);
 
-  if (kevent(kq_fd, &kev, 1, NULL, 0, NULL) < 0) {
+  if (kevent(kq_fd, &kev, 1, nullptr, 0, nullptr) < 0) {
     my_message_local(ERROR_LEVEL, EE_FAILED_TO_CREATE_TIMER, errno);
     return -1;
   }
 
   return mysql_thread_create(key_thread_timer_notifier, &timer_notify_thread,
-                             NULL, timer_notify_thread_func, NULL);
+                             nullptr, timer_notify_thread_func, nullptr);
 }
 
 /**
@@ -136,12 +136,12 @@ void my_timer_deinitialize(void) {
 
   EV_SET(&kev, 0, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0);
 
-  if (kevent(kq_fd, &kev, 1, NULL, 0, NULL) < 0)
+  if (kevent(kq_fd, &kev, 1, nullptr, 0, nullptr) < 0)
     my_message_local(ERROR_LEVEL,
                      EE_FAILED_TO_CREATE_TIMER_NOTIFY_THREAD_INTERRUPT_EVENT,
                      errno);
 
-  my_thread_join(&timer_notify_thread, NULL);
+  my_thread_join(&timer_notify_thread, nullptr);
 }
 
 int my_timer_create(my_timer_t *timer) {
@@ -167,7 +167,7 @@ int my_timer_set(my_timer_t *timer, unsigned long time) {
 
   EV_SET(&kev, timer->id, EVFILT_TIMER, EV_ADD | EV_ONESHOT, 0, time, timer);
 
-  return kevent(kq_fd, &kev, 1, NULL, 0, NULL);
+  return kevent(kq_fd, &kev, 1, nullptr, 0, nullptr);
 }
 
 /**
@@ -185,9 +185,9 @@ int my_timer_cancel(my_timer_t *timer, int *state) {
   int status;
   struct kevent kev;
 
-  EV_SET(&kev, timer->id, EVFILT_TIMER, EV_DELETE, 0, 0, NULL);
+  EV_SET(&kev, timer->id, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
 
-  status = kevent(kq_fd, &kev, 1, NULL, 0, NULL);
+  status = kevent(kq_fd, &kev, 1, nullptr, 0, nullptr);
 
   /*
     If the event was retrieved from the kqueue (at which point we
@@ -212,7 +212,7 @@ int my_timer_cancel(my_timer_t *timer, int *state) {
 void my_timer_delete(my_timer_t *timer) {
   struct kevent kev;
 
-  EV_SET(&kev, timer->id, EVFILT_TIMER, EV_DELETE, 0, 0, NULL);
+  EV_SET(&kev, timer->id, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
 
-  kevent(kq_fd, &kev, 1, NULL, 0, NULL);
+  kevent(kq_fd, &kev, 1, nullptr, 0, nullptr);
 }

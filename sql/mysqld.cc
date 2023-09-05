@@ -2549,14 +2549,14 @@ static void unireg_abort(int exit_code) {
       EVENT_TRACKING_SHUTDOWN_REASON_ABORT, exit_code);
 
 #ifndef _WIN32
-  if (signal_thread_id.thread != 0) {
+  if (signal_thread_id.thread != null_thread_initializer) {
     // Make sure the signal thread isn't blocked when we are trying to exit.
     server_components_initialized();
 
     pthread_kill(signal_thread_id.thread, SIGTERM);
     my_thread_join(&signal_thread_id, nullptr);
   }
-  signal_thread_id.thread = 0;
+  signal_thread_id.thread = null_thread_initializer;
 
   if (mysqld::runtime::is_daemon()) {
     mysqld::runtime::signal_parent(pipe_write_fd, 0);
@@ -7225,7 +7225,7 @@ static int init_ssl_communication() {
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (init_rsa_keys()) return 1;
@@ -10107,9 +10107,9 @@ int mysqld_main(int argc, char **argv)
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "shutdown ", ret);
 #else
-  if (signal_thread_id.thread != 0)
+  if (signal_thread_id.thread != null_thread_initializer)
     ret = my_thread_join(&signal_thread_id, nullptr);
-  signal_thread_id.thread = 0;
+  signal_thread_id.thread = null_thread_initializer;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "signal_", ret);
 #endif  // _WIN32

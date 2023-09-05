@@ -39,7 +39,7 @@ int rw_pr_init(rw_pr_lock_t *rwlock) {
   rwlock->writers_waiting_readers = 0;
   rwlock->active_writer = false;
 #ifdef SAFE_MUTEX
-  rwlock->writer_thread = 0;
+  rwlock->writer_thread = null_thread_initializer;
 #endif
   return 0;
 }
@@ -100,7 +100,7 @@ int rw_pr_unlock(rw_pr_lock_t *rwlock) {
   if (rwlock->active_writer) {
     /* We are unlocking wr-lock. */
 #ifdef SAFE_MUTEX
-    rwlock->writer_thread = 0;
+    rwlock->writer_thread = null_thread_initializer;
 #endif
     rwlock->active_writer = false;
     if (rwlock->writers_waiting_readers) {

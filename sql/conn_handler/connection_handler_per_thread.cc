@@ -311,7 +311,7 @@ static void *handle_connection(void *arg) {
 
     // Clean up errors now, before possibly waiting for a new connection.
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(0);
+    ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();

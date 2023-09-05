@@ -843,9 +843,9 @@ void terminate_compress_gtid_table_thread() {
   mysql_cond_signal(&COND_compress_gtid_table);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
 
-  if (compress_thread_id.thread != 0) {
+  if (compress_thread_id.thread != null_thread_initializer) {
     error = my_thread_join(&compress_thread_id, nullptr);
-    compress_thread_id.thread = 0;
+    compress_thread_id.thread = null_thread_initializer;
   }
 
   if (error != 0)

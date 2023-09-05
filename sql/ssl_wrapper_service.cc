@@ -291,6 +291,6 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl) {
 void ssl_wrapper_thread_cleanup() {
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 }

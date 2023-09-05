@@ -5888,7 +5888,7 @@ extern "C" void *handle_slave_io(void *arg) {
   }
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return (nullptr);  // Avoid compiler warnings
@@ -6159,7 +6159,7 @@ err:
 
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;
@@ -7429,7 +7429,7 @@ extern "C" void *handle_slave_sql(void *arg) {
   }
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
+  ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;  // Avoid compiler warnings

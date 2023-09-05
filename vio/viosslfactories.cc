@@ -294,7 +294,7 @@ void vio_ssl_end() {
   if (ssl_initialized) {
     fips_deinit();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(0);
+    ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     ERR_free_strings();
     EVP_cleanup();

@@ -48,8 +48,14 @@ typedef pthread_t my_thread_t;
 typedef pthread_attr_t my_thread_attr_t;
 #endif
 
+// Linux: unsigned long int
+// Solaris: unsigned int
+// Windows: DWORD
+// Mac:__darwin_pthread_t ==  _opaque_pthread_t*
+static constexpr my_thread_t null_thread_initializer = my_thread_t{};
+
 struct my_thread_handle {
-  my_thread_t thread{0};
+  my_thread_t thread{null_thread_initializer};
 #if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
   HANDLE handle{INVALID_HANDLE_VALUE};
 #endif

@@ -56,7 +56,7 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
   // mmap on OSX requires for n_bytes to be a multiple of large-page size
   size_t n_bytes_rounded = pow2_round(n_bytes + (large_page_default_size - 1),
                                       large_page_default_size);
-  void *ptr = mmap(0, n_bytes_rounded, PROT_READ | PROT_WRITE,
+  void *ptr = mmap(nullptr, n_bytes_rounded, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANON, SUPER_PAGE_SIZE, 0);
   if (unlikely(ptr == (void *)-1)) {
     ib::log_warn(ER_IB_MSG_856)
