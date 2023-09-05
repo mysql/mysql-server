@@ -367,13 +367,13 @@ stdx::expected<void, std::error_code> TlsServerContext::init_tmp_dh(
 }
 
 stdx::expected<void, std::error_code> TlsServerContext::verify(
-    TlsVerify verify, std::bitset<2> tls_opts) {
+    TlsVerify verify, stdx::flags<TlsVerifyOpts> tls_opts) {
   int mode = 0;
   switch (verify) {
     case TlsVerify::NONE:
       mode = SSL_VERIFY_NONE;
 
-      if (tls_opts.to_ulong() != 0) {
+      if (tls_opts) {
         // tls_opts MUST be zero if verify is NONE
         return stdx::make_unexpected(
             make_error_code(std::errc::invalid_argument));
@@ -383,7 +383,10 @@ stdx::expected<void, std::error_code> TlsServerContext::verify(
       mode = SSL_VERIFY_PEER;
       break;
   }
-  if (tls_opts.test(TlsVerifyOpts::kFailIfNoPeerCert)) {
+  if (tls_opts & TlsVerifyOpts::kClientOnce) {
+    mode |= SSL_VERIFY_CLIENT_ONCE;
+  }
+  if (tls_opts & TlsVerifyOpts::kFailIfNoPeerCert) {
     mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
   }
   SSL_CTX_set_verify(ssl_ctx_.get(), mode, nullptr);

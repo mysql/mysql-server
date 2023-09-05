@@ -26,18 +26,23 @@
 #define MYSQL_HARNESS_TLS_SERVER_CONTEXT_INCLUDED
 
 #include <array>
-#include <bitset>
 #include <string>
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/flags.h"
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_export.h"
 
-namespace TlsVerifyOpts {
-constexpr size_t kFailIfNoPeerCert = 1 << 0;
-constexpr size_t kClientOnce = 1 << 1;
-}  // namespace TlsVerifyOpts
+enum class TlsVerifyOpts {
+  kFailIfNoPeerCert = 0,
+  kClientOnce = 1,
+};
+
+namespace stdx {
+template <>
+struct is_flags<TlsVerifyOpts> : std::true_type {};
+}  // namespace stdx
 
 /**
  * TLS Context for the server side.
@@ -99,8 +104,8 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    * @param tls_opts extra options for PEER
    * @throws std::illegal_argument if verify is NONE and tls_opts is != 0
    */
-  stdx::expected<void, std::error_code> verify(TlsVerify verify,
-                                               std::bitset<2> tls_opts = 0);
+  stdx::expected<void, std::error_code> verify(
+      TlsVerify verify, stdx::flags<TlsVerifyOpts> tls_opts = {});
 
   /**
    * get the security level.
