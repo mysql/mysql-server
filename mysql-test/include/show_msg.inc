@@ -18,8 +18,8 @@
 # "include/show_msg80.inc" contains a detailed description and examples.
 
 --disable_query_log
-eval SET @utf8_message = CONVERT('$message' using utf8);
+eval SET @utf8_message = CONVERT('$message' using utf8mb3);
 select @utf8_message as ""
 union
-select repeat(CONVERT('-' using utf8),char_length(@utf8_message));
+select repeat(CONVERT('-' using utf8mb3),char_length(@utf8_message));
 --enable_query_log

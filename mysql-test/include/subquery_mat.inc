@@ -1555,7 +1555,7 @@ DROP TABLE t1,t2,t3;
 --echo # Bug#19297190 NOT IN DOESN'T RETURN EXPECTED RESULT
 --echo #
 
-CREATE TABLE t1 (a VARCHAR(500) CHARACTER SET UTF8) ENGINE=INNODB;
+CREATE TABLE t1 (a VARCHAR(500) CHARACTER SET utf8mb3) ENGINE=INNODB;
 
 # Fill the table with 32 distinct long rows (>32kB of data)
 SET @str= repeat("a",450);

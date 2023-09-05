@@ -11,7 +11,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
-ORDER BY table_schema,table_name COLLATE utf8_general_ci;
+ORDER BY table_schema,table_name COLLATE utf8mb3_general_ci;
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
 TABLE_NAME	columns_priv
@@ -878,7 +878,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
-ORDER BY table_schema,table_name COLLATE utf8_general_ci;
+ORDER BY table_schema,table_name COLLATE utf8mb3_general_ci;
 # Switch to connection default and close connection testuser1
 DROP USER testuser1@localhost;
 DROP DATABASE test1;

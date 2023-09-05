@@ -13,7 +13,7 @@ if (`SELECT (IFNULL(@file,'') NOT LIKE '%\ncs_CZ.iso88592\n%')`)
   Skip Need POSIX locale cs_CZ.iso88592;
 }
 
-if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nen_US.utf8\n%')`)
+if (`SELECT (IFNULL(@file,'') NOT LIKE '%\nen_US.utf8mb3\n%')`)
 {
-  Skip Need POSIX locale en_US.utf8;
+  Skip Need POSIX locale en_US.utf8mb3;
 }

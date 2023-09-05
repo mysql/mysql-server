@@ -3158,32 +3158,32 @@ SET sql_mode = default;
 # Bug#33794 "MySQL crashes executing specific query on specific dump"
 #
 CREATE TABLE t4 (
-  f7 varchar(32) collate utf8_bin NOT NULL default '',
-  f10 varchar(32) collate utf8_bin default NULL,
+  f7 varchar(32) COLLATE utf8mb3_bin NOT NULL default '',
+  f10 varchar(32) COLLATE utf8mb3_bin default NULL,
   PRIMARY KEY  (f7)
 );
 INSERT INTO t4 VALUES(1,1), (2,null);
 
 CREATE TABLE t2 (
-  f4 varchar(32) collate utf8_bin NOT NULL default '',
-  f2 varchar(50) collate utf8_bin default NULL,
-  f3 varchar(10) collate utf8_bin default NULL,
+  f4 varchar(32) COLLATE utf8mb3_bin NOT NULL default '',
+  f2 varchar(50) COLLATE utf8mb3_bin default NULL,
+  f3 varchar(10) COLLATE utf8mb3_bin default NULL,
   PRIMARY KEY  (f4),
   UNIQUE KEY uk1 (f2)
 );
 INSERT INTO t2 VALUES(1,1,null), (2,2,null);
 
 CREATE TABLE t1 (
-  f8 varchar(32) collate utf8_bin NOT NULL default '',
-  f1 varchar(10) collate utf8_bin default NULL,
-  f9 varchar(32) collate utf8_bin default NULL,
+  f8 varchar(32) COLLATE utf8mb3_bin NOT NULL default '',
+  f1 varchar(10) COLLATE utf8mb3_bin default NULL,
+  f9 varchar(32) COLLATE utf8mb3_bin default NULL,
   PRIMARY KEY  (f8)
 );
 INSERT INTO t1 VALUES (1,'P',1), (2,'P',1), (3,'R',2);
 
 CREATE TABLE t3 (
-  f6 varchar(32) collate utf8_bin NOT NULL default '',
-  f5 varchar(50) collate utf8_bin default NULL,
+  f6 varchar(32) COLLATE utf8mb3_bin NOT NULL default '',
+  f5 varchar(50) COLLATE utf8mb3_bin default NULL,
   PRIMARY KEY (f6)
 );
 INSERT INTO t3 VALUES (1,null), (2,null);
@@ -4389,7 +4389,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (s1 CHAR(1));
 INSERT INTO t1 VALUES ('a');
-SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
+SELECT * FROM t1 WHERE _utf8mb3'a' = ANY (SELECT s1 FROM t1);
 DROP TABLE t1;
 
 #
@@ -6739,7 +6739,7 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # Bug#22090717 WRONG RESULT FOR SELECT NULL IN (<SUBQUERY>)
 --echo #
-CREATE TABLE t1(a MEDIUMTEXT CHARSET UTF8) ENGINE=INNODB;
+CREATE TABLE t1(a MEDIUMTEXT CHARSET utf8mb3) ENGINE=INNODB;
 INSERT INTO t1 VALUES(0x6F76786E7875);
 SELECT NULL IN (SELECT 1 FROM t1);
 SELECT (NULL AND 1) IN (SELECT 1 FROM t1);

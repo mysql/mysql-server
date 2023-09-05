@@ -7483,16 +7483,16 @@ DROP TABLE t1;
 # WL#3090 Japanese Character Set adjustments
 # Test Unicode->sjis conversion
 #
-CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8;
+CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
 INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
 CREATE TEMPORARY TABLE head   AS SELECT concat(b1.a, b2.a) AS head   FROM t1 b1, t1 b2;
 CREATE TEMPORARY TABLE tail   AS SELECT concat(b1.a, b2.a) AS tail   FROM t1 b1, t1 b2;
 CREATE TEMPORARY TABLE middle AS SELECT concat(b1.a, b2.a) AS middle FROM t1 b1, t1 b2;
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(1)) CHARACTER SET utf8;
+CREATE TABLE t1 (a varchar(1)) CHARACTER SET utf8mb3;
 INSERT INTO t1 SELECT UNHEX(head)
 FROM head WHERE (head BETWEEN '00' AND '7F') ORDER BY head;
 INSERT INTO t1

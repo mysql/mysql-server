@@ -1635,7 +1635,7 @@ CREATE TABLE t1 (
   KEY (b, c),
   KEY (b, a, c)
 )
-DEFAULT CHARSET = utf8;
+DEFAULT CHARSET = utf8mb3;
 
 INSERT INTO t1 VALUES 
 (1,  1, 1),

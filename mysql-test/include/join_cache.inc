@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 --enable_warnings
 
-set names utf8;
+set names utf8mb3;
 
 CREATE DATABASE world;
 
@@ -1648,7 +1648,7 @@ CREATE TABLE t7 (
 insert into t7 values("2000-01-01"),("2000-01-02");
 
 CREATE TABLE t3 (
-  col582 char(230) CHARACTER SET utf8 DEFAULT NULL
+  col582 char(230) CHARACTER SET utf8mb3 DEFAULT NULL
 )  ;
 # one single row would do, if there was no const-table optimization
 INSERT INTO t3 VALUES ('cymej'),('spb');

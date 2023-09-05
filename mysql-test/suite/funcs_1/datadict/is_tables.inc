@@ -304,7 +304,7 @@ WHERE table_name = 't1_my_tablex';
 # Check indirect modification of TABLE_COLLATION
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-ALTER TABLE db_datadict.t1_my_tablex DEFAULT CHARACTER SET utf8;
+ALTER TABLE db_datadict.t1_my_tablex DEFAULT CHARACTER SET utf8mb3;
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 # Check direct modification of TABLE_COLLATION

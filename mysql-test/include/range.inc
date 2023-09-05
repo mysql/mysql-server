@@ -2502,7 +2502,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (
-  v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+  v1 VARCHAR(20) CHARACTER SET utf8mb3 NOT NULL,
   pk INTEGER NOT NULL,
   PRIMARY KEY (pk),
   KEY v1_key (v1(10))
@@ -2685,7 +2685,7 @@ CREATE TABLE `giant_table` (
   `other_id` bigint(20) NOT NULL DEFAULT '0',
   `some_other_id` int(11) DEFAULT 0 NOT NULL,
   `something` double NOT NULL DEFAULT '0',
-  `comment` text COLLATE utf8_unicode_ci,
+  `comment` text COLLATE utf8mb3_unicode_ci,
   `flags` int(11) NOT NULL DEFAULT '0',
   `time_created` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -2694,7 +2694,7 @@ CREATE TABLE `giant_table` (
   KEY `one_other_idx` (`one_id`,`other_id`),
   KEY `other_id` (`other_id`,`time_created`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101651329
-DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
+DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci ;
 
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),

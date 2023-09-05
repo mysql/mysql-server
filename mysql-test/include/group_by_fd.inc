@@ -951,13 +951,13 @@ DROP VIEW v1;
 --echo #
 
 CREATE TABLE t1 (
-  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8mb3,
   col_int_key INT,
   pk INT PRIMARY KEY
 );
 
 CREATE TABLE t2 (
-  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_int_key INT DEFAULT NULL,
   pk INT PRIMARY KEY
 );

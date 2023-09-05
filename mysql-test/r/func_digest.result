@@ -1555,27 +1555,27 @@ SELECT 1;
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT 1" USING utf8 )
+WHERE sql_text = convert( "SELECT 1" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT 1" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
 a + b	a - b
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8 )
+WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c`	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The first NULL should be treated as a literal and not influence the
 # digest. The second NULL is a NULL token, however.
 # In order to know, the string must be parsed.
@@ -1585,28 +1585,28 @@ NULL IS NULL
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT NULL IS NULL" USING utf8 )
+WHERE sql_text = convert( "SELECT NULL IS NULL" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT NULL IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ? IS NULL	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT 2;
 2
 2
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT 2" USING utf8 )
+WHERE sql_text = convert( "SELECT 2" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT 2" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1, t2, t3;
 #
 # Let's make sure that our 'borrowing' the token buffer does not upset
@@ -1620,14 +1620,14 @@ statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL" USING utf8 )
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `statement_digest` (?) IS NULL	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Test of the data type.
 #
@@ -1732,41 +1732,41 @@ SELECT 1;
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT 1" USING utf8 )
+WHERE sql_text = convert( "SELECT 1" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT 1" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
 a + b	a - b
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8 )
+WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c`	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT 2;
 2
 2
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT 2" USING utf8 )
+WHERE sql_text = convert( "SELECT 2" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT 2" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1, t2, t3;
 #
 # Test of the data type.
@@ -1825,7 +1825,7 @@ CREATE TABLE åäö( a int );
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "CREATE TABLE åäö( a int )" USING utf8 )
+WHERE sql_text = convert( "CREATE TABLE åäö( a int )" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "CREATE TABLE åäö( a int )" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
@@ -1835,7 +1835,7 @@ CREATE TABLE 日本語( a int );
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "CREATE TABLE 日本語( a int )" USING utf8 )
+WHERE sql_text = convert( "CREATE TABLE 日本語( a int )" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "CREATE TABLE 日本語( a int )" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
@@ -1845,7 +1845,7 @@ CREATE TABLE  𩸽( a int );
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "CREATE TABLE  𩸽( a int )" USING utf8 )
+WHERE sql_text = convert( "CREATE TABLE  𩸽( a int )" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "CREATE TABLE  𩸽( a int )" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;

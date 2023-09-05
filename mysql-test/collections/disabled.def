@@ -64,7 +64,6 @@ main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow
 main.gtid_next_xa_binlog_off : BUG#33650776 Failure of XA COMMIT of prepared txn, can result in txn rollback
 
 # Disabled due to InnoDB issues
-main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Fails consistently on hudson jobs. Disabled until bug is fixed.

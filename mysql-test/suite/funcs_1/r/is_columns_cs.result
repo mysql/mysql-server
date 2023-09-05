@@ -306,9 +306,9 @@ WHERE table_name = 't1_my_tablex';
 TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME
 t1_my_tablex	first_col	10	10	latin1
 ALTER TABLE db_datadict.t1_my_tablex
-MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8;
+MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT table_name, column_name, character_maximum_length,
 character_octet_length, character_set_name
 FROM information_schema.columns

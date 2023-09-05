@@ -3,9 +3,9 @@ connection master;
 DROP DATABASE IF EXISTS mysqltest;
 --enable_warnings
 
-CREATE DATABASE mysqltest CHARSET UTF8;
+CREATE DATABASE mysqltest CHARSET utf8mb3;
 USE mysqltest;
-CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
+CREATE TABLE t (cl varchar(100)) CHARSET utf8mb3;
 
 if (!$LOAD_LOCAL)
 {

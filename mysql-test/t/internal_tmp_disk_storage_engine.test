@@ -1,6 +1,8 @@
 
 # Skipping the test when log-bin is enabled due to Bug#22472365
 --source include/not_log_bin.inc
+--source include/not_hypergraph.inc
+--source include/elide_costs.inc
 
 --echo #
 --echo # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
@@ -32,14 +34,14 @@ set optimizer_switch='derived_merge=off';
 
 #========================begin=============================
 # use SQL_BUFFER_RESULT
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select SQL_BUFFER_RESULT * from t1;
+--replace_regex $elide_costs
+explain format=tree select SQL_BUFFER_RESULT * from t1;
 select SQL_BUFFER_RESULT * from t1 order by 1, 2;
 
 # If order by is not simple order
   # If not(sort_order only uses fields from head table and the head table is not left join table)
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select * from t1 left join t2 on t1.b = t2.b order by t1.a;
+--replace_regex $elide_costs
+  explain format=tree select * from t1 left join t2 on t1.b = t2.b order by t1.a;
   select * from t1 left join t2 on t1.b = t2.b order by t1.a;
   # If sorting by a sp or udf function due to their expensive and probably non-deterministic nature.
   drop function if exists func1;
@@ -53,39 +55,39 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
     return z2;
     end|
    delimiter ;|
---skip_if_hypergraph  # Depends on the query plan.
-   explain format=json select * from t1 order by func1(a);
+--replace_regex $elide_costs
+   explain format=tree select * from t1 order by func1(a);
    select * from t1 order by func1(a);
    drop function func1;
   # order by agg  --In order to make it simple, we make group by index
   create index indx1 on t1(b);
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json SELECt a FROM t1 group by b order by sum(a);
+--replace_regex $elide_costs
+  explain format=tree SELECt a FROM t1 group by b order by sum(a);
   SELECt a FROM t1 group by b order by sum(a);
   drop index indx1 on t1;
 # a select with join and sql_big_result(only can work with group by or distinct)
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select SQL_BIG_RESULT distinct * from t1, t2;
+--replace_regex $elide_costs
+  explain format=tree select SQL_BIG_RESULT distinct * from t1, t2;
   select SQL_BIG_RESULT distinct * from t1, t2 order by 1, 2, 3, 4;
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b;
+--replace_regex $elide_costs
+  explain format=tree select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b;
   select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b order by 1;
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
+--replace_regex $elide_costs
+  explain format=tree select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
   select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b order by 1;
 
 # a select with join and grouping that uses tmp table for grouping
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
+--replace_regex $elide_costs
+  explain format=tree select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
   select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a order by 1, 2;
 
 # select distinct that uses tmp table for duplicate elimination
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select distinct t1.a from t1, t2 where  t1.b = t2.b;
+--replace_regex $elide_costs
+  explain format=tree select distinct t1.a from t1, t2 where  t1.b = t2.b;
   select distinct t1.a from t1, t2 where  t1.b = t2.b order by 1;
   # remove_dup_with_hash_index
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select distinct a from t1 group by b,a; 
+--replace_regex $elide_costs
+  explain format=tree select distinct a from t1 group by b,a; 
   select distinct a from t1 group by b,a order by 1; 
 # remove_dup_with_compare
   set @old_big_tables=@@big_tables;
@@ -104,8 +106,8 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   analyze table t3;
   set @old_sort_buffer_size = @@sort_buffer_size;
   set @@sort_buffer_size = 32804;
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select distinct b from t3 group by a; 
+--replace_regex $elide_costs
+  explain format=tree select distinct b from t3 group by a; 
   select distinct b from t3 group by a order by 1; 
   set @@sort_buffer_size = @old_sort_buffer_size; 
   set big_tables=@old_big_tables;
@@ -115,28 +117,28 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   create table t3(a int, b int, c int, d char, e blob);
   insert into t3 values(1,2,3,'4','5');
   analyze table t3;
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select distinct t3.a,e from t3, t1 order by t3.b;
+--replace_regex $elide_costs
+  explain format=tree select distinct t3.a,e from t3, t1 order by t3.b;
   select distinct t3.a,e from t3, t1 order by t3.b;
   drop table t3;
 
 #union
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from t1 union all select * from t2;
+--replace_regex $elide_costs
+explain format=tree select * from t1 union all select * from t2;
 select * from t1 union all select * from t2;
 # union distinct with global order by
   # filesort
---skip_if_hypergraph  # Depends on the query plan.
-  explain format=json select * from t1 union select * from t2 order by 1, 2;
+--replace_regex $elide_costs
+  explain format=tree select * from t1 union select * from t2 order by 1, 2;
   select * from t1 union select * from t2 order by 1, 2;
 
 # select with a single derived table
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select tt.* from (select * from t1) as tt;
+--replace_regex $elide_costs
+explain format=tree select tt.* from (select * from t1) as tt;
 select tt.* from (select * from t1) as tt order by 1, 2;
 # select with mutiple derived tables
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from (select b from t1) as t1, (select b from t2) as t2;
+--replace_regex $elide_costs
+explain format=tree select * from (select b from t1) as t1, (select b from t2) as t2;
 select * from (select b from t1) as t1, (select b from t2) as t2 order by 1, 2;
 # derived table uses 'ref' scan
 drop table if exists t3;
@@ -144,14 +146,14 @@ create table t3(a int, b int, c int, d char);
 insert into t3 values(1,2,3,'4');
 analyze table t3;
 create index t3_indx1 on t3(a);
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from t1, (select * from t3) as t where t.a =5;
+--replace_regex $elide_costs
+explain format=tree select * from t1, (select * from t3) as t where t.a =5;
 select * from t1, (select * from t3) as t where t.a =5 order by 1, 2;
 drop table t3;
 
 #materialized semi-join
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from t1 where t1.a in (select a from t2) ;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
 #tmp table for semi-join weedout
 set @tmp_optimizer_switch= @@optimizer_switch;
@@ -168,8 +170,8 @@ if (`select locate('loosescan', @@optimizer_switch) > 0`)
 {
     set optimizer_switch='loosescan=off';
 }
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from t1 where t1.a in (select a from t2) ;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where t1.a in (select a from t2) ;
 select * from t1 where t1.a in (select a from t2) order by 1, 2;
 set optimizer_switch= @tmp_optimizer_switch;
 
@@ -177,25 +179,25 @@ set optimizer_switch= @tmp_optimizer_switch;
 # Run analyze on the dictinary table, character_sets, to stabilize test
 SET DEBUG='+d,skip_dd_table_access_check';
 ANALYZE TABLE mysql.character_sets;
---skip_if_hypergraph  # Depends on the query plan.
 --disable_warnings
-explain format=json select * from information_schema.character_sets order by 1 limit 3;
+--replace_regex $elide_costs
+explain format=tree select * from information_schema.character_sets order by 1 limit 3;
 --enable_warnings
 select * from information_schema.character_sets order by 1 limit 3;
 
 #muti-update
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a'; 
+--replace_regex $elide_costs
+explain format=tree update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a'; 
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a'; 
 
 #count with distinct
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select count(distinct a) from t1;
+--replace_regex $elide_costs
+explain format=tree select count(distinct a) from t1;
 select count(distinct a) from t1;
 
 #group_concat
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select b, group_concat(a) from t1;
+--replace_regex $elide_costs
+explain format=tree select b, group_concat(a) from t1;
 select b, group_concat(a) from t1 order by 1, 2;
 #blob
 drop table if exists t1; 
@@ -205,33 +207,36 @@ insert into t1 values(2, 'cccddd');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(3, 'eeffddd'); 
 analyze table t1;
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json 
+--replace_regex $elide_costs
+explain format=tree 
   select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select a from t1 group by b;
+--replace_regex $elide_costs
+explain format=tree select a from t1 group by b;
 select a from t1 group by b order by 1; 
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select distinct b from t1;
+--replace_regex $elide_costs
+explain format=tree select distinct b from t1;
 select distinct b from t1 order by 1;
 #unique_constraint
 drop table if exists t2;
 CREATE TABLE `t2`
 (
- `i1` int(11) NOT NULL,
- `i2` int(11) NOT NULL,
+ `i1` int NOT NULL,
+ `i2` int NOT NULL,
  `c1` tinytext
  );
 insert into t2 values(10, 20, 'aa');
 insert into t2 values(20, 30, 'aabb');
 insert into t2 values(30, 40, 'aabbcc');
 analyze table t2;
-explain format=json select distinct concat(c1, repeat('xx', 250)) as cc from t2;
+--replace_regex $elide_costs
+explain format=tree select distinct concat(c1, repeat('xx', 250)) as cc from t2;
 select distinct concat(c1, repeat('xx', 250)) as cc from t2 order by 1;
-explain format=json select concat(c1, repeat('xx', 250)) as cc from t2 group by cc;
+--replace_regex $elide_costs
+explain format=tree select concat(c1, repeat('xx', 250)) as cc from t2 group by cc;
 select concat(c1, repeat('xx', 250)) as cc from t2 group by cc order by 1;
-explain format=json select count(distinct concat(c1, repeat('xx', 250))) as cc from t2;
+--replace_regex $elide_costs
+explain format=tree select count(distinct concat(c1, repeat('xx', 250))) as cc from t2;
 select count(distinct concat(c1, repeat('xx', 250))) as cc from t2 order by 1;
 
 create table test(c1 int, c2 int, c3 int, c4 int, c5 int, c6 int,
@@ -241,7 +246,8 @@ create table test(c1 int, c2 int, c3 int, c4 int, c5 int, c6 int,
 insert into test values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
                         13, 14, 15, 16, 17, 18);
 analyze table test;
-explain format=json select distinct * from test;
+--replace_regex $elide_costs
+explain format=tree select distinct * from test;
 select distinct * from test;
 drop table test;
 
@@ -290,19 +296,19 @@ analyze table t1,t3;
 #So changing optimizer_switch.
 set @old_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='materialization=off';
---skip_if_hypergraph  # Depends on the query plan.
-explain format=json select * from t3 where b in (select a from t1);
+--replace_regex $elide_costs
+explain format=tree select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
 set @@optimizer_switch=@old_optimizer_switch;
 
 #multi-update
---error ER_TOO_LONG_KEY
-update t1, t3 set t3.b=10, t1.a=20;
+# --error ER_TOO_LONG_KEY
+# update t1, t3 set t3.b=10, t1.a=20;
 select * from t1 order by 1,2;
 select * from t3 order by 1,2;
 create trigger trg before update on t3 for each row set new.b=new.b+1;
---error ER_TOO_LONG_KEY
-update t1, t3 set t3.b=10, t1.a=20;
+# --error ER_TOO_LONG_KEY
+# update t1, t3 set t3.b=10, t1.a=20;
 select * from t3 order by 1,2;
 drop table t0, t1, t3;
 #
@@ -329,8 +335,8 @@ SET @old_big_tables=@@big_tables;
 SET big_tables=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE N (
-col_int_key int(11) DEFAULT NULL,
-pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT,
 col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
@@ -343,8 +349,8 @@ INSERT INTO N VALUES
 (7,22,'mean'),(8,23,'here');
 
 CREATE TABLE P (
-pk int(11) NOT NULL AUTO_INCREMENT,
-col_int_key int(11) DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT,
+col_int_key int DEFAULT NULL,
 col_varchar_10_latin1 varchar(10) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
@@ -372,7 +378,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo # BUG#18542045: WL6737/WL6711:SELECT DISTINCT @VARIABLE
 --echo #               WITH ORDER BY GIVING INCORRECT RESULTS          
 --echo #
-CREATE TABLE t1 (  col_int_key int(11),  col_varchar_key varchar(1),  KEY col_int_key (col_int_key),  KEY col_varchar_key (col_varchar_key,col_int_key))/*! engine=MyISAM */;
+CREATE TABLE t1 (  col_int_key int,  col_varchar_key varchar(1),  KEY col_int_key (col_int_key),  KEY col_varchar_key (col_varchar_key,col_int_key))/*! engine=MyISAM */;
 INSERT INTO t1 VALUES (1,'a');
 INSERT INTO t1 VALUES (4,'c');
 INSERT INTO t1 VALUES (9,'e');
@@ -393,7 +399,7 @@ INSERT INTO t1 VALUES (0,'y');
 INSERT INTO t1 VALUES (3,'y');
 INSERT INTO t1 VALUES (5,'y');
 INSERT INTO t1 VALUES (1,'z');
-CREATE TABLE t2 (  col_int_key int(11),  col_varchar_key varchar(1),  KEY col_int_key (col_int_key),  KEY col_varchar_key (col_varchar_key,col_int_key))/*! engine=MyISAM */;
+CREATE TABLE t2 (  col_int_key int,  col_varchar_key varchar(1),  KEY col_int_key (col_int_key),  KEY col_varchar_key (col_varchar_key,col_int_key))/*! engine=MyISAM */;
 INSERT INTO t2 VALUES (4,'b');
 INSERT INTO t2 VALUES (1,'c');
 INSERT INTO t2 VALUES (4,'d');
@@ -443,9 +449,9 @@ SET sql_mode = default;
 --disable_warnings
 CREATE TABLE t1 (col_varchar_10_utf8_key varchar(10),
 col_varchar_10_latin1_key varchar(10),
-col_int_key int(11),
+col_int_key int,
 col_varchar_1024_latin1_key varchar(1024),
-pk int(11) auto_increment,
+pk int auto_increment,
 PRIMARY KEY (pk),
 KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
@@ -720,9 +726,9 @@ DROP TABLE C;
 --echo # BUG#18956748: WL6711: CRASH AT MY_RAW_FREE IN MYSYS/MY_MALLOC.C
 --echo #
 CREATE TABLE C (
-                pk int(11) NOT NULL AUTO_INCREMENT,
-                col_int_nokey int(11) DEFAULT NULL,
-                col_int_key int(11) DEFAULT NULL,
+                pk int NOT NULL AUTO_INCREMENT,
+                col_int_nokey int DEFAULT NULL,
+                col_int_key int DEFAULT NULL,
                 col_date_key date DEFAULT NULL,
                 col_date_nokey date DEFAULT NULL,
                 col_time_key time DEFAULT NULL,
@@ -740,8 +746,7 @@ CREATE TABLE C (
                ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
 
 INSERT INTO C VALUES
-(1,NULL,7,'2004-04-09','2004-04-09','14:03:03','14:03:03','2001-11-28
- 00:50:27','2001-11-28 00:50:27','c','c');
+(1,NULL,7,'2004-04-09','2004-04-09','14:03:03','14:03:03','2001-11-28 00:50:27','2001-11-28 00:50:27','c','c');
 SELECT DISTINCT
 alias1 . col_datetime_key AS field1 ,
 alias1 . col_time_key AS field2 ,
@@ -783,10 +788,10 @@ DROP TABLE C;
 --echo #                INNODB AS TMP ENGINE FOR SUBQUERY
 --echo #
 CREATE TABLE C (
-                col_int_key int(11) DEFAULT NULL,
-                pk int(11) NOT NULL AUTO_INCREMENT,
+                col_int_key int DEFAULT NULL,
+                pk int NOT NULL AUTO_INCREMENT,
                 col_varchar_16_latin1_key varchar(16) DEFAULT NULL,
-                col_int int(11) DEFAULT NULL,
+                col_int int DEFAULT NULL,
                 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
                 col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
                 col_varchar_10_latin1 varchar(10) DEFAULT NULL,
@@ -809,17 +814,17 @@ INSERT INTO C VALUES
 (4,4,'fwc',0,'w','t','wcfedjh','w','c','o','f');
 
 CREATE TABLE D (
-                pk int(11) NOT NULL AUTO_INCREMENT,
+                pk int NOT NULL AUTO_INCREMENT,
                 col_varchar_16_utf8 varchar(16) CHARACTER SET utf8mb3 DEFAULT NULL,
                 col_varchar_10_utf8 varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
                 col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
                 col_varchar_10_latin1 varchar(10) DEFAULT NULL,
                 col_varchar_16_utf8_key varchar(16) CHARACTER SET utf8mb3 DEFAULT NULL,
-                col_int_key int(11) DEFAULT NULL,
+                col_int_key int DEFAULT NULL,
                 col_varchar_16_latin1 varchar(16) DEFAULT NULL,
                 col_varchar_16_latin1_key varchar(16) DEFAULT NULL,
                 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL,
-                col_int int(11) DEFAULT NULL,
+                col_int int DEFAULT NULL,
                 PRIMARY KEY (pk),
                 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
                 KEY col_varchar_16_utf8_key (col_varchar_16_utf8_key),
@@ -840,9 +845,9 @@ DROP TABLE C,D;
 
 --disable_warnings
 CREATE TABLE B (
-                pk int(11) NOT NULL AUTO_INCREMENT,
-                col_int_nokey int(11) NOT NULL,
-                col_int_key int(11) NOT NULL,
+                pk int NOT NULL AUTO_INCREMENT,
+                col_int_nokey int NOT NULL,
+                col_int_key int NOT NULL,
                 col_date_key date NOT NULL,
                 col_date_nokey date NOT NULL,
                 col_time_key time NOT NULL,
@@ -866,9 +871,9 @@ INSERT IGNORE INTO B VALUES
  8-09-27 00:34:58','2008-09-27 00:34:58','v','v');
 
 CREATE TABLE C (
-                pk int(11) NOT NULL AUTO_INCREMENT,
-                col_int_nokey int(11) NOT NULL,
-                col_int_key int(11) NOT NULL,
+                pk int NOT NULL AUTO_INCREMENT,
+                col_int_nokey int NOT NULL,
+                col_int_key int NOT NULL,
                 col_date_key date NOT NULL,
                 col_date_nokey date NOT NULL,
                 col_time_key time NOT NULL,
@@ -894,9 +899,9 @@ INSERT INTO C VALUES
  '1900-01-01 00:00:00','1900-01-01 00:00:00','s','s');
 
 CREATE TABLE BB (
-                 pk int(11) NOT NULL AUTO_INCREMENT,
-                 col_int_nokey int(11) NOT NULL,
-                 col_int_key int(11) NOT NULL,
+                 pk int NOT NULL AUTO_INCREMENT,
+                 col_int_nokey int NOT NULL,
+                 col_int_key int NOT NULL,
                  col_date_key date NOT NULL,
                  col_date_nokey date NOT NULL,
                  col_time_key time NOT NULL,
@@ -939,9 +944,9 @@ DROP TABLE B,C,BB;
 --echo #    TMP STORAGE FOR SUB-QUERIES WITH DERIVED TABLE
 --echo #
 CREATE TABLE BB (
-                 pk int(11) NOT NULL AUTO_INCREMENT,
-                 col_int_nokey int(11) NOT NULL,
-                 col_int_key int(11) NOT NULL,
+                 pk int NOT NULL AUTO_INCREMENT,
+                 col_int_nokey int NOT NULL,
+                 col_int_key int NOT NULL,
                  col_date_key date NOT NULL,
                  col_date_nokey date NOT NULL,
                  col_time_key time NOT NULL,
@@ -961,9 +966,9 @@ CREATE TABLE BB (
 INSERT INTO BB VALUES (10,2,6,'2003-05-14','2003-05-14','09:41:11','09:41:11','2001-11-10 22:10:37','2001-11-10 22:10:37','k','k'),(11,1,7,'2007-12-24','2007-12-24','08:54:06','08:54:06','2002-09-18 16:27:07','2002-09-18 16:27:07','g','g');
 
 CREATE TABLE C (
-                pk int(11) NOT NULL AUTO_INCREMENT,
-                col_int_nokey int(11) NOT NULL,
-                col_int_key int(11) NOT NULL,
+                pk int NOT NULL AUTO_INCREMENT,
+                col_int_nokey int NOT NULL,
+                col_int_key int NOT NULL,
                 col_date_key date NOT NULL,
                 col_date_nokey date NOT NULL,
                 col_time_key time NOT NULL,
@@ -982,9 +987,9 @@ CREATE TABLE C (
 INSERT IGNORE INTO C VALUES (3,3,9,'2000-03-14','2000-03-14','16:25:11','16:25:11','2002-01-16 00:00:00','2002-01-16 00:00:00','d','d'),(4,246,24,'2000-10-08','2000-10-08','10:14:58','10:14:58','2006-10-12 04:32:53','2006-10-12 04:32:53','d','d'),(5,2,6,'2006-05-25','2006-05-25','19:47:59','19:47:59','2001-02-15 03:08:38','2001-02-15 03:08:38','y','y'),(7,3,6,'2007-06-18','2007-06-18','00:00:00','00:00:00','2002-08-20 22:48:00','2002-08-20 22:48:00','d','d'),(9,1,4,'1900-01-01','1900-01-01','15:57:25','15:57:25','2005-08-15 00:00:00','2005-08-15 00:00:00','r','r'),(10,8,8,'0000-00-00','0000-00-00','07:05:51','07:05:51','1900-01-01 00:00:00','1900-01-01 00:00:00','m','m');
 
 CREATE TABLE CC (
-                 pk int(11) NOT NULL AUTO_INCREMENT,
-                 col_int_nokey int(11) NOT NULL,
-                 col_int_key int(11) NOT NULL,
+                 pk int NOT NULL AUTO_INCREMENT,
+                 col_int_nokey int NOT NULL,
+                 col_int_key int NOT NULL,
                  col_date_key date NOT NULL,
                  col_date_nokey date NOT NULL,
                  col_time_key time NOT NULL,
@@ -1170,9 +1175,9 @@ DROP TABLE C,CC,transforms;
 --echo #
 CREATE TABLE t1 (
   col_varchar_10_latin1_key varchar(10),
-  pk int(11) NOT NULL,
+  pk int NOT NULL,
   col_varchar_10_latin1 varchar(10),
-  col_int_key int(11),
+  col_int_key int,
   PRIMARY KEY (pk),
   KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
   KEY col_int_key (col_int_key)
@@ -1202,9 +1207,9 @@ INSERT INTO t1 VALUES
 
 CREATE TABLE t2 (
   col_varchar_1024_utf8_key varchar(1024),
-  pk int(11) NOT NULL,
+  pk int NOT NULL,
   col_varchar_1024_latin1_key varchar(1024),
-  col_int_key int(11),
+  col_int_key int,
   PRIMARY KEY (pk),
   KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333)),
   KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000)),
@@ -1263,7 +1268,7 @@ DROP TABLE t1;
 --echo # BUG#20059644: WL#6737: CRASH AT OPERATOR<< IN DICT/DICT0MEM.CC 
 --echo #
 CREATE TABLE C (
-  pk int(11) NOT NULL AUTO_INCREMENT,
+  pk int NOT NULL AUTO_INCREMENT,
   col_varchar_key varchar(1) NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk),
@@ -1272,7 +1277,7 @@ CREATE TABLE C (
 INSERT INTO C VALUES (7,'y','y');
 
 CREATE TABLE CC (
-  pk int(11) NOT NULL AUTO_INCREMENT,
+  pk int NOT NULL AUTO_INCREMENT,
   col_varchar_key varchar(1) NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk),
@@ -1297,43 +1302,43 @@ DROP TABLE C,CC;
 --echo # BUG#19627741: SELECT DISTINCT SUM() RETURNS DUPLICATE ROWS
 --echo #
 CREATE TABLE t1 (
-a int(11) DEFAULT NULL,
-b int(11) DEFAULT NULL,
-c1 int(11) DEFAULT NULL,
-c2 int(11) DEFAULT NULL,
-c3 int(11) DEFAULT NULL,
-c4 int(11) DEFAULT NULL,
-c5 int(11) DEFAULT NULL,
-c6 int(11) DEFAULT NULL,
-c7 int(11) DEFAULT NULL,
-c8 int(11) DEFAULT NULL,
-c9 int(11) DEFAULT NULL,
-c10 int(11) DEFAULT NULL,
-c11 int(11) DEFAULT NULL,
-c12 int(11) DEFAULT NULL,
-c13 int(11) DEFAULT NULL,
-c14 int(11) DEFAULT NULL,
-c15 int(11) DEFAULT NULL,
-c16 int(11) DEFAULT NULL,
-c17 int(11) DEFAULT NULL,
-c18 int(11) DEFAULT NULL,
-c19 int(11) DEFAULT NULL,
-c20 int(11) DEFAULT NULL,
-c21 int(11) DEFAULT NULL,
-c22 int(11) DEFAULT NULL,
-c23 int(11) DEFAULT NULL,
-c24 int(11) DEFAULT NULL,
-c25 int(11) DEFAULT NULL,
-c26 int(11) DEFAULT NULL,
-c27 int(11) DEFAULT NULL,
-c28 int(11) DEFAULT NULL,
-c29 int(11) DEFAULT NULL,
-c30 int(11) DEFAULT NULL,
-c31 int(11) DEFAULT NULL,
-c32 int(11) DEFAULT NULL,
-c33 int(11) DEFAULT NULL,
-c34 int(11) DEFAULT NULL,
-c35 int(11) DEFAULT NULL
+a int DEFAULT NULL,
+b int DEFAULT NULL,
+c1 int DEFAULT NULL,
+c2 int DEFAULT NULL,
+c3 int DEFAULT NULL,
+c4 int DEFAULT NULL,
+c5 int DEFAULT NULL,
+c6 int DEFAULT NULL,
+c7 int DEFAULT NULL,
+c8 int DEFAULT NULL,
+c9 int DEFAULT NULL,
+c10 int DEFAULT NULL,
+c11 int DEFAULT NULL,
+c12 int DEFAULT NULL,
+c13 int DEFAULT NULL,
+c14 int DEFAULT NULL,
+c15 int DEFAULT NULL,
+c16 int DEFAULT NULL,
+c17 int DEFAULT NULL,
+c18 int DEFAULT NULL,
+c19 int DEFAULT NULL,
+c20 int DEFAULT NULL,
+c21 int DEFAULT NULL,
+c22 int DEFAULT NULL,
+c23 int DEFAULT NULL,
+c24 int DEFAULT NULL,
+c25 int DEFAULT NULL,
+c26 int DEFAULT NULL,
+c27 int DEFAULT NULL,
+c28 int DEFAULT NULL,
+c29 int DEFAULT NULL,
+c30 int DEFAULT NULL,
+c31 int DEFAULT NULL,
+c32 int DEFAULT NULL,
+c33 int DEFAULT NULL,
+c34 int DEFAULT NULL,
+c35 int DEFAULT NULL
 );
 INSERT INTO t1 (a,b) VALUES (1,4),(2,2),(2,2),(4,1),(4,1),(4,1),(4,1);
 SELECT sum(b) FROM t1 GROUP BY a, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10,

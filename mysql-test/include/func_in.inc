@@ -77,8 +77,8 @@ explain select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
 set names utf8mb4;
 
-set names utf8;
-create table t1 (a char(10) character set utf8 not null);
+set names utf8mb3;
+create table t1 (a char(10) character set utf8mb3 not null);
 insert into t1 values ('bbbb'),(_koi8r x'C3C3C3C3'),(_latin1 x'C4C4C4C4');
 select a from t1 where a in ('bbbb',_koi8r x'C3C3C3C3',_latin1 x'C4C4C4C4') order by a;
 drop table t1;

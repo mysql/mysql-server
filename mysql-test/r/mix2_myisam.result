@@ -2112,9 +2112,9 @@ t1	CREATE TABLE `t1` (
   KEY `t` (`t`(5))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1 (v char(10) character set utf8);
+create table t1 (v char(10) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2165,9 +2165,9 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-create table t1 (v varchar(65530) character set utf8);
+create table t1 (v varchar(65530) character set utf8mb3);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table

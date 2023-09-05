@@ -1334,19 +1334,19 @@ DROP VIEW v1;
 # Bug #20031708 ASSERT ON GROUP_CHECK::IS_FD_ON_SOURCE
 #
 CREATE TABLE t1 (
-col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8mb3,
 col_int_key INT,
 pk INT PRIMARY KEY
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (
-col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_utf8 VARCHAR(10) CHARACTER SET utf8mb3 DEFAULT NULL,
 col_int_key INT DEFAULT NULL,
 pk INT PRIMARY KEY
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE VIEW v2 AS SELECT * FROM t2;
 # The reporter's testcase:
 SELECT COUNT(*), t1.col_int_key

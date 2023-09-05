@@ -144,7 +144,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (ID),
   KEY (key1),
   KEY (key2)
-) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 VALUES
 (1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
@@ -506,7 +506,7 @@ INSERT INTO t3
 
 CREATE TABLE t4 (
   pk int(11) NOT NULL,
-  c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+  c1_key varchar(10) CHARACTER SET utf8mb3 NOT NULL,
   c2 varchar(10) NOT NULL,
   c3 varchar(10) NOT NULL,
   PRIMARY KEY (pk),

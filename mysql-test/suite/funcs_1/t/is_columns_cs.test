@@ -297,7 +297,7 @@ SELECT table_name, column_name, character_maximum_length,
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 ALTER TABLE db_datadict.t1_my_tablex
-MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8;
+MODIFY COLUMN first_col CHAR(10) CHARACTER SET utf8mb3;
 SELECT table_name, column_name, character_maximum_length,
        character_octet_length, character_set_name
 FROM information_schema.columns

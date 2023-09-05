@@ -34,7 +34,7 @@ SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
 DROP TABLE t1;
 
 #
-# Bug 6643 incorrect response with partial utf8 index
+# Bug 6643 incorrect response with partial utf8mb3 index
 #
 --disable_warnings
 CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
@@ -67,7 +67,7 @@ drop table t1;
 #
 # Bug#27580 SPACE() function collation bug?
 #
-set names utf8;
+set names utf8mb3;
 create table t1 (
   name varchar(10),
   level smallint unsigned);

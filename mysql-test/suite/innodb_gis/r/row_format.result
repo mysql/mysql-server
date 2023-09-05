@@ -1,19 +1,19 @@
 SET GLOBAL innodb_file_per_table='off';
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
-c2 varchar(15) collate utf8_bin DEFAULT NULL,
-c1 varchar(15) collate utf8_bin DEFAULT NULL,
-c3 varchar(10) collate utf8_bin DEFAULT NULL,
+c2 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c1 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c3 varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
 spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
-) ROW_FORMAT=REDUNDANT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+) ROW_FORMAT=REDUNDANT ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
@@ -399,19 +399,19 @@ SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_per_table='on';
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
-c2 varchar(15) collate utf8_bin DEFAULT NULL,
-c1 varchar(15) collate utf8_bin DEFAULT NULL,
-c3 varchar(10) collate utf8_bin DEFAULT NULL,
+c2 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c1 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c3 varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
 spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
-) ROW_FORMAT=COMPRESSED ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+) ROW_FORMAT=COMPRESSED ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
@@ -797,19 +797,19 @@ SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_per_table='on';
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
-c2 varchar(15) collate utf8_bin DEFAULT NULL,
-c1 varchar(15) collate utf8_bin DEFAULT NULL,
-c3 varchar(10) collate utf8_bin DEFAULT NULL,
+c2 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c1 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c3 varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
 spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
-) ROW_FORMAT=DYNAMIC ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
@@ -1195,19 +1195,19 @@ SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_per_table='off';
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
-c2 varchar(15) collate utf8_bin DEFAULT NULL,
-c1 varchar(15) collate utf8_bin DEFAULT NULL,
-c3 varchar(10) collate utf8_bin DEFAULT NULL,
+c2 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c1 varchar(15) COLLATE utf8mb3_bin DEFAULT NULL,
+c3 varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
 spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
-) ROW_FORMAT=COMPACT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+) ROW_FORMAT=COMPACT ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 (c2, c1, c3, spatial_poINT) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),

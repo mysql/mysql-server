@@ -164,7 +164,7 @@ SELECT * FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 # Check modify default CHARACTER SET
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
-ALTER SCHEMA db_datadict CHARACTER SET 'utf8';
+ALTER SCHEMA db_datadict CHARACTER SET 'utf8mb3';
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 ALTER SCHEMA db_datadict CHARACTER SET 'latin1';
@@ -236,7 +236,7 @@ if (!$mysql_errno)
    exit;
 }
 UPDATE information_schema.schemata
-SET default_character_set_name = 'utf8'
+SET default_character_set_name = 'utf8mb3'
 WHERE schema_name = 'db_datadict';
 if (!$mysql_errno)
 {

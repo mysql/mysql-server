@@ -1102,9 +1102,9 @@ ERROR 42000: Invalid default value for 'x'
 create table t1 (x enum('A', 'B') default 0) character set utf8mb4 engine heap;
 ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-SET NAMES UTF8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
 `country` varchar(100) NOT NULL default '',
@@ -2135,8 +2135,8 @@ UPDATE IGNORE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
 Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBD' for column 'utf8mb3_encoding' at row 1
 UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
-SELECT HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8')) FROM t1;
-HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8'))
+SELECT HEX(CONCAT(utf8mb4_encoding, _utf8mb3 x'ea9da8')) FROM t1;
+HEX(CONCAT(utf8mb4_encoding, _utf8mb3 x'ea9da8'))
 EA9DA8
 EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEA9DA8
 F09D8480EA9DA8
@@ -2149,7 +2149,7 @@ F09D9C9FEA9DA8
 F09D9E9FEA9DA8
 F3A087AFEA9DA8
 F48FBFBFEA9DA8
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warnings:
 SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
 HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding))
@@ -2194,7 +2194,7 @@ WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
 count(*)
 23
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb3;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2300,9 +2300,9 @@ DROP TABLE IF EXISTS t3;
 CREATE TABLE t3 (
 u_decimal int NOT NULL,
 utf8mb3_encoding VARCHAR(10) NOT NULL
-) CHARACTER SET utf8 ENGINE heap;
+) CHARACTER SET utf8mb3 ENGINE heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t3 SELECT * FROM t1;
 DROP TABLE IF EXISTS t4;
 CREATE TABLE t4 (
@@ -2315,19 +2315,19 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 #
-# Testing that mixing utf8 and utf8mb4 collations returns utf8mb4
+# Testing that mixing utf8mb3 and utf8mb4 collations returns utf8mb4
 #
-SELECT CHARSET(CONCAT(_utf8mb4'a',_utf8'b'));
-CHARSET(CONCAT(_utf8mb4'a',_utf8'b'))
+SELECT CHARSET(CONCAT(_utf8mb4'a',_utf8mb3'b'));
+CHARSET(CONCAT(_utf8mb4'a',_utf8mb3'b'))
 utf8mb4
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4 NOT NULL) ENGINE heap;
 INSERT INTO t1 VALUES (x'ea9da8'),(x'f48fbfbf');
-SELECT CONCAT(utf8mb4, _utf8 x'ea9da8') FROM t1 LIMIT 0;
-CONCAT(utf8mb4, _utf8 x'ea9da8')
+SELECT CONCAT(utf8mb4, _utf8mb3 x'ea9da8') FROM t1 LIMIT 0;
+CONCAT(utf8mb4, _utf8mb3 x'ea9da8')
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t2 (utf8mb3 VARCHAR(10) CHARACTER SET utf8mb3 NOT NULL) ENGINE heap;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
@@ -2359,13 +2359,13 @@ utf8mb4	utf8mb3
 DROP TABLE t1;
 DROP TABLE t2;
 #
-# Check that mixing utf8mb4 with an invalid utf8 constant returns error
+# Check that mixing utf8mb4 with an invalid utf8mb3 constant returns error
 #
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4) ENGINE heap;
 INSERT INTO t1 VALUES (x'f48fbfbf');
-SELECT CONCAT(utf8mb4, _utf8 '¿') FROM t1;
+SELECT CONCAT(utf8mb4, _utf8mb3 '¿') FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
-SELECT CONCAT('a', _utf8 '¿') FROM t1;
+SELECT CONCAT('a', _utf8mb3 '¿') FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (utf8mb3_general_ci,COERCIBLE) for operation 'concat'
 DROP TABLE t1;
 #

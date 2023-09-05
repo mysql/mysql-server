@@ -38,7 +38,7 @@ eval SET @ps_protocol = $PS_PROTOCOL;
 
 --eval $compare_digests_pfs_query
 
-# We do the conversion to 'utf8' (in fact UTF-8 mb3) here for the few cases
+# We do the conversion to 'utf8mb3' (in fact UTF-8 mb3) here for the few cases
 # when the SQL text is UTF-8 mb4. For all other cases, this conversion
 # doesn't change anything as long as we use UTF-8.
 #
@@ -51,7 +51,7 @@ eval
 SELECT digest_text, IF( @the_digest = $compare_digests_pfs_column, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "$compare_digests_pfs_query" USING utf8 )
+WHERE sql_text = convert( "$compare_digests_pfs_query" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "$compare_digests_pfs_query" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;

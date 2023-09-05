@@ -631,13 +631,13 @@ explain select * from t1 where (a,b) in (select a,b from t2);
 drop table t0, t1, t2;
 
 --echo #
---echo # Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+--echo # Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + utf8mb3 COLUMN
 --echo #                + DATETIME INDEX.
 --echo #
 
 CREATE TABLE t1 (
-  field1 varchar(255) CHARACTER SET utf8,
-  field2 varchar(255) CHARACTER SET utf8
+  field1 varchar(255) CHARACTER SET utf8mb3,
+  field2 varchar(255) CHARACTER SET utf8mb3
 );
 
 INSERT INTO t1 VALUES
@@ -649,8 +649,8 @@ CREATE TABLE t2 ( col_varchar varchar(10));
 
 CREATE TABLE t3 (
   pk int(11) NOT NULL,
-  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
-  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8mb3,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8mb3,
   PRIMARY KEY (pk)
 );
 
@@ -4215,7 +4215,7 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 VALUES ('v'),('we');
 CREATE TABLE t2 (
-  col_varchar_1024_utf8 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_1024_utf8 varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_int_key int,
   col_int int
 );
@@ -4292,7 +4292,7 @@ DROP TABLE t1,t2;
 
 CREATE TABLE t1 (
   pk int NOT NULL,
-  col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8mb3 DEFAULT NULL,
   col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
@@ -6691,7 +6691,7 @@ CREATE TABLE t1 (
   ID int(11) NOT NULL AUTO_INCREMENT,
   id2 int(11) DEFAULT NULL,
   id3 int(11) DEFAULT NULL,
-  id4 varchar(150) COLLATE utf8_spanish_ci NOT NULL,
+  id4 varchar(150) COLLATE utf8mb3_spanish_ci NOT NULL,
   id5 int(11) DEFAULT NULL,
   PRIMARY KEY (ID),
   KEY id2 (id2),
@@ -7110,9 +7110,9 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (
 pk INTEGER,
 var_10_latin1 VARCHAR(10) CHARACTER SET latin1,
-var_255_utf8 VARCHAR(255) CHARACTER SET utf8,
+var_255_utf8 VARCHAR(255) CHARACTER SET utf8mb3,
 var_255_latin1 VARCHAR(255) CHARACTER SET latin1,
-var_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+var_10_utf8 VARCHAR(10) CHARACTER SET utf8mb3,
 PRIMARY KEY (pk)
 );
 

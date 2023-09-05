@@ -39,8 +39,8 @@ SELECT
   HEX(a) AS chr,
   HEX(LOWER(a)) AS upper,
   HEX(LOWER(a)) AS lower,
-  HEX(@utf8:=CONVERT(a USING utf8)) AS utf8,
-  HEX(@roundtrip:=CAST(@utf8 AS CHAR)) AS roundtrip,
+  HEX(@utf8mb3:=CONVERT(a USING utf8mb3)) AS utf8mb3,
+  HEX(@roundtrip:=CAST(@utf8mb3 AS CHAR)) AS roundtrip,
   if(a=BINARY @roundtrip,'','Round trip unsafe') AS issafe
 FROM t1 ORDER BY chr;
 DROP TABLE t1;

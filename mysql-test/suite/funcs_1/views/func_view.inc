@@ -739,8 +739,8 @@ let $col_type= my_year;
 
 # 1.3    CONVERT(expr USING transcoding_name)
 #
-# 1.3.1  CONVERT(expr USING utf8)
-let $target_charset= utf8;
+# 1.3.1  CONVERT(expr USING utf8mb3)
+let $target_charset= utf8mb3;
 #
 let $col_type= my_char_30;
 eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),

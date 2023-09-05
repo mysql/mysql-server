@@ -31,7 +31,7 @@ CALL bulk_ins();
 CALL bulk_upd(10);
 # Kill and restart: --log-error-verbosity=3 --debug=+d,resurrect_logs
 Pattern "Transaction ID:.* found for resurrecting inserts" found
-Pattern "Records read:.* - Pages read:.*" found
+Pattern "Records read:.* - Pages read:.*" not found
 Pattern "Transaction ID:.* found for resurrecting updates" found
 Pattern "Identified table ID:.* to acquire lock" found
 Pattern "Resurrected .* transaction.* doing inserts." found

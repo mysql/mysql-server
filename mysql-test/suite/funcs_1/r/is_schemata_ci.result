@@ -125,9 +125,9 @@ SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
 db_datadict	latin1
-ALTER SCHEMA db_datadict CHARACTER SET 'utf8';
+ALTER SCHEMA db_datadict CHARACTER SET 'utf8mb3';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
@@ -164,7 +164,7 @@ INSERT INTO information_schema.schemata
 SELECT * FROM information_schema.schemata;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 UPDATE information_schema.schemata
-SET default_character_set_name = 'utf8'
+SET default_character_set_name = 'utf8mb3'
 WHERE schema_name = 'db_datadict';
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 UPDATE information_schema.schemata SET catalog_name = 't_4711';

@@ -1,4 +1,4 @@
-CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8;
+CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8mb3;
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
 INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
 
@@ -11,7 +11,7 @@ CREATE TEMPORARY TABLE tail   AS SELECT concat(b1.a, b2.a) AS tail   FROM t1 b1,
 CREATE TEMPORARY TABLE middle AS SELECT concat(b1.a, b2.a) AS middle FROM t1 b1, t1 b2;
 DROP TABLE t1;
 
-CREATE TABLE t1 (a varchar(1)) CHARACTER SET utf8;
+CREATE TABLE t1 (a varchar(1)) CHARACTER SET utf8mb3;
 
 #
 # Populate single byte characters

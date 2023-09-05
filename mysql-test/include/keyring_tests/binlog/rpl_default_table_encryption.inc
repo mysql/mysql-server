@@ -189,7 +189,7 @@ while ($master_global <= 1) {
 
       --let $desc = ALTER: exclude the variable from the binlog
       eval SET @@session.default_table_encryption = 1-$master_session;
-      --let $statement = ALTER DATABASE db CHARACTER SET = utf8
+      --let $statement = ALTER DATABASE db CHARACTER SET = utf8mb3
       --let $drop_statement = DROP DATABASE db
       --let $expect = %ENCRYPTION='$letter'%
       --let $expect_binlog =

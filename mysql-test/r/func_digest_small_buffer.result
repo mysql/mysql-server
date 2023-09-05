@@ -15,28 +15,28 @@ statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8 )
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL;
 statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL
 0
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
 AS digest_is_correct
 FROM performance_schema.events_statements_history
-WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8 )
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8mb3 )
 UNION
 SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT	YES
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Test of the data type.
 #

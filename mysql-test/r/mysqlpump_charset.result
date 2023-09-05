@@ -95,17 +95,17 @@ HEX(a)	CHAR_LENGTH(a)
 4D5953514C50554D50	9
 63C481743F3FB03FE69C3F848F	10
 DROP DATABASE db1_std_csets;
-CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8;
+CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE db1_ucs2_csets;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8) CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8mb3) CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_ucs2;
 ALTER TABLE t_ucs2 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_bin;
 Warnings:
@@ -119,17 +119,17 @@ SELECT COUNT(*) FROM t_ucs2;
 COUNT(*)
 2526
 DROP DATABASE db1_ucs2_csets;
-CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8;
+CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE db1_ucs2_csets;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8) CHARACTER SET utf8;
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE t_ucs2 (a CHAR(4) CHARACTER SET utf8mb3) CHARACTER SET utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_ucs2;
 ALTER TABLE t_ucs2 CHANGE a a CHAR(4) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci;
 Warnings:
@@ -181,9 +181,9 @@ SELECT COUNT(*) FROM t_utf8mb3;
 COUNT(*)
 2526
 DROP DATABASE db1_utf8_csets;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `Êý¾Ý¿â`;
 USE `Êý¾Ý¿â`;
 CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci;
@@ -202,9 +202,9 @@ SELECT `straÃe`(_cp1251'한글');
 `straÃe`(_cp1251'한글')
 н•њкёЂ
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE `Êý¾Ý¿â`;
 SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
 HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
@@ -217,9 +217,9 @@ SELECT * FROM `±í¸ñ`;
 Г—Г–В¶ГЋГ’В»
 Г—Г–В¶ГЋГ’В»
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `Êý¾Ý¿â`;
 USE `Êý¾Ý¿â`;
 CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET euckr COLLATE euckr_korean_ci) CHARACTER SET euckr COLLATE euckr_korean_ci;
@@ -244,9 +244,9 @@ Warnings:
 Warning	1300	Invalid euckr character string: 'B880'
 Warning	1366	Incorrect string value: '\xB8\x80' for column '饽紴缽菠' at row 1
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE `Êý¾Ý¿â`;
 SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
 HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
@@ -262,9 +262,9 @@ SELECT * FROM `±í¸ñ`;
 횞횜쨋횓횘쨩
 횞횜쨋횓횘쨩
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `Êý¾Ý¿â`;
 USE `Êý¾Ý¿â`;
 CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET gb18030 COLLATE gb18030_bin) CHARACTER SET gb18030 COLLATE gb18030_bin;
@@ -286,9 +286,9 @@ SELECT `straÃe`(_gb18030'한글');
 `straÃe`(_gb18030'한글')
 頃滉竴
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE `Êý¾Ý¿â`;
 SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
 HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
@@ -301,9 +301,9 @@ SELECT * FROM `±í¸ñ`;
 脳脰露脦脪禄
 脳脰露脦脪禄
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `Êý¾Ý¿â`;
 USE `Êý¾Ý¿â`;
 CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET ujis COLLATE ujis_japanese_ci) CHARACTER SET ujis COLLATE ujis_japanese_ci;
@@ -334,9 +334,9 @@ Warnings:
 Warning	1300	Invalid ujis character string: 'ED959C'
 Warning	1366	Incorrect string value: '\xED\x95\x9C\xEA\xB8\x80' for column '饽紴缽菠' at row 1
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE `Êý¾Ý¿â`;
 SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
 HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)
@@ -355,9 +355,9 @@ Warnings:
 Warning	1300	Invalid ujis character string: 'C397C3'
 Warning	1366	Incorrect string value: '\xC3\x97\xC3\x96\xC2\xB6...' for column '????其?ﾃ?損' at row 1
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE DATABASE `Êý¾Ý¿â`;
 USE `Êý¾Ý¿â`;
 CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET sjis COLLATE sjis_japanese_ci) CHARACTER SET sjis COLLATE sjis_japanese_ci;
@@ -382,9 +382,9 @@ Warnings:
 Warning	1300	Invalid sjis character string: '80'
 Warning	1366	Incorrect string value: '\x80' for column '饽紴缽菠' at row 1
 DROP DATABASE `Êý¾Ý¿â`;
-SET NAMES utf8;
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 USE `Êý¾Ý¿â`;
 SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
 HEX(ÐÏÌÑ)	CHAR_LENGTH(ÐÏÌÑ)

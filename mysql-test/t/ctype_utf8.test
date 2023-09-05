@@ -29,12 +29,12 @@ select locate(_utf8mb3 0xD0B1, _utf8mb3 0xD0B0D091D0B2);
 select locate(_utf8mb3 0xD091, _utf8mb3 0xD0B0D0B1D0B2 COLLATE utf8mb3_bin);
 select locate(_utf8mb3 0xD0B1, _utf8mb3 0xD0B0D091D0B2 COLLATE utf8mb3_bin);
 
-select length(_utf8mb3 0xD0B1), bit_length(_utf8mb3 0xD0B1), char_length(_utf8 0xD0B1);
+select length(_utf8mb3 0xD0B1), bit_length(_utf8mb3 0xD0B1), char_length(_utf8mb3 0xD0B1);
 
 select 'a' like 'a';
 select 'A' like 'a';
 select 'A' like 'a' COLLATE utf8mb3_bin;
-select _utf8mb3 0xD0B0D0B1D0B2 like concat(_utf8mb3'%',_utf8 0xD0B1,_utf8 '%');
+select _utf8mb3 0xD0B0D0B1D0B2 like concat(_utf8mb3'%',_utf8mb3 0xD0B1,_utf8mb3 '%');
 
 # Bug #6040: can't retrieve records with umlaut
 # characters in case insensitive manner.
@@ -76,7 +76,7 @@ DROP TABLE t1;
 #
 # Fix this, it should return 1:
 #
-#select _utf8mb3 0xD0B0D0B1D0B2 like concat(_utf8mb3'%',_utf8 0xD091,_utf8 '%');
+#select _utf8mb3 0xD0B0D0B1D0B2 like concat(_utf8mb3'%',_utf8mb3 0xD091,_utf8mb3 '%');
 #
 
 #

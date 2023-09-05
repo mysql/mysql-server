@@ -25,10 +25,10 @@ if ($check_std_csets)
 
 if ($check_ucs2_csets)
 {
-  CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8;
+  CREATE DATABASE db1_ucs2_csets CHARACTER SET utf8mb3;
   USE db1_ucs2_csets;
-  SET NAMES utf8;
-  eval CREATE TABLE t_$cset (a CHAR(4) CHARACTER SET utf8) CHARACTER SET utf8;
+  SET NAMES utf8mb3;
+  eval CREATE TABLE t_$cset (a CHAR(4) CHARACTER SET utf8mb3) CHARACTER SET utf8mb3;
 
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t_$cset;
@@ -65,7 +65,7 @@ if ($check_utf8_csets)
 
 if ($check_for_object_names)
 {
-  eval SET NAMES utf8;
+  eval SET NAMES utf8mb3;
   CREATE DATABASE `Êý¾Ý¿â`;
   USE `Êý¾Ý¿â`;
   eval CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET $cset COLLATE $coll) CHARACTER SET $cset COLLATE $coll;
@@ -84,7 +84,7 @@ if ($check_for_object_names)
   --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_non_ascii.sql
   --remove_file $MYSQLTEST_VARDIR/tmp/db1_non_ascii.sql
 
-  eval SET NAMES utf8;
+  eval SET NAMES utf8mb3;
   USE `Êý¾Ý¿â`;
   eval SELECT HEX(ÐÏÌÑ) , CHAR_LENGTH(ÐÏÌÑ) FROM ÔÁÂÌÉÃÁ ORDER BY 1;
   eval SELECT `straÃe`(_$cset'한글');

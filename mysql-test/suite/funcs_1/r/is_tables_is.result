@@ -11,10 +11,10 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
-AND table_name COLLATE utf8_general_ci <> 'profiling'
-AND table_name COLLATE utf8_general_ci not like 'innodb_%'
+AND table_name COLLATE utf8mb3_general_ci <> 'profiling'
+AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 AND table_name not like 'ndb%'
-ORDER BY table_schema,table_name COLLATE utf8_general_ci;
+ORDER BY table_schema,table_name COLLATE utf8mb3_general_ci;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
 TABLE_NAME	ADMINISTRABLE_ROLE_AUTHORIZATIONS
@@ -1111,10 +1111,10 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
-AND table_name COLLATE utf8_general_ci <> 'profiling'
-AND table_name COLLATE utf8_general_ci not like 'innodb_%'
+AND table_name COLLATE utf8mb3_general_ci <> 'profiling'
+AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 AND table_name not like 'ndb%'
-ORDER BY table_schema,table_name COLLATE utf8_general_ci;
+ORDER BY table_schema,table_name COLLATE utf8mb3_general_ci;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
 TABLE_NAME	ADMINISTRABLE_ROLE_AUTHORIZATIONS

@@ -315,7 +315,7 @@ col4 tinyint(3) unsigned NOT NULL DEFAULT '0',
 PRIMARY KEY (ID),
 KEY (key1),
 KEY (key2)
-) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -323,7 +323,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES
 (1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
 (2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
@@ -653,7 +653,7 @@ INSERT INTO t3
 SELECT a, 'MySQL' FROM ten;
 CREATE TABLE t4 (
 pk int(11) NOT NULL,
-c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+c1_key varchar(10) CHARACTER SET utf8mb3 NOT NULL,
 c2 varchar(10) NOT NULL,
 c3 varchar(10) NOT NULL,
 PRIMARY KEY (pk),
@@ -661,7 +661,7 @@ KEY k1 (c1_key)
 ) charset latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE t5 (
 pk INTEGER NOT NULL,
 c1 VARCHAR(10) NOT NULL,
@@ -752,12 +752,12 @@ CREATE TABLE t2 (
 pk INT NOT NULL,
 i1 INT NOT NULL,
 i2 INT NOT NULL,
-c1 VARCHAR(1024) CHARACTER SET utf8,
+c1 VARCHAR(1024) CHARACTER SET utf8mb3,
 PRIMARY KEY (pk),
 KEY k1 (i1)
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t2 VALUES (3, 9, 1, NULL);
 EXPLAIN SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2

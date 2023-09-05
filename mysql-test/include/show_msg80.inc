@@ -111,8 +111,8 @@
 #
 
 --disable_query_log
-eval SET @utf8_message = CONVERT('$message' using utf8);
+eval SET @utf8_message = CONVERT('$message' using utf8mb3);
 select @utf8_message as ""
 union
-select repeat(CONVERT('-' using utf8),80);
+select repeat(CONVERT('-' using utf8mb3),80);
 --enable_query_log

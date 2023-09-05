@@ -1482,7 +1482,7 @@ drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
-create table t1 (v varchar(65530) character set utf8);
+create table t1 (v varchar(65530) character set utf8mb3);
 show create table t1;
 drop table t1;
 SET sql_mode = default;
@@ -1800,7 +1800,7 @@ set foreign_key_checks=0;
 eval create table t1(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=latin1;
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1005
-eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=utf8;
+eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=utf8mb3;
 set foreign_key_checks=1;
 drop table t1;
 
@@ -1819,7 +1819,7 @@ drop table t2,t1;
 set foreign_key_checks=0;
 eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=latin1;
 eval create table t1(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=latin1;
-alter table t1 convert to character set utf8;
+alter table t1 convert to character set utf8mb3;
 set foreign_key_checks=1;
 drop table t2,t1;
 
@@ -1827,7 +1827,7 @@ drop table t2,t1;
 
 set foreign_key_checks=0;
 eval create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = $engine_type DEFAULT CHARSET=latin1;
-eval create table t3(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=utf8;
+eval create table t3(a varchar(10) primary key) engine = $engine_type DEFAULT CHARSET=utf8mb3;
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 -- error 1025
 rename table t3 to t1;
@@ -1880,18 +1880,18 @@ if (0)
 #
 # Test that we can create a large (>1K) key
 #
-eval create table t1 (a varchar(255) character set utf8,
-                 b varchar(255) character set utf8,
-                 c varchar(255) character set utf8,
-                 d varchar(255) character set utf8,
+eval create table t1 (a varchar(255) character set utf8mb3,
+                 b varchar(255) character set utf8mb3,
+                 c varchar(255) character set utf8mb3,
+                 d varchar(255) character set utf8mb3,
                  key (a,b,c,d)) engine=$engine_type;
 drop table t1;
 --error ER_TOO_LONG_KEY
-eval create table t1 (a varchar(255) character set utf8,
-                 b varchar(255) character set utf8,
-                 c varchar(255) character set utf8,
-                 d varchar(255) character set utf8,
-                 e varchar(255) character set utf8,
+eval create table t1 (a varchar(255) character set utf8mb3,
+                 b varchar(255) character set utf8mb3,
+                 c varchar(255) character set utf8mb3,
+                 d varchar(255) character set utf8mb3,
+                 e varchar(255) character set utf8mb3,
                  key (a,b,c,d,e)) engine=$engine_type;
 
 
@@ -2429,7 +2429,7 @@ eval CREATE TABLE t1 (DB_ROW_ID int) engine=$engine_type;
 eval CREATE TABLE t1 (
    a BIGINT(20) NOT NULL,
     PRIMARY KEY  (a)
- ) ENGINE=$engine_type DEFAULT CHARSET=UTF8;
+ ) ENGINE=$engine_type DEFAULT CHARSET=utf8mb3;
 
 eval CREATE TABLE t2 (
   a BIGINT(20) NOT NULL,
@@ -2439,7 +2439,7 @@ eval CREATE TABLE t2 (
   KEY idx_t2_b_c (b,c(200)),
   CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
    ON DELETE CASCADE
- ) ENGINE=$engine_type DEFAULT CHARSET=UTF8;
+ ) ENGINE=$engine_type DEFAULT CHARSET=utf8mb3;
 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, 'bar', 'vbar');

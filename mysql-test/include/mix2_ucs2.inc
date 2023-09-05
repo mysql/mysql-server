@@ -8,18 +8,18 @@
 
 eval create table t1 (
   a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
-) character set utf8 engine = $engine_type;
+) character set utf8mb3 engine = $engine_type;
 eval create table t2 (
   a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = $engine_type;
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
-insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
-insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
-insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
-insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
-insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t1 values (4,_utf8mb3 0xe880bd,_utf8mb3 0xe880bd,'four');
+insert into t1 values (4,_utf8mb3 0x5b,_utf8mb3 0x5b,'five');
+insert into t1 values (4,_utf8mb3 0xe880bde880bd,_utf8mb3 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8mb3 0xe880bdD0B1e880bd,_utf8mb3 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8mb3 0xD0B1,_utf8mb3 0xD0B1,'eight');
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -41,18 +41,18 @@ drop table t2;
 
 eval create table t1 (
   a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
-) character set utf8 engine = $engine_type;
+) character set utf8mb3 engine = $engine_type;
 eval create table t2 (
   a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = $engine_type;
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
-insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
-insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
-insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
-insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
-insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t1 values (4,_utf8mb3 0xe880bd,_utf8mb3 0xe880bd,'four');
+insert into t1 values (4,_utf8mb3 0x5b,_utf8mb3 0x5b,'five');
+insert into t1 values (4,_utf8mb3 0xe880bde880bd,_utf8mb3 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8mb3 0xe880bdD0B1e880bd,_utf8mb3 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8mb3 0xD0B1,_utf8mb3 0xD0B1,'eight');
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -76,18 +76,18 @@ drop table t2;
 
 eval create table t1 (
   a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
-) character set utf8 engine = $engine_type;
+) character set utf8mb3 engine = $engine_type;
 eval create table t2 (
   a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = $engine_type;
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
-insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
-insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
-insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
-insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
-insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t1 values (4,_utf8mb3 0xe880bd,_utf8mb3 0xe880bd,'four');
+insert into t1 values (4,_utf8mb3 0x5b,_utf8mb3 0x5b,'five');
+insert into t1 values (4,_utf8mb3 0xe880bde880bd,_utf8mb3 0xe880bde880bd,'six');
+insert into t1 values (4,_utf8mb3 0xe880bdD0B1e880bd,_utf8mb3 0xe880bdD0B1e880bd,'seven');
+insert into t1 values (4,_utf8mb3 0xD0B1,_utf8mb3 0xD0B1,'eight');
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -109,16 +109,16 @@ drop table t2;
 
 eval create table t1 (
   a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
-) character set utf8 engine = $engine_type;
+) character set utf8mb3 engine = $engine_type;
 eval create table t2 (
   a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = $engine_type;
 insert into t1 values (1,'abcdefg','abcdefg','one');
 insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
-insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
-insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
-insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
+insert into t1 values (4,_utf8mb3 0xe880bd,_utf8mb3 0xe880bd,'four');
+insert into t1 values (4,_utf8mb3 0x5b,_utf8mb3 0x5b,'five');
+insert into t1 values (4,_utf8mb3 0xD0B1,_utf8mb3 0xD0B1,'eight');
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -144,7 +144,7 @@ eval CREATE TABLE t1 (
   ind enum('0','1','2') NOT NULL default '0',
   string1 varchar(250) NOT NULL,
   PRIMARY KEY  (ind)
-) ENGINE=$engine_type DEFAULT CHARSET=utf8;
+) ENGINE=$engine_type DEFAULT CHARSET=utf8mb3;
 eval CREATE TABLE t2 (
   ind enum('0','1','2') NOT NULL default '0',
   string1 varchar(250) NOT NULL,
@@ -161,7 +161,7 @@ eval CREATE TABLE t1 (
   ind set('0','1','2') NOT NULL default '0',
   string1 varchar(250) NOT NULL,
   PRIMARY KEY  (ind)
-) ENGINE=$engine_type DEFAULT CHARSET=utf8;
+) ENGINE=$engine_type DEFAULT CHARSET=utf8mb3;
 eval CREATE TABLE t2 (
   ind set('0','1','2') NOT NULL default '0',
   string1 varchar(250) NOT NULL,
@@ -178,7 +178,7 @@ eval CREATE TABLE t1 (
   ind bit not null,
   string1 varchar(250) NOT NULL,
   PRIMARY KEY  (ind)
-) ENGINE=$engine_type DEFAULT CHARSET=utf8;
+) ENGINE=$engine_type DEFAULT CHARSET=utf8mb3;
 eval CREATE TABLE t2 (
   ind bit not null,
   string1 varchar(250) NOT NULL,
@@ -194,7 +194,7 @@ drop table t1,t2;
 
 eval create table t2 (
   a int, b char(10), filler char(10), primary key(a, b(2))
-) character set utf8 engine = $engine_type;
+) character set utf8mb3 engine = $engine_type;
 
 insert into t2 values (1,'abcdefg','one');
 insert into t2 values (2,'ijkilmn','two');
@@ -211,17 +211,17 @@ insert into t2 values (3, 'qrstuvw','three');
 update t2 set a=5, filler='booo' where a=1;
 drop table t2;
 
-eval create table t1(a int not null, b char(110),primary key(a,b(100))) engine=$engine_type default charset=utf8;
+eval create table t1(a int not null, b char(110),primary key(a,b(100))) engine=$engine_type default charset=utf8mb3;
 insert into t1 values(1,'abcdefg'),(2,'defghijk');
-insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
-insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
+insert into t1 values(6,_utf8mb3 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
+insert into t1 values(7,_utf8mb3 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
 select a,hex(b) from t1 order by b;
 update t1 set b = 'three' where a = 6;
 drop table t1;
-eval create table t1(a int not null, b text(110),primary key(a,b(100))) engine=$engine_type default charset=utf8;
+eval create table t1(a int not null, b text(110),primary key(a,b(100))) engine=$engine_type default charset=utf8mb3;
 insert into t1 values(1,'abcdefg'),(2,'defghijk');
-insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
-insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
+insert into t1 values(6,_utf8mb3 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
+insert into t1 values(7,_utf8mb3 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
 select a,hex(b) from t1 order by b;
 update t1 set b = 'three' where a = 6;
 drop table t1;

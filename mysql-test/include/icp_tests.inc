@@ -692,7 +692,7 @@ DROP TABLE t1,t2,t3;
 --echo #            when running innodb_mrr_icp test"
 --echo #
 
-create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
+create table t1 (a char(2) charset utf8mb3,b double, primary key (a(1)),key (b));
 insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 drop table t1;

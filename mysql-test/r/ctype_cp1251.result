@@ -121,11 +121,11 @@ SELECT
 HEX(a) AS chr,
 HEX(LOWER(a)) AS upper,
 HEX(LOWER(a)) AS lower,
-HEX(@utf8:=CONVERT(a USING utf8)) AS utf8,
-HEX(@roundtrip:=CAST(@utf8 AS CHAR)) AS roundtrip,
+HEX(@utf8mb3:=CONVERT(a USING utf8mb3)) AS utf8mb3,
+HEX(@roundtrip:=CAST(@utf8mb3 AS CHAR)) AS roundtrip,
 if(a=BINARY @roundtrip,'','Round trip unsafe') AS issafe
 FROM t1 ORDER BY chr;
-chr	upper	lower	utf8	roundtrip	issafe
+chr	upper	lower	utf8mb3	roundtrip	issafe
 00	00	00	00	00	
 01	01	01	01	01	
 02	02	02	02	02	
@@ -383,7 +383,7 @@ FD	FD	FD	D18D	FD
 FE	FE	FE	D18E	FE	
 FF	FF	FF	D18F	FF	
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
@@ -3119,9 +3119,9 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET NAMES latin1;
 SET sql_mode='';
-CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
+CREATE TABLE t1(a char(215) CHARACTER SET utf8mb3 NOT NULL DEFAULT '', KEY(a));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)

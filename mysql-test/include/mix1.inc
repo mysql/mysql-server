@@ -176,7 +176,7 @@ disconnect con1;
 #
 
 CREATE TABLE t1(c1 TEXT, UNIQUE (c1(1)), cnt INT DEFAULT 1)
-  ENGINE=INNODB CHARACTER SET UTF8;
+  ENGINE=INNODB CHARACTER SET utf8mb3;
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
@@ -184,7 +184,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 CREATE TABLE t1(c1 VARCHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
-  ENGINE=INNODB CHARACTER SET UTF8;
+  ENGINE=INNODB CHARACTER SET utf8mb3;
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
@@ -192,7 +192,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 CREATE TABLE t1(c1 CHAR(2), UNIQUE (c1(1)), cnt INT DEFAULT 1)
-  ENGINE=INNODB CHARACTER SET UTF8;
+  ENGINE=INNODB CHARACTER SET utf8mb3;
 INSERT INTO t1 (c1) VALUES ('1a');
 SELECT * FROM t1;
 INSERT INTO t1 (c1) VALUES ('1b') ON DUPLICATE KEY UPDATE cnt=cnt+1;
@@ -596,7 +596,7 @@ drop table t1;
 #
 # Bug #25866: Getting "#HY000 Can't find record in..." on and INSERT
 #
-CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
+CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=utf8mb3;
 INSERT INTO t1 VALUES ('uk'),('bg');
 SELECT * FROM t1 WHERE a = 'uk';
 DELETE FROM t1 WHERE a = 'uk';
@@ -943,7 +943,7 @@ DROP TABLE t1;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8mb3;
 insert into t1 values('aaa');
 --replace_result 768 3072 1536 3072
 alter table t1 add index(a(1025));

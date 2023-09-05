@@ -2858,9 +2858,9 @@ drop view v1, v2, v3;
 
 create table t1 (id int(11) not null default '0');
 insert into t1 values (123),(191),(192);
-create table t2 (id char(16) character set utf8 not null);
+create table t2 (id char(16) character set utf8mb3 not null);
 insert into t2 values ('58013'),('58014'),('58015'),('58016');
-create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
+create table t3 (a_id int(11) not null, b_id char(16) character set utf8mb3);
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 
 # both queries are equivalent

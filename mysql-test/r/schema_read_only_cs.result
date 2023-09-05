@@ -246,7 +246,7 @@ test
 # Schema operations.
 CREATE SCHEMA S;
 ERROR HY000: Can't create database 'S'; database exists
-ALTER SCHEMA S COLLATE utf8_bin;
+ALTER SCHEMA S COLLATE utf8mb3_bin;
 ERROR HY000: Schema 'S' is in read only mode.
 ALTER SCHEMA S CHARACTER SET ascii;
 ERROR HY000: Schema 'S' is in read only mode.
@@ -794,7 +794,7 @@ ALTER SCHEMA S READ ONLY=1;
 SHOW CREATE SCHEMA S;
 Database	Create Database
 S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
-ALTER SCHEMA S COLLATE utf8_bin;
+ALTER SCHEMA S COLLATE utf8mb3_bin;
 ERROR HY000: Schema 'S' is in read only mode.
 SHOW CREATE SCHEMA S;
 Database	Create Database
@@ -806,15 +806,15 @@ DROP SCHEMA S;
 #--------------------------------------------------------------------
 CREATE SCHEMA S;
 ALTER SCHEMA S READ ONLY=1;
-ALTER SCHEMA S READ ONLY = 1 COLLATE utf8_bin;
+ALTER SCHEMA S READ ONLY = 1 COLLATE utf8mb3_bin;
 ERROR HY000: Schema 'S' is in read only mode.
-ALTER SCHEMA S READ ONLY = 0 COLLATE utf8_bin;
+ALTER SCHEMA S READ ONLY = 0 COLLATE utf8mb3_bin;
 Warnings:
 Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE SCHEMA S;
 Database	Create Database
 S	CREATE DATABASE `S` /*!40100 DEFAULT CHARACTER SET utf8mb3 COLLATE utf8mb3_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
-ALTER SCHEMA S READ ONLY = 1 COLLATE utf8_general_ci;
+ALTER SCHEMA S READ ONLY = 1 COLLATE utf8mb3_general_ci;
 Warnings:
 Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 ALTER SCHEMA S READ ONLY=0;
