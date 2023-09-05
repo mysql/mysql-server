@@ -43,6 +43,22 @@ IMPORT_LOG_FUNCTIONS()
 #define mrs_strcasecmp(a, b) strcasecmp(a, b)
 #endif  // defined(_WIN32)
 
+#define CONVERT_WITH_DEFAULT(OUT, DEF)                                    \
+  {                                                                       \
+    log_debug("Deserialize to %s = %s with default " #DEF ", is_null:%s", \
+              #OUT, row.row_[row.field_index_],                           \
+              (row.row_[row.field_index_] == nullptr) ? "yes" : "no");    \
+    row.unserialize(OUT, DEF);                                            \
+  }
+
+#define CONVERT(OUT)                                                   \
+  {                                                                    \
+    log_debug("Deserialize to %s = %s, is_null:%s", #OUT,              \
+              row.row_[row.field_index_],                              \
+              (row.row_[row.field_index_] == nullptr) ? "yes" : "no"); \
+    row.unserialize(OUT);                                              \
+  }
+
 namespace mrs {
 namespace database {
 
@@ -115,6 +131,7 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.db_column->>'$.is_primary',"
       " object_field.db_column->>'$.is_unique',"
       " object_field.db_column->>'$.is_generated',"
+      " JSON_VALUE(object_field.db_column, '$.srid'),"
       " object_field.enabled,"
       " object_field.allow_filtering,"
       " object_field.allow_sorting,"
@@ -317,7 +334,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
     row.unserialize(&ofield->name);
     row.unserialize(&ofield->position);
-    row.skip(7);
+    row.skip(8);
     row.unserialize(&ofield->enabled);
     row.unserialize(&ofield->allow_filtering);
     row.unserialize(&ofield->allow_sorting);
@@ -396,8 +413,9 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     row.unserialize(&column->not_null);
     row.unserialize(&column->is_primary);
     row.unserialize(&column->is_unique);
-    row.unserialize(&column->is_generated);
-    row.unserialize(&dfield->enabled);
+    CONVERT(&column->is_generated);
+    CONVERT_WITH_DEFAULT(&column->srid, static_cast<uint32_t>(0));
+    CONVERT(&dfield->enabled);
     row.unserialize(&dfield->allow_filtering);
     row.unserialize(&dfield->no_check);
 

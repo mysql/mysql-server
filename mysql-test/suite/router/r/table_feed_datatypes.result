@@ -20,6 +20,7 @@
 # 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
 # 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
 # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+# 7. Verify generation of JSON object from sprtial types
 #
 #
 # Registred SERVICE at path: /svc
@@ -566,6 +567,93 @@ GET /svc/basic/t3?f=cmediumint
             "cmediumint": 8388607,
             "_metadata": {
                 "etag": "0BCF68933D57C4C2DEF402E429E151630F5A4106D1C6031D7C8F349AD744BD22"
+            }
+        }
+    ]
+}
+OK
+
+#
+# I.7
+GET /svc/basic/t3?f=geo0
+{
+    "items": [
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "_metadata": {
+                "etag": "02580FE265FCFD3ED60A8BD22050191F056F4BF87D9D0CC695728F90044C1725"
+            }
+        },
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    -100.0,
+                    -110.0
+                ]
+            },
+            "_metadata": {
+                "etag": "23EB97C6820820FBB61342CC4DF370A75919C6976BEABBCE61D8702ECB020617"
+            }
+        },
+        {
+            "geo0": {
+                "type": "Point",
+                "coordinates": [
+                    110.0,
+                    100.0
+                ]
+            },
+            "_metadata": {
+                "etag": "D61AD6C6C4BD4FAA25634E87C5F321291500484F4237C2DF23B8F5F12AE26826"
+            }
+        }
+    ]
+}
+OK
+GET /svc/basic/t3?f=geo4326
+{
+    "items": [
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    0.0,
+                    0.0
+                ]
+            },
+            "_metadata": {
+                "etag": "E8652121A793A5A62D4F9874168C6C2DECBED784F942FB5D81598ACCF0DD2B67"
+            }
+        },
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    -90.0,
+                    -90.0
+                ]
+            },
+            "_metadata": {
+                "etag": "DEDB859D3FC64B7FC044189FD6A0992092092A4F3CCDF29484E7AD624756FCF4"
+            }
+        },
+        {
+            "geo4326": {
+                "type": "Point",
+                "coordinates": [
+                    90.0,
+                    90.0
+                ]
+            },
+            "_metadata": {
+                "etag": "C7BB805300E17AD6DCAB7C290B4E63E5608455841044F0DC2B835AE3E22EC559"
             }
         }
     ]

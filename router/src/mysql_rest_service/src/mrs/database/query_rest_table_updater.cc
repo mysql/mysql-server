@@ -346,8 +346,9 @@ class RowInsert : public RowChangeOperation {
         add_value(field->source, mysqlrouter::sqlstring("FROM_BASE64(?)")
                                      << value);
       } else if (field->source->type == entry::ColumnType::GEOMETRY) {
-        add_value(field->source, mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)")
-                                     << value);
+        add_value(field->source,
+                  mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?, 1, ?)")
+                      << value << field->source->srid);
       } else {
         add_value(field->source, value);
       }
@@ -1386,7 +1387,7 @@ void validate_scalar_value(const entry::Column &column,
         throw std::runtime_error(jptr + " has invalid value type");
       break;
     case entry::ColumnType::GEOMETRY:
-      if (!value.IsObject())
+      if (!value.IsObject() && !value.IsString())
         throw std::runtime_error(jptr + " has invalid value type");
       break;
     case entry::ColumnType::JSON:
@@ -1403,9 +1404,16 @@ void process_object_field(std::shared_ptr<entry::DataField> field,
                         join_json_pointer(jptr, field->name));
 
   mysqlrouter::sqlstring tmp("?");
-  if (field->source->type == entry::ColumnType::JSON ||
-      field->source->type == entry::ColumnType::GEOMETRY) {
+  if (field->source->type == entry::ColumnType::JSON) {
     tmp << helper::json::to_string(value);
+  } else if (field->source->type == entry::ColumnType::GEOMETRY) {
+    if (value.IsString()) {
+      tmp.reset("ST_AsGeoJSON(ST_GeomFromText(?,?))");
+      tmp << value.GetString();
+      tmp << field->source->srid;
+    } else {
+      tmp << helper::json::to_string(value);
+    }
   } else if (value.IsBool()) {
     tmp << value.GetBool();
   } else {

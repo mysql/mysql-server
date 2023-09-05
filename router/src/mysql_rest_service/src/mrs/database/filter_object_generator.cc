@@ -68,18 +68,54 @@ std::vector<std::string> get_array_of_string(Value *value) {
   return result;
 }
 
+class tosGeom {
+ private:
+  static bool is_geo_json(Value *v) {
+    using namespace std::string_literals;
+    if (!v->IsObject()) return false;
+
+    bool has_type{false}, has_coords{false};
+    auto v_as_object = v->GetObject();
+
+    for (auto kv : helper::json::member_iterator(v_as_object)) {
+      if (!has_type && "type"s == kv.first)
+        has_type = kv.second->IsString();
+      else if (!has_coords && "coordinates"s == kv.first)
+        has_coords = kv.second->IsArray();
+    }
+
+    return has_type && has_coords;
+  }
+
+ public:
+  bool acceptable(entry::DataField *dfield, Value *v) const {
+    if (!dfield) return false;
+    if (dfield->source->type != entry::ColumnType::GEOMETRY) return false;
+    return v->IsString() || is_geo_json(v);
+  }
+  mysqlrouter::sqlstring to_sqlstring(entry::DataField *dfield,
+                                      Value *v) const {
+    if (v->IsString())
+      return mysqlrouter::sqlstring("ST_GeomFromText(?, ?)")
+             << v->GetString() << dfield->source->srid;
+
+    return mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?,1,?)")
+           << helper::json::to_string(v) << dfield->source->srid;
+  }
+};
+
 class tosString {
  public:
-  bool acceptable(Value *v) const { return v->IsString(); }
-  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
+  bool acceptable(entry::DataField *, Value *v) const { return v->IsString(); }
+  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
     return mysqlrouter::sqlstring("?") << v->GetString();
   }
 };
 
 class tosNumber {
  public:
-  bool acceptable(Value *v) const { return v->IsNumber(); }
-  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
+  bool acceptable(entry::DataField *, Value *v) const { return v->IsNumber(); }
+  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
     return mysqlrouter::sqlstring(helper::json::to_string(v).c_str());
   }
 };
@@ -87,7 +123,7 @@ class tosNumber {
 class tosDate {
  public:
   const char *k_date{"$date"};
-  bool acceptable(Value *v) const {
+  bool acceptable(entry::DataField *, Value *v) const {
     if (!v->IsObject()) return false;
 
     auto it = v->FindMember(k_date);
@@ -97,7 +133,7 @@ class tosDate {
     return it->value.IsString();
   }
 
-  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
+  mysqlrouter::sqlstring to_sqlstring(entry::DataField *, Value *v) const {
     auto o = v->GetObject();
     return mysqlrouter::sqlstring("?") << o[k_date].GetString();
   }
@@ -105,24 +141,26 @@ class tosDate {
 
 class Result {
  public:
-  explicit Result(Value *v) : v_{v} {}
+  explicit Result(entry::DataField *dfield, Value *v)
+      : dfield_{dfield}, v_{v} {}
 
   template <typename Z>
   Result &operator<<(const Z &t) {
-    if (result.is_empty() && t.acceptable(v_)) {
-      result = t.to_sqlstring(v_);
+    if (result.is_empty() && t.acceptable(dfield_, v_)) {
+      result = t.to_sqlstring(dfield_, v_);
     }
 
     return *this;
   }
 
   mysqlrouter::sqlstring result;
+  entry::DataField *dfield_;
   Value *v_;
 };
 
 template <typename... T>
-mysqlrouter::sqlstring to_sqlstring(Value *value) {
-  Result r(value);
+mysqlrouter::sqlstring to_sqlstring(entry::DataField *dfield, Value *value) {
+  Result r(dfield, value);
   (r << ... << T());
 
   if (r.result.is_empty()) throw RestError("Not supported type.");
@@ -236,7 +274,9 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
 
   auto name = object->MemberBegin()->name.GetString();
   Value *value = &object->MemberBegin()->value;
-  auto db_name = resolve_field_name(argument_.back().c_str(), false);
+  auto field_name = argument_.back().c_str();
+  auto dfield = resolve_field(field_name);
+  auto db_name = resolve_field_name(dfield, field_name, false);
 
   log_debug("parse_simple_object %i", static_cast<int>(value->GetType()));
   where_.append_preformatted(" ");
@@ -244,44 +284,50 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
     where_.append_preformatted(db_name)
         .append_preformatted(" = ")
         .append_preformatted(
-            to_sqlstring<tosString, tosNumber, tosDate>(value));
+            to_sqlstring<tosGeom, tosString, tosNumber, tosDate>(dfield.get(),
+                                                                 value));
   } else if ("$ne"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" <> ")
         .append_preformatted(
-            to_sqlstring<tosString, tosNumber, tosDate>(value));
+            to_sqlstring<tosGeom, tosString, tosNumber, tosDate>(dfield.get(),
+                                                                 value));
   } else if ("$lt"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" < ")
-        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
+        .append_preformatted(
+            to_sqlstring<tosNumber, tosDate>(dfield.get(), value));
   } else if ("$lte"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" <= ")
-        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
+        .append_preformatted(
+            to_sqlstring<tosNumber, tosDate>(dfield.get(), value));
   } else if ("$gt"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" > ")
-        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
+        .append_preformatted(
+            to_sqlstring<tosNumber, tosDate>(dfield.get(), value));
   } else if ("$gte"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" >= ")
-        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
+        .append_preformatted(
+            to_sqlstring<tosNumber, tosDate>(dfield.get(), value));
   } else if ("$instr"s == name) {
     where_.append_preformatted("instr(")
         .append_preformatted(db_name)
         .append_preformatted(", ")
-        .append_preformatted(to_sqlstring<tosString>(value))
+        .append_preformatted(to_sqlstring<tosString>(dfield.get(), value))
         .append_preformatted(")");
   } else if ("$ninstr"s == name) {
     where_.append_preformatted("not instr(")
         .append_preformatted(db_name)
         .append_preformatted(", ")
-        .append_preformatted(to_sqlstring<tosString>(value))
+        .append_preformatted(to_sqlstring<tosString>(dfield.get(), value))
         .append_preformatted(")");
   } else if ("$like"s == name) {
     where_.append_preformatted(db_name)
         .append_preformatted(" like ")
-        .append_preformatted(to_sqlstring<tosString>(value));
+        .append_preformatted(to_sqlstring<tosString>(dfield.get(), value));
   } else if ("$null"s == name) {
     where_.append_preformatted(db_name).append_preformatted(" IS NULL");
   } else if ("$notnull"s == name) {
@@ -295,11 +341,11 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
     // (Shouldn't be in review)
     where_.append_preformatted(db_name)
         .append_preformatted(" BETWEEN ")
-        .append_preformatted(
-            to_sqlstring<tosString, tosNumber, tosDate>(&(*value)[0]))
+        .append_preformatted(to_sqlstring<tosString, tosNumber, tosDate>(
+            dfield.get(), &(*value)[0]))
         .append_preformatted(" AND ")
-        .append_preformatted(
-            to_sqlstring<tosString, tosNumber, tosDate>(&(*value)[1]));
+        .append_preformatted(to_sqlstring<tosString, tosNumber, tosDate>(
+            dfield.get(), &(*value)[1]));
   } else {
     return false;
   }
@@ -430,12 +476,15 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   if (parse_simple_object(value)) return;
   log_debug("fallback");
 
-  mysqlrouter::sqlstring dbname = resolve_field_name(name, false);
+  auto dfield = resolve_field(name);
+  mysqlrouter::sqlstring dbname = resolve_field_name(dfield, name, false);
 
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
   where_.append_preformatted(
       mysqlrouter::sqlstring(" !=?")
-      << dbname << to_sqlstring<tosString, tosNumber, tosDate>(value));
+      << dbname
+      << to_sqlstring<tosGeom, tosString, tosNumber, tosDate>(dfield.get(),
+                                                              value));
   argument_.pop_back();
 }
 
@@ -463,7 +512,9 @@ void FilterObjectGenerator::parse_order(Object object) {
     order_.append_preformatted(first ? " ORDER BY " : ", ");
     first = false;
     bool asc = false;
-    order_.append_preformatted(resolve_field_name(member.first, true));
+    const auto &field_name = member.first;
+    auto dfield = resolve_field(field_name);
+    order_.append_preformatted(resolve_field_name(dfield, field_name, true));
 
     auto value = member.second;
 
@@ -496,32 +547,37 @@ void FilterObjectGenerator::parse_order(Object object) {
   }
 }
 
+std::shared_ptr<entry::DataField> FilterObjectGenerator::resolve_field(
+    const char *name) {
+  if (!object_metadata_) return nullptr;
+
+  auto field = object_metadata_->get_field(name);
+  return std::dynamic_pointer_cast<entry::DataField>(field);
+}
+
 mysqlrouter::sqlstring FilterObjectGenerator::resolve_field_name(
-    const char *name, bool for_sorting) const {
-  if (object_metadata_) {
-    auto field = object_metadata_->get_field(name);
+    std::shared_ptr<entry::DataField> &dfield, const char *name,
+    bool for_sorting) const {
+  if (!object_metadata_) return mysqlrouter::sqlstring("!") << name;
 
-    if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
-      if (!dfield->allow_filtering && !for_sorting)
-        throw RestError("Cannot filter on field "s + name);
-      if (!dfield->allow_sorting && for_sorting)
-        throw RestError("Cannot sort on field "s + name);
-
-      if (joins_allowed_)
-        return mysqlrouter::sqlstring("!.!")
-               << dfield->source->table.lock()->table_alias
-               << dfield->source->name;
-      else
-        return mysqlrouter::sqlstring("!") << dfield->source->name;
-    }
-    // TODO(alfredo) filter on nested fields
-    if (!for_sorting)
+  if (dfield) {
+    if (!dfield->allow_filtering && !for_sorting)
       throw RestError("Cannot filter on field "s + name);
-    else
+    if (!dfield->allow_sorting && for_sorting)
       throw RestError("Cannot sort on field "s + name);
-  } else {
-    return mysqlrouter::sqlstring("!") << name;
+
+    if (joins_allowed_)
+      return mysqlrouter::sqlstring("!.!")
+             << dfield->source->table.lock()->table_alias
+             << dfield->source->name;
+    else
+      return mysqlrouter::sqlstring("!") << dfield->source->name;
   }
+  // TODO(alfredo) filter on nested fields
+  if (!for_sorting)
+    throw RestError("Cannot filter on field "s + name);
+  else
+    throw RestError("Cannot sort on field "s + name);
 }
 
 }  // namespace database
