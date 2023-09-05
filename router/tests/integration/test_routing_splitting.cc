@@ -560,6 +560,12 @@ class TestEnv : public ::testing::Environment {
   [[nodiscard]] bool run_slow_tests() const { return run_slow_tests_; }
 
   void TearDown() override {
+    if (testing::Test::HasFatalFailure()) {
+      for (auto &srv : shared_servers_) {
+        srv->process_manager().dump_logs();
+      }
+    }
+
     for (auto &srv : shared_servers_) {
       if (srv == nullptr || srv->mysqld_failed_to_start()) continue;
 
@@ -875,6 +881,12 @@ class SplittingConnectionTest
       } else {
         srv->close_all_connections();  // reset the router's connection-pool
       }
+    }
+  }
+
+  void TearDown() override {
+    if (HasFatalFailure()) {
+      shared_router()->process_manager().dump_logs();
     }
   }
 };
@@ -2285,6 +2297,33 @@ TEST_P(SplittingConnectionTest, binlog_fails) {
 
     // Statement not allowed if access_mode is 'auto'
     EXPECT_EQ(fetch_res.error().value(), 4501) << fetch_res.error();
+  }
+}
+
+TEST_P(SplittingConnectionTest, select_overlong) {
+  RecordProperty("Worklog", "12794");
+  RecordProperty(
+      "Description",
+      "Check if overlong statements are properly tokenized and forwarded.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // select something to make the transaction actually "open".
+  {
+    auto query_res =
+        query_one_result(cli, "SET /* " + std::string(16 * 1024 * 1024, 'a') +
+                                  " */ GLOBAL abc = 1");
+    ASSERT_ERROR(query_res);
+    // should fail with "Statement not allowed if access_mode is 'auto'"
+    EXPECT_EQ(query_res.error().value(), 4501) << query_res.error();
   }
 }
 

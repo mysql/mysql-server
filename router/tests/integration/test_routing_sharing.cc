@@ -7280,6 +7280,36 @@ TEST_P(ShareConnectionTest, php_all_commands) {
   proc.wait_for_exit();
 }
 
+TEST_P(ShareConnectionTest, select_overlong) {
+  RecordProperty(
+      "Description",
+      "Check if overlong statements are properly tokenized and forwarded.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // send a statement that's longer than 16Mbyte which spans multiple protocol
+  // frames.
+  {
+    auto query_res =
+        query_one_result(cli, "SET /* " + std::string(16 * 1024 * 1024, 'a') +
+                                  " */ GLOBAL wait_timeout = 1");
+    ASSERT_ERROR(query_res);
+    // should fail with "Access denied; need SUPER|SYSTEM_VARIABLES_ADMIN
+    EXPECT_EQ(query_res.error().value(), 1227) << query_res.error();
+  }
+
+  // a safe guard that the recv-buffers are proper cleaned
+  ASSERT_NO_ERROR(cli.query("DO 1"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {

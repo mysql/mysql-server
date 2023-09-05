@@ -25,6 +25,7 @@
 #include "processor.h"
 
 #include "classic_connection_base.h"
+#include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -91,26 +92,39 @@ Processor::client_socket_failed(std::error_code ec) {
 
 stdx::expected<void, std::error_code> Processor::discard_current_msg(
     Channel *src_channel, ClassicProtocolState *src_protocol) {
-  auto &opt_current_frame = src_protocol->current_frame();
-  if (!opt_current_frame) return {};
-
-  auto &current_frame = *opt_current_frame;
-
   auto &recv_buf = src_channel->recv_plain_view();
 
-  if (recv_buf.size() < current_frame.frame_size_) {
-    // received message is incomplete.
-    return stdx::make_unexpected(make_error_code(std::errc::bad_message));
-  }
-  if (current_frame.forwarded_frame_size_ != 0) {
-    // partially forwarded already.
-    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
-  }
+  do {
+    auto &opt_current_frame = src_protocol->current_frame();
+    if (!opt_current_frame) return {};
 
-  src_channel->consume_plain(current_frame.frame_size_);
+    auto current_frame = *opt_current_frame;
 
-  // unset current frame and also current-msg
-  src_protocol->current_frame().reset();
+    if (recv_buf.size() < current_frame.frame_size_) {
+      // received message is incomplete.
+      return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+    }
+    if (current_frame.forwarded_frame_size_ != 0) {
+      // partially forwarded already.
+      return stdx::make_unexpected(
+          make_error_code(std::errc::invalid_argument));
+    }
+
+    src_channel->consume_plain(current_frame.frame_size_);
+
+    auto msg_has_more_frames = current_frame.frame_size_ == (0xffffff + 4);
+
+    // unset current frame and also current-msg
+    src_protocol->current_frame().reset();
+
+    if (!msg_has_more_frames) break;
+
+    auto hdr_res = ClassicFrame::ensure_frame_header(src_channel, src_protocol);
+    if (!hdr_res) {
+      return stdx::make_unexpected(hdr_res.error());
+    }
+  } while (true);
+
   src_protocol->current_msg_type().reset();
 
   return {};
