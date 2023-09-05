@@ -25,7 +25,6 @@ STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
 NULL
 Warnings:
 Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 22.30.61' for function str_to_date
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -390,7 +389,6 @@ str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
-Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -488,16 +486,12 @@ drop table t1;
 select str_to_date( 1, NULL );
 str_to_date( 1, NULL )
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
 select str_to_date( NULL, 1 );
 str_to_date( NULL, 1 )
 NULL
 select str_to_date( 1, IF(1=1,NULL,NULL) );
 str_to_date( 1, IF(1=1,NULL,NULL) )
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
 SELECT TIME_FORMAT("24:00:00", '%r');
 TIME_FORMAT("24:00:00", '%r')
 12:00:00 AM
@@ -682,3 +676,26 @@ b	b in ('121314')	b in ('121314', 0)
 11:13:14	0	0
 12:13:14	1	1
 DROP TABLE t1, t2, t3;
+#
+# Bug#34704094: Mysql str_to_date can correct convert for '2022-11-30'
+#
+SELECT STR_TO_DATE('31/11/22', '%d/%m/%Y');
+STR_TO_DATE('31/11/22', '%d/%m/%Y')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '31/11/22' for function str_to_date
+SELECT STR_TO_DATE('2023-02-31','%Y-%m-%d');
+STR_TO_DATE('2023-02-31','%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2023-02-31' for function str_to_date
+SELECT STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T');
+STR_TO_DATE('2004.09.12 10:61:59','%Y.%m.%d %T')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2004.09.12 10:61:59' for function str_to_date
+SELECT STR_TO_DATE('0000-00-00','%Y-%m-%d');
+STR_TO_DATE('0000-00-00','%Y-%m-%d')
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '0000-00-00' for function str_to_date

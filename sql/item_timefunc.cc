@@ -148,6 +148,8 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
+  @param data_type  Type of data
+  @param flags      flags used by check_date()
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound
@@ -170,7 +172,9 @@ static bool extract_date_time(Date_time_format *format,
                               const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
-                              const char *date_time_type)
+                              const char *date_time_type,
+                              enum_field_types data_type,
+                              my_time_flags_t flags)
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
@@ -364,7 +368,8 @@ static bool extract_date_time(Date_time_format *format,
         */
         if (extract_date_time(&time_ampm_format, val,
                               (uint)(val_end - val), l_time,
-                              cached_timestamp_type, &val, "time"))
+                              cached_timestamp_type, &val, "time",
+                              data_type, flags))
           DBUG_RETURN(1);
         break;
 
@@ -372,7 +377,8 @@ static bool extract_date_time(Date_time_format *format,
       case 'T':
         if (extract_date_time(&time_24hrs_format, val,
                               (uint)(val_end - val), l_time,
-                              cached_timestamp_type, &val, "time"))
+                              cached_timestamp_type, &val, "time",
+                              data_type, flags))
           DBUG_RETURN(1);
         break;
 
@@ -474,8 +480,12 @@ static bool extract_date_time(Date_time_format *format,
     get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
 
-  if (l_time->month > 12 || l_time->day > 31 || l_time->hour > 23 || 
-      l_time->minute > 59 || l_time->second > 59)
+  assert(l_time->year <= 9999);
+  if (data_type == MYSQL_TYPE_TIME) flags &= ~TIME_NO_ZERO_DATE;
+  int warnings;
+  if (l_time->month > 12 || l_time->hour > 23 || l_time->minute > 59 ||
+      l_time->second > 59 ||
+      check_date(l_time, non_zero_date(l_time), flags, &warnings))
     goto err;
 
   if (val != val_end)
@@ -3356,6 +3366,22 @@ void Item_func_str_to_date::fix_length_and_dec()
   }
 }
 
+/**
+  Determines whether this date should be NULL (and a warning raised) under the
+  given sql_mode. Zeroes are allowed in the date if the data type is TIME.
+
+  @param target_type The data type of the time/date.
+  @param time Date and time data
+  @param fuzzy_date What sql_mode dictates.
+  @return Whether the result is valid or NULL.
+*/
+static bool date_should_be_null(enum_field_types target_type,
+                                const MYSQL_TIME &time,
+                                my_time_flags_t fuzzy_date) {
+  return (fuzzy_date & TIME_NO_ZERO_DATE) != 0 &&
+         (target_type != MYSQL_TYPE_TIME) &&
+         (time.year == 0 || time.month == 0 || time.day == 0);
+}
 
 bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
                                          my_time_flags_t fuzzy_date)
@@ -3381,11 +3407,19 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
   memset(ltime, 0, sizeof(*ltime));
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
-  if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type, 0, "datetime") ||
-      ((fuzzy_date & TIME_NO_ZERO_DATE) &&
-       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
+  if (extract_date_time(&date_time_format, val->ptr(), val->length(), ltime,
+			cached_timestamp_type, 0, "datetime", field_type(),
+			fuzzy_date))
     goto null_date;
+  if (date_should_be_null(field_type(), *ltime, fuzzy_date)) {
+    char buff[128];
+    strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff) - 1));
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_VALUE_FOR_TYPE,
+                        ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
+                        "datetime", buff, "str_to_date");
+    goto null_date;
+  }
   ltime->time_type= cached_timestamp_type;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {
@@ -3400,14 +3434,6 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
   return 0;
 
 null_date:
-  if (val && (fuzzy_date & TIME_NO_ZERO_DATE) /*warnings*/)
-  {
-    char buff[128];
-    strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff)-1));
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
-                        "datetime", buff, "str_to_date");
-  }
   return (null_value= 1);
 }
 
