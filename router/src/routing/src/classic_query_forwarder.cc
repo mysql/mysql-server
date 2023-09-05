@@ -139,6 +139,8 @@ void dump_token(SqlLexer::iterator::Token tkn) {
     std::cerr << std::quoted(tkn.text);
   } else if (tkn.id == NUM) {
     std::cerr << tkn.text;
+  } else if (tkn.id == ABORT_SYM) {
+    std::cerr << "<ABORT>";
   } else if (tkn.id == END_OF_INPUT) {
     std::cerr << "<END>";
   }
