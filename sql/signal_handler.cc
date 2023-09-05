@@ -180,9 +180,14 @@ void print_fatal_signal(int sig) {
         "Trying to get some variables.\n"
         "Some pointers may be invalid and cause the dump to abort.\n");
 
-    my_safe_printf_stderr("Query (%p): ", thd->query().str);
-    my_safe_puts_stderr(thd->query().str,
-                        std::min(size_t{1024}, thd->query().length));
+    const char *query = thd->rewritten_query().ptr();
+    size_t query_length = thd->rewritten_query().length();
+    if (query_length == 0) {
+      query = thd->query().str;
+      query_length = thd->query().length;
+    }
+    my_safe_printf_stderr("Query (%p): ", query);
+    my_safe_puts_stderr(query, std::min(size_t{1024}, query_length));
     my_safe_printf_stderr("Connection ID (thread ID): %u\n", thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }
