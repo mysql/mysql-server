@@ -340,13 +340,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.server_ssl_session_cache_timeout);
     if (config.dest_ssl_mode != SslMode::kDisabled) {
       // validate the config-values one time
-      TlsServerContext tls_server_ctx;
+      TlsClientContext precheck_dest_tls_ctx;
 
       {
         const std::string dest_ssl_cipher = config.dest_ssl_cipher.empty()
                                                 ? get_default_ciphers()
                                                 : config.dest_ssl_cipher;
-        const auto res = tls_server_ctx.cipher_list(dest_ssl_cipher);
+        const auto res = precheck_dest_tls_ctx.cipher_list(dest_ssl_cipher);
         if (!res) {
           throw std::system_error(res.error(), "setting server_ssl_cipher=" +
                                                    dest_ssl_cipher + " failed");
@@ -354,7 +354,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         dest_tls_context->ciphers(dest_ssl_cipher);
       }
       if (!config.dest_ssl_curves.empty()) {
-        const auto res = tls_server_ctx.curves_list(config.dest_ssl_curves);
+        const auto res =
+            precheck_dest_tls_ctx.curves_list(config.dest_ssl_curves);
         if (!res) {
           if (res.error() == std::errc::function_not_supported) {
             throw std::runtime_error(
@@ -368,14 +369,15 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         }
         dest_tls_context->curves(config.dest_ssl_curves);
       }
+
       if (!config.dest_ssl_ca_file.empty() || !config.dest_ssl_ca_dir.empty()) {
         if (!config.dest_ssl_ca_dir.empty()) {
           // throws on error
           ensure_readable_directory("server_ssl_capath",
                                     config.dest_ssl_ca_dir);
         }
-        const auto res = tls_server_ctx.ssl_ca(config.dest_ssl_ca_file,
-                                               config.dest_ssl_ca_dir);
+        const auto res = precheck_dest_tls_ctx.ssl_ca(config.dest_ssl_ca_file,
+                                                      config.dest_ssl_ca_dir);
         if (!res) {
           throw std::system_error(
               res.error(), "setting server_ssl_ca=" + config.dest_ssl_ca_file +
@@ -393,8 +395,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
           ensure_readable_directory("server_ssl_crlpath",
                                     config.dest_ssl_crl_dir);
         }
-        const auto res = tls_server_ctx.crl(config.dest_ssl_crl_file,
-                                            config.dest_ssl_crl_dir);
+        const auto res = precheck_dest_tls_ctx.crl(config.dest_ssl_crl_file,
+                                                   config.dest_ssl_crl_dir);
         if (!res) {
           throw std::system_error(
               res.error(),
