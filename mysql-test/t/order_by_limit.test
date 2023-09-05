@@ -476,6 +476,7 @@ let query =
 SELECT * FROM t2
 WHERE f3 = 1 AND f2 = 1 AND f4 = 3 AND f5 IN(2,3) ORDER BY f4 DESC LIMIT 1;
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Different plan (elided ORDER BY) gives different result.
 eval $query;
 
 let query =
