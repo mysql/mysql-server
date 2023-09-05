@@ -502,13 +502,30 @@ static Sys_var_charptr Sys_pfs_instrument(
     CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT), IN_FS_CHARSET, DEFAULT(""),
     PFS_TRAILING_PROPERTIES);
 
+/**
+  Update the performance_schema_show_processlist.
+  Warn that the use of information_schema processlist is deprecated.
+*/
+static bool performance_schema_show_processlist_update(sys_var *, THD *thd,
+                                                       enum_var_type) {
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_WITH_NOTE,
+                      ER_THD(thd, ER_WARN_DEPRECATED_WITH_NOTE),
+                      "@@performance_schema_show_processlist",
+                      "When it is removed, SHOW PROCESSLIST will always use the"
+                      " performance schema implementation.");
+
+  return false;
+}
+
 static Sys_var_bool Sys_pfs_processlist(
     "performance_schema_show_processlist",
     "Default startup value to enable SHOW PROCESSLIST "
     "in the performance schema.",
     GLOBAL_VAR(pfs_processlist_enabled), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
-    nullptr, sys_var::PARSE_NORMAL);
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(performance_schema_show_processlist_update), nullptr,
+    sys_var::PARSE_NORMAL);
 
 static Sys_var_bool Sys_pfs_consumer_events_stages_current(
     "performance_schema_consumer_events_stages_current",

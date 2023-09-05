@@ -150,6 +150,8 @@ SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE user = 'event_scheduler' AND command = 'Daemon';
 COUNT(*) = 1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE TABLE table_t(a INT);
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
@@ -197,6 +199,7 @@ statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR,
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/set_option	SET GLOBAL event_scheduler=OFF	stored_programs	NULL	NULL	NULL	NULL	0
+statement/sql/show_warnings	SHOW WARNINGS	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/truncate	TRUNCATE TABLE performance_schema.events_statements_history_long	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	STATEMENT	1
 # clean -up
@@ -394,6 +397,8 @@ SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE user = 'event_scheduler' AND command = 'Daemon';
 COUNT(*) = 1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 CREATE TABLE table_t(a INT);
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN

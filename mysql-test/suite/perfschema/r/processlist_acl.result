@@ -71,6 +71,8 @@ update test.t1 set s1 = s1 + 1, s2 = s2 + 2;;
 
 # New SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = on;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -114,12 +116,17 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
+<Id>	1287	<Host>
 
 # Legacy SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = off;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<Id>	1287	<Host>
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
@@ -130,6 +137,7 @@ Id	User	Host	db	Command	Time	State	Info
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
 
 # Performance Schema processlist table
 
@@ -160,6 +168,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
+<Id>	1287	<Host>
 
 
 ### Execute SHOW PROCESSLIST with no SELECT and no PROCESS privileges
@@ -167,6 +177,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 
 # New SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = on;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 # Connection con_none_1
 
@@ -194,6 +206,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
+<Id>	1287	<Host>
 
 # Confirm that only processes from user_none are visible
 
@@ -204,15 +218,19 @@ Expect 0
 
 # Legacy SHOW PROCESSLIST
 set @@global.performance_schema_show_processlist = off;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 
 # Connection con_none_1
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<Id>	1287	<Host>
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
 
 # Performance Schema processlist table
 
@@ -231,6 +249,8 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+Warnings:
+<Id>	1287	<Host>
 
 
 ### Clean up ###
@@ -254,3 +274,5 @@ drop user user_all@localhost;
 drop user user_none@localhost;
 
 set @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.

@@ -8,6 +8,8 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 RUN create procedure test.get_stuck()
 begin
     declare i int;
@@ -2026,4 +2028,6 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 drop procedure test.get_stuck;

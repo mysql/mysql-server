@@ -14,6 +14,7 @@ SELECT ((@id := id) - id) FROM information_schema.processlist WHERE processlist.
 0
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 KILL QUERY @id;
 connection default;
 ERROR 70100: Query execution was interrupted

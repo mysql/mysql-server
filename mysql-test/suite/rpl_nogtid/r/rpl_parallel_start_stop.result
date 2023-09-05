@@ -14,10 +14,14 @@ set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;
 include/start_slave.inc
 select min(id) from worker_proc_list into @w_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 kill query @w_id;
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
 select id from coord_proc_list into @c_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 kill query @c_id;
 include/wait_for_slave_sql_error.inc [errno=1756]
 include/start_slave.inc

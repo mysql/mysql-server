@@ -14,6 +14,8 @@ connection default;
 # kill the query.
 SET DEBUG_SYNC= 'now WAIT_FOR before_store';
 SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "RENAME TABLE%" INTO @thread_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 KILL QUERY @thread_id;
 SET DEBUG_SYNC= 'now SIGNAL cont';
 connection con1;

@@ -23,6 +23,8 @@ SELECT state FROM information_schema.processlist
 WHERE info='ALTER TABLE u ADD INDEX (c)';
 state
 debug sync point: row_log_apply_before
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SET DEBUG_SYNC='row_log_apply_before SIGNAL created_t WAIT_FOR dml_done_t';
 CREATE INDEX c1 ON t (c(1));
 SET DEBUG_SYNC='now WAIT_FOR created_t';

@@ -24,6 +24,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed registration on source
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed registration on source
@@ -43,6 +45,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed registration on source
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed registration on source
@@ -62,6 +66,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed binlog dump request
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed binlog dump request
@@ -81,6 +87,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed binlog dump request
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed binlog dump request
@@ -100,6 +108,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed source event read
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed source event read
@@ -119,6 +129,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed source event read
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed source event read
@@ -143,6 +155,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed registration on master
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed registration on master
@@ -162,6 +176,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed registration on master
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed registration on master
@@ -181,6 +197,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed binlog dump request
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed binlog dump request
@@ -200,6 +218,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed binlog dump request
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed binlog dump request
@@ -219,6 +239,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed master event read
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Waiting to reconnect after a failed master event read
@@ -238,6 +260,8 @@ START REPLICA IO_THREAD;
 SELECT STATE FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed master event read
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT STATE FROM performance_schema.processlist WHERE STATE LIKE '%connect%after a failed%';
 STATE
 Reconnecting after a failed master event read

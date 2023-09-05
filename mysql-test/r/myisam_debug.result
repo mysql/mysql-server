@@ -39,6 +39,8 @@ SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE STATE = 'wait_in_enable_indexes' AND 
 INFO = "INSERT INTO t1(id) SELECT id  FROM t2" 
 INTO @thread_id;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 KILL QUERY @thread_id;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

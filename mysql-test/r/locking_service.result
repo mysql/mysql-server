@@ -153,6 +153,8 @@ SELECT COUNT(*) = 1 AS expect_1 FROM information_schema.processlist
 WHERE state = 'Waiting for locking service lock';
 expect_1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 #      Per performance_schema one current wait for getting a service lock
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_current
@@ -172,6 +174,8 @@ SELECT COUNT(*) = 0 AS expect_1 FROM information_schema.processlist
 WHERE state = 'Waiting for locking service lock';
 expect_1
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 #      performance_schema keeps the last monitored wait for
 #      service lock even if no current wait
 SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.events_waits_current

@@ -132,6 +132,8 @@ select @@global.performance_schema_show_processlist;
 # succeeds, SHOW PROCESSLIST returns no data.
 
 set @@global.performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 

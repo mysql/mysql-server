@@ -4,33 +4,45 @@
 ##
 SELECT @@global.performance_schema_show_processlist INTO @save_processlist;
 SET @@global.performance_schema_show_processlist = OFF;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for @localhost
 GRANT USAGE ON *.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT * FROM performance_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 SET @@global.performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for @localhost
 GRANT USAGE ON *.* TO ``@`localhost`
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT * FROM performance_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
 SHOW PROCESSLIST;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
 GRANT PROCESS ON *.* TO ''@'localhost';
 SET @@global.performance_schema_show_processlist = OFF;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for @localhost
 GRANT PROCESS ON *.* TO ``@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
@@ -45,12 +57,16 @@ EVENT_NAME	SQL_TEXT	BROKEN_ROWS_SENT
 statement/sql/show_processlist	SHOW PROCESSLIST	0
 TRUNCATE TABLE performance_schema.events_statements_history;
 set @@global.performance_schema_show_processlist = ON;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
 SHOW GRANTS;
 Grants for @localhost
 GRANT PROCESS ON *.* TO ``@`localhost`
 SELECT count(*) >= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 count(*) >= 2
 1
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
 SELECT count(*) >= 2 FROM performance_schema.processlist;
 count(*) >= 2
 1
@@ -64,3 +80,5 @@ WHERE SQL_TEXT = "SHOW PROCESSLIST";
 EVENT_NAME	SQL_TEXT	ROWS_SENT >= 2
 statement/sql/show_processlist	SHOW PROCESSLIST	1
 SET @@global.performance_schema_show_processlist = @save_processlist;
+Warnings:
+Warning	4166	'@@performance_schema_show_processlist' is deprecated and will be removed in a future release. When it is removed, SHOW PROCESSLIST will always use the performance schema implementation.
