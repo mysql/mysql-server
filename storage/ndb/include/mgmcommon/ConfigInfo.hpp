@@ -189,7 +189,7 @@ public:
       _status(status),
       _flags(flags),
       _type(type),
-      _default(reinterpret_cast<const char*>(section_type)),
+      _default(reinterpret_cast<const char*>(UintPtr{section_type})),
       _min(nullptr),
       _max(nullptr)
     {
@@ -202,7 +202,10 @@ public:
    */
   static Uint32 getSectionType(const ParamInfo& p) {
     assert(p._type == CI_SECTION);
-    return Uint32(reinterpret_cast<UintPtr>(p._default));
+    const UintPtr v = reinterpret_cast<UintPtr>(p._default);
+    const Uint32 t = static_cast<Uint32>(v);
+    assert(v == t);
+    return t;
   }
 
   /**
