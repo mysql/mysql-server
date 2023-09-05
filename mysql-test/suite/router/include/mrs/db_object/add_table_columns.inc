@@ -43,7 +43,13 @@ eval INSERT INTO mysql_rest_service_metadata.object_field
        FROM
          (SELECT COLUMN_NAME as cname,
                  ORDINAL_POSITION as pos,
-                 JSON_SET("{}","$.name",column_name,"$.datatype",COLUMN_TYPE, "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES", "$.is_primary", COLUMN_KEY like "%PRI%") as js
+                 JSON_SET("{}",
+                 "$.name",COLUMN_NAME,
+                 "$.datatype",COLUMN_TYPE, 
+                 "$.auto_inc", EXTRA like "%auto_increment%", 
+                 "$.not_null", is_NULLABLE <> "YES", 
+                 "$.is_primary", COLUMN_KEY like "%PRI%",
+                 "$.srid", SRS_ID) as js
                  FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object" $mrs_add_db_object_table_filter) as z;
 
 --enable_query_log

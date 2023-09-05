@@ -55,20 +55,22 @@ CREATE TABLE IF NOT EXISTS `basic_schema`.`table3` (
   `ctinyint` TINYINT,
   `cmediumint` MEDIUMINT,
   `cblob` BLOB,
+  `geo0` GEOMETRY NOT NULL SRID 0,
+  `geo4326` GEOMETRY NOT NULL SRID 4326,
   PRIMARY KEY (`id`));
 
 INSERT INTO `basic_schema`.`table3` 
   VALUES(1, "first row", "numeric zeros", "2020-12-01 12:01:50", "2020-12-01 12:01:50",
   "2020-12-01", "12:01:50", "2020",
-  0, 0, 0, 0, 0, 0, "value1", "", b'0', b'0', b'0000000000',0,0, ""),
+  0, 0, 0, 0, 0, 0, "value1", "", b'0', b'0', b'0000000000',0,0, "", ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(0 0)', 4326)),
   (2, "second row", "numeric min", "2020-12-02 12:02:50", "2020-12-02 12:02:50",
   "2020-12-02", "12:02:50", "2021",
     -32768, -9223372036854775808, 0, -999.9999, -999.9999, -999.99, "value1", "value1",
-    b'0', b'0', b'0000000000',-128,-8388608, "1"),
+    b'0', b'0', b'0000000000',-128,-8388608, "1", ST_GeomFromText('POINT(-100 -110)'), ST_GeomFromText('POINT(-90 -90)', 4326)),
   (3, "thrid row", "numeric max", "2020-12-03 12:03:50", "2020-12-03 12:03:50",
   "2020-12-03", "12:03:50", "2022",
     32767, 9223372036854775807, b'111', 999.9999, 999.9999, 999.99, "value3", "value1,value2,value3"
-    , b'1', b'1', b'1111111111',127, 8388607, x'0011ab0000122333');
+    , b'1', b'1', b'1111111111',127, 8388607, x'0011ab0000122333', ST_GeomFromText('POINT(110 100)'), ST_GeomFromText('POINT(90 90)', 4326));
 
 
 CREATE TABLE IF NOT EXISTS `basic_schema`.`table4`(

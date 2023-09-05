@@ -21,6 +21,13 @@ GET /svc/basic/t1/1
     "cbin": "MAAA",
     "cbit": false,
     "cset": "",
+    "geo0": {
+        "type": "Point",
+        "coordinates": [
+            0.0,
+            0.0
+        ]
+    },
     "cbit1": false,
     "cblob": "",
     "cdate": "2020-12-01",
@@ -38,6 +45,13 @@ GET /svc/basic/t1/1
     "cfloat": 0.0,
     "cbigint": 0,
     "cdouble": 0.0,
+    "geo4326": {
+        "type": "Point",
+        "coordinates": [
+            0.0,
+            0.0
+        ]
+    },
     "cdecimal": 0.0,
     "ctinyint": 0,
     "cvarchar": "first row",
@@ -46,7 +60,7 @@ GET /svc/basic/t1/1
     "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000",
     "_metadata": {
-        "etag": "6C10F758EC177C18EBCBA88FB5AC97BC87238C2FE50653A7B6F5B9CD069617BF"
+        "etag": "1A368D774543CB646E0C0BC21270596327BC5C029AEE18D3EBD3DC8B342C2970"
     }
 }
 OK
@@ -69,6 +83,13 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
 {
     "id": 3,
     "cbit": true,
+    "geo0": {
+        "type": "Point",
+        "coordinates": [
+            110.0,
+            100.0
+        ]
+    },
     "cbit1": true,
     "cblob": "ABGrAAASIzM=",
     "cyear": 2022,
@@ -80,13 +101,20 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
     ],
     "cbit10": "A/8=",
     "cbigint": 9223372036854775807,
+    "geo4326": {
+        "type": "Point",
+        "coordinates": [
+            90.0,
+            90.0
+        ]
+    },
     "cdecimal": 999.99,
     "ctinyint": 127,
     "cvarchar": "thrid row",
     "csmallint": 32767,
     "cmediumint": 8388607,
     "_metadata": {
-        "etag": "F4CF1B8971C7012ABC991163D34F537548EB814D333C87D9B545B35AA0C54045"
+        "etag": "7A2B6D831C10706B68D90215D06062B7730E4A1FE76D732228CAB5D8B8A849FA"
     }
 }
 OK

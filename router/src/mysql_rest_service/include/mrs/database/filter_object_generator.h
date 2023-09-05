@@ -72,8 +72,10 @@ class FilterObjectGenerator {
   void parse_asof(Value *value);
   void parse_wmember(const char *name, Value *value);
   void parse_match(Value *value);
-  mysqlrouter::sqlstring resolve_field_name(const char *name,
-                                            bool for_sorting) const;
+  std::shared_ptr<entry::DataField> resolve_field(const char *name);
+  mysqlrouter::sqlstring resolve_field_name(
+      std::shared_ptr<entry::DataField> &dfield, const char *name,
+      bool for_sorting) const;
 
   std::shared_ptr<database::entry::Object> object_metadata_;
   bool joins_allowed_{false};

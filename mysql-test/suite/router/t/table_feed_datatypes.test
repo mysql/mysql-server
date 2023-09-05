@@ -14,6 +14,7 @@
 --echo # 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
 --echo # 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
 --echo # 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+--echo # 7. Verify generation of JSON object from sprtial types
 --echo #
 --echo #
 
@@ -82,6 +83,12 @@ let $MRS_CLIENT_EXC=$MRS_CLIENT_ARGS
 --exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=csmallint
 --exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=ctinyint
 --exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=cmediumint
+
+--echo
+--echo #
+--echo # I.7
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo0
+--exec $MRS_CLIENT_EXC --path /svc/basic/t3?f=geo4326
 
 # Cleanup
 DROP SCHEMA basic_schema;

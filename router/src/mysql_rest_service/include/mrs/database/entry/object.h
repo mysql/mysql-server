@@ -70,8 +70,8 @@ class Column {
   bool is_primary = false;
   bool is_unique = false;
   bool is_generated = false;
-
   bool is_foreign = false;
+  uint32_t srid{0};
 
   bool is_auto_generated_id() const {
     return id_generation != IdGenerationType::NONE;
