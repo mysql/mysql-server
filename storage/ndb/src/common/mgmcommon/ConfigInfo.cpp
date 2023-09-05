@@ -4160,6 +4160,12 @@ ConfigInfo::ConfigInfo()
 
   for (i=0; i<m_NoOfParams; i++) {
     const ParamInfo & param = m_ParamInfo[i];
+    /*
+     * param._section may be nullptr for a static ConfigInfo object and
+     * ConfigInfo::m_ParamInfo are not yet initialized. Do not use static
+     * ConfigInfo objects.
+     */
+    require(param._section != nullptr);
     Uint64 default_uint64;
     bool   default_bool;
     
