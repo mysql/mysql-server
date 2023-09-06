@@ -748,3 +748,25 @@ x	column_0
 1	1
 2	2
 3	3
+#
+# Bug#30775369: WRONG RESULT WITH "IN" COMPARATOR AND
+#               A TABLE VALUE CONSTRUCTOR
+#
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (NULL, NULL);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE a IN (VALUES ROW(5), ROW(55), ROW(NULL));
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,<exists>(select #2))  (rows=6)
+    -> Table scan on t  (rows=6)
+    -> Select #2 (subquery in condition; dependent)
+        -> Filter: <if>(outer_field_is_not_null, <is_not_null_test>(column_0), true)  (rows=3)
+            -> Filter: <if>(outer_field_is_not_null, ((<cache>(t.a) = column_0) or (column_0 is null)), true)  (rows=3)
+                -> Rows fetched before execution  (rows=3)
+
+SELECT * FROM t WHERE a IN (VALUES ROW(5), ROW(55), ROW(NULL));
+a	b
+5	6
+DROP TABLE t;

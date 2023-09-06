@@ -542,3 +542,18 @@ DROP TABLE t;
 
 WITH v1(x) AS (VALUES ROW (1), ROW (2), ROW (3))
 SELECT * FROM v1, LATERAL (VALUES ROW(v1.x)) AS v2;
+
+--echo #
+--echo # Bug#30775369: WRONG RESULT WITH "IN" COMPARATOR AND
+--echo #               A TABLE VALUE CONSTRUCTOR
+--echo #
+
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (NULL, NULL);
+ANALYZE TABLE t;
+# The query plan used to lack one of the filters and return too many rows.
+--let $query = SELECT * FROM t WHERE a IN (VALUES ROW(5), ROW(55), ROW(NULL))
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+DROP TABLE t;

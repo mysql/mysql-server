@@ -2959,6 +2959,25 @@ void JOIN::create_access_paths() {
   m_root_access_path = path;
 }
 
+static AccessPath *add_filter_access_path(THD *thd, AccessPath *path,
+                                          Item *condition,
+                                          const Query_block *query_block) {
+  AccessPath *filter_path = NewFilterAccessPath(thd, path, condition);
+  CopyBasicProperties(*path, filter_path);
+  if (thd->lex->using_hypergraph_optimizer) {
+    // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
+    // as on repeated execution of a prepared query, the condition may contain
+    // references to subqueries that are destroyed and not re-optimized yet.
+    const FilterCost filter_cost = EstimateFilterCost(
+        thd, filter_path->num_output_rows(), condition, query_block);
+    filter_path->set_cost(filter_path->cost() +
+                          filter_cost.cost_if_not_materialized);
+    filter_path->set_init_cost(filter_path->init_cost() +
+                               filter_cost.init_cost_if_not_materialized);
+  }
+  return filter_path;
+}
+
 AccessPath *JOIN::create_root_access_path_for_join() {
   if (select_count) {
     return NewUnqualifiedCountAccessPath(thd);
@@ -2969,9 +2988,14 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   if (query_block->is_table_value_constructor) {
     best_rowcount = query_block->row_value_list->size();
     path = NewTableValueConstructorAccessPath(thd);
-    path->set_num_output_rows(query_block->row_value_list->size());
+    path->set_num_output_rows(best_rowcount);
     path->set_cost(0.0);
     path->set_init_cost(0.0);
+    // Table value constructors may get a synthetic WHERE clause from an
+    // IN-to-EXISTS transformation. If so, add a filter for it.
+    if (where_cond != nullptr) {
+      path = add_filter_access_path(thd, path, where_cond, query_block);
+    }
   } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
@@ -3307,20 +3331,7 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(
   // We don't currently bother with materializing subqueries
   // in HAVING, as they should be rare.
   if (having_cond != nullptr) {
-    AccessPath *old_path = path;
-    path = NewFilterAccessPath(thd, path, having_cond);
-    CopyBasicProperties(*old_path, path);
-    if (thd->lex->using_hypergraph_optimizer) {
-      // We cannot call EstimateFilterCost() in the pre-hypergraph optimizer,
-      // as on repeated execution of a prepared query, the condition may contain
-      // references to subqueries that are destroyed and not re-optimized yet.
-      const FilterCost filter_cost = EstimateFilterCost(
-          thd, path->num_output_rows(), having_cond, query_block);
-
-      path->set_cost(path->cost() + filter_cost.cost_if_not_materialized);
-      path->set_init_cost(path->init_cost() +
-                          filter_cost.init_cost_if_not_materialized);
-    }
+    path = add_filter_access_path(thd, path, having_cond, query_block);
   }
 
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
