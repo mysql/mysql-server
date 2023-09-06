@@ -45,13 +45,12 @@ ENDIF()
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2019 Update 9 (aka 16.9),
-# which has version nr 1928.
-# https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-160
+# We require at least Visual Studio 2019 Update 11 (aka 16.11),
+# which has version nr 1929.
 MESSAGE(STATUS "MSVC_VERSION is ${MSVC_VERSION}")
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1928)
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1929)
   MESSAGE(FATAL_ERROR
-    "Visual Studio 2019 Update 9 or newer is required!")
+    "Visual Studio 2019 Update 11 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -169,13 +168,13 @@ IF(MSVC)
     SET("${flag}" "${${flag}} /FC")
   ENDFOREACH()
 
-  # Turn on c++17 mode explicitly so that using c++20 features is disabled.
+  # Turn on c++20 mode explicitly so that using c++23 features is disabled.
   FOREACH(flag
       CMAKE_CXX_FLAGS_MINSIZEREL
       CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
       CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT
       )
-    SET("${flag}" "${${flag}} /std:c++17")
+    SET("${flag}" "${${flag}} /std:c++20")
   ENDFOREACH()
 
   OPTION(WIN_INCREMENTAL_LINK "Enable incremental linking on Windows" OFF)
