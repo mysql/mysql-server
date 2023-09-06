@@ -475,3 +475,30 @@ INSERT INTO v1 VALUES(5) AS c(a);
 SELECT * FROM v1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35087820: VALUES Statement with dependent subquery is wrong
+--echo #
+
+CREATE TABLE t(
+  id INTEGER PRIMARY KEY,
+  a VARCHAR(4),
+  b VARCHAR(4),
+  c VARCHAR(3));
+INSERT INTO t VALUES (1, 'a1', 'b1', 'c1'), (2, 'a2', 'b2', 'c2');
+
+--sorted_result
+SELECT
+  id,
+  (SELECT MAX(col1) FROM (VALUES ROW(a), ROW(b), ROW(c)) AS x(col1)) AS max
+FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#34852090: Incorrect result with VALUES in
+--echo #               a correlated LATERAL subquery
+--echo #
+
+WITH v1(x) AS (VALUES ROW (1), ROW (2), ROW (3))
+SELECT * FROM v1, LATERAL (VALUES ROW(v1.x)) AS v2;

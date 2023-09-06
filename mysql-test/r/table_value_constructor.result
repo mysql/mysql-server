@@ -675,3 +675,30 @@ NULL
 5
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#35087820: VALUES Statement with dependent subquery is wrong
+#
+CREATE TABLE t(
+id INTEGER PRIMARY KEY,
+a VARCHAR(4),
+b VARCHAR(4),
+c VARCHAR(3));
+INSERT INTO t VALUES (1, 'a1', 'b1', 'c1'), (2, 'a2', 'b2', 'c2');
+SELECT
+id,
+(SELECT MAX(col1) FROM (VALUES ROW(a), ROW(b), ROW(c)) AS x(col1)) AS max
+FROM t;
+id	max
+1	c1
+2	c2
+DROP TABLE t;
+#
+# Bug#34852090: Incorrect result with VALUES in
+#               a correlated LATERAL subquery
+#
+WITH v1(x) AS (VALUES ROW (1), ROW (2), ROW (3))
+SELECT * FROM v1, LATERAL (VALUES ROW(v1.x)) AS v2;
+x	column_0
+1	1
+2	2
+3	3

@@ -917,7 +917,7 @@ bool TableValueConstructorIterator::Init() {
 }
 
 int TableValueConstructorIterator::Read() {
-  if (*m_examined_rows == m_row_value_list.size()) return -1;
+  if (m_row_it == m_row_value_list.end()) return -1;
 
   // If the TVC has a single row, we don't create Item_values_column reference
   // objects during resolving. We will instead use the single row directly from
@@ -935,9 +935,9 @@ int TableValueConstructorIterator::Read() {
       // Item_values_column object cannot be const.
       ref->set_value(const_cast<Item *>(value));
     }
-    ++m_row_it;
   }
 
+  ++m_row_it;
   ++*m_examined_rows;
   return 0;
 }
