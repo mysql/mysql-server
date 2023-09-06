@@ -201,8 +201,8 @@ CompanionSet *CompanionSetCollection::FindInternal(table_map tables) const {
   CompanionSet *ret = nullptr;
   for (int table_num : BitsSetIn(tables & ~PSEUDO_TABLE_BITS)) {
     if (m_table_num_to_companion_set[table_num] == nullptr) {
-      // This table is not part of a companion set.
-      assert(false);
+      // This table is not part of an equijoin, but a lateral reference (to a
+      // preceding table in the FROM-clause).
       return nullptr;
     }
     if (ret == nullptr) {
