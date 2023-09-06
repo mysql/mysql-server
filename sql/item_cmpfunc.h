@@ -1238,6 +1238,9 @@ class Item_func_lt final : public Item_func_inequality {
 */
 class Item_func_ne final : public Item_func_comparison {
  public:
+  /// A lower limit for the selectivity of 'field != unknown_value'.
+  static constexpr double kMinSelectivityForUnknownValue = 0.2;
+
   Item_func_ne(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }

@@ -69,6 +69,7 @@
 #include "sql/histograms/singleton.h"    // Singleton<T>
 #include "sql/histograms/value_map.h"    // Value_map
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"
 #include "sql/item_json_func.h"  // parse_json
 #include "sql/key.h"
 #include "sql/mdl.h"             // MDL_request
@@ -2094,6 +2095,11 @@ bool Histogram::get_raw_selectivity(Item **items, size_t item_count,
         const size_t distinct_values = get_num_distinct_values();
         if (distinct_values == 0) {
           *selectivity = 0.0;  // Field is NULL for all rows.
+        } else if (distinct_values == 1) {
+          // Special case of all rows having the same value for this field.
+          // Setting the selectivity to 0.0 would be an error, as we may
+          // test against a value different from that single distinct value.
+          *selectivity = Item_func_ne::kMinSelectivityForUnknownValue;
         } else {
           // We do not know the value of items[1], but we assume that it
           // is uniformely distributed over the distinct values of

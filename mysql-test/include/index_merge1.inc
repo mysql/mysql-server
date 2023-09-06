@@ -440,13 +440,13 @@ analyze table t0;
 --replace_regex $elide_costs
 explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
  from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-  where (a.key1 = 1 or a.key2 = 1)
-  and   (b.key1 = 1 or b.key2 = 1);
+  where (a.key1 = 2 or a.key2 = 2)
+  and   (b.key1 = 2 or b.key2 = 2);
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
  from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-  where (a.key1 = 1 or a.key2 = 1)
-  and   (b.key1 = 1 or b.key2 = 1);
+  where (a.key1 = 2 or a.key2 = 2)
+  and   (b.key1 = 2 or b.key2 = 2);
 
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;

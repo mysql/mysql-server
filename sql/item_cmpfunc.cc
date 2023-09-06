@@ -2595,9 +2595,17 @@ float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
     const auto index_selectivity = [&]() {
       const double reverse_selectivity =
           IndexSelectivityOfUnknownValue(*fld->field);
-      return reverse_selectivity == kUndefinedSelectivity
-                 ? kUndefinedSelectivity
-                 : 1.0 - reverse_selectivity;
+
+      if (reverse_selectivity == kUndefinedSelectivity) {
+        return kUndefinedSelectivity;
+      } else {
+        // Even if all rows have the same value for 'fld', we should avoid
+        // returning a selectivity estimate of zero, as that can give
+        // a distorted view of the cost of a plan if the estimate should
+        // be wrong (even by a small margin).
+        return std::max(1.0 - reverse_selectivity,
+                        Item_func_ne::kMinSelectivityForUnknownValue);
+      }
     };
 
     if (!thd->lex->using_hypergraph_optimizer) {

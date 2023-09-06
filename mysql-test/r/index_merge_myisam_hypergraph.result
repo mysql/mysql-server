@@ -572,23 +572,24 @@ max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.ke
 update t0 set key1=1;
 explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
     -> Nested loop inner join  (rows=1.04e+6)
-        -> Filter: ((a.key1 = 1) or (a.key2 = 1))  (rows=1021)
-            -> Table scan on a  (rows=1021)
         -> Deduplicate rows sorted by row ID  (rows=1021)
-            -> Index range scan on b using i1 over (key1 = 1)  (rows=1019)
-            -> Index range scan on b using i2 over (key2 = 1)  (rows=1)
+            -> Index range scan on a using i1 over (key1 = 2)  (rows=1)
+            -> Index range scan on a using i2 over (key2 = 2)  (rows=1)
+        -> Deduplicate rows sorted by row ID  (rows=1021)
+            -> Index range scan on b using i1 over (key1 = 2)  (rows=1)
+            -> Index range scan on b using i2 over (key2 = 2)  (rows=1)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
-8194
+NULL
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 # The next query will not use index i7 in intersection if the OS doesn't
@@ -2435,7 +2436,7 @@ from t0 A, t0 B, t0 C;
 This should use union:
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=1.32..1.32 rows=14)
+-> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
     -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
     -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
 
@@ -2444,7 +2445,7 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=1.32..1.32 rows=14)
+-> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
     -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
     -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
 
@@ -2453,7 +2454,7 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=1 or b=1;
 EXPLAIN
--> Deduplicate rows sorted by row ID  (cost=1.32..1.32 rows=14)
+-> Deduplicate rows sorted by row ID  (cost=0.0944..1.32 rows=14)
     -> Index range scan on t1 using a over (a = 1)  (cost=0.36..0.36 rows=1)
     -> Index range scan on t1 using b over (b = 1)  (cost=0.36..0.36 rows=1)
 
@@ -2570,8 +2571,8 @@ This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.74..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=3.19..3.64 rows=5.5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
+    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
         -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
             -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
             -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
@@ -2582,8 +2583,8 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.74..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=3.19..3.64 rows=5.5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
+    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
         -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
             -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
             -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
@@ -2595,8 +2596,8 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.74..4.19 rows=5.5)
-    -> Deduplicate rows sorted by row ID  (cost=3.19..3.64 rows=5.5)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=1.63..4.19 rows=5.5)
+    -> Deduplicate rows sorted by row ID  (cost=1.08..3.64 rows=5.5)
         -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
             -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
             -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)

@@ -1099,3 +1099,41 @@ EXPLAIN
                 -> Table scan on x3  (rows=1)
 
 DROP TABLE t1;
+#
+# Bug#35719688 Assertion`new_path->cost >= new_path->init_cost' in
+# ExpandSingleFilterAccessPath
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+PRIMARY KEY(a),
+KEY k_b(b),
+KEY k_c(c)
+);
+INSERT INTO t1 VALUES (1,1,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE t2 (
+a INT PRIMARY KEY,
+b INT
+);
+INSERT INTO t2 WITH RECURSIVE qn(n) AS
+(SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<50) SELECT n, n FROM qn;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x0 WHERE (b=3 OR c=4) AND a <>
+(SELECT MAX(x1.a+x2.a) FROM t2 x1 JOIN t2 x2 ON x1.b<x2.b);
+EXPLAIN
+-> Filter: (((x0.b = 3) or (x0.c = 4)) and (x0.a <> (select #2)))  (rows=0.2)
+    -> Table scan on x0  (rows=1)
+    -> Select #2 (subquery in condition; run only once)
+        -> Aggregate: max((x1.a + x2.a))  (rows=1)
+            -> Inner hash join (no condition), extra conditions: (x1.b < x2.b)  (rows=833)
+                -> Table scan on x1  (rows=50)
+                -> Hash
+                    -> Table scan on x2  (rows=50)
+
+DROP TABLE t1,t2;

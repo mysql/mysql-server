@@ -2056,10 +2056,17 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
   ror_union_path.rowid_union().children = new (param->return_mem_root)
       Mem_root_array<AccessPath *>(std::move(paths));
 
-  ror_union_path.set_cost_before_filter(cost);
   ror_union_path.set_cost(cost);
-  ror_union_path.set_init_cost(cost);
-  ror_union_path.set_init_once_cost(cost);
+  ror_union_path.set_cost_before_filter(cost);
+  ror_union_path.set_init_cost(0.0);
+
+  for (const AccessPath *child : *ror_union_path.rowid_union().children) {
+    ror_union_path.set_init_cost(ror_union_path.init_cost() +
+                                 child->init_cost());
+    ror_union_path.set_init_once_cost(ror_union_path.init_once_cost() +
+                                      child->init_once_cost());
+  };
+
   ror_union_path.set_num_output_rows(
       ror_union_path.num_output_rows_before_filter =
           min<double>(num_output_rows, num_output_rows_after_filter));

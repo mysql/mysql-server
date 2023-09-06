@@ -600,27 +600,27 @@ max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.ke
 update t0 set key1=1;
 explain select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Inner hash join (no condition)  (rows=1.04e+6)
-        -> Filter: ((b.key1 = 1) or (b.key2 = 1))  (rows=1021)
-            -> Deduplicate rows sorted by row ID  (rows=1021)
-                -> Index range scan on b using i1 over (key1 = 1)  (rows=1021)
-                -> Index range scan on b using i2 over (key2 = 1)  (rows=1)
+    -> Inner hash join (no condition)  (rows=4)
+        -> Filter: ((b.key1 = 2) or (b.key2 = 2))  (rows=2)
+            -> Deduplicate rows sorted by row ID  (rows=2)
+                -> Index range scan on b using i1 over (key1 = 2)  (rows=1)
+                -> Index range scan on b using i2 over (key2 = 2)  (rows=1)
         -> Hash
-            -> Filter: ((a.key1 = 1) or (a.key2 = 1))  (rows=1021)
-                -> Deduplicate rows sorted by row ID  (rows=1021)
-                    -> Index range scan on a using i1 over (key1 = 1)  (rows=1021)
-                    -> Index range scan on a using i2 over (key2 = 1)  (rows=1)
+            -> Filter: ((a.key1 = 2) or (a.key2 = 2))  (rows=2)
+                -> Deduplicate rows sorted by row ID  (rows=2)
+                    -> Index range scan on a using i1 over (key1 = 2)  (rows=1)
+                    -> Index range scan on a using i2 over (key2 = 2)  (rows=1)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a force index(i1,i2), t0 as b force index (i1,i2)
-where (a.key1 = 1 or a.key2 = 1)
-and   (b.key1 = 1 or b.key2 = 1);
+where (a.key1 = 2 or a.key2 = 2)
+and   (b.key1 = 2 or b.key2 = 2);
 max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
-8194
+NULL
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 # The next query will not use index i7 in intersection if the OS doesn't
