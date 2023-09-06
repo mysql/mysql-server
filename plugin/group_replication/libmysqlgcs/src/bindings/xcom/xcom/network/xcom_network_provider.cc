@@ -303,37 +303,16 @@ std::unique_ptr<Network_connection> Xcom_network_provider::open_connection(
 
 #ifndef XCOM_WITHOUT_OPENSSL
     if (::get_network_management_interface()->is_xcom_using_ssl()) {
-      SSL *ssl = SSL_new(client_ctx);
-      G_DEBUG("Trying to connect using SSL.")
-      SSL_set_fd(ssl, fd.val);
-
-      ERR_clear_error();
-      ret.val = SSL_connect(ssl);
-      ret.funerr = to_ssl_err(SSL_get_error(ssl, ret.val));
-
-      if (ret.val != SSL_SUCCESS) {
-        G_INFO("Error connecting using SSL %d %d", ret.funerr,
-               SSL_get_error(ssl, ret.val));
-        task_dump_err(ret.funerr);
-
-        this->close_connection({fd.val
-#ifndef XCOM_WITHOUT_OPENSSL
-                                ,
-                                ssl
-#endif
-                                ,
-                                true});
-        goto end;
-      }
-
-      if (Xcom_network_provider_ssl_library::ssl_verify_server_cert(
-              ssl, address.c_str())) {
-        G_MESSAGE("Error validating certificate and peer.");
+      auto [ssl_ptr, ssl_connect_error] =
+          Xcom_network_provider_ssl_library::timed_connect_ssl_msec(
+              fd.val, client_ctx, address, connection_timeout);
+      if (ssl_connect_error) {
+        G_DEBUG("Error creating a secure connection to %s", address.c_str());
         task_dump_err(ret.funerr);
         this->close_connection({fd.val
 #ifndef XCOM_WITHOUT_OPENSSL
                                 ,
-                                ssl
+                                ssl_ptr
 #endif
                                 ,
                                 true});
@@ -341,7 +320,7 @@ std::unique_ptr<Network_connection> Xcom_network_provider::open_connection(
       }
 
       cd->fd = fd.val;
-      cd->ssl_fd = ssl;
+      cd->ssl_fd = ssl_ptr;
       cd->has_error = false;
 
       G_DEBUG("Success connecting using SSL.")

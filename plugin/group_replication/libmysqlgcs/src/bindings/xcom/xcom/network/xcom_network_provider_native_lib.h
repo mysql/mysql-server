@@ -53,6 +53,31 @@ class Xcom_network_provider_library {
   static result gcs_shut_close_socket(int *sock);
   static result announce_tcp(xcom_port port);
 
+  /**
+   * @brief Auxiliary method used in Synchronous connects in order to poll a
+   *        connection for input, until a certain timeout is reached, and check
+   *        all errors that might come out of the poll() call.
+   *
+   * @param fd      file descriptor to poll
+   * @param timeout timeout (in msecs) to wait for activity in fd
+   *
+   * @return true in case of any error, false otherwise.
+   */
+  static bool poll_for_timed_connects(int fd, int timeout);
+
+  /**
+   * @brief After a poll call, this method will check for any errors that might
+   *        have been returned from the poll itself.
+   *
+   * @param fd The file descriptor being poll-ed
+   * @param sysret Return value from poll call
+   * @param fds struct pollfd that contains fd used to call poll
+   *
+   * @return true In case of error
+   * @return false otherwise
+   */
+  static bool verify_poll_errors(int fd, int sysret, struct pollfd &fds);
+
  private:
   static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
                                xcom_port port, int family);
@@ -121,6 +146,31 @@ class Xcom_network_provider_ssl_library {
     the connection is attempted.
   */
   static int ssl_verify_server_cert(SSL *ssl, const char *server_hostname);
+
+  /**
+   * @brief Establishes an SSL connection to a node that already has a
+   * connection in place.
+   *
+   * It is asynchronous in nature, since it unblocks the socket, establishes
+   * the connection and wait for the result via a poll mechanism no more
+   * than timeout miliseconds.
+   *
+   * It returns a pair that contains the established SSL connection and an
+   * error code (0 in case of success.)
+   *
+   * @param fd an established connection file descriptor.
+   * @param client_ctx the client context to use.
+   * @param hostname hostname to validate
+   * @param timeout timeout value in miliseconds.
+   *
+   * @return std::pair<SSL *, int> a pair containing:
+   *                               - An established SSL connection, or
+   * nullptr
+   *                               - 0 in case of success. An error code,
+   *                                 otherwise.
+   */
+  static std::pair<SSL *, int> timed_connect_ssl_msec(
+      int fd, SSL_CTX *client_ctx, const std::string &hostname, int timeout);
 };
 
 /*
