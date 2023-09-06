@@ -3152,6 +3152,7 @@ class Gtid_state {
 
  private:
   /**
+    The next_free_gno map contains next_free_gno for recorded sidnos.
     The next_free_gno variable will be set with the supposed next free GNO
     every time a new GNO is delivered automatically or when a transaction is
     rolled back, releasing a GNO smaller than the last one delivered.
@@ -3172,7 +3173,7 @@ class Gtid_state {
     - By a client thread rolling back, holding global_tsid_lock.rdlock
       and lock_sidno(get_server_sidno()).
   */
-  rpl_gno next_free_gno;
+  std::unordered_map<rpl_sidno, rpl_gno> next_free_gno_map;
 
  public:
   using Locked_sidno_set = cs::index::Locked_sidno_set;

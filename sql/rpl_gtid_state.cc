@@ -72,7 +72,7 @@ int Gtid_state::clear(THD *thd) {
     thd->clear_error();
     ret = 0;
   }
-  next_free_gno = 1;
+  next_free_gno_map.clear();
   return ret;
 }
 
@@ -439,8 +439,11 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const {
     than the next_free_gno at Gtid_state::update_gtids_impl_own_gtid function
     to set next_free_gno with the "released" GNO in this case.
   */
-  Gtid next_candidate = {sidno,
-                         sidno == get_server_sidno() ? next_free_gno : 1};
+  auto next_free_gno_res = next_free_gno_map.find(sidno);
+
+  Gtid next_candidate = {sidno, next_free_gno_res == next_free_gno_map.end()
+                                    ? 1
+                                    : next_free_gno_res->second};
   while (true) {
     const Gtid_set::Interval *iv = ivit.get();
     rpl_gno next_interval_start = iv != nullptr ? iv->start : GNO_END;
@@ -510,9 +513,10 @@ enum_return_status Gtid_state::generate_automatic_gtid(
     assert(specified_sidno > 0);  // assert that sidno has been already assigned
     if (automatic_gtid.gno == 0) {
       automatic_gtid.gno = get_automatic_gno(automatic_gtid.sidno);
-      if (automatic_gtid.sidno == get_server_sidno() &&
-          automatic_gtid.gno != -1)
-        next_free_gno = automatic_gtid.gno + 1;
+      if (automatic_gtid.gno != -1) {
+        // insert new element or update the map element
+        next_free_gno_map[automatic_gtid.sidno] = automatic_gtid.gno + 1;
+      }
     }
     if (automatic_gtid.gno == -1 || acquire_ownership(thd, automatic_gtid))
       ret = RETURN_STATUS_REPORTED_ERROR;
@@ -655,7 +659,7 @@ int Gtid_state::init() {
       tsid_map->add_tsid(Tsid_map::Tsid(server_sid, Tsid_map::Tag()));
   if (sidno <= 0) return 1;
   server_sidno = sidno;
-  next_free_gno = 1;
+  next_free_gno_map.clear();
   return 0;
 }
 
@@ -873,9 +877,13 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
       gtids_only_in_table._add_gtid(thd->owned_gtid);
     }
   } else {
-    if (thd->owned_gtid.sidno == server_sidno &&
-        next_free_gno > thd->owned_gtid.gno)
+    auto iterator = next_free_gno_map.end();
+    std::tie(iterator, std::ignore) =
+        next_free_gno_map.try_emplace(thd->owned_gtid.sidno, 1);
+    rpl_gno &next_free_gno = iterator->second;
+    if (next_free_gno > thd->owned_gtid.gno) {
       next_free_gno = thd->owned_gtid.gno;
+    }
   }
 
   thd->clear_owned_gtids();
