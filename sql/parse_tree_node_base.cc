@@ -53,6 +53,10 @@ bool Parse_context::finalize_query_expression() {
   top = top->pushdown_limit_order_by();
   select->master_query_expression()->set_query_term(top);
   if (top->validate_structure(nullptr)) return true;
+
+  // Ensure that further expressions are resolved against first query block
+  select = select->master_query_expression()->first_query_block();
+
   return false;
 }
 

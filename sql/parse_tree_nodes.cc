@@ -769,6 +769,9 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
 
   if (pc.finalize_query_expression()) return nullptr;
 
+  // Ensure that first query block is the current one
+  assert(pc.select->select_number == 1);
+
   if (m_into != nullptr && m_has_trailing_locking_clauses) {
     // Example: ... INTO ... FOR UPDATE;
     push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
@@ -1096,8 +1099,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       is created correctly in this case
     */
     SQL_I_List<Table_ref> save_list;
-    Query_block *const save_query_block = pc.select;
-    save_query_block->m_table_list.save_and_clear(&save_list);
+    pc.select->m_table_list.save_and_clear(&save_list);
 
     if (insert_query_expression->contextualize(&pc)) return nullptr;
 
@@ -1107,7 +1109,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       The following work only with the local list, the global list
       is created correctly in this case
     */
-    save_query_block->m_table_list.push_front(&save_list);
+    pc.select->m_table_list.push_front(&save_list);
 
     lex->bulk_insert_row_cnt = 0;
   } else {
@@ -1119,6 +1121,9 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
 
     lex->bulk_insert_row_cnt = row_value_list->get_many_values().size();
   }
+
+  // Ensure that further expressions are resolved against first query block
+  assert(pc.select->select_number == 1);
 
   // Create a derived table to use as a table reference to the VALUES rows,
   // which can be referred to from ON DUPLICATE KEY UPDATE. Naming the derived
@@ -2373,17 +2378,18 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
         is created correctly in this case
       */
       SQL_I_List<Table_ref> save_list;
-      Query_block *const save_query_block = pc.select;
-      save_query_block->m_table_list.save_and_clear(&save_list);
+      pc.select->m_table_list.save_and_clear(&save_list);
 
       if (opt_query_expression->contextualize(&pc)) return nullptr;
       if (pc.finalize_query_expression()) return nullptr;
 
+      // Ensure that first query block is the current one
+      assert(pc.select->select_number == 1);
       /*
         The following work only with the local list, the global list
         is created correctly in this case
       */
-      save_query_block->m_table_list.push_front(&save_list);
+      pc.select->m_table_list.push_front(&save_list);
       qe_tables = *query_expression_tables;
     }
   }

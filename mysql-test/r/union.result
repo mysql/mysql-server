@@ -5707,3 +5707,9 @@ EXPLAIN
         -> Table scan on t1  (cost=0.55 rows=3)
 
 DROP TABLE t1;
+# Bug#35736158: Insert on duplicate assertion error
+CREATE TABLE t1 (c1 INTEGER);
+INSERT INTO t1 (c1)
+SELECT 2 UNION SELECT 1
+ON DUPLICATE KEY UPDATE c1 = 1 IN (SELECT 1);
+DROP TABLE t1;
