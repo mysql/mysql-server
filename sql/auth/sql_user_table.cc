@@ -794,9 +794,9 @@ void acl_print_ha_error(int handler_error) {
   my_strerror(buffer, sizeof(buffer), handler_error);
   my_error(ER_ACL_OPERATION_FAILED, MYF(0), handler_error, buffer);
 }
-
 /**
   change grants in the mysql.db table.
+  Legacy version of the function to be removed in future.
 
   @param thd          Current thread execution context.
   @param table        Pointer to a TABLE object for opened mysql.db table.
@@ -813,9 +813,9 @@ void acl_print_ha_error(int handler_error) {
                   processing subsequent user specified in the ACL statement.
     @retval  < 0  Error.
 */
-
-int replace_db_table(THD *thd, TABLE *table, const char *db,
-                     const LEX_USER &combo, ulong rights, bool revoke_grant) {
+int compatibility_replace_db_table(THD *thd, TABLE *table, const char *db,
+                                   const LEX_USER &combo, ulong rights,
+                                   bool revoke_grant) {
   uint i;
   ulong priv, store_rights;
   bool old_row_exists = false;
@@ -924,6 +924,175 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
 
   clear_and_init_db_cache();  // Clear privilege cache
   if (old_row_exists)
+    acl_update_db(combo.user.str, combo.host.str, db, rights);
+  else if (rights)
+    acl_insert_db(combo.user.str, combo.host.str, db, rights);
+  return 0;
+
+table_error:
+  acl_print_ha_error(error);
+
+  return -1;
+}
+
+/**
+  change grants in the mysql.db table.
+
+  @param thd          Current thread execution context.
+  @param table        Pointer to a TABLE object for opened mysql.db table.
+  @param db           Database name of table for which column privileges are
+                      modified.
+  @param combo        Pointer to a LEX_USER object containing info about a user
+                      being processed.
+  @param rights       Database level grant.
+  @param revoke_grant Set to true if this is a REVOKE command.
+  @param all_current_privileges Set to true if this is GRANT/REVOKE ALL
+
+  @return  Operation result
+    @retval  0    OK.
+    @retval  1    Error in handling current user entry but still can continue
+                  processing subsequent user specified in the ACL statement.
+    @retval  < 0  Error.
+*/
+
+int replace_db_table(THD *thd, TABLE *table, const char *db,
+                     const LEX_USER &combo, ulong rights, bool revoke_grant,
+                     bool all_current_privileges) {
+  uint i;
+  ulong priv, store_rights;
+  bool old_row_exists = false;
+  ulong old_rights, nonexisting_rights;
+  int error;
+  const char what = (revoke_grant) ? 'N' : 'Y';
+  uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact(thd);
+
+  /* The backward compatibility support, needed as fix of Bug#33897859 (pushed
+   * to Mysql 8.0.36 and 8.3) modifies behavior. To be removed with the next
+   * major release.
+   */
+  assert(thd);
+  if (thd->variables.original_server_version < 80300)
+    return compatibility_replace_db_table(thd, table, db, combo, rights,
+                                          revoke_grant);
+
+  DBUG_TRACE;
+  assert(initialized);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DB)) return -1;
+
+  /* Check if there is such a user in user table in memory? */
+  if (!find_acl_user(combo.host.str, combo.user.str, false)) {
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    return 1;
+  }
+
+  table->use_all_columns();
+  table->field[0]->store(combo.host.str, combo.host.length,
+                         system_charset_info);
+  table->field[1]->store(db, strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str, combo.user.length,
+                         system_charset_info);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                             HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  DBUG_EXECUTE_IF("wl7158_replace_db_table_1", error = HA_ERR_LOCK_DEADLOCK;);
+  if (error) {
+    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+      goto table_error;
+
+    old_rights = 0;
+    if (!revoke_grant) {
+      restore_record(table, s->default_values);
+      table->field[0]->store(combo.host.str, combo.host.length,
+                             system_charset_info);
+      table->field[1]->store(db, strlen(db), system_charset_info);
+      table->field[2]->store(combo.user.str, combo.user.length,
+                             system_charset_info);
+    }
+  } else {
+    old_row_exists = true;
+    store_record(table, record[1]);
+    old_rights = get_access(table, 3, nullptr);
+  }
+  store_rights = get_rights_for_db(rights);
+  nonexisting_rights = store_rights - (store_rights & old_rights);
+
+  if (revoke_grant) {
+    if (all_current_privileges ? !old_row_exists : nonexisting_rights != 0) {
+      /* trying to revoke nonexisting privilege */
+      if (report_missing_user_grant_message(thd, true, combo.user.str,
+                                            combo.host.str, nullptr,
+                                            ER_NONEXISTING_GRANT))
+        /* error reported - return error */
+        return 1;
+      else {
+        /* warning reported -ignore nonexisting_rights */
+        store_rights -= nonexisting_rights;
+        if (store_rights == 0) return 0;
+      }
+    }
+  } else {
+    if (nonexisting_rights == 0 && store_rights != 0) {
+      /* trying to grant already existing privileges */
+      DBUG_EXECUTE_IF("wl7158_replace_db_table_2", error = HA_ERR_LOCK_DEADLOCK;
+                      goto table_error;);
+      return 0;
+    }
+  }
+
+  for (i = 3, priv = 1; i < table->s->fields; i++, priv <<= 1) {
+    if (priv & store_rights)  // do it if priv is chosen
+      table->field[i]->store(&what, 1,
+                             &my_charset_latin1);  // set requested privileges
+  }
+  rights = get_access(table, 3, nullptr);
+  rights = fix_rights_for_db(rights);
+
+  if (old_rights != 0) {
+    /* update old existing row */
+    if (rights) {
+      error = table->file->ha_update_row(table->record[1], table->record[0]);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      DBUG_EXECUTE_IF("wl7158_replace_db_table_2",
+                      error = HA_ERR_LOCK_DEADLOCK;);
+      if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
+    } else /* must have been a revoke of all privileges */
+    {
+      error = table->file->ha_delete_row(table->record[1]);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      DBUG_EXECUTE_IF("wl7158_replace_db_table_3",
+                      error = HA_ERR_LOCK_DEADLOCK;);
+      if (error) goto table_error; /* purecov: deadcode */
+    }
+  } else if (rights) {
+    /* add a row */
+    error = table->file->ha_write_row(table->record[0]);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    DBUG_EXECUTE_IF("wl7158_replace_db_table_4", error = HA_ERR_LOCK_DEADLOCK;);
+    if (error) {
+      if (!table->file->is_ignorable_error(error))
+        goto table_error; /* purecov: deadcode */
+    }
+  }
+
+  clear_and_init_db_cache();  // Clear privilege cache
+  if (old_rights != 0)
     acl_update_db(combo.user.str, combo.host.str, db, rights);
   else if (rights)
     acl_insert_db(combo.user.str, combo.host.str, db, rights);

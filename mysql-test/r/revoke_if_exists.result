@@ -323,6 +323,7 @@ REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM u1, u2, u3;
 Warnings:
 Warning	1141	There is no such grant defined for user 'u1' on host '%'
 Warning	1141	There is no such grant defined for user 'u2' on host '%'
+Warning	1141	There is no such grant defined for user 'u3' on host '%'
 REVOKE IF EXISTS DELETE, SELECT ON wl14690.* FROM r1;
 Warnings:
 Warning	1141	There is no such grant defined for user 'r1' on host '%'
@@ -436,6 +437,7 @@ IGNORE UNKNOWN USER;
 Warnings:
 Warning	1141	There is no such grant defined for user 'u1' on host '%'
 Warning	1141	There is no such grant defined for user 'u2' on host '%'
+Warning	1141	There is no such grant defined for user 'u3' on host '%'
 REVOKE IF EXISTS SYSTEM_VARIABLES_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN
 ON *.* FROM u1, u2 IGNORE UNKNOWN USER;
 SHOW GRANTS FOR u1;
@@ -472,7 +474,6 @@ ERROR HY000: Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
 REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM u1;
 Warnings:
 Warning	3619	Illegal privilege level specified for DYNAMIC_PRIV1,DYNAMIC_PRIV2
-Warning	1141	There is no such grant defined for user 'u1' on host '%'
 REVOKE IF EXISTS DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user;
 ERROR 42000: There is no such grant defined for user 'unknown_user' on host '%'
 REVOKE DYNAMIC_PRIV1, DYNAMIC_PRIV2 ON wl14690.* FROM unknown_user IGNORE UNKNOWN USER;

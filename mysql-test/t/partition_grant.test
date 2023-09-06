@@ -48,7 +48,7 @@ disconnect conn3;
 
 connection default;
 
-revoke select,alter,drop on mysqltest_1.* from mysqltest_1@localhost;
+revoke select,drop on mysqltest_1.* from mysqltest_1@localhost;
 drop table t1;
 
 #
