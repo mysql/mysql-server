@@ -4455,7 +4455,7 @@ void in_row::sort_array() {
 bool in_row::find_item(Item *item) {
   if (m_used_size == 0) return false;
   tmp->store_value(item);
-  if (item->is_null()) return false;
+  if (item->null_value) return false;
   return std::binary_search(base_pointers.begin(),
                             base_pointers.begin() + m_used_size, tmp.get(),
                             Cmp_row());

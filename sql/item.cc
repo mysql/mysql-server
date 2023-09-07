@@ -7581,7 +7581,7 @@ bool Item::update_null_value() {
 }
 
 /**
-  Evaluate item, possibly using the supplied buffer
+  Evaluate scalar item, possibly using the supplied buffer
 
   @param thd    Thread context
   @param buffer Buffer, in case item needs a large one
@@ -7590,6 +7590,8 @@ bool Item::update_null_value() {
 */
 
 bool Item::evaluate(THD *thd, String *buffer) {
+  assert(result_type() != ROW_RESULT);
+
   switch (data_type()) {
     case MYSQL_TYPE_INVALID:
     default:
