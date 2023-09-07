@@ -1406,7 +1406,7 @@ cmp_event_buf(const void * ptr0, const void * ptr1)
 }
 
 #if defined VM_TRACE || defined ERROR_INSERT
-static Uint32 f_free_segments[32];
+static Uint32 f_free_segments[256];
 static Uint32 f_free_segment_pos = 0;
 #endif
 
@@ -1564,32 +1564,40 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshot)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    f_free_segments[f_free_segment_pos] = g_sectionSegmentPool.getNoOfFree();
-    f_free_segment_pos = (f_free_segment_pos + 1) % NDB_ARRAY_SIZE(f_free_segments);
+    if (f_free_segment_pos < NDB_ARRAY_SIZE(f_free_segments))
+    {
+      f_free_segments[f_free_segment_pos++] = g_sectionSegmentPool.getNoOfFree();
+    }
+    else
+    {
+      g_eventLogger->warning("CmvmiLongSignalMemorySnapshot IGNORED"
+                             ", exceeded the max %lu snapshots",
+                             NDB_ARRAY_SIZE(f_free_segments));
+    }
 #endif
   }
 
   if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    Uint32 start = (f_free_segment_pos + 1)% NDB_ARRAY_SIZE(f_free_segments);
-    Uint32 stop = (f_free_segment_pos - 1) % NDB_ARRAY_SIZE(f_free_segments);
+    Uint32 start = 1;
+    Uint32 stop = f_free_segment_pos;
     Uint32 cnt_dec = 0;
     Uint32 cnt_inc = 0;
     Uint32 cnt_same = 0;
-    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    for (Uint32 i = start; i < stop; i++)
     {
-      Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
+      Uint32 prev = (i - 1);
       if (f_free_segments[prev] == f_free_segments[i])
         cnt_same++;
       else if (f_free_segments[prev] > f_free_segments[i])
         cnt_dec++;
-      else if (f_free_segments[prev] < f_free_segments[i])
+      else
         cnt_inc++;
     }
 
     printf("snapshots: ");
-    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    for (Uint32 i = 0; i < stop; i++)
     {
       printf("%u ", f_free_segments[i]);
     }
