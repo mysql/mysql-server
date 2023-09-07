@@ -25,33 +25,35 @@
 
 #include <assert.h>
 #include <stdint.h>
-
-#include <string>
+#include <cstddef>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
-#include "sql/iterators/row_iterator.h"
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_table_map.h"
+#include "sql/item.h"
+// IWYU suggests removing row_iterator.h, but then the inlined short form of
+// CreateIteratorFromAccessPath() fails to compile. So use a pragma to keep it.
+#include "sql/iterators/row_iterator.h"  // IWYU pragma: keep
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_optimizer/overflow_bitset.h"
-#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/olap.h"
-#include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
 
-template <class T>
-class Bounds_checked_array;
-class Common_table_expr;
+class Cost_model_server;
 class Filesort;
 class HashJoinCondition;
-class Item;
 class Item_func_match;
 class JOIN;
 class KEY;
+class Query_expression;
 class QEP_TAB;
 class QUICK_RANGE;
 class SJ_TMP_TABLE;
@@ -63,10 +65,8 @@ struct GroupIndexSkipScanParameters;
 struct IndexSkipScanParameters;
 struct Index_lookup;
 struct KEY_PART;
-struct ORDER;
 struct POSITION;
 struct RelationalExpression;
-struct TABLE;
 
 /**
   A specification that two specific relational expressions
@@ -1059,7 +1059,7 @@ struct AccessPath {
     } unqualified_count;
 
     struct {
-      // No members (implicit from the JOIN).
+      Mem_root_array<Item_values_column *> *output_refs;
     } table_value_constructor;
     struct {
       // No members.
@@ -1424,14 +1424,8 @@ inline AccessPath *NewUnqualifiedCountAccessPath(THD *thd) {
   return path;
 }
 
-inline AccessPath *NewTableValueConstructorAccessPath(THD *thd) {
-  AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::TABLE_VALUE_CONSTRUCTOR;
-  // The iterator keeps track of which row it is at in examined_rows,
-  // so we always need to give it the pointer.
-  path->count_examined_rows = true;
-  return path;
-}
+AccessPath *NewTableValueConstructorAccessPath(const THD *thd,
+                                               const JOIN *join);
 
 inline AccessPath *NewNestedLoopSemiJoinWithDuplicateRemovalAccessPath(
     THD *thd, AccessPath *outer, AccessPath *inner, const TABLE *table,

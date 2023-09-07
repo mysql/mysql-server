@@ -10762,15 +10762,9 @@ Item_values_column::Item_values_column(THD *thd, Item *ref) : super(thd, ref) {
   fixed = true;
 }
 
-/* purecov: begin deadcode */
-
-bool Item_values_column::eq(const Item *item, bool binary_cmp) const {
-  assert(false);
-  const Item *it = item->real_item();
-  return m_value_ref && m_value_ref->eq(it, binary_cmp);
+bool Item_values_column::eq(const Item *item, bool) const {
+  return item->type() == VALUES_COLUMN_ITEM && item_name.eq(item->item_name);
 }
-
-/* purecov: end */
 
 double Item_values_column::val_real() {
   assert(fixed);

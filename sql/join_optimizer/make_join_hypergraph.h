@@ -24,11 +24,15 @@
 #define SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH 1
 
 #include <array>
+#include <cstddef>
 #include <string>
 
 #include "map_helpers.h"
+#include "my_table_map.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
+#include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/secondary_engine_costing_flags.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
@@ -40,6 +44,7 @@ class JOIN;
 class Query_block;
 class THD;
 struct MEM_ROOT;
+struct RelationalExpression;
 struct TABLE;
 
 /**

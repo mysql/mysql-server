@@ -99,11 +99,15 @@ eval $query;
 --skip_if_hypergraph
 eval EXPLAIN FORMAT = tree $query;
 
+# This query returns wrong results with the old optimizer. The
+# hypergraph optimizer returns correct results.
 let $query = ( ( (VALUES ROW(1,1), ROW(2,2), ROW(3,3), ROW(4,4), ROW(-1,-1))
                  ORDER BY column_0 LIMIT 4)
                LIMIT 3)
              ORDER BY 1;
+--skip_if_hypergraph  # Hypergraph returns correct results.
 eval $query;
+--skip_if_hypergraph  # Different plan (actually sorts result before LIMIT).
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT = tree $query;
 
@@ -187,6 +191,7 @@ ORDER BY -a LIMIT 2;
 --echo # Check explicit table and table value constructor
 --echo #
 (TABLE r ORDER BY a LIMIT 5) ORDER BY -a LIMIT 4;
+--skip_if_hypergraph  # Wrong result with the old optimizer. Correct with hypergraph.
 VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1;
 (VALUES ROW(1,2),ROW(3,4),ROW(-1,2) ORDER BY 1) ORDER BY 1 LIMIT 2;
 

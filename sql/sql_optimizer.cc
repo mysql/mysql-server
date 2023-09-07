@@ -79,6 +79,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
@@ -568,7 +569,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
         goto setup_subq_exit;
     }
   }
-  if (tables_list == nullptr) {
+
+  if (thd->lex->using_hypergraph_optimizer &&
+      query_block->is_table_value_constructor) {
+    // Let the hypergraph optimizer handle table value constructors, even though
+    // they are table-less queries.
+  } else if (tables_list == nullptr) {
     DBUG_PRINT("info", ("No tables"));
     best_rowcount = 1;
     error = 0;
@@ -602,8 +608,10 @@ bool JOIN::optimize(bool finalize_access_paths) {
     }
   }
 
-  sort_by_table = get_sort_by_table(order.order, group_list.order,
-                                    query_block->leaf_tables);
+  if (!thd->lex->using_hypergraph_optimizer) {
+    sort_by_table = get_sort_by_table(order.order, group_list.order,
+                                      query_block->leaf_tables);
+  }
 
   if ((where_cond || !group_list.empty() || !order.empty()) &&
       substitute_gc(thd, query_block, where_cond, group_list.order,

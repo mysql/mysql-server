@@ -32,6 +32,7 @@
 
 #include "sql/item.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"

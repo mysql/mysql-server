@@ -23,19 +23,28 @@
 #include "sql/join_optimizer/access_path.h"
 
 #include <algorithm>
+#include <cmath>
+#include <memory>
 #include <vector>
 
+#include "mem_root_deque.h"
 #include "my_base.h"
+#include "my_dbug.h"
+#include "mysql/components/services/bits/psi_bits.h"
+#include "prealloced_array.h"
+#include "sql/field.h"
 #include "sql/filesort.h"
+#include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
-#include "sql/item_sum.h"
+#include "sql/item_subselect.h"
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
 #include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/delete_rows_iterator.h"
 #include "sql/iterators/hash_join_iterator.h"
 #include "sql/iterators/ref_row_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/iterators/sorting_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/iterators/window_iterators.h"
@@ -46,6 +55,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
+#include "sql/pack_rows.h"
 #include "sql/range_optimizer/geometry_index_range_scan.h"
 #include "sql/range_optimizer/group_index_skip_scan.h"
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
@@ -56,9 +66,18 @@
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
+#include "sql/sql_array.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_update.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/visible_fields.h"
+#include "template_utils.h"
 
 using pack_rows::TableCollection;
 using std::all_of;
@@ -120,6 +139,38 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
   path->update_rows().child = child;
   path->update_rows().tables_to_update = update_tables;
   path->update_rows().immediate_tables = immediate_tables;
+  return path;
+}
+
+static Mem_root_array<Item_values_column *> *GetTableValueConstructorOutputRefs(
+    MEM_ROOT *mem_root, const JOIN *join) {
+  // If the table value constructor has a single row, the values are contained
+  // directly in join->fields, and there are no Item_values_column output refs.
+  if (join->query_block->row_value_list->size() == 1) {
+    return nullptr;
+  }
+
+  auto columns = new (mem_root) Mem_root_array<Item_values_column *>(mem_root);
+  if (columns == nullptr) return nullptr;
+
+  for (Item *column : VisibleFields(*join->fields)) {
+    if (columns->push_back(down_cast<Item_values_column *>(column))) {
+      return nullptr;
+    }
+  }
+
+  return columns;
+}
+
+AccessPath *NewTableValueConstructorAccessPath(const THD *thd,
+                                               const JOIN *join) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::TABLE_VALUE_CONSTRUCTOR;
+  // The iterator keeps track of which row it is at in examined_rows,
+  // so we always need to give it the pointer.
+  path->count_examined_rows = true;
+  path->table_value_constructor().output_refs =
+      GetTableValueConstructorOutputRefs(thd->mem_root, join);
   return path;
 }
 
@@ -721,7 +772,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         Query_block *query_block = join->query_block;
         iterator = NewIterator<TableValueConstructorIterator>(
             thd, mem_root, examined_rows, *query_block->row_value_list,
-            query_block->join->fields);
+            path->table_value_constructor().output_refs);
         break;
       }
       case AccessPath::FAKE_SINGLE_ROW:

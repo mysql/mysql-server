@@ -23,24 +23,25 @@
 #include "sql/join_optimizer/make_join_hypergraph.h"
 
 #include <assert.h>
-#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <array>
 #include <bit>
 #include <iterator>
 #include <numeric>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
-#include "limits.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
+#include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "my_sys.h"
 #include "my_table_map.h"
-#include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -59,6 +60,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
 #include "template_utils.h"
@@ -292,7 +294,10 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
 }
 
 RelationalExpression *MakeRelationalExpression(THD *thd, const Table_ref *tl) {
-  if (tl->nested_join == nullptr) {
+  if (tl == nullptr) {
+    // No tables.
+    return nullptr;
+  } else if (tl->nested_join == nullptr) {
     // A single table.
     RelationalExpression *ret = new (thd->mem_root) RelationalExpression(thd);
     ret->type = RelationalExpression::TABLE;
@@ -2822,7 +2827,7 @@ void SortPredicates(Predicate *begin, Predicate *end) {
 int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
                  int source_multiple_equality_idx,
                  const RelationalExpression *root,
-                 const CompanionSetCollection &companion_collection,
+                 const CompanionSetCollection *companion_collection,
                  JoinHypergraph *graph, string *trace) {
   if (source_multiple_equality_idx != -1) {
     assert(was_join_condition);
@@ -2831,13 +2836,16 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   Predicate pred;
   pred.condition = condition;
 
-  table_map used_tables =
+  const table_map used_tables =
       condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
   pred.used_nodes =
       GetNodeMapFromTableMap(used_tables, graph->table_num_to_node_num);
 
+  const bool references_regular_tables =
+      Overlaps(used_tables, ~PSEUDO_TABLE_BITS);
+
   table_map total_eligibility_set;
-  if (was_join_condition) {
+  if (was_join_condition || !references_regular_tables) {
     total_eligibility_set = used_tables;
   } else {
     total_eligibility_set = FindTESForCondition(used_tables, root) &
@@ -2846,24 +2854,19 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   pred.total_eligibility_set = GetNodeMapFromTableMap(
       total_eligibility_set, graph->table_num_to_node_num);
 
-  if ((condition->used_tables() & ~PSEUDO_TABLE_BITS) ==
-      0) {  // No regular tables.
-    pred.selectivity =
-        EstimateSelectivity(thd, condition, CompanionSet(), trace);
-
-  } else {
-    const CompanionSet *const companion_set =
-        companion_collection.Find(condition->used_tables());
-
-    if (companion_set ==
-        nullptr) {  // No equijoin between condition->used_tables().
-      pred.selectivity =
-          EstimateSelectivity(thd, condition, CompanionSet(), trace);
-    } else {
-      pred.selectivity =
-          EstimateSelectivity(thd, condition, *companion_set, trace);
-    }
+  // If the query is a join, we may get selectivity information from the
+  // companion set of the tables referenced by the predicate. For single-table
+  // or table-less queries, there is no companion set. Tables not involved in
+  // any equijoins do not have a companion set.
+  const CompanionSet *companion_set = nullptr;
+  if (references_regular_tables && companion_collection != nullptr) {
+    companion_set = companion_collection->Find(used_tables);
   }
+
+  pred.selectivity =
+      companion_set != nullptr
+          ? EstimateSelectivity(thd, condition, *companion_set, trace)
+          : EstimateSelectivity(thd, condition, CompanionSet(), trace);
 
   pred.was_join_condition = was_join_condition;
   pred.source_multiple_equality_idx = source_multiple_equality_idx;
@@ -3106,12 +3109,12 @@ void PromoteCycleJoinPredicates(
     for (Item *condition : expr->equijoin_conditions) {
       AddPredicate(thd, condition, /*was_join_condition=*/true,
                    FindSourceMultipleEquality(condition, multiple_equalities),
-                   root, companion_collection, graph, trace);
+                   root, &companion_collection, graph, trace);
     }
     for (Item *condition : expr->join_conditions) {
       AddPredicate(thd, condition, /*was_join_condition=*/true,
                    FindSourceMultipleEquality(condition, multiple_equalities),
-                   root, companion_collection, graph, trace);
+                   root, &companion_collection, graph, trace);
     }
     expr->join_predicate_last = graph->predicates.size();
     SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
@@ -3434,20 +3437,23 @@ bool ExtractWhereConditionsForSingleTable(THD *thd, Item *condition,
   return false;
 }
 
-/// Fast path for MakeJoinHypergraph() when the query accesses a single table.
+/// Fast path for MakeJoinHypergraph() when the query accesses a single table or
+/// no table.
 bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
                                string *trace, JoinHypergraph *graph,
                                bool *where_is_always_false) {
-  Table_ref *const table_ref = query_block->leaf_tables;
-  if (const int error = table_ref->fetch_number_of_rows(kRowEstimateFallback);
-      error) {
-    table_ref->table->file->print_error(error, MYF(0));
-    return true;
+  RelationalExpression *root = nullptr;
+  if (Table_ref *const table_ref = query_block->leaf_tables;
+      table_ref != nullptr) {
+    assert(table_ref->next_leaf == nullptr);
+    if (const int error = table_ref->fetch_number_of_rows(kRowEstimateFallback);
+        error) {
+      table_ref->table->file->print_error(error, MYF(0));
+      return true;
+    }
+    root = MakeRelationalExpression(thd, table_ref);
+    MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
   }
-
-  RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
-  CompanionSetCollection companion_collection(thd, root);
-  MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
 
   if (Item *const where_cond = query_block->join->where_cond;
       where_cond != nullptr) {
@@ -3460,7 +3466,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
     for (Item *item : where_conditions) {
       AddPredicate(thd, item, /*was_join_condition=*/false,
                    /*source_multiple_equality_idx=*/-1, root,
-                   companion_collection, graph, trace);
+                   /*companion_collection=*/nullptr, graph, trace);
     }
     graph->num_where_predicates = graph->predicates.size();
 
@@ -3500,7 +3506,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
 
   // Fast path for single-table queries. We can skip all the logic that analyzes
   // join conditions, as there is no join.
-  if (num_tables == 1) {
+  if (num_tables <= 1) {
     return MakeSingleTableHypergraph(thd, query_block, trace, graph,
                                      where_is_always_false);
   }
@@ -3721,7 +3727,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   for (Item *condition : where_conditions) {
     AddPredicate(thd, condition, /*was_join_condition=*/false,
                  /*source_multiple_equality_idx=*/-1, root,
-                 companion_collection, graph, trace);
+                 &companion_collection, graph, trace);
   }
 
   // Table filters should be applied at the bottom, without extending the TES.

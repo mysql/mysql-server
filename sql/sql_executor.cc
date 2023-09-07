@@ -3010,7 +3010,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   AccessPath *path = nullptr;
   if (query_block->is_table_value_constructor) {
     best_rowcount = query_block->row_value_list->size();
-    path = NewTableValueConstructorAccessPath(thd);
+    path = NewTableValueConstructorAccessPath(thd, this);
     path->set_num_output_rows(best_rowcount);
     path->set_cost(0.0);
     path->set_init_cost(0.0);

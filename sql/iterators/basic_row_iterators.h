@@ -40,6 +40,7 @@
 
 class Filesort_info;
 class Item;
+class Item_values_column;
 class JOIN;
 class Sort_result;
 class THD;
@@ -500,7 +501,7 @@ class TableValueConstructorIterator final : public RowIterator {
   TableValueConstructorIterator(
       THD *thd, ha_rows *examined_rows,
       const mem_root_deque<mem_root_deque<Item *> *> &row_value_list,
-      mem_root_deque<Item *> *join_fields);
+      Mem_root_array<Item_values_column *> *output_refs);
 
   bool Init() override;
   int Read() override;
@@ -521,7 +522,8 @@ class TableValueConstructorIterator final : public RowIterator {
   /// References to the row we currently want to output. When multiple rows must
   /// be output, this contains Item_values_column objects. In this case, each
   /// call to Read() will replace its current reference with the next row.
-  mem_root_deque<Item *> *const m_output_refs;
+  /// It is nullptr if there is only one row.
+  Mem_root_array<Item_values_column *> *m_output_refs;
 };
 
 /**

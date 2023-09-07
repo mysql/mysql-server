@@ -496,9 +496,16 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       }
       break;
     case Item::TYPE_HOLDER:
-    case Item::VALUES_COLUMN_ITEM:
       result = down_cast<Item_aggregate_type *>(item)->make_field_by_type(
           table, thd->is_strict_mode());
+      break;
+    case Item::VALUES_COLUMN_ITEM:
+      result = down_cast<Item_values_column *>(item)->make_field_by_type(
+          table, thd->is_strict_mode());
+      if (result == nullptr) return nullptr;
+      if (copy_func != nullptr && !make_copy_field) {
+        if (copy_func->emplace_back(item, result)) return nullptr;
+      }
       break;
     default:  // Doesn't have to be stored
       assert(false);

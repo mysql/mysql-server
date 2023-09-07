@@ -24,7 +24,6 @@
 
 #include <assert.h>
 #include <float.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,10 +32,10 @@
 #include <algorithm>
 #include <bit>
 #include <bitset>
+#include <cmath>
 #include <initializer_list>
-#include <memory>
+#include <limits>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -89,10 +88,12 @@
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/partition_info.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_analysis.h"
@@ -102,7 +103,6 @@
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
-#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
@@ -113,14 +113,14 @@
 #include "sql/sql_optimizer.h"
 #include "sql/sql_partition.h"
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
-#include "sql/temp_table_param.h"
 #include "sql/uniques.h"
 #include "sql/window.h"
 #include "template_utils.h"
+
+class Temp_table_param;
 
 using hypergraph::Hyperedge;
 using hypergraph::Node;
@@ -132,7 +132,6 @@ using std::pair;
 using std::popcount;
 using std::string;
 using std::swap;
-using std::vector;
 
 namespace {
 
@@ -236,17 +235,21 @@ class CostingReceiver {
   // Called EmitCsgCmp() in the DPhyp paper.
   bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx);
 
-  const Prealloced_array<AccessPath *, 4> &root_candidates() {
+  const Prealloced_array<AccessPath *, 4> root_candidates() {
     const auto it =
         m_access_paths.find(TablesBetween(0, m_graph->nodes.size()));
-    assert(it != m_access_paths.end());
+    if (it == m_access_paths.end()) {
+      return {};
+    }
     return it->second.paths;
   }
 
   FunctionalDependencySet active_fds_at_root() const {
     const auto it =
         m_access_paths.find(TablesBetween(0, m_graph->nodes.size()));
-    assert(it != m_access_paths.end());
+    if (it == m_access_paths.end()) {
+      return {};
+    }
     return it->second.active_functional_dependencies;
   }
 
@@ -6274,11 +6277,16 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // problem. Note that we can't do this if sorting by row IDs, as
   // AggregateIterator doesn't preserve them (doing so would probably not be
   // worth it for something that's fairly niche).
-  const bool force_materialization_before_sort =
+  bool force_materialization_before_sort =
       (query_block->is_explicitly_grouped() &&
        (*join->sum_funcs != nullptr ||
         join->rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
       join->m_windows.is_empty();
+
+  // Also materialize before sorting of table value constructors. Filesort needs
+  // a table, and a table value constructor has no associated TABLE object, so
+  // we have to stream the rows through a temporary table before sorting them.
+  force_materialization_before_sort |= query_block->is_table_value_constructor;
 
   // Now create iterators for DISTINCT, if applicable.
   if (join->select_distinct) {
@@ -7147,10 +7155,6 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       IsSubset(OPTION_NO_CONST_TABLES | OPTION_NO_SUBQUERY_DURING_OPTIMIZATION,
                query_block->active_options()));
 
-  // Table value constructors are supposed to be short-circuited earlier, so we
-  // don't expect to see them here.
-  assert(!query_block->is_table_value_constructor);
-
   // In the case of rollup (only): After the base slice list was made, we may
   // have modified the field list to add rollup group items and sum switchers.
   // The resolver also takes care to update these in query_block->order_list.
@@ -7284,10 +7288,9 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
       *subgraph_pair_limit, secondary_engine_cost_hook,
       secondary_engine_optimizer_request_state_hook, trace);
-  if (graph.edges.empty()) {
+  if (graph.nodes.size() == 1) {
     // Fast path for single-table queries. No need to run the join enumeration
     // when there is no join. Just visit the only node directly.
-    assert(graph.nodes.size() == 1);
     if (receiver.FoundSingleNode(0) && thd->is_error()) {
       return nullptr;
     }
@@ -7347,9 +7350,21 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   // may be no candidates, as the hook may have rejected so many access paths
   // that we could not build a complete plan, or the hook may have rejected
   // the plan as not offloadable.
-  if (secondary_engine_cost_hook != nullptr &&
-      (!receiver.HasSeen(TablesBetween(0, graph.nodes.size())) ||
-       receiver.root_candidates().empty())) {
+  Prealloced_array<AccessPath *, 4> root_candidates =
+      receiver.root_candidates();
+  if (query_block->is_table_value_constructor) {
+    assert(root_candidates.empty());
+    AccessPath *path = NewTableValueConstructorAccessPath(thd, join);
+    path->set_num_output_rows(query_block->row_value_list->size());
+    path->set_cost(0.0);
+    path->set_init_cost(0.0);
+    path->set_cost_before_filter(0.0);
+    receiver.ProposeAccessPath(path, &root_candidates,
+                               /*obsolete_orderings=*/0,
+                               /*description_for_trace=*/"");
+  }
+  if (root_candidates.empty()) {
+    assert(secondary_engine_cost_hook != nullptr);
     const char *reason = get_secondary_engine_fail_reason(thd->lex);
     if (reason != nullptr) {
       my_error(ER_SECONDARY_ENGINE, MYF(0), reason);
@@ -7359,8 +7374,6 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     }
     return nullptr;
   }
-  Prealloced_array<AccessPath *, 4> root_candidates =
-      receiver.root_candidates();
   assert(!root_candidates.empty());
   thd->m_current_query_partial_plans += receiver.num_subplans();
   if (trace != nullptr) {
