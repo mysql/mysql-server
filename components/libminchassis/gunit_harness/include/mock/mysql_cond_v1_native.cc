@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 namespace mysql_cond_v1_native {
 
+using std::adopt_lock;
 using std::condition_variable;
-using std::defer_lock;
 using std::mutex;
 using std::unique_lock;
 using std::chrono::time_point;
@@ -64,7 +64,7 @@ static int wait(mysql_cond_t *that, mysql_mutex_t *mutex_arg,
   condition_variable *cond =
       reinterpret_cast<condition_variable *>(that->m_psi);
   mutex *mtx = reinterpret_cast<mutex *>(mutex_arg->m_psi);
-  unique_lock lck(*mtx, defer_lock);
+  unique_lock lck(*mtx, adopt_lock);
   cond->wait(lck);
   return 0;
 }
@@ -75,7 +75,7 @@ static int timedwait(mysql_cond_t *that, mysql_mutex_t *mutex_arg,
   condition_variable *cond =
       reinterpret_cast<condition_variable *>(that->m_psi);
   mutex *mtx = reinterpret_cast<mutex *>(mutex_arg->m_psi);
-  unique_lock lck(*mtx, defer_lock);
+  unique_lock lck(*mtx, adopt_lock);
   return cond->wait_until(lck, mock_clock::from_time_t(abstime->tv_sec) +
                                    nanoseconds(abstime->tv_nsec)) ==
                  cv_status::timeout
