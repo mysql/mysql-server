@@ -2242,8 +2242,7 @@ class Query_block : public Query_term {
   bool setup_group(THD *thd);
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block);
-  bool remove_redundant_subquery_clauses(THD *thd,
-                                         int hidden_group_field_count);
+  bool remove_redundant_subquery_clauses(THD *thd);
   void repoint_contexts_of_join_nests(mem_root_deque<Table_ref *> join_list);
   bool empty_order_list(Query_block *sl);
   bool setup_join_cond(THD *thd, mem_root_deque<Table_ref *> *tables,

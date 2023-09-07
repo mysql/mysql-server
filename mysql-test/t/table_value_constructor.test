@@ -557,3 +557,14 @@ ANALYZE TABLE t;
 --eval EXPLAIN FORMAT=TREE $query
 --eval $query
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35785452: Table value constructor in subquery:
+--echo #               Assertion `!sl->order_list.first' failed.
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+--sorted_result
+SELECT * FROM t WHERE x >= ALL (VALUES ROW(2), ROW(3) ORDER BY column_0);
+DROP TABLE t;

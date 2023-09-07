@@ -770,3 +770,14 @@ SELECT * FROM t WHERE a IN (VALUES ROW(5), ROW(55), ROW(NULL));
 a	b
 5	6
 DROP TABLE t;
+#
+# Bug#35785452: Table value constructor in subquery:
+#               Assertion `!sl->order_list.first' failed.
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT * FROM t WHERE x >= ALL (VALUES ROW(2), ROW(3) ORDER BY column_0);
+x
+3
+4
+DROP TABLE t;

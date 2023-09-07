@@ -392,8 +392,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (unit->item &&                           // 1)
       !thd->lex->is_view_context_analysis())  // 2)
   {
-    if (remove_redundant_subquery_clauses(thd, hidden_group_field_count))
-      return true;
+    if (remove_redundant_subquery_clauses(thd)) return true;
   }
 
   /*
@@ -704,6 +703,11 @@ bool Query_block::prepare_values(THD *thd) {
     return true; /* purecov: inspected */
 
   if (resolve_limits(thd)) return true;
+
+  // If this is a subquery, remove redundant clauses (ORDER BY in particular).
+  if (unit->item != nullptr && !thd->lex->is_view_context_analysis()) {
+    if (remove_redundant_subquery_clauses(thd)) return true;
+  }
 
   return false;
 }
@@ -3834,13 +3838,10 @@ void Query_block::merge_contexts(Query_block *inner) {
    for regular queries and on first execution of SP/PS
 
    @param thd               thread handler
-   @param hidden_group_field_count Number of hidden group fields added
-                            by setup_group().
    @return true on error
 */
 
-bool Query_block::remove_redundant_subquery_clauses(
-    THD *thd, int hidden_group_field_count) {
+bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
   Item_subselect *subq_predicate = master_query_expression()->item;
   enum change {
     REMOVE_NONE = 0,
