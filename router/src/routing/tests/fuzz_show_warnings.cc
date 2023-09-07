@@ -27,31 +27,18 @@
 #include <iostream>
 #include <string_view>
 
-#include "hexify.h"
+#include "router/src/routing/src/sql_parser_state.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  // last char must be a \0 and the parser will overwrite the buffer.
-  auto stmt = std::string(reinterpret_cast<const char *>(Data), Size);
+  SqlParserState sql_parser_state;
 
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
+  sql_parser_state.statement(
+      std::string_view(reinterpret_cast<const char *>(Data), Size));
 
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
+  auto lexer = sql_parser_state.lexer();
 
-    auto res = ShowWarningsParser(lexer.begin(), lexer.end()).parse();
-    if (res) {
-      if (std::holds_alternative<std::monostate>(*res)) {
-        // no match
-      } else {
-        std::cerr << stmt << "\n";
-      }
-    }
-  }
+  // it shouldn't crash, but otherwise the return-value doesn't matter.
+  (void)ShowWarningsParser(lexer.begin(), lexer.end()).parse();
 
   return 0;
 }

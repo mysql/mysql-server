@@ -43,6 +43,7 @@
 #include "sql_exec_context.h"
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
+#include "sql_parser_state.h"
 
 #undef DEBUG_DUMP_TOKENS
 
@@ -92,20 +93,11 @@ static void dump_token(SqlLexer::iterator::Token tkn) {
  * FLUSH TABLES WITH READ LOCK
  * @endcode
  */
-static stdx::flags<StmtClassifier> classify(const std::string &stmt,
+static stdx::flags<StmtClassifier> classify(SqlLexer &&lexer,
                                             bool forbid_set_trackers) {
   stdx::flags<StmtClassifier> classified{};
 
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
   {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer(&session);
-
     auto lexer_it = lexer.begin();
     if (lexer_it != lexer.end()) {
       auto first = *lexer_it;
@@ -581,7 +573,11 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
   if (handler_) handler_->on_ok(msg);
 
   if (!msg.session_changes().empty()) {
-    auto changes_state = classify(stmt_, false);
+    SqlParserState sql_parser_state;
+
+    sql_parser_state.statement(stmt_);
+
+    auto changes_state = classify(sql_parser_state.lexer(), false);
 
     auto track_res = connection()->track_session_changes(
         net::buffer(msg.session_changes()), src_protocol->shared_capabilities(),

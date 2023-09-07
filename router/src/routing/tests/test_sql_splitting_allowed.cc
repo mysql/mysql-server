@@ -21,6 +21,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include "sql_parser_state.h"
 #include "sql_splitting_allowed.h"
 
 #include <gtest/gtest.h>
@@ -32,19 +33,8 @@
 using Allowed = SplittingAllowedParser::Allowed;
 
 static stdx::expected<SplittingAllowedParser::Allowed, std::string>
-splitting_allowed(std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
-
-    return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
-  }
+splitting_allowed(SqlLexer &&lexer) {
+  return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
 }
 
 struct SharingAllowedParam {
@@ -86,7 +76,13 @@ class SharingAllowedTest
       public ::testing::WithParamInterface<SharingAllowedParam> {};
 
 TEST_P(SharingAllowedTest, works) {
-  ASSERT_EQ(splitting_allowed(GetParam().stmt), GetParam().expected_result)
+  SqlParserState sql_parser_state;
+
+  // set the statement in the parser.
+  sql_parser_state.statement(GetParam().stmt);
+
+  ASSERT_EQ(splitting_allowed(sql_parser_state.lexer()),
+            GetParam().expected_result)
       << GetParam().stmt;
 }
 

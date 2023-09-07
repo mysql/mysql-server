@@ -22,24 +22,41 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router/src/routing/src/sql_lexer.h"
+#ifndef ROUTING_SQL_PARSER_STATE_INCLUDED
+#define ROUTING_SQL_PARSER_STATE_INCLUDED
 
 #include <string_view>
 
-#include "router/src/routing/src/sql_parser_state.h"
+#include "my_alloc.h"  // MEM_ROOT
+#include "sql_lexer.h"
+#include "sql_lexer_thd.h"  // THD
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
-  SqlParserState sql_parser_state;
-
-  sql_parser_state.statement(
-      std::string_view(reinterpret_cast<const char *>(Data), Size));
-
-  for (auto tkn : sql_parser_state.lexer()) {
-    switch (tkn.id) {
-      default:
-        break;
-    }
+class SqlParserState {
+ public:
+  SqlParserState() {
+    session_.mem_root = &mem_root_;
+    session_.m_parser_state = &parser_state_;
   }
 
-  return 0;
-}
+  void statement(std::string_view stmt) {
+    // copy the string as the lexer needs a trailing \0
+    stmt_ = stmt;
+
+    parser_state_.init(&session_, stmt_.data(), stmt_.size());
+  }
+
+  SqlLexer lexer(bool reset_state = true) {
+    if (reset_state) parser_state_.reset(stmt_.data(), stmt_.size());
+
+    return {&session_};
+  }
+
+ private:
+  MEM_ROOT mem_root_;
+  THD session_;
+  Parser_state parser_state_;
+
+  std::string stmt_;
+};
+
+#endif

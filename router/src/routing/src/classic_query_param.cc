@@ -202,7 +202,7 @@ std::ostream &operator<<(std::ostream &os,
 }  // namespace classic_protocol::borrowable::binary
 
 stdx::expected<std::string, std::error_code> param_to_string(
-    const classic_protocol::message::client::Query::Param &param) {
+    const classic_protocol::borrowed::message::client::Query::Param &param) {
   enum class BinaryType {
     Decimal = binary_type<classic_protocol::binary::Decimal>(),
     NewDecimal = binary_type<classic_protocol::binary::NewDecimal>(),
@@ -429,7 +429,7 @@ stdx::expected<std::string, std::error_code> param_to_string(
 }
 
 stdx::expected<uint64_t, std::error_code> param_to_number(
-    const classic_protocol::message::client::Query::Param &param) {
+    const classic_protocol::borrowed::message::client::Query::Param &param) {
   switch (param.type_and_flags & 0xff) {
     case binary_type<classic_protocol::binary::Blob>():
     case binary_type<classic_protocol::binary::TinyBlob>():
@@ -499,7 +499,7 @@ stdx::expected<uint64_t, std::error_code> param_to_number(
 }
 
 stdx::expected<std::string, std::error_code> param_as_string(
-    const classic_protocol::message::client::Query::Param &param) {
+    const classic_protocol::borrowed::message::client::Query::Param &param) {
   switch (param.type_and_flags & 0xff) {
     case binary_type<classic_protocol::binary::Blob>(): {
       auto dec_res = classic_protocol::decode<classic_protocol::binary::Blob>(

@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "mysql/harness/stdx/expected.h"
+#include "sql_parser_state.h"
 #include "start_transaction_parser.h"
 
 #include <gtest/gtest.h>
@@ -34,19 +35,8 @@
 
 static stdx::expected<std::variant<std::monostate, StartTransaction>,
                       std::string>
-start_transaction(std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
-
-    return StartTransactionParser(lexer.begin(), lexer.end()).parse();
-  }
+start_transaction(SqlLexer &&lexer) {
+  return StartTransactionParser(lexer.begin(), lexer.end()).parse();
 }
 
 struct StartTransactionParam {
@@ -109,7 +99,12 @@ class StartTransactionTest
       public ::testing::WithParamInterface<StartTransactionParam> {};
 
 TEST_P(StartTransactionTest, works) {
-  ASSERT_EQ(start_transaction(GetParam().stmt), GetParam().expected_result)
+  SqlParserState sql_parser_state;
+
+  sql_parser_state.statement(GetParam().stmt);
+
+  ASSERT_EQ(start_transaction(sql_parser_state.lexer()),
+            GetParam().expected_result)
       << GetParam().stmt << "\n"
       << GetParam().expected_result;
 }

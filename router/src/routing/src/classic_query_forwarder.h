@@ -29,6 +29,7 @@
 
 #include "forwarding_processor.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "sql_parser_state.h"
 #include "stmt_classifier.h"
 
 class QueryForwarder : public ForwardingProcessor {
@@ -141,6 +142,8 @@ class QueryForwarder : public ForwardingProcessor {
   TraceEvent *trace_event_query_result_{};
 
   std::optional<classic_protocol::message::server::Error> failed_;
+
+  SqlParserState sql_parser_state_;
 };
 
 #endif

@@ -72,6 +72,7 @@
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
 #include "sql_parser.h"
+#include "sql_parser_state.h"
 #include "sql_splitting_allowed.h"
 #include "start_transaction_parser.h"
 #include "stmt_classifier.h"
@@ -185,17 +186,8 @@ std::string to_string(stdx::flags<StmtClassifier> flags) {
  * false for: CREATE PROCEDURE ... BEGIN DO 1; DO 2; END
  * false for: CREATE PROCEDURE ... BEGIN IF 1 THEN DO 1; END IF; END
  */
-bool contains_multiple_statements(const std::string &stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
+bool contains_multiple_statements(SqlLexer &&lexer) {
   {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer(&session);
-
     bool is_first{true};
     int begin_end_depth{0};
 
@@ -258,21 +250,11 @@ bool contains_multiple_statements(const std::string &stmt) {
  * FLUSH TABLES WITH READ LOCK
  * @endcode
  */
-stdx::flags<StmtClassifier> classify(const std::string &stmt,
-                                     bool forbid_set_trackers,
+stdx::flags<StmtClassifier> classify(SqlLexer &&lexer, bool forbid_set_trackers,
                                      bool config_access_mode_auto) {
   stdx::flags<StmtClassifier> classified{};
 
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
   {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer(&session);
-
     bool is_lhs{true};
 
     auto lexer_it = lexer.begin();
@@ -1318,66 +1300,24 @@ class InterceptedStatementsParser : public ShowWarningsParser {
 stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings,
                             CommandRouterSet>,
                std::string>
-intercept_diagnostics_area_queries(std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
-
-    return InterceptedStatementsParser(lexer.begin(), lexer.end()).parse();
-  }
+intercept_diagnostics_area_queries(SqlLexer &&lexer) {
+  return InterceptedStatementsParser(lexer.begin(), lexer.end()).parse();
 }
 
 stdx::expected<std::variant<std::monostate, StartTransaction>, std::string>
-start_transaction(std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
-
-    return StartTransactionParser(lexer.begin(), lexer.end()).parse();
-  }
+start_transaction(SqlLexer &&lexer) {
+  return StartTransactionParser(lexer.begin(), lexer.end()).parse();
 }
 
 stdx::expected<SplittingAllowedParser::Allowed, std::string> splitting_allowed(
-    std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  {
-    Parser_state parser_state;
-    parser_state.init(&session, stmt.data(), stmt.size());
-    session.m_parser_state = &parser_state;
-    SqlLexer lexer{&session};
-
-    return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
-  }
+    SqlLexer &&lexer) {
+  return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
 }
 
 stdx::expected<bool, std::string> is_implicitly_committed(
-    std::string_view stmt,
+    SqlLexer &&lexer,
     std::optional<classic_protocol::session_track::TransactionState>
         trx_state) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
-
-  Parser_state parser_state;
-  parser_state.init(&session, stmt.data(), stmt.size());
-  session.m_parser_state = &parser_state;
-  SqlLexer lexer{&session};
-
   return ImplicitCommitParser(lexer.begin(), lexer.end()).parse(trx_state);
 }
 
@@ -1745,9 +1685,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     stage(Stage::PrepareBackend);
     return Result::Again;
   } else {
-    auto msg_res =
-        ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
-            src_channel, src_protocol);
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::client::Query>(src_channel,
+                                                            src_protocol);
     if (!msg_res) {
       // all codec-errors should result in a Malformed Packet error..
       if (msg_res.error().category() !=
@@ -1784,13 +1724,16 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
       }
 
       tr.trace(Tracer::Event().stage(
-          "query::command: " + msg_res->statement().substr(0, 1024) +
-          oss.str()));
+          "query::command: " +
+          std::string(msg_res->statement().substr(0, 1024)) + oss.str()));
     }
+
+    // init the parser-statement once.
+    sql_parser_state_.statement(msg_res->statement());
 
     if (src_protocol->shared_capabilities().test(
             classic_protocol::capabilities::pos::multi_statements) &&
-        contains_multiple_statements(msg_res->statement())) {
+        contains_multiple_statements(sql_parser_state_.lexer())) {
       auto send_res = ClassicFrame::send_msg<
           classic_protocol::message::server::Error>(
           src_channel, src_protocol,
@@ -1811,7 +1754,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     // Otherwise, all queries for the diagnostics area MUST go to the
     // server.
     const auto intercept_res =
-        intercept_diagnostics_area_queries(msg_res->statement());
+        intercept_diagnostics_area_queries(sql_parser_state_.lexer());
     if (intercept_res) {
       if (std::holds_alternative<std::monostate>(*intercept_res)) {
         // no match
@@ -1833,7 +1776,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           stage(Stage::SendQueued);
 
           connection()->push_processor(std::make_unique<QuerySender>(
-              connection(), msg_res->statement(),
+              connection(), std::string(msg_res->statement()),
               std::make_unique<ForwardedShowWarningsHandler>(connection(),
                                                              cmd.verbosity())));
 
@@ -1857,7 +1800,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           stage(Stage::SendQueued);
 
           connection()->push_processor(std::make_unique<QuerySender>(
-              connection(), msg_res->statement(),
+              connection(), std::string(msg_res->statement()),
               std::make_unique<ForwardedShowWarningCountHandler>(
                   connection(), cmd.verbosity())));
 
@@ -1891,7 +1834,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     }
 
     if (connection()->context().access_mode() == routing::AccessMode::kAuto) {
-      const auto allowed_res = splitting_allowed(msg_res->statement());
+      const auto allowed_res = splitting_allowed(sql_parser_state_.lexer());
       if (!allowed_res) {
         auto send_res = ClassicFrame::send_msg<
             classic_protocol::borrowed::message::server::Error>(
@@ -1950,7 +1893,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
       stage(Stage::ClassifyQuery);
     } else {
       auto is_implictly_committed_res = is_implicitly_committed(
-          msg_res->statement(), connection()->trx_state());
+          sql_parser_state_.lexer(), connection()->trx_state());
       if (!is_implictly_committed_res) {
         // it fails if trx-state() is not set, but it has been set.
         harness_assert_this_should_not_execute();
@@ -2094,9 +2037,9 @@ QueryForwarder::classify_query() {
   bool want_read_only_connection{false};
 
   if (true) {
-    auto msg_res =
-        ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
-            src_channel, src_protocol);
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::client::Query>(src_channel,
+                                                            src_protocol);
     if (!msg_res) {
       // all codec-errors should result in a Malformed Packet error..
       if (msg_res.error().category() !=
@@ -2138,7 +2081,9 @@ QueryForwarder::classify_query() {
 
     std::optional<ClassicProtocolState::AccessMode> access_mode;
     for (const auto &param : msg_res->values()) {
-      if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+      std::string param_name(param.name);
+
+      if (0 == my_strcasecmp(cs_collation_connection, param_name.c_str(),
                              "router.trace")) {
         if (param.value) {
           auto val_res = param_to_number(param);
@@ -2186,7 +2131,7 @@ QueryForwarder::classify_query() {
           stage(Stage::Done);
           return Result::SendToClient;
         }
-      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+      } else if (0 == my_strcasecmp(cs_collation_connection, param_name.c_str(),
                                     "router.access_mode")) {
         if (param.value) {
           auto param_res = param_as_string(param);
@@ -2207,7 +2152,7 @@ QueryForwarder::classify_query() {
                   classic_protocol::message::server::Error>(
                   src_channel, src_protocol,
                   {1064,
-                   "Value of Query attribute " + param.name + " is unknown",
+                   "Value of Query attribute " + param_name + " is unknown",
                    "42000"});
               if (!send_res) return send_client_failed(send_res.error());
 
@@ -2221,7 +2166,7 @@ QueryForwarder::classify_query() {
             auto send_res = ClassicFrame::send_msg<
                 classic_protocol::message::server::Error>(
                 src_channel, src_protocol,
-                {1064, "Value of Query attribute " + param.name + " is unknown",
+                {1064, "Value of Query attribute " + param_name + " is unknown",
                  "42000"});
             if (!send_res) return send_client_failed(send_res.error());
 
@@ -2231,7 +2176,7 @@ QueryForwarder::classify_query() {
         } else {
           // NULL, ignore
         }
-      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+      } else if (0 == my_strcasecmp(cs_collation_connection, param_name.c_str(),
                                     "router.wait_for_my_writes")) {
         if (param.value) {
           auto val_res = param_to_number(param);
@@ -2246,7 +2191,7 @@ QueryForwarder::classify_query() {
                   classic_protocol::borrowed::message::server::Error>(
                   src_channel, src_protocol,
                   {1064,
-                   "Value of Query attribute " + param.name + " is unknown",
+                   "Value of Query attribute " + param_name + " is unknown",
                    "42000"});
               if (!send_res) return send_client_failed(send_res.error());
 
@@ -2260,7 +2205,7 @@ QueryForwarder::classify_query() {
             auto send_res = ClassicFrame::send_msg<
                 classic_protocol::borrowed::message::server::Error>(
                 src_channel, src_protocol,
-                {1064, "Value of Query attribute " + param.name + " is unknown",
+                {1064, "Value of Query attribute " + param_name + " is unknown",
                  "42000"});
             if (!send_res) return send_client_failed(send_res.error());
 
@@ -2270,7 +2215,7 @@ QueryForwarder::classify_query() {
         } else {
           // NULL, ignore
         }
-      } else if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+      } else if (0 == my_strcasecmp(cs_collation_connection, param_name.c_str(),
                                     "router.wait_for_my_writes_timeout")) {
         if (param.value) {
           auto val_res = param_to_number(param);
@@ -2286,7 +2231,7 @@ QueryForwarder::classify_query() {
                   classic_protocol::borrowed::message::server::Error>(
                   src_channel, src_protocol,
                   {1064,
-                   "Value of Query attribute " + param.name + " is unknown",
+                   "Value of Query attribute " + param_name + " is unknown",
                    "42000"});
               if (!send_res) return send_client_failed(send_res.error());
 
@@ -2300,7 +2245,7 @@ QueryForwarder::classify_query() {
             auto send_res = ClassicFrame::send_msg<
                 classic_protocol::borrowed::message::server::Error>(
                 src_channel, src_protocol,
-                {1064, "Value of Query attribute " + param.name + " is unknown",
+                {1064, "Value of Query attribute " + param_name + " is unknown",
                  "42000"});
             if (!send_res) return send_client_failed(send_res.error());
 
@@ -2314,7 +2259,7 @@ QueryForwarder::classify_query() {
         const char router_prefix[] = "router.";
 
         std::string param_prefix =
-            param.name.substr(0, sizeof(router_prefix) - 1);
+            param_name.substr(0, sizeof(router_prefix) - 1);
 
         if (0 == my_strcasecmp(cs_collation_connection, param_prefix.c_str(),
                                router_prefix)) {
@@ -2324,7 +2269,7 @@ QueryForwarder::classify_query() {
           auto send_res =
               ClassicFrame::send_msg<classic_protocol::message::server::Error>(
                   src_channel, src_protocol,
-                  {1064, "Query attribute " + param.name + " is unknown",
+                  {1064, "Query attribute " + param_name + " is unknown",
                    "42000"});
           if (!send_res) return send_client_failed(send_res.error());
 
@@ -2335,7 +2280,7 @@ QueryForwarder::classify_query() {
     }
 
     stmt_classified_ = classify(
-        msg_res->statement(), true,
+        sql_parser_state_.lexer(), true,
         connection()->context().access_mode() == routing::AccessMode::kAuto);
 
     enum class ReadOnlyDecider {
@@ -2394,7 +2339,7 @@ QueryForwarder::classify_query() {
                              "SET TRANSACTION READ ONLY;")) {
           // check if the received statement is an explicit transaction start.
           const auto start_transaction_res =
-              start_transaction(msg_res->statement());
+              start_transaction(sql_parser_state_.lexer());
           if (!start_transaction_res) {
             discard_current_msg(src_channel, src_protocol);
 
@@ -2427,7 +2372,7 @@ QueryForwarder::classify_query() {
 
         // check if the received statement is an explicit transaction start.
         const auto start_transaction_res =
-            start_transaction(msg_res->statement());
+            start_transaction(sql_parser_state_.lexer());
         if (!start_transaction_res) {
           discard_current_msg(src_channel, src_protocol);
 

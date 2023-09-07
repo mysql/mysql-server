@@ -35,13 +35,13 @@
  * convert any param-type into a human readable string.
  */
 stdx::expected<std::string, std::error_code> param_to_string(
-    const classic_protocol::message::client::Query::Param &param);
+    const classic_protocol::borrowed::message::client::Query::Param &param);
 
 /**
  * convert a numeric type into an unsigned integer.
  */
 stdx::expected<uint64_t, std::error_code> param_to_number(
-    const classic_protocol::message::client::Query::Param &param);
+    const classic_protocol::borrowed::message::client::Query::Param &param);
 /**
  * convert a string-typed query param to a std::string.
  *
@@ -60,6 +60,6 @@ stdx::expected<uint64_t, std::error_code> param_to_number(
  * @returns a std::string on success, a std::error_code on error.
  */
 stdx::expected<std::string, std::error_code> param_as_string(
-    const classic_protocol::message::client::Query::Param &param);
+    const classic_protocol::borrowed::message::client::Query::Param &param);
 
 #endif

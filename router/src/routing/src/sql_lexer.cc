@@ -30,8 +30,6 @@
 #include <cstring>  // memcpy
 #include <mutex>
 
-#include <iostream>
-
 #include "lex_string.h"  // LEX_STRING
 #include "my_compiler.h"
 #include "my_dbug.h"                // DBUG_SET
@@ -39,6 +37,7 @@
 #include "my_sys.h"                 // strmake_root
 #include "mysql/strings/m_ctype.h"  // my_charset_...
 #include "mysql_version.h"          // MYSQL_VERSION_ID
+#include "sql/lex.h"
 #include "sql/lexer_yystype.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_lex_hash.h"
@@ -1275,6 +1274,37 @@ SqlLexer::iterator::iterator(THD *session) : session_(session) {
     token_ = next_token();
   }
 }
+
+#if 0
+
+// for debugging.
+std::ostream &operator<<(std::ostream &oss, SqlLexer::iterator::Token tkn) {
+  for (size_t ndx{}; ndx < sizeof(symbols) / sizeof(symbols[0]); ++ndx) {
+    auto sym = symbols[ndx];
+
+    if (sym.tok == tkn.id) {
+      oss << "sym[" << std::string_view(sym.name, sym.length) << "]";
+      return oss;
+    }
+  }
+
+  if (tkn.id >= 32 && tkn.id < 127) {
+    oss << (char)tkn.id;
+  } else if (tkn.id == IDENT || tkn.id == IDENT_QUOTED) {
+    oss << std::quoted(tkn.text, '`');
+  } else if (tkn.id == TEXT_STRING) {
+    oss << std::quoted(tkn.text);
+  } else if (tkn.id == NUM) {
+    oss << tkn.text;
+  } else if (tkn.id == ABORT_SYM) {
+    oss << "<ABORT>";
+  } else if (tkn.id == END_OF_INPUT) {
+    oss << "<END>";
+  }
+
+  return oss;
+}
+#endif
 
 SqlLexer::iterator::Token SqlLexer::iterator::next_token() {
   const auto token_id = lex_one_token(&st, session_);

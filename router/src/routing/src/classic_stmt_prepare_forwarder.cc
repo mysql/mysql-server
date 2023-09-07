@@ -34,20 +34,18 @@
 #include "mysqlrouter/client_error_code.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
+#include "sql_parser_state.h"
 #include "sql_splitting_allowed.h"
 
 namespace {
 
 stdx::expected<SplittingAllowedParser::Allowed, std::string> splitting_allowed(
     std::string_view stmt) {
-  MEM_ROOT mem_root;
-  THD session;
-  session.mem_root = &mem_root;
+  SqlParserState sql_parser_state;
 
-  Parser_state parser_state;
-  parser_state.init(&session, stmt.data(), stmt.size());
-  session.m_parser_state = &parser_state;
-  SqlLexer lexer{&session};
+  sql_parser_state.statement(stmt);
+
+  auto lexer = sql_parser_state.lexer();
 
   return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
 }
