@@ -99,7 +99,9 @@ bool Item_func_pfs_thread_id::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_func_pfs_thread_id::resolve_type(THD *) {
+bool Item_func_pfs_thread_id::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
+
   unsigned_flag = true;
   set_nullable(true);
   return false;
@@ -152,7 +154,9 @@ longlong Item_func_pfs_thread_id::val_int() {
 
 /** format_bytes() */
 
-bool Item_func_pfs_format_bytes::resolve_type(THD *) {
+bool Item_func_pfs_format_bytes::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
+
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAAA bytes' = 10 characters. */
   set_data_type_string(11U, &my_charset_utf8mb3_general_ci);
   return false;
@@ -222,7 +226,9 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
 
 /** format_pico_time() */
 
-bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
+bool Item_func_pfs_format_pico_time::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
+
   set_nullable(true);
   /* Format is 'AAAA.BB UUU' = 11 characters or 'AAA ps' = 6 characters. */
   set_data_type_string(11U, &my_charset_utf8mb3_general_ci);

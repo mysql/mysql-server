@@ -3522,3 +3522,16 @@ CONCAT(c, ? COLLATE utf8mb4_lt_0900_ai_ci)
 NULL
 DEALLOCATE PREPARE ps;
 DROP TABLE t;
+# Bug#35287798: Prepared statement assertion error
+PREPARE ps FROM "SELECT format_bytes(?)";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+PREPARE ps FROM "SELECT format_pico_time(?)";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+PREPARE ps FROM "SELECT ps_thread_id(?)";
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]

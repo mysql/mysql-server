@@ -3636,3 +3636,14 @@ EXECUTE ps USING @v;
 
 DEALLOCATE PREPARE ps;
 DROP TABLE t;
+
+--echo # Bug#35287798: Prepared statement assertion error
+
+PREPARE ps FROM "SELECT format_bytes(?)";
+eval $show_trace;
+
+PREPARE ps FROM "SELECT format_pico_time(?)";
+eval $show_trace;
+
+PREPARE ps FROM "SELECT ps_thread_id(?)";
+eval $show_trace;
