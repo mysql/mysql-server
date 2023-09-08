@@ -73,9 +73,9 @@ void TlsKeyManager::log_error() const {
 
 void TlsKeyManager::init(int, const NodeCertificate *) { }
 
-void TlsKeyManager::init(const char *, int, int, bool) { }
+void TlsKeyManager::init(const char *, int, int) { }
 
-void TlsKeyManager::init(const char *, int, Node::Type, UserType) { }
+void TlsKeyManager::init(const char *, int, Node::Type) { }
 
 void TlsKeyManager::init(int, struct stack_st_X509 *, struct evp_pkey_st *) { }
 
