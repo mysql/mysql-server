@@ -660,6 +660,7 @@ AccessPath *make_skip_scan_path(RANGE_OPT_PARAM *param, bool force_skip_scan,
   AccessPath *path = new (param->return_mem_root) AccessPath;
   path->type = AccessPath::INDEX_SKIP_SCAN;
   path->set_cost(skip_scan_info->read_cost);
+  path->set_init_cost(0.0);
   path->set_num_output_rows(skip_scan_info->num_output_rows);
 
   path->index_skip_scan().table = param->table;
