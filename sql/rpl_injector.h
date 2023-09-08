@@ -277,34 +277,14 @@ class injector {
 
    private:
     /* Only the injector may construct these object */
-    transaction(MYSQL_BIN_LOG *, THD *);
+    transaction(MYSQL_BIN_LOG *, THD *, bool calc_writeset_hash);
 
     void swap(transaction &o) {
-      /* std::swap(m_start_pos, o.m_start_pos); */
-      {
-        binlog_pos const tmp = m_start_pos;
-        m_start_pos = o.m_start_pos;
-        o.m_start_pos = tmp;
-      }
-
-      /* std::swap(m_end_pos, o.m_end_pos); */
-      {
-        binlog_pos const tmp = m_next_pos;
-        m_next_pos = o.m_next_pos;
-        o.m_next_pos = tmp;
-      }
-
-      /* std::swap(m_thd, o.m_thd); */
-      {
-        THD *const tmp = m_thd;
-        m_thd = o.m_thd;
-        o.m_thd = tmp;
-      }
-      {
-        enum_state const tmp = m_state;
-        m_state = o.m_state;
-        o.m_state = tmp;
-      }
+      std::swap(m_start_pos, o.m_start_pos);
+      std::swap(m_next_pos, o.m_next_pos);
+      std::swap(m_thd, o.m_thd);
+      std::swap(m_state, o.m_state);
+      std::swap(m_calc_writeset_hash, o.m_calc_writeset_hash);
     }
 
     enum enum_state {
@@ -364,6 +344,7 @@ class injector {
     binlog_pos m_start_pos;
     binlog_pos m_next_pos;
     THD *m_thd;
+    bool m_calc_writeset_hash{false};
   };
 
   /*
@@ -373,9 +354,17 @@ class injector {
      the transaction.
 
        injector::transaction trans2;
-       inj->new_trans(thd, &trans);
+       inj->new_trans(thd, &trans, <calc_writeset_hash>);
+
+     The parameter "calc_writeset_hash" controls wheter writeset hashes for
+     transaction dependencies will be calculated for rows added to the
+     transaction, without this the list of hashes will be empty and thus no
+     dependencies are detected. The ability to control this is important where
+     MTA is not used, calculating writeset hashes is wasted work, and in NDB all
+     binlog content is processed by a single thread and CPU consumption might be
+     a bottleneck.
    */
-  void new_trans(THD *, transaction *);
+  void new_trans(THD *, transaction *, bool calc_writeset_hash);
 
   int record_incident(
       THD *, mysql::binlog::event::Incident_event::enum_incident incident,

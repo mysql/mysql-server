@@ -6711,7 +6711,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
   // Create new binlog transaction
   injector_transaction trans;
-  inj->new_trans(thd, &trans);
+  inj->new_trans(thd, &trans, opt_ndb_log_trans_dependency);
 
   unsigned trans_row_count = 0;
   unsigned replicated_row_count = 0;

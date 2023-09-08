@@ -11,7 +11,7 @@
 --echo # for the ndb_binlog thread
 select @@global.ndb_log_transaction_dependency;
 if (`select @@global.ndb_log_transaction_dependency != '0'`) {
-  --skip Test requires ndb_log_transaction_dependency enabled
+  --die Test requires ndb_log_transaction_dependency disabled
 }
 
 --echo # Test assumes that COMMIT_ORDER is used for dependency tracking (this

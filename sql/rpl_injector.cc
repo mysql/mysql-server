@@ -38,8 +38,11 @@
 */
 
 /* inline since it's called below */
-inline injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
-    : m_state(START_STATE), m_thd(thd) {
+inline injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd,
+                                          bool calc_writeset_hash)
+    : m_state(START_STATE),
+      m_thd(thd),
+      m_calc_writeset_hash(calc_writeset_hash) {
   /*
      Default initialization of m_start_pos (which initializes it to garbage).
      We need to fill it in using the code below.
@@ -185,7 +188,9 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
 
-  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+  if (m_calc_writeset_hash &&
+      // Currently not allowed to call add_pke() when algo is OFF
+      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
       !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, record)) {
@@ -217,7 +222,9 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
 
-  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+  if (m_calc_writeset_hash &&
+      // Currently not allowed to call add_pke() when algo is OFF
+      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
       !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, record)) {
@@ -251,7 +258,9 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
   Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, before_cols, after_cols);
 
-  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+  if (m_calc_writeset_hash &&
+      // Currently not allowed to call add_pke() when algo is OFF
+      m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
       !tbl.skip_hash()) {
     try {
       if (add_pke(tbl.get_table(), m_thd, before)) {
@@ -306,13 +315,14 @@ void injector::free_instance() {
   }
 }
 
-void injector::new_trans(THD *thd, injector::transaction *ptr) {
+void injector::new_trans(THD *thd, injector::transaction *ptr,
+                         bool calc_writeset_hash) {
   DBUG_TRACE;
   /*
     Currently, there is no alternative to using 'mysql_bin_log' since that
     is hardcoded into the way the handler is using the binary log.
   */
-  transaction trans(&mysql_bin_log, thd);
+  transaction trans(&mysql_bin_log, thd, calc_writeset_hash);
   ptr->swap(trans);
 }
 
