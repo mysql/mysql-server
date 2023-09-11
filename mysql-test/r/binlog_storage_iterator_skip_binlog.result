@@ -1,3 +1,4 @@
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
 include/install_replication_observers_example.inc
 SELECT * FROM performance_schema.binlog_storage_iterator_entries;
 ERROR HY000: Invalid performance_schema usage.
