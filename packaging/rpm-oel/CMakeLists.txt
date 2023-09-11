@@ -29,7 +29,7 @@ SET(SPECFILENAME "mysql.spec")
 # Left in current directory, to be taken during build
 CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
-FOREACH(fedfile mysql.init)
+FOREACH(fedfile)
   CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
 ENDFOREACH()
 

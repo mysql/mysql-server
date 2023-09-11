@@ -189,9 +189,9 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*" AND
   SET(CMAKE_GENERATOR_TOOLSET "host=x64")
 ENDIF()
 
-# On Linux el6/el7/el8/el9 the default gcc is too old,
+# On Linux el7/el8/el9 the default gcc is too old,
 # see if devtoolset/gcc-toolset is installed.
-# Same with SUSE linux, look for gcc 10/12 there.
+# Same with SUSE linux 15, look for gcc 12 there.
 # We need to look for gcc before calling PROJECT below.
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER FORCE_UNSUPPORTED_COMPILER)
@@ -289,9 +289,7 @@ ENDIF()
 
 IF(LINUX_SUSE)
   FILE(READ "/etc/SuSE-release" MY_OS_RELEASE)
-  IF(MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 12")
-    SET(LINUX_SUSE_12 1)
-  ELSEIF(MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 15" OR
+  IF(MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 15" OR
       MY_OS_RELEASE MATCHES "openSUSE .* 15")
     SET(LINUX_SUSE_15 1)
   ELSE()
@@ -321,9 +319,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     ENDIF()
     IF(LINUX_RHEL)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
-      IF(LINUX_RHEL6)
-        SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
-      ELSEIF(LINUX_RHEL7)
+      IF(LINUX_RHEL7)
         # gcc11 not available yet
         IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
           SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
@@ -377,10 +373,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
-        IF(LINUX_RHEL6)
-          SET(DEV_PACKAGES
-            "devtoolset-8-gcc devtoolset-8-gcc-c++ devtoolset-8-binutils")
-        ELSEIF(LINUX_RHEL7)
+        IF(LINUX_RHEL7)
           IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
             SET(DEV_PACKAGES
               "devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-binutils")
@@ -402,56 +395,9 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           "Or you can set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
 
-    ELSEIF(LINUX_UBUNTU_18_04)
-      MESSAGE(STATUS "Looking for gcc-8 on Ubuntu 18.04")
-      FIND_PROGRAM(ALTERNATIVE_GCC gcc-8
-        NO_DEFAULT_PATH
-        PATHS "/usr/bin")
-      FIND_PROGRAM(ALTERNATIVE_GPP g++-8
-        NO_DEFAULT_PATH
-        PATHS "/usr/bin")
-      FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-8
-        NO_DEFAULT_PATH
-        PATHS "/usr/bin")
-      FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-8
-        NO_DEFAULT_PATH
-        PATHS "/usr/bin")
-      IF(GCC_AR_EXECUTABLE)
-        SET(CMAKE_AR ${GCC_AR_EXECUTABLE})
-        SET(CMAKE_AR ${GCC_AR_EXECUTABLE} CACHE PATH "Alternative ar")
-      ENDIF()
-      IF(GCC_RANLIB_EXECUTABLE)
-        SET(CMAKE_RANLIB ${GCC_RANLIB_EXECUTABLE})
-        SET(CMAKE_RANLIB ${GCC_RANLIB_EXECUTABLE} CACHE PATH "Alternative ranlib")
-      ENDIF()
-      IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
-        SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
-        SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
-        MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
-        MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
-      ELSE()
-        MESSAGE(WARNING "Could not find gcc-8")
-        MESSAGE(FATAL_ERROR
-          "Please do 'apt install gcc-8 g++-8'\n"
-          "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
-      ENDIF()
-
-    ELSEIF(LINUX_SUSE_12 OR LINUX_SUSE_15)
+    ELSEIF(LINUX_SUSE_15)
       MESSAGE(STATUS "We need to look for a newer GCC on SUSE Linux.")
-      IF(LINUX_SUSE_12)
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc-10
-          NO_DEFAULT_PATH
-          PATHS "/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++-10
-          NO_DEFAULT_PATH
-          PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-10
-          NO_DEFAULT_PATH
-          PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-10
-          NO_DEFAULT_PATH
-          PATHS "/usr/bin")
-      ELSEIF(LINUX_SUSE_15)
+      IF(LINUX_SUSE_15)
         FIND_PROGRAM(ALTERNATIVE_GCC gcc-12
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
@@ -478,20 +424,10 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
-        # Use the new ABI so that std::string can be used with allocators
-        # that are not default-constructible (e.g. Memroot_allocator)
-        IF(LINUX_SUSE_12)
-          ADD_DEFINITIONS(-D_GLIBCXX_USE_CXX11_ABI=1)
-        ENDIF()
       ELSE()
         MESSAGE(WARNING "Could not find newer gcc.")
-        IF(LINUX_SUSE_12)
-          MESSAGE(FATAL_ERROR "Please do zypper install gcc10 gcc10-c++\n"
-            "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
-        ELSE()
-          MESSAGE(FATAL_ERROR "Please do zypper install gcc12 gcc12-c++\n"
-            "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
-        ENDIF()
+        MESSAGE(FATAL_ERROR "Please do zypper install gcc12 gcc12-c++\n"
+          "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
     ELSEIF(SOLARIS)
       MESSAGE(STATUS "Looking for GCC 10 on Solaris.")
@@ -965,9 +901,18 @@ ENDIF()
 #   authentication_fido_client.so
 # The WEBAUTHN client authentication plugin
 #   authentication_webauthn_client.so
+# The OCI client authentication plubin
+#   authentication_oci_client.so
 OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
   ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
+
+IF(NOT WITH_AUTHENTICATION_WEBAUTHN AND
+    NOT WITH_AUTHENTICATION_FIDO AND
+    NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  SET(WITH_FIDO "none")
+  SET(WITH_FIDO "none" CACHE STRING "fido2 is disabled")
+ENDIF()
 
 # On windows we need a non-standard package for CURL.
 IF(WITH_INTERNAL AND UNIX)
@@ -1741,6 +1686,7 @@ SET(SYSTEM_LIBRARIES
   SSL       # Homebrew  openssl@1.1 or openssl@3
   ZSTD      # Homebrew  zstd
   FIDO      # Homebrew  libfido2
+  ZLIB      # Xcode
   )
 
 IF(APPLE)
@@ -1763,6 +1709,14 @@ IF(LINUX_UBUNTU)
   IF(LINUX_UBUNTU_VERSION_ID VERSION_LESS "21.04")
     LIST(REMOVE_ITEM SYSTEM_LIBRARIES FIDO)
   ENDIF()
+  # Ubuntu 22.04 has 1.2.11 which is too old.
+  IF(LINUX_UBUNTU_VERSION_ID VERSION_LESS "23.04")
+    LIST(REMOVE_ITEM SYSTEM_LIBRARIES ZLIB)
+  ENDIF()
+ENDIF()
+# Do not change it back to "system"
+IF(WITH_FIDO AND WITH_FIDO STREQUAL "none")
+  LIST(REMOVE_ITEM SYSTEM_LIBRARIES FIDO)
 ENDIF()
 
 GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)

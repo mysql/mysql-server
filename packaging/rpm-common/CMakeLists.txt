@@ -43,11 +43,8 @@ FOREACH(cfile
 ENDFOREACH()
 
 FOREACH(cfile
-    filter-provides.sh
-    filter-requires.sh
     mysql_config.sh
     my_config.h
-    mysqlrouter.init
     )
   CONFIGURE_FILE(${cfile} ${CMAKE_CURRENT_BINARY_DIR}/${cfile} COPYONLY)
 ENDFOREACH()
