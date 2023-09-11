@@ -2830,6 +2830,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (0,0), (1,1), (2,2);
 ANALYZE TABLE t1;
 
+--skip_if_hypergraph  # Other costs with Hypergraph.
 EXPLAIN FORMAT=TREE (SELECT b FROM t1 UNION SELECT b FROM t1)
 UNION ALL SELECT b FROM t1;
 
