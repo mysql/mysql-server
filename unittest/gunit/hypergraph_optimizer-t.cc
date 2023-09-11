@@ -5588,6 +5588,46 @@ TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
   EXPECT_EQ(predicates, ItemToString(root->filter().condition));
 }
 
+TEST_F(HypergraphOptimizerTest, RORUnionInexactRangeWithOverflowBitset) {
+  // We want to test a query that uses an inexact ROR Union, achieved by having
+  // a predicate on a non-indexed column (t1.w) AND-ed to one of the predicates
+  // inside the OR that gets translated to a ROR Union. We also want to have so
+  // many predicates that they don't fit in an inlined OverflowBitset (at least
+  // 64 predicates).
+  constexpr int number_of_predicates = 70;
+  string predicates = "(((t1.x = 1) or ((t1.y = 3) and (t1.w = 4)))";
+  for (int i = 1; i < number_of_predicates; ++i) {
+    predicates += " and (t1.z <> " + to_string(i) + ')';
+  }
+  predicates += ')';
+
+  string query = "SELECT 1 FROM t1 WHERE " + predicates;
+  Query_block *query_block = ParseAndResolve(query.c_str(),
+                                             /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 10000;
+  t1->file->stats.data_file_length = 1e6;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  m_fake_tables["t1"] = t1;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(AccessPath::ROWID_UNION, root->filter().child->type);
+
+  // Since an inexact ROWID_UNION is used, all predicates should be kept in the
+  // filter node on top.
+  EXPECT_EQ(predicates, ItemToString(root->filter().condition));
+}
+
 TEST_F(HypergraphOptimizerTest, RORUnion) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x = 3 OR t1.y = 4",
