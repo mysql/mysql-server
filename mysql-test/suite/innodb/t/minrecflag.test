@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/have_innodb_min_8k.inc
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #34819343 Assertion failure: btr0btr.cc:731:ib::fatal triggered
