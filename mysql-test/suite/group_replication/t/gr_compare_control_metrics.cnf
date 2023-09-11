@@ -1,0 +1,19 @@
+!include ../my.cnf
+
+[mysqld]
+log-error-verbosity=3
+
+[mysqld.1]
+local-infile=       true
+
+[mysqld.2]
+local-infile=       true
+group_replication_autorejoin_tries= 0
+
+[mysqld.3]
+local-infile=       true
+
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
