@@ -2212,6 +2212,8 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
   const bool is_sum_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
   if ((!is_sum_func && has_aggregation() && !m_is_window_function) ||
       (!m_is_window_function && has_wf()) ||
+      (has_grouping_func() &&
+       !is_function_of_type(this, Item_func::GROUPING_FUNC)) ||
       (type() == FUNC_ITEM && ((down_cast<Item_func *>(this))->functype() ==
                                    Item_func::ISNOTNULLTEST_FUNC ||
                                (down_cast<Item_func *>(this))->functype() ==

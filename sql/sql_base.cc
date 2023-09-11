@@ -8114,6 +8114,11 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       find->type() == Item::FIELD_ITEM || find->type() == Item::REF_ITEM
           ? down_cast<Item_ident *>(find)
           : nullptr;
+  /*
+    Some items, such as Item_aggregate_ref, do not have a name and hence
+    can never be found.
+  */
+  assert(find_ident == nullptr || find_ident->field_name != nullptr);
 
   int i = 0;
   for (auto it = VisibleFields(*items).begin();
