@@ -233,7 +233,7 @@ class Sid {
 
   bool is_user(void) const { return m_type == SidTypeUser; }
 
-  bool operator==(const Sid &);
+  bool operator==(const Sid &) const;
 
   operator PSID() const { return (PSID)m_data->User.Sid; }
 

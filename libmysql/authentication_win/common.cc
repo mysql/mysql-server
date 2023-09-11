@@ -272,7 +272,7 @@ const char *Sid::as_string() {
 
 #endif
 
-bool Sid::operator==(const Sid &other) {
+bool Sid::operator==(const Sid &other) const {
   if (!is_valid() || !other.is_valid()) return false;
 
   return EqualSid(m_data->User.Sid, other.m_data->User.Sid);
