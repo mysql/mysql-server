@@ -1593,6 +1593,7 @@ int Certifier::set_certification_info(
     if (value->add_gtid_encoding(
             reinterpret_cast<const uchar *>(it->second.c_str()),
             it->second.length()) != RETURN_STATUS_OK) {
+      delete value; /* purecov: inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM,
                    key.c_str());                    /* purecov: inspected */
       mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
