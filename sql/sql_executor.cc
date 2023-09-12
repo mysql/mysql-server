@@ -112,6 +112,7 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 
+using std::any_of;
 using std::make_pair;
 using std::max;
 using std::min;
@@ -1937,6 +1938,25 @@ static bool ConditionIsAlwaysTrue(Item *item) {
   return item->const_item() && item->val_bool();
 }
 
+/// Find all the tables below "path" that have been pruned and replaced by a
+/// ZERO_ROWS access path.
+static table_map GetPrunedTables(const AccessPath *path) {
+  table_map pruned_tables = 0;
+
+  WalkAccessPaths(
+      path, /*join=*/nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&pruned_tables](const AccessPath *subpath, const JOIN *) {
+        if (subpath->type == AccessPath::ZERO_ROWS) {
+          pruned_tables |=
+              GetUsedTableMap(subpath, /*include_pruned_tables=*/true);
+          return true;  // Stop recursing into this subtree.
+        }
+        return false;
+      });
+
+  return pruned_tables;
+}
+
 // Create a hash join iterator with the given build and probe input. We will
 // move conditions from the argument "join_conditions" into two separate lists;
 // one list for equi-join conditions that will be used as normal join conditions
@@ -2110,32 +2130,27 @@ static AccessPath *CreateHashJoinAccessPath(
   // refer to tables that exist. If some table was pruned away due to
   // being replaced by ZeroRowsAccessPath, but the equijoin condition still
   // refers to it, it could become degenerate: The only rows it could ever
-  // see would be NULL-complemented rows, which would never match.
+  // see would be NULL-complemented rows, so if the join condition is
+  // NULL-rejecting on the pruned table, it will never match.
   // In this case, we can remove the entire build path (ie., propagate the
   // zero-row property to our own join).
   //
   // We also remove the join conditions, to avoid using time on extracting their
   // hash values. (Also, Item_eq_base::append_join_key_for_hash_join has an
   // assert that this case should never happen, so it would trigger.)
-  const table_map probe_used_tables =
-      GetUsedTableMap(probe_path, /*include_pruned_tables=*/false);
-  const table_map build_used_tables =
-      GetUsedTableMap(build_path, /*include_pruned_tables=*/false);
-  for (const HashJoinCondition &condition : hash_join_conditions) {
-    if ((!condition.left_uses_any_table(probe_used_tables) &&
-         !condition.right_uses_any_table(probe_used_tables)) ||
-        (!condition.left_uses_any_table(build_used_tables) &&
-         !condition.right_uses_any_table(build_used_tables))) {
-      if (build_path->type != AccessPath::ZERO_ROWS) {
-        string cause = "Join condition " +
-                       ItemToString(condition.join_condition()) +
-                       " requires pruned table";
-        build_path = NewZeroRowsAccessPath(
-            thd, build_path, strdup_root(thd->mem_root, cause.c_str()));
-      }
-      expr->equijoin_conditions.clear();
-      break;
+  if (const table_map pruned_tables =
+          GetPrunedTables(probe_path) | GetPrunedTables(build_path);
+      pruned_tables != 0 &&
+      any_of(hash_join_conditions.begin(), hash_join_conditions.end(),
+             [pruned_tables](const HashJoinCondition &condition) {
+               return Overlaps(pruned_tables,
+                               condition.join_condition()->not_null_tables());
+             })) {
+    if (build_path->type != AccessPath::ZERO_ROWS) {
+      build_path = NewZeroRowsAccessPath(
+          thd, build_path, "Join condition requires pruned table");
     }
+    expr->equijoin_conditions.clear();
   }
 
   JoinPredicate *pred = new (thd->mem_root) JoinPredicate;

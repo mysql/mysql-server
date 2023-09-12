@@ -2014,14 +2014,15 @@ void ClearImpossibleJoinConditions(RelationalExpression *expr) {
   // refer to tables that exist. If some table was pruned away, but the
   // equijoin condition still refers to it, it could become degenerate:
   // The only rows it could ever see would be NULL-complemented rows,
-  // which would never match. In this case, we can remove the entire build path
+  // so if the join condition is NULL-rejecting on the pruned table,
+  // it will never match. In this case, we can remove the entire build path
   // and propagate the zero-row property to our own join. This matches what we
   // do in CreateHashJoinAccessPath() in the old executor; see the code there
   // for some more comments.
   if (!expr->join_conditions_reject_all_rows) {
     const table_map pruned_tables = FindNullGuaranteedTables(expr);
     for (Item *item : expr->equijoin_conditions) {
-      if (Overlaps(item->used_tables(), pruned_tables)) {
+      if (Overlaps(item->not_null_tables(), pruned_tables)) {
         expr->join_conditions_reject_all_rows = true;
         break;
       }
