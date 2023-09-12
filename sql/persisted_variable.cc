@@ -897,6 +897,9 @@ void Persisted_variables_cache::set_parse_early_sources() {
 
   for (auto &it : sorted_vars) {
     auto sysvar = intern_find_sys_var(it.key.c_str(), it.key.length());
+    if (sysvar == nullptr) {
+      continue;
+    }
     sysvar->set_source(enum_variable_source::PERSISTED);
 #ifndef NDEBUG
     bool source_truncated =
@@ -1961,8 +1964,8 @@ int Persisted_variables_cache::read_persist_file() {
 
 /**
   append_parse_early_variables() does a lookup into persist_variables
-  for read only variables and place them after the command line options with a
-  separator "----persist-args-separator----"
+  for parse early variables and place them after the command line options with
+  a separator "----persist-args-separator----"
 
   This function does nothing when --no-defaults is set or if
   persisted_globals_load is disabled.
