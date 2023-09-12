@@ -134,14 +134,16 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
-  const void *null_pointer = nullptr;
-  EXPECT_TRUE(m_root.Alloc(1000));
+  EXPECT_NE(nullptr, m_root.Alloc(1000));
   m_root.set_max_capacity(100);
-  EXPECT_EQ(null_pointer, m_root.Alloc(1000));
+  EXPECT_EQ(nullptr, m_root.Alloc(1000));
   m_root.set_error_for_capacity_exceeded(true);
   Mock_global_error_handler error_handler(EE_CAPACITY_EXCEEDED);
-  EXPECT_TRUE(m_root.Alloc(1000));
+  EXPECT_NE(nullptr, m_root.Alloc(1000));
   EXPECT_EQ(1, error_handler.handle_called());
+
+  EXPECT_FALSE(m_root.ForceNewBlock(2048));
+  EXPECT_EQ(2, error_handler.handle_called());
 }
 
 TEST_F(MyAllocTest, MoveConstructorDoesNotLeak) {
@@ -202,6 +204,11 @@ TEST_F(MyAllocTest, RawInterface) {
 
   // The value should still be there.
   EXPECT_STREQ("12345", store_ptr);
+
+  // Get a new block to satisfy more than the current block size (512 * 1.5^2).
+  EXPECT_FALSE(alloc.ForceNewBlock(2048));
+  block = alloc.Peek();
+  EXPECT_EQ(2048, block.second - block.first);
 }
 
 TEST_F(MyAllocTest, ArrayAllocInitialization) {

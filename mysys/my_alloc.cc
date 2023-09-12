@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <iterator>
 
 #include "my_alloc.h"
@@ -58,7 +59,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
                                       size_t minimum_length) {
   DBUG_TRACE;
 
-  size_t length = wanted_length;
+  size_t length = std::max(wanted_length, ALIGN_SIZE(minimum_length));
   if (m_max_capacity != 0) {
     size_t bytes_left;
     if (m_allocated_size > m_max_capacity) {
