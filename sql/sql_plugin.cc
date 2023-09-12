@@ -2337,11 +2337,15 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
     }
     my_getopt_use_args_separator = false;
     /*
-     Append static variables present in mysqld-auto.cnf file for the
-     newly installed plugin to process those options which are specific
+     Append parse early and static variables present in mysqld-auto.cnf file
+     for the newly installed plugin to process those options which are specific
      to this plugin.
     */
-    if (pv && pv->append_read_only_variables(&argc, &argv, false, true)) {
+    bool arg_separator_added = false;
+    if (pv &&
+        (pv->append_parse_early_variables(&argc, &argv, arg_separator_added) ||
+         pv->append_read_only_variables(&argc, &argv, arg_separator_added,
+                                        true))) {
       mysql_mutex_unlock(&LOCK_plugin);
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name.str);
