@@ -9,11 +9,19 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #     change uuid configured with an valid uuid
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 #  2. Create a table on server 1 that will add one
@@ -36,6 +44,8 @@ include/stop_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 2 transactions]
 include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 2 view changes]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 #  5. Insert data into table on server 2 that will add one
@@ -63,6 +73,8 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';;
 INSERT INTO t1 VALUES (2);
 [connection server2]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 #  8. Assert the intervals were not used, the new view
@@ -80,7 +92,11 @@ SET GTID_NEXT= 'AUTOMATIC';
 DROP TABLE t1;
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

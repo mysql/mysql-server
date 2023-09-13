@@ -23,6 +23,8 @@ call mtr.add_suppression("The member is configured with a group_replication_view
 SET SESSION sql_log_bin = 1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET @@GLOBAL.group_replication_view_change_uuid = 'c0dec0de-c0de-c0de-c0de-c0dec0dec0de';
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 
@@ -31,6 +33,8 @@ ERROR HY000: The server is not configured properly to be an active member of the
 #    GLOBAL.group_replication_view_change_uuid = AUTOMATIC
 #    to the group, it shall succeed.
 SET @@GLOBAL.group_replication_view_change_uuid = AUTOMATIC;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
 
 ############################################################
@@ -41,4 +45,6 @@ SET @@GLOBAL.DEBUG='-d,group_replication_skip_encode_view_change_uuid';
 [connection server2]
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

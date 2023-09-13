@@ -21,7 +21,11 @@ SET sql_log_bin = 1;
 [connection server1]
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/assert.inc [GTID_EXECUTED must have one transaction of view change]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -35,7 +39,11 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 [connection server2]
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/assert.inc [GTID_EXECUTED must have two transactions of view changes]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -66,7 +74,11 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 [connection server3]
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/assert.inc [GTID_EXECUTED must have three transactions of view changes]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -154,6 +166,8 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 # 9. Start server 2 and assert it has 4 transactions
 [connection server2]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/assert.inc [GTID_EXECUTED must have four transactions of view changes]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -195,6 +209,8 @@ server-binary-log.000001	#	Query	#	#	COMMIT
 # 11. Start server 3 and assert it has 5 transactions
 [connection server3]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/assert.inc [GTID_EXECUTED must have five transactions of view changes]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -267,17 +283,25 @@ include/gtid_utils_end.inc
 SET sql_log_bin = 1;
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_view_change_uuid = "AUTOMATIC";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
 SET sql_log_bin = 0;
 include/gtid_utils_end.inc
 SET sql_log_bin = 1;
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server3]
 SET sql_log_bin = 0;
 include/gtid_utils_end.inc
 SET sql_log_bin = 1;
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

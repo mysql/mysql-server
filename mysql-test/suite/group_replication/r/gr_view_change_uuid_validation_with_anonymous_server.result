@@ -9,10 +9,18 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #     change uuid configured with an valid uuid
 [connection server1]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 #  2. Disable GTIDs on server 3
@@ -70,7 +78,11 @@ ERROR HY000: Replication '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSAC
 #  4. Fix the configuration by assigning the view_change_uuid of
 #     group
 SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_slave.inc
 
 ###################################################################
@@ -117,6 +129,8 @@ include/rpl_set_gtid_mode.inc [ON on servers 3]
 [connection server1]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET session sql_log_bin=0;
 CALL mtr.add_suppression("Replication channel '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS");
 CALL mtr.add_suppression("The group_replication_view_change_uuid .*. is the same as");
@@ -124,6 +138,8 @@ SET session sql_log_bin=1;
 [connection server2]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server1]
 RESET PERSIST;
 include/rpl_reconnect.inc

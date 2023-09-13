@@ -222,6 +222,11 @@ static void check_deprecated_variables() {
     push_deprecated_warn_no_replacement(
         thd, "group_replication_recovery_complete_at");
   }
+  if (ov.view_change_uuid_var != nullptr &&
+      strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
+    push_deprecated_warn_no_replacement(thd,
+                                        "group_replication_view_change_uuid");
+  }
 }
 
 static const char *get_ip_allowlist() {
@@ -5186,6 +5191,9 @@ static int check_view_change_uuid(MYSQL_THD thd, SYS_VAR *, void *save,
 
   char buff[NAME_CHAR_LEN];
   const char *str;
+
+  push_deprecated_warn_no_replacement(thd,
+                                      "group_replication_view_change_uuid");
 
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
