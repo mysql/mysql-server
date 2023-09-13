@@ -374,6 +374,8 @@ class Network_provider_manager : public Network_provider_management_interface,
     m_incoming_connections_protocol = value;
   }
 
+  void cleanup_incoming_connection(Network_provider &provider_ref);
+
   std::unordered_map<enum_transport_protocol, std::shared_ptr<Network_provider>,
                      std::hash<int>>
       m_network_providers;

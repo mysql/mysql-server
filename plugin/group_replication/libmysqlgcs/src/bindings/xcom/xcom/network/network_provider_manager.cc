@@ -102,11 +102,14 @@ bool Network_provider_manager::start_network_provider(
 
 bool Network_provider_manager::stop_all_network_providers() {
   bool retval = false;
+
   for (auto &&i : m_network_providers) {
     // Logical Sum of all stop() operations. If any of the operations fail,
     // it will report the whole operation as botched, but it will stop all
     // providers
     retval |= i.second->stop().first;
+
+    this->cleanup_incoming_connection(*(i.second));
   }
 
   set_incoming_connections_protocol(get_running_protocol());
@@ -118,7 +121,13 @@ bool Network_provider_manager::stop_network_provider(
     enum_transport_protocol provider_key) {
   auto net_provider = this->get_provider(provider_key);
 
-  return net_provider ? net_provider->stop().first : true;
+  auto cleanup_and_stop = [&]() {
+    this->cleanup_incoming_connection(*net_provider);
+
+    return net_provider->stop().first;
+  };
+
+  return net_provider ? cleanup_and_stop() : true;
 }
 
 const std::shared_ptr<Network_provider>
@@ -382,4 +391,14 @@ void Network_provider_manager::finalize_secure_connections_context() {
   CLEANUP_NET_PARAMS_FIELD(ssl_params.cipher);
   CLEANUP_NET_PARAMS_FIELD(tls_params.tls_version);
   CLEANUP_NET_PARAMS_FIELD(tls_params.tls_ciphersuites);
+}
+
+void Network_provider_manager::cleanup_incoming_connection(
+    Network_provider &provider_ref) {
+  Network_connection *remaining_connection = provider_ref.get_new_connection();
+
+  if (remaining_connection != nullptr) {
+    provider_ref.close_connection(*remaining_connection);
+    delete remaining_connection;
+  }
 }
