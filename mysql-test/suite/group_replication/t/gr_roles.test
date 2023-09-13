@@ -27,6 +27,7 @@
 --source include/group_replication.inc
 
 # Test 1 : ROLES are replicated successfully
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 # Create role, user on server1
 CREATE ROLE 'gr_user','gr_recovery_user';
@@ -123,6 +124,14 @@ call mtr.add_suppression("For details please check performance_schema.replicatio
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set sql_log_bin=1;
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 # Execute CHM where master_user='alpha'
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -174,6 +183,12 @@ CREATE DATABASE newtest;
 
 --disconnect alpha_con
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $group_replication_start_member_state= ONLINE
@@ -193,6 +208,10 @@ UPDATE t1 SET a=4 WHERE a=1;
 DELETE FROM t1;
 
 # Cleanup
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 

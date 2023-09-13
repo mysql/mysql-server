@@ -7,8 +7,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 # 1. Deploy a group in single-primary mode with 2 members.
 [connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 
 ############################################################
@@ -33,6 +35,7 @@ call mtr.add_suppression("There was an error when connecting to the donor server
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin = 1;
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 START GROUP_REPLICATION;
 
 ############################################################
@@ -63,4 +66,9 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 # 6. Clean up.
 [connection server1]
 DROP USER 'user';
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server3]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

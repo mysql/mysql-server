@@ -10,7 +10,7 @@
 #     send it to group on join the handshake.
 #  2. Try join a member with
 #     group_replication_view_change_uuid = UUID
-#     to the group, it shall fail.
+#     to the group, it shall pass.
 #  3. Try join a member with
 #     GLOBAL.group_replication_view_change_uuid = AUTOMATIC
 #     to the group, it shall succeed.
@@ -39,14 +39,9 @@ SET @@GLOBAL.DEBUG='+d,group_replication_skip_encode_view_change_uuid';
 --echo ############################################################
 --echo # 2. Try join a member with
 --echo #    group_replication_view_change_uuid = UUID
---echo #    to the group, it shall fail.
+--echo #    to the group, it shall pass.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-#call mtr.add_suppression("The member is configured with a default_table_encryption option value '1' different from the group '0'. The member will now exit the group.");
-call mtr.add_suppression("The member is configured with a group_replication_view_change_uuid option value '.*' different from the group 'AUTOMATIC'. The member will now exit the group.");
-SET SESSION sql_log_bin = 1;
 
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -54,9 +49,10 @@ SET SESSION sql_log_bin = 1;
 
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET @@GLOBAL.group_replication_view_change_uuid = 'c0dec0de-c0de-c0de-c0de-c0dec0dec0de';
---error ER_GROUP_REPLICATION_CONFIGURATION
-START GROUP_REPLICATION;
 
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
 
 --echo
 --echo ############################################################

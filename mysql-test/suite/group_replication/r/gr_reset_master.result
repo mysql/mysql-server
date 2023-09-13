@@ -27,8 +27,8 @@ RESET BINARY LOGS AND GTIDS;
 include/start_and_bootstrap_group_replication.inc
 include/start_group_replication.inc
 #Both members must have an empty gtid set
-include/assert.inc [On member 2, there should only 2 transactions from view changes]
-include/assert.inc [On member 1, there should only 2 transactions from view changes]
+include/assert.inc [On member 2, there should be no transactions]
+include/assert.inc [On member 1, there should be no transactions]
 #Insert some data to test that the group is still running
 INSERT INTO t1 VALUES (4);
 include/sync_slave_sql_with_master.inc

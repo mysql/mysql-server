@@ -28,6 +28,7 @@
 #include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "string_with_len.h"
 
 using std::string;
@@ -108,7 +109,24 @@ int Certification_handler::handle_action(Pipeline_action *action) {
 int Certification_handler::handle_event(Pipeline_event *pevent,
                                         Continuation *cont) {
   DBUG_TRACE;
+  Pipeline_event::Pipeline_event_type event_type =
+      pevent->get_pipeline_event_type();
+  switch (event_type) {
+    case Pipeline_event::Pipeline_event_type::PEVENT_DATA_PACKET_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_BINARY_LOG_EVENT_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_APPLIER_ONLY_EVENT_E:
+      return handle_applier_event(pevent, cont);
+    default:
+      next(pevent, cont);
+      return 0;
+  }
+}
 
+int Certification_handler::handle_binary_log_event(Pipeline_event *pevent,
+                                                   Continuation *cont) {
+  DBUG_TRACE;
   mysql::binlog::event::Log_event_type ev_type = pevent->get_event_type();
   switch (ev_type) {
     case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
@@ -121,6 +139,140 @@ int Certification_handler::handle_event(Pipeline_event *pevent,
       next(pevent, cont);
       return 0;
   }
+  return 0;
+}
+
+int Certification_handler::handle_applier_event(Pipeline_event *pevent,
+                                                Continuation *cont) {
+  Packet *packet = pevent->get_applier_event_packet();
+  switch (packet->get_packet_type()) {
+    case VIEW_CHANGE_PACKET_TYPE:
+      return handle_applier_view_change_packet(pevent, cont);
+    default:
+      next(pevent, cont);
+      return 0;
+  }
+  return 0;
+}
+
+int Certification_handler::handle_applier_view_change_packet(
+    Pipeline_event *pevent, Continuation *cont) {
+  int error = 0;
+  error = handle_view_change_packet_without_vcle(pevent, cont);
+  if (!error) next(pevent, cont);
+  return 0;
+}
+
+int Certification_handler::handle_recovery_metadata(Pipeline_event *pevent,
+                                                    Continuation *cont) {
+  View_change_packet *view_change_packet =
+      static_cast<View_change_packet *>(pevent->get_applier_event_packet());
+  int error = 0;
+  // Check if I am valid sender, if so, store the metadata.
+  if (std::find(view_change_packet->m_valid_sender_list.begin(),
+                view_change_packet->m_valid_sender_list.end(),
+                local_member_info->get_gcs_member_id()) !=
+      view_change_packet->m_valid_sender_list.end()) {
+    auto recovery_view_metadata =
+        recovery_metadata_module->add_recovery_view_metadata(
+            view_change_packet->view_id);
+    error = (!recovery_view_metadata.second);
+
+    if (!error) {
+      Recovery_metadata_message *metadata_record =
+          recovery_view_metadata.first->second;
+
+      // save compressed certification info and executed gtid set
+      // in Recovery_metadata_message variables.
+      bool status{true};
+      try {
+        status = cert_module->get_certification_info_recovery_metadata(
+            metadata_record);
+      } catch (const std::bad_alloc &) {
+        LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC,
+                     "getting certification info and executed gtid set");
+        status = true;
+      }
+
+      /*
+        If certification retrieve fails and the member is ONLINE, send the
+        ERROR message.
+        If member left the group, VIEW_CHANGE will handle the send of recovery
+        metadata.
+      */
+      if (status) {
+        if (local_member_info->get_recovery_status() !=
+            Group_member_info::MEMBER_ONLINE) {
+          return 0;
+        }
+        error = true;
+      }
+
+      if (!error) {
+        // set online members
+        metadata_record->set_valid_metadata_senders(
+            view_change_packet->m_valid_sender_list);
+
+        // set joining members
+        metadata_record->set_joining_members(
+            view_change_packet->m_members_joining_in_view);
+
+        /*
+          Case 1: Member failed to send the metadata
+          If member fails to send the metadata for reasons like big message,
+          compression failure, ERROR message will be sent forcing the joiner
+          to leave the group.
+          Case 2: GCS fails to send the metadata
+          If GCS failed to send the metadata leave group will be initiated by
+          the GCS.
+        */
+        if (recovery_metadata_module->send_recovery_metadata(metadata_record)) {
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_ON_MESSAGE_SENDING,
+                       "recovery metadata packet send failed.");
+          return 1;
+        }
+      }
+    }
+  }
+  if (error) {
+    error = recovery_metadata_module->send_error_message(
+        view_change_packet->view_id);
+  }
+  return error;
+}
+
+int Certification_handler::handle_view_change_packet_without_vcle(
+    Pipeline_event *pevent, Continuation *cont) {
+  int error = 0;
+  /*
+   Send the metadata immediately. Otherwise GTID_EXECUTED will change if view
+   change is delayed. During the view change delay other transactions get
+   executed resulting in update of GTID_EXECUTED. Example: Unprocessed
+   consistent transactions of which confirmation is received later can change
+   the GTID_EXECUTED. Recovery metadata is a state and delay in processing the
+   VIEW_ID will change the state.
+   Error is not important here because recovery metadata send is not a
+   transaction.
+   Since recovery metadata send is not a transaction, failure to send recovery
+   metadata is simply to be ignored.
+   Recovery metadata send tries to send byte of failure in case of any issue
+   like big certification size, compression failure etc.
+   If byte of message is not passing from GCS then expect network issues and
+   should be handled by the GCS.
+  */
+  error = handle_recovery_metadata(pevent, cont);
+  if (error) {
+    // Set ERROR is true but transaction is not disarded
+    cont->signal(1, false);
+  }
+  /*
+   Even if view-change is delayed, any transaction post this event should see
+   the incremented value of BGC Ticket.
+   So increment the BGC ticket immediately.
+  */
+  increment_bgc_ticket();
+  cert_module->gtid_intervals_computation();
+  return error;
 }
 
 int Certification_handler::set_transaction_context(Pipeline_event *pevent) {
@@ -730,6 +882,19 @@ Certification_handler::generate_view_change_bgc_ticket() {
       ticket_manager.push_new_ticket(binlog::BgcTmOptions::inc_session_count);
 
   return ticket.get();
+}
+
+binlog::BgcTicket::ValueType Certification_handler::increment_bgc_ticket() {
+  auto &ticket_manager = binlog::Bgc_ticket_manager::instance();
+  /*
+    Increment ticket so that the all transactions ordered before
+    view will have a ticket smaller than the one assigned to the
+    view.
+  */
+  ticket_manager.push_new_ticket();
+  ticket_manager.pop_front_ticket();
+
+  return 0;
 }
 
 bool Certification_handler::is_unique() { return true; }

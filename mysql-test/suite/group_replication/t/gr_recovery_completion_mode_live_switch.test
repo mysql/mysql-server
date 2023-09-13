@@ -84,16 +84,13 @@ SET GLOBAL debug= '+d,group_replication_skip_read_mode';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-
-# Wait for the View Change event to reach the binlog.
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:4')
 INSERT INTO t2 VALUES (1);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
- # Wait for the the 2 transaction to be in the queue
- --let $wait_condition= SELECT count_transactions_in_queue=2 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+ # Wait for the the 3 transaction to be in the queue
+ --let $wait_condition= SELECT count_transactions_in_queue=3 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
  --source include/wait_condition.inc
 
 --echo #

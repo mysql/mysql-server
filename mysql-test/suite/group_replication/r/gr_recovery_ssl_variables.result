@@ -4,6 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 [connection server2]
 #
 # Make a copy of existing SSL options before modifying them.
@@ -31,6 +32,9 @@ Master_SSL_Verify_Server_Cert = 'No such row'
 #
 # See when SSL is required that Recovery cannot advance when not properly configured
 #
+[connection server1]
+INSERT INTO t1 VALUES (1);
+[connection server2]
 include/start_group_replication.inc
 #
 # Verify that SSL options are shown in SHOW SLAVE STATUS output
@@ -46,6 +50,9 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = default;
 #
 # Verify that group replication member state is online.
 #
+[connection server1]
+INSERT INTO t1 VALUES (2);
+[connection server2]
 include/start_group_replication.inc
 #
 # Verify that Master_SSL_Allowed and Master_SSL_Verify_Server_Cert are set to default.
@@ -55,6 +62,9 @@ Master_SSL_Verify_Server_Cert = 'No'
 #
 # Clean up
 #
+[connection server1]
+DROP TABLE t1;
+[connection server2]
 SET @@GLOBAL.group_replication_recovery_use_ssl= 0;
 SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= 0;
 SET @@GLOBAL.group_replication_recovery_retry_count= 10;

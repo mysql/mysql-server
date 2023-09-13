@@ -67,7 +67,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo #
 
 --connection server1
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --connection server2
 
@@ -79,9 +79,10 @@ CREATE TABLE t2 (i INT NOT NULL PRIMARY KEY);
 
 # Unblock recovery and verify all is now normal
 --connection server1
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --connection server2
 --let $group_replication_member_state= ONLINE

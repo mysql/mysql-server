@@ -12424,6 +12424,132 @@ ER_IB_SYNC_READ_FAILED
 ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION_LOG
   eng "Cannot start replication channel '%s' because %s."
 
+ER_GROUP_REPLICATION_CERTIFIER_MESSAGE_LARGE
+  eng "The certification information, part of the required information to the new member join the group, is too big and cannot be send. Please wait until the value of the column COUNT_TRANSACTIONS_ROWS_VALIDATING of the table performance_schema.replication_group_member_stats decreases and try to join the new member again."
+
+ER_GROUP_REPLICATION_METADATA_SENDER_IS_REMOTE
+  eng "The member %s:%u will be the one sending the recovery metadata message."
+
+ER_GROUP_REPLICATION_METADATA_SENDER
+  eng "This member %s:%u will be the one sending the recovery metadata message."
+
+ER_GROUP_REPLICATION_ERROR_COMPRESS_INITIALIZE
+  eng "Error initializing the %s compression context. Data cannot be compressed."
+
+ER_GROUP_REPLICATION_COMPRESS_PROCESS
+  eng "Error while compressing data using %s compression. Data cannot be decompressed."
+
+ER_GROUP_REPLICATION_UNKOWN_COMPRESSION_TYPE
+  eng "Error unknown Compression Library requested."
+
+ER_GROUP_REPLICATION_COMPRESS_EXCEEDS_MAX_SIZE
+  eng "Error while compressing data using %s compression. The operation could not be performed as buffer size exceeded configured maximum size. Please wait until the value of the column COUNT_TRANSACTIONS_ROWS_VALIDATING of the table performance_schema.replication_group_member_stats decreases and try to join the new member again."
+
+ER_GROUP_REPLICATION_COMPRESS_OUT_OF_MEMORY
+  eng "Error while compressing data using %s compression. The operation could not be performed as memory allocation failed."
+
+ER_GROUP_REPLICATION_ERROR_DECOMPRESS_INITIALIZE
+  eng "Error initializing the %s decompression context. Data cannot be decompressed."
+
+ER_GROUP_REPLICATION_DECOMPRESS_EXCEEDS_MAX_SIZE
+  eng "Error while decompressing data using %s compression. The operation could not be performed as buffer size exceeded configured maximum size. Please wait until the value of the column COUNT_TRANSACTIONS_ROWS_VALIDATING of the table performance_schema.replication_group_member_stats decreases and try to join the new member again."
+
+ER_GROUP_REPLICATION_DECOMPRESS_OUT_OF_MEMORY
+  eng "Error while decompressing data using %s compression. The operation could not be performed as memory allocation failed."
+
+ER_GROUP_REPLICATION_DECOMPRESS_TRUNCATED
+  eng "Error while decompressing data using %s compression. The operation could not be performed as all the input provided to decompress is consumed, but the decompressed output produced is less than required."
+
+ER_GROUP_REPLICATION_DECOMPRESS_CORRUPTED
+  eng "Error while decompressing data using %s compression. The operation could not be performed as the compression library reported an error."
+
+ER_GROUP_REPLICATION_DECOMPRESS_END
+  eng "Error while decompressing data using %s compression. The operation could not be performed as no more input bytes remaining to decompress. The decompressed output has not been changed."
+
+ER_GROUP_REPLICATION_DECOMPRESS_PROCESS
+  eng "Error while decompressing data using %s compression. Data cannot be decompressed."
+
+ER_GRP_RPL_VCLE_NOT_BEING_LOGGED
+  eng "View_change_log_event will not be logged further on the binary log, as all members of the group are 8.3.0 or greater."
+
+ER_GROUP_REPLICATION_METADATA_PROTOBUF_PARSING
+  eng "Error while parsing serialzed Certification_info from received Recovery Metadata to Protobuf format using Protobuf library."
+
+ER_GROUP_REPLICATION_PROTOBUF_SERIALIZING_ERROR
+  eng "Error while serializing % data using Protobuf library."
+
+ER_GROUP_REPLICATION_ERROR_RECEIVED_WAITING_METADATA
+  eng "Error received while the Recovery thread was waiting for the Recovery Metadata. The Recovery will be terminated."
+
+ER_GROUP_REPLICATION_TIMEOUT_ERROR_FETCHING_METADATA
+  eng "Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for %d seconds. The Recovery will be terminated."
+
+ER_GROUP_REPLICATION_METADATA_PAYLOAD_EMPTY
+  eng "Error while decoding the received Recovery Metadata Message. The received payload is empty which could be due to error in decoding of received Recovery Metadata Message. The joining member will leave the group."
+
+ER_GROUP_REPLICATION_METADATA_MESSAGE_PAYLOAD_EMPTY
+  eng "The %s payload type of the received Recovery Metadata Message is empty."
+
+ER_GROUP_REPLICATION_METADATA_READ_GTID_EXECUTED
+  eng "Error reading gtid_executed from the received Recovery Metadata Message."
+
+ER_GROUP_REPLICATION_METADATA_PAYLOAD_DECODING
+  eng "Error while decoding the received Recovery Metadata Message."
+
+ER_GROUP_REPLICATION_METADATA_SEND_ERROR
+  eng "The group was unable to send the Recovery Metadata to a joining member."
+
+ER_GROUP_REPLICATION_METADATA_SAVE_RECOVERY_COPY
+  eng "Error while saving copy of Recovery Metadata Message."
+
+ER_GROUP_REPLICATION_METADATA_CERT_INFO_ERROR_PROCESSING
+  eng "Error while processing received Certification Information from the Recovery Metadata Message."
+
+ER_GROUP_REPLICATION_METADATA_CERT_INFO_PACKET_EMPTY
+  eng "Error Certification Information packet from the received Recovery Metadata Message is empty."
+
+ER_GROUP_REPLICATION_METADATA_ERROR_ON_SEND_ERROR_MESSAGE
+  eng "Error while sending Recovery metadata error message. If this is a temporary failure of send message and member itself hasn't left the group, then joiner will timeout waiting for Recovery metadata message. If this is a permanent failure, the member will leave the group and another member will send the Recovery metadata message."
+
+ER_GROUP_REPLICATION_METADATA_SET_IN_RECOVERY_FAILED
+  eng "Error when transferring Recovery Metadata Message to Recovery. The joining member will leave the group."
+
+ER_GROUP_REPLICATION_CERTIFICATION_MODULE_FAILURE
+  eng "Error Certification module wasn't properly initialized."
+
+ER_GROUP_REPLICATION_METADATA_INITIALIZATION_FAILURE
+  eng "Error Recovery Metadata Message module wasn't properly initialized."
+
+ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC
+  eng "Error while %s. The operation could not be performed as memory allocation failed."
+
+ER_GROUP_REPLICATION_RECOVERY_SKIPPED_GTID_PRESENT
+  eng "The group replication recovery is skipped as the joiner's gtid executed set %s already has all the transactions of the donor's gtid set %s."
+
+ER_GROUP_REPLICATION_RECOVERY_FETCHING_GTID_EXECUTED_SET
+  eng "Error in Group Replication Recovery while getting member's global GTID executed set."
+
+ER_GROUP_REPLICATION_RECOVERY_ERROR_ADD_GTID_EXECUTED
+  eng "Error in Group Replication Recovery while adding GTIDs in string format to Gtid_set."
+
+ER_GROUP_REPLICATION_RECOVERY_METADATA_SENDER_NOT_FOUND
+  eng "Error computing the current Recovery metadata sender. Check if this MEMBER is not leaving the group and the joiner is able to successfully fetch the recovery metadata or not."
+
+ER_GROUP_REPLICATION_METADATA_CERT_INFO_PACKET_COUNT_ERROR
+  eng "Error in the received Recovery Metadata Message the number of compressed Certification Information packet count mismatch with the number of sent compressed Certification Information packets."
+
+ER_GROUP_REPLICATION_METADATA_CERT_INFO_ENCODING_ERROR
+  eng "Error while encoding Certification Information for the Recovery Metadata Message."
+
+ER_GROUP_REPLICATION_METADATA_NO_VALID_DONOR
+  eng "There are no valid recovery metadata donors. The joining member will leave the group."
+
+ER_GROUP_REPLICATION_NO_CERTIFICATION_DONOR_AVAILABLE
+  eng "No donor available to provide the certification information, part of the required information to the new member join the group. Please wait until there are ONLINE members on the group and try to join the new member again."
+
+ER_GROUP_REPLICATION_RECOVERY_STOPPED_GTID_PRESENT
+  eng "The group replication recovery is complete, joiner gtid executed set has all the transactions of the donor's gtid set %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

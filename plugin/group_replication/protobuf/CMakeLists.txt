@@ -29,6 +29,7 @@ FILE(MAKE_DIRECTORY ${PROTOBUF_LITE_GENERATE_DIR})
 
 SET(MY_PROTOBUF_PROTO_FILES
   "${CMAKE_CURRENT_SOURCE_DIR}/replication_group_member_actions.proto"
+  "${CMAKE_CURRENT_SOURCE_DIR}/replication_group_recovery_metadata.proto"
 )
 
 MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY(

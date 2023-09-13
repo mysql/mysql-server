@@ -17,7 +17,7 @@ SET GTID_NEXT= "32e153f8-01d2-11e6-a992-02420ef39c5b:3";
 CREATE TABLE t1 (i INT PRIMARY KEY);
 include/rpl_sync.inc
 SET GTID_NEXT='AUTOMATIC';
-include/assert.inc [GTID_EXECUTED must contain two transactions, one from view change and other being the create table.]
+include/assert.inc [GTID_EXECUTED must contain 1 transactions, 0 from view change and other being the create table.]
 [connection server2]
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain three transactions, two from view change and other being the create.]
@@ -26,11 +26,11 @@ include/assert.inc [GTID_EXECUTED must contain three transactions, two from view
 [connection server1]
 INSERT INTO t1 VALUES(1);
 include/rpl_sync.inc
-include/assert.inc [GTID_EXECUTED must contain four transactions, the new one from the insert.]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*) # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/assert.inc [GTID_EXECUTED must contain 2 transactions, the new one from the insert.]
+include/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
 [connection server2]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*) # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Begin # Table_map # Write_rows # !Commit]
-include/assert.inc [GTID_EXECUTED must contain four transactions, the new one from the insert.]
+include/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/assert.inc [GTID_EXECUTED must contain 2 transactions, the new one from the insert.]
 DROP TABLE t1;
 [connection server1]
 SET SESSION sql_log_bin= 0;

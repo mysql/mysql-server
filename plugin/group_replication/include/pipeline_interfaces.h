@@ -40,6 +40,7 @@ typedef std::list<Gcs_member_identifier,
 
 // Define the data packet type
 #define DATA_PACKET_TYPE 1
+#define VIEW_CHANGE_PACKET_TYPE 3
 
 /**
   @class Packet
@@ -107,6 +108,44 @@ class Data_packet : public Packet {
   std::list<Gcs_member_identifier> *m_online_members;
 };
 
+/**
+  @class View_change_packet
+  A packet to send view change related info to the applier
+*/
+class View_change_packet : public Packet {
+ public:
+  /**
+    Create a new data packet with associated data.
+
+    @param view_id_arg The view id associated to this view
+    @param need_vcle   The flag determine if View_change_log_event is needed.
+  */
+  View_change_packet(std::string &view_id_arg, bool need_vcle)
+      : Packet(VIEW_CHANGE_PACKET_TYPE),
+        view_id(view_id_arg),
+        m_need_vcle(need_vcle) {}
+  View_change_packet(View_change_packet *packet)
+      : Packet(VIEW_CHANGE_PACKET_TYPE),
+        view_id(packet->view_id),
+        group_executed_set(packet->group_executed_set),
+        m_valid_sender_list(packet->m_valid_sender_list),
+        m_members_joining_in_view(packet->m_members_joining_in_view),
+        m_need_vcle(packet->m_need_vcle) {}
+
+  ~View_change_packet() override = default;
+
+  /* View ID of the view. */
+  const std::string view_id;
+  /* Group executed GTID-SET picked from group members. */
+  std::vector<std::string> group_executed_set;
+  /* Online members during view-change. */
+  std::vector<Gcs_member_identifier> m_valid_sender_list;
+  /* New members joining in the view. */
+  std::vector<Gcs_member_identifier> m_members_joining_in_view;
+  /* Does any members needs VCLE to be logged? */
+  const bool m_need_vcle;
+};
+
 // Define the data packet type
 #define UNDEFINED_EVENT_MODIFIER 0
 
@@ -132,6 +171,12 @@ class Pipeline_event {
   };
 
  public:
+  enum class Pipeline_event_type {
+    PEVENT_DATA_PACKET_TYPE_E = 1,
+    PEVENT_BINARY_LOG_EVENT_TYPE_E = 2,
+    PEVENT_APPLIER_ONLY_EVENT_E = 3,
+  };
+
   /**
     Create a new pipeline wrapper based on a packet.
 
@@ -156,7 +201,9 @@ class Pipeline_event {
         format_descriptor(fde_event),
         m_consistency_level(consistency_level),
         m_online_members(online_members),
-        m_online_members_memory_ownership(true) {}
+        m_online_members_memory_ownership(true),
+        m_processing_event_type(
+            Pipeline_event_type::PEVENT_DATA_PACKET_TYPE_E) {}
 
   /**
     Create a new pipeline wrapper based on a log event.
@@ -181,7 +228,24 @@ class Pipeline_event {
         format_descriptor(fde_event),
         m_consistency_level(consistency_level),
         m_online_members(online_members),
-        m_online_members_memory_ownership(true) {}
+        m_online_members_memory_ownership(true),
+        m_processing_event_type(
+            Pipeline_event_type::PEVENT_BINARY_LOG_EVENT_TYPE_E) {}
+
+  Pipeline_event(Packet *packet, int modifier = UNDEFINED_EVENT_MODIFIER,
+                 enum_group_replication_consistency_level consistency_level =
+                     GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+                 Members_list *online_members = nullptr)
+      : packet(nullptr),
+        log_event(nullptr),
+        packet_event(packet),
+        event_context(modifier),
+        format_descriptor(nullptr),
+        m_consistency_level(consistency_level),
+        m_online_members(online_members),
+        m_online_members_memory_ownership(true),
+        m_processing_event_type(
+            Pipeline_event_type::PEVENT_APPLIER_ONLY_EVENT_E) {}
 
   ~Pipeline_event() {
     if (packet != nullptr) {
@@ -189,6 +253,9 @@ class Pipeline_event {
     }
     if (log_event != nullptr) {
       delete log_event;
+    }
+    if (packet_event != nullptr) {
+      delete packet_event;
     }
     if (m_online_members_memory_ownership) {
       delete m_online_members;
@@ -224,6 +291,9 @@ class Pipeline_event {
         return error; /* purecov: inspected */
     *out_event = log_event;
     return 0;
+  }
+  Pipeline_event_type get_pipeline_event_type() {
+    return m_processing_event_type;
   }
 
   /**
@@ -336,6 +406,7 @@ class Pipeline_event {
           caller
   */
   Members_list *get_online_members() { return m_online_members; }
+  Packet *get_applier_event_packet() { return packet_event; }
 
   /**
     Release memory ownership of m_online_members.
@@ -443,6 +514,7 @@ class Pipeline_event {
  private:
   Data_packet *packet;
   Log_event *log_event;
+  Packet *packet_event{nullptr};
   int event_context;
   /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
@@ -450,6 +522,7 @@ class Pipeline_event {
   Members_list *m_online_members;
   bool m_online_members_memory_ownership;
   Processing_state m_packet_processing_state{Processing_state::DEFAULT};
+  Pipeline_event_type m_processing_event_type;
 };
 
 /**

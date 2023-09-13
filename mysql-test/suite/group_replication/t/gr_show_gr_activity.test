@@ -21,6 +21,7 @@
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 # Block slave sql_thread for group replication applier channel
@@ -44,6 +45,7 @@ while($i)
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/start_group_replication_command.inc
@@ -85,10 +87,15 @@ let $condition= = 'Replica has read all relay log; waiting for more updates';
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 # Drop table
 DROP TABLE test.t1;
 
 SET DEBUG_SYNC= 'RESET';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc

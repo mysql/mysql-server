@@ -94,7 +94,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 # Asserting that the stored procedure was executed only on the group.
 --let $rows= `SELECT COUNT(*) AS count FROM t1`
---let $last_gno= `SELECT $rows + 4`
+--let $last_gno= `SELECT $rows + 2`
 --let $assert_text= There are no local transactions.
 --let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$group_replication_group_name:1-$last_gno")
 --source include/assert.inc

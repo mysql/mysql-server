@@ -48,6 +48,7 @@ GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -62,6 +63,7 @@ GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --echo
@@ -151,6 +153,7 @@ call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': 
 call mtr.add_suppression("Replica I/O thread couldn't register on source");
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
@@ -250,6 +253,7 @@ DROP TABLE t4;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --disconnect server_1_2
 --disconnect server_1_3
@@ -260,6 +264,7 @@ SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -267,5 +272,6 @@ SET SESSION sql_log_bin= 1;
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc

@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 1. Start a 1 member group, and block it on recovery start.
 [connection server1]
 SET @@GLOBAL.DEBUG= '+d,recovery_thread_start_wait';
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 SET GLOBAL group_replication_group_name= "e70f06d2-eb85-11e5-b3b5-00212844d44e";
 SET GLOBAL group_replication_bootstrap_group= 1;
 START GROUP_REPLICATION;
@@ -62,6 +63,7 @@ include/assert.inc [GTID_EXECUTED must contain all group GTIDs]
 
 ############################################################
 # 7. Clean up.
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 include/group_replication_end.inc

@@ -21,7 +21,7 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_group_replication.inc
-include/assert.inc [GTID_EXECUTED must be UUID:1-2]
+include/assert.inc [GTID_EXECUTED must be None]
 include/assert.inc [There can be no applying transactions when the service state is off]
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 Warnings:

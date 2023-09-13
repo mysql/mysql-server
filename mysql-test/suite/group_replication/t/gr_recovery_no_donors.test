@@ -22,13 +22,17 @@
 
 --echo
 --echo ############################################################
---echo # 1. Create a group with 1 member and schedule a periodic
+--echo # 1. Create a group with 3 members and schedule a periodic
 --echo #    event to create some load in the group.
 --let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--source include/start_and_bootstrap_group_replication.inc
+
 --let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
@@ -75,6 +79,16 @@ CREATE EVENT IF NOT EXISTS e1
 END//
 
 delimiter ;//
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--source include/start_group_replication.inc
 
 
 --echo
@@ -211,12 +225,14 @@ RESET BINARY LOGS AND GTIDS;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --disable_warnings
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;
@@ -225,6 +241,7 @@ DROP TABLE IF EXISTS t1;
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --disable_warnings
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;

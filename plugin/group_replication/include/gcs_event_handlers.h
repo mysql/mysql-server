@@ -100,6 +100,7 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
    received via on_message_received(...)
    */
   void handle_transactional_message(const Gcs_message &message) const;
+  void handle_recovery_metadata(const Gcs_message &message) const;
   void handle_transactional_with_guarantee_message(
       const Gcs_message &message) const;
   void handle_transaction_prepared_message(const Gcs_message &message) const;
@@ -281,7 +282,7 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
 
     @param[in]  new_view        the view delivered by the GCS
   */
-  void log_members_leaving_message(const Gcs_view &new_view) const;
+  void log_messages_during_member_leave(const Gcs_view &new_view) const;
 
   /**
     This function return all members present in vector of Gcs_member_identifier
@@ -296,6 +297,13 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   void get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
                            std::string &all_hosts,
                            std::string &primary_host) const;
+
+  /**
+    Leave group on recovering metadata error.
+
+    @param[in]    error_message   Log error message on member leave.
+  */
+  void leave_group_on_recovery_metadata_error(std::string error_message) const;
 
   Applier_module_interface *applier_module;
   Recovery_module *recovery_module;

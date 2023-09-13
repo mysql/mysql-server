@@ -76,7 +76,7 @@ while($number_of_reps > 0) {
 --source include/start_group_replication.inc
 
 --let $assert_text= GTID_EXECUTED must contain all group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-12")
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-4")
 --source include/assert.inc
 
 --echo #

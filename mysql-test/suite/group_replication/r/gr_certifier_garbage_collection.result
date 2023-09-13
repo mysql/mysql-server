@@ -36,18 +36,18 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 #  5. Wait for stable set propagation and certification info
 #     garbage collection.
 #     After garbage collection certification info will contain:
-#     WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
-#     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+#     WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-2
+#     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-2
 include/assert.inc ['Count_transactions_rows_validating must be 2']
-include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
+include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-2']
 include/assert.inc ['Count_transactions_rows_validating must be 2']
-include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
+include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-2']
 
 ############################################################
 #  6. Execute the same statement of T1 in server 2, now named T2.
 #     It must be aborted since it conflicts with T1, despite
 #     it is not yet applied on server 2. Snapshot of T2 is
-#     8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+#     8a94f357-aab4-11df-86ab-c80aa9422222:1-2
 include/assert.inc [GTID_EXECUTED must contain first two transactions]
 UPDATE t1 SET c1=2 WHERE c1=1;
 ERROR 40000: Plugin instructed the server to rollback the current transaction.

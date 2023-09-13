@@ -98,7 +98,7 @@ SET SESSION sql_log_bin= 0;
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 
 --echo
@@ -173,6 +173,14 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 
 --let $rpl_connection_name= server5
 --source include/rpl_connection.inc
+
+# Remove the recovery user to avoid a possible successful
+# retry connect attempt after the server restarts.
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.5.expect
 --shutdown_server 0
 --source include/wait_until_disconnected.inc
@@ -382,8 +390,6 @@ SET SESSION sql_log_bin= 1;
 
 SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
---eval DROP USER "$recovery_user"
-FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1

@@ -91,8 +91,8 @@ INSERT INTO t1 VALUES (2);
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 STOP GROUP_REPLICATION;
 
---let $assert_text= GTID_EXECUTED must contain 3 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--let $assert_text= GTID_EXECUTED must contain 1 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1")
 --source include/assert.inc
 
 --let $rpl_connection_name= server_1
@@ -110,8 +110,8 @@ COMMIT;
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
 --source include/assert.inc
 
---let $assert_text= GTID_EXECUTED must contain 4 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
@@ -120,8 +120,8 @@ COMMIT;
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
 --source include/assert.inc
 
---let $assert_text= GTID_EXECUTED must contain 4 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
 --source include/assert.inc
 
 --echo
@@ -144,8 +144,8 @@ STOP GROUP_REPLICATION;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $assert_text= GTID_EXECUTED must contain 4 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
 --source include/assert.inc
 
 --let $assert_text= GTID_OWNED is still set since aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 transaction was not committed
@@ -166,8 +166,8 @@ SET GTID_NEXT= AUTOMATIC;
 --let $assert_cond= "[SELECT @@SESSION.GTID_OWNED]" = ""
 --source include/assert.inc
 
---let $assert_text= GTID_EXECUTED must contain 4 group transactions and 1 local transaction
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions and 1 local transaction
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
 --source include/assert.inc
 
 
@@ -185,8 +185,8 @@ INSERT INTO t1 VALUES (4);
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 START GROUP_REPLICATION;
 
---let $assert_text= GTID_EXECUTED must still contain 4 group transactions and 1 local transaction
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
+--let $assert_text= GTID_EXECUTED must still contain 2 group transactions and 1 local transaction
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
 --source include/assert.inc
 
 # We need to check on a different connection to do not see
@@ -206,8 +206,8 @@ COMMIT;
 --source include/assert.inc
 
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
---let $assert_text= GTID_EXECUTED must contain 4 group transactions and 2 local transaction
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1,$server1_uuid:1")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions and 2 local transaction
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1,$server1_uuid:1")
 --source include/assert.inc
 
 # Clean server since it has more transactions than the group.
@@ -304,8 +304,8 @@ RESET BINARY LOGS AND GTIDS;
 
 --source include/start_group_replication.inc
 
---let $assert_text= GTID_EXECUTED must contain 6 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
+--let $assert_text= GTID_EXECUTED must contain 2 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
 --source include/assert.inc
 
 --echo

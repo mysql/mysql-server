@@ -107,13 +107,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 ## ASSERTS
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-6
 --let $assert_text = Server executed GTID set is logged.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-6
 --let $assert_text = Applier retrieved GTID set is logged.
 --source include/assert_grep.inc
 
@@ -128,13 +128,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_for_gtid_execution_force_error';
 ## ASSERTS
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
 --let $assert_count = 1
---let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-6
 --let $assert_text = Server executed GTID set is logged.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
 --let $assert_count = 1
---let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:5-9
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:3-6
 --let $assert_text = Applier retrieved GTID set is logged.
 --source include/assert_grep.inc
 
@@ -169,13 +169,13 @@ DROP table t1;
 ## ASSERTS
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-12
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-7
 --let $assert_text = Server executed GTID set is logged.
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9:11-12
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-7
 --let $assert_text = Applier retrieved GTID set is logged.
 --source include/assert_grep.inc
 

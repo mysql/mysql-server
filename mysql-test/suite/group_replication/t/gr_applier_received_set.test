@@ -62,14 +62,14 @@ while ($transactions > 0)
 --source include/rpl_connection.inc
 --let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
 --let $assert_text= The value of received_transaction_set must have holes
---let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:2:5:7:9:11:13"
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:3:5:7:9:11"
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
 --let $assert_text= The value of received_transaction_set must have holes
---let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-4:6:8:10:12"
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-2:4:6:8:10"
 --source include/assert.inc
 
 --let $diff_tables= server1:test.t1, server2:test.t1
@@ -98,14 +98,14 @@ while ($transactions > 0)
 --source include/rpl_connection.inc
 --let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
 --let $assert_text= The value of received_transaction_set must not have holes
---let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-13"
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-11"
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
 --let $assert_text= The value of received_transaction_set must not have holes
---let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-13"
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:1-11"
 --source include/assert.inc
 
 

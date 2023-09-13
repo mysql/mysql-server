@@ -1,0 +1,64 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a GROUP on M1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Start GR on M2 and block it in RECOVERING.
+[connection server2]
+SET @@GLOBAL.DEBUG='+d,recovery_thread_wait_before_finish';
+include/start_group_replication.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.recovery_thread_wait_before_finish_reached";
+
+############################################################
+# 3. Set debug point to crash server-1 before recovery metadata send.
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
+
+############################################################
+# 4. Start server3.
+[connection server3]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error fetching the Recovery Metadata by the Recovery thread. The Recovery will be terminated.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("No donor available to provide the certification information, part of the required information to the new member join the group*");
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+
+############################################################
+# 5. Wait for M1 crash before message send.
+[connection server1]
+include/rpl_reconnect.inc
+SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
+
+############################################################
+# 6. Unblock RECOVERY on M2.
+[connection server2]
+SET @@GLOBAL.DEBUG='-d,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+
+############################################################
+# 7. M3 will go to ERROR state.
+#    M1 had recovery metadata but it left group.
+#    M2 was in RECOVERING so it never had metadata.
+#    Assert error is logged that there is no valid donor.
+[connection server3]
+include/gr_wait_for_member_state.inc
+include/assert.inc [No donor available to provide the certification information, error is logged.]
+
+############################################################
+# 8. Cleanup.
+[connection server3]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+include/group_replication_end.inc

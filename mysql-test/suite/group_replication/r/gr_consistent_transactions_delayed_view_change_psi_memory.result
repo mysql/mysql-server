@@ -16,7 +16,9 @@ GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 ############################################################
 # 2. Start server2
@@ -26,7 +28,9 @@ CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 ############################################################
 # 3. Verify that the entries corresponding to the
@@ -93,7 +97,9 @@ call mtr.add_suppression("For details please check performance_schema*");
 call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed*");
 call mtr.add_suppression("Replica I/O thread couldn't register on source");
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 ############################################################
 # 10. Signal to continue T3 on server1.

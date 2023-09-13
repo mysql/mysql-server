@@ -46,8 +46,8 @@ SET SESSION sql_log_bin= 1;
 --source include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
 
---let $assert_text= GTID_EXECUTED must contain two transactions, one from view change and other being the create table.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-2")
+--let $assert_text= GTID_EXECUTED must contain one transactions, create table.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1")
 --source include/assert.inc
 
 
@@ -60,19 +60,19 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 
---let $assert_text= GTID_EXECUTED must contain three transactions, the new one from the insert.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--let $assert_text= GTID_EXECUTED must contain one transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1")
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $assert_text= GTID_EXECUTED must contain three transactions, the new one from the insert.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--let $assert_text= GTID_EXECUTED must contain one transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1")
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-# On server 1 a view with GTID group_replication_group_name:4 will be logged.
+
 --source include/stop_group_replication.inc
 
 
@@ -99,18 +99,18 @@ SET GTID_NEXT='AUTOMATIC';
 --echo # 4. Shutdown the group and bootstrap the group again.
 --source include/stop_group_replication.inc
 --let $assert_text= GTID_EXECUTED must contain holes
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4:6")
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1:4:6")
 --source include/assert.inc
 
 --source include/start_and_bootstrap_group_replication.inc
+INSERT INTO t1 VALUES(7);
+INSERT INTO t1 VALUES(8);
+INSERT INTO t1 VALUES(9);
 --let $assert_text= GTID_EXECUTED must contain no holes
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
 --source include/assert.inc
 
-# GTID group_replication_group_name:5 was used for the view on
-# which server1 did bootstrap the group again.
-# View change (s1) # Create table # View change (s2) # Insert # Insert # View change (s1)
---let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq
+--let $event_sequence= !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
 --source include/assert_binlog_events.inc
 
 
@@ -121,11 +121,10 @@ SET GTID_NEXT='AUTOMATIC';
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 --let $assert_text= GTID_EXECUTED must contain no holes
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-7")
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
 --source include/assert.inc
 
-# View change (s1) # Create table # View change (s2) # Insert # Insert # View change (s1) # View change (s2)
---let $event_sequence= $vcle_seq # !Gtid_transaction # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq # $vcle_seq
+--let $event_sequence= !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
 --source include/assert_binlog_events.inc
 
 

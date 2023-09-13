@@ -35,6 +35,7 @@ FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 
 --source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --echo
 --echo # 2. Setup environment to fail donor connection and start GR on M2.
@@ -121,5 +122,6 @@ SET sql_log_bin=0;
 SET GLOBAL super_read_only = 0;
 DROP USER user_with_no_priv_s1;
 SET sql_log_bin=1;
+DROP TABLE t1;
 
 --source include/group_replication_end.inc

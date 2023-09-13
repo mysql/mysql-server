@@ -61,16 +61,22 @@
 # The server applier logs will be reset to avoid recovery problems.
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
+SET SESSION sql_log_bin = 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin = 1;
+
 --echo #
 --echo # Add some data to server 1.
 --echo #
 
 --connection server1
 
+SET SESSION sql_log_bin = 0;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin = 1;
 INSERT INTO t1 VALUES (1);
 
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo #
 --echo # On server 2 uninstall and install the plugin with auto start.
@@ -90,9 +96,6 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --let $group_replication_member_state= RECOVERING
 --source include/gr_wait_for_member_state.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE table_name = 't1'
---source include/wait_condition.inc
-
 # install plugin return before set super_read_only, wait to confirm change
 --let $wait_condition= SELECT @@GLOBAL.super_read_only = '1'
 --source include/wait_condition.inc
@@ -106,9 +109,10 @@ INSERT INTO t1 VALUES (2);
 
 --connection server1
 
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --connection server2
 

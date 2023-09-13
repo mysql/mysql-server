@@ -1,0 +1,33 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a GROUP on M1
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin = 1;
+include/start_group_replication.inc
+
+############################################################
+# 3. Stop GR on M1.
+[connection server1]
+include/stop_group_replication.inc
+
+############################################################
+# 4. Assert VCLE not being logged message is present in logs.
+[connection server2]
+############################################################
+# 5. Cleanup.
+[connection server1]
+include/group_replication_end.inc

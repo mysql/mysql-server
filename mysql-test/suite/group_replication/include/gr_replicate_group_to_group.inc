@@ -197,7 +197,7 @@ while ($i <= 5)
   SET SESSION sql_log_bin= 0;
   --source include/gtid_utils.inc
   SET SESSION sql_log_bin= 1;
-  --let $expected_gtid_set= 8a94f357-aab4-11df-86ab-c80aa9420000:1-8, 8a94f357-aab4-11df-86ab-c80aa942000d:1-8
+  --let $expected_gtid_set= 8a94f357-aab4-11df-86ab-c80aa9420000:1-5, 8a94f357-aab4-11df-86ab-c80aa942000d:1-5
   --let $assert_text= Check that GTID_EXECUTED set on all servers are as expected.
   --let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$expected_gtid_set")
   --source include/assert.inc

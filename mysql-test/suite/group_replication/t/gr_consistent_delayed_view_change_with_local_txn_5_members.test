@@ -37,6 +37,7 @@
 --echo # 01. Boot start server1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -47,6 +48,7 @@
 --let $sysvars_to_save = [ "GLOBAL.group_replication_member_weight" ]
 --source include/save_sysvars.inc
 SET GLOBAL group_replication_member_weight= 90;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --echo
@@ -54,14 +56,17 @@ SET GLOBAL group_replication_member_weight= 90;
 --echo # 03. Start server3, 4 and 5
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server5
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
 
 --echo
@@ -170,10 +175,27 @@ SET DEBUG_SYNC= 'RESET';
 
 --echo ############################################################
 --echo # 13. Cleaning up
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/restore_sysvars.inc
 
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc

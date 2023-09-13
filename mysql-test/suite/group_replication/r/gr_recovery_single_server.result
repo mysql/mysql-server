@@ -44,7 +44,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # GTID_EXECUTED.
 include/assert.inc ['There is a value 1 in table t1 on server1']
 include/assert.inc ['There is a value 1 in table t1 on server2']
-include/assert.inc ['server2 GTID_EXECUTED must contain the 2 transactions plus 3 view changes']
+include/assert.inc ['server2 GTID_EXECUTED must contain the 2 transactions']
 
 ############################################################
 # 6. Clean up.

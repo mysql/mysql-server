@@ -29,6 +29,7 @@
 #include "plugin/group_replication/include/plugin_messages/group_service_message.h"
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
+#include "plugin/group_replication/include/plugin_messages/recovery_metadata_message.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_message.h"
@@ -199,6 +200,12 @@ void Metrics_handler::add_message_sent(const Gcs_message &message) {
 
       case Plugin_gcs_message::CT_GROUP_VALIDATION_MESSAGE:
         message_sent_timestamp = Group_validation_message::get_sent_timestamp(
+            message.get_message_data().get_payload(),
+            message.get_message_data().get_payload_length());
+        break;
+
+      case Plugin_gcs_message::CT_RECOVERY_METADATA_MESSAGE:
+        message_sent_timestamp = Recovery_metadata_message::get_sent_timestamp(
             message.get_message_data().get_payload(),
             message.get_message_data().get_payload_length());
         break;

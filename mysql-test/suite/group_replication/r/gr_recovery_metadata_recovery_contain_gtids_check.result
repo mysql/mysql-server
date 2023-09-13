@@ -1,0 +1,42 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap start a GROUP on M1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Start GR on M3.
+#    Add debug sync point which will make recovery fail when
+#    it has applied all SQL_AFTER_GTIDS of START REPLICA
+#    UNTIL clause.
+[connection server3]
+SET @@GLOBAL.DEBUG= '+d,group_replication_recovery_after_gtids_applier_stop_error_out';
+include/start_group_replication.inc
+
+############################################################
+# 4. Verify it retried connection to donor and skipped
+#    recovery as required SQL_AFTER_GTIDS were already
+#    present on joiner.
+
+############################################################
+# 5. Cleanup.
+[connection server1]
+DROP TABLE t1;
+[connection server3]
+SET @@GLOBAL.DEBUG= '-d,group_replication_recovery_after_gtids_applier_stop_error_out';
+include/group_replication_end.inc

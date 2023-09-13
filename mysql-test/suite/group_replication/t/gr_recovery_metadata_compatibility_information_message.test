@@ -1,0 +1,78 @@
+################################################################################
+# When all the old versions that do not support non-VCLE join leaves the group
+# a message is logged in the error log stating VCLE will not be logged further
+# in the binary logs. This test verifies FR23 of wl#14595.
+#
+# FR 23. When a view change happens where one or more members with MySQL version
+#        lower than 8.3.0 leaves the group or changes it's member state to
+#        either of ERROR/OFFLINE and remaining all the members are greater than
+#        equal to 8.3.0, then a system level message MUST be logged that
+#        View_change_log_event will not be logged further on the binary log.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2
+# 1. Bootstrap a GROUP on M1
+# 2. Start GR on M2.
+# 3. Stop GR on M1.
+# 4. Assert VCLE not being logged message is present in logs.
+# 5. Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a GROUP on M1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--source include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $warning_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015059' AND data LIKE '%View_change_log_event will not be logged further on the binary log%', COUNT, 1)
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin = 1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Stop GR on M1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Assert VCLE not being logged message is present in logs.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--inc $warning_count
+--let $wait_condition= SELECT COUNT(*)=$warning_count FROM performance_schema.error_log WHERE error_code='MY-015060' AND data LIKE '%View_change_log_event will not be logged further on the binary log, as all members of the group are 8.3.0 or greater.%'
+--source include/wait_condition.inc
+
+--echo ############################################################
+--echo # 5. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/group_replication_end.inc

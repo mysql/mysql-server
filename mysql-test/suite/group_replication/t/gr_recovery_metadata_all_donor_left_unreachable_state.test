@@ -1,0 +1,111 @@
+################################################################################
+# This test proves that recovery metadata joiner goes into ERROR state if all
+# the metadata donors leave the group. This test verifies FR14 of wl#14595.
+#
+# FR 14. When a new member joins a group having all the members with MySQL
+#        version greater than equal to 8.3.0, and if all the 'GR Recovery
+#        Metadata' members which were ONLINE when this new member joined
+#        leaves the group before joiner received 'GR Recovery metadata'
+#        message, then the joiner will enter the ERROR state.
+#
+# Test:
+# 0. The test requires two servers: M1, M2 and M3.
+# 1. Bootstrap a GROUP on M1
+# 2. Set debug point to crash M1 before recovery metadata send.
+# 3. Start server2.
+# 4. Wait for M1 crash before message send.
+# 5. M2 will go to ERROR state.
+#    M1 had recovery metadata but it left group.
+# 6. Cleanup.
+#
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/not_windows.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a GROUP on M1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_and_bootstrap_group_replication.inc
+
+--disable_query_log
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server1= `SELECT @@global.group_replication_group_seeds`
+--enable_query_log
+
+--echo
+--echo ############################################################
+--echo # 2. Set debug point to crash M1 before recovery metadata send.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
+
+--echo
+--echo ############################################################
+--echo # 3. Start server2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for 300 seconds. The Recovery will be terminated.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+SET SESSION sql_log_bin= 1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Wait for M1 crash before message send.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/wait_until_disconnected.inc
+# Inform MTR that it should restart the aborted member
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+--source include/wait_until_connected_again.inc
+SET @@GLOBAL.DEBUG='-d,gr_crash_before_recovery_metadata_send';
+
+--echo
+--echo ############################################################
+--echo # 5. M2 will go to ERROR state.
+--echo #    M1 had recovery metadata but it left group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_timeout= 360
+--let $group_replication_member_state = ERROR
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

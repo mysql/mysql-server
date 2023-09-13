@@ -37,6 +37,7 @@
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -303,33 +304,58 @@ int Applier_module::apply_view_change_packet(
   const auto garbage_collection_end = Metrics_handler::get_current_time();
   metrics_handler->add_garbage_collection_run(garbage_collection_begin,
                                               garbage_collection_end);
-
-  View_change_log_event *view_change_event =
-      new View_change_log_event(view_change_packet->view_id.c_str());
-
-  Pipeline_event *pevent = new Pipeline_event(view_change_event, fde_evt);
-  pevent->mark_event(SINGLE_VIEW_EVENT);
-
   /*
-    If there are prepared consistent transactions waiting for the
-    prepare acknowledge, the View_change_log_event must be delayed
-    to after those transactions are committed, since they belong to
-    the previous view.
+    If all the group members are compatible to transfer the recovery metadata
+    without using VCLE. Do not send the VCLE.
   */
-  if (transaction_consistency_manager->has_local_prepared_transactions()) {
-    DBUG_PRINT("info", ("Delaying the log of the view '%s' to after local "
-                        "prepared transactions",
-                        view_change_packet->view_id.c_str()));
-    transaction_consistency_manager->schedule_view_change_event(pevent);
-    pevent->set_delayed_view_change_waiting_for_consistent_transactions();
+  if (!view_change_packet->m_need_vcle) {
+    Pipeline_event *pevent =
+        new Pipeline_event(new View_change_packet(view_change_packet));
+
+    error = inject_event_into_pipeline(pevent, cont);
+    delete pevent;
+  } else {
+    View_change_log_event *view_change_event =
+        new View_change_log_event(view_change_packet->view_id.c_str());
+
+    Pipeline_event *pevent = new Pipeline_event(view_change_event, fde_evt);
+    pevent->mark_event(SINGLE_VIEW_EVENT);
+
+    /*
+      If there are prepared consistent transactions waiting for the
+      prepare acknowledge, the View_change_log_event must be delayed
+      to after those transactions are committed, since they belong to
+      the previous view.
+    */
+    if (transaction_consistency_manager->has_local_prepared_transactions()) {
+      DBUG_PRINT("info", ("Delaying the log of the view '%s' to after local "
+                          "prepared transactions",
+                          view_change_packet->view_id.c_str()));
+      transaction_consistency_manager->schedule_view_change_event(pevent);
+      pevent->set_delayed_view_change_waiting_for_consistent_transactions();
+    }
+
+    error = inject_event_into_pipeline(pevent, cont);
+    if (!cont->is_transaction_discarded() &&
+        !pevent->is_delayed_view_change_waiting_for_consistent_transactions())
+      delete pevent;
   }
 
-  error = inject_event_into_pipeline(pevent, cont);
-  if (!cont->is_transaction_discarded() &&
-      !pevent->is_delayed_view_change_waiting_for_consistent_transactions())
-    delete pevent;
-
   return error;
+}
+
+int Applier_module::apply_metadata_processing_packet(
+    Recovery_metadata_processing_packets *metadata_processing_packet) {
+  if (metadata_processing_packet->m_current_member_leaving_the_group) {
+    recovery_metadata_module->delete_all_recovery_view_metadata();
+  } else {
+    recovery_metadata_module
+        ->delete_members_from_all_recovery_view_metadata_send_metadata_if_sender_left(
+            metadata_processing_packet->m_member_left_the_group,
+            metadata_processing_packet->m_view_id_to_be_deleted);
+  }
+
+  return 0;
 }
 
 int Applier_module::apply_data_packet(Data_packet *data_packet,
@@ -562,6 +588,11 @@ int Applier_module::applier_thread_handle() {
               while (!is_applier_thread_aborted()) my_sleep(1 * 1000 * 1000);
             };);
 
+        break;
+      case RECOVERY_METADATA_PROCESSING_PACKET_TYPE:
+        packet_application_error = apply_metadata_processing_packet(
+            static_cast<Recovery_metadata_processing_packets *>(packet));
+        this->incoming->pop();
         break;
       default:
         assert(0); /* purecov: inspected */

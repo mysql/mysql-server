@@ -14,7 +14,7 @@ SET SESSION sql_log_bin= 1;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/assert.inc [The first member has 3 transaction belonging to the group]
+include/assert.inc [The first member has 2 transaction belonging to the group]
 #
 # Verify that server 2 can't enter the group
 # Verify that error messages are logged.
@@ -28,7 +28,7 @@ SET GLOBAL group_replication_group_name= "c645abc0-ebb9-11e5-a837-0800200c9a66";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 Matching lines are:
-DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'This member has more executed transactions than those present in the group. Local transactions: aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa:1 > Group transactions: c645abc0-ebb9-11e5-a837-0800200c9a66:1-3'
+DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'This member has more executed transactions than those present in the group. Local transactions: aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa:1 > Group transactions: c645abc0-ebb9-11e5-a837-0800200c9a66:1-2'
 Occurrences of 'This member has more executed transactions than those present in the group. Local transactions' in the input file: 1
 Matching lines are:
 DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'The member contains transactions not present in the group. The member will now exit the group.'

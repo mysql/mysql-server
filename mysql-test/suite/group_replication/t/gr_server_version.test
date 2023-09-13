@@ -12,8 +12,6 @@
 # 4. Make the following assertions on the executed transactions:
 #    4.1. The original_server_version is the same accross all servers and
 #         immediate_server_version is generated correctly.
-#    4.2. Transactions consisting of view change events have their
-#         original_server_version set to their own server version.
 # 5. Run transactions on the server outside the group (server1) and synchronize
 #    the group.
 # 6. Assert that the original_server_version and immediate_server_version of
@@ -89,7 +87,7 @@ DROP TABLE t1;
 # server2 was propagated correctly, immediate_server_version was generated
 # correctly and that the immediate_server_version was replicated correctly to
 # server3 through the GR applier channel.
---let $gtid = $group_replication_group_name:3
+--let $gtid = $group_replication_group_name:1
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
@@ -153,7 +151,7 @@ DROP TABLE t1;
 # check if the original_server_version from the DROP TABLE transaction from
 # server3 was propagated correctly and if immediate_server_version was generated
 # correctly
---let $gtid = $group_replication_group_name:4
+--let $gtid = $group_replication_group_name:2
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
@@ -200,54 +198,6 @@ DROP TABLE t1;
 --let $assert_cond = $ISV_4 = $numerical_server_version_4
 --source include/assert.inc
 
-
-# check the View_change log event generated when server 4 joined
---let $gtid = $group_replication_group_name:1
-
---let $rpl_connection_name = server2
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
---let $OSV_2 = $original_server_version
---source include/get_immediate_server_version.inc
---let $ISV_2 = $immediate_server_version
-
---let $rpl_connection_name = server3
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
---let $OSV_3 = $original_server_version
---source include/get_immediate_server_version.inc
---let $ISV_3 = $immediate_server_version
-
---let $rpl_connection_name = server4
---source include/rpl_connection.inc
---source include/get_original_server_version.inc
---let $OSV_4 = $original_server_version
---source include/get_immediate_server_version.inc
---let $ISV_4 = $immediate_server_version
-
---let $assert_text = server2 original_server_version must be equal to its own server_version
---let $assert_cond = $OSV_2 = $numerical_server_version_2
---source include/assert.inc
-
---let $assert_text = server3 original_server_version must be equal to its own server_version
---let $assert_cond = $OSV_3 = $numerical_server_version_3
---source include/assert.inc
-
---let $assert_text = server4 original_server_version must be equal to its own server_version
---let $assert_cond = $OSV_4 = $numerical_server_version_4
---source include/assert.inc
-
---let $assert_text = server2 immediate_server_version must be equal to its own server_version
---let $assert_cond = $ISV_2 = $numerical_server_version_2
---source include/assert.inc
-
---let $assert_text = server3 immediate_server_version must be equal to its own server_version
---let $assert_cond = $ISV_3 = $numerical_server_version_3
---source include/assert.inc
-
---let $assert_text = server4 immediate_server_version must be equal to its own server_version
---let $assert_cond = $ISV_4 = $numerical_server_version_4
---source include/assert.inc
 
 # run transactions on server1
 --let $rpl_connection_name = server1

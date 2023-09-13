@@ -1,0 +1,68 @@
+################################################################################
+# This test proves that VCLE is logged if any member of the group has lower
+# version that does not support non-VCLE member join.
+# This test verifies FR1 of wl#14595.
+#
+# FR 1. When a new member joins a group which has one or more members with MySQL
+#       version lower than 8.3.0, then all group members MUST log a
+#       View_change_log_event on the binary log.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2
+# 1. Bootstrap start a GROUP on M1
+# 2. Start GR on M2.
+# 3. Assert VCLE is logged.
+# 4. Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a GROUP on M1 with lower version
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--source include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Assert VCLE is logged.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $limit=
+--let $binlog_file= server-binary-log.000001
+--let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT	
+--let $event_sequence= $vcle_seq # $vcle_seq
+--source include/assert_binlog_events.inc
+
+--echo ############################################################
+--echo # 4. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

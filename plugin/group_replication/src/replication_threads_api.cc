@@ -111,22 +111,26 @@ int Replication_thread_api::initialize_channel(
   return error;
 }
 
-int Replication_thread_api::start_threads(bool start_receiver,
-                                          bool start_applier, string *view_id,
-                                          bool wait_for_connection) {
+int Replication_thread_api::start_threads(
+    bool start_receiver, bool start_applier, string *value,
+    bool wait_for_connection, enum_channel_until_condition until_condition) {
   DBUG_TRACE;
 
   Channel_connection_info info;
   initialize_channel_connection_info(&info);
 
-  char *cview_id = nullptr;
+  char *cvalue = nullptr;
 
-  if (view_id) {
-    cview_id = new char[view_id->size() + 1];
-    memcpy(cview_id, view_id->c_str(), view_id->size() + 1);
+  if (value) {
+    cvalue = new char[value->size() + 1];
+    memcpy(cvalue, value->c_str(), value->size() + 1);
 
-    info.until_condition = CHANNEL_UNTIL_VIEW_ID;
-    info.view_id = cview_id;
+    info.until_condition = until_condition;
+    if (until_condition == CHANNEL_UNTIL_VIEW_ID) {
+      info.view_id = cvalue;
+    } else if (until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+      info.gtid = cvalue;
+    }
   }
 
   int thread_mask = 0;
@@ -140,8 +144,8 @@ int Replication_thread_api::start_threads(bool start_receiver,
   int error = channel_start(interface_channel, &info, thread_mask,
                             wait_for_connection, true);
 
-  if (view_id) {
-    delete[] cview_id;
+  if (cvalue != nullptr) {
+    delete[] cvalue;
   }
 
   return error;

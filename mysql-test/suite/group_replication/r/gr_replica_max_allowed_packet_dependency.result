@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 SET @debug_save_replica_max_allowed_packet= @@GLOBAL.replica_max_allowed_packet;
 SET GLOBAL replica_max_allowed_packet=1024;
@@ -22,6 +23,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 #    Without certification information, server 2 can't join and moves to ERROR state
 
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 include/assert_grep.inc [Found the expected error about the view change log even being over size]
 
@@ -43,7 +45,9 @@ DROP TABLE t1;
 [connection server1]
 SET @@GLOBAL.DEBUG= '-d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 [connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET session sql_log_bin=0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("The certification information could not be set in this server: 'Certification information is too large for transmission.'");

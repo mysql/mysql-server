@@ -104,6 +104,7 @@ RESET BINARY LOGS AND GTIDS;
 --echo ########################################################
 
 # Start Group Replication
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $raw_view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), View_Id, 1)
@@ -132,6 +133,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1' was already used, the transaction will rollback");
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
 
@@ -147,8 +149,8 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 --connection server2
 --echo server2
 
---echo [ The value of Count_Transactions_in_queue must be 2 when the applier has not processed the transaction queue ]
---let $wait_condition= SELECT Count_Transactions_in_queue = 2 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+--echo [ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
+--let $wait_condition= SELECT Count_Transactions_in_queue = 3 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
 --source include/wait_condition.inc
 
 --connection server1
@@ -236,9 +238,11 @@ SET DEBUG_SYNC= 'RESET';
 
 # Stop Group Replication
 --source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --connection server2
 --source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --disconnect server1_1
 

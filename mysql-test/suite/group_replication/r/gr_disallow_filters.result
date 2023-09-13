@@ -158,11 +158,11 @@ test.igtab1
 test.itab1
 test.tab1
 #
-# 4. Block applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+# 4. Block dump thread on M1 and M2 so that M3 will stay in RECOVERING state.
 #    And, we can fetch donor's server_uuid.
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 [connection server1]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 #
 # 5. Start GR on M3 and check donor's server_uuid.
 [connection server3]
@@ -171,13 +171,11 @@ include/start_group_replication.inc
 #
 # 6. Start applier thread on M1 and M2.
 [connection server1]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 [connection server2]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 #
 # 7. Allow member M3 to come ONLINE, then verify data.
 [connection server3]

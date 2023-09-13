@@ -67,10 +67,10 @@ SET SESSION sql_log_bin = 1;
 --source include/gr_wait_for_number_of_members.inc
 
 #Block the applier on both servers to block recovery
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --connection server1
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo #
 --echo # Start recovery on a new member and kill the donor
@@ -100,21 +100,16 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
 
 --echo # Stop group replication on the donor making it leave the group
 --connection server$donor_id
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
---let $group_replication_member_state= ERROR
---source include/gr_wait_for_member_state.inc
-SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
-SET DEBUG_SYNC= 'RESET';
 --source include/stop_group_replication.inc
+# Avoid this server to provide data on connection retries.
+RESET BINARY LOGS AND GTIDS;
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --echo # Unblock recovery and watch the member go online despite the donor exit
 --connection server$failover
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --connection server3
 
@@ -125,20 +120,25 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --let $assert_cond= [select count(*) from t1] = 1;
 --source include/assert.inc
 
---let $assert_text= On the recovered member, the executed GTID should be the same as on the donor plus the view changes
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "55d07150-9a4d-11e3-a5e2-0800200c9a66:1-5";
+--let $assert_text= On the recovered member, the executed GTID should be the same as on the donor
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "55d07150-9a4d-11e3-a5e2-0800200c9a66:1-2";
 --source include/assert.inc
 
 --echo #
 --echo # Cleaning up
 --echo #
 
+--connection server3
+--source include/stop_group_replication.inc
+DROP TABLE t1;
+
 --connection server$failover
+--source include/stop_group_replication.inc
 SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
 
 --connection server$donor_id
---source include/start_group_replication.inc
-
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 
 --source include/group_replication_end.inc

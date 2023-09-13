@@ -61,16 +61,9 @@ COMMIT;
 --let $group_replication_member_state = OFFLINE
 --source include/gr_wait_for_member_state.inc
 
---let $expected_gtid_set= "$group_replication_group_name:1"
 --let $assert_text= STOP GROUP_REPLICATION did not generate a GTID
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = $expected_gtid_set
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
-
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-# View change (s1 bootstrap)
---let $event_sequence= $vcle_seq
---source include/assert_binlog_events.inc
-
 
 --echo
 --echo ############################################################

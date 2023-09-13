@@ -1,0 +1,68 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Define two uuid for use on view_change_uuid
+
+############################################################
+# 2. Bootstrap group with VIEW_CHANGE_UUID
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+
+############################################################
+# 3. To change view_change_uuid group replication shall be
+#    stopped
+SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+ERROR HY000: The group_replication_view_change_uuid cannot be changed when Group Replication is running
+
+############################################################
+# 4. A member can join even if it has different view_change_uuid
+#    that is defined on group
+[connection server2]
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET GLOBAL group_replication_group_name = "GROUP_REPLICATION_GROUP_NAME";
+include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+include/stop_group_replication.inc
+
+############################################################
+# 5. Server 2 configured with view_change_uuid of group
+#    can join
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+
+############################################################
+# 6. Confirm both server have same GTID.EXECUTED the views
+#    are not logged
+include/assert.inc [GTID_EXECUTED must only contain view changes]
+[connection server1]
+include/assert.inc [GTID_EXECUTED must only contain view changes]
+
+############################################################
+# 7. Cleanup
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+include/group_replication_end.inc

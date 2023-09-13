@@ -20,7 +20,7 @@ SET SESSION sql_log_bin= 1;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-include/assert.inc [The first member has 3 transaction belonging to the group]
+include/assert.inc [The first member has 2 transaction belonging to the group]
 #
 # Test case 1: Try to add a member with local data on it.
 # The start group replication command shall fail
@@ -49,7 +49,7 @@ include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The first member to join has only one transaction]
 [connection server1]
-include/assert.inc [The second member to join has 4 transactions]
+include/assert.inc [The second member to join has 2 transactions]
 SET GLOBAL group_replication_group_name= "b2b6cdc0-eb94-11e5-a837-0800200c9a66";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.

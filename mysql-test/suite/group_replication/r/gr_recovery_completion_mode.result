@@ -47,8 +47,8 @@ Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be 
 # Insert some transaction on server 1 that will be cached on server 2
 #
 server1
-SELECT WAIT_FOR_EXECUTED_GTID_SET('08033a70-3560-11e5-a2cb-0800200c9a66:3');
-WAIT_FOR_EXECUTED_GTID_SET('08033a70-3560-11e5-a2cb-0800200c9a66:3')
+SELECT WAIT_FOR_EXECUTED_GTID_SET('08033a70-3560-11e5-a2cb-0800200c9a66:1');
+WAIT_FOR_EXECUTED_GTID_SET('08033a70-3560-11e5-a2cb-0800200c9a66:1')
 0
 INSERT INTO t2 VALUES (1);
 #

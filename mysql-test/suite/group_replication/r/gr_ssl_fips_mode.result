@@ -57,6 +57,9 @@ include/assert.inc [On the recovered member, the table should exist and have 1 e
 #    does not start.
 #
 include/stop_group_replication.inc
+[connection server1]
+INSERT INTO t1 VALUES (3, 'three');
+[connection server2]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");

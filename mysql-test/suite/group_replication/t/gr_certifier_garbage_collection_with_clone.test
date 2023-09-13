@@ -132,12 +132,12 @@ while($inserts)
 }
 --enable_query_log
 
---let $assert_text= 'Count_transactions_rows_validating must be equal to 10 on server1'
---let $assert_cond= "10" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 11 on server1'
+--let $assert_cond= "11" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
 --source include/assert.inc
 
---let $assert_text= 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server1'
---let $assert_cond= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4" = "[SELECT Transactions_committed_all_members FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--let $assert_text= 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2 on server1'
+--let $assert_cond= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2" = "[SELECT Transactions_committed_all_members FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
 --source include/assert.inc
 
 --let $rpl_connection_name= server2
@@ -152,12 +152,12 @@ while($inserts)
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---let $assert_text= 'Count_transactions_rows_validating must be equal to 10 on server3'
---let $assert_cond= "10" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 11 on server3'
+--let $assert_cond= "11" = "[SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
 --source include/assert.inc
 
---let $assert_text= 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server3'
---let $assert_cond= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4" = "[SELECT Transactions_committed_all_members FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
+--let $assert_text= 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2 on server3'
+--let $assert_cond= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2" = "[SELECT Transactions_committed_all_members FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)]"
 --source include/assert.inc
 
 # Resume applier on server3.
@@ -178,9 +178,9 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --let $wait_condition= SELECT Count_transactions_rows_validating=1 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15 on server1'
+--echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12 on server1'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
@@ -200,9 +200,9 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --let $wait_condition= SELECT Count_transactions_rows_validating=1 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15 on server3'
+--echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12 on server3'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 
@@ -228,6 +228,12 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 --let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
 --source include/assert.inc
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Commit one more transaction so that Transactions_committed_all_members
+# does increase.
+INSERT INTO t1 VALUES (100);
+
 
 --echo
 --echo ############################################################
@@ -236,38 +242,38 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 --echo #    once all members are ONLNE.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---echo 'Count_transactions_rows_validating must be equal to 0 on server1'
+--echo 'Count_transactions_rows_validating must be equal to 1 on server1'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Count_transactions_rows_validating=0 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Count_transactions_rows_validating=1 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server1'
+--echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server1'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---echo 'Count_transactions_rows_validating must be equal to 0 on server2'
+--echo 'Count_transactions_rows_validating must be equal to 1 on server2'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Count_transactions_rows_validating=0 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Count_transactions_rows_validating=1 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server2'
+--echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server2'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---echo 'Count_transactions_rows_validating must be equal to 0 on server3'
+--echo 'Count_transactions_rows_validating must be equal to 1 on server3'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Count_transactions_rows_validating=0 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Count_transactions_rows_validating=1 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server3'
+--echo 'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server3'
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--let $wait_condition= SELECT Transactions_committed_all_members="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13" FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 

@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 SET GLOBAL GTID_PURGED= "bebf367f-1ef4-11e6-b127-00212844d44e:110-120";
 include/assert.inc [GTID_EXECUTED must be UUID:110-120]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1:110-120]
 
@@ -17,6 +18,7 @@ include/assert.inc [GTID_EXECUTED must be UUID:1:110-120]
 [connection server2]
 SET GLOBAL GTID_PURGED= "bebf367f-1ef4-11e6-b127-00212844d44e:110-120";
 include/assert.inc [GTID_EXECUTED must be UUID:110-120]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-2:110-120]
 
@@ -74,5 +76,9 @@ include/assert.inc [GTID_EXECUTED must be UUID:1-127:224]
 
 ############################################################
 # 10. Clean up.
+[connection server1]
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

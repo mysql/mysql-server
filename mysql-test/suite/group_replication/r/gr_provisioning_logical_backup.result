@@ -33,7 +33,7 @@ include/assert.inc ['Checking the number of records in test.t2']
 
 [connection server2]
 include/assert.inc ['Checking the number of records in test.t2']
-Occurrences of 'View_change_log_event' in the input file: 3
+Occurrences of 'View_change_log_event' in the input file: 0
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 include/group_replication_end.inc

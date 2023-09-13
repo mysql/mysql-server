@@ -7,15 +7,14 @@ Note	####	Storing MySQL user name or password information in the connection meta
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 include/assert.inc [Assert that show slave hosts is empty..]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 [connection server1]
 SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @@global.replica_net_timeout=20;
 include/start_group_replication.inc
 [connection server2]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 [connection server2]
 SET DEBUG_SYNC= 'RESET';
 [connection server1]

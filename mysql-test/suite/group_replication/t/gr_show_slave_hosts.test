@@ -33,7 +33,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 
 # This is to ensure that M1 will be in recovering state, so that the
 # output of show slave hosts can be verified.
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -61,9 +61,10 @@ let $field= Slave_UUID;
 let $condition= = '$server1_uuid';
 --source include/wait_show_condition.inc
 
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 # Verify that both the servers are in ONLINE state.
 --let $wait_timeout= 60

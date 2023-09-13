@@ -68,7 +68,7 @@ INSERT INTO test.t1 VALUES(2);
 # The sequence of events that make up a View Change
 --let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
 # View change (s1) # View change (s2) # Create table # Insert # View change (s2) # Insert
---let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq # !Gtid_transaction
+--let $event_sequence= # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction
 --source include/assert_binlog_events.inc
 
 # Cleanup

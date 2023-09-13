@@ -1,0 +1,108 @@
+################################################################################
+# This test proves that recovery metadata sender is sent by the member having
+# lower member-uuid.
+#
+# FR 6. When a new member joins a group having all the members with MySQL
+#       version greater than equal to 8.3.0, then all the ONLINE members
+#       MUST select the same member which will send 'GR Recovery Metadata' to
+#       the new joining member.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a GROUP on M1
+# 2. Start GR on M2.
+# 3. Check who is the metadata sender.
+# 4. Start GR on M3.
+# 5. Assert message was sent by single server with lower member_id.
+# 6. Cleanup.
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap start a GROUP on M1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Check who is the metadata sender.
+
+--let $metadata_donor= query_get_value(SELECT member_id FROM performance_schema.replication_group_members ORDER BY member_id, member_id, 1)
+
+--let $server_sending_metadata= 1
+--let $server_not_sending_metadata= 2
+
+if ($metadata_donor == $member2_uuid) {
+  --let $server_sending_metadata= 2
+  --let $server_not_sending_metadata= 1
+}
+
+--connection server$server_not_sending_metadata
+--let $recovery_metadata_not_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_not_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+
+
+--connection server$server_sending_metadata
+--let $recovery_metadata_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+
+--echo
+--echo ############################################################
+--echo # 4. Start GR on M3.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Assert message was sent by single server with lower member_id.
+
+--connection server$server_sending_metadata
+
+# Sender send the metadata
+--inc $recovery_metadata_sender_counter_2
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--source include/wait_condition.inc
+
+# Sender does not log other message
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--source include/wait_condition.inc
+
+--connection server$server_not_sending_metadata
+
+# Non-sender log the message who is the recovery metadata sender.
+--inc $recovery_metadata_not_sender_counter_1
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--source include/wait_condition.inc
+
+# Non-sender does not log other message.
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup.
+
+--source include/group_replication_end.inc

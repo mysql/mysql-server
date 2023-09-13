@@ -34,11 +34,26 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/certifier_stats_interface.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/gr_compression.h"
+#include "plugin/group_replication/include/gr_decompression.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"
+#include "plugin/group_replication/include/plugin_messages/recovery_metadata_message.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
+
+#include "plugin/group_replication/generated/protobuf_lite/replication_group_recovery_metadata.pb.h"
+
+/**
+  While sending Recovery Metadata the Certification Information is divided into
+  several small packets of MAX_COMPRESSED_PACKET_SIZE before sending it to
+  group for Recovery.
+  The compressed packet size is choosen as 10MB so that multiple threads can
+  process (serialize and compress or unserialize and decompress) packets
+  simultaneously without consuming too much memory.
+*/
+#define MAX_COMPRESSED_PACKET_SIZE 10485760
 
 /**
   This class extends Gtid_set to include a reference counter.
@@ -179,8 +194,13 @@ class Certifier_interface : public Certifier_stats {
 
   virtual void get_certification_info(
       std::map<std::string, std::string> *cert_info) = 0;
+  virtual bool get_certification_info_recovery_metadata(
+      Recovery_metadata_message *recovery_metadata_message) = 0;
   virtual int set_certification_info(
       std::map<std::string, std::string> *cert_info) = 0;
+  virtual bool set_certification_info_recovery_metadata(
+      Recovery_metadata_message *recovery_metadata_message) = 0;
+  virtual bool initialize_server_gtid_set_after_distributed_recovery() = 0;
   virtual int stable_set_handle() = 0;
   virtual bool set_group_stable_transactions_set(
       Gtid_set *executed_gtid_set) = 0;
@@ -197,6 +217,9 @@ class Certifier : public Certifier_interface {
       std::equal_to<std::string>,
       Malloc_allocator<std::pair<const std::string, Gtid_set_ref *>>>
       Certification_info;
+
+  typedef protobuf_replication_group_recovery_metadata::
+      CertificationInformationMap ProtoCertificationInformationMap;
 
   Certifier();
   ~Certifier() override;
@@ -302,6 +325,21 @@ class Certifier : public Certifier_interface {
       std::map<std::string, std::string> *cert_info) override;
 
   /**
+    Retrieves the current certification info.
+
+    @note if concurrent access is introduce to these variables,
+    locking is needed in this method
+
+    @param[out] recovery_metadata_message  Retrieves the metadata message
+
+    @return the operation status
+      @retval false      OK
+      @retval true       Error
+  */
+  bool get_certification_info_recovery_metadata(
+      Recovery_metadata_message *recovery_metadata_message) override;
+
+  /**
     Sets the certification info according to the given value.
 
     @note if concurrent access is introduce to these variables,
@@ -314,6 +352,31 @@ class Certifier : public Certifier_interface {
   */
   int set_certification_info(
       std::map<std::string, std::string> *cert_info) override;
+
+  /**
+    The received certification info from Recovery Metadata is decoded,
+    compressed and added to the member certification info for certification.
+
+    @note if concurrent access is introduce to these variables,
+    locking is needed in this method
+
+    @param[in]  recovery_metadata_message  the pointer to
+                                           Recovery_metadata_message.
+
+    @return the operation status
+      @retval false      OK
+      @retval true       Error
+  */
+  bool set_certification_info_recovery_metadata(
+      Recovery_metadata_message *recovery_metadata_message) override;
+  /**
+    Initializes the gtid_executed set.
+
+    @return the operation status
+      @retval false      OK
+      @retval true       Error
+  */
+  bool initialize_server_gtid_set_after_distributed_recovery() override;
 
   /**
     Get the number of postively certified transactions by the certifier
@@ -412,6 +475,11 @@ class Certifier : public Certifier_interface {
     @retval False  otherwise
   */
   bool is_conflict_detection_enable() override;
+
+  /**
+    Compute GTID intervals.
+  */
+  void gtid_intervals_computation();
 
  private:
   /**
@@ -556,6 +624,56 @@ class Certifier : public Certifier_interface {
 
   bool inline is_initialized() { return initialized; }
 
+  /**
+    This shall serialize the certification info stored in protobuf map format,
+    and then compress provided serialized string. The compressed payload is
+    stored into multiple buffer containers of the output list.
+
+    @param[in]  cert_info        the certification info stored in protobuf map.
+    @param[out] uncompresssed_buffer the buffer for uncompressed data.
+    @param[out] compressor_list  the certification info in compressed form
+                                 splitted into multiple container of list.
+    @param[in] compression_type the type of compression used
+
+    @return the operation status
+      @retval false      OK
+      @retval true       Error
+  */
+  bool compress_packet(ProtoCertificationInformationMap &cert_info,
+                       unsigned char **uncompresssed_buffer,
+                       std::vector<GR_compress *> &compressor_list,
+                       GR_compress::enum_compression_type compression_type);
+
+  /**
+    Sets the certification info according to the given value.
+    This shall uncompress and then convert uncompressed string into the protobuf
+    map format storing certification info. This certification info is added to
+    certifier's certification info.
+
+    @note if concurrent access is introduce to these variables,
+    locking is needed in this method
+
+    @param[in]  compression_type  the compression type
+    @param[in]  buffer         the compressed  certification info retrieved from
+                               recovery procedure.
+    @param[in]  buffer_length  the size of the compressed retrieved
+                               certification info.
+    @param[in]  uncompressed_buffer_length the size of the uncompressed
+                                           certification info before it was
+                                           compressed.
+
+    @return the operation status
+      @retval false      OK
+      @retval true       Error
+  */
+  bool set_certification_info_part(
+      GR_compress::enum_compression_type compression_type,
+      const unsigned char *buffer, unsigned long long buffer_length,
+      unsigned long long uncompressed_buffer_length);
+
+  /**
+    Empties certification info.
+  */
   void clear_certification_info();
 
   /**
@@ -731,6 +849,13 @@ class Certifier : public Certifier_interface {
     certified transaction on a particular group member.
   */
   void update_certified_transaction_count(bool result, bool local_transaction);
+
+  /*
+    The first remote transaction certified does need to reset
+    replication_group_applier channel previous transaction
+    sequence_number.
+  */
+  bool is_first_remote_transaction_certified{true};
 };
 
 /*

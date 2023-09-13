@@ -21,8 +21,8 @@ include/rpl_sync.inc
 #############################################################
 # 2. Create a table and set a manual gtid_next equal to next
 # automatic gtid. Start a transaction.
-include/assert.inc [GTID_EXECUTED should contain three GTIDs.]
-set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:4';
+include/assert.inc [GTID_EXECUTED should contain one GTIDs.]
+set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:2';
 BEGIN;
 INSERT INTO t1 VALUES (1);
 

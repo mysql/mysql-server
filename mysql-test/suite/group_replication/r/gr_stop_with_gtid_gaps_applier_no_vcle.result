@@ -1,0 +1,86 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Start a group with two members on which server 1 is the
+#    bootstrap member.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Block applier channel in order to delay the execution of
+#    remote transactions on member 1.
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+
+############################################################
+# 3. Create a table on member 2 with a specified GTID.
+#    This statement will not be applied on member 1.
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain no transactions]
+SET GTID_NEXT= "GROUP_REPLICATION_GROUP_NAME:2";
+CREATE TABLE t1 (i INT PRIMARY KEY);
+SET GTID_NEXT="AUTOMATIC";
+include/assert.inc [GTID_EXECUTED must contain a hole]
+[connection server1]
+
+############################################################
+# 4. Shutdown the group before applying the received transactions on server1.
+[connection server1]
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,force_sql_thread_error';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_sql_thread_error';
+SET DEBUG_SYNC= 'RESET';
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+DROP TABLE t1;
+RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
+RESET BINARY LOGS AND GTIDS;
+
+############################################################
+# 5. Bootstrap the group again.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t2 (i INT PRIMARY KEY);
+include/assert.inc [GTID_EXECUTED must contain no holes]
+include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
+[connection server2]
+include/assert.inc [GTID_EXECUTED must be empty]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain no holes]
+include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction]
+
+############################################################
+# 6. Cleanup.
+DROP TABLE t1;
+DROP TABLE t2;
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

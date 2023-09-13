@@ -24,6 +24,7 @@
 --source include/rpl_connection.inc
 
 --source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --echo
 --echo # 2. Set parameters for server 2 for start gr.
@@ -43,6 +44,14 @@ SET @debug_save= @@GLOBAL.DEBUG;
 
 --echo
 --echo # 3. Check parallel UNINSTALL with START GR.
+
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_start';
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
@@ -85,6 +94,14 @@ SET DEBUG_SYNC='now signal signal.resume_stop_before_leave_the_group';
 --echo # 4. START GR without credentials it should fail.
 --echo #    Credentials deleted by UNINSTALL.
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC = "reset";
 SET GLOBAL super_read_only= FALSE;
@@ -111,6 +128,14 @@ SET @@GLOBAL.group_replication_recovery_retry_count = @saved_gr_recovery_retry_c
 
 --echo
 --echo # 5. Check parallel START GR with UNINSTALL.
+
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (3);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 
@@ -161,5 +186,10 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 call mtr.add_suppression("Plugin 'group_replication' has ref_count=1 after deinitialization.");
 SET SESSION sql_log_bin = 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
 
 --source include/group_replication_end.inc

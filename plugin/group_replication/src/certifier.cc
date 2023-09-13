@@ -32,6 +32,7 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
+#include "plugin/group_replication/include/plugin_messages/recovery_metadata_message_compressed_parts.h"
 #include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
@@ -912,6 +913,22 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
 
     increment_parallel_applier_sequence_number(
         !has_write_set || update_parallel_applier_last_committed_global);
+
+    /*
+      Every Group Replication is started and the first remote transaction
+      is queued on replication_group_applier channel, we need to reset
+      applier internal previous sequence_number. Otherwise, if during the
+      start there was backlog to apply on replication_group_applier channel,
+      the previous sequence_number will be greater than the new one, which
+      is considered a error case.
+      Previously this reset was done by the View_change_log_event transaction,
+      but now that transaction may not be logged.
+    */
+    if (is_first_remote_transaction_certified) {
+      is_first_remote_transaction_certified = false;
+      gle->last_committed = 0;
+      gle->sequence_number = 0;
+    }
   }
 
 end:
@@ -986,6 +1003,13 @@ int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno) {
 */
 rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
   return get_next_available_gtid(member_uuid, group_gtid_sid_map_group_sidno);
+}
+
+void Certifier::gtid_intervals_computation() {
+  DBUG_TRACE;
+  mysql_mutex_lock(&LOCK_certification_info);
+  if (gtid_assignment_block_size > 1) compute_group_available_gtid_intervals();
+  mysql_mutex_unlock(&LOCK_certification_info);
 }
 
 rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
@@ -1528,6 +1552,356 @@ void Certifier::get_certification_info(
       .insert(std::pair<std::string, std::string>(GTID_EXTRACTED_NAME, value));
 
   mysql_mutex_unlock(&LOCK_certification_info);
+}
+
+bool Certifier::set_certification_info_recovery_metadata(
+    Recovery_metadata_message *recovery_metadata_message) {
+  /*
+    1. Get Compressed Certification info packet count from the received
+       recovery metadata.
+  */
+  std::pair<Recovery_metadata_message::enum_recovery_metadata_message_error,
+            unsigned int>
+      payload_certification_info_packet_count_error =
+          recovery_metadata_message
+              ->get_decoded_compressed_certification_info_packet_count();
+
+  /*
+    1.1. If certification info packet count is 0 which means certification info
+         payload is empty return false as recovery still need to process.
+  */
+  if (payload_certification_info_packet_count_error.first ==
+      Recovery_metadata_message::enum_recovery_metadata_message_error::
+          ERR_CERT_INFO_EMPTY) {
+    return false;
+  }
+
+  // 1.2. If error while decoding certification info packet count, return error.
+  if (payload_certification_info_packet_count_error.first !=
+      Recovery_metadata_message::enum_recovery_metadata_message_error::
+          RECOVERY_METADATA_MESSAGE_OK) {
+    return true;
+  }
+
+  // 1.3. Get certification info packet count value.
+  unsigned int compressed_certification_info_packet_count{
+      payload_certification_info_packet_count_error.second};
+
+  DBUG_EXECUTE_IF("group_replication_certification_info_packet_count_check",
+                  assert(compressed_certification_info_packet_count > 1););
+
+  // 2. Get Compression type from the received recovery metadata.
+  std::pair<Recovery_metadata_message::enum_recovery_metadata_message_error,
+            GR_compress::enum_compression_type>
+      payload_compression_type_error =
+          recovery_metadata_message->get_decoded_compression_type();
+
+  if (payload_compression_type_error.first !=
+      Recovery_metadata_message::enum_recovery_metadata_message_error::
+          RECOVERY_METADATA_MESSAGE_OK) {
+    return true;
+  }
+
+  // 2.1 Get Compression type value.
+  GR_compress::enum_compression_type compression_type{
+      payload_compression_type_error.second};
+
+  /*
+    3. Get compressed certification info iterator to iterate through
+       multiple packets of compressed certification info.
+  */
+  Recovery_metadata_message_compressed_parts compressed_parts(
+      recovery_metadata_message, compressed_certification_info_packet_count);
+
+  mysql_mutex_lock(&LOCK_certification_info);
+  clear_certification_info();
+
+  // 3.1. Iterate through compressed certification info packets.
+  uint compressed_certification_info_packet_count_aux{0};
+  for (auto single_compressed_part : compressed_parts) {
+    /*
+      3.2. Decompress, unserialize using protobuf and then add it's content
+           to local certification info.
+    */
+    if (set_certification_info_part(compression_type,
+                                    std::get<0>(single_compressed_part),
+                                    std::get<1>(single_compressed_part),
+                                    std::get<2>(single_compressed_part))) {
+      mysql_mutex_unlock(&LOCK_certification_info);
+      return true;
+    }
+    ++compressed_certification_info_packet_count_aux;
+  }
+
+  /*
+    3.3. Check if number of received compressed certification info packets match
+         with packets sent.
+  */
+  if (compressed_certification_info_packet_count !=
+      compressed_certification_info_packet_count_aux) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GROUP_REPLICATION_METADATA_CERT_INFO_PACKET_COUNT_ERROR);
+    mysql_mutex_unlock(&LOCK_certification_info);
+    return true;
+  }
+
+  /*
+    4. Sets the received gtid_executed from metadata sender.
+       Extract the donor group_gtid_executed so that it can be used to
+       while member is applying transactions that were already applied
+       by distributed recovery procedure.
+  */
+  std::pair<Recovery_metadata_message::enum_recovery_metadata_message_error,
+            std::reference_wrapper<std::string>>
+      payload_after_gtids_error =
+          recovery_metadata_message->get_decoded_group_gtid_executed();
+
+  // 4.1. Set group_gtid_extracted if not error.
+  if (payload_after_gtids_error.first ==
+      Recovery_metadata_message::enum_recovery_metadata_message_error::
+          RECOVERY_METADATA_MESSAGE_OK) {
+    std::string gtid_extracted_set{payload_after_gtids_error.second.get()};
+    if (group_gtid_extracted->add_gtid_text(gtid_extracted_set.c_str()) !=
+        RETURN_STATUS_OK) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_METADATA_READ_GTID_EXECUTED);
+      mysql_mutex_unlock(&LOCK_certification_info);
+      return true;
+    }
+  } else {
+    // Error decoding group_gtid_executed.
+    LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_READ_GTID_EXECUTED);
+    mysql_mutex_unlock(&LOCK_certification_info);
+    return true;
+  }
+
+  mysql_mutex_unlock(&LOCK_certification_info);
+  return false;
+}
+
+bool Certifier::set_certification_info_part(
+    GR_compress::enum_compression_type compression_type,
+    const unsigned char *buffer, unsigned long long buffer_length,
+    unsigned long long uncompressed_buffer_length) {
+  DBUG_TRACE;
+  unsigned char *uncompressed_buffer{nullptr};
+  std::size_t uncompressed_buffer_size{0};
+
+  mysql_mutex_assert_owner(&LOCK_certification_info);
+
+  if (buffer != nullptr && buffer_length > 0 &&
+      uncompressed_buffer_length > 0) {
+    // 1. Initialize compression library.
+    GR_decompress *decompress = new GR_decompress(compression_type);
+
+    // 2. Decompress data.
+    GR_decompress::enum_decompression_error decompression_error =
+        decompress->decompress(buffer, buffer_length,
+                               uncompressed_buffer_length);
+
+    // 3. Verify decompression is successful.
+    if (decompression_error !=
+        GR_decompress::enum_decompression_error::DECOMPRESSION_OK) {
+      LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_DECOMPRESS_PROCESS);
+      delete decompress;
+      return true;
+    }
+
+    // 4. Get data after decompression.
+    std::tie(uncompressed_buffer, uncompressed_buffer_size) =
+        decompress->get_buffer();
+    if (uncompressed_buffer == nullptr || uncompressed_buffer_size == 0) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_METADATA_CERT_INFO_PACKET_EMPTY);
+      delete decompress;
+      return true;
+    }
+
+    // 5. Unserialize uncompressed data using Protobuf.
+    ProtoCertificationInformationMap cert_info;
+    if (!cert_info.ParseFromArray(uncompressed_buffer,
+                                  uncompressed_buffer_size)) {
+      LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_PROTOBUF_PARSING);
+      delete decompress;
+      return true;
+    }
+
+    // 6. Now release compression library object so output buffer memory can be
+    //    released.
+    delete decompress;
+
+    // 7. Insert data to certification info.
+    for (auto it = cert_info.data().begin(); it != cert_info.data().end();
+         ++it) {
+      std::string key = it->first;
+
+      Gtid_set_ref *value = new Gtid_set_ref(certification_info_sid_map, -1);
+      if (value->add_gtid_encoding(
+              reinterpret_cast<const uchar *>(it->second.c_str()),
+              it->second.length()) != RETURN_STATUS_OK) {
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM,
+                     key.c_str());
+        return true;
+      }
+      value->link();
+      certification_info.insert(
+          std::pair<std::string, Gtid_set_ref *>(key, value));
+    }
+
+    return false;
+  }
+
+  // 8. Error if input compressed certification_info packet is empty.
+  LogPluginErr(ERROR_LEVEL,
+               ER_GROUP_REPLICATION_METADATA_CERT_INFO_PACKET_EMPTY);
+  return true;
+}
+
+bool Certifier::initialize_server_gtid_set_after_distributed_recovery() {
+  DBUG_TRACE;
+
+  mysql_mutex_lock(&LOCK_certification_info);
+  if (initialize_server_gtid_set(false)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE);
+    mysql_mutex_unlock(&LOCK_certification_info);
+    return true;
+  }
+
+  mysql_mutex_unlock(&LOCK_certification_info);
+  return false;
+}
+
+bool Certifier::compress_packet(
+    ProtoCertificationInformationMap &proto_cert_info,
+    unsigned char **uncompresssed_buffer,
+    std::vector<GR_compress *> &compressor_list,
+    GR_compress::enum_compression_type compression_type) {
+  size_t proto_cert_info_size = proto_cert_info.ByteSizeLong();
+  *uncompresssed_buffer =
+      (uchar *)my_realloc(key_compression_data, *uncompresssed_buffer,
+                          proto_cert_info_size, MYF(0));
+
+  if (*uncompresssed_buffer == nullptr) {
+    LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC,
+                 "Serializing Protobuf Map");
+    return true;
+  }
+
+  // 1. Serialize Protobuf Map
+  if (!proto_cert_info.SerializeToArray(*uncompresssed_buffer,
+                                        proto_cert_info_size)) {
+    LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PROTOBUF_SERIALIZING_ERROR,
+                 "Certification_info");
+    return true;
+  }
+
+  proto_cert_info.clear_data();
+
+  // 2. Initialize compression library.
+  GR_compress *compress = new GR_compress(compression_type);
+
+  // 3. Compress data.
+  GR_compress::enum_compression_error error =
+      compress->compress(*uncompresssed_buffer, proto_cert_info_size);
+
+  // 4. Verify compression is successful.
+  if (error != GR_compress::enum_compression_error::COMPRESSION_OK) {
+    LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_COMPRESS_PROCESS);
+    delete compress;
+    return true;
+  }
+
+  // 5. Add compressed data to vector.
+  compressor_list.push_back(compress);
+  return false;
+}
+
+bool Certifier::get_certification_info_recovery_metadata(
+    Recovery_metadata_message *recovery_metadata_message) {
+  DBUG_TRACE;
+  bool error{false};
+  size_t max_length{0};
+  size_t max_compressed_packet_size_val{MAX_COMPRESSED_PACKET_SIZE};
+  std::string key{};
+  uchar *buf{nullptr};
+  uchar *uncompresssed_buffer{nullptr};
+  std::string value{};
+  size_t len{0};
+  ProtoCertificationInformationMap proto_cert_info;
+
+  mysql_mutex_lock(&LOCK_certification_info);
+
+  // I. Generate Compressed certification_info packets.
+  for (Certification_info::iterator it = certification_info.begin();
+       it != certification_info.end(); ++it) {
+    // 1. Read data from certification_info map.
+    key.assign(it->first);
+
+    len = it->second->get_encoded_length();
+    buf = (uchar *)my_realloc(key_certification_data, buf, len, MYF(0));
+    if (buf == nullptr) {
+      LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC,
+                   "reading data from certification_info");
+      error = true;
+      goto err;
+    }
+    it->second->encode(buf);
+    value.assign(reinterpret_cast<const char *>(buf), len);
+
+    // 2. Add to Protobuf map.
+    (*proto_cert_info.mutable_data())[key] = value;
+
+    // 3. If read size is greater than MAX_COMPRESSED_PACKET_SIZE,
+    //    call compress_packet() which will
+    //    - serialize Protobuf Map,
+    //    - compress serialized string,
+    //    - The compressed data is pushed to a std::vector, so that multiple
+    //      packets of compressed data is prepared.
+    max_length += (key.length() + len);
+    DBUG_EXECUTE_IF("group_replication_max_compressed_packet_size_10000",
+                    { max_compressed_packet_size_val = 10000; });
+    if (max_length > max_compressed_packet_size_val) {
+      if (compress_packet(
+              proto_cert_info, &uncompresssed_buffer,
+              recovery_metadata_message->get_encode_compressor_list(),
+              recovery_metadata_message->get_encode_compression_type())) {
+        error = true;
+        goto err;
+      }
+      max_length = 0;
+    }
+  }
+
+  if (max_length > 0) {
+    if (compress_packet(
+            proto_cert_info, &uncompresssed_buffer,
+            recovery_metadata_message->get_encode_compressor_list(),
+            recovery_metadata_message->get_encode_compression_type())) {
+      error = true;
+      goto err;
+    }
+  }
+
+  // II. Get executed gtid set.
+  //     Add the group_gtid_executed to Recovery Metadata which will be sent
+  //     to joiners.
+  len = group_gtid_executed->get_encoded_length();
+  buf = (uchar *)my_realloc(key_certification_data, buf, len, MYF(0));
+  if (buf == nullptr) {
+    LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC,
+                 "getting executed gtid set for Recovery Metadata");
+    error = true;
+    goto err;
+  }
+  group_gtid_executed->encode(buf);
+  recovery_metadata_message->get_encode_group_gtid_executed().assign(
+      reinterpret_cast<const char *>(buf), len);
+
+err:
+  my_free(buf);
+  my_free(uncompresssed_buffer);
+  mysql_mutex_unlock(&LOCK_certification_info);
+  return error;
 }
 
 Gtid Certifier::generate_view_change_group_gtid() {

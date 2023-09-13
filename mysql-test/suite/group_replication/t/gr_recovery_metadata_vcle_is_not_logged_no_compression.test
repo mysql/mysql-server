@@ -1,0 +1,118 @@
+################################################################################
+# This test verifies that for no VCLE and NO_COMPRESSION compression type used,
+# data length remains same after compression.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set Recovery Metadata compression type to NO_COMPRESSION
+#    on M1 and Bootstrap start a GROUP on M1.
+# 2. Start GR on M2.
+# 3. Assert GTID has not changed on M1
+#    after M2 is added to the group.
+#    This will also check VCLE is not getting logged
+#    on M1 for new member joining the group.
+# 4. Assert M2 has same GTID
+#    which M1 had before M2 joined the group.
+#    This will also check VCLE is not getting logged
+#    on M2 for new member joining the group.
+# 5. Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Set Recovery Metadata compression type to NO_COMPRESSION
+--echo #    on M1 and Bootstrap start a GROUP on M1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_no_vcle_no_compression';
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+--disable_query_log
+--let $test_count=100
+while ($test_count)
+{
+  INSERT INTO test.t1 values (NULL);
+  --dec $test_count
+}
+--enable_query_log
+
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_no_vcle_no_compression';
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Assert GTID has not changed on M1
+--echo #    after M2 is added to the group.
+--echo #    This will also check VCLE is not getting logged
+--echo #    on M1 for new member joining the group.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $assert_text= 'Assert GTID has not changed on M1'
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Assert M2 has same GTID
+--echo #    which M1 had before M2 joined the group.
+--echo #    This will also check VCLE is not getting logged
+--echo #    on M2 for new member joining the group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $assert_text= 'Assert GTID is same on M1 and M2'
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_no_vcle_no_compression';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_no_vcle_no_compression';
+
+--source include/group_replication_end.inc

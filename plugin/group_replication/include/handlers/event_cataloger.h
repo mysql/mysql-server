@@ -36,6 +36,31 @@ class Event_cataloger : public Event_handler {
   int terminate() override;
   bool is_unique() override;
   int get_role() override;
+  /**
+    This method handles binary log events by storing them so they can be used on
+    next handler.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_binary_log_event(Pipeline_event *pevent, Continuation *cont);
+
+  /**
+    This method handles applier context events by storing them so they can be
+    used on next handler.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_applier_event(Pipeline_event *pevent, Continuation *cont);
 };
 
 #endif /* EVENT_CATALOGER_INCLUDE */

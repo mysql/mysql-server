@@ -167,7 +167,7 @@ FLUSH LOGS;
 #
 --let $binlog_file = `SELECT @binlog_file`
 --let $binlog_position = `SELECT @binlog_position`
---let $event_sequence = $view_change # Gtid # $xa_start_end # XA_prepare/XA PREPARE $xid
+--let $event_sequence = Gtid # $xa_start_end # XA_prepare/XA PREPARE $xid
 --source include/assert_binlog_events.inc
 
 # 7.b. There is one pending XA transaction listed in the output of `XA
@@ -217,7 +217,7 @@ FLUSH LOGS;
 
 # 10.a. The `XA PREPARE` is not found in the binary log.
 #
---let $event_sequence = $view_change
+--let $event_sequence = ()
 --source include/assert_binlog_events.inc
 
 # 10.b. There is one pending XA transaction listed in the output of `XA

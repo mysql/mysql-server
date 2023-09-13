@@ -102,7 +102,7 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
---let $logical_timestamps= 0 0;0 0;0 0;0 0;4 5;5 6;5 7;6 8
+--let $logical_timestamps= 0 0;5 6;5 7;6 8
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc
@@ -172,7 +172,7 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
---let $logical_timestamps= 0 0;0 0;2 3;2 4;4 5
+--let $logical_timestamps= 0 0;2 4;4 5
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc
@@ -188,7 +188,7 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
---let $logical_timestamps= 0 0;1 2;2 3;1 4
+--let $logical_timestamps= 0 0;2 3;1 4
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc
@@ -241,7 +241,7 @@ INSERT INTO t1 VALUES (9);
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
---let $logical_timestamps= 0 0;0 0;2 3;2 4;4 5;6 7
+--let $logical_timestamps= 0 0;2 4;4 5;6 7
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc
@@ -257,7 +257,7 @@ INSERT INTO t1 VALUES (9);
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
---let $logical_timestamps= 0 0;1 2;2 3;1 4;5 6
+--let $logical_timestamps= 0 0;2 3;1 4;5 6
 --source include/assert_logical_timestamps.inc
 --let $is_relay_log= 1
 --source include/assert_transaction_length.inc

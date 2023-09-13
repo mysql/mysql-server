@@ -7,8 +7,10 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 # 1. Deploy a group in single-primary mode with 2 members.
 [connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 
 ############################################################
@@ -35,6 +37,7 @@ call mtr.add_suppression("Member was expelled from the group due to network fail
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET SESSION sql_log_bin = 1;
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 START GROUP_REPLICATION;
 
 ############################################################
@@ -69,4 +72,9 @@ include/assert_binlog_events.inc
 # 8. Clean up.
 [connection server1]
 DROP USER 'user';
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server3]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

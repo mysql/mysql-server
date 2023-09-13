@@ -147,13 +147,13 @@ SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test'
 SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
 
 --echo #
---echo # 4. Block applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+--echo # 4. Block dump thread on M1 and M2 so that M3 will stay in RECOVERING state.
 --echo #    And, we can fetch donor's server_uuid.
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo #
 --echo # 5. Start GR on M3 and check donor's server_uuid.
@@ -171,15 +171,13 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --echo # 6. Start applier thread on M1 and M2.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --echo #
 --echo # 7. Allow member M3 to come ONLINE, then verify data.

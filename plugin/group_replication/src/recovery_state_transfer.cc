@@ -28,11 +28,13 @@
 #include "my_systime.h"
 #include "mysql/components/services/log_builtins.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 #include "plugin/group_replication/include/recovery_state_transfer.h"
+#include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 #include "string_with_len.h"
 
 using std::string;
@@ -40,7 +42,9 @@ using std::string;
 Recovery_state_transfer::Recovery_state_transfer(
     char *recovery_channel_name, const string &member_uuid,
     Channel_observation_manager *channel_obsr_mngr)
-    : selected_donor(nullptr),
+    : m_recovery_channel_name(recovery_channel_name),
+      m_until_condition(CHANNEL_UNTIL_VIEW_ID),
+      selected_donor(nullptr),
       group_members(nullptr),
       suitable_donors(
           Malloc_allocator<Group_member_info *>(key_group_member_info)),
@@ -97,7 +101,8 @@ Recovery_state_transfer::~Recovery_state_transfer() {
   mysql_mutex_destroy(&donor_selection_lock);
 }
 
-void Recovery_state_transfer::initialize(const string &rec_view_id) {
+void Recovery_state_transfer::initialize(const string &view_id,
+                                         bool is_vcle_enabled) {
   DBUG_TRACE;
 
   // reset the recovery aborted flag
@@ -110,30 +115,69 @@ void Recovery_state_transfer::initialize(const string &rec_view_id) {
   donor_channel_thread_error = false;
   // reset the retry count
   donor_connection_retry_count = 0;
+  this->view_id.assign(view_id);
+  if (is_vcle_enabled) {
+    m_until_condition = CHANNEL_UNTIL_VIEW_ID;
+  } else {
+    m_until_condition = CHANNEL_UNTIL_APPLIER_AFTER_GTIDS;
+  }
+}
 
-  this->view_id.clear();
-  this->view_id.append(rec_view_id);
+void Recovery_state_transfer::set_until_condition_after_gtids(
+    const std::string &after_gtids) {
+  m_after_gtids.assign(after_gtids);
 }
 
 void Recovery_state_transfer::inform_of_applier_stop(my_thread_id thread_id,
-                                                     bool) {
+                                                     bool aborted) {
   DBUG_TRACE;
+  bool error{false};
 
   /*
     This method doesn't take any locks as it could lead to dead locks between
     the connection process and this method that can be invoked in that context.
-    Since this only affects the recovery loop and the flag is reset at each
     connection, no major concurrency issues should exist.
   */
 
   // Act if:
-  if (
-      // we don't have all the data yet
-      !donor_transfer_finished &&
-      // recovery was not aborted
-      !recovery_aborted &&
+  if (!donor_transfer_finished &&  // we don't have all the data yet
+      !recovery_aborted &&         // recovery was not aborted
       // the signal belongs to the recovery donor channel thread
       donor_connection_interface.is_own_event_applier(thread_id)) {
+    /*
+      if recovery is using CHANNEL_UNTIL_APPLIER_AFTER_GTIDS for start replica
+      until condition then,
+      - if aborted == true :
+        which could be due to some error or sql thread than we should not call
+        end_state_transfer() for successful completion, we should set error so
+        that recovery_thd can error out.
+      - else if aborted != true :
+        then we call end_state_transfer() for successful completion.
+    */
+    if (m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+      if (aborted) {
+        error = true;
+      } else {
+        DBUG_EXECUTE_IF(
+            "group_replication_recovery_after_gtids_applier_stop_error_out",
+            { error = true; });
+        std::string local_gtid_executed_string;
+        if (!error &&
+            verify_member_has_after_gtids_present(local_gtid_executed_string)) {
+          LogPluginErr(INFORMATION_LEVEL,
+                       ER_GROUP_REPLICATION_RECOVERY_STOPPED_GTID_PRESENT,
+                       m_after_gtids.c_str());
+          end_state_transfer();
+        } else {
+          error = true;
+        }
+      }
+    } else {
+      error = true;
+    }
+  }
+
+  if (error) {
     mysql_mutex_lock(&recovery_lock);
     donor_channel_thread_error = true;
     mysql_cond_broadcast(&recovery_condition);
@@ -527,11 +571,71 @@ int Recovery_state_transfer::initialize_donor_connection(std::string hostname,
   return error;
 }
 
+bool Recovery_state_transfer::verify_member_has_after_gtids_present(
+    std::string &local_gtid_executed_string) {
+  Get_system_variable get_system_variable;
+  if (get_system_variable.get_global_gtid_executed(
+          local_gtid_executed_string)) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GROUP_REPLICATION_RECOVERY_FETCHING_GTID_EXECUTED_SET);
+    return false;
+  }
+
+  Sid_map local_sid_map(nullptr);
+  Gtid_set local_gtid_executed(&local_sid_map, nullptr);
+  if (local_gtid_executed.add_gtid_text(local_gtid_executed_string.c_str()) !=
+      RETURN_STATUS_OK) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GROUP_REPLICATION_RECOVERY_ERROR_ADD_GTID_EXECUTED);
+    return false;
+  }
+
+  Sid_map donor_sid_map(nullptr);
+  Gtid_set donor_gtid_executed(&donor_sid_map, nullptr);
+  if (donor_gtid_executed.add_gtid_text(m_after_gtids.c_str()) !=
+      RETURN_STATUS_OK) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GROUP_REPLICATION_RECOVERY_ERROR_ADD_GTID_EXECUTED);
+    return false;
+  }
+
+  if (donor_gtid_executed.is_subset(&local_gtid_executed)) {
+    return true;
+  }
+
+  return false;
+}
+
 int Recovery_state_transfer::start_recovery_donor_threads() {
   DBUG_TRACE;
+  int error = 1;
+  std::string local_gtid_executed_string;
 
-  int error =
-      donor_connection_interface.start_threads(true, true, &view_id, true);
+  /*
+    If recovery is without VCLE which is START REPLICA SQL_AFTER_GTIDS UNTIL
+    clause, then joiner is recovered till Gtid_set sent in Recovery Metadata by
+    sender. But before starting recovery threads it's checked if local member
+    already has those gtid_set present. If present then recovery is skipped.
+  */
+  if (m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+    if (verify_member_has_after_gtids_present(local_gtid_executed_string)) {
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_GROUP_REPLICATION_RECOVERY_SKIPPED_GTID_PRESENT,
+                   local_gtid_executed_string.c_str(), m_after_gtids.c_str());
+      end_state_transfer();
+      return 0;
+    } else {
+      // recovery using START REPLICA SQL_AFTER_GTIDS UNTIL clause.
+      error = donor_connection_interface.start_threads(
+          true, true, &m_after_gtids, true, m_until_condition);
+    }
+    /*
+      If recovery is using VCLE which is START REPLICA SQL_VIEW_ID UNTIL clause.
+    */
+  } else if (m_until_condition == CHANNEL_UNTIL_VIEW_ID) {
+    error = donor_connection_interface.start_threads(true, true, &view_id, true,
+                                                     m_until_condition);
+  }
 
   if (!error) {
     DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
@@ -546,6 +650,9 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
           "WAIT_FOR reached_stopping_sql_thread";
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
+    DBUG_EXECUTE_IF(
+        "group_replication_recovery_sleep_before_wait_for_connection",
+        { my_sleep(1000000); });
 
     /*
       Register a channel observer to detect SQL/IO thread stops
@@ -570,9 +677,60 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
   bool is_applier_stopped =
       !donor_connection_interface.is_applier_thread_running();
 
-  if (!error && !donor_transfer_finished &&
-      (is_receiver_stopping || is_receiver_stopped || is_applier_stopping ||
-       is_applier_stopped)) {
+  if (m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+    /*
+      If applier is stopping we should give some time for it to
+      stop, so that we can compare the after gtids set.
+    */
+    const unsigned long sleep_time{100000UL};  // 100 milliseconds
+    constexpr const unsigned long max_channel_stopped_wait_timeout{30UL *
+                                                                   1000000UL};
+    unsigned long channel_stopped_wait_timeout{0};
+    while (!error && !recovery_aborted && !donor_channel_thread_error &&
+           !on_failover && !donor_transfer_finished &&
+           donor_connection_interface.is_applier_thread_stopping() &&
+           channel_stopped_wait_timeout < max_channel_stopped_wait_timeout) {
+      my_sleep(sleep_time);
+      channel_stopped_wait_timeout += sleep_time;
+    }
+
+    /*
+      Check if replication applier thread has stopped:
+      Verify after_gtids received from recovery metadata
+      donor is present on member.
+       - If present, recovery has completed.
+       - If not present, set error.
+    */
+    if (!donor_transfer_finished &&
+        !donor_connection_interface.is_applier_thread_running()) {
+      if (verify_member_has_after_gtids_present(local_gtid_executed_string)) {
+        LogPluginErr(INFORMATION_LEVEL,
+                     ER_GROUP_REPLICATION_RECOVERY_STOPPED_GTID_PRESENT,
+                     m_after_gtids.c_str());
+        end_state_transfer();
+        error = 0;
+      } else {
+        if (!error) {
+          error = 1;
+        }
+        channel_observation_manager->unregister_channel_observer(
+            recovery_channel_observer);
+      }
+    }
+
+    if (!error && !donor_transfer_finished &&
+        (donor_connection_interface.is_receiver_thread_stopping() ||
+         !donor_connection_interface.is_receiver_thread_running() ||
+         donor_connection_interface.is_applier_thread_stopping() ||
+         !donor_connection_interface.is_applier_thread_running())) {
+      error = 1;
+      channel_observation_manager->unregister_channel_observer(
+          recovery_channel_observer);
+    }
+
+  } else if (!error && !donor_transfer_finished &&
+             (is_receiver_stopping || is_receiver_stopped ||
+              is_applier_stopping || is_applier_stopped)) {
     error = 1;
     channel_observation_manager->unregister_channel_observer(
         recovery_channel_observer);
@@ -710,7 +868,12 @@ State_transfer_status Recovery_state_transfer::state_transfer(
                             __FILE__, __LINE__, 0, 0);
 
     /*
-      donor_transfer_finished    -> set by the set_retrieved_cert_info method.
+      donor_transfer_finished    -> When recovery is using CHANNEL_UNTIL_VIEW_ID
+                                 set by the set_retrieved_cert_info method.
+                                 When recovery is using
+                                 CHANNEL_UNTIL_APPLIER_AFTER_GTIDS for start
+                                 replica until condition set by
+                                 inform_of_applier_stop method.
                                  lock: recovery_lock
       recovery_aborted           -> set when stopping recovery
                                  lock: run_lock

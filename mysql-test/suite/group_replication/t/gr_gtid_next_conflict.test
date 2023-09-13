@@ -47,11 +47,11 @@ CREATE TABLE t1(a INT PRIMARY KEY);
 --echo # 2. Create a table and set a manual gtid_next equal to next
 --echo # automatic gtid. Start a transaction.
 
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c3b5927f-2a51-11e7-94b3-0010e0734796:1-3"
---let $assert_text= GTID_EXECUTED should contain three GTIDs.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c3b5927f-2a51-11e7-94b3-0010e0734796:1"
+--let $assert_text= GTID_EXECUTED should contain one GTIDs.
 --source include/assert.inc
 
-set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:4';
+set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:2';
 BEGIN;
 INSERT INTO t1 VALUES (1);
 
@@ -71,7 +71,7 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = 'c3b5927f-2a51-11e7-94b3-0010e0734796:1-4'
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = 'c3b5927f-2a51-11e7-94b3-0010e0734796:1-2'
 --source include/wait_condition.inc
 
 --error ER_TRANSACTION_ROLLBACK_DURING_COMMIT

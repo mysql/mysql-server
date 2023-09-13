@@ -109,8 +109,8 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --connection server2
 --let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
---let $assert_text= 'server2 GTID_EXECUTED must contain the 2 transactions plus 3 view changes'
---let $assert_cond= "$server2_gtid_executed" = "$group_replication_group_name:1-5"
+--let $assert_text= 'server2 GTID_EXECUTED must contain the 2 transactions'
+--let $assert_cond= "$server2_gtid_executed" = "$group_replication_group_name:1-2"
 --source include/assert.inc
 
 

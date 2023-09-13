@@ -1,0 +1,41 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a GROUP on M1 and
+#    add one row in table t1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+INSERT INTO test.t1 (b) VALUES (1);
+
+############################################################
+# 2. Start GR on M2 and
+#    reduce the recovery retry count to try only once.
+#    Set debug point which will delay check for recovery
+#    applier and receiver channel start.
+[connection server2]
+SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_retry_count= 1;
+SET @@GLOBAL.DEBUG='+d,group_replication_recovery_sleep_before_wait_for_connection';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_recovery_sleep_before_wait_for_connection';
+
+#######################################################################
+# 3. Assert that server1 and server2 have the same data and GTID_EXECUTED.
+server1
+include/assert.inc ['There is 1 value in table t1 on server1']
+server2
+include/assert.inc ['There is 1 value in table t1 on server2']
+server1
+server2
+include/assert.inc ['server1 and server2 GTID_EXECUTED must be equal']
+
+############
+# 4. Cleanup
+SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
+DROP TABLE test.t1;
+include/group_replication_end.inc

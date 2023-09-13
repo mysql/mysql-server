@@ -26,7 +26,7 @@ include/sync_slave_sql_with_master.inc
 # On the slave (server3), test that the data is properly replicated
 # after the start slave is complete.
 include/diff_tables.inc [server1:test.t1, server3:test.t1]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction]
+include/assert_binlog_events.inc [# !Gtid_transaction # !Gtid_transaction # !Gtid_transaction]
 [connection server1]
 DROP TABLE test.t1;
 include/sync_slave_sql_with_master.inc

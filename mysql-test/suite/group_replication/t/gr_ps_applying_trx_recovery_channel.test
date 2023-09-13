@@ -35,9 +35,9 @@ SET GLOBAL replica_preserve_commit_order= ON;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --source include/start_group_replication.inc
 
-# check that both view change transactions have been executed
---let $assert_text= GTID_EXECUTED must be UUID:1-2
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-2"
+# check that view change are not logged
+--let $assert_text= GTID_EXECUTED must be None
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
 --source include/assert.inc
 
 # check that no inactive worker has applying transactions

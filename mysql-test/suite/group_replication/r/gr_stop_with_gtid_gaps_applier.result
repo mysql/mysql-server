@@ -16,8 +16,10 @@ SET SESSION sql_log_bin= 1;
 # 1. Start a group with two members on which server 1 is the
 #    bootstrap member.
 [connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 
 ############################################################
@@ -72,6 +74,7 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 # 6. Cleanup.
 DROP TABLE t1;
 [connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': Relay log read failure: Could not parse relay log event entry.*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
@@ -81,6 +84,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 [connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;

@@ -74,7 +74,7 @@ COUNT(*)=1
 # 10. Validate SQL command SELECT that don't use tables will not block
 SELECT @@GLOBAL.GTID_EXECUTED;
 @@GLOBAL.GTID_EXECUTED
-GROUP_REPLICATION_GROUP_NAME:1
+
 
 # 11. Validate SQL command RESET PERSIST will not block
 RESET PERSIST;

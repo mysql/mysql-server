@@ -35,8 +35,8 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:1
 [connection server2]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 FROM performance_schema.replication_group_member_stats gms
@@ -44,8 +44,8 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:1
 
 #########################################################################
 # 4) Restart group replication on member 2
@@ -68,7 +68,7 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
 SERVER2	
 [connection server2]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
@@ -77,7 +77,7 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
 SERVER2	
 
 #########################################################################
@@ -100,7 +100,7 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
 SERVER2	
 SERVER3	
 [connection server2]
@@ -110,7 +110,7 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
 SERVER2	
 SERVER3	
 [connection server3]
@@ -120,7 +120,7 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:3
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:1
 SERVER2	
 SERVER3	
 
@@ -146,9 +146,9 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 [connection server2]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 FROM performance_schema.replication_group_member_stats gms
@@ -156,9 +156,9 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 [connection server3]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 FROM performance_schema.replication_group_member_stats gms
@@ -166,9 +166,9 @@ JOIN performance_schema.replication_group_members gm
 ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
-SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER1	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 
 #########################################################################
 # 10) Restart group replication on member 1
@@ -193,8 +193,8 @@ ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
 SERVER1	
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 [connection server2]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 FROM performance_schema.replication_group_member_stats gms
@@ -203,8 +203,8 @@ ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
 SERVER1	
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 [connection server3]
 SELECT gm.MEMBER_PORT, gms.LAST_CONFLICT_FREE_TRANSACTION
 FROM performance_schema.replication_group_member_stats gms
@@ -213,8 +213,8 @@ ON gms.MEMBER_ID=gm.MEMBER_ID
 ORDER BY gm.MEMBER_PORT ASC;
 MEMBER_PORT	LAST_CONFLICT_FREE_TRANSACTION
 SERVER1	
-SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:6
-SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:6
+SERVER2	c9f7fc80-034a-45c9-be2b-d738604be275:2
+SERVER3	c9f7fc80-034a-45c9-be2b-d738604be275:2
 
 #########################################################################
 # 12) Cleanup

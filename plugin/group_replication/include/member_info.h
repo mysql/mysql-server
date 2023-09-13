@@ -803,6 +803,16 @@ class Group_member_info_manager_interface {
       const Gcs_member_identifier &id) = 0;
 
   /**
+    Returns the member-uuid of the given GCS identifier.
+
+    @param[in] id the GCS identifier
+    @return false if success and the member-uuid
+            true if fails and the member-uuid is empty.
+   */
+  virtual std::pair<bool, std::string> get_group_member_uuid_from_member_id(
+      const Gcs_member_identifier &id) = 0;
+
+  /**
     Return the status of the member with the given GCS identifier.
 
     @param[in] id the GCS identifier
@@ -1113,6 +1123,9 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Member_version get_group_lowest_online_version() override;
 
   Group_member_info *get_group_member_info_by_member_id(
+      const Gcs_member_identifier &id) override;
+
+  std::pair<bool, std::string> get_group_member_uuid_from_member_id(
       const Gcs_member_identifier &id) override;
 
   Group_member_info::Group_member_status get_group_member_status_by_member_id(

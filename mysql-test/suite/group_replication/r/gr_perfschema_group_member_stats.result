@@ -22,6 +22,7 @@ include/assert.inc [The value of Last_conflict_free_transaction should be 0 befo
 ########################################################
 Values being updated after executing some transactions
 ########################################################
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The value of view_id should be a number followed by ONE at group replication start]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -33,6 +34,7 @@ server2
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1' was already used, the transaction will rollback");
 SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 # Apply some transactions on the first member so that the queue of the second member is not empty.
 server1
@@ -40,7 +42,7 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO t1 VALUES (5);
 # Check for the transaction in the applier queue and then unblock the recovery.
 server2
-[ The value of Count_Transactions_in_queue must be 2 when the applier has not processed the transaction queue ]
+[ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
 server1
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
@@ -70,4 +72,6 @@ SET DEBUG_SYNC= 'RESET';
 The values being checked after stop
 ####################################
 include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';

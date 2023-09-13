@@ -36,6 +36,7 @@
 --source include/rpl_connection.inc
 SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 SET @debug_save_replica_max_allowed_packet= @@GLOBAL.replica_max_allowed_packet;
@@ -73,6 +74,7 @@ WHILE($rows)
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --let $wait_timeout= 600
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
@@ -121,9 +123,11 @@ DROP TABLE t1;
 --source include/rpl_connection.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_do_not_clear_certification_database';
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 SET session sql_log_bin=0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");

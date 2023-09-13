@@ -1,0 +1,53 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap start a GROUP on M1
+#    with gr_wait_before_sending_metadata debug point set
+#    to block send recovery metadata.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG='+d,gr_wait_before_sending_metadata';
+
+############################################################
+# 2. Start GR on M2,
+#    with decreased recovery metadata wait timeout = 10
+#    using gr_set_metadata_wait_time_10 debug point.
+#    The member 2 will get into ERROR state after waiting
+#    for recovery metadata for 10 seconds.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error fetching AFTER_GTIDS from Recovery Metadata by Recovery thread. The Recovery thread timeout after waiting for 10 seconds. The Recovery will be terminated.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAL.DEBUG='+d,gr_set_metadata_wait_time_10';
+include/start_group_replication.inc
+
+############################################################
+# 3. Block send recovery metadata.
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_recovery_metadata_send";
+
+############################################################
+# 4. Wait for joiner to enter ERROR state.
+#    Check error log for
+#    ER_GROUP_REPLICATION_TIMEOUT_ERROR_FETCHING_METADATA error.
+[connection server2]
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,gr_set_metadata_wait_time_10';
+
+############################################################
+# 5. Unblock send recovery metadata.
+[connection server1]
+SET @@GLOBAL.DEBUG='-d,gr_wait_before_sending_metadata';
+SET DEBUG_SYNC= "now SIGNAL signal.send_the_recovery_metadata";
+include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
+
+############################################################
+# 6. Cleanup.
+include/group_replication_end.inc

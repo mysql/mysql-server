@@ -999,6 +999,22 @@ Group_member_info_manager::get_group_member_info_by_member_id(
   return member_copy;
 }
 
+std::pair<bool, std::string>
+Group_member_info_manager::get_group_member_uuid_from_member_id(
+    const Gcs_member_identifier &id) {
+  std::pair<bool, std::string> result{true, ""};
+  mysql_mutex_lock(&update_lock);
+
+  Group_member_info *member = get_group_member_info_by_member_id_internal(id);
+  if (member != nullptr) {
+    result.first = false;
+    result.second = member->get_uuid();
+  }
+
+  mysql_mutex_unlock(&update_lock);
+  return result;
+}
+
 Group_member_info::Group_member_status
 Group_member_info_manager::get_group_member_status_by_member_id(
     const Gcs_member_identifier &id) {

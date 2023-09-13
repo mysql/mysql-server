@@ -18,6 +18,7 @@
 # 7) Clean up.
 ################################################################################
 
+--source include/have_debug.inc
 --let $group_replication_group_name= 32e13b0c-01d2-11e6-a992-02420ef39c5b
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -40,6 +41,7 @@ SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 --eval SET GTID_NEXT= "$group_replication_group_name:2"
 CREATE TABLE t1 (i INT PRIMARY KEY);
@@ -53,6 +55,7 @@ SET GTID_NEXT='AUTOMATIC';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 # Here start will trigger the new view change event to be generated with the
 # next sequence number of the server1. This should also skip the already
 # executed gtid.
@@ -87,11 +90,13 @@ DROP TABLE t1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
 --source include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin= 0;
 --source include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;

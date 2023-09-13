@@ -40,6 +40,7 @@
 #include "plugin/group_replication/include/plugin_handlers/group_partition_handling.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
@@ -119,6 +120,7 @@ struct gr_modules {
     BINLOG_DUMP_THREAD_KILL,
     MEMBER_ACTIONS_HANDLER,
     METRICS_HANDLER,
+    RECOVERY_METADATA_MODULE,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -178,6 +180,7 @@ extern Metrics_handler *metrics_handler;
 extern Mysql_thread *mysql_thread_handler;
 extern Mysql_thread *mysql_thread_handler_read_only_mode;
 extern Server_services_references *server_services_references_module;
+extern Recovery_metadata_module *recovery_metadata_module;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
@@ -215,6 +218,7 @@ void reset_auto_increment_handler_values(bool force_reset = false);
 SERVICE_TYPE(registry) * get_plugin_registry();
 rpl_sidno get_group_sidno();
 rpl_sidno get_view_change_sidno();
+bool is_view_change_log_event_required();
 bool is_autorejoin_enabled();
 uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();

@@ -44,9 +44,9 @@ SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 1;
 
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -59,6 +59,7 @@ SET SESSION sql_log_bin= 0;
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 --eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 1;
 
 --source include/start_group_replication.inc
@@ -70,7 +71,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo
 --echo # 3. Start Group Replication on server3.
@@ -84,6 +85,7 @@ SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 1;
 
 SET SESSION sql_log_bin= 0;
@@ -119,9 +121,6 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE TABLE_SCHEMA="test" AND TABLE_NAME="t1"
---source include/wait_condition.inc
-
 --let $assert_text= value of 1 is not received.
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1 = 1, count, 1] = 0
 --source include/assert.inc
@@ -137,9 +136,10 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc

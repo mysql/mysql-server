@@ -31,7 +31,8 @@ int Recovery_channel_state_observer::thread_start(Binlog_relay_IO_param *) {
 }
 
 int Recovery_channel_state_observer::thread_stop(Binlog_relay_IO_param *param) {
-  recovery_state_transfer->inform_of_receiver_stop(param->thread_id);
+  if (!strcmp(param->channel_name, "group_replication_recovery"))
+    recovery_state_transfer->inform_of_receiver_stop(param->thread_id);
   return 0;
 }
 
@@ -41,7 +42,8 @@ int Recovery_channel_state_observer::applier_start(Binlog_relay_IO_param *) {
 
 int Recovery_channel_state_observer::applier_stop(Binlog_relay_IO_param *param,
                                                   bool aborted) {
-  recovery_state_transfer->inform_of_applier_stop(param->thread_id, aborted);
+  if (!strcmp(param->channel_name, "group_replication_recovery"))
+    recovery_state_transfer->inform_of_applier_stop(param->thread_id, aborted);
   return 0;
 }
 

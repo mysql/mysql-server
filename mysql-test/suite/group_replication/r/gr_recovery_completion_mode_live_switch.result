@@ -34,9 +34,6 @@ include/start_group_replication.inc
 # On server 2, the queue contains a VCLevent and this transaction
 #
 [connection server1]
-SELECT WAIT_FOR_EXECUTED_GTID_SET('93150a70-b30b-11e5-a837-0800200c9a66:4');
-WAIT_FOR_EXECUTED_GTID_SET('93150a70-b30b-11e5-a837-0800200c9a66:4')
-0
 INSERT INTO t2 VALUES (1);
 [connection server2]
 #

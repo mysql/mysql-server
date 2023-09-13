@@ -106,12 +106,27 @@ int Applier_handler::stop_applier_thread() {
   return error;
 }
 
-int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
+int Applier_handler::handle_event(Pipeline_event *pevent, Continuation *cont) {
   DBUG_TRACE;
-  int error = 0;
+  Pipeline_event::Pipeline_event_type event_type =
+      pevent->get_pipeline_event_type();
+  switch (event_type) {
+    case Pipeline_event::Pipeline_event_type::PEVENT_DATA_PACKET_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_BINARY_LOG_EVENT_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_APPLIER_ONLY_EVENT_E:
+      return handle_applier_event(pevent, cont);
+    default:
+      next(pevent, cont);
+      return 0;
+  }
+}
 
+int Applier_handler::handle_binary_log_event(Pipeline_event *event,
+                                             Continuation *cont) {
   Data_packet *p = nullptr;
-  error = event->get_Packet(&p);
+  int error = event->get_Packet(&p);
   DBUG_EXECUTE_IF("applier_handler_force_error_on_pipeline", error = 1;);
   if (error || (p == nullptr)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_DATA_FAILED);
@@ -135,12 +150,17 @@ int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
   }
 
 end:
+
   if (error)
     cont->signal(error);
   else
     next(event, cont);
-
   return error;
+}
+
+int Applier_handler::handle_applier_event(Pipeline_event *event,
+                                          Continuation *cont) {
+  return next(event, cont);
 }
 
 int Applier_handler::handle_action(Pipeline_action *action) {

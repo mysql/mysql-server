@@ -15,10 +15,9 @@ include/rpl_sync.inc
 # Start the first round of garbage collection here. Since we have set the DBUG
 # flag on the second server we expect a message to be logged in the error log
 # as the same member sent the message.
-# Transactions_committed_all_members has 1 transaction from when server 2 joined
+# Transactions_committed_all_members has no transactions
 # No more info should have been received.
-include/assert.inc [Transactions committed on all members should only contain 1 transaction]
-INSERT INTO t1 VALUES(1);
+include/assert.inc [Transactions committed on all members should contain no transactions]
 # Checking that the garbage collection is working fine.
 SET @@GLOBAL.DEBUG= @debug_save;
 DROP TABLE t1;

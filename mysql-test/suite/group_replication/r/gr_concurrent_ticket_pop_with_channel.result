@@ -9,7 +9,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection server1]
 include/save_sysvars.inc [ "GLOBAL.group_replication_view_change_uuid" ]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_3_PORT FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -37,8 +42,13 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.ordered_commit_waiting";
 [connection server2]
 include/save_sysvars.inc [ "GLOBAL.group_replication_view_change_uuid" ]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 START GROUP_REPLICATION;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server1]
 include/assert.inc ['There is a worker whose stage reports it is waiting on a ticket']
 #
@@ -53,8 +63,13 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.end_of_ticket_waiting";
 [connection server4]
 include/save_sysvars.inc [ "GLOBAL.group_replication_view_change_uuid" ]
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 START GROUP_REPLICATION;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server1]
 #
 # 6. Unblock the stuck ticket
@@ -69,12 +84,21 @@ include/sync_slave_sql_with_master.inc
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "ch1";
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/stop_group_replication.inc
 include/restore_sysvars.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/stop_group_replication.inc
 include/restore_sysvars.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 [connection server4]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/stop_group_replication.inc
 include/restore_sysvars.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

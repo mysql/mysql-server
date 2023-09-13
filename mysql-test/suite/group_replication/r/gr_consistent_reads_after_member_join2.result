@@ -48,9 +48,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
@@ -59,15 +56,9 @@ server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
 [connection server2]
 include/assert.inc ['There is a 1 value in table t1']
 include/assert.inc ['There is a 2 value in table t1']
@@ -75,9 +66,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
@@ -86,15 +74,9 @@ server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
 [connection server3]
 include/assert.inc ['There is a 1 value in table t1']
 include/assert.inc ['There is a 2 value in table t1']
@@ -102,9 +84,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 server-binary-log.000001	#	Previous_gtids	#	#	
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
@@ -113,15 +92,9 @@ server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
 server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
 server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
-server-binary-log.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
-server-binary-log.000001	#	Query	#	#	BEGIN
-server-binary-log.000001	#	Query	#	#	COMMIT
 include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
 
 ############################################################

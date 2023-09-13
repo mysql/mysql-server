@@ -1,0 +1,91 @@
+################################################################################
+# In the group replication recovery channels start is verified immediately after
+# start of recovery channel.
+# In this test we verify that if recovery channel are already stopped/stopping
+# when verified after group replication recovery channels start, it doesn't
+# set error if the data is already transferred.
+#
+# Test:
+# 1. Bootstrap a GROUP on M1 and
+#    add one row in table t1.
+# 2. Start GR on M2 and
+#    reduce the recovery retry count to try only once.
+#    Set debug point which will delay check for recovery
+#    applier and receiver channel start.
+# 3. Assert that server1 and server2 have the same data and GTID_EXECUTED.
+# 4. Cleanup
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a GROUP on M1 and
+--echo #    add one row in table t1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+INSERT INTO test.t1 (b) VALUES (1);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2 and
+--echo #    reduce the recovery retry count to try only once.
+--echo #    Set debug point which will delay check for recovery
+--echo #    applier and receiver channel start.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
+--eval SET GLOBAL group_replication_recovery_retry_count= 1
+
+SET @@GLOBAL.DEBUG='+d,group_replication_recovery_sleep_before_wait_for_connection';
+--source include/start_group_replication.inc
+SET @@GLOBAL.DEBUG='-d,group_replication_recovery_sleep_before_wait_for_connection';
+
+
+--echo
+--echo #######################################################################
+--echo # 3. Assert that server1 and server2 have the same data and GTID_EXECUTED.
+
+--connection server1
+--echo server1
+--let $assert_text= 'There is 1 value in table t1 on server1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--connection server2
+--echo server2
+--let $assert_text= 'There is 1 value in table t1 on server2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--connection server1
+--echo server1
+--let $server1_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--connection server2
+--echo server2
+--let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $assert_text= 'server1 and server2 GTID_EXECUTED must be equal'
+--let $assert_cond= "$server1_gtid_executed" = "$server2_gtid_executed"
+--source include/assert.inc
+
+
+--echo
+--echo ############
+--echo # 4. Cleanup
+
+SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
+
+DROP TABLE test.t1;
+
+--source include/group_replication_end.inc

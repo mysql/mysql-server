@@ -1180,6 +1180,44 @@
 }
 
 {
+   Mysqlx::Notice::GroupReplicationStateChanged
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZN6google8protobuf8internal13OnShutdownRunEPFvPKvES3_
+   fun:_ZN6google8protobuf8internal20InitProtobufDefaultsEv
+   fun:_ZN6google8protobuf8internal11InitSCCImplEPNS1_11SCCInfoBaseE
+   fun:_ZN6google8protobuf8internal7InitSCCEPNS1_11SCCInfoBaseE
+   fun:_ZN6Mysqlx6Notice28GroupReplicationStateChanged10SharedCtorEv
+   fun:_ZN6Mysqlx6Notice28GroupReplicationStateChangedC1EPN6google8protobuf5ArenaE
+   fun:_ZN6Mysqlx6Notice28GroupReplicationStateChangedC1Ev
+   ...
+}
+
+{
+   protobuf_replication_group_member_actions default instance
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZN6google8protobuf8internal13OnShutdownRunEPFvPKvES3_
+   fun:_ZN6google8protobuf8internal24OnShutdownDestroyMessageEPKv
+   fun:_ZL74InitDefaultsscc_info_Action_replication_5fgroup_5fmember_5factions_2eprotov
+   ...
+}
+
+{
+   protobuf_replication_group_recovery_metadata default instance
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_ZN44protobuf_replication_group_recovery_metadata27CertificationInformationMapC1EPN6google8protobuf5ArenaE
+   fun:_ZN44protobuf_replication_group_recovery_metadata27CertificationInformationMapC1Ev
+   fun:_ZL98InitDefaultsscc_info_CertificationInformationMap_replication_5fgroup_5frecovery_5fmetadata_2eprotov
+   ...
+}
+
+{
    mysqlx plugin install
    Memcheck:Leak
    fun:*alloc

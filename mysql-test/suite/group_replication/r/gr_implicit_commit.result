@@ -22,23 +22,23 @@ CREATE TABLE t2 LIKE t1;
 include/rpl_sync.inc
 
 ############################################################
-# 4. Wait for GTID_EXECUTED has 6 gtids
+# 4. Wait for GTID_EXECUTED has 3 gtids
 
 ############################################################
 # 5. On binary log from first start we shall have: two
 #    views and a create table.
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*)]
+include/assert_binlog_events.inc [Gtid # !Q(CREATE.*)]
 
 ############################################################
 # 6. On binary log from second start we shall have: a view,
 #    a truncate table and a create table
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)]
+include/assert_binlog_events.inc [Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)]
 
 ############################################################
 # 7. On server 2 binary log we shall have: two views, a
 #    create table, a view, a truncate table and a create table
 [connection server2]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*) # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)]
+include/assert_binlog_events.inc [Gtid # !Q(CREATE.*) # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)]
 
 ############################################################
 # 8. Cleanup

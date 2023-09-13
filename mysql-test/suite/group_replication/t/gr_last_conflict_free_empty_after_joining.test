@@ -202,17 +202,17 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 ## Wait for every member to report a conflict free transaction
---let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 ## Wait for every member to report a conflict free transaction
---let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 ## Wait for every member to report a conflict free transaction
---let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:6'
+--let $wait_condition= SELECT COUNT(*) = 3 FROM performance_schema.replication_group_member_stats WHERE LAST_CONFLICT_FREE_TRANSACTION = '$group_replication_group_name:2'
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1

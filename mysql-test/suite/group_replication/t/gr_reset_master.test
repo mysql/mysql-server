@@ -58,7 +58,7 @@ while ($server_count)
 {
   --connection server$server_count
   --let $assert_text= On member $server_count, all executed GTID should belong to the group
-  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c90c3c80-fde4-11e3-a3ac-0800200c9a66:1-6";
+  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c90c3c80-fde4-11e3-a3ac-0800200c9a66:1-4";
   --source include/assert.inc
   --dec $server_count
 }
@@ -86,8 +86,8 @@ RESET BINARY LOGS AND GTIDS;
 while ($server_count)
 {
   --connection server$server_count
-  --let $assert_text= On member $server_count, there should only 2 transactions from view changes
-  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c90c3c80-fde4-11e3-a3ac-0800200c9a66:1-2";
+  --let $assert_text= On member $server_count, there should be no transactions
+  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "";
   --source include/assert.inc
   --dec $server_count
 }

@@ -50,7 +50,7 @@ include/assert.inc [GTID_EXECUTED has not been updated]
 include/assert.inc [No XA transactions in PREPARED state]
 include/assert.inc [Table 'test.t1' record count must be 1]
 [connection server2]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert_binlog_events.inc [()]
 include/assert.inc [No XA transactions in PREPARED state]
 include/assert.inc [Table 'test.t1' record count must be 1]
 [connection server1]
@@ -59,7 +59,7 @@ include/start_group_replication.inc
 [connection server2]
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server1]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert_binlog_events.inc [()]
 include/assert.inc [No XA transactions in PREPARED state]
 include/gr_find_a_primary.inc
 DROP TABLE t1;

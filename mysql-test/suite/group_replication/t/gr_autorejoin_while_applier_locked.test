@@ -83,6 +83,7 @@ SET SESSION sql_log_bin= 0;
 
 call mtr.add_suppression('On shutdown there was a timeout on the Group Replication applier termination.');
 call mtr.add_suppression('Failed to stop the group replication applier thread.');
+call mtr.add_suppression("Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped*");
 call mtr.add_suppression('Member was expelled from the group due to network failures, changing member status to ERROR.');
 call mtr.add_suppression('The server was automatically set into read only mode after an error was detected.');
 call mtr.add_suppression('The group_replication_applier channel is still running, most likely it is waiting for a database/table lock*');

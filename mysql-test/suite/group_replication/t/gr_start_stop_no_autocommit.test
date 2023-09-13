@@ -9,7 +9,7 @@
 #      avoid confusion on the test asserts.
 #   2. Deploy a group on server1 with autocommit disabled and
 #      super_read_only is enabled.
-#   3. Assert that a View_change_log_event was logged.
+#   3. Assert that a View_change_log_event was not logged.
 #   4. Stop Group Replication on server1 with autocommit disabled
 #      and super_read_only is enabled.
 #   5. Assert that no transaction was logged due to
@@ -53,10 +53,9 @@ SET @@SESSION.autocommit = 0;
 START GROUP_REPLICATION;
 COMMIT;
 
-
 --echo
 --echo ############################################################
---echo # 3. Assert that a View_change_log_event was logged.
+--echo # 3. Assert that a View_change_log_event was not logged.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $group_replication_member_state = ONLINE
@@ -64,16 +63,10 @@ COMMIT;
 
 --source include/gr_clear_bootstrap_group.inc
 
---let $expected_gtid_set= "$group_replication_group_name:1"
---let $assert_text= START GROUP_REPLICATION did generate a GTID
+--let $expected_gtid_set= ""
+--let $assert_text= START GROUP_REPLICATION did not generate a GTID
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = $expected_gtid_set
 --source include/assert.inc
-
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-# View change (s1 bootstrap)
---let $event_sequence= $vcle_seq
---source include/assert_binlog_events.inc
-
 
 --echo
 --echo ############################################################
@@ -87,7 +80,6 @@ SET @@SESSION.autocommit = 0;
 STOP GROUP_REPLICATION;
 COMMIT;
 
-
 --echo
 --echo ############################################################
 --echo # 5. Assert that no transaction was logged due to
@@ -97,15 +89,10 @@ COMMIT;
 --let $group_replication_member_state = OFFLINE
 --source include/gr_wait_for_member_state.inc
 
---let $expected_gtid_set= "$group_replication_group_name:1"
+--let $expected_gtid_set= ""
 --let $assert_text= STOP GROUP_REPLICATION did not generate a GTID
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = $expected_gtid_set
 --source include/assert.inc
-
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-# View change (s1 bootstrap)
---let $event_sequence= $vcle_seq
---source include/assert_binlog_events.inc
 
 
 --echo
@@ -118,15 +105,10 @@ COMMIT;
 --source include/rpl_connection.inc
 --source include/start_and_bootstrap_group_replication.inc
 
---let $expected_gtid_set= "$group_replication_group_name:1-2"
+--let $expected_gtid_set= ""
 --let $assert_text= START GROUP_REPLICATION did generate a GTID
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = $expected_gtid_set
 --source include/assert.inc
-
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-# View change (s1 bootstrap), View change (s1 bootstrap)
---let $event_sequence= $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
 
 SET @@GLOBAL.read_only= 0;
 SET @@SESSION.autocommit = 0;
@@ -136,15 +118,10 @@ STOP GROUP_REPLICATION;
 INSERT INTO t1 VALUES (1);
 COMMIT;
 
---let $expected_gtid_set= "$group_replication_group_name:1-2"
+--let $expected_gtid_set= ""
 --let $assert_text= STOP GROUP_REPLICATION did not generate a GTID
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = $expected_gtid_set
 --source include/assert.inc
-
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-# View change (s1 bootstrap), View change (s1 bootstrap)
---let $event_sequence= $vcle_seq # $vcle_seq
---source include/assert_binlog_events.inc
 
 --let $assert_text= 'Table t1 must be empty'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0

@@ -93,8 +93,8 @@ INSERT INTO t1 VALUES (4);
 --let $assert_cond= $negatively_certified = 0
 --source include/assert.inc
 --let $last_certified_transaction= query_get_value(SELECT Last_Conflict_Free_Transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_Free_Transaction, 1)
---let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 1'
---let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:3 on server 1'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:3"
 --source include/assert.inc
 
 --echo
@@ -127,8 +127,8 @@ INSERT INTO t1 VALUES (4);
 --let $assert_cond= $negatively_certified = 0
 --source include/assert.inc
 --let $last_certified_transaction= query_get_value(SELECT Last_Conflict_Free_Transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_Free_Transaction, 1)
---let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 2'
---let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--let $assert_text= 'The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:3 on server 2'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:3"
 --source include/assert.inc
 
 --echo

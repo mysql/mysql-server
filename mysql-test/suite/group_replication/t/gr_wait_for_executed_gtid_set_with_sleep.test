@@ -34,8 +34,8 @@
 --source include/group_replication.inc
 
 # Define waiting conditions variables
---let $gtid_not_committed_wait_set= 5-6
---let $gtid_committed_and_not_committed_set= 1-8
+--let $gtid_not_committed_wait_set= 3-4
+--let $gtid_committed_and_not_committed_set= 1-6
 
 
 --connection slave

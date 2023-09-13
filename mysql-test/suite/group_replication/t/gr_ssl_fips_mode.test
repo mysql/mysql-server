@@ -114,6 +114,14 @@ SET GLOBAL group_replication_recovery_use_ssl= 1;
 --echo #
 --source include/stop_group_replication.inc
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (3, 'three');
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable.");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");

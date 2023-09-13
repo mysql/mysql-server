@@ -18,6 +18,7 @@
 #   7. Cleanup
 #
 ################################################################################
+--source include/have_debug.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -38,6 +39,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 
 --eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -57,6 +59,7 @@ SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_ch
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression(".*The member is configured with a group_replication_view_change_uuid option value .* different from the group .*. The member will now exit the group.");
 SET SESSION sql_log_bin=1;
@@ -108,12 +111,14 @@ START GROUP_REPLICATION;
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc
 

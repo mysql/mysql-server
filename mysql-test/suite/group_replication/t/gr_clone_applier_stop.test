@@ -203,7 +203,8 @@ INSERT INTO t1 values (6);
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
+
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -237,9 +238,10 @@ SET DEBUG_SYNC = 'now SIGNAL signal.run_clone_query_continue';
 # Allow the recovery to continue
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

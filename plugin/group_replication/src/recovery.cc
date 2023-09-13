@@ -31,6 +31,7 @@
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
@@ -40,6 +41,12 @@
 using std::list;
 using std::string;
 using std::vector;
+
+/*
+  The maximum time in seconds till which recovery thread will wait for recovery
+  metadata from sender.
+*/
+#define MAX_RECOVERY_METADATA_WAIT_TIME 300
 
 /** The relay log name*/
 static char recovery_channel_name[] = "group_replication_recovery";
@@ -56,26 +63,41 @@ Recovery_module::Recovery_module(Applier_module_interface *applier,
       recovery_state_transfer(recovery_channel_name,
                               local_member_info->get_uuid(), channel_obsr_mngr),
       recovery_thd_state(),
+      m_until_condition(CHANNEL_UNTIL_VIEW_ID),
+      m_max_metadata_wait_time(MAX_RECOVERY_METADATA_WAIT_TIME),
       recovery_completion_policy(RECOVERY_POLICY_WAIT_CERTIFIED),
       m_state_transfer_return(STATE_TRANSFER_OK) {
   mysql_mutex_init(key_GR_LOCK_recovery_module_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_recovery_module_run, &run_cond);
+  mysql_mutex_init(key_GR_LOCK_recovery_metadata_receive,
+                   &m_recovery_metadata_receive_lock, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_GR_COND_recovery_metadata_receive,
+                  &m_recovery_metadata_receive_waiting_condition);
 }
 
 Recovery_module::~Recovery_module() {
+  delete_recovery_metadata_message();
   mysql_mutex_destroy(&run_lock);
   mysql_cond_destroy(&run_cond);
+  mysql_mutex_destroy(&m_recovery_metadata_receive_lock);
+  mysql_cond_destroy(&m_recovery_metadata_receive_waiting_condition);
 }
 
 int Recovery_module::start_recovery(const string &group_name,
-                                    const string &rec_view_id) {
+                                    const string &view_id) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   this->group_name = group_name;
-  recovery_state_transfer.initialize(rec_view_id);
+  if (is_vcle_enable()) {
+    m_until_condition = CHANNEL_UNTIL_VIEW_ID;
+  } else {
+    m_until_condition = CHANNEL_UNTIL_APPLIER_AFTER_GTIDS;
+  }
+
+  recovery_state_transfer.initialize(view_id, is_vcle_enable());
 
   // reset the recovery aborted status here to avoid concurrency
   recovery_aborted = false;
@@ -122,6 +144,9 @@ int Recovery_module::stop_recovery(bool wait_for_termination) {
 
       recovery_thd->awake(THD::NOT_KILLED);
       mysql_mutex_unlock(&recovery_thd->LOCK_thd_data);
+
+      // Break the wait for recovery metadata.
+      awake_recovery_metadata_suspension(false);
 
       // Break the wait for the applier suspension
       applier_module->interrupt_applier_suspension_wait();
@@ -180,7 +205,22 @@ void Recovery_module::leave_group_on_recovery_failure() {
     This is done solely based on the number of member the group had when
     recovery started. No further group changes affect this decision.
 
-  * Step 3:  State transfer.
+  * Step 3: Wait for the recovery metadata and process it after receiving.
+    Wait for the recovery metadata and after it is received decompress
+    unserialize after_gtids and Certification info from received Recovery
+    Metadata Message from the sender. The after_gtids received is used for
+    asynchronous replication's Until Condition. The Certification info received
+    is added to member's Certification info for detecting conflicts. This is
+    only used when VCLE is not enabled and start recovery until condition is
+    using after_gtids option instead of view_id.
+
+    Step 3.1: Wait for the recovery metadata from the sender.
+    Step 3.2: Set replication's Until Condition after_gtids from received
+              Recovery Metadata.
+
+    Step 3.3: Set Certification info from received Recovery Metadata Message.
+
+  * Step 4:  State transfer.
     This can be summarized as:
       1) Connect to a donor
       2) Wait until the data comes.
@@ -198,15 +238,20 @@ void Recovery_module::leave_group_on_recovery_failure() {
       > donor_transfer_finished. This means we received all the data.
         The loop exits
 
-  * Step 4: Awake the applier and wait for the execution of cached transactions.
+  * Step 5: Set certifier gtid_executed after recovery has applied
+    transactions.
+    This is only used when VCLE is not enabled and start recovery until
+    condition is using after_gtids option instead of view_id.
 
-  * Step 5: Notify the group that we are now online if no error occurred.
+  * Step 6: Awake the applier and wait for the execution of cached transactions.
+
+  * Step 7: Notify the group that we are now online if no error occurred.
     This is done even if the member is alone in the group.
 
-  * Step 6: If an error occurred and recovery is impossible leave the group.
+  * Step 8: If an error occurred and recovery is impossible leave the group.
     We leave the group but the plugin is left running.
 
-  * Step 7: Terminate the recovery thread.
+  * Step 9: Terminate the recovery thread.
 */
 int Recovery_module::recovery_thread_handle() {
   DBUG_TRACE;
@@ -215,6 +260,7 @@ int Recovery_module::recovery_thread_handle() {
 
   int error = 0;
   Plugin_stage_monitor_handler stage_handler;
+
   if (stage_handler.initialize_stage_monitor())
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NO_STAGE_SERVICE);
 
@@ -280,6 +326,113 @@ int Recovery_module::recovery_thread_handle() {
 
   /* Step 3 */
 
+  // Wait for the recovery metadata and process it after receiving.
+  if (m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+    // Step 3.1: Wait for the recovery metadata from sender.
+    enum_recovery_metadata_error recovery_metadata_error_status =
+        wait_for_recovery_metadata_gtid_executed();
+
+    // If sender is unable to send the recovery metadata then set error.
+    if (recovery_metadata_error_status ==
+        enum_recovery_metadata_error::RECOVERY_METADATA_RECEIVED_ERROR) {
+      error = 1;
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_ERROR_RECEIVED_WAITING_METADATA);
+      goto cleanup;
+    } else if (recovery_metadata_error_status ==
+               enum_recovery_metadata_error::
+                   RECOVERY_METADATA_RECOVERY_ABORTED_ERROR) {
+      goto cleanup;
+    } else if (recovery_metadata_error_status ==
+               enum_recovery_metadata_error::
+                   RECOVERY_METADATA_RECEIVED_TIMEOUT_ERROR) {
+      error = 1;
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_TIMEOUT_ERROR_FETCHING_METADATA,
+                   m_max_metadata_wait_time);
+      goto cleanup;
+    } else if (m_recovery_metadata_message != nullptr) {
+      /*
+        Step 3.2: Set replication's Until Condition after_gtids from received
+                 Recovery Metadata.
+      */
+      std::pair<Recovery_metadata_message::enum_recovery_metadata_message_error,
+                std::reference_wrapper<std::string>>
+          payload_after_gtids_error =
+              m_recovery_metadata_message->get_decoded_group_gtid_executed();
+
+      /*
+        3.2.1: Check for error.
+               PIT_UNTIL_CONDITION_AFTER_GTIDS can be empty when starting a
+               new group.
+      */
+      if (payload_after_gtids_error.first !=
+              Recovery_metadata_message::enum_recovery_metadata_message_error::
+                  RECOVERY_METADATA_MESSAGE_OK &&
+          payload_after_gtids_error.first !=
+              Recovery_metadata_message::enum_recovery_metadata_message_error::
+                  ERR_CERT_INFO_EMPTY) {
+        error = 1;
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GROUP_REPLICATION_METADATA_PAYLOAD_DECODING);
+        goto cleanup;
+      }
+
+      // 3.2.2: Save after_gtids if not error.
+      if (payload_after_gtids_error.first ==
+          Recovery_metadata_message::enum_recovery_metadata_message_error::
+              RECOVERY_METADATA_MESSAGE_OK) {
+        recovery_state_transfer.set_until_condition_after_gtids(
+            payload_after_gtids_error.second.get());
+      }
+
+      /*
+        Step 3.3: Set Certification info from received Recovery Metadata
+                  Message.
+      */
+      Certifier_interface *certifier_module =
+          (applier_module && applier_module->get_certification_handler())
+              ? applier_module->get_certification_handler()->get_certifier()
+              : nullptr;
+      if (certifier_module != nullptr) {
+        bool status = false;
+        try {
+          /*
+            3.2.1: Decode recovery metadata message and get Certification info.
+          */
+          status = certifier_module->set_certification_info_recovery_metadata(
+              m_recovery_metadata_message);
+        } catch (const std::bad_alloc &) {
+          LogPluginErr(ERROR_LEVEL, ER_GROUP_REPLICATION_METADATA_MEMORY_ALLOC,
+                       "decoding and saving certification information");
+          error = 1;
+          goto cleanup;
+        }
+
+        // 3.2.2: Check for error.
+        if (status) {
+          LogPluginErr(
+              ERROR_LEVEL,
+              ER_GROUP_REPLICATION_METADATA_CERT_INFO_ERROR_PROCESSING);
+          error = 1;
+          goto cleanup;
+        }
+      } else {
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GROUP_REPLICATION_CERTIFICATION_MODULE_FAILURE);
+        error = 1;
+        goto cleanup;
+      }
+    } else {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_METADATA_INITIALIZATION_FAILURE);
+      error = 1;
+      goto cleanup;
+    }
+  }
+
+  /* Step 4 */
+
   m_state_transfer_return =
       recovery_state_transfer.state_transfer(stage_handler);
   error = m_state_transfer_return;
@@ -300,9 +453,32 @@ int Recovery_module::recovery_thread_handle() {
     goto cleanup;
   }
 
+  /* Step 5 */
+
+  /*
+    Recovery metadata message is set only on joiner,
+    after data is received by joining member.
+  */
+  if (!recovery_aborted && !error &&
+      m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS) {
+    Certifier_interface *certifier_module =
+        (applier_module && applier_module->get_certification_handler())
+            ? applier_module->get_certification_handler()->get_certifier()
+            : nullptr;
+    if (certifier_module != nullptr) {
+      // update gtid_set after recovery
+      certifier_module->initialize_server_gtid_set_after_distributed_recovery();
+    } else {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GROUP_REPLICATION_CERTIFICATION_MODULE_FAILURE);
+      error = 1;
+      goto cleanup;
+    }
+  }
+
 single_member_online:
 
-  /* Step 4 */
+  /* Step 6 */
   if (!recovery_aborted && !error) {
     /*
       Recovery through `group_replication_recovery` is complete,
@@ -351,14 +527,14 @@ single_member_online:
 
 cleanup:
 
-  /* Step 5 */
+  /* Step 7 */
 
   // if finished, declare the member online
   if (!recovery_aborted && !error) {
     notify_group_recovery_end();
   }
 
-  /* Step 6 */
+  /* Step 8 */
 
   /*
    If recovery failed, it's no use to continue in the group as the member cannot
@@ -377,8 +553,9 @@ cleanup:
   });
 #endif  // NDEBUG
 
-  /* Step 7 */
+  /* Step 9 */
 
+  delete_recovery_metadata_message();
   clean_recovery_thread_context();
 
   mysql_mutex_lock(&run_lock);
@@ -532,8 +709,13 @@ int Recovery_module::wait_for_applier_module_recovery() {
         Wait for the View_change_log_event to be queued, otherwise the
         member can be declared ONLINE before the view is applied when
         there are no transactions to apply.
+        If vcle is not getting logged
+        i.e. m_until_condition == CHANNEL_UNTIL_APPLIER_AFTER_GTIDS, then
+        applier retrieved gtid will always be empty, so this check should be
+        skipped.
       */
-      if (applier_retrieved_gtids.empty()) {
+      if (m_until_condition == CHANNEL_UNTIL_VIEW_ID &&
+          applier_retrieved_gtids.empty()) {
         continue;
       }
 
@@ -592,4 +774,82 @@ int Recovery_module::check_recovery_thread_status() {
   }
 
   return 0;
+}
+
+Recovery_module::enum_recovery_metadata_error
+Recovery_module::wait_for_recovery_metadata_gtid_executed() {
+  enum_recovery_metadata_error recovery_metadata_error_status{
+      enum_recovery_metadata_error::RECOVERY_METADATA_RECEIVED_NO_ERROR};
+
+  mysql_mutex_lock(&m_recovery_metadata_receive_lock);
+  DBUG_EXECUTE_IF("gr_set_metadata_wait_time_10",
+                  { m_max_metadata_wait_time = 10; });
+
+  unsigned int wait_counter{0};
+  while (!m_recovery_metadata_received && !recovery_aborted &&
+         wait_counter <= m_max_metadata_wait_time) {
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&m_recovery_metadata_receive_waiting_condition,
+                         &m_recovery_metadata_receive_lock, &abstime);
+    wait_counter++;
+  }
+
+  if (!m_recovery_metadata_received &&
+      wait_counter > m_max_metadata_wait_time) {
+    recovery_metadata_error_status =
+        enum_recovery_metadata_error::RECOVERY_METADATA_RECEIVED_TIMEOUT_ERROR;
+  }
+
+  if (m_recovery_metadata_received_error || recovery_aborted) {
+    recovery_metadata_error_status =
+        enum_recovery_metadata_error::RECOVERY_METADATA_RECEIVED_ERROR;
+  }
+
+  if (recovery_aborted) {
+    recovery_metadata_error_status =
+        enum_recovery_metadata_error::RECOVERY_METADATA_RECOVERY_ABORTED_ERROR;
+  }
+
+  mysql_mutex_unlock(&m_recovery_metadata_receive_lock);
+  return recovery_metadata_error_status;
+}
+
+void Recovery_module::awake_recovery_metadata_suspension(bool error) {
+  mysql_mutex_lock(&m_recovery_metadata_receive_lock);
+  m_recovery_metadata_received_error = error;
+  m_recovery_metadata_received = true;
+  mysql_cond_broadcast(&m_recovery_metadata_receive_waiting_condition);
+  mysql_mutex_unlock(&m_recovery_metadata_receive_lock);
+}
+
+void Recovery_module::suspend_recovery_metadata() {
+  mysql_mutex_lock(&m_recovery_metadata_receive_lock);
+  m_recovery_metadata_received = false;
+  m_recovery_metadata_received_error = false;
+  mysql_mutex_unlock(&m_recovery_metadata_receive_lock);
+}
+
+bool Recovery_module::set_recovery_metadata_message(
+    Recovery_metadata_message *recovery_metadata_message) {
+  if (m_recovery_metadata_message != nullptr) {
+    return true;
+  }
+
+  // m_recovery_metadata_message is set only on joiner
+  m_recovery_metadata_message = recovery_metadata_message;
+  return false;
+}
+
+void Recovery_module::delete_recovery_metadata_message() {
+  if (m_recovery_metadata_message != nullptr) {
+    delete m_recovery_metadata_message;
+    m_recovery_metadata_message = nullptr;
+  }
+}
+
+bool Recovery_module::is_vcle_enable() { return m_is_vcle_enable; }
+
+void Recovery_module::set_vcle_enabled(bool is_vcle_enable) {
+  m_is_vcle_enable = is_vcle_enable;
 }

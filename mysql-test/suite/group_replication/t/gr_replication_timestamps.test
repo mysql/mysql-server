@@ -77,8 +77,8 @@
 --let $last_applied_trx_applier= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_applier", LAST_APPLIED_TRANSACTION,1)
 --let $last_applied_trx_recovery= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_recovery", LAST_APPLIED_TRANSACTION,1)
 
---let $assert_text= LAST_APPLIED_TRANSACTION is not cleared because channel group_replication_recovery applied view change log events for joining the group
---let $assert_cond= "$last_applied_trx_recovery" != ""
+--let $assert_text= LAST_APPLIED_TRANSACTION is cleared because channel group_replication_recovery does not have view change log events for joining the group
+--let $assert_cond= "$last_applied_trx_recovery" = ""
 --source include/assert.inc
 
 # start server4 as slave of server2

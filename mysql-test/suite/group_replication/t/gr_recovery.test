@@ -117,7 +117,7 @@ while ($server_count)
 {
   --connection server$server_count
   --let $assert_text= On member $server_count, all executed GTID should belong to the group
-  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "36236980-4307-11e4-916c-0800200c9a66:1-8";
+  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "36236980-4307-11e4-916c-0800200c9a66:1-5";
   --source include/assert.inc
   --dec $server_count
 }

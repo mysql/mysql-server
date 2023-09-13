@@ -44,11 +44,11 @@
 
 // Define the applier packet types
 #define ACTION_PACKET_TYPE 2
-#define VIEW_CHANGE_PACKET_TYPE 3
 #define SINGLE_PRIMARY_PACKET_TYPE 4
 #define SYNC_BEFORE_EXECUTION_PACKET_TYPE 5
 #define TRANSACTION_PREPARED_PACKET_TYPE 6
 #define LEAVING_MEMBERS_PACKET_TYPE 7
+#define RECOVERY_METADATA_PROCESSING_PACKET_TYPE 8
 
 // Define the applier return error codes
 #define APPLIER_GTID_CHECK_TIMEOUT_ERROR -1
@@ -84,23 +84,31 @@ class Action_packet : public Packet {
 };
 
 /**
-  @class View_change_packet
-  A packet to send view change related info to the applier
+  @class Recovery_metadata_processing_packets
+  A packet to send Metadata related processing.
 */
-class View_change_packet : public Packet {
+class Recovery_metadata_processing_packets : public Packet {
  public:
   /**
     Create a new data packet with associated data.
 
     @param  view_id_arg    The view id associated to this view
   */
-  View_change_packet(std::string &view_id_arg)
-      : Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg) {}
+  Recovery_metadata_processing_packets()
+      : Packet(RECOVERY_METADATA_PROCESSING_PACKET_TYPE) {}
 
-  ~View_change_packet() override = default;
+  virtual ~Recovery_metadata_processing_packets() override = default;
 
-  std::string view_id;
-  std::vector<std::string> group_executed_set;
+  /*
+    List of view-id of which metadata is received.
+  */
+  std::vector<std::string> m_view_id_to_be_deleted;
+
+  /* List of member that left the group. */
+  std::vector<Gcs_member_identifier> m_member_left_the_group;
+
+  /* A flag that indicates all the recovery metadata should be cleared. */
+  bool m_current_member_leaving_the_group{false};
 };
 
 /**
@@ -257,6 +265,8 @@ class Applier_module_interface {
   virtual Member_applier_state get_applier_status() = 0;
   virtual void add_suspension_packet() = 0;
   virtual void add_view_change_packet(View_change_packet *packet) = 0;
+  virtual void add_metadata_processing_packet(
+      Recovery_metadata_processing_packets *packet) = 0;
   virtual void add_single_primary_action_packet(
       Single_primary_action_packet *packet) = 0;
   virtual void add_transaction_prepared_action_packet(
@@ -499,6 +509,11 @@ class Applier_module : public Applier_module_interface {
     @param[in]  packet              The view change packet to be queued
   */
   void add_view_change_packet(View_change_packet *packet) override {
+    incoming->push(packet);
+  }
+
+  void add_metadata_processing_packet(
+      Recovery_metadata_processing_packets *packet) override {
     incoming->push(packet);
   }
 
@@ -747,6 +762,18 @@ class Applier_module : public Applier_module_interface {
   int apply_view_change_packet(View_change_packet *view_change_packet,
                                Format_description_log_event *fde_evt,
                                Continuation *cont);
+
+  /**
+    Apply a Recovery metadata processing information received from the GCS.
+
+    @param metadata_processing_packet Information of member left the group
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error when injecting event
+  */
+  int apply_metadata_processing_packet(
+      Recovery_metadata_processing_packets *metadata_processing_packet);
 
   /**
     Apply a Data packet received by the applier.

@@ -53,7 +53,7 @@ SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
 --source include/mysqlbinlog.inc
 
 --let $assert_file= $output_file
---let $assert_count = 15
+--let $assert_count = 7
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = recovery channel relay logs have checksums
 --source include/assert_grep.inc
@@ -93,9 +93,9 @@ INSERT INTO t1 VALUES (1);
 --source include/mysqlbinlog.inc
 
 --let $assert_file= $output_file
---let $assert_count = 17
+--let $assert_count = 9
 if ($_binlog_compression_enable == 1) {
-  --let $assert_count = 18
+  --let $assert_count = 10
 }
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums
@@ -113,9 +113,9 @@ if ($_binlog_compression_enable == 1) {
 --source include/mysqlbinlog.inc
 
 --let $assert_file= $output_file
---let $assert_count = 17
+--let $assert_count = 9
 if ($_binlog_compression_enable == 1) {
-  --let $assert_count = 18
+  --let $assert_count = 10
 }
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums

@@ -10,7 +10,7 @@
 #   2. Restart server1 and start group replication
 #   3. Create a new table based on t1. This will create an
 #      implicit commit due previous restart
-#   4. Wait for GTID_EXECUTED has 6 gtids
+#   4. Wait for GTID_EXECUTED has 3 gtids
 #   5. On binary log from first start we shall have: two
 #      views and a create table.
 #   6. On binary log from second start we shall have: a view,
@@ -61,9 +61,9 @@ CREATE TABLE t2 LIKE t1;
 
 --echo
 --echo ############################################################
---echo # 4. Wait for GTID_EXECUTED has 6 gtids
+--echo # 4. Wait for GTID_EXECUTED has 3 gtids
 
---let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-6"
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-3"
 --source include/wait_condition.inc
 
 
@@ -72,13 +72,10 @@ CREATE TABLE t2 LIKE t1;
 --echo # 5. On binary log from first start we shall have: two
 --echo #    views and a create table.
 
-# The sequence of events that make up a View Change
---let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
-
 # limit to remove match with stop on last line
---let $limit= 0, 12
+--let $limit= 0, 4
 --let $binlog_file= server-binary-log.000001
---let $event_sequence= $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*)
+--let $event_sequence= Gtid # !Q(CREATE.*)
 --source include/assert_binlog_events.inc
 
 
@@ -87,8 +84,9 @@ CREATE TABLE t2 LIKE t1;
 --echo # 6. On binary log from second start we shall have: a view,
 --echo #    a truncate table and a create table
 
+--let $limit= 0, 6
 --let $binlog_file= server-binary-log.000002
---let $event_sequence= $vcle_seq # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
+--let $event_sequence= Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
 --source include/assert_binlog_events.inc
 
 
@@ -102,7 +100,7 @@ CREATE TABLE t2 LIKE t1;
 
 --let $limit=
 --let $binlog_file= server-binary-log.000001
---let $event_sequence= $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*) # $vcle_seq # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
+--let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Q(TRUNCATE.*) # Gtid # !Q(CREATE.*)
 --source include/assert_binlog_events.inc
 
 

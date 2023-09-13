@@ -7,15 +7,15 @@
 # 0) The test requires two servers: M1 and M2.
 # 1) Bootstrap start a group on M1. First view change is UUID_GROUP:1.
 # 2) On M1, executes a transaction with GTID_NEXT=UUID_GROUP:3.
-#    Check gtid_executed=UUID_GROUP:1:3.
-# 3) Start GR on M2. Check gtid_executed=UUID_GROUP:1-3.
-# 4) Check gtid_executed=UUID_GROUP:1-3 on M1 too.
+#    Check gtid_executed=UUID_GROUP:3.
+# 3) Start GR on M2. Check gtid_executed=UUID_GROUP:3.
+# 4) Check gtid_executed=UUID_GROUP:3 on M1 too.
 # 5) On M1 execute a transaction, it will have:
-#    M1: UUID_GROUP:4
-#    M2: UUID_GROUP:4 should be generated.
-# 6) Check gtid_executed on M1. It must be UUID_GROUP:1-4.
+#    M1: UUID_GROUP:1
+#    M2: UUID_GROUP:1 should be generated.
+# 6) Check gtid_executed on M1. It must be UUID_GROUP:1:3.
 # 7) Verify sequence of events in binlog of both M1 and M2.
-# 8) Check gtid_executed on M2. It must be UUID_GROUP:1-4.
+# 8) Check gtid_executed on M2. It must be UUID_GROUP:1:3.
 # 9) Cleanup.
 ################################################################################
 
@@ -50,8 +50,8 @@ CREATE TABLE t1 (i INT PRIMARY KEY);
 --source include/rpl_sync.inc
 SET GTID_NEXT='AUTOMATIC';
 
---let $assert_text= GTID_EXECUTED must contain two transactions, one from view change and other being the create table.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1:3")
+--let $assert_text= GTID_EXECUTED must contain 1 transactions, 0 from view change and other being the create table.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:3")
 --source include/assert.inc
 
 # Starting group_replication on server2. This will trigger the next sequence
@@ -61,23 +61,23 @@ SET GTID_NEXT='AUTOMATIC';
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 
-# Checking the GTID_EXECUTED on the server2. This should be UUID_GROUP:1-3
+# Checking the GTID_EXECUTED on the server2. This should be UUID_GROUP:3
 # here as well.
 --let $assert_text= GTID_EXECUTED must contain three transactions, two from view change and other being the create.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:3")
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-# Checking the GTID_EXECUTED on the server1. This should be UUID_GROUP:1-3
+# Checking the GTID_EXECUTED on the server1. This should be UUID_GROUP:3
 # here as well.
 --let $assert_text= GTID_EXECUTED must contain three transactions, two from view change and other being the create.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-3")
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:3")
 --source include/assert.inc
 
 # Insert a row in the table t1. This will create a new GTID which will skip as
-# the next seqno is conflicting with the one already logged. So UUID_GROUP:4
+# the next seqno is conflicting with the one already logged. So UUID_GROUP:1
 # will be generated.
 
 --let $rpl_connection_name= server1
@@ -85,22 +85,22 @@ SET GTID_NEXT='AUTOMATIC';
 INSERT INTO t1 VALUES(1);
 --source include/rpl_sync.inc
 
---let $assert_text= GTID_EXECUTED must contain four transactions, the new one from the insert.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--let $assert_text= GTID_EXECUTED must contain 2 transactions, the new one from the insert.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1:3")
 --source include/assert.inc
 
 # View change (s1) # Create table # View change (s2) # Insert table
---let $event_sequence= $vcle_seq # Gtid # !Q(CREATE.*) # $vcle_seq # Gtid # !Begin # Table_map # Write_rows # !Commit
+--let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit
 --source include/assert_binlog_events.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 # View change (s1) # Create table # View change (s2) # Insert table
---let $event_sequence= $vcle_seq # Gtid # !Q(CREATE.*) # $vcle_seq # Gtid # !Begin # Table_map # Write_rows # !Commit
+--let $event_sequence= Gtid # !Q(CREATE.*) # Gtid # !Begin # Table_map # Write_rows # !Commit
 --source include/assert_binlog_events.inc
 
---let $assert_text= GTID_EXECUTED must contain four transactions, the new one from the insert.
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
+--let $assert_text= GTID_EXECUTED must contain 2 transactions, the new one from the insert.
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1:3")
 --source include/assert.inc
 
 # Cleanup

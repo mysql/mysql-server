@@ -101,6 +101,8 @@ SET @@SESSION.group_replication_paxos_single_leader= 1;
 ERROR HY000: Variable 'group_replication_paxos_single_leader' is a GLOBAL variable and should be set with SET GLOBAL
 Warnings:
 Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 # Test#3: Verify group replication related variables at SESSION scope.
 SET @@SESSION.group_replication_consistency= "EVENTUAL";
@@ -110,6 +112,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 include/start_group_replication.inc
 Warnings:
 Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 include/assert.inc [Verify GLOBAL value of group_replication_allow_local_lower_version_join]
@@ -294,4 +297,6 @@ include/assert.inc [Verify SESSION value of group_replication_paxos_single_leade
 include/stop_group_replication.inc
 Warnings:
 Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

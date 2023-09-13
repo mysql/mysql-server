@@ -78,6 +78,14 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO test.t1 (b) VALUES (0);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='dummy_user' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
@@ -108,6 +116,14 @@ INSERT INTO test.t1 (b) VALUES (1);
 
 --source include/stop_group_replication.inc
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO test.t1 (b) VALUES (0);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --disable_warnings
 SET sql_log_bin=0;
 DROP USER 'dummy_user'@'%';
@@ -133,14 +149,14 @@ SET sql_log_bin=1;
 
 --connection server1
 --echo server1
---let $assert_text= 'There is a value 1 in table t1 on server1'
---let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--let $assert_text= 'There are 3 values in table t1 on server1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 
 --connection server2
 --echo server2
---let $assert_text= 'There is a value 1 in table t1 on server2'
---let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--let $assert_text= 'There are 3 values in table t1 on server2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 3
 --source include/assert.inc
 
 --connection server1

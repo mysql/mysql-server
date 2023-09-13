@@ -1,0 +1,110 @@
+################################################################################
+#
+# Test validates that View log event configured on
+# group_replication_view_change_uuid is not logged.
+#
+# Test:
+#   0. This test requires 2 servers to create a Group Replication setup
+#   1. Define two uuid for use on view_change_uuid
+#   2. Bootstrap group with VIEW_CHANGE_UUID
+#   3. To change view_change_uuid group replication shall be
+#      stopped
+#   4. A member can join even if it has different view_change_uuid
+#      that is defined on group
+#   5. Server 2 configured with view_change_uuid of group
+#      can join
+#   6. Confirm both server have same GTID.EXECUTED the views
+#      are not logged
+#   7. Cleanup
+#
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Define two uuid for use on view_change_uuid
+
+--let $view_change_uuid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--let $view_change_uuid_different = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab
+
+--echo
+--echo ############################################################
+--echo # 2. Bootstrap group with VIEW_CHANGE_UUID
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. To change view_change_uuid group replication shall be
+--echo #    stopped
+
+--error ER_GROUP_REPLICATION_RUNNING
+--eval SET GLOBAL group_replication_view_change_uuid =  "$view_change_uuid_different"
+
+
+--echo
+--echo ############################################################
+--echo # 4. A member can join even if it has different view_change_uuid
+--echo #    that is defined on group
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+
+--eval SET GLOBAL group_replication_view_change_uuid =  "$view_change_uuid_different"
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name = "$group_replication_group_name"
+
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Server 2 configured with view_change_uuid of group
+--echo #    can join
+
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Confirm both server have same GTID.EXECUTED the views
+--echo #    are not logged
+
+
+--let $assert_text= GTID_EXECUTED must only contain view changes
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= GTID_EXECUTED must only contain view changes
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 7. Cleanup
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--source include/group_replication_end.inc
+

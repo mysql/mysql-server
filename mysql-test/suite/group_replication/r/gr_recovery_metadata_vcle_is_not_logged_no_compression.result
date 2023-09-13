@@ -1,0 +1,47 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Set Recovery Metadata compression type to NO_COMPRESSION
+#    on M1 and Bootstrap start a GROUP on M1.
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_no_vcle_no_compression';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_no_vcle_no_compression';
+include/start_group_replication.inc
+
+############################################################
+# 3. Assert GTID has not changed on M1
+#    after M2 is added to the group.
+#    This will also check VCLE is not getting logged
+#    on M1 for new member joining the group.
+[connection server1]
+include/assert.inc ['Assert GTID has not changed on M1']
+
+############################################################
+# 4. Assert M2 has same GTID
+#    which M1 had before M2 joined the group.
+#    This will also check VCLE is not getting logged
+#    on M2 for new member joining the group.
+[connection server2]
+include/assert.inc ['Assert GTID is same on M1 and M2']
+
+############################################################
+# 6. Cleanup.
+[connection server1]
+DROP TABLE t1;
+[connection server1]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_no_vcle_no_compression';
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_no_vcle_no_compression';
+include/group_replication_end.inc

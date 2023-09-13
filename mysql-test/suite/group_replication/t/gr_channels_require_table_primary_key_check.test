@@ -42,6 +42,7 @@
 --eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier"
 
 --source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE require_table_primary_key_check = 'OFF' AND channel_name = "group_replication_applier"`
 --let $assert_text = require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF for "group_replication_applier"
@@ -51,11 +52,17 @@
 --echo
 --echo # 3. Block the applier to block server 2 recovery
 
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo
 --echo # 4. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
 --echo #    Start the member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
+
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -79,9 +86,10 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -92,5 +100,6 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
 
 --source include/group_replication_end.inc

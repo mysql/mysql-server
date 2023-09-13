@@ -1,6 +1,6 @@
 
 ############################################################
-# 1. Create a group with 1 member and schedule a periodic
+# 1. Create a group with 3 members and schedule a periodic
 #    event to create some load in the group.
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
@@ -8,6 +8,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+include/start_and_bootstrap_group_replication.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
@@ -47,6 +49,12 @@ INSERT INTO test.t1 values (NULL);
 SET v = v+1;
 END WHILE;
 END//
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+include/start_group_replication.inc
+[connection server3]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+include/start_group_replication.inc
 
 ############################################################
 # 2. Add error suppressions.
@@ -135,14 +143,17 @@ include/gr_wait_for_member_state.inc
 # 6. Clean up.
 [connection server1]
 include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 [connection server2]
 include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;
 [connection server3]
 include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 DROP EVENT IF EXISTS e1;
 DROP TABLE IF EXISTS t1;
 include/group_replication_end.inc

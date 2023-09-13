@@ -143,7 +143,6 @@ SELECT COUNT(*)=1 FROM sys.version;
 --echo
 --echo # 10. Validate SQL command SELECT that don't use tables will not block
 
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 SELECT @@GLOBAL.GTID_EXECUTED;
 
 --echo

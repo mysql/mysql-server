@@ -33,9 +33,9 @@ CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t1;
 ############################################################
 include/rpl_sync.inc
 [connection server2]
-include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
+include/include/assert_logical_timestamps.inc [0 0;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
 Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
-Inspected 9 transactions, all with correct transaction length.
+Inspected 7 transactions, all with correct transaction length.
 
 ############################################################
 # 5. Check data consistency.

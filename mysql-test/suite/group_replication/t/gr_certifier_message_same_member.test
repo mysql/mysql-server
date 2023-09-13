@@ -53,17 +53,16 @@ CREATE TABLE t1(i INT PRIMARY KEY);
 --let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
---echo # Transactions_committed_all_members has 1 transaction from when server 2 joined
+--echo # Transactions_committed_all_members has no transactions
 --echo # No more info should have been received.
 --connection server1
---let $expected_gtid="$group_replication_group_name:1"
 --let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
---let $assert_text= Transactions committed on all members should only contain 1 transaction
---let $assert_cond= "$transactions_committed_all_members"= $expected_gtid
+--let $assert_text= Transactions committed on all members should contain no transactions
+--let $assert_cond= "$transactions_committed_all_members"= ""
 --source include/assert.inc
 
-INSERT INTO t1 VALUES(1);
 --echo # Checking that the garbage collection is working fine.
+--let $expected_gtid="$group_replication_group_name:1"
 --let $wait_timeout= 65
 --let $wait_condition= SELECT Transactions_committed_all_members<>$expected_gtid FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc

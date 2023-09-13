@@ -1,0 +1,107 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap start a GROUP on M1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Assert GTID has not changed on M1
+#    after M2 is added to the group.
+#    This will also check VCLE is not getting logged
+#    on M1 for new member joining the group.
+[connection server1]
+include/assert.inc ['Assert GTID has not changed on M1']
+
+############################################################
+# 4. Assert M2 has same GTID
+#    which M1 had before M2 joined the group.
+#    This will also check VCLE is not getting logged
+#    on M2 for new member joining the group.
+[connection server2]
+include/assert.inc ['Assert GTID is same on M1 and M2']
+
+############################################################
+# 5. Add gr_recovery_metadata_verify_metadata_exist debug
+#    point which verifies VIEW ID, GTID_SET of Certified
+#    Transactions, and Certification Information are stored
+#    on sender M1 and M2 is this test.
+SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
+[connection server1]
+SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
+
+############################################################
+# 6. The below steps will be checked three times:
+# i.   Start GR on M3.
+# ii.  Check group has 3 members.
+# iii. Assert GTID has not changed on M1
+# iv.  Assert M3 has same GTID
+#      which M1 had before M2 joined the group.
+# v.   Assert expected gtid_executed on M3 is
+#      GROUP_REPLICATION_GROUP_NAME:1-101.
+# vi.  Stop GR on M3.
+
+# Test run number: 1
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+include/assert.inc ['Assert GTID has not changed on M1']
+[connection server3]
+include/assert.inc ['Assert GTID is same on M1 and M3']
+include/assert.inc ['Assert expected gtid_executed on M3 is GROUP_REPLICATION_GROUP_NAME:1-101']
+include/stop_group_replication.inc
+
+# Test run number: 2
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+include/assert.inc ['Assert GTID has not changed on M1']
+[connection server3]
+include/assert.inc ['Assert GTID is same on M1 and M3']
+include/assert.inc ['Assert expected gtid_executed on M3 is GROUP_REPLICATION_GROUP_NAME:1-101']
+include/stop_group_replication.inc
+
+# Test run number: 3
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+include/assert.inc ['Assert GTID has not changed on M1']
+[connection server3]
+include/assert.inc ['Assert GTID is same on M1 and M3']
+include/assert.inc ['Assert expected gtid_executed on M3 is GROUP_REPLICATION_GROUP_NAME:1-101']
+include/stop_group_replication.inc
+
+############################################################
+# 7. Verify on server1 and server2 that recovery metadata
+#    payload items: VIEW ID, GTID_SET of Certified
+#    Transactions, and Certification Information are stored.
+[connection server1]
+[connection server2]
+
+############################################################
+# 8. Verify that server3 recovers untill given transactions
+#    i.e. executed gtid set UUID:1-101 once and skip
+#    recovery next two times as gtids are already present on
+#    server.
+[connection server3]
+
+############################################################
+# 9. Cleanup.
+[connection server3]
+include/start_group_replication.inc
+[connection server2]
+SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
+[connection server1]
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
+include/group_replication_end.inc

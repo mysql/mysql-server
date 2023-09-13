@@ -25,6 +25,7 @@
 --source include/group_replication.inc
 
 --source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -70,6 +71,14 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = 1;
 --echo # See when SSL is required that Recovery cannot advance when not properly configured
 --echo #
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
@@ -97,6 +106,14 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = default; # Defaul
 --echo # Verify that group replication member state is online.
 --echo #
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --let $group_replication_start_member_state= ONLINE
 --source include/start_group_replication.inc
 
@@ -115,8 +132,13 @@ SET GLOBAL group_replication_recovery_ssl_verify_server_cert = default; # Defaul
 --echo # Clean up
 --echo #
 
-# No need to print this to the result file
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
 
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# No need to print this to the result file
 --disable_result_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
 --eval SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= $conf_rec_ssl_verify

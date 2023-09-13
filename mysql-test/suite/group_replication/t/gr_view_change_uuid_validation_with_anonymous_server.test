@@ -34,7 +34,7 @@
 #  5. Execute some transactions on server 3 and sync with server 1
 #  6. Execute a transaction on the group and sync
 #  7. GTID_EXECUTED on server 1 must contain transactions
-#     from server 3, from group and view changes
+#     from server 3, from group and no view changes
 #  8. GTID_EXECUTED on server 2 must contain the transactions
 #     from server 3.
 #     Validate data on server 2.
@@ -208,7 +208,7 @@ INSERT INTO t1 VALUES (6);
 --echo
 --echo ############################################################
 --echo #  7. GTID_EXECUTED on server 1 must contain transactions
---echo #     from server 3, from group and view changes
+--echo #     from server 3, from group and no view changes
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
@@ -217,7 +217,7 @@ INSERT INTO t1 VALUES (6);
 --source include/assert.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED group view changes
---let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 0
 --source include/assert.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED from group replication transaction
@@ -239,7 +239,7 @@ INSERT INTO t1 VALUES (6);
 --source include/assert.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED group view changes
---let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_cond= [SELECT GTID_SUBSET("$view_change_uuid:1-3", @@GLOBAL.GTID_EXECUTED)] = 0
 --source include/assert.inc
 
 --let $assert_text= GTID_EXECUTED must contain GTID_EXECUTED from group replication transaction

@@ -43,14 +43,14 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 [connection server3]
 SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 [connection server1]
-include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server1']
-include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server1']
+include/assert.inc ['Count_transactions_rows_validating must be equal to 11 on server1']
+include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2 on server1']
 [connection server2]
 include/assert.inc ['Count_transactions_rows_validating must be equal to 0 on server2']
 include/assert.inc ['Transactions_committed_all_members must be equal to "" on server2']
 [connection server3]
-include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server3']
-include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server3']
+include/assert.inc ['Count_transactions_rows_validating must be equal to 11 on server3']
+include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2 on server3']
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';
 SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
@@ -61,13 +61,13 @@ SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 #    after a garbage collection round.
 [connection server1]
 'Count_transactions_rows_validating must be equal to 1 on server1'
-'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15 on server1'
+'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12 on server1'
 [connection server2]
 include/assert.inc ['Count_transactions_rows_validating must be equal to 0 on server2']
 include/assert.inc ['Transactions_committed_all_members must be equal to "" on server2']
 [connection server3]
 'Count_transactions_rows_validating must be equal to 1 on server3'
-'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-15 on server3'
+'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-12 on server3'
 
 ############################################################
 # 8. Resume clone.
@@ -78,20 +78,22 @@ SET @@GLOBAL.DEBUG = '-d,gr_clone_wait';
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 include/assert.inc [Clone must be completed]
+[connection server1]
+INSERT INTO t1 VALUES (100);
 
 ############################################################
 # 9. Assert COUNT_TRANSACTIONS_ROWS_VALIDATING and
 #    TRANSACTIONS_COMMITTED_ALL_MEMBERS values on all servers
 #    once all members are ONLNE.
 [connection server1]
-'Count_transactions_rows_validating must be equal to 0 on server1'
-'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server1'
+'Count_transactions_rows_validating must be equal to 1 on server1'
+'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server1'
 [connection server2]
-'Count_transactions_rows_validating must be equal to 0 on server2'
-'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server2'
+'Count_transactions_rows_validating must be equal to 1 on server2'
+'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server2'
 [connection server3]
-'Count_transactions_rows_validating must be equal to 0 on server3'
-'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-16 on server3'
+'Count_transactions_rows_validating must be equal to 1 on server3'
+'Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-13 on server3'
 
 ############################################################
 # 10. Cleanup

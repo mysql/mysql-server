@@ -110,6 +110,8 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_primary_election_validation_notification,
     key_GR_LOCK_recovery,
     key_GR_LOCK_recovery_donor_selection,
+    key_GR_LOCK_recovery_metadata_receive,
+    key_GR_LOCK_recovery_metadata_module_receive,
     key_GR_LOCK_recovery_module_run,
     key_GR_LOCK_server_ongoing_transaction_handler,
     key_GR_LOCK_message_service_run,
@@ -157,6 +159,7 @@ extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_primary_election_secondary_process_run,
     key_GR_COND_primary_election_validation_notification,
     key_GR_COND_recovery,
+    key_GR_COND_recovery_metadata_receive,
     key_GR_COND_recovery_module_run,
     key_GR_COND_message_service_run,
     key_GR_COND_session_thread_method_exec,
@@ -243,7 +246,9 @@ extern PSI_memory_key key_write_set_encoded,
     key_consistent_transactions,
     key_consistent_transactions_prepared,
     key_consistent_transactions_waiting,
-    key_consistent_transactions_delayed_view_change;
+    key_consistent_transactions_delayed_view_change,
+    key_compression_data,
+    key_recovery_metadata_message_buffer;
 /* clang-format on */
 
 #endif /* PLUGIN_PSI_INCLUDED */

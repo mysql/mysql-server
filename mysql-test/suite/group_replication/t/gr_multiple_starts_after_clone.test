@@ -126,7 +126,7 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
---let $wait_condition= SELECT LAST_QUEUED_TRANSACTION="$group_replication_group_name:6" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
+--let $wait_condition= SELECT LAST_QUEUED_TRANSACTION="$group_replication_group_name:3" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier";
 --source include/wait_condition.inc
 
 SET @@GLOBAL.DEBUG='-d,block_applier_updates';

@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #
 [connection server1]
 SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 #
 # Check the stable set is empty
@@ -22,6 +23,7 @@ INSERT INTO t1 VALUES (1);
 # Add a new guy to the group
 #
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 #
 # The stable set now contains the transactions previous to member 2 entry
@@ -33,4 +35,7 @@ include/assert.inc ['Transactions_committed_all_members should have the transact
 #
 DROP TABLE t1;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

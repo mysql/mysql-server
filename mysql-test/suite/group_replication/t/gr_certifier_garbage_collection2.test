@@ -26,6 +26,14 @@
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+
 --source include/group_replication.inc
 
 --echo
@@ -143,6 +151,13 @@ if ($gtid_assignment_block_size == 1)
 --echo
 --echo ############################################################
 --echo # 11. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --source include/group_replication_end.inc

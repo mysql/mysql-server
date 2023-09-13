@@ -28,17 +28,17 @@ BEGIN;
 INSERT INTO t1 VALUES (2);
 STOP GROUP_REPLICATION;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-include/assert.inc [GTID_EXECUTED must contain 3 group transactions]
+include/assert.inc [GTID_EXECUTED must contain 1 group transactions]
 [connection server_1]
 include/assert.inc [There is no value 2 in table t1]
 [connection server1]
 COMMIT;
 include/rpl_sync.inc
 include/assert.inc [There is a value 2 in table t1 on server1]
-include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions]
 [connection server2]
 include/assert.inc [There is a value 2 in table t1 on server2]
-include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions]
 
 ############################################################
 # 3. Stop Group Replication while GTID_NEXT is specified
@@ -51,14 +51,14 @@ SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
 STOP GROUP_REPLICATION;
 ERROR HY000: Can't execute the given command when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 [connection server_1]
-include/assert.inc [GTID_EXECUTED must contain 4 group transactions]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions]
 include/assert.inc [GTID_OWNED is still set since aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 transaction was not committed]
 include/stop_group_replication.inc
 [connection server1]
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
 include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1]
-include/assert.inc [GTID_EXECUTED must contain 4 group transactions and 1 local transaction]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions and 1 local transaction]
 
 ############################################################
 # 4. Try to Start Group Replication in the middle of a ongoing
@@ -70,13 +70,13 @@ BEGIN;
 INSERT INTO t1 VALUES (4);
 START GROUP_REPLICATION;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-include/assert.inc [GTID_EXECUTED must still contain 4 group transactions and 1 local transaction]
+include/assert.inc [GTID_EXECUTED must still contain 2 group transactions and 1 local transaction]
 [connection server_2]
 include/assert.inc [There is no value 4 in table t1]
 [connection server1]
 COMMIT;
 include/assert.inc [There is a value 4 in table t1 on server1]
-include/assert.inc [GTID_EXECUTED must contain 4 group transactions and 2 local transaction]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions and 2 local transaction]
 DROP TABLE t1;
 RESET BINARY LOGS AND GTIDS;
 
@@ -123,7 +123,7 @@ include/assert.inc [GTID_OWNED is empty after committing aaaaaaaa-aaaa-aaaa-aaaa
 include/assert.inc [GTID_EXECUTED must contain only the local transaction]
 RESET BINARY LOGS AND GTIDS;
 include/start_group_replication.inc
-include/assert.inc [GTID_EXECUTED must contain 6 group transactions]
+include/assert.inc [GTID_EXECUTED must contain 2 group transactions]
 
 #################################################################
 # 7. Verify that if a session is in lock_table_mode (exclusively

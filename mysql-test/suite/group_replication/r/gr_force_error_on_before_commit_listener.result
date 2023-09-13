@@ -44,7 +44,7 @@ include/assert.inc ['There is a value 4 in table t1 on server 1']
 include/assert.inc ['The value of Count_Transactions_In_Queue should be 0 on server 1']
 include/assert.inc ['The value of Count_Transactions_Checked should be 3 on server 1']
 include/assert.inc ['The value of Count_Conflicts_Detected should be 0 on server 1']
-include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 1']
+include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:3 on server 1']
 
 ############################################################
 # 6. Data validation on server 2.
@@ -55,7 +55,7 @@ include/assert.inc ['There is a value 4 in table t1 on server 2']
 include/assert.inc ['The value of Count_Transactions_In_Queue should be 0 on server 2']
 include/assert.inc ['The value of Count_Transactions_Checked should be 3 on server 2']
 include/assert.inc ['The value of Count_Conflicts_Detected should be 0 on server 2']
-include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:5 on server 2']
+include/assert.inc ['The value of Last_Conflict_Free_Transaction should be 8a94f357-aab4-11df-86ab-c80aa9429456:3 on server 2']
 
 ############################################################
 # 7. Shutdown.

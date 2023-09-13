@@ -162,7 +162,7 @@ INSERT INTO test.t1 VALUES (2, 1);
 --echo
 --echo # 8. Wait until group_replication_applier channel waits on table t1
 --echo #    read lock. Enable clone for next join.
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for commit lock'
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for global read lock'
 --source include/wait_condition.inc
 
 SET GLOBAL group_replication_clone_threshold= 1;
@@ -207,7 +207,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 --echo
 --echo # 12. Validate that recovery channel is still blocked on table t1.
 
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for commit lock'
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for global read lock'
 --source include/wait_condition.inc
 
 --let $group_replication_member_state= ERROR

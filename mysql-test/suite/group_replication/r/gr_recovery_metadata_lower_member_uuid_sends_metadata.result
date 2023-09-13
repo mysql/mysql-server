@@ -1,0 +1,30 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap start a GROUP on M1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Check who is the metadata sender.
+
+############################################################
+# 4. Start GR on M3.
+[connection server3]
+include/start_group_replication.inc
+
+############################################################
+# 5. Assert message was sent by single server with lower member_id.
+
+############################################################
+# 6. Cleanup.
+include/group_replication_end.inc

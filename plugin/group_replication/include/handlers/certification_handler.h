@@ -114,6 +114,73 @@ class Certification_handler : public Event_handler {
   int handle_transaction_context(Pipeline_event *pevent, Continuation *cont);
 
   /**
+    This method handles binary log events by storing them so they can be used on
+    next handler.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_binary_log_event(Pipeline_event *pevent, Continuation *cont);
+
+  /**
+    This method handles applier context events by storing them so they can be
+    used on next handler.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_applier_event(Pipeline_event *pevent, Continuation *cont);
+
+  /**
+    This method handles applier view change packet.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_applier_view_change_packet(Pipeline_event *pevent,
+                                        Continuation *cont);
+
+  /**
+    This method saves the recovery metadata. It needs to be stored because if
+    metadata sender crashes another member need to send the metadata. If member
+    is the sender, this method also initiate the metadata send request.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_recovery_metadata(Pipeline_event *pevent, Continuation *cont);
+
+  /**
+    If VC is delayed this method pushes the metadata for later processing else
+    it processes the VC Packet.
+
+    @param[in] pevent   the event to be injected
+    @param[in] cont     the object used to wait
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+   */
+  int handle_view_change_packet_without_vcle(Pipeline_event *pevent,
+                                             Continuation *cont);
+
+  /**
     This methods handles transaction identifier events, it does two tasks:
       1. Using transaction context previously processed and stored,
          validate that this transaction does not conflict with any other;
@@ -191,6 +258,16 @@ class Certification_handler : public Event_handler {
     @return the ticket generated for the view
   */
   binlog::BgcTicket::ValueType generate_view_change_bgc_ticket();
+
+  /**
+    Increment a commit order ticket for the View_change transaction.
+
+    More precisely it will:
+     1) NOT generate the ticket for the view.
+     2) increment the current ticket so that all transactions ordered after the
+    view will have a ticket greater that the one assigned to the view.
+  */
+  binlog::BgcTicket::ValueType increment_bgc_ticket();
 };
 
 #endif /* CERTIFICATION_HANDLER_INCLUDE */

@@ -1,3 +1,7 @@
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -16,4 +20,8 @@ include/assert.inc [group_replication_group_name used when group_replication_vie
 [connection server2]
 include/assert.inc [group_replication_group_replication_view_change_uuid is AUTOMATIC]
 include/assert.inc [group_replication_group_name used when group_replication_view_change_uuid is AUTOMATIC]
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

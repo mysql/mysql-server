@@ -39,6 +39,9 @@ call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
+[connection server1]
+INSERT INTO test.t1 (b) VALUES (0);
+[connection server2]
 CHANGE REPLICATION SOURCE TO SOURCE_USER='dummy_user' FOR CHANNEL 'group_replication_recovery';
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
@@ -56,6 +59,9 @@ ERROR HY000: The MySQL server is running with the --super-read-only option so it
 ##########################################
 # Solve the issue and re-execute the query
 include/stop_group_replication.inc
+[connection server1]
+INSERT INTO test.t1 (b) VALUES (0);
+[connection server2]
 SET sql_log_bin=0;
 DROP USER 'dummy_user'@'%';
 SET sql_log_bin=1;
@@ -70,9 +76,9 @@ SET sql_log_bin=0;
 DROP USER 'dummy_user'@'%';
 SET sql_log_bin=1;
 server1
-include/assert.inc ['There is a value 1 in table t1 on server1']
+include/assert.inc ['There are 3 values in table t1 on server1']
 server2
-include/assert.inc ['There is a value 1 in table t1 on server2']
+include/assert.inc ['There are 3 values in table t1 on server2']
 server1
 server2
 include/assert.inc ['server1 and server2 GTID_EXECUTED must be equal']

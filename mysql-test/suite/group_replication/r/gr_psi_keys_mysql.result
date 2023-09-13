@@ -48,6 +48,8 @@ wait/synch/mutex/group_rpl/LOCK_primary_election_validation_notification	YES	YES
 wait/synch/mutex/group_rpl/LOCK_primary_promotion_policy	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_metadata_receive	YES	YES	singleton	NULL	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_metadata_module_receive	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_server_ongoing_transaction_handler	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_message_service_run	YES	YES	singleton	NULL	0	NULL
@@ -103,6 +105,7 @@ wait/synch/cond/group_rpl/COND_pipeline_continuation	YES	YES	singleton	NULL	0	NU
 wait/synch/cond/group_rpl/COND_synchronized_queue	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_count_down_latch	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_wait_ticket	YES	YES	singleton	NULL	0	NULL
+wait/synch/cond/group_rpl/COND_recovery_metadata_receive	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_recovery_module_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_recovery	YES	YES	singleton	NULL	0	NULL
 wait/synch/cond/group_rpl/COND_session_thread_method_exec	YES	YES	singleton	NULL	0	NULL
@@ -160,6 +163,8 @@ memory/group_rpl/consistent_transactions	YES	NULL	global_statistics		0	Memory us
 memory/group_rpl/consistent_transactions_prepared	YES	NULL	global_statistics		0	Memory used to hold list of transaction info which are prepared for the Group Replication Transaction Consistency Guarantees.
 memory/group_rpl/consistent_transactions_waiting	YES	NULL	global_statistics		0	Memory used to hold list of transaction info if there are precedent prepared transactions with consistency AFTER and BEFORE_AND_AFTER to hold the transaction until the prepared are committed.
 memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics		0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
+memory/group_rpl/compression_data	YES	NULL	global_statistics		0	Memory used to hold compressed certification info that will be required during distributed recovery of the member that joined.
+memory/group_rpl/recovery_metadata_message_buffer	YES	NULL	global_statistics		0	Memory used to hold recovery metadata message received on new joining member of the group.
 
 ############################################################
 # 2. Start the GR

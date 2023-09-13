@@ -19,7 +19,7 @@
 --source include/group_replication.inc
 
 # Define gtid for with test will wait
---let $gtid_wait_set= $group_replication_group_name:6
+--let $gtid_wait_set= $group_replication_group_name:4
 
 # create table
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;

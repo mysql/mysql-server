@@ -13,7 +13,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 [connection server3]
 include/assert.inc [QUEUEING_TRANSACTION was cleared in the group_replication_recovery channel after the member is online]
 include/assert.inc [LAST_QUEUED_TRANSACTION was cleared in the group_replication_recovery channel after the member is online]
-include/assert.inc [LAST_APPLIED_TRANSACTION is not cleared because channel group_replication_recovery applied view change log events for joining the group]
+include/assert.inc [LAST_APPLIED_TRANSACTION is cleared because channel group_replication_recovery does not have view change log events for joining the group]
 [connection server4]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SERVER_MYPORT_2, SOURCE_USER='root', SOURCE_AUTO_POSITION=1;
 include/start_slave.inc

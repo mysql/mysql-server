@@ -1,51 +1,31 @@
-include/group_replication.inc [rpl_server_count=3]
+include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
-SET SESSION sql_log_bin= 1;
 
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
-
-[connection server2]
-include/start_group_replication.inc
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
-SET SESSION sql_log_bin= 1;
 [connection server1]
 CREATE TABLE test.t1 ( a int primary key);
-include/rpl_sync.inc
-SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-103');
-WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-103')
+SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-101');
+WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-101')
 0
 SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-120',5);
 WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-120',5)
 1
-include/rpl_sync.inc
-[connection server1]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 [connection server2]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
-[connection server3]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Error while sending message in the group replication incremental recovery process");
-SET SESSION sql_log_bin= 1;
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 START GROUP_REPLICATION;
 include/gr_wait_for_member_state.inc
-SELECT SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery');
 [connection server1]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 [connection server2]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
-[connection server3]
+SELECT SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery');
+[connection server2]
+include/gr_wait_for_member_state.inc
 include/stop_group_replication.inc
 SELECT SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery');
 SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 0,'group_replication_recovery')
@@ -54,33 +34,18 @@ SELECT SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 2,'group_replicatio
 SOURCE_POS_WAIT('server-binary-log.000001',SAVED_POS, 2,'group_replication_applier')
 NULL
 
-[connection server2]
-CREATE TABLE test.t2 ( a int primary key);
-include/rpl_sync.inc
-include/rpl_sync.inc
 [connection server1]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE test.t2 ( a int primary key);
 [connection server2]
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
-[connection server3]
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
 START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
 SELECT WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:126", 20);
 SELECT WAIT_FOR_EXECUTED_GTID_SET('GROUP_REPLICATION_GROUP_NAME:1-136',10);
-SELECT WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:1-155", 0);
-SELECT WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:1-155", 10);
-WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:1-155", 10)
+SELECT WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:1-152", 10);
+WAIT_FOR_EXECUTED_GTID_SET("GROUP_REPLICATION_GROUP_NAME:1-152", 10)
 0
-[connection server1]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 [connection server2]
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
-[connection server3]
 include/assert.inc ['Checking the number of records in test.t1']
 include/assert.inc ['Checking the number of records in test.t2']
 [connection server2]
@@ -88,8 +53,6 @@ include/assert.inc ['Checking the number of records in test.t1']
 include/assert.inc ['Checking the number of records in test.t2']
 ## Cleanup ##
 [connection server1]
-SET DEBUG_SYNC= 'RESET';
-[connection server2]
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE test.t1;
 DROP TABLE test.t2;

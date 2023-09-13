@@ -107,7 +107,6 @@ if (!$rpl_binlog_format)
 --echo # and add data to it.
 
 CREATE TABLE t1 (c1 INT);
---source include/rpl_sync.inc
 
 --let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1'
 --eval SET GTID_NEXT= $rpl_curr_gtid
@@ -132,7 +131,6 @@ SET GTID_NEXT= AUTOMATIC;
 --source include/rpl_connection.inc
 
 CREATE TABLE t2 (c1 INT) engine MyIsam;
---source include/rpl_sync.inc
 
 --let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2'
 --eval SET GTID_NEXT= $rpl_curr_gtid
@@ -161,7 +159,6 @@ SET GTID_NEXT= AUTOMATIC;
 CREATE TABLE tp3 (c1 INT PRIMARY KEY);
 CREATE TABLE tc3 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp3(c1) ON DELETE CASCADE);
 INSERT INTO tp3 VALUES(1);
---source include/rpl_sync.inc
 
 --let $rpl_curr_gtid= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:3'
 --eval SET GTID_NEXT= $rpl_curr_gtid

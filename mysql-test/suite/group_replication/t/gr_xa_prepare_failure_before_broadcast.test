@@ -147,7 +147,7 @@ INSERT INTO t1 VALUES (1);
 #
 --let $binlog_file = `SELECT @binlog_file`
 --let $binlog_position = `SELECT @binlog_position`
---let $event_sequence = $view_change
+--let $event_sequence = ()
 --source include/assert_binlog_events.inc
 
 # 6.b. There aren't any pending XA transaction listed in the output of `XA
@@ -181,7 +181,7 @@ INSERT INTO t1 VALUES (1);
 
 # 8.a. The `XA PREPARE` wasn't logged to the binary log.
 #
---let $event_sequence = $view_change
+--let $event_sequence = ()
 --source include/assert_binlog_events.inc
 
 # 8.b. There aren't any pending XA transaction listed in the output of `XA

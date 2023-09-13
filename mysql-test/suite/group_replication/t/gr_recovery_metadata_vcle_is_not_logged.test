@@ -1,0 +1,249 @@
+################################################################################
+# This test proves that VCLE is not getting logged for new member joining.
+# - The number of transactions added on donor server M1 in this testcase are:
+#     create table - 1
+#     insert       - 100
+#   It verifies that expected gtid_executed on secondary after recovery should be
+#   GROUP_REPLICATION_GROUP_NAME:1-101 which is no gtid assigned for VCLE.
+# - It also verifies that recovery metadata payload items: VIEW ID, GTID_SET of
+#   Certified Transactions, and Certification Information are stored on
+#   recovery metadata senders which is M1 and M2 in this testcase.
+# - It also verifies that Certification Information is applied on joiner which
+#   is M3 in this testcase.
+# - It verifies that joiner which is M3 in this testcase recovers until given
+#   gtid set.
+# - It also verifies that joiner skips recovery if given gtids are already
+#   present.
+#
+# This test verifies FR 2, 5, 15 and 17 of wl#14595.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a GROUP on M1.
+# 2. Start GR on M2.
+# 3. Assert GTID has not changed on M1
+#    after M2 is added to the group.
+#    This will also check VCLE is not getting logged
+#    on M1 for new member joining the group.
+# 4. Assert M2 has same GTID
+#    which M1 had before M2 joined the group.
+#    This will also check VCLE is not getting logged
+#    on M2 for new member joining the group.
+# 5. Add gr_recovery_metadata_verify_metadata_exist debug
+#    point which verifies VIEW ID, GTID_SET of Certified
+#    Transactions, and Certification Information are stored
+#    on sender M1 and M2 is this test.
+# 6. The below steps will be checked three times:
+# i.   Start GR on M3.
+# ii.  Check group has 3 members.
+# iii. Assert GTID has not changed on M1
+# iv.  Assert M3 has same GTID
+#      which M1 had before M2 joined the group.
+# v.   Assert expected gtid_executed on M3 is
+#      GROUP_REPLICATION_GROUP_NAME:1-101.
+# vi.  Stop GR on M3.
+# 7. Verify on server1 and server2 that recovery metadata
+#    payload items: VIEW ID, GTID_SET of Certified
+#    Transactions, and Certification Information are stored.
+# 8. Verify that server3 recovers until given transactions
+#    i.e. executed gtid set UUID:1-101 once and skip
+#    recovery next two times as gtids are already present on
+#    server.
+# 9. Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap start a GROUP on M1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+--disable_query_log
+--let $test_count=100
+while ($test_count)
+{
+  INSERT INTO test.t1 values (NULL);
+  --dec $test_count
+}
+--enable_query_log
+
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Assert GTID has not changed on M1
+--echo #    after M2 is added to the group.
+--echo #    This will also check VCLE is not getting logged
+--echo #    on M1 for new member joining the group.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $assert_text= 'Assert GTID has not changed on M1'
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Assert M2 has same GTID
+--echo #    which M1 had before M2 joined the group.
+--echo #    This will also check VCLE is not getting logged
+--echo #    on M2 for new member joining the group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $assert_text= 'Assert GTID is same on M1 and M2'
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Add gr_recovery_metadata_verify_metadata_exist debug
+--echo #    point which verifies VIEW ID, GTID_SET of Certified
+--echo #    Transactions, and Certification Information are stored
+--echo #    on sender M1 and M2 is this test.
+
+SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='+d,gr_recovery_metadata_verify_metadata_exist';
+
+
+--echo
+--echo ############################################################
+--echo # 6. The below steps will be checked three times:
+--echo # i.   Start GR on M3.
+--echo # ii.  Check group has 3 members.
+--echo # iii. Assert GTID has not changed on M1
+--echo # iv.  Assert M3 has same GTID
+--echo #      which M1 had before M2 joined the group.
+--echo # v.   Assert expected gtid_executed on M3 is
+--echo #      GROUP_REPLICATION_GROUP_NAME:1-101.
+--echo # vi.  Stop GR on M3.
+
+--let $start_count=1
+while ($start_count < 4)
+{
+  --echo
+  --echo # Test run number: $start_count
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+  --source include/start_group_replication.inc
+
+  --let $rpl_connection_name= server1
+  --source include/rpl_connection.inc
+
+  --let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_group_members WHERE MEMBER_STATE="ONLINE"
+  --source include/wait_condition.inc
+
+  --let $assert_text= 'Assert GTID has not changed on M1'
+  --let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+  --let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+  --source include/assert.inc
+
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+
+  --let $assert_text= 'Assert GTID is same on M1 and M3'
+  --let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+  --let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+  --source include/assert.inc
+
+  --let $assert_text= 'Assert expected gtid_executed on M3 is GROUP_REPLICATION_GROUP_NAME:1-101'
+  --let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+  --let $expected_gtid_set = "$group_replication_group_name:1-101"
+  --let $assert_cond = "$after_gtid_executed" = $expected_gtid_set
+  --source include/assert.inc
+
+  --source include/stop_group_replication.inc
+  --inc $start_count
+}
+
+
+--echo
+--echo ############################################################
+--echo # 7. Verify on server1 and server2 that recovery metadata
+--echo #    payload items: VIEW ID, GTID_SET of Certified
+--echo #    Transactions, and Certification Information are stored.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE "%gr_recovery_metadata_verify_metadata_exist debug point view_id: % and gtid executed set%:1-101%"
+--source include/wait_condition.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-011071' AND data LIKE "%gr_recovery_metadata_verify_metadata_exist debug point view_id: % and gtid executed set%:1-101%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Verify that server3 recovers untill given transactions
+--echo #    i.e. executed gtid set UUID:1-101 once and skip
+--echo #    recovery next two times as gtids are already present on
+--echo #    server.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-010379' AND data LIKE "%Replica SQL thread stopped because it reached UNTIL SQL_AFTER_GTIDS %:1-101%"
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.error_log WHERE error_code='MY-015078' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-101 already has all the transactions of the donor's gtid set %:1-101.%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 9. Cleanup.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG='-d,gr_recovery_metadata_verify_metadata_exist';
+
+--source include/group_replication_end.inc

@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 # 1. Bootstrap the group on server1
 include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 # 2. Set a lower components timeout and lock tables on server2.
 #    Start group replication that will block when applying VCLE
@@ -39,6 +40,8 @@ include/start_group_replication.inc
 include/assert_grep.inc [STOP GROUP REPLICATION return timeout on stopping recovery module]
 
 # 7. Cleanup
+[connection server1]
+DROP TABLE t1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Error when stopping the group replication incremental recovery's donor connection");

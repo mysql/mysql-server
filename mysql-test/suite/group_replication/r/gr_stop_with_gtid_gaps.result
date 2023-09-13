@@ -17,7 +17,7 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (i INT PRIMARY KEY);
-include/assert.inc [GTID_EXECUTED must contain two transactions, one from view change and other being the create table.]
+include/assert.inc [GTID_EXECUTED must contain one transactions, create table.]
 
 ############################################################
 # 2. Add one more member to the group.
@@ -25,9 +25,9 @@ include/assert.inc [GTID_EXECUTED must contain two transactions, one from view c
 #    Server 2 leaves the group.
 [connection server2]
 include/start_group_replication.inc
-include/assert.inc [GTID_EXECUTED must contain three transactions, the new one from the insert.]
+include/assert.inc [GTID_EXECUTED must contain one transactions]
 [connection server1]
-include/assert.inc [GTID_EXECUTED must contain three transactions, the new one from the insert.]
+include/assert.inc [GTID_EXECUTED must contain one transactions]
 [connection server2]
 include/stop_group_replication.inc
 
@@ -46,15 +46,18 @@ SET GTID_NEXT='AUTOMATIC';
 include/stop_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain holes]
 include/start_and_bootstrap_group_replication.inc
+INSERT INTO t1 VALUES(7);
+INSERT INTO t1 VALUES(8);
+INSERT INTO t1 VALUES(9);
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction]
 
 ############################################################
 # 5. Server 2 joins the group again.
 [connection server2]
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must contain no holes]
-include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # Query/BEGIN # View_change # Query/COMMIT]
+include/assert_binlog_events.inc [!Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction # !Gtid_transaction]
 
 ############################################################
 # 6. Cleanup.

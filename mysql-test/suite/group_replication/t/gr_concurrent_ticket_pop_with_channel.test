@@ -49,6 +49,7 @@
 --source include/save_sysvars.inc
 
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
 
 # Async connection to channel 3
@@ -109,6 +110,7 @@ SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaa
 # Start GR gets stuck on RECOVERY state
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication_command.inc
 
 --let $rpl_connection_name= server1
@@ -149,6 +151,7 @@ SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaa
 # The new View Change will cause a pop with no signal
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication_command.inc
 
 --let $rpl_connection_name= server1
@@ -187,18 +190,21 @@ SET DEBUG_SYNC= 'RESET';
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "ch1";
 
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/stop_group_replication.inc
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/stop_group_replication.inc
 --source include/restore_sysvars.inc
 
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --source include/stop_group_replication.inc
 --source include/restore_sysvars.inc
 

@@ -103,7 +103,7 @@ LOCK TABLE t2 READ;
 --echo server1
 
 # Wait for the View Change event to reach the binlog.
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:3')
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1')
 INSERT INTO t2 VALUES (1);
 
 --echo #
@@ -218,7 +218,11 @@ INSERT INTO t2 VALUES (1);
 --connection server2
 --echo server2
 
---let $wait_condition= SELECT COUNT_TRANSACTIONS_IN_QUEUE=2 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+# Three packets will be in queue:
+# 1. VIEW_CHANGE_PACKET_TYPE
+# 2. METADATA_PROCESSING_PACKET_TYPE
+# 3. DATA_PACKET_TYPE
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_IN_QUEUE=3 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
 --source include/wait_condition.inc
 
 --echo #

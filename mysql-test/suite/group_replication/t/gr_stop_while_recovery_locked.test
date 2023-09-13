@@ -32,6 +32,7 @@
 --echo # 1. Bootstrap the group on server1
 
 --source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --echo
 --echo # 2. Set a lower components timeout and lock tables on server2.
@@ -59,7 +60,7 @@ FLUSH TABLES WITH READ LOCK;
 --echo # 3. Wait recovery is on hold due lock on tables and Stop Group
 --echo #    Replication.
 
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for commit lock'
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Waiting for global read lock'
 --source include/wait_condition.inc
 
 --source include/stop_group_replication.inc
@@ -93,6 +94,10 @@ UNLOCK TABLES;
 
 --echo
 --echo # 7. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

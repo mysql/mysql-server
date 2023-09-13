@@ -36,12 +36,20 @@ INSERT INTO t1 VALUES (1);
 --source include/start_group_replication.inc
 --source include/stop_group_replication.inc
 
+# Commit one transaction on server1 that will need to be replicated through
+# `group_replication_recovery` channel.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (0);
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --connection server1
 
 --echo #
 --echo # Block the applier on server 1 to block recovery on server 2
 --echo #
-SET @@GLOBAL.DEBUG='+d,block_applier_updates';
+SET @@GLOBAL.DEBUG='+d,dump_thread_before_read_event';
 
 --echo #
 --echo # On server 2 restart the server. Group replication should start at boot
@@ -87,9 +95,10 @@ INSERT INTO t1 VALUES (2);
 
 --connection server1
 
-SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
-SET @@GLOBAL.DEBUG='-d,block_applier_updates';
-SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG='-d,dump_thread_before_read_event';
+SET DEBUG_SYNC = "now SIGNAL signal.continue";
 
 --connection server2
 
@@ -100,7 +109,7 @@ INSERT INTO t1 VALUES (2);
 
 --connection server1
 
---let $wait_condition= SELECT count(*)=2 FROM t1;
+--let $wait_condition= SELECT count(*)=3 FROM t1;
 --source include/wait_condition.inc
 
 --echo #

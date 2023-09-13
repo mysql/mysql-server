@@ -8,9 +8,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Check that server 2 receives a view event and writes another one
 #
 server1
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 server2
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # !Gtid_transaction # Gtid # Query/BEGIN # View_change # Query/COMMIT]
 #
@@ -30,6 +32,7 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 server2
 include/stop_group_replication.inc
 server3
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_group_replication.inc
 include/stop_group_replication.inc
 server2
@@ -41,4 +44,9 @@ include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMI
 server3
 include/start_group_replication.inc
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+server2
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
+server1
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc

@@ -84,9 +84,9 @@ INSERT INTO t1 VALUES (2);
 --source include/mysqlbinlog.inc
 
 --let $assert_file= $output_file
---let $assert_count = 22
+--let $assert_count = 14
 if ($_binlog_compression_enable == 1) {
-  --let $assert_count = 24
+  --let $assert_count = 16
 }
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums
@@ -183,9 +183,9 @@ INSERT INTO t2 VALUES (2);
 --source include/mysqlbinlog.inc
 
 --let $assert_file= $output_file
---let $assert_count = 22
+--let $assert_count = 14
 if ($_binlog_compression_enable == 1) {
-  --let $assert_count = 24
+  --let $assert_count = 16
 }
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums

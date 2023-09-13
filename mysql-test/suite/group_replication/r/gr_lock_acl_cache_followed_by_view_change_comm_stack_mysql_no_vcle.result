@@ -1,0 +1,67 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode with 2 members.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Hold a ACL statement, CREATE USER, on its propagation
+#    to the group. The ACL_CACHE lock is acquired by the
+#    ACL statement.
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_pause_on_before_commit_hook';
+[connection server_1]
+CREATE USER 'user';
+[connection server1]
+SET GLOBAL DEBUG= @debug_save;
+
+############################################################
+# 3. Add a 3rd member to the group.
+#    BUG: the view install on server1 will be blocked by the
+#         ACL statement.
+[connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+SET SESSION sql_log_bin = 1;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+
+############################################################
+# 4. Wait until the group has 3 members and then resume the
+#    ACL statement.
+#    server3 may be in RECOVERING state but it will be part of
+#    the group.
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server_1]
+
+############################################################
+# 5. Wait server3 to be ONLINE
+[connection server3]
+include/gr_wait_for_member_state.inc
+include/rpl_sync.inc
+
+############################################################
+# 6. Verify that all members data is equal.
+include/assert_binlog_events.inc
+[connection server2]
+include/assert_binlog_events.inc
+[connection server3]
+include/assert_binlog_events.inc
+
+############################################################
+# 7. Clean up.
+[connection server1]
+DROP USER 'user';
+include/group_replication_end.inc

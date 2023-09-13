@@ -1,0 +1,70 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a GROUP on M1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Start GR on M2.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Set debug point
+#    gr_wait_before_sending_metadata on server sending metadata.
+#    Set debug point
+#    group_replication_recovery_metadata_message_member_is_being_deleted
+#    on server sending metadata.
+SET @@GLOBAL.DEBUG='+d,gr_wait_before_sending_metadata';
+SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_message_member_is_being_deleted';
+SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_one_stored_metadata';
+
+############################################################
+# 4. Set debug point
+#    group_replication_recovery_metadata_module_delete_all_stored_metadata
+#    on server not sending metadata.
+SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_all_stored_metadata';
+
+############################################################
+# 5. Start GR on M3.
+[connection server3]
+include/start_group_replication.inc
+
+############################################################
+# 6. Stop GR on server not sending metadata.
+include/stop_group_replication.inc
+
+############################################################
+# 7. Now allow donor to send metadata.
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_recovery_metadata_send";
+SET @@GLOBAL.DEBUG='-d,gr_wait_before_sending_metadata';
+SET DEBUG_SYNC= "now SIGNAL signal.send_the_recovery_metadata";
+
+############################################################
+# 8. Check member leaving the group does clean all the metadata.
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_recovery_metadata_module_delete_all_stored_metadata_reached";
+SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_module_delete_all_stored_metadata';
+
+############################################################
+# 9. Check donor does clean the member that left the group.
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_recovery_metadata_message_member_is_being_deleted_reached";
+SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_message_member_is_being_deleted';
+
+############################################################
+# 10. Check donor does clean the metadata when joiner receives the metadata.
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_recovery_metadata_module_delete_one_stored_metadata_reached";
+SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_module_delete_one_stored_metadata';
+
+############################################################
+# 11. Verify joiner reached ONLINE state.
+[connection server3]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 12. Cleanup.
+include/group_replication_end.inc

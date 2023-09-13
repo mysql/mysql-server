@@ -32,7 +32,7 @@ include/assert.inc [group_replication_member_weight is 100]
 SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats_plugin_running_lock_acquired";
 [connection server_1]
 CHANNEL_NAME	COUNT_TRANSACTIONS_ROWS_VALIDATING	COUNT_TRANSACTIONS_REMOTE_APPLIED
-group_replication_applier	0	1
+group_replication_applier	0	0
 ############################################################
 # 5. Clean up.
 [connection server1]

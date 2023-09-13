@@ -29,6 +29,24 @@ int Event_cataloger::initialize() { return 0; }
 int Event_cataloger::terminate() { return 0; }
 
 int Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont) {
+  DBUG_TRACE;
+  Pipeline_event::Pipeline_event_type event_type =
+      pevent->get_pipeline_event_type();
+  switch (event_type) {
+    case Pipeline_event::Pipeline_event_type::PEVENT_DATA_PACKET_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_BINARY_LOG_EVENT_TYPE_E:
+      return handle_binary_log_event(pevent, cont);
+    case Pipeline_event::Pipeline_event_type::PEVENT_APPLIER_ONLY_EVENT_E:
+      return handle_applier_event(pevent, cont);
+    default:
+      next(pevent, cont);
+      return 0;
+  }
+}
+
+int Event_cataloger::handle_binary_log_event(Pipeline_event *pevent,
+                                             Continuation *cont) {
   mysql::binlog::event::Log_event_type event_type = pevent->get_event_type();
 
   if (event_type == mysql::binlog::event::TRANSACTION_CONTEXT_EVENT) {
@@ -49,9 +67,13 @@ int Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont) {
       return 0;
     }
   }
-
   next(pevent, cont);
   return 0;
+}
+
+int Event_cataloger::handle_applier_event(Pipeline_event *event,
+                                          Continuation *cont) {
+  return next(event, cont);
 }
 
 int Event_cataloger::handle_action(Pipeline_action *action) {

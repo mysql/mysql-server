@@ -13,6 +13,7 @@
 # 5. Clean Up
 #
 
+--source include/have_debug.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -23,7 +24,9 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --echo ############################################################
 --echo # 2. Assert ORIGINAL_COMMIT_TIMESTAMP and IMMEDIATE_COMMIT_TIMESTAMP
@@ -46,7 +49,9 @@
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --echo ############################################################
 --echo # 4. Assert ORIGINAL_COMMIT_TIMESTAMP and IMMEDIATE_COMMIT_TIMESTAMP

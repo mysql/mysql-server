@@ -67,8 +67,9 @@ GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_and_bootstrap_group_replication.inc
-
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --echo
 --echo ############################################################
@@ -82,8 +83,9 @@ GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
-
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --echo
 --echo ############################################################
@@ -147,7 +149,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now' and info = 'CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB'
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
 
@@ -197,8 +199,9 @@ call mtr.add_suppression("Replica I/O thread couldn't register on source");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 --source include/start_group_replication.inc
-
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 
 --echo
 --echo ############################################################

@@ -1,0 +1,169 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group with three servers.
+#
+
+############################################################
+# 1. Start server1
+[connection server1]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Start server2
+[connection server2]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+
+############################################################
+# 3. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables for the event
+#    consistent_transactions_delayed_view_change.
+[connection server1]
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics		0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+EVENT_NAME
+memory/group_rpl/consistent_transactions_delayed_view_change
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 4. Block T1 and T2 before message send after applier prepare
+#    on server2.
+[connection server2]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+############################################################
+# 5. Execute T1 and T2 on server1.
+[connection server1]
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+[connection server_1_2]
+[connection server_1_1]
+CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+[connection server_1_2]
+
+############################################################
+# 6. Check wait condition on server2.
+[connection server2]
+
+############################################################
+# 7. Execute T3 on server1
+#    Make it wait on before transaction message broadcast.
+[connection server_1_2]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
+CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+############################################################
+# 8. Check wait condition on server1.
+[connection server_1]
+
+############################################################
+# 9. Start server3
+[connection server3]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server*");
+call mtr.add_suppression("For details please check performance_schema*");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed*");
+call mtr.add_suppression("Replica I/O thread couldn't register on source");
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+
+############################################################
+# 10. Signal to continue T3 on server1.
+[connection server_1]
+SET DEBUG_SYNC= 'now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 11. Verify that the number of bytes allocated for
+#     consistent_transactions_delayed_view_change
+#     event is 0 since view change is not delayed.
+include/assert.inc ['For back compatibility list of delayed view change exists but not used when VCLE in not logged.']
+
+############################################################
+# 12. Signal to continue T1 and T2 on server2.
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 13. Check members state on server1 and server3.
+[connection server1]
+[connection server_1_1]
+[connection server_1_2]
+include/assert.inc [Server1 MEMBER_STATE is ONLINE]
+[connection server3]
+include/gr_wait_for_member_state.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
+include/diff_tables.inc [server1:test.t2, server2:test.t2, server3:test.t2]
+include/diff_tables.inc [server1:test.t3, server2:test.t3, server3:test.t3]
+
+############################################################
+# 14. Drop tables and stop GR on server 1.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+include/stop_group_replication.inc
+include/uninstall_group_replication_plugin.inc
+
+##############################################################
+# 15. Verify that the entries corresponding to the instrumented
+#     consistent_transactions_delayed_view_change remain in the
+#     tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/consistent_transactions_delayed_view_change';
+NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
+memory/group_rpl/consistent_transactions_delayed_view_change	YES	NULL	global_statistics		0	Memory used to hold list of View_change_log_event which are delayed after the prepared consistent transactions waiting for the prepare acknowledge.
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the setup_instruments table after stopping GR']
+include/assert.inc ['There should be 1 entry corresponding to the consistent_transactions_delayed_view_change in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 16. Assert that the number of bytes allocated for
+#     consistent_transactions_delayed_view_change
+#     event must be 0.
+include/assert.inc ['The sum of bytes allocated must be zero after stopping GR']
+
+############################################################
+# 17. Clean up.
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+[connection server3]
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+[connection server1]
+include/install_group_replication_plugin.inc
+include/group_replication_end.inc

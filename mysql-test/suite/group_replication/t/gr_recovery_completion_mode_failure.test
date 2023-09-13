@@ -108,7 +108,7 @@ INSERT INTO t2 VALUES (1);
 --connection server2
 --echo server2
 
---let $wait_condition= SELECT COUNT_TRANSACTIONS_IN_QUEUE=2 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_IN_QUEUE=3 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
 --source include/wait_condition.inc
 
 --echo #

@@ -1,0 +1,98 @@
+################################################################################
+# This test verifies that if all SQL_AFTER_GTIDS of START REPLICA UNTIL clause
+# are already applied on joiner and any failure before recovery end won't make
+# recovery reconnect to donor. This test verifies FR15 of wl#14595.
+#
+# FR 15. When a new member joins a group having all the members with MySQL
+#        version greater than equal to 8.3.0, then the new joining member MUST
+#        recover using GTID_SET of the Certified Transactions received in 'GR
+#        Recovery metadata' message.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start a GROUP on M1.
+# 2. Start GR on M2.
+# 3. Start GR on M3.
+#    Add debug sync point which will make recovery fail when
+#    it has applied all SQL_AFTER_GTIDS of START REPLICA
+#    UNTIL clause.
+# 4. Verify it retried connection to donor and skipped
+#    recovery as required SQL_AFTER_GTIDS were already
+#    present on joiner.
+# 5. Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap start a GROUP on M1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+INSERT INTO test.t1 values (NULL);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start GR on M2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Start GR on M3.
+--echo #    Add debug sync point which will make recovery fail when
+--echo #    it has applied all SQL_AFTER_GTIDS of START REPLICA
+--echo #    UNTIL clause.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_recovery_after_gtids_applier_stop_error_out';
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Verify it retried connection to donor and skipped
+--echo #    recovery as required SQL_AFTER_GTIDS were already
+--echo #    present on joiner.
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-011577' AND data LIKE "%Retrying group recovery connection with another donor. Attempt 2%"
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015078' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-5 already has all the transactions of the donor's gtid set %:1-5%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Cleanup.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_recovery_after_gtids_applier_stop_error_out';
+
+--source include/group_replication_end.inc

@@ -42,6 +42,8 @@
 #include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/recovery_metadata.h"
+#include "plugin/group_replication/include/plugin_observers/recovery_metadata_observer.h"
 #include "plugin/group_replication/include/plugin_status_variables.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
@@ -87,6 +89,8 @@ SERVICE_TYPE(log_builtins_string) * log_bs;
 Applier_module *applier_module = nullptr;
 /** The plugin recovery module */
 Recovery_module *recovery_module = nullptr;
+/** The plugin recovery metadata module */
+Recovery_metadata_module *recovery_metadata_module = nullptr;
 /** The plugin group communication module */
 Gcs_operations *gcs_module = nullptr;
 /** The registry module */
@@ -154,6 +158,7 @@ SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
     nullptr;
 
 Consensus_leaders_handler *consensus_leaders_handler = nullptr;
+Recovery_metadata_observer *recovery_metadata_observer = nullptr;
 
 /* Performance schema module */
 static gr::perfschema::Perfschema_module *perfschema_module = nullptr;
@@ -226,6 +231,11 @@ static void check_deprecated_variables() {
     push_deprecated_warn_no_replacement(
         thd, "group_replication_recovery_complete_at");
   }
+  if (ov.view_change_uuid_var != nullptr &&
+      strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
+    push_deprecated_warn_no_replacement(thd,
+                                        "group_replication_view_change_uuid");
+  }
 }
 
 static const char *get_ip_allowlist() {
@@ -281,6 +291,37 @@ rpl_sidno get_group_sidno() {
 rpl_sidno get_view_change_sidno() {
   assert(lv.view_change_sidno > 0);
   return lv.view_change_sidno;
+}
+
+bool is_view_change_log_event_required() {
+  bool need_vcle{false};
+  Member_version version_removing_vcle(MEMBER_VERSION_REMOVING_VCLE);
+  Group_member_info_list *all_members_info{nullptr};
+
+  /*
+   This function can be called at start of group replication.
+   So basic structures may not be initialized.
+  */
+  if (group_member_mgr != nullptr) {
+    all_members_info = group_member_mgr->get_all_members();
+  } else {
+    /*
+      Since group member information is not available we cannot conclude VCLE is
+      needed.
+    */
+    return false;
+  }
+
+  /* Check if any member in the group  needs VCLE */
+  for (Group_member_info *member : *all_members_info) {
+    if (member->get_member_version() < version_removing_vcle) {
+      need_vcle = true;
+    }
+    delete member;
+  }
+  delete all_members_info;
+
+  return need_vcle;
 }
 
 bool get_plugin_is_stopping() { return lv.plugin_is_stopping; }
@@ -560,6 +601,13 @@ int plugin_group_replication_start(char **error_message) {
     goto err;
   }
 
+  /*
+    If VCLE is not required it is allowed to join the group with any value of
+    view-change-uuid.
+    However wrong value of view-change-uuid is still not allowed.
+    If old member is part of the group, wrong value of view-change-uuid can
+    cause major issues.
+  */
   if (check_view_change_uuid_string(ov.view_change_uuid_var)) {
     error = GROUP_REPLICATION_CONFIGURATION_ERROR;
     goto err;
@@ -733,6 +781,12 @@ int initialize_plugin_and_join(
       goto err;
     }
 
+    /*
+     At this point it is not known if old member is part of the group or not.
+     So error out if invalid value are for option view-change-uuid.
+     If old member is part of the group, wrong value of view-change-uuid can
+     cause major issues.
+    */
     if (check_uuid_against_rpl_channel_settings(ov.view_change_uuid_var)) {
       LogPluginErr(
           ERROR_LEVEL,
@@ -923,6 +977,12 @@ int configure_group_member_manager() {
     return GROUP_REPLICATION_CONFIGURATION_ERROR;
   }
 
+  /*
+   At this point it is not known if old member is part of the group or not.
+   So error out if invalid value are provided for option view-change-uuid.
+   If old member is part of the group, wrong value of view-change-uuid can cause
+   major issues.
+  */
   if (!strcmp(uuid, ov.view_change_uuid_var)) {
     LogPluginErr(
         ERROR_LEVEL,
@@ -954,6 +1014,9 @@ int configure_group_member_manager() {
                   { local_version = 0x080015; };);
   DBUG_EXECUTE_IF("group_replication_version_8_0_28",
                   { local_version = 0x080028; };);
+  DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
+    local_version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
+  };);
   Member_version local_member_plugin_version(local_version);
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -1083,6 +1146,10 @@ int configure_compatibility_manager() {
   DBUG_EXECUTE_IF("group_replication_legacy_election_version2", {
     Member_version higher_version(0x080015);
     compatibility_mgr->set_local_version(higher_version);
+  };);
+  DBUG_EXECUTE_IF("group_replication_version_with_vcle", {
+    Member_version version = (MEMBER_VERSION_REMOVING_VCLE) - (0x000100);
+    compatibility_mgr->set_local_version(version);
   };);
 
   return 0;
@@ -1469,6 +1536,13 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     metrics_handler->reset();
   }
 
+  /*
+    Recovery metadata module.
+  */
+  if (modules_to_init[gr_modules::RECOVERY_METADATA_MODULE]) {
+    recovery_metadata_module = new Recovery_metadata_module();
+  }
+
   return ret;
 }
 
@@ -1687,6 +1761,16 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     if (events_handler) {
       delete events_handler;
       events_handler = nullptr;
+    }
+  }
+
+  /*
+    Recovery metadata module
+  */
+  if (modules_to_terminate[gr_modules::RECOVERY_METADATA_MODULE]) {
+    if (recovery_metadata_module != nullptr) {
+      delete recovery_metadata_module;
+      recovery_metadata_module = nullptr;
     }
   }
 
@@ -2062,6 +2146,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   member_actions_handler = new Member_actions_handler();
   consensus_leaders_handler =
       new Consensus_leaders_handler{*group_events_observation_manager};
+  recovery_metadata_observer = new Recovery_metadata_observer();
 
   /*
     We do query super_read_only value while Group Replication is stopped,
@@ -2170,6 +2255,11 @@ int plugin_group_replication_deinit(void *p) {
   if (consensus_leaders_handler) {
     delete consensus_leaders_handler;
     consensus_leaders_handler = nullptr;
+  }
+
+  if (recovery_metadata_observer) {
+    delete recovery_metadata_observer;
+    recovery_metadata_observer = nullptr;
   }
 
   if (group_action_coordinator) {
@@ -2982,6 +3072,13 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     return 1;
   }
 
+  /*
+    This is valid value checking of view-change-uuid.
+    At this point it is not known if old member is part of the group or not.
+    So error out if invalid value is provided for option view-change-uuid.
+    Different value of view-change-uuid is fine if VCLE is not required,
+    but wrong value or corrupted UUID is not fine.
+  */
   if (strcmp(str, ov.view_change_uuid_var) == 0) {
     if (!is_var_update) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GROUP_NAME_SAME_AS_VIEW_CHANGE_UUID,
@@ -5212,8 +5309,12 @@ static int check_view_change_uuid(MYSQL_THD thd, SYS_VAR *, void *save,
   char buff[NAME_CHAR_LEN];
   const char *str;
 
+  push_deprecated_warn_no_replacement(thd,
+                                      "group_replication_view_change_uuid");
+
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
+
   if (!plugin_running_lock_is_rdlocked(g)) return 1;
 
   if (plugin_is_group_replication_running()) {

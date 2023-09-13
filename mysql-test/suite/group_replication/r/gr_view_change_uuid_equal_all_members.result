@@ -11,7 +11,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # 2. Bootstrap group with VIEW_CHANGE_UUID
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 include/start_and_bootstrap_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 # 3. To change view_change_uuid group replication shall be
@@ -23,11 +28,14 @@ ERROR HY000: The group_replication_view_change_uuid cannot be changed when Group
 # 4. A member only can join if it has same view_change_uuid
 #    that is defined on group
 [connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_version_with_vcle';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression(".*The member is configured with a group_replication_view_change_uuid option value .* different from the group .*. The member will now exit the group.");
 SET SESSION sql_log_bin=1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_group_name = "GROUP_REPLICATION_GROUP_NAME";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
@@ -37,7 +45,11 @@ include/assert_grep.inc [group_replication_view_change_uuid from joiner differen
 # 5. Server 2 configured with view_change_uuid of group
 #    can join
 SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
 
 ############################################################
 # 6. Confirm both server have same GTID.EXECUTED from all
@@ -50,7 +62,13 @@ include/assert.inc [GTID_EXECUTED must only contain view changes]
 # 7. Cleanup
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 [connection server2]
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+Warnings:
+Warning	1681	'group_replication_view_change_uuid' is deprecated and will be removed in a future release.
+SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 include/group_replication_end.inc
