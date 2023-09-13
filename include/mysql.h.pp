@@ -604,9 +604,9 @@ unsigned long mysql_thread_id(MYSQL *mysql);
 const char * mysql_character_set_name(MYSQL *mysql);
 int mysql_set_character_set(MYSQL *mysql, const char *csname);
 MYSQL * mysql_init(MYSQL *mysql);
-bool mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
-                           const char *ca, const char *capath,
-                           const char *cipher);
+bool
+mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert, const char *ca,
+              const char *capath, const char *cipher);
 const char * mysql_get_ssl_cipher(MYSQL *mysql);
 bool mysql_get_ssl_session_reused(MYSQL *mysql);
 void * mysql_get_ssl_session_data(MYSQL *mysql, unsigned int n_ticket,

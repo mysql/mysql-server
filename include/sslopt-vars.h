@@ -79,12 +79,16 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
   }
 
   /* Set SSL parameters: key, cert, ca, capath, cipher, clr, clrpath. */
-  if (opt_ssl_mode >= SSL_MODE_VERIFY_CA)
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca, opt_ssl_capath,
-                  opt_ssl_cipher);
-  else
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, nullptr, nullptr,
-                  opt_ssl_cipher);
+  mysql_options(mysql, MYSQL_OPT_SSL_KEY, opt_ssl_key);
+  mysql_options(mysql, MYSQL_OPT_SSL_CERT, opt_ssl_cert);
+  mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, opt_ssl_cipher);
+  if (opt_ssl_mode >= SSL_MODE_VERIFY_CA) {
+    mysql_options(mysql, MYSQL_OPT_SSL_CA, opt_ssl_ca);
+    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, opt_ssl_capath);
+  } else {
+    mysql_options(mysql, MYSQL_OPT_SSL_CA, nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, nullptr);
+  }
   mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
   mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
   mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);

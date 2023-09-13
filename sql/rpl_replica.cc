@@ -8361,10 +8361,15 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
   if (mi->ssl) {
     /* The channel is configured to use SSL */
-    mysql_ssl_set(mysql, mi->ssl_key[0] ? mi->ssl_key : nullptr,
-                  mi->ssl_cert[0] ? mi->ssl_cert : nullptr,
-                  mi->ssl_ca[0] ? mi->ssl_ca : nullptr,
-                  mi->ssl_capath[0] ? mi->ssl_capath : nullptr,
+    mysql_options(mysql, MYSQL_OPT_SSL_KEY,
+                  mi->ssl_key[0] ? mi->ssl_key : nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CERT,
+                  mi->ssl_cert[0] ? mi->ssl_cert : nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CA,
+                  mi->ssl_ca[0] ? mi->ssl_ca : nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH,
+                  mi->ssl_capath[0] ? mi->ssl_capath : nullptr);
+    mysql_options(mysql, MYSQL_OPT_SSL_CIPHER,
                   mi->ssl_cipher[0] ? mi->ssl_cipher : nullptr);
     mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : nullptr);
