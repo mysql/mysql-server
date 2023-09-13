@@ -8372,7 +8372,7 @@ void Item_ref::print(const THD *thd, String *str,
   if (m_ref_item == nullptr)  // Unresolved reference: print reference
     return Item_ident::print(thd, str, query_type);
 
-  if (!const_item() && m_alias_of_expr &&
+  if (!thd->lex->reparse_derived_table_condition && m_alias_of_expr &&
       ref_item()->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
       table_name == nullptr && item_name.ptr()) {
     Simple_cstring str1 = ref_item()->real_item()->item_name;
