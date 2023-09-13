@@ -1,6 +1,8 @@
 select @@global.old;
 @@global.old
 0
+Warnings:
+Warning	1287	'@@old' is deprecated and will be removed in a future release.
 select @@session.old;
 ERROR HY000: Variable 'old' is a GLOBAL variable
 show global variables like 'old';

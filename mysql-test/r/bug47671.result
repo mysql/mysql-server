@@ -8,3 +8,8 @@ Db     characterset:	utf8mb3
 Client characterset:	utf8mb3
 Conn.  characterset:	utf8mb3
 --------------
+# Test deprecation message: must be 1
+SELECT COUNT(*) FROM performance_schema.error_log
+WHERE DATA LIKE '%character-set-client-handshake%deprecated%';
+COUNT(*)
+1

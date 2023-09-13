@@ -8,3 +8,7 @@ CALL mtr.add_suppression("--character-set-server: 'utf8' is currently an alias f
 --echo # Extract only charset information from 'status' command output using regex
 --replace_regex /.*mysql.*// /Connection.*// /Current.*//  /SSL.*// /Using.*// /Server version.*// /Protocol.*// /UNIX.*// /Uptime.*// /Threads.*// /TCP.*// /^\n//
 --exec $MYSQL -e "status";
+
+--echo # Test deprecation message: must be 1
+SELECT COUNT(*) FROM performance_schema.error_log
+WHERE DATA LIKE '%character-set-client-handshake%deprecated%';
