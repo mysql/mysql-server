@@ -1,85 +1,155 @@
 SET @start_global_value = @@global.new;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @start_global_value;
 @start_global_value
 0
 SET @start_session_value = @@session.new;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @start_session_value;
 @start_session_value
 0
 '#--------------------FN_DYNVARS_113_01-------------------------#'
 SET @@global.new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = DEFAULT;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = DEFAULT;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_113_02-------------------------#'
 SET @@global.new = DEFAULT;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new = 'OFF';
 @@global.new = 'OFF'
 1
 Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
 SET @@session.new = DEFAULT;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new = 'OFF';
 @@session.new = 'OFF'
 1
 Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
 '#--------------------FN_DYNVARS_113_03-------------------------#'
 SET @@global.new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = OFF;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = 0;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = 1;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = TRUE;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = FALSE;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_113_04-------------------------#'
 SET @@session.new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = OFF;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = 0;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = 1;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = TRUE;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = FALSE;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_113_05-----------------------#'
 SET @@global.new = 'ONN';
 ERROR 42000: Variable 'new' can't be set to the value of 'ONN'
@@ -127,23 +197,42 @@ IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_113_08----------------------#'
 SET @@new = OFF;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@global.new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@new = @@global.new;
 @@new = @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_113_09----------------------#'
 SET @@new = ON;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@new = @@local.new;
 @@new = @@local.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@local.new = @@session.new;
 @@local.new = @@session.new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_113_10----------------------#'
 SET new = 1;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@new;
 @@new
 1
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT local.new;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.new;
@@ -151,10 +240,18 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT new = @@session.new;
 ERROR 42S22: Unknown column 'new' in 'field list'
 SET @@global.new = @start_global_value;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@global.new;
 @@global.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET @@session.new = @start_session_value;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SELECT @@session.new;
 @@session.new
 0
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.

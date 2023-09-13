@@ -254,8 +254,8 @@ The following options may be given as the first argument:
  A fully qualified path to the public RSA key used for
  authentication.
  --character-set-client-handshake 
- Don't ignore client side character set value sent during
- handshake.
+ Deprecated. Don't ignore client side character set value
+ sent during handshake.
  (Defaults to on; use --skip-character-set-client-handshake to disable.)
  --character-set-filesystem=name 
  Set the filesystem character set.

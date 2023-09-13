@@ -3261,11 +3261,16 @@ static Sys_var_ulong Sys_net_retry_count(
 static Sys_var_bool Sys_new_mode("new",
                                  "Use very new possible \"unsafe\" functions",
                                  SESSION_VAR(new_mode), CMD_LINE(OPT_ARG, 'n'),
-                                 DEFAULT(false));
+                                 DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+                                 ON_CHECK(nullptr), ON_UPDATE(nullptr),
+                                 DEPRECATED_VAR(""));
 
 static Sys_var_bool Sys_old_mode("old", "Use compatible behavior",
                                  READ_ONLY GLOBAL_VAR(old_mode),
-                                 CMD_LINE(OPT_ARG), DEFAULT(false));
+                                 CMD_LINE(OPT_ARG, OPT_OLD_OPTION),
+                                 DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+                                 ON_CHECK(nullptr), ON_UPDATE(nullptr),
+                                 DEPRECATED_VAR(""));
 
 static Sys_var_bool Sys_old_alter_table("old_alter_table",
                                         "Use old, non-optimized alter table",

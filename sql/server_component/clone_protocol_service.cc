@@ -378,9 +378,11 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
                                          &cipher, &ciphersuites, nullptr, &crl,
                                          &crlpath, nullptr, nullptr);
 
-    mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
-                  ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());
-
+    mysql_options(mysql, MYSQL_OPT_SSL_KEY, ssl_ctx->m_ssl_key);
+    mysql_options(mysql, MYSQL_OPT_SSL_CERT, ssl_ctx->m_ssl_cert);
+    mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher.c_str());
+    mysql_options(mysql, MYSQL_OPT_SSL_CA, ssl_ctx->m_ssl_ca);
+    mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, capath.c_str());
     mysql_options(mysql, MYSQL_OPT_SSL_CRL, crl.c_str());
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str());
     mysql_options(mysql, MYSQL_OPT_TLS_VERSION, version.c_str());
