@@ -1014,13 +1014,6 @@ class SpillState {
   size_t current_chunk_file_set() const { return m_current_chunk_file_set; }
 
  private:
-  /// The set of chunk files for saving rows in temporary files indexed by
-  /// a hash of the row's contents ("tertiary hash" in contrast to "secondary
-  /// hash" which allocates a row a slot in the in-memory hash map.
-  /// Each chunk file can have rows from one or more chunk file sets, cf.
-  /// counters in m_row_counts.
-  Mem_root_array<ChunkPair> *m_chunk_pairs{nullptr};
-
   /// Keeps the row that was just read from the left operand when we discovered
   /// that we were out of space in the in-memory hash map. Save it for
   /// writing it to IF-k.
@@ -1092,8 +1085,6 @@ class SpillState {
   /// away in the chunk files for each set in each chunk file of the current
   /// generation. Used to allow us to read back the correct set of rows from
   /// each chunk given the current m_current_chunk_file_set.
-  /// Invariant:
-  ///     m_row_counts.size() == m_chunk_pairs.size()
   /// It is indexed thus:
   ///     m_row_counts[ chunk index ][ set index ]
   Mem_root_array<SetCounts> m_row_counts;
