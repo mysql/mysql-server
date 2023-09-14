@@ -20,8 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 ADD_WSHADOW_WARNING()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
@@ -956,13 +954,14 @@ ADD_DEPENDENCIES(sql_main GenSysSchema)
 
 MYSQL_ADD_PLUGIN(mysql_native_password
   auth/mysql_native_password.cc
+  LINK_LIBRARIES extra::boost
   SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
   STATIC_ONLY DEFAULT)
 
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto
-  extra::rapidjson)
+  extra::rapidjson extra::boost)
 
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
@@ -976,6 +975,7 @@ ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
 TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
+TARGET_LINK_LIBRARIES(sql_gis extra::boost)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 # This typically saves a few hundred megabytes of disk space.

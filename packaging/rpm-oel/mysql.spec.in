@@ -144,7 +144,6 @@ Vendor:         %{mysql_vendor}
 %if 0%{?compatlib}
 Source7:        %{compatsrc}
 %endif
-Source10:       @BOOST_DOWNLOAD_URL@
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  libtirpc-devel
@@ -760,9 +759,9 @@ trademark of %{mysql_vendor}
 
 %prep
 %if 0%{?compatlib}
-%setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
+%setup -q -T -a 0 -a 7 -c -n %{src_dir}
 %else
-%setup -q -T -a 0 -a 10 -c -n %{src_dir}
+%setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
 
 %build
@@ -817,7 +816,6 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
-           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
 %if 0%{?ssl_default}
@@ -872,7 +870,6 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?ssl_default}

@@ -96,7 +96,6 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source10:       @BOOST_DOWNLOAD_URL@
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
@@ -579,7 +578,7 @@ necessary to develop MySQL Router applications.
 %endif
 
 %prep
-%setup -q -T -a 0 -a 10 -c -n %{src_dir}
+%setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 
 %build
@@ -605,7 +604,6 @@ mkdir debug
            -DPIDFILE_RPM="/var/run/mysql/mysqld.pid" \
            -DLOGFILE_RPM="/var/log/mysql/mysqld.log" \
            -DCMAKE_BUILD_TYPE=Debug \
-           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
@@ -648,7 +646,6 @@ mkdir release
            -DPIDFILE_RPM="/var/run/mysql/mysqld.pid" \
            -DLOGFILE_RPM="/var/log/mysql/mysqld.log" \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \

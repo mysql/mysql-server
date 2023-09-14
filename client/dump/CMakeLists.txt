@@ -20,16 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Prevent Boost from including external precompiled Boost libraries,
-# and turn off unused functionality.
-IF(USING_LOCAL_BOOST)
-  ADD_DEFINITIONS(
-    -DBOOST_ALL_NO_LIB
-    -DBOOST_SYSTEM_NO_DEPRECATED)
-ENDIF()
-
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 SET(MYSQLPUMP_LIB_SOURCES
   abstract_chain_element.cc
   abstract_connection_provider.cc
@@ -108,7 +98,7 @@ ENDIF()
 ADD_STATIC_LIBRARY(mysqlpump_lib
   ${MYSQLPUMP_LIB_SOURCES}
   LINK_LIBRARIES
-  client_base ext::lz4 ext::zlib
+  client_base ext::lz4 ext::zlib extra::boost
   )
 
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)

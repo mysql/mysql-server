@@ -31,9 +31,6 @@ IF(NOT WITH_DEBUG)
   DISABLE_DOCUMENTATION_WARNINGS()
 ENDIF()
 
-# Some tests require Boost.
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
@@ -347,7 +344,7 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
-  LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson extra::boost
   )
 
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
@@ -363,7 +360,7 @@ FOREACH(test ${TESTS})
     COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL
-    LINK_LIBRARIES sqlgunitlib gunit_small
+    LINK_LIBRARIES sqlgunitlib gunit_small extra::boost
     SKIP_INSTALL
     )
 ENDFOREACH()
