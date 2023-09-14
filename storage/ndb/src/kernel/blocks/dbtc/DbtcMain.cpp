@@ -4680,7 +4680,19 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   }
   else if (Tspecial_op & TcConnectRecord::SOF_REORG_MOVING)
   {
-    reorg = ScanFragReq::REORG_MOVED;
+    if (Tspecial_op & TcConnectRecord::SOF_REORG_COPY)
+    {
+      /**
+       * Operation is part of reorg copy scan
+       * Inform LQH so that e.g. SUMA triggers are not fired
+       */
+      reorg = ScanFragReq::REORG_MOVED_COPY;
+    }
+    else
+    {
+      /* Operation is normal 'user' operation */
+      reorg = ScanFragReq::REORG_MOVED;
+    }
   }
 
   Uint32 inlineAttrLen= 0;
