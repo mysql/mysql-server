@@ -23,9 +23,12 @@
 #include "sql/iterators/composite_iterators.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include <atomic>
-#include <list>
+#include <cmath>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -36,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_xxhash.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
@@ -54,18 +58,20 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key.h"
-#include "sql/mysqld.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/pfs_batch_mode.h"
+#include "sql/psi_memory_key.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_show.h"
 #include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"  // Table_function
 #include "sql/temp_table_param.h"
@@ -75,7 +81,6 @@
 #include "extra/robin-hood-hashing/robin_hood.h"
 using pack_rows::TableCollection;
 using std::string;
-using std::swap;
 using std::vector;
 
 int FilterIterator::Read() {
@@ -1311,7 +1316,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     // It fit before, should fit now
     assert(false);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             current_thd->variables.set_operations_buffer_size);
+             thd()->variables.set_operations_buffer_size);
     return true;
   }
 
@@ -1320,7 +1325,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     // It fit before, should fit now
     assert(false);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             current_thd->variables.set_operations_buffer_size);
+             thd()->variables.set_operations_buffer_size);
     return true;
   }
 
@@ -1823,9 +1828,9 @@ bool MaterializeIterator<Profiler>::process_row(
   };
 
   auto spill_to_disk_and_retry_update_row =
-      [t, &operands](int seen_tmp_table_error) -> int {
+      [this, t, &operands](int seen_tmp_table_error) -> int {
     bool dummy = false;
-    if (create_ondisk_from_heap(current_thd, t, seen_tmp_table_error,
+    if (create_ondisk_from_heap(thd(), t, seen_tmp_table_error,
                                 /*insert_last_record=*/false,
                                 /*ignore_last_dup=*/true, &dummy))
       return 1; /* purecov: inspected */
@@ -2299,7 +2304,7 @@ bool materialize_iterator::SpillState::initialize_first_HF_chunk_files() {
       return true;
     }
     // Initialize counters matrix
-    Mem_root_array<CountPair> ma(current_thd->mem_root, 1);
+    Mem_root_array<CountPair> ma(m_thd->mem_root, 1);
     ma.resize(m_no_of_chunk_file_sets);
     m_row_counts[i] = std::move(ma);
   }
@@ -2462,13 +2467,13 @@ bool materialize_iterator::SpillState::save_operand_to_IF_chunk_files(
 
       if (set == 0) {
         int error = current_operand->subquery_iterator->Read();
-        if (error > 0 || current_thd->is_error()) return true;
+        if (error > 0 || m_thd->is_error()) return true;
         if (error < 0) {
           done = true;  // done reading the rest of left operand
         } else {
           // Materialize items for this row.
           if (current_operand->copy_items) {
-            if (copy_funcs(current_operand->temp_table_param, current_thd))
+            if (copy_funcs(current_operand->temp_table_param, m_thd))
               return true;
           }
           if (StoreFromTableBuffers(m_table_collection, &m_row_buffer))
@@ -2677,17 +2682,15 @@ bool materialize_iterator::SpillState::simulated_secondary_overflow(
       "in debug_set_operations_secondary_overflow_at too high: should be "
       "lower than or equal to:";
   // Have we indicated a value?
-  if (strlen(
-          current_thd->variables.debug_set_operations_secondary_overflow_at) >
-          0 &&
+  if (strlen(m_thd->variables.debug_set_operations_secondary_overflow_at) > 0 &&
       m_simulated_set_idx == std::numeric_limits<size_t>::max()) {
     // Parse out variables with
     // syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
     // <row_no:integer 1-based>
-    int tokens [[maybe_unused]] = sscanf(
-        current_thd->variables.debug_set_operations_secondary_overflow_at,
-        "%zu %zu %zu", &m_simulated_set_idx, &m_simulated_chunk_idx,
-        &m_simulated_row_no);
+    int tokens [[maybe_unused]] =
+        sscanf(m_thd->variables.debug_set_operations_secondary_overflow_at,
+               "%zu %zu %zu", &m_simulated_set_idx, &m_simulated_chunk_idx,
+               &m_simulated_row_no);
     if (tokens != 3 || m_simulated_row_no < 1 ||
         m_simulated_chunk_idx >= m_chunk_files.size()) {
       my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Chunk number", common_msg,

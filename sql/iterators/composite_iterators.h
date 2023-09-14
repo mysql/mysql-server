@@ -40,8 +40,10 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
+#include <sys/types.h>
+#include <limits>
 #include <memory>
+#include <new>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,15 +51,18 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_table_map.h"
+#include "mysqld_error.h"
 #include "sql/immutable_string.h"
 #include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/hash_join_chunk.h"
 #include "sql/iterators/hash_join_iterator.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
-#include "sql/table.h"
+#include "sql/sql_array.h"
 #include "sql_string.h"
 
 #include "extra/robin-hood-hashing/robin_hood.h"
@@ -67,11 +72,12 @@ class Item;
 class JOIN;
 class KEY;
 struct MaterializePathParameters;
-class Query_expression;
 class SJ_TMP_TABLE;
+class Table_ref;
 class THD;
 class Table_function;
 class Temp_table_param;
+struct TABLE;
 
 /**
   An iterator that takes in a stream of rows and passes through only those that
