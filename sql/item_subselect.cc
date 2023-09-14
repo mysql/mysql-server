@@ -2733,6 +2733,7 @@ void Item_in_subselect::update_used_tables() {
   Item_subselect::update_used_tables();
   left_expr->update_used_tables();
   m_used_tables_cache |= left_expr->used_tables();
+  add_accum_properties(left_expr);
 }
 
 /**
