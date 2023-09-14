@@ -171,8 +171,6 @@ ClassicFrame::ensure_has_full_frame(Channel *src_channel,
 [[nodiscard]] stdx::expected<size_t, std::error_code>
 ClassicFrame::recv_frame_sequence(Channel *src_channel,
                                   ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_view();
-
   bool expect_header{true};  // toggle between header and payload
   const size_t hdr_size{4};
   size_t expected_size{hdr_size};
@@ -183,17 +181,19 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
   src_protocol->current_frame().reset();
 
   for (;;) {
+    auto recv_buf_size = src_channel->recv_plain_view().size();
+
     // fill the recv-buf with the expected bytes.
-    if (recv_buf.size() < expected_size) {
-      auto read_res =
-          src_channel->read_to_plain(expected_size - recv_buf.size());
+    if (recv_buf_size < expected_size) {
+      auto read_res = src_channel->read_to_plain(expected_size - recv_buf_size);
       if (!read_res) return read_res.get_unexpected();
 
-      if (recv_buf.size() < expected_size) {
+      if (src_channel->recv_plain_view().size() < expected_size) {
         return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
       }
     }
 
+    auto &recv_buf = src_channel->recv_plain_view();
     if (expect_header) {
       const auto hdr_res =
           classic_protocol::decode<classic_protocol::frame::Header>(
