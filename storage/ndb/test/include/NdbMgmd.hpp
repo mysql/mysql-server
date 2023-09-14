@@ -99,6 +99,7 @@ public:
       ndb_mgm_destroy_handle(&m_handle);
       m_handle = NULL;
     }
+    m_event_socket.close();
   }
 
   NdbMgmHandle handle(void) const {
