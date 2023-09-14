@@ -508,9 +508,9 @@ struct System_variables {
   Explain_format_type explain_format;
 
   /// Max size of set operations hash buffer size.
-  ulonglong setop_hash_buffer_size;
+  ulonglong set_operations_buffer_size;
 #ifndef NDEBUG
-  char *debug_setop_secondary_overflow_at;
+  char *debug_set_operations_secondary_overflow_at;
 #endif
 };
 

@@ -1311,7 +1311,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     // It fit before, should fit now
     assert(false);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             current_thd->variables.setop_hash_buffer_size);
+             current_thd->variables.set_operations_buffer_size);
     return true;
   }
 
@@ -1320,7 +1320,7 @@ bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
     // It fit before, should fit now
     assert(false);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             current_thd->variables.setop_hash_buffer_size);
+             current_thd->variables.set_operations_buffer_size);
     return true;
   }
 
@@ -1378,7 +1378,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
                                                                  bool write,
                                                                  bool *found,
                                                                  bool *spill) {
-  const size_t max_mem_available = thd()->variables.setop_hash_buffer_size;
+  const size_t max_mem_available = thd()->variables.set_operations_buffer_size;
 
   *spill = false;
 
@@ -1459,7 +1459,7 @@ bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
       // This can only happen if the hash function is extremely bad
       // (should never happen in practice).
       my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-               thd()->variables.setop_hash_buffer_size);
+               thd()->variables.set_operations_buffer_size);
       return true;
     }
     m_hash_map_iterator = key_it_and_inserted.first;
@@ -2674,17 +2674,20 @@ bool materialize_iterator::SpillState::write_completed_HFs(
 bool materialize_iterator::SpillState::simulated_secondary_overflow(
     bool *spill) {
   const char *const common_msg =
-      "in debug_setop_secondary_overflow_at too high: should be lower than "
-      "or equal to:";
+      "in debug_set_operations_secondary_overflow_at too high: should be "
+      "lower than or equal to:";
   // Have we indicated a value?
-  if (strlen(current_thd->variables.debug_setop_secondary_overflow_at) > 0 &&
+  if (strlen(
+          current_thd->variables.debug_set_operations_secondary_overflow_at) >
+          0 &&
       m_simulated_set_idx == std::numeric_limits<size_t>::max()) {
     // Parse out variables with
     // syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
     // <row_no:integer 1-based>
     int tokens [[maybe_unused]] = sscanf(
-        current_thd->variables.debug_setop_secondary_overflow_at, "%zu %zu %zu",
-        &m_simulated_set_idx, &m_simulated_chunk_idx, &m_simulated_row_no);
+        current_thd->variables.debug_set_operations_secondary_overflow_at,
+        "%zu %zu %zu", &m_simulated_set_idx, &m_simulated_chunk_idx,
+        &m_simulated_row_no);
     if (tokens != 3 || m_simulated_row_no < 1 ||
         m_simulated_chunk_idx >= m_chunk_files.size()) {
       my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Chunk number", common_msg,

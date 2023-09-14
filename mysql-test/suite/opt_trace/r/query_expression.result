@@ -19,7 +19,7 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SET SESSION optimizer_trace='enabled=on';
-SET SESSION setop_hash_buffer_size = 4 * 1024 * 1024;
+SET SESSION set_operations_buffer_size = 4 * 1024 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -72,7 +72,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION setop_hash_buffer_size = 16 * 1024;
+SET SESSION set_operations_buffer_size = 16 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -134,7 +134,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 ]
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace='enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE t;
 #
 # Test optimizer trace
@@ -157,7 +157,7 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SET SESSION optimizer_trace='enabled=on';
-SET SESSION setop_hash_buffer_size = 4 * 1024 * 1024;
+SET SESSION set_operations_buffer_size = 4 * 1024 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -210,7 +210,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION setop_hash_buffer_size = 16 * 1024;
+SET SESSION set_operations_buffer_size = 16 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -272,5 +272,5 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 ]
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace='enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE t;

@@ -26,7 +26,7 @@ let $char_type=TEXT;
 --echo # attempt store the row payload in a mem_root.  But there is another
 --echo # overflow situation: when extending the Robin Hood hash map (it grows
 --echo # by doubling as needed on the heap).  We track this memory usage
---echo # against setop_hash_buffer_size. The next test hopefully triggers this
+--echo # against set_operations_buffer_size. The next test hopefully triggers this
 --echo # logic path instead.  The shorter record size (a 32 bits integer)
 --echo # makes this situation more likely.  Verified with on MacOS build.
 CREATE TABLE t(i INT) ENGINE=innodb;
@@ -45,8 +45,8 @@ INSERT INTO t
 # insert one duplicate of each row
 INSERT INTO t select i FROM  t;
 ANALYZE TABLE t;
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 2;
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 DROP TABLE t;

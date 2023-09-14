@@ -1361,7 +1361,7 @@ The following options may be given as the first argument:
  characteristics (isolation level, read only/read write,
  snapshot - but not any work done / data modified within
  the transaction).
- --setop-hash-buffer-size=# 
+ --set-operations-buffer-size=# 
  The maximum size of the buffer used for hash based set
  operations 
  --sha256-password-proxy-users 
@@ -2009,7 +2009,7 @@ session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 session-track-transaction-info OFF
-setop-hash-buffer-size 262144
+set-operations-buffer-size 262144
 sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL

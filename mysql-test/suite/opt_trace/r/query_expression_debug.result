@@ -19,8 +19,8 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SET SESSION optimizer_trace='enabled=on';
-SET SESSION setop_hash_buffer_size = 16 * 1024;
-SET SESSION debug_setop_secondary_overflow_at= '1 50 20';
+SET SESSION set_operations_buffer_size = 16 * 1024;
+SET SESSION debug_set_operations_secondary_overflow_at= '1 50 20';
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -101,10 +101,10 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace = 'enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE t;
 #
 # Test optimizer trace for secondary overflow
@@ -127,8 +127,8 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SET SESSION optimizer_trace='enabled=on';
-SET SESSION setop_hash_buffer_size = 16 * 1024;
-SET SESSION debug_setop_secondary_overflow_at= '1 50 20';
+SET SESSION set_operations_buffer_size = 16 * 1024;
+SET SESSION debug_set_operations_secondary_overflow_at= '1 50 20';
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 COUNT(*)
 32768
@@ -209,8 +209,8 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace = 'enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE t;

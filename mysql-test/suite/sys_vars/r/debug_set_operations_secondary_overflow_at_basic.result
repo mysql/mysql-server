@@ -1,0 +1,18 @@
+select @@global.debug_set_operations_secondary_overflow_at;
+@@global.debug_set_operations_secondary_overflow_at
+
+select @@global.debug_set_operations_secondary_overflow_at into @save;
+show global variables like 'debug_set_operations_secondary_overflow_at';
+Variable_name	Value
+debug_set_operations_secondary_overflow_at	#
+select * from performance_schema.global_variables where variable_name="debug_set_operations_secondary_overflow_at";
+VARIABLE_NAME	VARIABLE_VALUE
+debug_set_operations_secondary_overflow_at	#
+set @@global.debug_set_operations_secondary_overflow_at='1 50 20';
+set @@global.debug_set_operations_secondary_overflow_at=@save;
+set @@global.debug_set_operations_secondary_overflow_at=1;
+ERROR 42000: Incorrect argument type to variable 'debug_set_operations_secondary_overflow_at'
+set @@global.debug_set_operations_secondary_overflow_at=1.1;
+ERROR 42000: Incorrect argument type to variable 'debug_set_operations_secondary_overflow_at'
+set @@global.debug_set_operations_secondary_overflow_at=1e1;
+ERROR 42000: Incorrect argument type to variable 'debug_set_operations_secondary_overflow_at'
