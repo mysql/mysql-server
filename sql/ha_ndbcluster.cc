@@ -16853,16 +16853,13 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       else
       {
         /*
-          This shouldn't really happen.
-
-          There aren't really any other errors that could happen on the read
-          without also aborting the transaction and causing execute() to
-          return failure.
-
-          (But we can still safely return an error code in non-debug builds).
+          Some operation error that did not cause transaction
+          rollback, but was unexpected when performing these
+          lookups.
+          Return error to caller, expecting caller to rollback
+          transaction.
         */
-        assert(FALSE);
-        ERR_RETURN(error);      /* purecov: deadcode */
+        ERR_RETURN(error);
       }
     }
   }
