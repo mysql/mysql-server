@@ -20,24 +20,24 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 # Test spill correctness with secondary overflow using
-# injection. This query with setop_hash_buffer_size == 16384
+# injection. This query with set_operations_buffer_size == 16384
 # will give 128 chunk files. With default setting it does not
 # spill to disk.
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 CREATE TABLE no_hashing AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = 16384;
-SET SESSION debug_setop_secondary_overflow_at='0 128 1';
+SET SESSION set_operations_buffer_size = 16384;
+SET SESSION debug_set_operations_secondary_overflow_at='0 128 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
-SET SESSION debug_setop_secondary_overflow_at='1 128 1';
+ERROR HY000: Chunk number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_set_operations_secondary_overflow_at='1 128 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
-SET SESSION debug_setop_secondary_overflow_at='2 0 1';
+ERROR HY000: Chunk number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_set_operations_secondary_overflow_at='2 0 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Set number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 1.
+ERROR HY000: Set number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 1.
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 0 1';
+SET SESSION debug_set_operations_secondary_overflow_at='0 0 1';
 CREATE TABLE t_0_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_1) derived;
@@ -49,7 +49,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_0_1;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 0 200';
+SET SESSION debug_set_operations_secondary_overflow_at='0 0 200';
 CREATE TABLE t_0_0_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_200) derived;
@@ -61,7 +61,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_0_200;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 50 20';
+SET SESSION debug_set_operations_secondary_overflow_at='0 50 20';
 CREATE TABLE t_0_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_50_20) derived;
@@ -73,11 +73,11 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_50_20;
 # Too high row
-SET SESSION debug_setop_secondary_overflow_at='1 127 279';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 279';
 CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+ERROR HY: Row number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: .
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 127 200';
+SET SESSION debug_set_operations_secondary_overflow_at='0 127 200';
 CREATE TABLE t_0_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_127_200) derived;
@@ -89,7 +89,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_127_200;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='1 0 1';
+SET SESSION debug_set_operations_secondary_overflow_at='1 0 1';
 CREATE TABLE t_1_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_0_1) derived;
@@ -101,7 +101,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_1_0_1;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='1 50 20';
+SET SESSION debug_set_operations_secondary_overflow_at='1 50 20';
 CREATE TABLE t_1_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_50_20) derived;
@@ -113,12 +113,12 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_1_50_20;
 # Row too high
-SET SESSION debug_setop_secondary_overflow_at='1 127 258';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 258';
 CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+ERROR HY: Row number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: .
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 # Row in last chunk
-SET SESSION debug_setop_secondary_overflow_at='1 127 200';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 200';
 CREATE TABLE t_1_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_127_200) derived;
@@ -128,9 +128,9 @@ SELECT COUNT(*) FROM (SELECT * FROM t_1_127_200 EXCEPT ALL SELECT * FROM no_hash
 COUNT(*)
 0
 DROP TABLE t_1_127_200;
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE no_hashing;
 #
 # Test overflow in resulting tmp table at secondary overflow
@@ -138,7 +138,7 @@ DROP TABLE no_hashing;
 SET SESSION optimizer_trace="enabled=on";
 SET SESSION tmp_table_size=100000;
 # b) With secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 10 20';
+SET SESSION debug_set_operations_secondary_overflow_at='0 10 20';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra
@@ -282,9 +282,9 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 DROP TABLE t;
 #
@@ -309,24 +309,24 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 # Test spill correctness with secondary overflow using
-# injection. This query with setop_hash_buffer_size == 16384
+# injection. This query with set_operations_buffer_size == 16384
 # will give 128 chunk files. With default setting it does not
 # spill to disk.
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 CREATE TABLE no_hashing AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = 16384;
-SET SESSION debug_setop_secondary_overflow_at='0 128 1';
+SET SESSION set_operations_buffer_size = 16384;
+SET SESSION debug_set_operations_secondary_overflow_at='0 128 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
-SET SESSION debug_setop_secondary_overflow_at='1 128 1';
+ERROR HY000: Chunk number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_set_operations_secondary_overflow_at='1 128 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
-SET SESSION debug_setop_secondary_overflow_at='2 0 1';
+ERROR HY000: Chunk number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_set_operations_secondary_overflow_at='2 0 1';
 SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY000: Set number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 1.
+ERROR HY000: Set number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: 1.
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 0 1';
+SET SESSION debug_set_operations_secondary_overflow_at='0 0 1';
 CREATE TABLE t_0_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_1) derived;
@@ -338,7 +338,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_0_1;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 0 200';
+SET SESSION debug_set_operations_secondary_overflow_at='0 0 200';
 CREATE TABLE t_0_0_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_200) derived;
@@ -350,7 +350,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_0_200;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 50 20';
+SET SESSION debug_set_operations_secondary_overflow_at='0 50 20';
 CREATE TABLE t_0_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_50_20) derived;
@@ -362,11 +362,11 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_50_20;
 # Too high row
-SET SESSION debug_setop_secondary_overflow_at='1 127 279';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 279';
 CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+ERROR HY: Row number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: .
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 127 200';
+SET SESSION debug_set_operations_secondary_overflow_at='0 127 200';
 CREATE TABLE t_0_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_127_200) derived;
@@ -378,7 +378,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_0_127_200;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='1 0 1';
+SET SESSION debug_set_operations_secondary_overflow_at='1 0 1';
 CREATE TABLE t_1_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_0_1) derived;
@@ -390,7 +390,7 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_1_0_1;
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='1 50 20';
+SET SESSION debug_set_operations_secondary_overflow_at='1 50 20';
 CREATE TABLE t_1_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_50_20) derived;
@@ -402,12 +402,12 @@ COUNT(*)
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 DROP TABLE t_1_50_20;
 # Row too high
-SET SESSION debug_setop_secondary_overflow_at='1 127 258';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 258';
 CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
-ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+ERROR HY: Row number in debug_set_operations_secondary_overflow_at too high: should be lower than or equal to: .
 # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 # Row in last chunk
-SET SESSION debug_setop_secondary_overflow_at='1 127 200';
+SET SESSION debug_set_operations_secondary_overflow_at='1 127 200';
 CREATE TABLE t_1_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_127_200) derived;
@@ -417,9 +417,9 @@ SELECT COUNT(*) FROM (SELECT * FROM t_1_127_200 EXCEPT ALL SELECT * FROM no_hash
 COUNT(*)
 0
 DROP TABLE t_1_127_200;
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE no_hashing;
 #
 # Test overflow in resulting tmp table at secondary overflow
@@ -427,7 +427,7 @@ DROP TABLE no_hashing;
 SET SESSION optimizer_trace="enabled=on";
 SET SESSION tmp_table_size=100000;
 # b) With secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 10 20';
+SET SESSION debug_set_operations_secondary_overflow_at='0 10 20';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra
@@ -569,8 +569,8 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
     "select#": 1
   }
 ]
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 DROP TABLE t;

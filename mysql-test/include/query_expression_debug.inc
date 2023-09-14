@@ -23,7 +23,7 @@ ANALYZE TABLE t;
 
 
 --echo # Test spill correctness with secondary overflow using
---echo # injection. This query with setop_hash_buffer_size == 16384
+--echo # injection. This query with set_operations_buffer_size == 16384
 --echo # will give 128 chunk files. With default setting it does not
 --echo # spill to disk.
 let $query = SELECT * FROM t INTERSECT SELECT * FROM t;
@@ -33,24 +33,24 @@ eval CREATE TABLE no_hashing AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 
 # force overflow so we can inject secondary overflow
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 
-SET SESSION debug_setop_secondary_overflow_at='0 128 1';
+SET SESSION debug_set_operations_secondary_overflow_at='0 128 1';
 --error ER_SIMULATED_INJECTION_ERROR
 eval $query;
 
-SET SESSION debug_setop_secondary_overflow_at='1 128 1';
+SET SESSION debug_set_operations_secondary_overflow_at='1 128 1';
 --error ER_SIMULATED_INJECTION_ERROR
 eval $query;
 
-SET SESSION debug_setop_secondary_overflow_at='2 0 1';
+SET SESSION debug_set_operations_secondary_overflow_at='2 0 1';
 --error ER_SIMULATED_INJECTION_ERROR
 eval $query;
 
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=0 0 1;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -61,7 +61,7 @@ eval DROP TABLE t_$sans;
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=0 0 200;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -72,7 +72,7 @@ eval DROP TABLE t_$sans;
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=0 50 20;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -83,7 +83,7 @@ eval DROP TABLE t_$sans;
 --echo # Too high row
 let $fail_at=1 127 279;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 --replace_regex /[0-9]+//
 --error ER_SIMULATED_INJECTION_ERROR
 eval CREATE TABLE t_$sans AS $query;
@@ -91,7 +91,7 @@ eval CREATE TABLE t_$sans AS $query;
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=0 127 200;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -102,7 +102,7 @@ eval DROP TABLE t_$sans;
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=1 0 1;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -113,7 +113,7 @@ eval DROP TABLE t_$sans;
 --echo # Compare old approach (no hashing) with hashing w/spill and secondary overflow
 let $fail_at=1 50 20;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
@@ -124,7 +124,7 @@ eval DROP TABLE t_$sans;
 --echo # Row too high
 let $fail_at=1 127 258;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 --replace_regex /[0-9]+//
 --error ER_SIMULATED_INJECTION_ERROR
 eval CREATE TABLE t_$sans AS $query;
@@ -133,16 +133,16 @@ eval CREATE TABLE t_$sans AS $query;
 --echo # Row in last chunk
 let $fail_at=1 127 200;
 let $sans = `SELECT REPLACE("$fail_at", ' ', '_')`;
-eval SET SESSION debug_setop_secondary_overflow_at='$fail_at';
+eval SET SESSION debug_set_operations_secondary_overflow_at='$fail_at';
 eval CREATE TABLE t_$sans AS $query;
 SET SESSION optimizer_switch = 'hash_set_operations=off';
 eval SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_$sans) derived;
 eval SELECT COUNT(*) FROM (SELECT * FROM t_$sans EXCEPT ALL SELECT * FROM no_hashing) derived;
 eval DROP TABLE t_$sans;
 
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 DROP TABLE no_hashing;
 
@@ -162,15 +162,15 @@ let $pattern=$pattern /num_initial_chunks_spilled_to_disk\": [0-9.]+/num_initial
 let $pattern=$pattern /peak_memory_used\": [0-9.]+/peak_memory_used\": "elided"/;
 
 --echo # b) With secondary overflow
-SET SESSION debug_setop_secondary_overflow_at='0 10 20';
+SET SESSION debug_set_operations_secondary_overflow_at='0 10 20';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 --replace_regex $pattern
 --skip_if_hypergraph
 eval $show_trace;
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 
 DROP TABLE t;

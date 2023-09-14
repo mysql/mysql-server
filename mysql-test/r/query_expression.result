@@ -4987,7 +4987,7 @@ SHOW STATUS LIKE 'Created_tmp_files%';
 Variable_name	Value
 Created_tmp_files	96
 FLUSH STATUS;
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 # The number of Created_tmp_files will be 386, which is
 # 128*2 (build, probe chunks) for left operand + 128 (probe) for right operand
 # + 2 (REMAININGINPUT for left and right operand) = 386
@@ -5019,9 +5019,9 @@ i	d	c
 SHOW STATUS LIKE 'Created_tmp_files%';
 Variable_name	Value
 Created_tmp_files	386
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 # Test spill correctness and secondary overflow, the latter
-# using injection. This query with setop_hash_buffer_size ==
+# using injection. This query with set_operations_buffer_size ==
 # 16384 will give 128 chunk files. With default setting it does
 # not spill to disk.
 SET SESSION optimizer_switch = 'hash_set_operations=off';
@@ -5037,7 +5037,7 @@ SELECT COUNT(*) FROM (SELECT * FROM hashing_no_spill EXCEPT ALL SELECT * FROM no
 COUNT(*)
 0
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 CREATE TABLE hashing_spill AS SELECT * FROM t INTERSECT SELECT * FROM t;
 # Compare old approach (no hashing) with hashing w/spill
 SET SESSION optimizer_switch = 'hash_set_operations=off';
@@ -5048,7 +5048,7 @@ SELECT COUNT(*) FROM (SELECT * FROM hashing_spill EXCEPT ALL SELECT * FROM no_ha
 COUNT(*)
 0
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE no_hashing, hashing_no_spill, hashing_spill;
 #
 # Test overflow in resulting tmp table
@@ -5182,7 +5182,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 # b) With secondary overflow (part of query_expression_debug
 #    since it requires error injection)
 # c) When we can hash in memory
-SET SESSION setop_hash_buffer_size=2621440;
+SET SESSION set_operations_buffer_size=2621440;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra
@@ -5300,7 +5300,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 DROP TABLE t;
 # Ditto, now with rows containing a blob
@@ -5395,7 +5395,7 @@ SHOW STATUS LIKE 'Created_tmp_files%';
 Variable_name	Value
 Created_tmp_files	100
 FLUSH STATUS;
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 # The number of Created_tmp_files will be 386, which is
 # 128*2 (build, probe chunks) for left operand + 128 (probe) for right operand
 # + 2 (REMAININGINPUT for left and right operand) = 386
@@ -5427,9 +5427,9 @@ i	d	c
 SHOW STATUS LIKE 'Created_tmp_files%';
 Variable_name	Value
 Created_tmp_files	388
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 # Test spill correctness and secondary overflow, the latter
-# using injection. This query with setop_hash_buffer_size ==
+# using injection. This query with set_operations_buffer_size ==
 # 16384 will give 128 chunk files. With default setting it does
 # not spill to disk.
 SET SESSION optimizer_switch = 'hash_set_operations=off';
@@ -5445,7 +5445,7 @@ SELECT COUNT(*) FROM (SELECT * FROM hashing_no_spill EXCEPT ALL SELECT * FROM no
 COUNT(*)
 0
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 CREATE TABLE hashing_spill AS SELECT * FROM t INTERSECT SELECT * FROM t;
 # Compare old approach (no hashing) with hashing w/spill
 SET SESSION optimizer_switch = 'hash_set_operations=off';
@@ -5456,7 +5456,7 @@ SELECT COUNT(*) FROM (SELECT * FROM hashing_spill EXCEPT ALL SELECT * FROM no_ha
 COUNT(*)
 0
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE no_hashing, hashing_no_spill, hashing_spill;
 #
 # Test overflow in resulting tmp table
@@ -5588,7 +5588,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
 # b) With secondary overflow (part of query_expression_debug
 #    since it requires error injection)
 # c) When we can hash in memory
-SET SESSION setop_hash_buffer_size=2621440;
+SET SESSION set_operations_buffer_size=2621440;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 i	d	c
 0	2022-04-30	abracadabra
@@ -5704,7 +5704,7 @@ JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
   }
 ]
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 DROP TABLE t;
 # query_expression.inc tests spilling to disk with two table shapes:
@@ -5716,7 +5716,7 @@ DROP TABLE t;
 # attempt store the row payload in a mem_root.  But there is another
 # overflow situation: when extending the Robin Hood hash map (it grows
 # by doubling as needed on the heap).  We track this memory usage
-# against setop_hash_buffer_size. The next test hopefully triggers this
+# against set_operations_buffer_size. The next test hopefully triggers this
 # logic path instead.  The shorter record size (a 32 bits integer)
 # makes this situation more likely.  Verified with on MacOS build.
 CREATE TABLE t(i INT) ENGINE=innodb;
@@ -5734,10 +5734,10 @@ INSERT INTO t select i FROM  t;
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 2;
 i
 0
 1
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 DROP TABLE t;

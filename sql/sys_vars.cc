@@ -7715,12 +7715,12 @@ static Sys_var_bool Sys_tls_certificates_enforced_validation(
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
-static Sys_var_ulonglong Sys_setop_hash_buffer_size(
-    "setop_hash_buffer_size",
+static Sys_var_ulonglong Sys_set_operations_buffer_size(
+    "set_operations_buffer_size",
     "The maximum size of the buffer used for hash based set operations ",
-    HINT_UPDATEABLE SESSION_VAR(setop_hash_buffer_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(16384 /* 16*1024 */, max_mem_sz), DEFAULT(256ULL * 1024),
-    BLOCK_SIZE(128));
+    HINT_UPDATEABLE SESSION_VAR(set_operations_buffer_size),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(16384 /* 16*1024 */, max_mem_sz),
+    DEFAULT(256ULL * 1024), BLOCK_SIZE(128));
 
 #ifndef NDEBUG
 // If this variable is set, it will inject a secondary overflow in spill to
@@ -7732,12 +7732,12 @@ static Sys_var_ulonglong Sys_setop_hash_buffer_size(
 // Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
 //         <row_no:integer 1-based>
 // Example:
-//       SET SESSION debug_setop_secondary_overflow_at = '1 5 7';
+//       SET SESSION debug_set_operations_secondary_overflow_at = '1 5 7';
 // If the numbers given are outside range on the high side, they will never
 // trigger any secondary spill.
-static Sys_var_charptr Sys_debug_setop_secondary_overflow_at(
-    "debug_setop_secondary_overflow_at", "Error injection",
-    HINT_UPDATEABLE SESSION_VAR(debug_setop_secondary_overflow_at),
+static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
+    "debug_set_operations_secondary_overflow_at", "Error injection",
+    HINT_UPDATEABLE SESSION_VAR(debug_set_operations_secondary_overflow_at),
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 #endif

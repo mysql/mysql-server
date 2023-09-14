@@ -29,13 +29,13 @@ let $show_trace=
 
 SET SESSION optimizer_trace='enabled=on';
 
-SET SESSION setop_hash_buffer_size = 4 * 1024 * 1024;
+SET SESSION set_operations_buffer_size = 4 * 1024 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 --replace_regex $elide_trace_costs_and_rows
 --skip_if_hypergraph
 eval $show_trace;
 
-SET SESSION setop_hash_buffer_size = 16 * 1024;
+SET SESSION set_operations_buffer_size = 16 * 1024;
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 --replace_regex $elide_trace_costs_and_rows
 --skip_if_hypergraph
@@ -43,7 +43,7 @@ eval $show_trace;
 
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace='enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 DROP TABLE t;
 

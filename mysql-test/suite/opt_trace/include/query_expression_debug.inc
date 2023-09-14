@@ -29,17 +29,17 @@ let $show_trace=
 
 SET SESSION optimizer_trace='enabled=on';
 
-SET SESSION setop_hash_buffer_size = 16 * 1024;
-SET SESSION debug_setop_secondary_overflow_at= '1 50 20';
+SET SESSION set_operations_buffer_size = 16 * 1024;
+SET SESSION debug_set_operations_secondary_overflow_at= '1 50 20';
 SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
 --skip_if_hypergraph
 eval $show_trace;
 
-SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION debug_set_operations_secondary_overflow_at= default;
 
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 SET SESSION optimizer_trace = 'enabled=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 DROP TABLE t;
 

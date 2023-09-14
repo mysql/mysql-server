@@ -86,7 +86,7 @@ LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
     return ret;
   } else {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
-             current_thd->variables.setop_hash_buffer_size);
+             current_thd->variables.set_operations_buffer_size);
     return ret;  // spill to disk
   }
 

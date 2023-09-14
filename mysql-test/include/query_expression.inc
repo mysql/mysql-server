@@ -44,7 +44,7 @@ SET SESSION optimizer_switch = 'hash_set_operations=default';
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 SHOW STATUS LIKE 'Created_tmp_files%';
 FLUSH STATUS;
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 --echo # The number of Created_tmp_files will be 386, which is
 --echo # 128*2 (build, probe chunks) for left operand + 128 (probe) for right operand
 --echo # + 2 (REMAININGINPUT for left and right operand) = 386
@@ -54,10 +54,10 @@ SET SESSION setop_hash_buffer_size = 16384;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 SHOW STATUS LIKE 'Created_tmp_files%';
 
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 --echo # Test spill correctness and secondary overflow, the latter
---echo # using injection. This query with setop_hash_buffer_size ==
+--echo # using injection. This query with set_operations_buffer_size ==
 --echo # 16384 will give 128 chunk files. With default setting it does
 --echo # not spill to disk.
 let $query = SELECT * FROM t INTERSECT SELECT * FROM t;
@@ -74,7 +74,7 @@ SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM hashing_
 SELECT COUNT(*) FROM (SELECT * FROM hashing_no_spill EXCEPT ALL SELECT * FROM no_hashing) derived;
 SET SESSION optimizer_switch = 'hash_set_operations=default';
 
-SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION set_operations_buffer_size = 16384;
 eval CREATE TABLE hashing_spill AS $query;
 
 --echo # Compare old approach (no hashing) with hashing w/spill
@@ -83,7 +83,7 @@ SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM hashing_
 SELECT COUNT(*) FROM (SELECT * FROM hashing_spill EXCEPT ALL SELECT * FROM no_hashing) derived;
 
 SET SESSION optimizer_switch = 'hash_set_operations=default';
-SET SESSION setop_hash_buffer_size = default;
+SET SESSION set_operations_buffer_size = default;
 
 DROP TABLE no_hashing, hashing_no_spill, hashing_spill;
 
@@ -112,14 +112,14 @@ eval $show_trace;
 --echo #    since it requires error injection)
 
 --echo # c) When we can hash in memory
-SET SESSION setop_hash_buffer_size=2621440;
+SET SESSION set_operations_buffer_size=2621440;
 SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
 --replace_regex $pattern
 --skip_if_hypergraph
 eval $show_trace;
 
 SET SESSION tmp_table_size=default;
-SET SESSION setop_hash_buffer_size=default;
+SET SESSION set_operations_buffer_size=default;
 SET SESSION optimizer_trace="enabled=default";
 
 DROP TABLE t;

@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+#
+# exists as global
+#
+
+# just to show that global.debug_set_operations_secondary_overflow_at exists
+select @@global.debug_set_operations_secondary_overflow_at;
+
+select @@global.debug_set_operations_secondary_overflow_at into @save;
+
+--replace_column 2 #
+show global variables like 'debug_set_operations_secondary_overflow_at';
+
+--replace_column 2 #
+--disable_warnings
+select * from performance_schema.global_variables where variable_name="debug_set_operations_secondary_overflow_at";
+--enable_warnings
+
+
+set @@global.debug_set_operations_secondary_overflow_at='1 50 20';
+set @@global.debug_set_operations_secondary_overflow_at=@save;
+
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_set_operations_secondary_overflow_at=1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_set_operations_secondary_overflow_at=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug_set_operations_secondary_overflow_at=1e1;
