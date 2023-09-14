@@ -235,9 +235,8 @@ static bool GetAccessPathsFromItem(Item *item_arg, const char *source_text,
                    "Select #%d (subquery in %s; run only once)",
                    query_block->select_number, source_text);
         }
-        if (query_block->join->needs_finalize) {
-          subselect->unit->finalize(current_thd);
-        }
+
+        subselect->unit->finalize(current_thd);
         AccessPath *path;
         if (subselect->unit->root_access_path() != nullptr) {
           path = subselect->unit->root_access_path();
