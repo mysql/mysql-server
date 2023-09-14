@@ -594,8 +594,11 @@ bool JOIN::optimize(bool finalize_access_paths) {
     // CreateFramebufferTable->ReplaceMaterializedItems's calls of
     // update_used_tables: loses PROP_WINDOW_FUNCTION needed here in next
     // execution round
-    if (m_windows.elements > 0)
-      for (auto f : *fields) f->update_used_tables();
+    if (m_windows.elements > 0) {
+      for (auto f : *fields) {
+        f->update_used_tables();
+      }
+    }
   }
 
   sort_by_table = get_sort_by_table(order.order, group_list.order,
