@@ -2112,13 +2112,12 @@ static void server_component_deinit() { deinit_thd_store_service(); }
 static bool mysql_component_infrastructure_init() {
   sysd::notify("STATUS=Components initialization in progress\n");
   server_component_init();
+
   /* We need a temporary THD during boot */
   const Auto_THD thd;
   const Disable_autocommit_guard autocommit_guard(thd.thd);
   const dd::cache::Dictionary_client::Auto_releaser scope_releaser(
       thd.thd->dd_client());
-
-  server_component_init();
 
   if (persistent_dynamic_loader_init(thd.thd)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
