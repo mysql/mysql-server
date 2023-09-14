@@ -3027,7 +3027,7 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
     result = new (current_thd->mem_root)
         Item_ref(&info->m_outer_query_block->context, ref, scalar_item->db_name,
                  scalar_item->table_name, scalar_item->field_name);
-    // nullptr is error, but no separate return needed here
+    if (result == nullptr) return nullptr;
   } else {
     result = scalar_item;
   }

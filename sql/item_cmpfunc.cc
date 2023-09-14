@@ -857,7 +857,9 @@ Item *Item_func_like::replace_scalar_subquery(uchar *) {
 }
 
 Item *Item_bool_func2::replace_scalar_subquery(uchar *) {
-  (void)set_cmp_func();
+  if (set_cmp_func()) {
+    return nullptr;
+  }
   return this;
 }
 
