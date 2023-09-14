@@ -252,9 +252,8 @@ static bool AddSubqueryPaths(const Item *item_arg, const char *source_text,
                "Select #%d (subquery in %s; run only once)",
                query_block->select_number, source_text);
     }
-    if (query_block->join->needs_finalize) {
-      qe->finalize(current_thd);
-    }
+
+    qe->finalize(current_thd);
     AccessPath *path;
     if (qe->root_access_path() != nullptr) {
       path = qe->root_access_path();
