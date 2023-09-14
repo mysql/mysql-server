@@ -367,13 +367,25 @@ void TransporterRegistry::reset_total_spintime() const
   receiveHandle->m_total_spintime = 0;
 }
 
+/**
+ * Time limit for individual MGMAPI activities, including
+ * TCP connection
+ * Handshake, auth, TLS
+ * MGMAPI command responses (except where overridden)
+ * Affects:
+ *   - TR MGMAPI connection used to manage dynamic ports
+ *   - Transporter-to-MGMD MGMAPI connections converted
+ *     to transporters
+ */
+static const Uint32 MGM_TIMEOUT_MILLIS=5000;
+
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
 {
   DBUG_ENTER("TransporterRegistry::set_mgm_handle");
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
   m_mgm_handle= h;
-  ndb_mgm_set_timeout(m_mgm_handle, 5000);
+  ndb_mgm_set_timeout(m_mgm_handle, MGM_TIMEOUT_MILLIS);
 #ifndef NDEBUG
   if (h)
   {
@@ -3820,6 +3832,11 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
     cs.assfmt("%s %u", server_name, server_port);
     ndb_mgm_set_connectstring(h, cs.c_str());
   }
+
+  /**
+   * Set timeout
+   */
+  ndb_mgm_set_timeout(h, MGM_TIMEOUT_MILLIS);
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
   {
