@@ -342,4 +342,5 @@ IF(WITH_NDBAPI_EXAMPLES)
   ADD_SUBDIRECTORY(ndbapi-examples)
 ENDIF()
 
-ADD_SUBDIRECTORY(wix)
+## WiX support disabled for now
+# ADD_SUBDIRECTORY(wix)
