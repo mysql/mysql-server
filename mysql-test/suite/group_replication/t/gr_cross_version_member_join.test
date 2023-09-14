@@ -11,7 +11,8 @@
 # 1.   Lower version do not join the group.
 # 1.1. Make M2 major version lower and make sure START GR fails.
 # 1.2. Make M2 minor version lower and make sure START GR fails.
-# 1.3. Make M2 patch version lower and make sure START GR fails.
+# 1.3. Make M2 patch version lower and make sure START GR succeeds
+#      because both versions are 8.0 and >= 8.0.35.
 # 2.   Higher version are in read-only mode.
 # 2.1. Make M2 major version higher and assert read-only is set.
 # 2.2. Make M2 minor version higher and assert read-only is set.
@@ -74,16 +75,13 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --echo
---echo # 1.3. Make M2 patch version lower and make sure START GR fails.
+--echo # 1.3. Make M2 patch version lower and make sure START GR succeeds
+--echo #      because both versions are 8.0 and >= 8.0.35.
 
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_patch_version';
-
---error ER_GROUP_REPLICATION_CONFIGURATION
-START GROUP_REPLICATION;
-
---let $assert_text= Assert M2 is OFFLINE.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_state="OFFLINE" AND member_id="$server2_uuid"] = 1
---source include/assert.inc
+--source include/start_group_replication.inc
+--source include/gr_assert_mpm_consistency.inc
+--source include/stop_group_replication.inc
 
 --echo
 --echo # 2.   Higher version are in read-only mode.
