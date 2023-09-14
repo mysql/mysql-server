@@ -15,6 +15,7 @@ ndb-wait-setup=60
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
 log-bin=mysql-binlog
+ndb-log-bin=1
 # Enable load data local functionality
 local-infile=true
 
@@ -35,11 +36,11 @@ Nodegroup=65536
 Nodegroup=65536
 
 [mysqld.1.1]
-log-bin
+log-bin=mysql-binlog
 log-replica-updates
 
 [mysqld.2.1]
-log-bin
+log-bin=mysql-binlog
 log-replica-updates
 
 [ENV]

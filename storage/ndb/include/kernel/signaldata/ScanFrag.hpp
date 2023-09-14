@@ -57,8 +57,9 @@ public:
   enum ReorgFlag
   {
     REORG_ALL = 0
-    ,REORG_NOT_MOVED = 1 // Only return not moved rows
-    ,REORG_MOVED = 2    // Only return moved rows
+    ,REORG_NOT_MOVED = 1  // Only return not moved rows
+    ,REORG_MOVED = 2      // Only return moved rows
+    ,REORG_MOVED_COPY = 3 // Used in LQHKEYREQ - REORG_MOVED from copy scan 
   };
 
   Uint32 senderData;

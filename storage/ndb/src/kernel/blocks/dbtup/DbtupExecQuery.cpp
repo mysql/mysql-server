@@ -492,6 +492,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 
   if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
+    ndbassert(req_struct->m_reorg != ScanFragReq::REORG_MOVED_COPY);
     const Uint32 moved = bits & Tuple_header::REORG_MOVE;
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED &&
             moved == 0) ||
@@ -1912,7 +1913,8 @@ get_reorg_flag(Dbtup::KeyReqStruct * req_struct,
       return 0;
     break;
   case Dbtup::Fragrecord::FS_ONLINE:
-    if (reorg != ScanFragReq::REORG_MOVED)
+    if (reorg != ScanFragReq::REORG_MOVED &&
+        reorg != ScanFragReq::REORG_MOVED_COPY)
       return 0;
     break;
   default:
