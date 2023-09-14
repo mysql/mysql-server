@@ -219,6 +219,10 @@ IF(MSVC)
 
   # Enable stricter standards conformance when using Visual Studio
   STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
+
+  # Set a proper value in __cplusplus
+  # See https://learn.microsoft.com/en-us/cpp/build/reference/zc-cplusplus?view=msvc-170
+  STRING_APPEND(CMAKE_CXX_FLAGS " /Zc:__cplusplus")
 ENDIF()
 
 # Always link with socket library
