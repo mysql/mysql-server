@@ -44,7 +44,7 @@ let ndb_table=t1;
 show binlog events;
 --enable_result_log
 --enable_query_log
-reset binary logs and gtids;
+reset master;
 #--source include/show_binlog_events.inc
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 
@@ -108,7 +108,7 @@ show binlog events;
 --enable_result_log
 --enable_query_log
 
-reset binary logs and gtids;
+reset master;
 --echo Show empty binlog prior to test
 #--source include/show_binlog_events.inc
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;

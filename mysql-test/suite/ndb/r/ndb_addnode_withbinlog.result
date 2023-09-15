@@ -14,7 +14,7 @@ PartitionCount: 8
 Add new nodes
 Nodegroup 1 created
 Show empty binlog prior to reorg
-reset binary logs and gtids;
+reset master;
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 count(1)	sum(inserts)	sum(updates)	sum(deletes)
 0	NULL	NULL	NULL
@@ -43,7 +43,7 @@ TABLE_INFO
 PartitionCount: 8
 Add new nodes
 Nodegroup 1 created
-reset binary logs and gtids;
+reset master;
 Show empty binlog prior to test
 select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
 count(1)	sum(inserts)	sum(updates)	sum(deletes)
