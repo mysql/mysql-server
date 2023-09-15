@@ -1192,8 +1192,8 @@ inline io_context::count_type io_context::do_one(
       }
     }
 
-    // if we have a timer that has fired, run it right away
-    if (timer_q && min_duration == min_duration.zero()) continue;
+    // if we have a timer that has fired or was cancelled, run it right away
+    if (timer_q && min_duration <= min_duration.zero()) continue;
 
     if (auto op = [this]() -> std::unique_ptr<async_op> {
           // handle all the cancelled ops without polling first
