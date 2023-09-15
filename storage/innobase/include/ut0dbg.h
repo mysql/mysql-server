@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <cstdio>
 #include <functional>
+#include <sstream>
 
 /** Set a callback function to be called before exiting.
 @param[in]      callback        user callback function */
@@ -50,6 +51,42 @@ void ut_set_assert_callback(std::function<void()> &callback);
 @param[in] line Line number of the assertion */
 [[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
                                           uint64_t line);
+
+template <typename L, typename R>
+[[noreturn]] void inline ut_dbg_comparison_failed(
+    const char *lhs_expr, const L &lhs_value, const char *op,
+    const char *rhs_expr, const R &rhs_value, const char *file, uint64_t line) {
+  std::ostringstream text;
+  text << lhs_expr << " == " << lhs_value << ' ' << op << ' ' << rhs_value
+       << " == " << rhs_expr;
+  ut_dbg_assertion_failed(text.str().c_str(), file, line);
+}
+
+/** Assert that LHS OP RHS, where OP is an operator.
+Abort execution otherwise.
+Technical remarks: The LHS and RHS are evaluated exactly once (no short
+circuiting, even if OP is && or ||). Each value is stored in reference-to-const
+which extends the lifetime of the temporary to the lifetime of the reference, so
+it's fine for LHS or RHS to return a temporary.
+In case of assertion failure references to const values of LHS and RHS will be
+passed to std::ostringstream::operator<<, so it must be implemented for them. */
+#define ut_a_op(LHS, OP, RHS)                                                  \
+  do {                                                                         \
+    const auto &lhs = (LHS);                                                   \
+    const auto &rhs = (RHS);                                                   \
+    if (unlikely(!(lhs OP rhs))) {                                             \
+      ut_dbg_comparison_failed(#LHS, lhs, #OP, #RHS, rhs, __FILE__, __LINE__); \
+    }                                                                          \
+  } while (0)
+
+/** Assert that LHS < RHS. Abort execution otherwise. */
+#define ut_a_lt(LHS, RHS) ut_a_op(LHS, <, RHS)
+/** Assert that LHS <= RHS. Abort execution otherwise. */
+#define ut_a_le(LHS, RHS) ut_a_op(LHS, <=, RHS)
+/** Assert that LHS == RHS. Abort execution otherwise. */
+#define ut_a_eq(LHS, RHS) ut_a_op(LHS, ==, RHS)
+/** Assert that LHS != RHS. Abort execution otherwise. */
+#define ut_a_ne(LHS, RHS) ut_a_op(LHS, !=, RHS)
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */
@@ -70,6 +107,14 @@ void ut_set_assert_callback(std::function<void()> &callback);
 #define ut_d(EXPR) EXPR
 /** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
 #define ut_o(EXPR)
+/** Debug-only assertion that LHS < RHS. */
+#define ut_ad_lt(LHS, RHS) ut_a_lt(LHS, RHS)
+/** Debug-only assertion that LHS <= RHS. */
+#define ut_ad_le(LHS, RHS) ut_a_le(LHS, RHS)
+/** Debug-only assertion that LHS == RHS. */
+#define ut_ad_eq(LHS, RHS) ut_a_eq(LHS, RHS)
+/** Assert that LHS != RHS. Abort execution otherwise. */
+#define ut_ad_ne(LHS, RHS) ut_a_op(LHS, !=, RHS)
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
@@ -77,6 +122,14 @@ void ut_set_assert_callback(std::function<void()> &callback);
 #define ut_d(EXPR)
 /** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
 #define ut_o(EXPR) EXPR
+/** Debug-only assertion that LHS < RHS. */
+#define ut_ad_lt(LHS, RHS)
+/** Debug-only assertion that LHS <= RHS. */
+#define ut_ad_le(LHS, RHS)
+/** Debug-only assertion that LHS == RHS. */
+#define ut_ad_eq(LHS, RHS)
+/** Assert that LHS != RHS. */
+#define ut_ad_ne(LHS, RHS)
 #endif
 
 /** Debug crash point */
