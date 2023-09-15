@@ -5,4 +5,4 @@ binlog_cache_size=4096
 
 [mysqld.2.1]
 # The second mysqld have default binlog_cache_size and should
-# not detected cache spill
+# not detect a cache spill

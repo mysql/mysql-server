@@ -35,7 +35,6 @@ INSERT INTO t1 VALUES (7, repeat(0x41, 4096), repeat(0x42, 4096));
 
 include/assert.inc [There were >0 writes to IO_CACHE]
 # Check that error log contains message indicating cache spill
-Error log message
-Binlog: Binary log cache data overflowed to disk 1 time(s). Consider increasing --binlog-cache-size.
+include/assert.inc [Binary log cache data overflowed to disk]
 
 DROP TABLE t1;
