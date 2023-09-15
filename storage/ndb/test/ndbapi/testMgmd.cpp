@@ -1983,8 +1983,10 @@ runTestMgmdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
 
   Mgmd mgmd(1);
+  int exitCode;
   CHECK(mgmd.start_from_config_ini(wd.path()));    // Start management node
-  CHECK(! mgmd.connect(config));                   // Cannot connect
+  CHECK(mgmd.wait(exitCode));
+  CHECK(exitCode == 1);
   return NDBT_OK;
 }
 

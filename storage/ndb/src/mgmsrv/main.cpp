@@ -290,6 +290,7 @@ static void mgmd_run()
 
   /* Start mgm services */
   if (!mgm->start()) {
+    logBufLocalLog->stop();
     delete mgm;
     mgmd_exit(1);
   }

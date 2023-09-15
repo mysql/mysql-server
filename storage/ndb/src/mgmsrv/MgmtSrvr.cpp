@@ -440,14 +440,8 @@ MgmtSrvr::start_transporter(const Config* config)
                                     require_cert());
   if (r < 0)
   {
-    if (r == -2)
-    {
-      g_eventLogger->error("This node does not have a valid TLS certificate.");
-    }
-    else
-    {
-      g_eventLogger->error("Failed to start transporter");
-    }
+    require(r != -2);   /* TLS certificate required but not found */
+    g_eventLogger->error("Failed to start transporter");
     delete theFacade;
     theFacade = 0;
     DBUG_RETURN(false);
@@ -613,6 +607,18 @@ MgmtSrvr::start()
   {
     g_eventLogger->error( "Shutting down. Failed read config.");
     DBUG_RETURN(false);
+  }
+
+  /* Check for required certificate */
+  if(require_cert())
+  {
+    TlsKeyManager stubKeyManager;
+    stubKeyManager.init(m_tls_search_path, 0, NODE_TYPE_MGM);
+    if(! stubKeyManager.ctx())
+    {
+      g_eventLogger->error("This node does not have a valid TLS certificate.");
+      DBUG_RETURN(false);
+    }
   }
 
   /* Start transporter */
