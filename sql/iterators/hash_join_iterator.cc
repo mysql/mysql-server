@@ -210,6 +210,11 @@ bool HashJoinIterator::InitHashTable() {
 }
 
 bool HashJoinIterator::Init() {
+  // If Init() is called multiple times (e.g., if hash join is inside a
+  // dependent subquery), we must clear the NULL row flag, as it may have been
+  // set by the previous execution of this hash join.
+  m_build_input->SetNullRowFlag(/*is_null_row=*/false);
+
   // If we are entirely in-memory and the JOIN we are part of hasn't been
   // asked to clear its hash tables since last time, we can reuse the table
   // without having to rebuild it. This is useful if we are on the right side
@@ -511,11 +516,6 @@ bool HashJoinIterator::BuildHashTable() {
   }
 
   const bool reject_duplicate_keys = RejectDuplicateKeys();
-
-  // If Init() is called multiple times (e.g., if hash join is inside an
-  // dependent subquery), we must clear the NULL row flag, as it may have been
-  // set by the previous executing of this hash join.
-  m_build_input->SetNullRowFlag(/*is_null_row=*/false);
 
   PFSBatchMode batch_mode(m_build_input.get());
   for (;;) {  // Termination condition within loop.
