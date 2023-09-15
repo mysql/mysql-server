@@ -1212,7 +1212,6 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
 
   const Gcs_xcom_view_identifier &current_view_id =
       down_cast<const Gcs_xcom_view_identifier &>(current_view->get_view_id());
-  ASSERT_TRUE((&current_view_id) != nullptr);
   ASSERT_EQ(typeid(Gcs_xcom_view_identifier).name(),
             typeid(current_view_id).name());
 
