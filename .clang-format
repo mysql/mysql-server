@@ -97,7 +97,7 @@ ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
 DeriveLineEnding: true
-DerivePointerAlignment: true
+#DerivePointerAlignment: true
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
@@ -105,7 +105,7 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks:   Regroup
+#IncludeBlocks:   Regroup
 IncludeCategories:
   - Regex:           '^<ext/.*\.h>'
     Priority:        2
@@ -145,7 +145,7 @@ PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
-PointerAlignment: Left
+#PointerAlignment: Left
 RawStringFormats:
   - Language:        Cpp
     Delimiters:
@@ -196,7 +196,7 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 SpaceBeforeSquareBrackets: false
-Standard:        Auto
+#Standard:        Auto
 StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
@@ -209,8 +209,8 @@ UseTab:          Never
 DerivePointerAlignment: false
 PointerAlignment: Right
 
-# MySQL source code is allowed to use C++11 (and C++14) features.
-Standard:        Cpp11
+# MySQL source code is allowed to use the latest c++ features.
+Standard:        Latest
 
 # MySQL includes frequently are not order-independent (e.g. my_config.h needs
 # to go on top). This is unfortunate, but not something we can change easily,
