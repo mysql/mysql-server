@@ -238,13 +238,16 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
 
     // append to the plain buffer
     const auto read_res = read(dyn_buf, sz);
+
+    // sync the plain-view as the read() may have resized it.
+    view_sync_plain();
+
     if (read_res) {
       const size_t transferred = read_res.value();
 
       sz -= transferred;
       bytes_read += transferred;
 
-      view_sync_plain();
     } else {
       // read from client failed.
 
