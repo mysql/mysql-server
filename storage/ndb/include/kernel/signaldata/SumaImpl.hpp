@@ -593,6 +593,7 @@ struct SumaContinueB
     ,WAIT_SCAN_TAB_REQ = 10
     ,WAIT_GET_FRAGMENT = 11
     ,SEND_SUB_GCP_COMPLETE_REP = 12
+    ,REPORT_SUBSCRIPTION_SET = 13
   };
 };
 

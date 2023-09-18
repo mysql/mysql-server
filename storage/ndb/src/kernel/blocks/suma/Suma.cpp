@@ -132,6 +132,9 @@ static const Uint32 SUMA_SEQUENCE = 0xBABEBABE;
 
 static const Uint32 MAX_CONCURRENT_GCP = 2;
 
+static constexpr Uint32 REPORT_SUBSCRIPTION_INTERVAL = 16;
+
+static bool g_reporting_in_progress = false;
 /**************************************************************
  *
  * Start of suma
@@ -478,7 +481,19 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
     return;
   case DictLockReq::SumaHandOver:
     jam();
-    send_handover_req(signal, SumaHandoverReq::RT_START_NODE);
+    /**
+     * All subscribers are now connected.
+     * Report subscriptions details to all the subscribers.
+     * The DictLockReq::SumaHandOver lock also makes sure that no
+     * changes (add/drop subscriber/subscription) are made to the subscriptions
+     * when the reports are being sent out across various CONTINUEB signals.
+     * The only exception is API node failure that can happen at any time.
+     * To prevent API failure handling to be performed in parallel with the
+     * reporting it is delayed while reporting is in progress.
+     */
+    g_reporting_in_progress = true;
+    report_subscription_set(signal, RNIL, RNIL, RNIL, REPORT_SUBSCRIPTION_INTERVAL);
+
     return;
   default:
     jam();
@@ -895,10 +910,11 @@ Suma::check_start_handover(Signal* signal)
     {
       return;
     }
-    
     c_startup.m_wait_handover= false;
-
-    if (c_no_of_buckets)
+    SubscriptionPtr subPtr;
+    // Lock the dict only if there are any buckets to handover or
+    // there are subscriptions whose reports need to be sent out
+    if (c_no_of_buckets || c_subscriptions.first(subPtr))
     {
       jam();
       send_dict_lock_req(signal, DictLockReq::SumaHandOver);
@@ -1185,6 +1201,13 @@ Suma::execCONTINUEB(Signal* signal){
     sendSUB_GCP_COMPLETE_REP(signal);
     return;
   }
+  case SumaContinueB::REPORT_SUBSCRIPTION_SET:
+  {
+    jam();
+    report_subscription_set(signal, signal->theData[1], signal->theData[2],
+                            signal->theData[3], signal->theData[4]);
+    return;
+  }
   default:
   {
     ndbabort();
@@ -1456,6 +1479,13 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 void
 Suma::api_fail_subscription(Signal* signal)
 {
+  if(g_reporting_in_progress)
+  {
+    jam();
+    signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIPTION;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, signal->getLength());
+    return;
+  }
   jam();
   Ptr<SubOpRecord> subOpPtr;
   ndbrequire(c_subOpPool.getPtr(subOpPtr, signal->theData[1]));
@@ -3919,14 +3949,23 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         sendSignal(senderRef, GSN_SUB_START_CONF, signal,
                    SubStartConf::SignalLength, JBB);
 
-        /**
-         * Call before adding to list...
-         *   cause method will (maybe) iterate thought list
+        /*
+         * Report to the new subscriber that its subscription is now active.
+         * Also, if REPORT_SUBSCRIBE option is enabled, report to the new
+         * subscriber about all other subscribers in this subscription and
+         * report to all other subscribers about this new subscriber.
+         * Sending all these reports is skipped if this is a restart as that
+         * implies that the subscriptions are just being copied from another
+         * data node and the subscribers are not actually connected yet.
          */
-        bool report = subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE;
-        send_sub_start_stop_event(signal, ptr,NdbDictionary::Event::_TE_ACTIVE,
-                                  report, list);
+        if (c_startup.m_restart_server_node_id == 0)
+        {
+          bool report = subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE;
+          send_sub_start_stop_event(signal, ptr,NdbDictionary::Event::_TE_ACTIVE,
+                                    report, list);
+        }
         
+        // Add the new subscriber to the subscription's list.
         list.addFirst(ptr);
         c_subscriber_nodes.set(refToNode(ptr.p->m_senderRef));
         c_subscriber_per_node[refToNode(ptr.p->m_senderRef)]++;
@@ -3982,6 +4021,212 @@ Suma::report_sub_start_ref(Signal* signal,
     subOpList.next(subOpPtr);
     subOpList.release(tmp);
     c_subscriberPool.release(ptr);
+  }
+}
+
+void
+Suma::report_subscription_set(Signal *signal,
+                              Uint32 subscriptionIdx,
+                              Uint32 subscriberIdx,
+                              Uint32 otherSubscriberIdx,
+                              const Uint32 batchSize)
+{
+  jam();
+  SubscriptionPtr subPtr;
+  SubscriberPtr subscriberPtr, otherSubscriberPtr;
+  Uint32 totalSignalsSent = 0;
+  const Uint64 gci = get_current_gci(signal);
+
+  subPtr.i = subscriptionIdx;
+  subscriberPtr.i = subscriberIdx;
+  otherSubscriberPtr.i = otherSubscriberIdx;
+
+  if (subPtr.i == RNIL)
+  {
+    jam();
+    c_subscriptions.first(subPtr);
+  }
+  else
+  {
+    jam();
+    c_subscriptions.getPtr(subPtr);
+  }
+
+  while (subPtr.i != RNIL)
+  {
+    jam();
+    const bool report = subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE;
+
+    // Retrieve list of all subscribers for this subscription
+    ConstLocal_Subscriber_list subList(c_subscriberPool,
+                                       subPtr.p->m_subscribers);
+    if (subscriberPtr.i == RNIL)
+    {
+      jam();
+      subList.first(subscriberPtr);
+    }
+    else
+    {
+      jam();
+      subList.getPtr(subscriberPtr);
+    }
+
+    while (subscriberPtr.i != RNIL)
+    {
+      jam();
+
+      const Uint32 subscriberNodeId = refToNode(subscriberPtr.p->m_senderRef);
+      bool send_te_active = false;
+
+      ConstLocal_Subscriber_list otherSubList(c_subscriberPool,
+                                              subPtr.p->m_subscribers);
+
+      if (otherSubscriberPtr.i == RNIL)
+      {
+        jam();
+        otherSubList.first(otherSubscriberPtr);
+        send_te_active = true;
+      }
+      else
+      {
+        jam();
+        otherSubList.getPtr(otherSubscriberPtr);
+      }
+
+      jam();
+      while (otherSubscriberPtr.i != RNIL)
+      {
+        jam();
+
+        if (send_te_active)
+        {
+          jam();
+          send_te_active = false;
+
+          /* Send TE_ACTIVE to subscriber */
+          SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
+
+          // default SubTableData member values for the events
+          data->gci_hi      = Uint32(gci >> 32);
+          data->gci_lo      = Uint32(gci);
+          data->tableId     = 0;
+          data->changeMask  = 0;
+          data->totalLen    = 0;
+          data->requestInfo = 0;
+          SubTableData::setOperation(data->requestInfo,
+                                     NdbDictionary::Event::_TE_ACTIVE);
+          SubTableData::setNdbdNodeId(data->requestInfo, getOwnNodeId());
+          SubTableData::setReqNodeId(data->requestInfo, subscriberNodeId);
+          data->senderData = subscriberPtr.p->m_senderData;
+          sendSignal(subscriberPtr.p->m_senderRef,
+                     GSN_SUB_TABLE_DATA,
+                     signal,
+                     SubTableData::SignalLength,
+                     JBB);
+          totalSignalsSent++;
+        }
+
+        if ((totalSignalsSent >= batchSize) ||
+            ((ERROR_INSERTED(13058) ||
+              ERROR_INSERTED(13059)) &&
+             totalSignalsSent >= 2))
+        {
+          jam();
+          /* Take a break */
+
+          if (ERROR_INSERTED_CLEAR(13058))
+          {
+            jam();
+
+            /* Kill a randomish subscriber */
+            signal->theData[0] = 900;
+            signal->theData[1] = c_subscriber_nodes.find_last();
+            sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+            SET_ERROR_INSERT_VALUE(13059);
+          }
+
+          signal->theData[0] = SumaContinueB::REPORT_SUBSCRIPTION_SET;
+          signal->theData[1] = subPtr.i;
+          signal->theData[2] = subscriberPtr.i;
+          signal->theData[3] = otherSubscriberPtr.i;
+          signal->theData[4] = batchSize;
+
+          if (ERROR_INSERTED(13058) ||
+              ERROR_INSERTED(13059))
+          {
+            jam();
+            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 5);
+          }
+          else
+          {
+            sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
+          }
+
+          return;
+        }
+
+        if (!report)
+        {
+          jam();
+          otherSubscriberPtr.i = RNIL;
+          break;
+        }
+
+        /* Inform this subscriber about all the other subscribers */
+        if (subscriberPtr.i != otherSubscriberPtr.i)
+        {
+          jam();
+          /* Send TE_SUBSCRIBE(other subscriber) to subscriber */
+          SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
+
+          // default SubTableData member values for the events
+          data->gci_hi      = Uint32(gci >> 32);
+          data->gci_lo      = Uint32(gci);
+          data->tableId     = 0;
+          data->changeMask  = 0;
+          data->totalLen    = 0;
+          data->requestInfo = 0;
+          SubTableData::setOperation(data->requestInfo,
+                                     NdbDictionary::Event::_TE_SUBSCRIBE);
+          SubTableData::setNdbdNodeId(data->requestInfo, getOwnNodeId());
+          SubTableData::setReqNodeId(data->requestInfo,
+                                     refToNode(otherSubscriberPtr.p->m_senderRef));
+          data->senderData = subscriberPtr.p->m_senderData;
+          sendSignal(subscriberPtr.p->m_senderRef,
+                     GSN_SUB_TABLE_DATA,
+                     signal,
+                     SubTableData::SignalLength,
+                     JBB);
+          totalSignalsSent++;
+        }
+
+        otherSubList.next(otherSubscriberPtr); /* Next other subscriber */
+      }
+
+      subList.next(subscriberPtr); /* Next subscriber */
+    }
+    c_subscriptions.next(subPtr);  /* Next subscription */
+  }
+
+  /* Reporting done */
+  jam();
+  g_reporting_in_progress = false;
+
+  if (c_no_of_buckets != 0)
+  {
+    jam();
+    /* Now trigger bucket handover */
+    send_handover_req(signal, SumaHandoverReq::RT_START_NODE);
+  }
+  else
+  {
+    /**
+     * No-one to handover with - no nodegroup assigned
+     * Continue restart
+     */
+    jam();
+    send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+    sendSTTORRY(signal);
   }
 }
 
@@ -4063,6 +4308,17 @@ void
 Suma::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
+  if (g_reporting_in_progress)
+  {
+    jam();
+    /* Stall processing until reporting done */
+    sendSignalWithDelay(reference(),
+                        GSN_DROP_TRIG_IMPL_REF,
+                        signal,
+                        20,
+                        signal->getLength());
+    return;
+  }
   DropTrigImplRef * const ref = (DropTrigImplRef*)signal->getDataPtr();
   Ptr<Table> tabPtr;
   Ptr<Subscription> subPtr;
@@ -4099,7 +4355,17 @@ void
 Suma::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
-
+  if (g_reporting_in_progress)
+  {
+    jam();
+    /* Stall processing until reporting done */
+    sendSignalWithDelay(reference(),
+                        GSN_DROP_TRIG_IMPL_CONF,
+                        signal,
+                        20,
+                        signal->getLength());
+    return;
+  }
   DropTrigImplConf * const conf = (DropTrigImplConf*)signal->getDataPtr();
 
   Ptr<Table> tabPtr;
@@ -4431,7 +4697,7 @@ Suma::report_sub_stop_conf(Signal* signal,
   Uint32 senderData = subOpPtr.p->m_senderData;
   bool abortStart = subOpPtr.p->m_opType == SubOpRecord::R_SUB_ABORT_START_REQ;
   
-  // let subscriber know that subscrber is stopped
+  // let subscriber know that subscriber is stopped
   if (!abortStart)
   {
     jam();

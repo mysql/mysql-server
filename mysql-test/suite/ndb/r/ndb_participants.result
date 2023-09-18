@@ -1,0 +1,38 @@
+# Execute a DDL and verify the participant list in the servers
+create table t1 (a int) engine ndb;
+include/assert_grep.inc [Found two participants in Server 1]
+drop table t1;
+include/assert_grep.inc [Found two participants in Server 2]
+# Restart all nodes one by one
+Restart data node 1
+Node 1 is being restarted
+
+# Verify the participants again to confirm that they were not lost after node 1 stopped
+create table t1 (a int) engine ndb;
+include/assert_grep.inc [Found two participants in Server 1]
+drop table t1;
+include/assert_grep.inc [Found two participants in Server 2]
+Database node 1 is being started.
+
+Node 1 restarted
+# Verify the participants again to confirm that they were not lost after node 1 restart
+create table t1 (a int) engine ndb;
+include/assert_grep.inc [Found two participants in Server 1]
+drop table t1;
+include/assert_grep.inc [Found two participants in Server 2]
+Restart data node 2
+Node 2 is being restarted
+
+# Verify the participants again to confirm that they were not lost after node 2 stopped
+create table t1 (a int) engine ndb;
+include/assert_grep.inc [Found two participants in Server 1]
+drop table t1;
+include/assert_grep.inc [Found two participants in Server 2]
+Database node 2 is being started.
+
+Node 1 restarted
+# Verify the participants again to confirm that they were not lost after node 2 restart
+create table t1 (a int) engine ndb;
+include/assert_grep.inc [Found two participants in Server 1]
+drop table t1;
+include/assert_grep.inc [Found two participants in Server 2]
