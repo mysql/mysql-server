@@ -176,15 +176,15 @@ override_dh_strip:
 	dh_strip -pmysql-server
 	dh_strip -pmysql-client
 	dh_strip -pmysql-testsuite
-	dh_strip -plibmysqlclient22 --dbg-package=libmysqlclient22-dbgsym
+	dh_strip -plibmysqlclient23 --dbg-package=libmysqlclient23-dbgsym
 	dh_strip -plibmysqlclient-dev
 ")
 SET (DEB_CONTROL_DBGSYM_DEFAULT
 "
-Package: libmysqlclient22-dbgsym
+Package: libmysqlclient23-dbgsym
 Architecture: any
 Section: debug
-Depends: libmysqlclient22 (=\${binary:Version}), \${misc:Depends}
+Depends: libmysqlclient23 (=\${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for client library
 
 Package: mysql-${DEB_PRODUCTNAME}-test-dbgsym

@@ -662,8 +662,6 @@ void mysql_set_local_infile_handler(
     void (*local_infile_end)(void *),
     int (*local_infile_error)(void *, char *, unsigned int), void *);
 void mysql_set_local_infile_default(MYSQL *mysql);
-int mysql_shutdown(MYSQL *mysql,
-                           enum mysql_enum_shutdown_level shutdown_level);
 int mysql_dump_debug_info(MYSQL *mysql);
 int mysql_refresh(MYSQL *mysql, unsigned int refresh_options);
 int mysql_kill(MYSQL *mysql, unsigned long pid);

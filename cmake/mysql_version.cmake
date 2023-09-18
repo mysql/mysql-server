@@ -24,8 +24,8 @@
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "22")
-SET(SHARED_LIB_MINOR_VERSION "1")
+SET(SHARED_LIB_MAJOR_VERSION "23")
+SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
 
 # Generate "something" to trigger cmake rerun when MYSQL_VERSION changes

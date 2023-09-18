@@ -112,7 +112,6 @@ SET(CLIENT_API_FUNCTIONS
   mysql_set_character_set
   mysql_set_local_infile_default
   mysql_set_local_infile_handler
-  mysql_shutdown
   mysql_sqlstate
   mysql_ssl_set
   mysql_stat

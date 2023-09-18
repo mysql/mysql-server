@@ -101,11 +101,6 @@
 #include "mysql_trace.h"
 #include "sql_common.h"
 
-/*
-  Temporary replacement for COM_SHUTDOWN. This will be removed once
-  mysql_shutdown C API is removed.
-*/
-#define COM_SHUTDOWN_DEPRECATED 8
 static void append_wild(char *to, char *end, const char *wild);
 
 static bool mysql_client_init = false;
@@ -814,15 +809,6 @@ MYSQL_RES *STDCALL mysql_list_processes(MYSQL *mysql) {
   mysql->status = MYSQL_STATUS_GET_RESULT;
   mysql->field_count = field_count;
   return mysql_store_result(mysql);
-}
-
-int STDCALL mysql_shutdown(MYSQL *mysql,
-                           enum mysql_enum_shutdown_level shutdown_level
-                           [[maybe_unused]]) {
-  if (mysql_get_server_version(mysql) < 50709)
-    return simple_command(mysql, COM_DEPRECATED_1, nullptr, 0, 0);
-  else
-    return mysql_real_query(mysql, STRING_WITH_LEN("shutdown"));
 }
 
 int STDCALL mysql_refresh(MYSQL *mysql, uint options) {

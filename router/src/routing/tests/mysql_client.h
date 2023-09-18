@@ -509,7 +509,7 @@ class MysqlClient {
   }
 
   stdx::expected<void, MysqlError> shutdown() {
-    const auto r = mysql_shutdown(m_.get(), SHUTDOWN_DEFAULT);
+    const auto r = mysql_query(m_.get(), "SHUTDOWN");
 
     if (r != 0) {
       return stdx::make_unexpected(make_mysql_error_code(m_.get()));
