@@ -2,6 +2,7 @@
 --echo
 
 --source include/not_parallel.inc
+--source include/have_log_bin.inc
 
 let $LOG_VERBOSE= `select @@global.log_error_verbosity`;
 SET @@global.log_error_verbosity=3;
@@ -137,6 +138,7 @@ SELECT prio,error_code,subsystem,data
 # MY-013932: ER_BUILD_ID
 # MY-010099: ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
+# MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -150,7 +152,7 @@ SELECT prio,error_code,subsystem
                          "MY-013880", "MY-013881", "MY-013882", "MY-013883",
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
                          "MY-000068", "MY-014066", "MY-014067", "MY-014068",
-                         "MY-013932", "MY-010101", "MY-010099")
+                         "MY-013932", "MY-010101", "MY-010099", "MY-011070")
  ORDER BY logged, error_code;
 
 --echo
@@ -176,6 +178,7 @@ SELECT prio,error_code,subsystem
 # MY-015015: ER_SRV_START
 # MY-010099: ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
+# MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -185,7 +188,7 @@ SELECT prio,error_code,subsystem,data
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
                          "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-                         "MY-010099")
+                         "MY-010099", "MY-011070")
  ORDER BY logged;
 
 --echo
