@@ -789,11 +789,10 @@ bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
 
   return context_.connection_sharing() &&              // config must allow it.
          client_protocol()->password().has_value() &&  // a password is required
-         sysvars.get("session_track_gtids") == Value("OWN_GTID") &&
-         sysvars.get("session_track_state_change") == Value("ON") &&
-         sysvars.get("session_track_system_variables") == Value("*") &&
-         sysvars.get("session_track_transaction_info") ==
-             Value("CHARACTERISTICS");
+         sysvars.get("session_track_gtids") == "OWN_GTID" &&
+         sysvars.get("session_track_state_change") == "ON" &&
+         sysvars.get("session_track_system_variables") == "*" &&
+         sysvars.get("session_track_transaction_info") == "CHARACTERISTICS";
 }
 
 static bool trx_characteristics_is_sharable(

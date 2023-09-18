@@ -42,7 +42,7 @@ class Value {
 
   Value(value_type v) : value_{std::move(v)} {}
 
-  value_type value() const { return value_; }
+  const value_type &value() const & { return value_; }
 
   /**
    * "NULL" or the quoted string.
@@ -53,10 +53,22 @@ class Value {
   value_type value_;
 };
 
-inline bool operator==(const Value &a, const Value &b) {
-  return a.value() == b.value();
+inline bool operator==(const Value &lhs, const Value &rhs) {
+  return lhs.value() == rhs.value();
 }
 
-inline bool operator!=(const Value &a, const Value &b) { return !(a == b); }
+inline bool operator==(const Value &lhs, const std::string_view &rhs) {
+  if (!lhs.value()) return false;
+
+  return std::string_view(*(lhs.value())) == rhs;
+}
+
+inline bool operator!=(const Value &lhs, const Value &rhs) {
+  return !(lhs == rhs);
+}
+
+inline bool operator!=(const Value &lhs, const std::string_view &rhs) {
+  return !(lhs == rhs);
+}
 
 #endif

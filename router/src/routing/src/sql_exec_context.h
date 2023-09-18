@@ -63,6 +63,7 @@ class ExecutionContext {
   class SystemVariables {
    public:
     using key_type = std::string;
+    using key_view_type = std::string_view;
     using value_type = Value;  // aka std::optional<std::string>
 
     /**
@@ -84,7 +85,7 @@ class ExecutionContext {
      *
      * @returns std::nullopt if key is not found, the found value otherwise.
      */
-    std::optional<value_type> find(const key_type &k) const {
+    std::optional<value_type> find(const key_view_type &k) const {
       const auto it = vars_.find(k);
       if (it == vars_.end()) return {std::nullopt};
 
@@ -103,11 +104,11 @@ class ExecutionContext {
      * @returns std::nullopt if key is not found or value is NULL-like, the
      * found value otherwise
      */
-    value_type get(const key_type &k) const {
-      const auto res = find(k);
-      if (!res) return {std::nullopt};
+    value_type get(const key_view_type &k) const {
+      const auto it = vars_.find(k);
+      if (it == vars_.end()) return {std::nullopt};
 
-      return *res;
+      return it->second;
     }
 
     using iterator = std::map<key_type, value_type>::iterator;
@@ -124,7 +125,7 @@ class ExecutionContext {
     bool empty() const { return vars_.empty(); }
 
    private:
-    std::map<key_type, value_type> vars_;
+    std::map<key_type, value_type, std::less<>> vars_;
   };
 
   /**

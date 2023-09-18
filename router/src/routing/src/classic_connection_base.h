@@ -148,7 +148,7 @@ class ClassicProtocolState : public ProtocolStateBase {
   void username(std::string user) { username_ = std::move(user); }
 
   void password(std::optional<std::string> pw) { password_ = std::move(pw); }
-  std::optional<std::string> password() const { return password_; }
+  const std::optional<std::string> &password() const { return password_; }
 
   std::string schema() { return schema_; }
   void schema(std::string s) { schema_ = std::move(s); }
