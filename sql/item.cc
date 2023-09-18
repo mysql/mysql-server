@@ -637,9 +637,11 @@ bool Item::itemize(Parse_context *pc, Item **res) {
     command => we should check pc->select on zero
   */
   if (pc->select) {
-    enum_parsing_context place = pc->select->parsing_place;
-    if (place == CTX_SELECT_LIST || place == CTX_HAVING)
+    const enum_parsing_context place = pc->select->parsing_place;
+    if (place == CTX_SELECT_LIST || place == CTX_HAVING ||
+        place == CTX_ORDER_BY) {
       pc->select->select_n_having_items++;
+    }
   }
   return false;
 }
