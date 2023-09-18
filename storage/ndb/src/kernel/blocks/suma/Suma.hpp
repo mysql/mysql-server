@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -460,7 +460,11 @@ public:
   bool check_sub_start(Uint32 subscriberRef);
   void report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr);
   void report_sub_start_ref(Signal* signal, Ptr<Subscription> subPtr, Uint32);
-
+  void report_subscription_set(Signal *signal,
+                             Uint32 subscriptionIdx,
+                             Uint32 subscriberIdx,
+                             Uint32 otherSubscriberIdx,
+                             const Uint32 batchSize);
   void sub_stop_req(Signal*);
   void check_remove_queue(Signal*, Ptr<Subscription>,
                           Ptr<SubOpRecord>,bool,bool);

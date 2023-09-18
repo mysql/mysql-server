@@ -34,7 +34,7 @@ Next TRPMAN 9501
 Next BACKUP 10055
 Next PGMAN 11010
 Next DBTUX 12010
-Next SUMA 13058
+Next SUMA 13060
 Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
@@ -859,6 +859,8 @@ SUMA:
 13051: Delay the DROP_TRIG_IMPL_REQ
 13057: Changing the ndbrequire from checking whether the gci is higher than
        the known gci instead of the next gci
+13058: Delay subscription reporting during node restart + cause API failure
+13059: Delay subscription reporting during node restart
 
 LGMAN:
 -----
