@@ -148,7 +148,11 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   ELSE()
     # We cannot use the IMPORTED libraries defined by FIND_PACKAGE above,
     # protobuf::libprotobuf may have INTERFACE properties like -std=gnu++11
-    # and that will break the build since we use -std=c++17
+    # and that will break the build since we use -std=c++20
+    # <cmake source root>/Modules/FindProtobuf.cmake may do:
+    # set_property(TARGET protobuf::libprotobuf APPEND PROPERTY
+    #              INTERFACE_COMPILE_FEATURES cxx_std_11
+    #             )
     ADD_LIBRARY(ext::libprotobuf UNKNOWN IMPORTED)
     SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
       INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}")
