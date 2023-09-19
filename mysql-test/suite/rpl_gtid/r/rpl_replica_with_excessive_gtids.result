@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# T1.1. On the source: generate several transactions, tagged and untagged
+
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:aa:1';
+CREATE TABLE t1 (f1 INT);
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:bb:1';
+INSERT INTO t1 VALUES(1);
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES(4);
+
+# T1.2. Synchronize replica with the source, stop replication threads
+
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+
+# T1.3. On the source: reset all GTIDs, re-execute a subset of transactions
+
+[connection master]
+RESET BINARY LOGS AND GTIDS;
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:aa:1';
+INSERT INTO t1 VALUES(5);
+SET GTID_NEXT= '11111111-1111-1111-1111-111111111111:bb:1';
+INSERT INTO t1 VALUES(6);
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(7);
+SET GTID_NEXT= 'AUTOMATIC';
+INSERT INTO t1 VALUES(9);
+
+# T1.4. Start replication threads, observe the
+#       ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
+
+[connection slave]
+START REPLICA;
+call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
+include/wait_for_slave_io_error.inc [errno=13114]
+include/assert.inc ["IO thread should be stopped"]
+include/assert.inc ["Error message is as expected"]
+
+# Clean-up
+
+[connection master]
+SET GTID_NEXT= 'AUTOMATIC:bb';
+INSERT INTO t1 VALUES(8);
+SET GTID_NEXT= 'AUTOMATIC';
+DROP TABLE t1;
+[connection slave]
+include/start_slave.inc
+include/rpl_end.inc

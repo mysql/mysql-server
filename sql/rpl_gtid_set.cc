@@ -1082,6 +1082,31 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
   return true;
 }
 
+bool Gtid_set::is_subset_for_sid(const Gtid_set *super,
+                                 const rpl_sid &sid) const {
+  DBUG_TRACE;
+  if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
+  if (super->tsid_lock != nullptr) super->tsid_lock->assert_some_wrlock();
+  auto *super_tsid_map = super->tsid_map;
+  auto *tsid_map = this->tsid_map;
+  assert(tsid_map != nullptr);
+  assert(super_tsid_map != nullptr);
+  const auto &sorted_sidno_data = tsid_map->get_sorted_sidno();
+  for (auto tsid_item = sorted_sidno_data.lower_bound(sid);
+       tsid_item != sorted_sidno_data.end(); ++tsid_item) {
+    const auto &tsid = tsid_map->sidno_to_tsid(tsid_item->second);
+    if (tsid.get_uuid() != sid) {
+      return true;
+    }
+    auto super_sidno = super_tsid_map->tsid_to_sidno(tsid);
+    auto this_sidno = tsid_map->tsid_to_sidno(tsid);
+    if (!is_subset_for_sidno(super, super_sidno, this_sidno)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool Gtid_set::is_subset_for_sidno(const Gtid_set *super,
                                    rpl_sidno superset_sidno,
                                    rpl_sidno subset_sidno) const {
@@ -1095,8 +1120,8 @@ bool Gtid_set::is_subset_for_sidno(const Gtid_set *super,
         A1. global_tsid_lock.wrlock()
         A2. global_tsid_lock.rdlock(); gtid_state.lock_sidno(sidno)
   */
-  if (tsid_lock != nullptr) super->tsid_lock->assert_some_lock();
-  if (super->tsid_lock != nullptr) super->tsid_lock->assert_some_lock();
+  if (tsid_lock != nullptr) super->tsid_lock->assert_some_wrlock();
+  if (super->tsid_lock != nullptr) super->tsid_lock->assert_some_wrlock();
   /*
     If subset(i.e, this object) does not have required sid in it, i.e.,
     subset_sidno is zero, then it means it is subset of any given

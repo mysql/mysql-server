@@ -870,24 +870,21 @@ int Binlog_sender::check_start_file() {
     name_ptr = index_entry_name;
   } else if (m_using_gtid_protocol) {
     /*
-      In normal scenarios, it is not possible that Slave will
-      contain more gtids than Master with resepctive to Master's
-      UUID. But it could be possible case if Master's binary log
-      is truncated(due to raid failure) or Master's binary log is
+      In normal scenarios, it is not possible that Replica will
+      contain more gtids than Source with respective to Source's
+      UUID. But it could be possible case if Source's binary log
+      is truncated(due to raid failure) or Source's binary log is
       deleted but GTID_PURGED was not set properly. That scenario
       needs to be validated, i.e., it should *always* be the case that
-      Slave's gtid executed set (+retrieved set) is a subset of
-      Master's gtid executed set with respective to Master's UUID.
+      Replica's gtid executed set (+retrieved set) is a subset of
+      Source's gtid executed set with respective to Source's UUID.
       If it happens, dump thread will be stopped during the handshake
-      with Slave (thus the Slave's I/O thread will be stopped with the
-      error. Otherwise, it can lead to data inconsistency between Master
-      and Slave.
+      with Replica (thus the Replica's I/O thread will be stopped with the
+      error. Otherwise, it can lead to data inconsistency between Source
+      and Replica.
     */
-    Tsid_map *slave_tsid_map = m_exclude_gtid->get_tsid_map();
-    assert(slave_tsid_map);
     global_tsid_lock->wrlock();
     const auto &server_tsid = gtid_state->get_server_tsid();
-    rpl_sidno subset_sidno = slave_tsid_map->tsid_to_sidno(server_tsid);
     Gtid_set gtid_executed_and_owned(
         gtid_state->get_executed_gtids()->get_tsid_map());
 
@@ -898,9 +895,8 @@ int Binlog_sender::check_start_file() {
     }
     gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
 
-    if (!m_exclude_gtid->is_subset_for_sidno(&gtid_executed_and_owned,
-                                             gtid_state->get_server_sidno(),
-                                             subset_sidno)) {
+    if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
+                                           server_tsid.get_uuid())) {
       global_tsid_lock->unlock();
       set_fatal_error(ER_THD(m_thd, ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE));
       return 1;

@@ -1795,6 +1795,17 @@ class Gtid_set {
   */
   bool is_subset_for_sidno(const Gtid_set *super, rpl_sidno superset_sidno,
                            rpl_sidno subset_sidno) const;
+
+  /// @brief Returns true if this Gtid_set is a subset of the given gtid_set
+  /// with respect to the given sid
+  /// @details This function will traverse all TSIDs with SID equal
+  /// to "sid" parameter (all registered tags for a given SID)
+  /// @param super Gtid_set with which this->gtid_set needs to be compared
+  /// @param sid Sid for which we will do the testing
+  /// @return True in case super is a superset for this gtid set w.r.t. the
+  /// given sid; false otherwise
+  bool is_subset_for_sid(const Gtid_set *super, const rpl_sid &sid) const;
+
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
   bool is_intersection_nonempty(const Gtid_set *other) const;
