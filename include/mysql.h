@@ -765,7 +765,11 @@ bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
 bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
                                  enum enum_stmt_attr_type attr_type,
                                  void *attr);
-bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bnd);
+#if defined(__cplusplus) && (__cplusplus >= 201402L)
+[[deprecated("Use mysql_stmt_bind_named_param() instead.")]]
+#endif
+bool STDCALL
+mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bnd);
 bool STDCALL mysql_stmt_bind_named_param(MYSQL_STMT *stmt, MYSQL_BIND *binds,
                                          unsigned n_params, const char **names);
 bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bnd);

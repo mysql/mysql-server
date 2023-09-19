@@ -267,7 +267,7 @@ DbUtil::runQuery(const char* sql,
       break;
     }
   }
-  if (mysql_stmt_bind_param(stmt, bind_param))
+  if (mysql_stmt_bind_named_param(stmt, bind_param, params, nullptr))
   {
     report_error("Failed to bind param");
     mysql_stmt_close(stmt);

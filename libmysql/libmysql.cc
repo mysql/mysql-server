@@ -1422,7 +1422,7 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
       calling mysql_stmt_field_count(), and get result set metadata
       with mysql_stmt_result_metadata(),
     - if query contains placeholders, bind input parameters to placeholders
-      using mysql_stmt_bind_param(),
+      using mysql_stmt_bind_named_param(),
     - otherwise proceed directly to mysql_stmt_execute().
 
   IMPLEMENTATION NOTES
@@ -2181,7 +2181,7 @@ static void prepare_to_fetch_result(MYSQL_STMT *stmt) {
           with mysql_stmt_init() and prepared with
           mysql_stmt_prepare(). If there are placeholders
           in the statement they must be bound to local
-          variables with mysql_stmt_bind_param().
+          variables with mysql_stmt_bind_named_param().
 
   DESCRIPTION
     This function will automatically flush pending result

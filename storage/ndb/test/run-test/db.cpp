@@ -244,7 +244,7 @@ static bool populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
     BINDS(bind2[2], name, &l0);
     BINDS(bind2[3], value, &l1);
 
-    if (mysql_stmt_bind_param(stmt, bind2)) {
+    if (mysql_stmt_bind_named_param(stmt, bind2, std::size(bind2), nullptr)) {
       g_logger.error("Failed to bind: %s", mysql_error(mysql));
       return false;
     }
@@ -277,7 +277,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       BINDI(bind[0], &id);
       BINDS(bind[1], config.m_hosts[i]->m_hostname.c_str(), &l0);
       BINDI(bind[2], &port);
-      if (mysql_stmt_bind_param(stmt, bind)) {
+      if (mysql_stmt_bind_named_param(stmt, bind, std::size(bind), nullptr)) {
         g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));
         return false;
       }
@@ -307,7 +307,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       BINDI(bind[0], &id);
       BINDS(bind[1], config.m_clusters[i]->m_name.c_str(), &l0);
 
-      if (mysql_stmt_bind_param(stmt, bind)) {
+      if (mysql_stmt_bind_named_param(stmt, bind, std::size(bind), nullptr)) {
         g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));
         return false;
       }
@@ -389,7 +389,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       BINDS(bind[5], state, &l2);
       BINDI(bind[6], &node_id);
 
-      if (mysql_stmt_bind_param(stmt, bind)) {
+      if (mysql_stmt_bind_named_param(stmt, bind, std::size(bind), nullptr)) {
         g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));
         return false;
       }

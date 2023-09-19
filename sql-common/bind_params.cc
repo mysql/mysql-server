@@ -112,7 +112,7 @@ static void store_param_type(unsigned char **pos, MYSQL_BIND *param) {
   DESCRIPTION
     These functions are invoked from mysql_stmt_execute() by
     MYSQL_BIND::store_param_func pointer. This pointer is set once per
-    many executions in mysql_stmt_bind_param(). The caller must ensure
+    many executions in mysql_stmt_bind_named_param(). The caller must ensure
     that network buffer have enough capacity to store parameter
     (MYSQL_BIND::buffer_length contains needed number of bytes).
 */
@@ -222,7 +222,7 @@ static void store_param_datetime(NET *net, MYSQL_BIND *param) {
 }
 
 static void store_param_str(NET *net, MYSQL_BIND *param) {
-  /* param->length is always set in mysql_stmt_bind_param */
+  /* param->length is always set in mysql_stmt_bind_named_param */
   const ulong length = *param->length;
   uchar *to = net_store_length(net->write_pos, length);
   memcpy(to, param->buffer, length);

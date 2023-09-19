@@ -799,7 +799,8 @@ bool mysql_stmt_attr_set(MYSQL_STMT *stmt,
 bool mysql_stmt_attr_get(MYSQL_STMT *stmt,
                                  enum enum_stmt_attr_type attr_type,
                                  void *attr);
-bool mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bnd);
+bool
+mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bnd);
 bool mysql_stmt_bind_named_param(MYSQL_STMT *stmt, MYSQL_BIND *binds,
                                  unsigned n_params, const char **names);
 bool mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bnd);

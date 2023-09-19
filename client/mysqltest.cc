@@ -8745,7 +8745,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
       enabled_warnings->count())
     append_warnings(&ds_prepare_warnings, mysql);
 
-  // No need to call mysql_stmt_bind_param() because we have no
+  // No need to call mysql_stmt_bind_named_param() because we have no
   // parameter markers.
   if (cursor_protocol_enabled) {
     // Use cursor when retrieving result.

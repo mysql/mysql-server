@@ -216,7 +216,7 @@ SqlClient::runQuery(const char* sql,
       break;
     }
   }
-  if (mysql_stmt_bind_param(stmt, bind_param))
+  if (mysql_stmt_bind_named_param(stmt, bind_param, std::size(bind_param), nullptr))
   {
     g_err << "Failed to bind param: " << mysql_error(mysql) << endl;
     mysql_stmt_close(stmt);
