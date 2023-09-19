@@ -1559,6 +1559,7 @@ private:
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
   void checkLcpCompletedLab(Signal *, Uint32);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
+  void checkGCI(Uint32 gci_hi);
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
