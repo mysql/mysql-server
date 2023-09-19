@@ -1164,3 +1164,24 @@ EXPLAIN
             -> Table scan on x2  (...)
 
 DROP TABLE t1;
+#
+# Bug#35790381 Assertion `false &&
+# "Inconsistent row counts for different AccessPath objects."'
+#
+CREATE TABLE t1 (a INT, b INT, KEY k1 (a));
+INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a, COUNT(*) FROM
+(SELECT x1.a FROM t1 x1, t1 x2 WHERE x1.b = x2.a) AS dt GROUP BY a;
+EXPLAIN
+-> Group aggregate: count(0)  (rows=2)
+    -> Nested loop inner join  (rows=72)
+        -> Index scan on x1 using k1  (rows=12)
+        -> Covering index lookup on x2 using k1 (a=x1.b)  (rows=6)
+
+DROP TABLE t1;

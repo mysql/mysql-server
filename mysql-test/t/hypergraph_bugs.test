@@ -964,3 +964,25 @@ EXPLAIN FORMAT=TREE SELECT b FROM t1 x1
   WHERE c < 1 AND c = (SELECT MAX(b) FROM t1 x2);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35790381 Assertion `false &&
+--echo # "Inconsistent row counts for different AccessPath objects."'
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY k1 (a));
+
+INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2),(1,1),(2,2);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b;
+ANALYZE TABLE t1;
+
+# The code that made row estimates for aggregation did not understand that
+# 'a' was a field, since it was represented by an Item_ref rather than an
+# Item_field. Therefore, it ignored the k1 index, and used a rule of thumb
+# instead (the square root of the number of input rows).
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a, COUNT(*) FROM
+  (SELECT x1.a FROM t1 x1, t1 x2 WHERE x1.b = x2.a) AS dt GROUP BY a;
+
+DROP TABLE t1;

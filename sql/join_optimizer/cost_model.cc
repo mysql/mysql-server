@@ -377,7 +377,9 @@ AggregateRowEstimator::AggregateRowEstimator(TermArray terms, string *trace)
      - One or more of 'terms' form a prefix of the key.
      - Records per key estimates are available for some prefix of the key.
   */
-  for (const Item *aggregate_term : terms) {
+  for (const Item *term : terms) {
+    const Item *aggregate_term = term->real_item();
+
     if (aggregate_term->type() == Item::FIELD_ITEM) {
       // aggregate_term is a field, so it may be the first field of an index.
       const Field *const field =
