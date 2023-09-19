@@ -133,8 +133,15 @@ int NdbSocket::set_nonblocking(int on) const {
 // ssl_close
 void NdbSocket::ssl_close() {
   Guard guard(mutex);
-  ndb_socket_nonblock(s, false); // set blocking BIO
-  SSL_shutdown(ssl);       // wait for close
+  const int mode = SSL_get_shutdown(ssl);
+  if (!(mode & SSL_SENT_SHUTDOWN)) {
+    /*
+     * Do not call SSL_shutdown again if it already been called in
+     * NdbSocket::shutdown. In that case it could block waiting on
+     * SSL_RECEIVED_SHUTDOWN.
+     */
+    SSL_shutdown(ssl);
+  }
   SSL_free(ssl);
   ssl = nullptr;
 }
@@ -224,7 +231,9 @@ int NdbSocket::ssl_shutdown() const {
   int err;
   {
     Guard guard(mutex);
-    ndb_socket_nonblock(s, false); // set blocking BIO
+    const int mode = SSL_get_shutdown(ssl);
+    assert(!(mode & SSL_SENT_SHUTDOWN));
+    if (unlikely(mode & SSL_SENT_SHUTDOWN)) return 0;
     const int r = SSL_shutdown(ssl);
     if (r >= 0) return 0;
     err = SSL_get_error(ssl, r);
