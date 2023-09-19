@@ -5486,7 +5486,13 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
   }
   else
   {
-    ndbrequire(gci_hi == Uint32(m_gcp_monitor >> 32) + 1);
+    if (ERROR_INSERTED(13057))
+    {
+      jam();
+      ndbrequire(gci_hi > Uint32(m_gcp_monitor >> 32));
+    } else {
+      ndbrequire(gci_hi == Uint32(m_gcp_monitor >> 32) + 1);
+    }
     ndbrequire(gci_lo == 0);
   }
   m_gcp_monitor = gci;
