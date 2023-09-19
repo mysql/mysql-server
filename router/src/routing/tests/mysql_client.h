@@ -966,22 +966,38 @@ class MysqlClient {
       return mysql_stmt_param_count(stmt);
     }
 
-    template <class T>
-    typename std::enable_if<
-        std::conjunction<std::is_same<typename T::value_type, MYSQL_BIND>,
-                         std::is_same<decltype(std::declval<T>().data()),
-                                      typename T::value_type *>>::value,
-        stdx::expected<void, MysqlError>>::type
-    bind_params(const T &params) {
+    stdx::expected<void, MysqlError> bind_params(
+        const stdx::span<MYSQL_BIND> &params,
+        const stdx::span<const char *> &names) {
       auto *stmt = st_.get();
 
       if (params.size() != param_count()) {
         return stdx::make_unexpected(make_mysql_error_code(1));
       }
 
-      auto r =
-          mysql_stmt_bind_param(stmt, const_cast<MYSQL_BIND *>(params.data()));
+      if (params.size() != names.size()) {
+        return stdx::make_unexpected(make_mysql_error_code(1));
+      }
 
+      auto r = mysql_stmt_bind_named_param(stmt, params.data(), params.size(),
+                                           names.data());
+      if (r != 0) {
+        return stdx::make_unexpected(make_mysql_error_code(stmt));
+      }
+
+      return {};
+    }
+
+    stdx::expected<void, MysqlError> bind_params(
+        const stdx::span<MYSQL_BIND> &params) {
+      auto *stmt = st_.get();
+
+      if (params.size() != param_count()) {
+        return stdx::make_unexpected(make_mysql_error_code(1));
+      }
+
+      auto r = mysql_stmt_bind_named_param(stmt, params.data(), params.size(),
+                                           nullptr);
       if (r != 0) {
         return stdx::make_unexpected(make_mysql_error_code(stmt));
       }
