@@ -43,7 +43,7 @@ public:
 #ifdef _WIN32
   using process_handle_t = PROCESS_INFORMATION;
   using pipe_handle_t = HANDLE;
-  static constexpr pipe_handle_t InvalidHandle = INVALID_HANDLE_VALUE;
+  inline static const pipe_handle_t InvalidHandle = INVALID_HANDLE_VALUE;
   inline static bool S_ISDIR(int mode) { return (mode & _S_IFDIR); }
 #else
   using process_handle_t = pid_t;
