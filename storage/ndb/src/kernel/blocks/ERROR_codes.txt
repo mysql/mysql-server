@@ -27,14 +27,14 @@ Next DBACC 3006
 Next DBTUP 4039
 Next DBLQH 5112
 Next DBDICT 6223
-Next DBDIH 7249
+Next DBDIH 7251
 Next DBTC 8123
 Next CMVMI 9000
 Next TRPMAN 9501
 Next BACKUP 10055
 Next PGMAN 11010
 Next DBTUX 12010
-Next SUMA 13057
+Next SUMA 13058
 Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
@@ -147,6 +147,7 @@ GCP Stop so that isolation is required to remove a node.
 7244: Delay SUB_GCP_COMPLETE_REP processing indefinitely
 7247: Delay WAIT_GCP_REQ processing indefinitely
 7248: Skip most recent LCP during a restart
+7250: Boost GCI to provoke a warning
 
 Related (LQH):
   5085 : Ignore request to kill via DUMP 2305
@@ -856,6 +857,8 @@ SUMA:
 13041: Crash in SUB_CREATE_REQ (no matter)
 13042: Crash in SUB_START_REQ (if m_restart_server_node_id != 0)
 13051: Delay the DROP_TRIG_IMPL_REQ
+13057: Changing the ndbrequire from checking whether the gci is higher than
+       the known gci instead of the next gci
 
 LGMAN:
 -----

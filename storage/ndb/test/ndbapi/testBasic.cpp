@@ -4319,7 +4319,52 @@ int testAbortIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * Insert error in the DIH that boosts next gci a little prior to the
+ * warning-start-gci.  This will make a warning written out to ndbd
+ * log and the cluster log.  This was checked manually.  Restart the
+ * cluster initial to clean up. The test will always pass. Therefore
+ * no need to run in autotest.
+ */
+int runCheckWarnMaxGci(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  const int coordinator = restarter.getMasterNodeId();
 
+  // while-loop looping only once is needed by CHK1 to break and stop the test.
+  while (true) {
+    // Give some time for Ndb to get ready
+    NdbSleep_SecSleep(60);
+
+    // To avoid a check in Suma that Gcis increase by 1
+    CHK1(restarter.insertErrorInAllNodes(13057) == 0);
+
+    // Boost the next Gci near to the warning-start Gci
+    CHK1(restarter.insertErrorInNode(coordinator, 7250) == 0);
+
+    // Wait til some Gcps pass such that the warnings be written out
+    // in cluster and ndb logs
+    NdbSleep_SecSleep(30);
+    // The warnings written out are checked manually.
+
+    // Clean up EI and restart cluster initial to reset the GCI
+    CHK1(restarter.restartAll(true, /* initial */
+			      true, /* nostart */
+			      true  /* abort */) == 0);
+
+    g_err << "wait nostart" << endl;
+    CHK1(restarter.waitClusterNoStart() == 0);
+    g_err << "startAll" << endl;
+    CHK1(restarter.startAll() == 0);
+    g_err << "wait started" << endl;
+    CHK1(restarter.waitClusterStarted() == 0);
+
+    break;
+  }
+  ctx->stopTest();
+  return result;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -4759,6 +4804,14 @@ TESTCASE("CheckCompletedLCPStats",
 {
   STEP(runCheckLCPStats);
 }
+TESTCASE("CheckWarnGCPReachMax",
+         "Check whether GCI reaching MaxInt32 is warned")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runCheckWarnMaxGci);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testBasic);
 
 #if 0
@@ -4782,6 +4835,3 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testBasic);
   return testBasic.execute(argc, argv);
 }
-
-
-

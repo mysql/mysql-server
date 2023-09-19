@@ -16659,6 +16659,49 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
   }
 }
 
+/**
+ * MAX_SAFE_GCI_VALUE should ideally be MAX_UINT32, as GCI save part
+ * is an unsigned int32. However, it is defined as MAX_INT32 here in
+ * order to align with the current implementation that imposes a hard
+ * limit on OldestRestorableGCI. See also Bug#35749589.
+ */
+static const Uint32 MAX_SAFE_GCI_VALUE = 0x7fffffff; // MAX_INT32
+
+// Init the following two local variables with some dummy values.
+// The real initialisation will occur in initCommonData() at node start.
+static Uint32 GCPS_PER_DAY = 1;
+static Uint32 next_warn_save_gci = MAX_SAFE_GCI_VALUE;
+
+// Issue a warning, around 3 months ahead of GCI reaching MAX_SAFE_GCI_VALUE
+void Dbdih::checkGCI(Uint32 save_gci) {
+  if (save_gci >= next_warn_save_gci) {
+    jam();
+
+    // Number of days to reach MaxInt32 with projected GCPS_PER_DAY
+    Uint32 days_left = 0;
+    if (save_gci < MAX_SAFE_GCI_VALUE)
+      days_left = (MAX_SAFE_GCI_VALUE - save_gci) / GCPS_PER_DAY;
+
+    warningEvent("GCI (%u) is approaching the maximum value (%u).",
+		 save_gci, MAX_SAFE_GCI_VALUE);
+    warningEvent("GCI projected to reach max in %u days.", days_left);
+    warningEvent("Reset system GCI using Backup and Restore with "
+		 "Cluster Initial Restart.");
+
+    g_eventLogger->warning("Current Global checkpoint id (%u) "
+ 			   "is approaching the maximum value (%u), "
+			   "projected to occur in %u days."
+			   "Backup, and Restore with cluster initial restart "
+			   "is required to reset the system GCI.",
+			   save_gci, MAX_SAFE_GCI_VALUE, days_left);
+
+    next_warn_save_gci += GCPS_PER_DAY;
+    // To test more warnings, replace the above line with the following:
+    // next_warn_save_gci += 1;
+  }
+  return;
+}
+
 void
 Dbdih::startGcpLab(Signal* signal)
 {
@@ -16784,6 +16827,20 @@ Dbdih::startGcpLab(Signal* signal)
      */
     m_gcp_save.m_master.m_start_time = now;
     m_micro_gcp.m_master.m_new_gci = Uint64((currGCI >> 32) + 1) << 32;
+
+    if (ERROR_INSERTED(7250))
+    {
+      jam();
+      const Uint64 currVal = m_micro_gcp.m_master.m_new_gci >> 32;
+      Uint64 newVal = 0;
+      // Boost to just below the first warning gci
+      newVal = std::max(currVal, Uint64(next_warn_save_gci - 4));
+      m_micro_gcp.m_master.m_new_gci = newVal << 32;
+      g_eventLogger->info("DIH Err-Ins: Incrementing GCI from %llu to %llu. ",
+                          currVal,
+                          newVal);
+      CLEAR_ERROR_INSERT_VALUE;
+    }
 
     signal->theData[0] = NDB_LE_GlobalCheckpointStarted; //Event type
     signal->theData[1] = Uint32(currGCI >> 32);
@@ -20467,7 +20524,7 @@ void Dbdih::execTC_CLOPSIZECONF(Signal* signal)
   /* ----------------------------------------------------------------------- */
   cnoOfActiveTables = 0;
   c_lcpState.setLcpStatus(LCP_WAIT_MUTEX, __LINE__);
-  ndbrequire(((int)c_lcpState.oldestRestorableGci) > 0);
+  ndbrequire((c_lcpState.oldestRestorableGci)  < MAX_SAFE_GCI_VALUE);
 
   if (ERROR_INSERTED(7011)) {
     signal->theData[0] = NDB_LE_LCPStoppedInCalcKeepGci;
@@ -20636,11 +20693,8 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   DEB_LCP(("Set SYSFILE->keepGCI = %u", SYSFILE->keepGCI));
 
   SYSFILE->oldestRestorableGCI = c_lcpState.oldestRestorableGci;
-
   const Uint32 oldestRestorableGCI = SYSFILE->oldestRestorableGCI;
-
-  Int32 val = oldestRestorableGCI;
-  ndbrequire(val > 0);
+  ndbrequire(oldestRestorableGCI < MAX_SAFE_GCI_VALUE);
   
   /* ----------------------------------------------------------------------- */
   /* SET BIT INDICATING THAT LOCAL CHECKPOINT IS ONGOING. THIS IS CLEARED    */
@@ -22684,6 +22738,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     jam();
     m_gcp_monitor.m_gcp_save.m_gci = m_gcp_save.m_gci;
     m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
+    checkGCI(m_gcp_monitor.m_gcp_save.m_gci);
 
     /**
      * Recalculate gcp_save.m_max_lag.
@@ -24016,6 +24071,16 @@ void Dbdih::initCommonData()
       ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &tmp);
       tmp = tmp > 60000 ? 60000 : (tmp < 10 ? 10 : tmp);
       m_gcp_save.m_master.m_time_between_gcp = tmp;
+
+      /**
+       * With the minimum config of 20 ms interval,
+       * oldestRestorableGCI will be reached IntMax32 in 1.36 yrs or 497 days
+       * ((2^31 -1) * 20 / (1000 * 60 * 60 * 24 * 365)).
+       * Start warning ca. 3 months ahead of expiry
+       * and then write a warning every day.
+      */
+      GCPS_PER_DAY = (Uint32)((Uint64)(24*60*60*1000) / tmp); // per day
+      next_warn_save_gci = MAX_SAFE_GCI_VALUE - 90 * GCPS_PER_DAY; // 3 months
     }
     
     Uint32 tmp = 0;
