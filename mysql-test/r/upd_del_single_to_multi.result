@@ -8,7 +8,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 explain format=tree update t1 set t1.a=3 where a=(select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain update t1 set t1.a=3 where a=(select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -18,7 +18,7 @@ Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where (`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2`))
 explain format=tree delete from t1 where a=(select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain delete from t1 where a=(select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -104,7 +104,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain format=tree update t1 set t1.a=3 where a in (select /*+ subquery(intoexists) */ a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain update t1 set t1.a=3 where a in (select /*+ subquery(intoexists) */ a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -114,7 +114,7 @@ Warnings:
 Note	1003	update /*+ SUBQUERY(@`select#2` INTOEXISTS) */ `test`.`t1` set `test`.`t1`.`a` = 3 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 explain format=tree delete from t1 where a in (select /*+ subquery(intoexists) */ a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain delete from t1 where a in (select /*+ subquery(intoexists) */ a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -125,11 +125,11 @@ Note	1003	delete /*+ SUBQUERY(@`select#2` INTOEXISTS) */ from `test`.`t1` where 
 set optimizer_switch='semijoin=off,materialization=off';
 explain format=tree update t1 set t1.a=3 where a in (select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain format=tree delete from t1 where a in (select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 set optimizer_switch=default;
 alter table t1 engine=myisam;

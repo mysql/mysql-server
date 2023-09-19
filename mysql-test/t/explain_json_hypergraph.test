@@ -194,7 +194,6 @@ SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
 
 DROP TABLE t1;
 
-
 --echo #
 --echo # Bug#34569685 No explain output for subquery
 --echo #
@@ -213,3 +212,18 @@ OVER (PARTITION BY b) FROM t1 x1;
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34727172 EXPLAIN FORMAT=JSON returns invalid JSON
+--echo #              on INSERT statements with hypergraph
+--echo #
+
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+
+ANALYZE TABLE t;
+
+EXPLAIN FORMAT=JSON INSERT INTO t VALUES (4), (5), (6);
+EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
+
+DROP TABLE t;

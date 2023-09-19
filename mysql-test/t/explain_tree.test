@@ -234,10 +234,12 @@ ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
 DROP TABLE t1;
 
-# Single-table modifications don't have a JOIN, so are not explainable with a tree.
+# Single-table modifications don't have a JOIN, so they have a simple explain.
 CREATE TABLE t1 (i INT);
 EXPLAIN INSERT INTO t1 VALUES (10);
 EXPLAIN FORMAT=tree INSERT INTO t1 VALUES (10);
+EXPLAIN REPLACE INTO t1 VALUES (10);
+EXPLAIN FORMAT=tree REPLACE INTO t1 VALUES (10);
 DROP TABLE t1;
 
 # Limit pushed into filesort.

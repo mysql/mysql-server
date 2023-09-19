@@ -2179,8 +2179,6 @@ class Query_result_null : public Query_result_interceptor {
 */
 void print_query_for_explain(const THD *query_thd, Query_expression *unit,
                              String *str) {
-  if (unit == nullptr) return;
-
   /* Only certain statements can be explained.  */
   if (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
       query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
@@ -2188,7 +2186,9 @@ void print_query_for_explain(const THD *query_thd, Query_expression *unit,
       query_thd->query_plan.get_command() == SQLCOM_DELETE ||
       query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
       query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
-      query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI)  // (2)
+      query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI ||
+      query_thd->query_plan.get_command() == SQLCOM_INSERT ||
+      query_thd->query_plan.get_command() == SQLCOM_REPLACE)  // (2)
   {
     /*
       The warnings system requires input in utf8, see mysqld_show_warnings().
@@ -2203,7 +2203,12 @@ void print_query_for_explain(const THD *query_thd, Query_expression *unit,
     if (query_thd->query_plan.get_command() != SQLCOM_SELECT)
       eqt = enum_query_type(eqt | QT_NO_DATA_EXPANSION);
 
-    unit->print(query_thd, str, eqt);
+    if (unit != nullptr) {
+      unit->print(query_thd, str, eqt);
+    } else if (query_thd->query_plan.get_command() == SQLCOM_INSERT ||
+               query_thd->query_plan.get_command() == SQLCOM_REPLACE) {
+      query_thd->lex->query_block->print(query_thd, str, eqt);
+    }
   }
 }
 /**

@@ -49,7 +49,7 @@ JSON_VALID(in_schema)	JSON_VALID(for_schema)	in_schema = for_schema
 1	1	1
 1	1	1
 1	1	1
-0	0	1
+1	1	1
 1	1	1
 1	1	1
 1	1	1

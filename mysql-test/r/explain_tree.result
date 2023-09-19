@@ -413,7 +413,18 @@ Warnings:
 Note	1003	insert into `test`.`t1` values (10)
 EXPLAIN FORMAT=tree INSERT INTO t1 VALUES (10);
 EXPLAIN
-<not executable by iterator executor>
+-> Insert into t1
+    -> Rows fetched before execution
+
+EXPLAIN REPLACE INTO t1 VALUES (10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` values (10)
+EXPLAIN FORMAT=tree REPLACE INTO t1 VALUES (10);
+EXPLAIN
+-> Replace into t1
+    -> Rows fetched before execution
 
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);

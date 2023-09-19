@@ -8,7 +8,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 explain format=tree update t1 set t1.a=3 where a=(select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain update t1 set t1.a=3 where a in (select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -33,7 +33,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain format=tree delete from t1 where a=(select a from t2);
 EXPLAIN
-<not executable by iterator executor>
+-> <not executable by iterator executor>
 
 explain delete from t1 where a in (select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

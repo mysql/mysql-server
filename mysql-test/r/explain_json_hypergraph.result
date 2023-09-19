@@ -1033,3 +1033,41 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1;
+#
+# Bug#34727172 EXPLAIN FORMAT=JSON returns invalid JSON
+#              on INSERT statements with hypergraph
+#
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON INSERT INTO t VALUES (4), (5), (6);
+EXPLAIN
+{
+  "query": "insert into `test`.`t` values (4),(5),(6)",
+  "inputs": [
+    {
+      "operation": "Rows fetched before execution",
+      "access_type": "rows_fetched_before_execution"
+    }
+  ],
+  "operation": "Insert into t",
+  "table_name": "t",
+  "access_type": "insert_values"
+}
+EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
+EXPLAIN
+{
+  "query": "replace into `test`.`t` values (7),(8),(9)",
+  "inputs": [
+    {
+      "operation": "Rows fetched before execution",
+      "access_type": "rows_fetched_before_execution"
+    }
+  ],
+  "operation": "Replace into t",
+  "table_name": "t",
+  "access_type": "replace_values"
+}
+DROP TABLE t;

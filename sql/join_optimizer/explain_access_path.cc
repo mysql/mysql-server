@@ -102,6 +102,8 @@ static bool PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
 static std::unique_ptr<Json_object> ExplainAccessPath(
     const AccessPath *path, const AccessPath *materialized_path, JOIN *join,
     bool is_root_of_join, Json_object *input_obj = nullptr);
+static std::unique_ptr<Json_object> ExplainNoAccessPath(
+    const THD::Query_plan *query_plan);
 static std::unique_ptr<Json_object> AssignParentPath(
     AccessPath *parent_path, const AccessPath *materialized_path,
     std::unique_ptr<Json_object> obj, JOIN *join);
@@ -761,22 +763,30 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
     const AccessPath *path, THD::Query_plan const *query_plan, JOIN *join,
     bool is_root_of_join) {
   string dml_desc;
+  string access_type;
   std::unique_ptr<Json_object> obj = nullptr;
 
   /* Create a Json object for the SELECT path */
   if (path != nullptr) {
     obj = ExplainAccessPath(path, nullptr, join, is_root_of_join);
-    if (obj == nullptr) return nullptr;
+  } else {
+    obj = ExplainNoAccessPath(query_plan);
   }
+  if (obj == nullptr) return nullptr;
+
   if (query_plan != nullptr) {
     switch (query_plan->get_command()) {
-      case SQLCOM_INSERT_SELECT:
       case SQLCOM_INSERT:
+        access_type = "insert_values";
+        [[fallthrough]];
+      case SQLCOM_INSERT_SELECT:
         dml_desc = string("Insert into ") +
                    query_plan->get_lex()->insert_table_leaf->table->alias;
         break;
-      case SQLCOM_REPLACE_SELECT:
       case SQLCOM_REPLACE:
+        access_type = "replace_values";
+        [[fallthrough]];
+      case SQLCOM_REPLACE_SELECT:
         dml_desc = string("Replace into ") +
                    query_plan->get_lex()->insert_table_leaf->table->alias;
         break;
@@ -793,12 +803,22 @@ static std::unique_ptr<Json_object> ExplainQueryPlan(
     if (AddMemberToObject<Json_string>(dml_obj.get(), "operation", dml_desc))
       return nullptr;
 
-    /* There might not be a select plan. E.g. INSERT ... VALUES() */
-    if (obj != nullptr) {
-      std::unique_ptr<Json_array> children(new (std::nothrow) Json_array());
-      if (children == nullptr || children->append_alias(std::move(obj)))
-        return nullptr;
-      if (dml_obj->add_alias("inputs", std::move(children))) return nullptr;
+    std::unique_ptr<Json_array> children(new (std::nothrow) Json_array());
+    if (children == nullptr || children->append_alias(std::move(obj)))
+      return nullptr;
+
+    if (dml_obj->add_alias("inputs", std::move(children))) return nullptr;
+
+    if (AddMemberToObject<Json_string>(
+            dml_obj.get(), "table_name",
+            query_plan->get_lex()->query_tables[0].table->alias)) {
+      return nullptr;
+    }
+
+    if (!access_type.empty() &&
+        AddMemberToObject<Json_string>(dml_obj.get(), "access_type",
+                                       access_type)) {
+      return nullptr;
     }
     obj = std::move(dml_obj);
   }
@@ -1793,13 +1813,38 @@ static std::unique_ptr<Json_object> ExplainAccessPath(
     return nullptr;
 }
 
+std::unique_ptr<Json_object> ExplainNoAccessPath(
+    const THD::Query_plan *query_plan) {
+  bool error = false;
+  std::unique_ptr<Json_object> ret_obj = create_dom_ptr<Json_object>();
+  LEX *lex = query_plan->get_lex();
+
+  switch (lex->m_sql_cmd->sql_command_code()) {
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE:
+      error |= AddMemberToObject<Json_string>(ret_obj.get(), "operation",
+                                              "Rows fetched before execution");
+      error |= AddMemberToObject<Json_string>(ret_obj.get(), "access_type",
+                                              "rows_fetched_before_execution");
+      break;
+    case SQLCOM_UPDATE:
+    case SQLCOM_DELETE:
+    default:
+      error |= AddMemberToObject<Json_string>(
+          ret_obj.get(), "operation", "<not executable by iterator executor>");
+      break;
+  }
+
+  if (error) return nullptr;
+
+  return ret_obj;
+}
+
 std::string PrintQueryPlan(THD *ethd, const THD *query_thd,
                            Query_expression *unit) {
   JOIN *join = nullptr;
   bool is_root_of_join = (unit != nullptr ? !unit->is_union() : false);
   AccessPath *path = (unit != nullptr ? unit->root_access_path() : nullptr);
-
-  if (path == nullptr) return "<not executable by iterator executor>\n";
 
   // "join" should be set to the JOIN that "path" is part of (or nullptr
   // if it is not, e.g. if it's a part of executing a UNION).
