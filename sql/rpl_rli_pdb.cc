@@ -643,6 +643,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
     after a rotation.
   */
   if (ptr_g->group_master_log_name != nullptr) {
+    my_claim(ptr_g->group_master_log_name, /*claim=*/true);
     strmake(group_master_log_name, ptr_g->group_master_log_name,
             sizeof(group_master_log_name) - 1);
     my_free(ptr_g->group_master_log_name);
@@ -651,6 +652,9 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
             sizeof(checkpoint_master_log_name) - 1);
   }
   if (ptr_g->checkpoint_log_name != nullptr) {
+    my_claim(ptr_g->checkpoint_log_name, /*claim=*/true);
+    my_claim(ptr_g->checkpoint_relay_log_name, /*claim=*/true);
+
     strmake(checkpoint_relay_log_name, ptr_g->checkpoint_relay_log_name,
             sizeof(checkpoint_relay_log_name) - 1);
     checkpoint_relay_log_pos = ptr_g->checkpoint_relay_log_pos;
@@ -2096,6 +2100,8 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   mysql_mutex_lock(&rli->pending_jobs_lock);
   new_pend_size = rli->mts_pending_jobs_size + ev_size;
   bool big_event = (ev_size > rli->mts_pending_jobs_size_max);
+  Slave_job_group *ptr_g =
+      rli->gaq->get_job_group(rli->gaq->assigned_group_index);
   /*
     C waits basing on *data* sizes in the queues.
     If it is a big event (event size is greater than
@@ -2162,6 +2168,16 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     rli->mts_wq_no_underrun_cnt++;
   }
 
+  // unclaim ownership of the event log memory
+  job_item->data->claim_memory_ownership(/*claim=*/false);
+  if (worker->checkpoint_notified) {
+    my_claim(ptr_g->checkpoint_log_name, /*claim=*/false);
+    my_claim(ptr_g->checkpoint_relay_log_name, /*claim=*/false);
+  }
+  if (worker->master_log_change_notified) {
+    my_claim(ptr_g->group_master_log_name, /*claim=*/false);
+  }
+
   mysql_mutex_lock(&worker->jobs_lock);
 
   // possible WQ overfill
@@ -2191,6 +2207,16 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     rli->pending_jobs--;  // roll back of the prev incr
     rli->mts_pending_jobs_size -= ev_size;
     mysql_mutex_unlock(&rli->pending_jobs_lock);
+
+    // claim back ownership of the event log memory
+    job_item->data->claim_memory_ownership(/*claim=*/true);
+    if (worker->checkpoint_notified) {
+      my_claim(ptr_g->checkpoint_log_name, /*claim=*/true);
+      my_claim(ptr_g->checkpoint_relay_log_name, /*claim=*/true);
+    }
+    if (worker->master_log_change_notified) {
+      my_claim(ptr_g->group_master_log_name, /*claim=*/true);
+    }
   }
 
   return (Slave_jobs_queue::error_result != ret) ? false : true;
@@ -2444,6 +2470,10 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
 
     ev = job_item->data;
     assert(ev != nullptr);
+
+    // claim ownership of the event log memory
+    ev->claim_memory_ownership(/*claim=*/true);
+
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p", worker->id,
                         job_item, ev, thd));
     /*

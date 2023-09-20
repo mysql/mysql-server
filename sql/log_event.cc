@@ -5216,6 +5216,12 @@ err:
   return 0;
 }
 
+void Query_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(data_buf, claim);
+  my_claim(this, claim);
+}
+
 /***************************************************************************
        Format_description_log_event methods
 ****************************************************************************/
@@ -5334,6 +5340,11 @@ void Format_description_log_event::print(
   }
 }
 #endif /* !MYSQL_SERVER */
+
+void Format_description_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
 
 #ifdef MYSQL_SERVER
 int Format_description_log_event::pack_info(Protocol *protocol) {
@@ -5587,6 +5598,11 @@ Rotate_log_event::Rotate_log_event(
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
 }
 
+void Rotate_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /*
   Rotate_log_event::write()
 */
@@ -5823,6 +5839,11 @@ bool Intvar_log_event::write(Basic_ostream *ostream) {
 }
 #endif
 
+void Intvar_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /*
   Intvar_log_event::print()
 */
@@ -5920,6 +5941,11 @@ Rand_log_event::Rand_log_event(
     : binary_log::Rand_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_TRACE;
+}
+
+void Rand_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -6021,6 +6047,11 @@ Xid_log_event::Xid_log_event(const char *buf,
     : binary_log::Xid_event(buf, description_event),
       Xid_apply_log_event(header(), footer()) {
   DBUG_TRACE;
+}
+
+void Xid_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -6398,6 +6429,11 @@ bool XA_prepare_log_event::write(Basic_ostream *ostream) {
          write_footer(ostream);
 }
 #endif  // MYSQL_SERVER
+
+void XA_prepare_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
 
 #ifndef MYSQL_SERVER
 void XA_prepare_log_event::print(FILE *,
@@ -6869,6 +6905,11 @@ Log_event::enum_skip_reason User_var_log_event::do_shall_skip(
 }
 #endif /* MYSQL_SERVER */
 
+void User_var_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /**************************************************************************
   Unknown_log_event methods
 **************************************************************************/
@@ -6896,6 +6937,11 @@ void Stop_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   my_b_printf(&print_event_info->head_cache, "\tStop\n");
 }
 #endif /* !MYSQL_SERVER */
+
+void Stop_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
 
 #ifdef MYSQL_SERVER
 /*
@@ -6997,6 +7043,11 @@ void Append_block_log_event::print(FILE *,
               block_len);
 }
 #endif /* !MYSQL_SERVER */
+
+void Append_block_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
 
 /*
   Append_block_log_event::pack_info()
@@ -7185,6 +7236,11 @@ void Delete_file_log_event::print(FILE *,
 }
 #endif /* !MYSQL_SERVER */
 
+void Delete_file_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /*
   Delete_file_log_event::pack_info()
 */
@@ -7252,6 +7308,11 @@ Begin_load_query_log_event::Begin_load_query_log_event(
   DBUG_TRACE;
 }
 
+void Begin_load_query_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 #if defined(MYSQL_SERVER)
 int Begin_load_query_log_event::get_create_or_append() const {
   return 1; /* create the file */
@@ -7311,6 +7372,11 @@ Execute_load_query_log_event::Execute_load_query_log_event(
 
 ulong Execute_load_query_log_event::get_post_header_size_for_derived() {
   return Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN;
+}
+
+void Execute_load_query_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -10712,6 +10778,15 @@ bool Table_map_log_event::has_generated_invisible_primary_key() const {
   return (m_flags & TM_GENERATED_INVISIBLE_PK_F) != 0;
 }
 
+void Table_map_log_event::claim_memory_ownership(bool claim) {
+  my_claim(m_null_bits, claim);
+  my_claim(m_field_metadata, claim);
+  my_claim(m_coltype, claim);
+  my_claim(m_optional_metadata, claim);
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /*
   Return value is an error code, one of:
 
@@ -12330,6 +12405,11 @@ void Write_rows_log_event::print(FILE *file,
 }
 #endif
 
+void Write_rows_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 /**************************************************************************
         Delete_rows_log_event member functions
 **************************************************************************/
@@ -12373,6 +12453,11 @@ Delete_rows_log_event::Delete_rows_log_event(
       Rows_log_event(buf, description_event),
       binary_log::Delete_rows_event(buf, description_event) {
   assert(header()->type_code == m_type);
+}
+
+void Delete_rows_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #if defined(MYSQL_SERVER)
@@ -12505,6 +12590,11 @@ Update_rows_log_event::Update_rows_log_event(
   common_header->set_is_valid(m_cols_ai.bitmap);
 }
 
+void Update_rows_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 #if defined(MYSQL_SERVER)
 
 int Update_rows_log_event::do_before_row_operations(
@@ -12606,6 +12696,11 @@ const char *Incident_log_event::description() const {
   DBUG_PRINT("info", ("incident: %d", incident));
 
   return description[incident];
+}
+
+void Incident_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -12724,6 +12819,11 @@ Ignorable_log_event::Ignorable_log_event(
 
 Ignorable_log_event::~Ignorable_log_event() = default;
 
+void Ignorable_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 #ifdef MYSQL_SERVER
 /* Pack info for its unrecognized ignorable event */
 int Ignorable_log_event::pack_info(Protocol *protocol) {
@@ -12754,6 +12854,12 @@ Rows_query_log_event::Rows_query_log_event(
       Ignorable_log_event(buf, descr_event),
       binary_log::Rows_query_event(buf, descr_event) {
   DBUG_TRACE;
+}
+
+void Rows_query_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+  my_claim(m_rows_query, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -12969,6 +13075,11 @@ size_t Gtid_log_event::to_string(char *buf) const {
   *p++ = '\'';
   *p = '\0';
   return p - buf;
+}
+
+void Gtid_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifndef MYSQL_SERVER
@@ -13407,6 +13518,11 @@ Previous_gtids_log_event::Previous_gtids_log_event(
   DBUG_TRACE;
 }
 
+void Previous_gtids_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 #ifdef MYSQL_SERVER
 Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
     : binary_log::Previous_gtids_event(),
@@ -13583,6 +13699,13 @@ size_t Transaction_context_log_event::to_string(char *buf, ulong len) const {
   DBUG_TRACE;
   return snprintf(buf, len, "server_uuid=%s\tthread_id=%u", server_uuid,
                   thread_id);
+}
+
+void Transaction_context_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+  if (sid_map) my_claim(sid_map, claim);
+  if (snapshot_version) my_claim(snapshot_version, claim);
 }
 
 #ifdef MYSQL_SERVER
@@ -13803,6 +13926,11 @@ size_t View_change_log_event::to_string(char *buf, ulong len) const {
   return snprintf(buf, len, "view_id=%s", view_id);
 }
 
+void View_change_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
+}
+
 #ifdef MYSQL_SERVER
 int View_change_log_event::pack_info(Protocol *protocol) {
   DBUG_TRACE;
@@ -13956,6 +14084,11 @@ size_t Transaction_payload_log_event::get_data_size() {
   assert(false);
   return 0;
   /* purecov: end */
+}
+
+void Transaction_payload_log_event::claim_memory_ownership(bool claim) {
+  my_claim(temp_buf, claim);
+  my_claim(this, claim);
 }
 
 #ifdef MYSQL_SERVER
