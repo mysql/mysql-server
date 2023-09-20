@@ -656,12 +656,6 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_debug_sync_service)
 mysql_debug_sync_service_imp::debug_sync END_SERVICE_IMPLEMENTATION();
 #endif
 
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                             mysql_stored_program_external_program_handle)
-mysql_stored_program_external_program_handle_imp::get,
-    mysql_stored_program_external_program_handle_imp::set,
-    END_SERVICE_IMPLEMENTATION();
-
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_stored_program_metadata_query)
 mysql_stored_program_metadata_query_imp::get END_SERVICE_IMPLEMENTATION();
 
@@ -968,8 +962,6 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
     PROVIDES_SERVICE(mysql_server, dynamic_loader_services_loaded_notification),
     PROVIDES_SERVICE(mysql_server, dynamic_loader_services_unload_notification),
-    PROVIDES_SERVICE(mysql_server,
-                     mysql_stored_program_external_program_handle),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_metadata_query),
     PROVIDES_SERVICE(mysql_server,
                      mysql_stored_program_argument_metadata_query),

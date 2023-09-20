@@ -64,6 +64,5 @@ void sp_cache_invalidate();
 void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp);
 int64 sp_cache_version();
 void sp_cache_enforce_limit(sp_cache *cp, ulong upper_limit_for_elements);
-bool sp_cache_has(sp_cache *cp, sp_head *sp);
 
 #endif /* _SP_CACHE_H_ */

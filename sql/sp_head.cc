@@ -2569,19 +2569,6 @@ err_with_cleanup:
   return err_status;
 }
 
-external_program_handle sp_head::get_external_program_handle() {
-  return m_language_stored_program;
-}
-
-bool sp_head::set_external_program_handle(external_program_handle sp) {
-  assert(m_language_stored_program && !sp);
-  assert(!m_language_stored_program && sp);
-  if (m_language_stored_program && !sp) return true;
-  if (!m_language_stored_program && sp) return true;
-  m_language_stored_program = sp;
-  return false;
-}
-
 bool sp_head::init_external_routine(
     my_service<SERVICE_TYPE(external_program_execution)> &service) {
   assert(!is_sql());

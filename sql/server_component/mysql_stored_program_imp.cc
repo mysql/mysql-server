@@ -24,9 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>                                               // strcmp
 #include "mysql/components/services/bits/stored_program_bits.h"  // stored_program_argument_type
 #include "mysql_time.h"
-#include "sql/current_thd.h"
 #include "sql/item_timefunc.h"  // Item_time_literal
-#include "sql/sp_cache.h"       // sp_cache
 #include "sql/sp_head.h"        // sp_head
 #include "sql/sp_pcontext.h"    // sp_runtime_ctx
 #include "sql/sp_rcontext.h"
@@ -1306,42 +1304,4 @@ DEFINE_BOOL_METHOD(mysql_stored_program_return_value_float_imp::set,
   if (set_return_value(sp_runtime_context, item) == MYSQL_FAILURE)
     return MYSQL_FAILURE;
   return MYSQL_SUCCESS;
-}
-
-/**
- * @brief Ensure the modified sp_head is part of the current THD.
- *
- * @param sp_handle - opaque pointer.
- * @return sp_head* if the opaque pointer's sp_head representation is part of
-           the current THD.
- * @return nullptr if not.
- */
-static auto is_sp_in_current_thd(stored_program_handle sp_handle) -> sp_head * {
-  assert(sp_handle);
-  if (!sp_handle) return {};
-  auto sp = reinterpret_cast<sp_head *>(sp_handle);
-  if (sp_cache_has(current_thd->sp_func_cache, sp)) return sp;
-  if (sp_cache_has(current_thd->sp_proc_cache, sp)) return sp;
-  assert(false);
-  return {};
-}
-
-DEFINE_BOOL_METHOD(mysql_stored_program_external_program_handle_imp::get,
-                   (stored_program_handle sp_handle,
-                    external_program_handle *value)) {
-  assert(value);
-  if (!value) return MYSQL_FAILURE;
-
-  auto sp = is_sp_in_current_thd(sp_handle);
-  if (!sp) return MYSQL_FAILURE;
-  *value = sp->get_external_program_handle();
-  return MYSQL_SUCCESS;
-}
-
-DEFINE_BOOL_METHOD(mysql_stored_program_external_program_handle_imp::set,
-                   (stored_program_handle sp_handle,
-                    external_program_handle value)) {
-  auto sp = is_sp_in_current_thd(sp_handle);
-  if (!sp) return MYSQL_FAILURE;
-  return sp->set_external_program_handle(value);
 }
