@@ -310,7 +310,12 @@ class Item_func : public Item_result_field {
     PERIODDIFF_FUNC,
     SEC_TO_TIME_FUNC,
     GET_FORMAT_FUNC,
-    ANY_VALUE_FUNC
+    ANY_VALUE_FUNC,
+    JSON_LENGTH_FUNC,
+    JSON_DEPTH_FUNC,
+    JSON_EXTRACT_FUNC,
+    JSON_OBJECT_FUNC,
+    JSON_ARRAY_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,

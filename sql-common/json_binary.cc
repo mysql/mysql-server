@@ -135,8 +135,6 @@ enum enum_serialization_result {
 static enum_serialization_result serialize_json_value(
     const Json_dom *dom, size_t type_pos, size_t depth, bool small_parent,
     const JsonSerializationErrorHandler &error_handler, String *dest);
-static void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
-static uint8 offset_size(bool large);
 
 bool serialize(const Json_dom *dom,
                const JsonSerializationErrorHandler &error_handler,
@@ -175,7 +173,7 @@ static bool reserve(String *buffer, size_t bytes_needed) {
 }
 
 /** Encode a 16-bit int at the end of the destination string. */
-static bool append_int16(String *dest, int16 value) {
+bool append_int16(String *dest, int16_t value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
   int2store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
@@ -207,8 +205,7 @@ static bool append_int64(String *dest, int64 value) {
                 otherwise, use the small storage format (2 bytes)
   @return false if successfully appended, true otherwise
 */
-static bool append_offset_or_size(String *dest, size_t offset_or_size,
-                                  bool large) {
+bool append_offset_or_size(String *dest, size_t offset_or_size, bool large) {
   if (large)
     return append_int32(dest, static_cast<int32>(offset_or_size));
   else
@@ -240,8 +237,7 @@ static void insert_offset_or_size(String *dest, size_t pos,
   @param offset_or_size  the offset or size to write
   @param large           if true, use the large storage format
 */
-static void write_offset_or_size(char *dest, size_t offset_or_size,
-                                 bool large) {
+void write_offset_or_size(char *dest, size_t offset_or_size, bool large) {
   if (large)
     int4store(dest, static_cast<uint32>(offset_or_size));
   else
@@ -416,7 +412,7 @@ static enum_serialization_result append_key_entries(const Json_object *object,
   @param large true if the large storage format is used
   @return true if the value will be inlined
 */
-static bool inlined_type(uint8 type, bool large) {
+bool inlined_type(uint8_t type, bool large) {
   switch (type) {
     case JSONB_TYPE_LITERAL:
     case JSONB_TYPE_INT16:
@@ -435,7 +431,7 @@ static bool inlined_type(uint8 type, bool large) {
   @param large true if the large storage format is used
   @return the size of an offset
 */
-static uint8 offset_size(bool large) {
+uint8_t offset_size(bool large) {
   return large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE;
 }
 
@@ -444,7 +440,7 @@ static uint8 offset_size(bool large) {
   @param large true if the large storage format is used
   @return the size of a key entry
 */
-static uint8 key_entry_size(bool large) {
+uint8_t key_entry_size(bool large) {
   return large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
 }
 
@@ -453,7 +449,7 @@ static uint8 key_entry_size(bool large) {
   @param large true if the large storage format is used
   @return the size of a value entry
 */
-static uint8 value_entry_size(bool large) {
+uint8_t value_entry_size(bool large) {
   return large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
 }
 
@@ -468,8 +464,8 @@ static uint8 value_entry_size(bool large) {
   @param[in] large true if the large storage format is used
   @return true if the value was inlined, false if it was not
 */
-static bool attempt_inline_value(const Json_dom *value, String *dest,
-                                 size_t pos, bool large) {
+bool attempt_inline_value(const Json_dom *value, String *dest, size_t pos,
+                          bool large) {
   int32 inlined_val;
   char inlined_type;
   switch (value->json_type()) {
@@ -1015,7 +1011,7 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
   @param large tells if the large or small storage format is used; true
                means read four bytes, false means read two bytes
 */
-static uint32 read_offset_or_size(const char *data, bool large) {
+uint32_t read_offset_or_size(const char *data, bool large) {
   return large ? uint4korr(data) : uint2korr(data);
 }
 
@@ -1530,7 +1526,7 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const {
   @param pos   the position of the member
   @return the offset of the key entry, relative to the start of the object
 */
-inline size_t Value::key_entry_offset(size_t pos) const {
+size_t Value::key_entry_offset(size_t pos) const {
   assert(m_type == OBJECT);
   // The first key entry is located right after the two length fields.
   return 2 * offset_size(m_large) + key_entry_size(m_large) * pos;
@@ -1543,7 +1539,7 @@ inline size_t Value::key_entry_offset(size_t pos) const {
   @param pos  the position of the element
   @return the offset of the entry, relative to the start of the array or object
 */
-inline size_t Value::value_entry_offset(size_t pos) const {
+size_t Value::value_entry_offset(size_t pos) const {
   assert(m_type == ARRAY || m_type == OBJECT);
   /*
     Value entries come after the two length fields if it's an array, or

@@ -52,9 +52,13 @@
 #include "base64.h"
 #include "decimal.h"
 #include "dig_vec.h"
+#include "m_string.h"
 #include "my_byteorder.h"
+#include "my_checksum.h"
+#include "my_compare.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
@@ -72,11 +76,6 @@
 #include "template_utils.h"  // down_cast, pointer_cast
 
 #ifdef MYSQL_SERVER
-#include "m_string.h"
-#include "my_checksum.h"
-#include "my_compare.h"
-#include "my_double2ulonglong.h"
-#include "my_time_t.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
@@ -1861,7 +1860,6 @@ void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
   }
 }
 
-#ifdef MYSQL_SERVER
 const char *Json_wrapper::get_datetime_packed(char *buffer) const {
   if (m_is_dom) {
     down_cast<Json_datetime *>(m_dom.m_value)->to_packed(buffer);
@@ -1871,7 +1869,6 @@ const char *Json_wrapper::get_datetime_packed(char *buffer) const {
   assert(m_value.get_data_length() == Json_datetime::PACKED_SIZE);
   return m_value.get_data();
 }
-#endif  // ifdef MYSQL_SERVER
 
 bool Json_wrapper::get_boolean() const {
   if (m_is_dom) {
@@ -2200,7 +2197,6 @@ size_t Json_wrapper::length() const {
   }
 }
 
-#ifdef MYSQL_SERVER
 /**
   Compare a decimal value to a double by converting the double to a
   decimal.
@@ -2675,6 +2671,7 @@ int Json_wrapper::compare(const Json_wrapper &other,
   return 1;      /* purecov: inspected */
 }
 
+#ifdef MYSQL_SERVER
 /**
   Push a warning/error about a problem encountered when coercing a JSON
   value to some other data type.
@@ -2968,7 +2965,11 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
   return false;
 }
 
+#endif
+
 namespace {
+
+#ifdef MYSQL_SERVER
 
 /// Wrapper around a sort key buffer.
 class Wrapper_sort_key {
@@ -3063,6 +3064,8 @@ class Wrapper_sort_key {
   }
 };
 
+#endif
+
 /// Helper class for building a hash key.
 class Wrapper_hash_key {
  private:
@@ -3122,20 +3125,29 @@ class Wrapper_hash_key {
   See also note for Json_dom::enum_json_type.
 */
 constexpr uchar JSON_KEY_NULL = '\x00';
+
+#ifdef MYSQL_SERVER
 constexpr uchar JSON_KEY_NUMBER_NEG = '\x01';
 constexpr uchar JSON_KEY_NUMBER_ZERO = '\x02';
 constexpr uchar JSON_KEY_NUMBER_POS = '\x03';
 constexpr uchar JSON_KEY_STRING = '\x04';
+#endif
+
 constexpr uchar JSON_KEY_OBJECT = '\x05';
 constexpr uchar JSON_KEY_ARRAY = '\x06';
 constexpr uchar JSON_KEY_FALSE = '\x07';
 constexpr uchar JSON_KEY_TRUE = '\x08';
+
+#ifdef MYSQL_SERVER
 constexpr uchar JSON_KEY_DATE = '\x09';
 constexpr uchar JSON_KEY_TIME = '\x0A';
 constexpr uchar JSON_KEY_DATETIME = '\x0B';
 constexpr uchar JSON_KEY_OPAQUE = '\x0C';
+#endif
 
 }  // namespace
+
+#ifdef MYSQL_SERVER
 
 /*
   Max char position to pad numeric sort keys to. Includes max precision +
@@ -3368,6 +3380,8 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
   return key.pos();
 }
 
+#endif
+
 ulonglong Json_wrapper::make_hash_key(ulonglong hash_val) const {
   Wrapper_hash_key hash_key(hash_val);
   switch (type()) {
@@ -3433,6 +3447,8 @@ ulonglong Json_wrapper::make_hash_key(ulonglong hash_val) const {
   ulonglong result = hash_key.get_crc();
   return result;
 }
+
+#ifdef MYSQL_SERVER
 
 bool Json_wrapper::get_free_space(size_t *space) const {
   if (m_is_dom) {

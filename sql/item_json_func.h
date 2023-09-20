@@ -517,6 +517,7 @@ class Item_func_json_length final : public Item_int_func {
   }
 
   const char *func_name() const override { return "json_length"; }
+  enum Functype functype() const override { return JSON_LENGTH_FUNC; }
 
   longlong val_int() override;
 };
@@ -531,6 +532,7 @@ class Item_func_json_depth final : public Item_int_func {
   Item_func_json_depth(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
   const char *func_name() const override { return "json_depth"; }
+  enum Functype functype() const override { return JSON_DEPTH_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
@@ -580,6 +582,7 @@ class Item_func_json_extract final : public Item_json_func {
       : Item_json_func(thd, pos, a, b) {}
 
   const char *func_name() const override { return "json_extract"; }
+  enum Functype functype() const override { return JSON_EXTRACT_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
@@ -717,6 +720,7 @@ class Item_func_json_array final : public Item_json_func {
   }
 
   const char *func_name() const override { return "json_array"; }
+  enum Functype functype() const override { return JSON_ARRAY_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
@@ -743,6 +747,7 @@ class Item_func_json_row_object final : public Item_json_func {
   }
 
   const char *func_name() const override { return "json_object"; }
+  enum Functype functype() const override { return JSON_OBJECT_FUNC; }
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
