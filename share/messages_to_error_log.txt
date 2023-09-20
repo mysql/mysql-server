@@ -12276,6 +12276,9 @@ ER_INFORMATION_SCHEMA_VERSION_CHANGE
 ER_PERFORMANCE_SCHEMA_VERSION_CHANGE
   eng "%s performance schema from version %u to %u."
 
+ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
+   eng "Value for option '%s' contains cipher '%s' that is either blocked or deprecated (and will be removed in a future release). Please refer to the documentation for more details."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12384,9 +12387,6 @@ ER_FIREWALL_SCHEDULER_REGISTER_FAILED
 
 ER_FIREWALL_INVALID_RELOAD_INTERVAL_VALUE
   eng "Invalid reload interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d."
-
-ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
-   eng "Value for option '%s' contains cipher '%s' that is either blocked or deprecated (and will be removed in a future release). Please refer to the documentation for more details."
 
 ER_WARN_DEPRECATED_DYNAMIC_PRIV_FOR_USER
    eng "'%s' (granted to '%s@%s') is deprecated and will be removed in a future release."
