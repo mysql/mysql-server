@@ -759,8 +759,10 @@ bool Item::do_itemize(Parse_context *pc, Item **res) {
   */
   if (pc->select) {
     const enum_parsing_context place = pc->select->parsing_place;
-    if (place == CTX_SELECT_LIST || place == CTX_HAVING)
+    if (place == CTX_SELECT_LIST || place == CTX_HAVING ||
+        place == CTX_ORDER_BY) {
       pc->select->select_n_having_items++;
+    }
   }
   return false;
 }
