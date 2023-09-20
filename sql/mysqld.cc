@@ -10733,8 +10733,9 @@ struct my_option my_long_options[] = {
      "log.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"character-set-client-handshake", 0,
-     "Don't ignore client side character set value sent during handshake.",
+    {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
+     "Deprecated. Don't ignore client side character set value sent during "
+     "handshake.",
      &opt_character_set_client_handshake, &opt_character_set_client_handshake,
      nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0, nullptr},
     {"character-set-filesystem", 0, "Set the filesystem character set.",
@@ -12709,6 +12710,17 @@ bool mysqld_get_one_option(int optid,
     case OPT_SYNC_RELAY_LOG_INFO:
       LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
              "--sync-relay-log-info");
+      break;
+    case OPT_CHARACTER_SET_CLIENT_HANDSHAKE:
+      push_deprecated_warn_no_replacement(nullptr,
+                                          "--character-set-client-handshake");
+      break;
+    case 'n':
+      push_deprecated_warn_no_replacement(nullptr, "--new");
+      break;
+    case OPT_OLD_OPTION:
+      push_deprecated_warn_no_replacement(nullptr, "--old");
+      break;
   }
   return false;
 }
