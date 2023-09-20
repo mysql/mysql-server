@@ -9,9 +9,6 @@ SET SESSION sql_log_bin= 1;
 include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
-SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 FLUSH LOGS;
 SET binlog_row_image = MINIMAL;
@@ -24,14 +21,14 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DROP TABLE t1;
 # Test nullable MV index
@@ -44,14 +41,14 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DROP TABLE t1;
 # Test non-unique MV index
@@ -64,14 +61,14 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DROP TABLE t1;
 # Test composite MV index
@@ -84,22 +81,15 @@ include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	TABLE_SCAN
+Replica_rows_last_search_algorithm_used	HASH_SCAN
 [connection master]
 DROP TABLE t1;
-SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 FLUSH LOGS;
-include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

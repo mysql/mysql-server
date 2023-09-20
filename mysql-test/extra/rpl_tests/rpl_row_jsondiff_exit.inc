@@ -12,13 +12,4 @@ let $rpl_sql=
 --delimiter ;
 --source include/rpl_for_each_server_stmt.inc
 
-if ($replace_combination_from)
-{
-  # To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
-  # which will be caused by the following include/end_replace_combination.inc.
-  --source include/rpl_stop_slaves.inc
-  --source include/end_replace_combination.inc
-  --source include/rpl_start_slaves.inc
-}
-
 --source include/rpl_end.inc

@@ -47,7 +47,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 110 variables in the table.]
+include/assert.inc [Expect 109 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -231,10 +231,6 @@ SET PERSIST_ONLY slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_or
 Warnings:
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
-SET PERSIST_ONLY slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY slave_skip_errors = @@GLOBAL.slave_skip_errors;
 Warnings:
 Warning	1287	'@@slave_skip_errors' is deprecated and will be removed in a future release. Please use replica_skip_errors instead.
@@ -269,16 +265,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 99 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 98 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 99 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 99 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 99 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 98 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 98 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 98 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -372,7 +368,6 @@ RESET PERSIST rpl_semi_sync_source_wait_point;
 RESET PERSIST rpl_stop_replica_timeout;
 RESET PERSIST session_track_gtids;
 RESET PERSIST skip_replica_start;
-RESET PERSIST slave_rows_search_algorithms;
 RESET PERSIST source_verify_checksum;
 RESET PERSIST sql_replica_skip_counter;
 RESET PERSIST sync_binlog;

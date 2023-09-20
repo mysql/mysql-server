@@ -26,7 +26,7 @@ VARIABLE_NAME LIKE '%source%') AND
 'innodb_master_thread_disabled_debug', 'innodb_replication_delay'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 110 variables in the table.]
+include/assert.inc [Expect 109 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -210,10 +210,6 @@ SET PERSIST slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
 Warnings:
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
-SET PERSIST slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST slave_skip_errors = @@GLOBAL.slave_skip_errors;
 ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 SET PERSIST slave_sql_verify_checksum = @@GLOBAL.slave_sql_verify_checksum;
@@ -246,16 +242,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 87 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 88 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 88 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 87 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 87 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 87 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -427,7 +423,6 @@ Warning	3615	Variable slave_pending_jobs_size_max does not exist in persisted co
 RESET PERSIST IF EXISTS slave_preserve_commit_order;
 Warnings:
 Warning	3615	Variable slave_preserve_commit_order does not exist in persisted config file
-RESET PERSIST IF EXISTS slave_rows_search_algorithms;
 RESET PERSIST IF EXISTS slave_skip_errors;
 Warnings:
 Warning	3615	Variable slave_skip_errors does not exist in persisted config file

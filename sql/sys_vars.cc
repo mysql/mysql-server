@@ -3960,22 +3960,6 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var) {
   return result;
 }
 
-static const char *slave_rows_search_algorithms_names[] = {
-    "TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", nullptr};
-static Sys_var_set Slave_rows_search_algorithms(
-    "slave_rows_search_algorithms",
-    "The set of algorithms used by the replication applier while searching the "
-    "table for rows to update or delete. Possible values are: INDEX_SCAN, "
-    "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and the applier "
-    "picks the most efficient among them for any given scenario. "
-    "(Default: INDEX_SCAN, HASH_SCAN).",
-    GLOBAL_VAR(slave_rows_search_algorithms_options),
-    CMD_LINE(REQUIRED_ARG, OPT_SLAVE_ROWS_SEARCH_ALGORITHMS),
-    slave_rows_search_algorithms_names,
-    DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_HASH_SCAN), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
-
 static const char *mts_parallel_type_names[] = {"DATABASE", "LOGICAL_CLOCK",
                                                 nullptr};
 static Sys_var_enum Sys_replica_parallel_type(

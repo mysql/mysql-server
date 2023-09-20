@@ -203,12 +203,6 @@ extern bool read_only, opt_readonly;
 extern bool super_read_only, opt_super_readonly;
 extern bool lower_case_file_system;
 
-enum enum_slave_rows_search_algorithms {
-  SLAVE_ROWS_TABLE_SCAN = (1U << 0),
-  SLAVE_ROWS_INDEX_SCAN = (1U << 1),
-  SLAVE_ROWS_HASH_SCAN = (1U << 2)
-};
-extern ulonglong slave_rows_search_algorithms_options;
 extern bool opt_require_secure_transport;
 
 extern bool opt_replica_preserve_commit_order;

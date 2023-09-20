@@ -4,12 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection master]
 CREATE TABLE t1 (f1 INT PRIMARY KEY AUTO_INCREMENT INVISIBLE,
 f2 INT INVISIBLE DEFAULT 5, f3 INT);
@@ -35,7 +29,4 @@ Replica_rows_last_search_algorithm_used	INDEX_SCAN
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

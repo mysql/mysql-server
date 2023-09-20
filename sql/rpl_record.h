@@ -160,9 +160,9 @@ size_t pack_row(TABLE *table, MY_BITMAP const *cols, uchar *row_data,
   @param only_seek If true, this is a seek operation rather than a
   read operation.  It will only compute the row_image_end_p pointer,
   and not read anything into the table and not apply any JSON diffs.
-  (This is used in slave_rows_search_algorithms=HASH_SCAN, which (1)
-  unpacks and hashes the before-image for all rows in the event, (2)
-  scans the table, and for each matching row it (3) unpacks the
+  (This is used in HASH_SCAN, which (1) unpacks and hashes the
+  before-image for all rows in the event, (2)vscans the table, and
+  for each matching row it (3) unpacks the
   after-image and applies on the table. In step (1) it needs to unpack
   the after-image too, in order to move the read position forwards,
   and then it should use only_seek=true.  This is an optimization, but

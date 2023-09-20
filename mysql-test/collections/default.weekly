@@ -152,12 +152,6 @@ perl mysql-test-run.pl --timer  --force  --comment=innodb_sync_debug --testcase-
 #
 ####SECTION 7 RPL/BINLOG EXTENDED-WEEKLY#############
 #
-# Additional run to test rpl TABLE_SCAN & INDEX_SCAN
-#
-perl mysql-test-run.pl --force --debug-server --timer   --comment=rpl_row_table_scan --vardir=var-rpl_row_table_scan --mysqld=--binlog-format=row --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
-
-perl mysql-test-run.pl --debug-server --timer --force  --comment=rpl_row_table_STA --vardir=var-sta-rpl-table-n_mix --mysqld=--binlog-format=row  --mysqld=--replica-parallel-workers=0 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
-
 # binlog-transaction-dependency-tracking=COMMIT_ORDER with replica-parallel-workers=4 (default) and replica-parallel-type=logical_clock (default)
 perl mysql-test-run.pl --timer --force --no-skip --testcase-timeout=60 --debug-server --comment=rpl-mta-trx-dependency-tracking-commit-order --vardir=var-rpl-mta-trx-dependency-tracking-commit-order --do-suite=rpl --mysqld=--binlog-format=row --mysqld=--binlog-transaction-dependency-tracking=COMMIT_ORDER
 

@@ -12,12 +12,6 @@ Warnings:
 Warning	1265	Data truncated for column 'pattern' at row 1
 call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's source log FIRST, end_log_pos [0-9]*, Error_code: MY-001032");
 SET sql_mode = default;
-SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (1), (2), (3);
 include/sync_slave_sql_with_master.inc
@@ -104,8 +98,4 @@ DELETE FROM t1;
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:test.t1, slave:test.t1]
 DROP TABLE  t1;
-include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

@@ -41,7 +41,6 @@
 #				 --single-transaction option
 
 --source include/have_binlog_format_row.inc
---source include/have_default_slave_rows_search_algorithms.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave= 1
 --disable_warnings

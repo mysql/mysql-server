@@ -9,9 +9,6 @@ SET SESSION sql_log_bin= 1;
 include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
-SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 [connection master]
 #
@@ -260,12 +257,6 @@ DROP TABLE t1;
 SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
 Warnings:
 Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
-SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

@@ -5,23 +5,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 [connection master]
 ######## Configure ########
 [connection master]
-include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@SESSION.BINLOG_ROW_VALUE_OPTIONS;
 SET @@SESSION.BINLOG_ROW_IMAGE= MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 [connection slave]
-include/stop_slave_sql.inc
-include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave_sql.inc
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= MINIMAL;
@@ -55,18 +43,7 @@ include/diff_tables.inc [master:t, slave:t]
 DROP TABLE t;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
-include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
-include/stop_slave_sql.inc
-include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/rpl_end.inc

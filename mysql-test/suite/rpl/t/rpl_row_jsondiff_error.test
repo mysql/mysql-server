@@ -32,9 +32,6 @@
 # mysqlbinlog -v prints an appropriate message when failing to decode
 # the row event.
 #
-# The code paths to handle idempotent errors are different for each
-# slave_rows_search_algorithms, hence we must run the test once for each
-# algorithm.
 #
 # ==== Implementation ====
 #
@@ -44,8 +41,6 @@
 # Setup scenarios in a loop with three iterations, each iteration testing
 # one of M1-M3.
 #
-# Use include/begin_replace_combination.inc to run with all different
-# slave_rows_search_algorithms.
 #
 # ==== Related Worklog ====
 #
@@ -54,6 +49,7 @@
 
 --source include/have_debug.inc
 --source include/have_grep.inc
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --echo ######## Configure ########
@@ -61,11 +57,6 @@
 --let $dollar_func= CHAR(36)
 --let $dollar= `SELECT $dollar_func`
 
---echo # Configure slave_rows_search_algorithms on master
---let $replace_combination_from= BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT
---let $replace_combination_to= GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN
---source include/rpl_connection_master.inc
---source include/begin_replace_combination.inc
 
 --echo # Configure partial JSON on master
 --source include/rpl_connection_master.inc
@@ -135,9 +126,7 @@ while ($mode < 3)
   # Configure slave options here and not before the loop, since we
   # restart the server above.
 
-  --echo # Configure slave_rows_search_algorithms and binlog_format
   --source include/rpl_connection_slave.inc
-  --source include/begin_replace_combination.inc
 
   --echo # Configure partial JSON
   SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
@@ -262,15 +251,8 @@ while ($mode < 3)
 --source include/rpl_connection_master.inc
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
---source include/end_replace_combination.inc
 
 --source include/rpl_connection_slave.inc
-# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
-# which will be caused by the following include/end_replace_combination.inc
---source include/stop_slave_sql.inc
---source include/end_replace_combination.inc
 
---connection slave
 SET GLOBAL REPLICA_EXEC_MODE = STRICT;
---let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

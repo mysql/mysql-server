@@ -10,10 +10,9 @@
 #
 # 1. Create source-replica topology.
 # 2. Set binlog_row_value_options value to PARTIAL_JSON on source.
-# 3. Set slave_rows_search_algorithms to 'HASH_SCAN' on replica.
-# 4. Create tables, insert data and procedures.
-# 5. Sync replica with source.
-# 6. Cleanup.
+# 3. Create tables, insert data and procedures.
+# 4. Sync replica with source.
+# 5. Cleanup.
 
 # === References===
 #
@@ -31,12 +30,7 @@
 SET @old_binlog_row_value_options= @@session.BINLOG_ROW_VALUE_OPTIONS;
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 
-# 3. Set slave_rows_search_algorithms to 'HASH_SCAN' on replica.
---source include/rpl_connection_slave.inc
-SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN';
-
-# 4. Create tables, procedures and insert data.
+# 3. Create tables, procedures and insert data.
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (a INT UNIQUE KEY, b JSON);
 INSERT INTO t1 VALUES (1, '{ "long string": "long string", "x": 2}');
@@ -55,7 +49,7 @@ BEGIN;
 INSERT INTO t2 VALUES (f());
 COMMIT;
 
-# 5. Sync replica with source server.
+# 4. Sync replica with source server.
 --source include/sync_slave_sql_with_master.inc
 
 --let diff_tables=master:test.t1, slave:test.t1
@@ -67,7 +61,6 @@ COMMIT;
 SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
 
 # 6. Cleanup.
-SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/rpl_connection_master.inc
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;

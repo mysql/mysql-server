@@ -1356,7 +1356,6 @@ ulong replica_exec_mode_options;
 ulonglong replica_type_conversions_options;
 ulong opt_mts_replica_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
-ulonglong slave_rows_search_algorithms_options;
 bool opt_replica_preserve_commit_order;
 #ifndef NDEBUG
 uint replica_rows_last_search_algorithm_used;
@@ -12680,10 +12679,6 @@ bool mysqld_get_one_option(int optid,
         return 1;
       }
 #endif  // _WIN32
-      break;
-    case OPT_SLAVE_ROWS_SEARCH_ALGORITHMS:
-      push_deprecated_warn_no_replacement(nullptr,
-                                          "--slave-rows-search-algorithms");
       break;
     case OPT_REPLICA_PARALLEL_TYPE:
       push_deprecated_warn_no_replacement(nullptr, "--replica-parallel-type");

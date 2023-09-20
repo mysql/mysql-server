@@ -41,10 +41,6 @@ call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Delete
 
 SET sql_mode = default;
 
---connection slave
-SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
-
 #
 # CASE #1: entries that generate the same key for the slave internal
 #          hash table.
@@ -233,6 +229,4 @@ DELETE FROM t1;
 #cleanup for case#5
 --connection master
 DROP TABLE  t1;
---source include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/rpl_end.inc

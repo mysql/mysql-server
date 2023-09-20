@@ -7,17 +7,11 @@
 #                                                                              #
 # ==== Purpose ====                                                            #
 #                                                                              #
-# The test checks                                                              #
-#   - if operations on rows with invisible columns are completed without       #
-#     errors when slave_rows_search_algorithms uses hash scan.                 #
-#                                                                              #
-#   - if replica chooses INDEX_SCAN even when the index contains invisible     #
-#     columns.                                                                 #
+# The test checks if replica chooses INDEX_SCAN even when the index contains   #
+# invisible columns.                                                           #
 #                                                                              #
 ################################################################################
 --source include/rpl_connection_slave.inc
-set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
 --source include/rpl_connection_master.inc
 
 CREATE TABLE t1 (f1 INT PRIMARY KEY AUTO_INCREMENT INVISIBLE,
@@ -41,5 +35,4 @@ SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/rpl_end.inc

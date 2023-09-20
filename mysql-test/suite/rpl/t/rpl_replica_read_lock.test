@@ -13,9 +13,8 @@
 #
 # ==== Implementation ====
 # 1. Create source-replica topology
-# 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with index),
-#    HASH_SCAN(with two non-unique index), HASH_SCAN(with out index),
-#    TABLE_SCAN],
+# 2. For each INDEX_SCAN, HASH_SCAN(with index),
+#    HASH_SCAN(with two non-unique index), HASH_SCAN(with out index)
 #    2.0 Configure source and replica
 #    2.1 Stop replica
 #    2.2 Execute DELETE transaction on source
@@ -46,25 +45,19 @@
 
 --source include/rpl_connection_slave.inc
 --let $saved_innodb_lock_wait_timeout = `SELECT @@GLOBAL.innodb_lock_wait_timeout`
---let $saved_slave_rows_search_algorithms = `SELECT @@GLOBAL.slave_rows_search_algorithms`
 SET GLOBAL innodb_lock_wait_timeout = 2;
 --disable_warnings
-SET GLOBAL slave_rows_search_algorithms = 'INDEX_SCAN,HASH_SCAN';
 --enable_warnings
 CALL mtr.add_suppression("Replica SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
 CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
 
---echo # 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with
---echo #    index), HASH_SCAN(with two non-unique index), HASH_SCAN(with out
---echo #    index), TABLE_SCAN]
-
+--echo # 2. For each rows scan algorithm 
 #0. INDEX_SCAN
 #1. HASH_SCAN(with index)
 #2. HASH_SCAN(with two non-unique index)
 #3. HASH_SCAN(with out index)
-#4. TABLE_SCAN
 --let $i = 0
-while ($i < 5) {
+while ($i < 4) {
 
   --echo #
   --echo # 2.0 Configure source and replica
@@ -101,12 +94,6 @@ while ($i < 5) {
   --echo #
   --echo # 2.3 Begin SELECT ... FOR UPDATE on replica
   --source include/rpl_connection_slave.inc
-  if ($i == 4)
-  {
-    --disable_warnings
-    SET GLOBAL slave_rows_search_algorithms = 'TABLE_SCAN';
-    --enable_warnings
-  }
 
   BEGIN;
   SELECT * FROM t1 WHERE b = 20 FOR UPDATE;
@@ -158,9 +145,5 @@ while ($i < 5) {
 --source include/rpl_connection_slave.inc
 --replace_result $saved_innodb_lock_wait_timeout INNODB_LOCK_WAIT_TIMEOUT
 eval SET GLOBAL innodb_lock_wait_timeout = $saved_innodb_lock_wait_timeout;
---replace_result $saved_slave_rows_search_algorithms SLAVE_ROWS_SEARCH_ALGORITHMS
---disable_warnings
-eval SET GLOBAL slave_rows_search_algorithms = "$saved_slave_rows_search_algorithms";
---enable_warnings
 
 --source include/rpl_end.inc

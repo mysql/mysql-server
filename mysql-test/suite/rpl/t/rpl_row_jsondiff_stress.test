@@ -31,9 +31,8 @@
 # - Slave configuration:
 #   C1. partial JSON enabled/disabled
 #   C2. binlog_row_image=MINIMAL/NOBLOB/FULL
-#   C3. slave_rows_search_algorithms=INDEX_SCAN/HASH_SCAN/TABLE_SCAN
-#   C4. replica_exec_mode=idempotent/strict
-#!   C5. replica_skip_errors includes expected error, or not
+#   C3. replica_exec_mode=idempotent/strict
+#!   C4. replica_skip_errors includes expected error, or not
 
 
 --source include/have_binlog_format_row.inc
@@ -46,7 +45,6 @@
 --source include/rpl_connection_slave.inc
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
-SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
 SET @old_replica_exec_mode= @@GLOBAL.REPLICA_EXEC_MODE;
 
 --source include/rpl_connection_master.inc
@@ -191,22 +189,6 @@ while (!$done)
     SET @@GLOBAL.BINLOG_ROW_IMAGE = 'FULL';
   }
 
-  if ($verb==3) { echo # Decide slave_rows_search_algorithms; }
-  --let $rand_type= int
-  --let $rand_min= 0
-  --let $rand_max= 3
-  --source include/rand.inc
-  --let $slave_rows_search_algorithms=$rand
-  if ($verb>=2) { echo # - slave_rows_search_algorithms=$slave_rows_search_algorithms; }
-  if ($slave_rows_search_algorithms == 0) {
-    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'INDEX_SCAN,HASH_SCAN';
-  }
-  if ($slave_rows_search_algorithms == 1) {
-    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'INDEX_SCAN,TABLE_SCAN';
-  }
-  if ($slave_rows_search_algorithms == 2) {
-    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'HASH_SCAN,TABLE_SCAN';
-  }
 
   if ($verb==3) { echo # Decide replica_exec_mode; }
   --let $rand_type= decide
@@ -518,7 +500,6 @@ while (!$done)
 --enable_query_log
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
-SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS= @old_slave_rows_search_algorithms;
 SET @@GLOBAL.REPLICA_EXEC_MODE= @old_replica_exec_mode;
 
 --disable_query_log

@@ -3,7 +3,7 @@
 #
 # The test checks if different operations on rows with generated fields as json,
 # geometry, double and json using json function are completed without errors or
-# memory leaks when slave_rows_search_algorithms uses hash scan.
+# memory leaks when using  hash scan.
 #
 # ==== References ====
 #
@@ -14,10 +14,6 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
---source include/rpl_connection_slave.inc
-set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
---source include/rpl_connection_master.inc
 
 #
 # Generated column as json
@@ -180,7 +176,6 @@ UPDATE gtable SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
 --source include/rpl_connection_master.inc
 DROP TABLE gtable;
 --source include/sync_slave_sql_with_master.inc
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --source include/stop_slave.inc
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 --disable_warnings

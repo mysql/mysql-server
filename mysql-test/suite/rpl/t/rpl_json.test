@@ -5,6 +5,7 @@
 --let $skip_configuration_privilege_checks_user= 'skip'
 --let $rpl_privilege_checks_user_grant_all= 1
 
+--source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
 --connection master
@@ -782,21 +783,6 @@ DROP TABLE data,json_data;
 --echo #               IF JSON HAS DIFFERENT BINARY FORMAT
 --echo #
 
-# We are only interested in testing this with binlog_format=row.
-# Replace the options binlog_format=row/mixed/statement by the options
-# slave_rows_search_algorithms=hash_scan/table_scan/index_scan.
---source include/rpl_connection_slave.inc
---let $replace_combination_from= BOTH.binlog_format=row,mixed,statement
---let $replace_combination_to= GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN
-# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
-# which will be caused by the following include/end_replace_combination.inc
---source include/stop_slave_sql.inc
---source include/begin_replace_combination.inc
---source include/start_slave_sql.inc
---source include/rpl_connection_master.inc
-SET @old_binlog_format = @@SESSION.binlog_format;
-SET SESSION binlog_format = ROW;
-
 # Restart slave threads to make the change in binlog format take effect
 # for them.
 --source include/rpl_connection_slave.inc
@@ -820,23 +806,11 @@ SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 DELETE FROM t;
 --echo # Verify that the slave and the master are in sync after the DELETE.
 --echo # Before the fix, the slave could not locate the row due with
---echo # slave_rows_search_algorithms=HASH_SCAN because of the difference in
---echo # the representation.
+--echo # HASH_SCAN because of the difference in the representation.
 --source include/sync_slave_sql_with_master.inc
 --echo # Clean up
 --source include/rpl_connection_master.inc
 DROP TABLE t;
---source include/sync_slave_sql_with_master.inc
-
-# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
-# which will be caused by the following include/end_replace_combination.inc
---source include/stop_slave.inc
-# Stop mapping row/mixed/statement to hash_scan/table_scan/index_scan,
-# and restart the slave to make it pick up the change.
---source include/end_replace_combination.inc
---source include/start_slave.inc
---source include/rpl_connection_master.inc
-SET SESSION binlog_format = @old_binlog_format;
 
 --source include/rpl_end.inc
 

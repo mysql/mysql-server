@@ -7,14 +7,8 @@
 # WL#5597 tests
 #
 # These tests check whether the correct algorithm for searching the
-# rows was chosen, depending on the setting of
-# @@global.slave_rows_search_algorithms and the table definition.
+# rows was chosen
 #
-# We test all combinations, but leave out the offending ones:
-# - @@global.slave_rows_search_algorithms= ''
-# - @@global.slave_rows_search_algorithms= 'INDEX_SCAN'
-#
-# We do not allow setting only INDEX_SCAN or the empty value.
 #
 
 -- connection master
@@ -30,100 +24,8 @@ INSERT INTO t3 VALUES (1);
 INSERT INTO t4 VALUES (1);
 
 --source include/sync_slave_sql_with_master.inc
-SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
-
-###################### TABLE_SCAN assertions
-
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN';
--- connection master
-
-UPDATE t1 SET c1= 2;
--- let $expected_alg= 'TABLE_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t2 SET c1= 2;
--- let $expected_alg= 'TABLE_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t3 SET c1= 2;
--- let $expected_alg= 'TABLE_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t4 SET c1= 2;
--- let $expected_alg= 'TABLE_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-###################### TABLE_SCAN,INDEX_SCAN
-
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
--- connection master
-
-UPDATE t1 SET c1= 3;
--- let $expected_alg= 'TABLE_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t2 SET c1= 3;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t3 SET c1= 3;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t4 SET c1= 3;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-###################### TABLE_SCAN,HASH_SCAN
-
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,HASH_SCAN';
--- connection master
-
-UPDATE t1 SET c1= 4;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t2 SET c1= 4;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t3 SET c1= 4;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t4 SET c1= 4;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-###################### HASH_SCAN
-
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
--- connection master
-
-UPDATE t1 SET c1= 5;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t2 SET c1= 5;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t3 SET c1= 5;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t4 SET c1= 5;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
 ###################### HASH_SCAN,INDEX_SCAN
 
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
 -- connection master
 
 UPDATE t1 SET c1= 6;
@@ -142,34 +44,9 @@ UPDATE t4 SET c1= 6;
 -- let $expected_alg= 'INDEX_SCAN'
 -- source include/rpl_hash_scan_assertion.inc
 
-###################### HASH_SCAN,INDEX_SCAN,TABLE_SCAN
-
--- connection slave
-SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN,TABLE_SCAN';
--- connection master
-
-UPDATE t1 SET c1= 7;
--- let $expected_alg= 'HASH_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t2 SET c1= 7;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t3 SET c1= 7;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
-UPDATE t4 SET c1= 7;
--- let $expected_alg= 'INDEX_SCAN'
--- source include/rpl_hash_scan_assertion.inc
-
 # Begin of Test cases for Bug#18860225
 # HASH_SCAN SEEMS BROKEN: CAN'T FIND RECORD IN 'T1' ERROR_CODE: 1032
 # Test Case 1: Key type is <Int>
---connection slave
-SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
---connection master
 CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
 INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
 DELETE FROM t5 ORDER BY c1;
@@ -206,7 +83,6 @@ DROP TABLE t5;
 # Verify that update and delete operations can be safely replicated when the
 # partition function does not include the key used in the index
 
-SET @@global.slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
 
 call mtr.add_suppression("Could not execute Delete_rows event on table test.t6");
 call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
@@ -332,7 +208,6 @@ while ($i<3)
 
 
 #clean Up
-SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
 --connection master
 DROP TABLE IF EXISTS t1, t2, t3, t4;
 --source include/sync_slave_sql_with_master.inc

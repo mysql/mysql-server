@@ -3,13 +3,10 @@
 --source include/have_debug.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
---let $initial_master_rows_search = `SELECT @@global.slave_rows_search_algorithms`
 SET SESSION sql_log_bin= 1;
 --source include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
---let $initial_slave_rows_search = `SELECT @@global.slave_rows_search_algorithms`
-SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
 --source include/rpl_connection_master.inc
 
 FLUSH LOGS;
@@ -83,12 +80,6 @@ SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
---replace_result $initial_master_rows_search INTITAL_ROW_SEARCH_CONF
---eval SET @@global.slave_rows_search_algorithms= "$initial_master_rows_search"
 FLUSH LOGS;
---source include/sync_slave_sql_with_master.inc
---replace_result $initial_slave_rows_search INTITAL_ROW_SEARCH_CONF
---eval SET @@global.slave_rows_search_algorithms= "$initial_slave_rows_search"
-
 --source include/rpl_end.inc
 

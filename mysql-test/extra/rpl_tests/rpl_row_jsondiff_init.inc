@@ -51,18 +51,12 @@
 #   Since NOBLOB is similar to MINIMAL for JSON columns, we consider
 #   NOBLOB tested due to having tested MINIMAL.
 #
-# - All the above should hold when:
-#
-#   - slave_rows_search_algorithms=HASH_SCAN/TABLE_SCAN with and
-#     without a primary key
-#
-#   - slave_rows_search_algorithms=INDEX_SCAN with a primary key.
+#   All the above should hold when the table has a primary key so it
+#   uses INDEX_SCAN and when the table has no primary key so it uses
+#   HASH_SCAN.
 #
 # ==== Usage ====
 #
-# [--let $replace_combination_from= SCOPE.VARIABLE=VALUE[,VALUE[,...]]
-# [--let $replace_combination_to= SCOPE.VARIABLE=VALUE[,VALUE[,...]]
-# --source include/rpl_row_jsondiff_init.inc
 #
 # [set $variables to describe a scenario]
 # --source rpl_row_jsondiff_scenario.inc
@@ -74,13 +68,6 @@
 #
 # --source include/rpl_row_jsondiff_exit.inc
 #
-# Parameters:
-#   $replace_combination_from, $replace_combination_to
-#     If set, this script will source
-#     include/begin_replace_combination.inc just after
-#     include/rpl_init.inc, and rpl_row_jsondiff_exit.inc will source
-#     include/end_replace_combination just before include/rpl_end.inc.
-#     See include/begin_replace_combination.inc for details.
 #
 # ==== Implementation ====
 #
@@ -112,16 +99,6 @@
 --let $rpl_topology= 1->2->3->4->5->6
 --source include/rpl_init.inc
 --source include/rpl_default_connections.inc
-
-if ($replace_combination_from)
-{
-  --let $replace_combination_on_all_servers= 1
-  # To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
-  # which will be caused by the following include/begin_replace_combination.inc.
-  --source include/rpl_stop_slaves.inc
-  --source include/begin_replace_combination.inc
-  --source include/rpl_start_slaves.inc
-}
 
 
 --echo ######## INITIALIZE ########

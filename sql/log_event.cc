@@ -8326,14 +8326,12 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - Unique keys cannot be disabled, thence we skip the check.
         - Skip unique keys with nullable parts
         - Skip primary keys
-        - Skip functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
+        - Skip functional indexes
         - Skip multi-valued keys as they have only part of value and can't
           fully identify a record
       */
       if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
-          (key == table->s->primary_key) ||
-          ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
-           keyinfo->is_functional_index()) ||
+          (key == table->s->primary_key) || (keyinfo->is_functional_index()) ||
           keyinfo->flags & HA_MULTI_VALUED_KEY || !keyinfo->is_visible) {
         continue;
       }
@@ -8354,16 +8352,14 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - UNIQUE NOT NULL indexes.
         - Indexes that do not support ha_index_next() e.g. full-text.
         - Primary key indexes.
-        - Functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
+        - Functional indexes
         - Skip multi-valued keys as they have only part of value and can't
           fully identify a record
       */
       if (!(table->s->usable_indexes(current_thd).is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
-          (key == table->s->primary_key) ||
-          ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
-           keyinfo->is_functional_index()) ||
+          (key == table->s->primary_key) || (keyinfo->is_functional_index()) ||
           keyinfo->flags & HA_MULTI_VALUED_KEY) {
         continue;
       }
@@ -8382,20 +8378,10 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
   DBUG_TRACE;
 
   /*
-    Decision table:
-    - I  --> Index scan / search
-    - T  --> Table scan
-    - Hi --> Hash over index
-    - Ht --> Hash over the entire table
-
-    |--------------+-----------+------+------+------|
-    | Index\Option | I , T , H | I, T | I, H | T, H |
-    |--------------+-----------+------+------+------|
-    | PK / UK      | I         | I    | I    | Hi   |
-    | K            | Hi        | I    | Hi   | Hi   |
-    | No Index     | Ht        | T    | Ht   | Ht   |
-    |--------------+-----------+------+------+------|
-
+    1. If there is a PK or NOT NULL UNIQUE index, use index scan
+    2. Otherwise, if there is any other index, use index hash scan
+    3. Otherwise, use table hash scan.
+    4. If the engine does not support hash scans, use table scan.
   */
   TABLE *table = this->m_table;
   uint event_type = this->get_general_type_code();
@@ -8408,9 +8394,6 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
       mysql::binlog::event::WRITE_ROWS_EVENT)  // row lookup not needed
     return;
 
-  if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
-    goto TABLE_OR_INDEX_HASH_SCAN;
-
   /* PK or UK => use LOOKUP_INDEX_SCAN */
   this->m_key_index =
       search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG));
@@ -8421,17 +8404,15 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
     goto end;
   }
 
-TABLE_OR_INDEX_HASH_SCAN:
-
   /*
      NOTE: Engines like Blackhole cannot use HASH_SCAN, because
            they do not synchronize reads.
    */
-  if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) ||
-      (table->file->ha_table_flags() & HA_READ_OUT_OF_SYNC))
-    goto TABLE_OR_INDEX_FULL_SCAN;
+  if (table->file->ha_table_flags() & HA_READ_OUT_OF_SYNC)
+    goto TABLE_OR_INDEX_SCAN;
 
-  /* search for a key to see if we can narrow the lookup domain further. */
+  // search for a key to see if we can narrow the lookup domain further.
+  // Even if no key is found, HASH SCAN is still the chosen algorithm
   this->m_key_index = search_key_in_table(
       table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
   this->m_rows_lookup_algorithm = ROW_LOOKUP_HASH_SCAN;
@@ -8442,14 +8423,13 @@ TABLE_OR_INDEX_HASH_SCAN:
              ("decide_row_lookup_algorithm_and_key: decided - HASH_SCAN"));
   goto end;
 
-TABLE_OR_INDEX_FULL_SCAN:
+TABLE_OR_INDEX_SCAN:
 
   this->m_key_index = MAX_KEY;
 
   /* If we can use an index, try to narrow the scan a bit further. */
-  if (slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN)
-    this->m_key_index = search_key_in_table(
-        table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+  this->m_key_index =
+      search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG));
 
   if (this->m_key_index != MAX_KEY) {
     DBUG_PRINT("info",
@@ -8994,7 +8974,7 @@ err:
 int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli) {
   DBUG_TRACE;
   assert(m_table && m_table->in_use != nullptr);
-
+  assert(m_key_index < MAX_KEY);
   int error = 0;
   const uchar *saved_m_curr_row = m_curr_row;
 
@@ -9007,19 +8987,6 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli) {
 
   prepare_record(m_table, &this->m_local_cols, false);
   if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/))) goto end;
-
-  /*
-    Trying to do an index scan without a usable key
-    This is a valid state because we allow the user
-    to set Slave_rows_search_algorithm= 'INDEX_SCAN'.
-
-    Therefore on tables with no indexes we will end
-    up here.
-   */
-  if (m_key_index >= MAX_KEY) {
-    error = HA_ERR_END_OF_FILE;
-    goto end;
-  }
 
 #ifndef NDEBUG
   DBUG_PRINT("info", ("looking for the following record"));

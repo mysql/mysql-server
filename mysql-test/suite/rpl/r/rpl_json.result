@@ -2038,21 +2038,6 @@ include/sync_slave_sql_with_master.inc
 #               IF JSON HAS DIFFERENT BINARY FORMAT
 #
 [connection slave]
-include/stop_slave_sql.inc
-include/begin_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave_sql.inc
-[connection master]
-SET @old_binlog_format = @@SESSION.binlog_format;
-Warnings:
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-SET SESSION binlog_format = ROW;
-Warnings:
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-[connection slave]
 include/stop_slave.inc
 include/start_slave.inc
 [connection master]
@@ -2076,22 +2061,9 @@ j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 DELETE FROM t;
 # Verify that the slave and the master are in sync after the DELETE.
 # Before the fix, the slave could not locate the row due with
-# slave_rows_search_algorithms=HASH_SCAN because of the difference in
-# the representation.
+# HASH_SCAN because of the difference in the representation.
 include/sync_slave_sql_with_master.inc
 # Clean up
 [connection master]
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
-Warnings:
-Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
-include/start_slave.inc
-[connection master]
-SET SESSION binlog_format = @old_binlog_format;
-Warnings:
-Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/rpl_end.inc

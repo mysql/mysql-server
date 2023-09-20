@@ -28,13 +28,10 @@ PROCEDURE
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
---let $initial_master_rows_search = `SELECT @@global.slave_rows_search_algorithms`
 SET SESSION sql_log_bin= 1;
 --source include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
 CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
---let $initial_slave_rows_search = `SELECT @@global.slave_rows_search_algorithms`
-SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
 FLUSH LOGS;
 --source include/rpl_connection_master.inc
 
@@ -223,12 +220,8 @@ INSERT INTO t1(data) VALUES ('[0,99]');
 DROP TABLE t1;
 
 SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
---replace_result $initial_master_rows_search INTITAL_ROW_SEARCH_CONF
---eval SET @@global.slave_rows_search_algorithms= "$initial_master_rows_search"
 FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
---replace_result $initial_slave_rows_search INTITAL_ROW_SEARCH_CONF
---eval SET @@global.slave_rows_search_algorithms= "$initial_slave_rows_search"
 
 --remove_file $MYSQLTEST_VARDIR/tmp/metadata_replication_success.inc
 --source include/rpl_end.inc
