@@ -113,7 +113,6 @@ SET(CLIENT_API_FUNCTIONS
   mysql_set_local_infile_default
   mysql_set_local_infile_handler
   mysql_sqlstate
-  mysql_ssl_set
   mysql_stat
   mysql_stmt_affected_rows
   mysql_stmt_attr_get

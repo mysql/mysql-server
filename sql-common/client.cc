@@ -3411,29 +3411,6 @@ void mysql_extension_free(MYSQL_EXTENSION *ext) {
 }
 
 /*
-  Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
-  NB! Errors are not reported until you do mysql_real_connect.
-*/
-
-bool STDCALL mysql_ssl_set(MYSQL *mysql [[maybe_unused]],
-                           const char *key [[maybe_unused]],
-                           const char *cert [[maybe_unused]],
-                           const char *ca [[maybe_unused]],
-                           const char *capath [[maybe_unused]],
-                           const char *cipher [[maybe_unused]]) {
-  bool result = false;
-  DBUG_TRACE;
-  result = mysql_options(mysql, MYSQL_OPT_SSL_KEY, key) +
-                   mysql_options(mysql, MYSQL_OPT_SSL_CERT, cert) +
-                   mysql_options(mysql, MYSQL_OPT_SSL_CA, ca) +
-                   mysql_options(mysql, MYSQL_OPT_SSL_CAPATH, capath) +
-                   mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher)
-               ? true
-               : false;
-  return result;
-}
-
-/*
   Free strings in the SSL structure and clear 'use_ssl' flag.
   NB! Errors are not reported until you do mysql_real_connect.
 */
