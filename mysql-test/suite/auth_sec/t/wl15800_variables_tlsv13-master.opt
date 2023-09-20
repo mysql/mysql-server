@@ -1,0 +1,5 @@
+--admin-address=127.0.0.1
+--admin-port=$MASTER_ADMINPORT
+--admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem
+--admin-ssl-cert=$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem
+--admin-ssl-key=$MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem

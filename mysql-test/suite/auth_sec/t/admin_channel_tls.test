@@ -106,7 +106,7 @@ SHOW STATUS LIKE 'Ssl_cipher';
 --connection default
 
 --echo # setting new values for ssl_cipher
-SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_ssl_cipher = "ECDHE-RSA-AES256-GCM-SHA384";
 SET GLOBAL admin_tls_version = "TLSv1.2";
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
 
@@ -147,7 +147,7 @@ let $orig_cipher= query_get_value(SHOW STATUS LIKE 'Ssl_cipher', Value, 1);
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
 
 --echo # setting new values for ssl_cipher
-SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_ssl_cipher = "ECDHE-RSA-AES256-GCM-SHA384";
 
 --echo # In admin_conn2
 --connect(admin_conn2, 127.0.0.1, root,,,$MASTER_ADMINPORT,,SSL)

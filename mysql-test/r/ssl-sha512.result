@@ -1,5 +1,5 @@
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;
 GRANT SELECT ON test.* TO u1@localhost;
 Variable_name	Value
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 DROP USER u1@localhost;

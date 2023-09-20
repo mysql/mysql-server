@@ -19,7 +19,7 @@ EOF
 callmacro Login_all_xusers_using_plain_to_fill_the_cache;
 EOF
 
---let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'
+--let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 --let $memory_login_fail= --file=$MYSQL_TMP_DIR/try_login_using_memory.xpl -v%RESULT%=Login_failed
 --let $plain_login_ok= --file=$MYSQL_TMP_DIR/login_using_plain.xpl
 

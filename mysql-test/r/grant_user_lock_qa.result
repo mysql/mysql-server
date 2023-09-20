@@ -425,7 +425,7 @@ SELECT USER();
 USER()
 u6@localhost
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
             PASSWORD EXPIRE NEVER PASSWORD EXPIRE NEVER;
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u7';
@@ -433,7 +433,7 @@ user	u7
 plugin	sha256_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 password_expired	N
@@ -442,7 +442,7 @@ account_locked	N
 
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER `u7`@`localhost` IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u7`@`localhost` IDENTIFIED WITH 'sha256_password' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 SELECT USER();
 USER()
 u7@localhost
@@ -454,7 +454,7 @@ user	u7
 plugin	mysql_native_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 password_expired	Y
@@ -463,7 +463,7 @@ account_locked	Y
 
 SHOW CREATE USER u7@localhost;
 CREATE USER for u7@localhost
-CREATE USER `u7`@`localhost` IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u7`@`localhost` IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 connect(localhost,u7,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u7'@'localhost'. Account is locked.
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -543,7 +543,7 @@ SELECT USER();
 USER()
 u9@localhost
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string#y'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
@@ -553,7 +553,7 @@ user	u10
 plugin	sha256_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 password_expired	N
@@ -562,11 +562,11 @@ account_locked	N
 
 SHOW CREATE USER u10@localhost;
 CREATE USER for u10@localhost
-CREATE USER `u10`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u10`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 SELECT USER();
 USER()
 u10@localhost
-ALTER USER u10@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+ALTER USER u10@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
            ACCOUNT UNLOCK PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
@@ -574,7 +574,7 @@ user	u10
 plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 password_expired	N
@@ -583,7 +583,7 @@ account_locked	Y
 
 SHOW CREATE USER u10@localhost;
 CREATE USER for u10@localhost
-CREATE USER `u10`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+CREATE USER `u10`@`localhost` IDENTIFIED WITH 'sha256_password' AS '<non-deterministic-password-hash>' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 connect(localhost,u10,auth_string#y,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u10'@'localhost'. Account is locked.
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2 ACCOUNT LOCK;
@@ -712,7 +712,7 @@ SELECT USER();
 USER()
 u13@localhost
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
-REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
 WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_user_connections,password_expired,password_lifetime,account_locked
@@ -721,7 +721,7 @@ user	u14
 plugin	sha256_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	
 x509_subject	
 max_user_connections	2
@@ -905,7 +905,7 @@ u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
 u22@localhost IDENTIFIED WITH 'mysql_native_password',
 u23@localhost IDENTIFIED WITH 'mysql_native_password'
                           AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
-                          REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+                          REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           ACCOUNT UNLOCK;
 SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
@@ -915,7 +915,7 @@ user	u18
 plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2
@@ -930,7 +930,7 @@ user	u19
 plugin	#
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2
@@ -945,7 +945,7 @@ user	u20
 plugin	sha256_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2
@@ -960,7 +960,7 @@ user	u21
 plugin	sha256_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2
@@ -975,7 +975,7 @@ user	u22
 plugin	mysql_native_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2
@@ -990,7 +990,7 @@ user	u23
 plugin	mysql_native_password
 authentication_string	#
 ssl_type	SPECIFIED
-ssl_cipher	DHE-RSA-AES256-SHA
+ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 max_questions	2

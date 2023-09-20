@@ -57,7 +57,7 @@ Variable_name	Value
 Ssl_cipher	orig_cipher
 # in default connection
 # setting new values for ssl_cipher
-SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_ssl_cipher = "ECDHE-RSA-AES256-GCM-SHA384";
 SET GLOBAL admin_tls_version = "TLSv1.2";
 ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
 # in admin_conn2
@@ -75,7 +75,7 @@ ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_admin;
 # Save the defaults
 SET @orig_admin_ssl_cipher = @@global.admin_ssl_cipher;
 # setting new values for ssl_cipher
-SET GLOBAL admin_ssl_cipher = "DHE-RSA-AES256-SHA256";
+SET GLOBAL admin_ssl_cipher = "ECDHE-RSA-AES256-GCM-SHA384";
 # In admin_conn2
 # Check if the old and the new not afters differ
 SET GLOBAL admin_ssl_cipher = @orig_ssl_cipher;

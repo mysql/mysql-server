@@ -128,4 +128,10 @@ extern Ssl_init_callback_server_admin server_admin_callback;
   Helper method to validate values of --tls-version and --admin-tls-version
 */
 bool validate_tls_version(const char *val);
+
+enum class TLS_version { TLSv12 = 0, TLSv13 };
+/**
+  Helper method to validate values of --ssl-cipher and --admin-ssl-cipher
+*/
+void validate_ciphers(const char *option, const char *val, TLS_version version);
 #endif  // !SSL_INIT_CALLBACK_INCLUDED

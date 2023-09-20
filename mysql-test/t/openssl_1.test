@@ -135,7 +135,7 @@ drop table t1;
 # - Usa a cipher that OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/bug21611_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
 #Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21611_stderr
@@ -194,13 +194,13 @@ DROP TABLE thread_status;
 # Test to connect using a list of ciphers
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=UNKNOWN-CIPHER:ECDHE-RSA-AES128-GCM-SHA256 < $MYSQLTEST_VARDIR/tmp/test.sql 2> $MYSQLTEST_VARDIR/tmp/stderr_output
 --cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
 
 # Test to connect using a specifi cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql  2> $MYSQLTEST_VARDIR/tmp/stderr_output
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256 < $MYSQLTEST_VARDIR/tmp/test.sql  2> $MYSQLTEST_VARDIR/tmp/stderr_output
 --cat_file $MYSQLTEST_VARDIR/tmp/stderr_output
 #Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/stderr_output
@@ -241,30 +241,30 @@ DROP TABLE t1;
 #
 
 # Common ciphers to openssl and yassl
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA:
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES128-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256:
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256
 --disable_query_log
 --disable_result_log
 
 # Below here caused crashes.  ################
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=NOT----EXIST
 # These probably exist but the server's keys can't be used to accept these kinds of connections.
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES128-RMD
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES128-SHA
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES256-RMD
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-AES256-SHA
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-DES-CBC3-RMD
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=EDH-DSS-DES-CBC3-SHA
---error 1,0
+--error 1
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=EDH-DSS-DES-CBC-SHA
 # End of crashers.  ##########################
 

@@ -10,9 +10,9 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---echo # must return DHE-RSA-AES256-SHA
+--echo # must return ECDHE-RSA-AES128-GCM-SHA256
 # need to use mysql since mysqltest doesn't support --ssl-cipher
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=DHE-RSA-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher'; SHOW STATUS LIKE 'Ssl_cipher_list'" --ssl-mode=REQUIRED --tls-version=TLSv1.2 --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256
 
 --echo # must fail since the default SSL cipher is not compatible
 --error 1
