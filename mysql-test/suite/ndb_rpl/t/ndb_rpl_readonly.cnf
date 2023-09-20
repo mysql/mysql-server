@@ -1,0 +1,5 @@
+!include suite/ndb_rpl/my.cnf
+
+[mysqld]
+# Reduce ndb_metadata_check_interval to speedup test
+ndb-metadata-check-interval=1
