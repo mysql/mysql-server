@@ -757,7 +757,9 @@ rm -r $(readlink var) var
 [ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %service_add_post mysql.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :
-/bin/systemctl enable mysql.service >/dev/null 2>&1 || :
+if [ $1 -eq 1 ]; then
+    /bin/systemctl enable mysql.service >/dev/null 2>&1 || :
+fi
 
 %preun server
 %service_del_preun mysql.service

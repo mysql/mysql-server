@@ -1066,7 +1066,9 @@ rm -r $(readlink var) var
 [ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
-/usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+if [ $1 -eq 1 ]; then
+    /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+fi
 %else
 /sbin/chkconfig --add mysqld
 %endif # systemd
