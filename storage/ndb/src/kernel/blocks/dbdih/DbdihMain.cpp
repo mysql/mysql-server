@@ -16832,9 +16832,9 @@ Dbdih::startGcpLab(Signal* signal)
     {
       jam();
       const Uint64 currVal = m_micro_gcp.m_master.m_new_gci >> 32;
-      Uint64 newVal = 0;
-      // Boost to just below the first warning gci
-      newVal = std::max(currVal, Uint64(next_warn_save_gci - 4));
+      // Boost the GCI to just below the first warning gci
+      Uint64 newVal = Uint64(next_warn_save_gci - 4);
+      if (newVal < currVal) { newVal = currVal; };
       m_micro_gcp.m_master.m_new_gci = newVal << 32;
       g_eventLogger->info("DIH Err-Ins: Incrementing GCI from %llu to %llu. ",
                           currVal,
