@@ -2,7 +2,7 @@
 --source include/xplugin_preamble.inc
 
 --let $UNIX_SOCKET_TESTING= 0
---let $USER_CIPHER= --ssl-cipher='DHE-RSA-AES256-SHA'
+--let $USER_CIPHER= --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256'
 
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source ../include/connection_user_authentication.inc

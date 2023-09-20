@@ -132,7 +132,7 @@ query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#y'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
@@ -145,7 +145,7 @@ connection default;
 disconnect con1;
 
 CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' BY '#hGrt0O6'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
@@ -321,7 +321,7 @@ plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u6';
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
-            BY 'auth_string' REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
+            BY 'auth_string' REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256';
 --replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -347,7 +347,7 @@ query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 # Look for plugin,auth_string, password expired, SSL fields
 --replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -366,7 +366,7 @@ query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 ALTER USER tu1@localhost IDENTIFIED WITH 'mysql_native_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 # Look for plugin,auth_string, password expired, SSL fields
 --replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -392,7 +392,7 @@ plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 --replace_column 8 #
@@ -729,7 +729,7 @@ CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 SHOW CREATE USER u9@localhost;
 
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 --replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/

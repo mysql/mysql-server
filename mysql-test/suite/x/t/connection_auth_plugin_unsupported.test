@@ -38,7 +38,7 @@ SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
 
 
 --let $XBASIC= --file=$xtest_file 2>&1
---let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
+--let $XSSLPARAM= --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' $XBASIC
 
 --exec $MYSQLXTEST -ux_root          $XBASIC
 --exec $MYSQLXTEST -ux_root          $XSSLPARAM

@@ -7,7 +7,7 @@ RUN CREATE USER user1_mysqlx@localhost
 0 rows affected
 RUN CREATE USER user3_mysqlx@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
-REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
 ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
 PASSWORD EXPIRE NEVER

@@ -25,7 +25,7 @@ GRANT ALL ON *.* TO xuser_native@localhost;
 GRANT ALL ON *.* TO xuser_sha256@localhost;
 
 --let $XBASIC= --file=$xtest_file 2>&1
---let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
+--let $XSSLPARAM= --ssl-cipher='ECDHE-RSA-AES128-GCM-SHA256' $XBASIC
 
 --echo Plain connection as x_root (just check) -> success
 --exec $MYSQLXTEST -ux_root                  $XBASIC

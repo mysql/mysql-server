@@ -12276,6 +12276,9 @@ ER_INFORMATION_SCHEMA_VERSION_CHANGE
 ER_PERFORMANCE_SCHEMA_VERSION_CHANGE
   eng "%s performance schema from version %u to %u."
 
+ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER
+   eng "Value for option '%s' contains cipher '%s' that is either blocked or deprecated (and will be removed in a future release). Please refer to the documentation for more details."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -10407,8 +10407,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_SSL_CERT:
     case OPT_SSL_CA:
     case OPT_SSL_CAPATH:
-    case OPT_SSL_CIPHER:
-    case OPT_TLS_CIPHERSUITES:
     case OPT_SSL_CRL:
     case OPT_SSL_CRLPATH:
       /*
@@ -10416,6 +10414,14 @@ bool mysqld_get_one_option(int optid,
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_TLS_CIPHERSUITES:
+      opt_use_ssl = true;
+      validate_ciphers("tls-ciphersuites", argument, TLS_version::TLSv13);
+      break;
+    case OPT_SSL_CIPHER:
+      opt_use_ssl = true;
+      validate_ciphers("ssl-cipher", argument, TLS_version::TLSv12);
       break;
     case OPT_TLS_VERSION:
       opt_use_ssl = true;
@@ -10441,8 +10447,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_ADMIN_SSL_CERT:
     case OPT_ADMIN_SSL_CA:
     case OPT_ADMIN_SSL_CAPATH:
-    case OPT_ADMIN_SSL_CIPHER:
-    case OPT_ADMIN_TLS_CIPHERSUITES:
     case OPT_ADMIN_SSL_CRL:
     case OPT_ADMIN_SSL_CRLPATH:
       /*
@@ -10451,6 +10455,16 @@ bool mysqld_get_one_option(int optid,
       */
       g_admin_ssl_configured = true;
       opt_use_admin_ssl = true;
+      break;
+    case OPT_ADMIN_SSL_CIPHER:
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
+      validate_ciphers("admin-ssl-cipher", argument, TLS_version::TLSv12);
+      break;
+    case OPT_ADMIN_TLS_CIPHERSUITES:
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
+      validate_ciphers("admin-tls-ciphersuites", argument, TLS_version::TLSv13);
       break;
     case OPT_ADMIN_TLS_VERSION:
       g_admin_ssl_configured = true;

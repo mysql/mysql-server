@@ -29,6 +29,7 @@
 #include <sql/ssl_init_callback.h>
 #include <sql/sys_vars.h>
 #include <sql/sys_vars_shared.h> /* AutoRLock , PolyLock_mutex */
+#include <tls_ciphers.h>
 
 /* Internal flag */
 std::atomic_bool g_admin_ssl_configured(false);
@@ -87,6 +88,50 @@ static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
   return check_tls_version(nullptr, nullptr, var);
 }
 
+void validate_ciphers(const char *option, const char *val,
+                      TLS_version version) {
+  if (!val || !*val) return;
+  std::string ciphers{val};
+  std::string haystack{};
+  switch (version) {
+    case TLS_version::TLSv12:
+      haystack.assign(default_tls12_ciphers);
+      break;
+    case TLS_version::TLSv13:
+      haystack.assign(default_tls13_ciphers);
+      break;
+    default:
+      break;
+  };
+  auto index = ciphers.find(':');
+
+  while (index != std::string::npos) {
+    auto needle = ciphers.substr(0, index);
+    if ((needle[0] != '!') && (haystack.find(needle) == std::string::npos)) {
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER, option,
+             needle.c_str());
+    }
+    ciphers.erase(0, index + 1);
+    index = ciphers.find(':');
+  }
+  if ((ciphers[0] != '!') && (haystack.find(ciphers) == std::string::npos)) {
+    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_OR_BLOCKED_CIPHER, option,
+           ciphers.c_str());
+  }
+}
+
+static bool check_tls12_ciphers(sys_var *var, THD *, set_var *value) {
+  validate_ciphers(var->name.str, value->save_result.string_value.str,
+                   TLS_version::TLSv12);
+  return false;
+}
+
+static bool check_tls13_ciphers(sys_var *var, THD *, set_var *value) {
+  validate_ciphers(var->name.str, value->save_result.string_value.str,
+                   TLS_version::TLSv13);
+  return false;
+}
+
 /*
   If you are adding new system variable for SSL communication, please take a
   look at do_auto_cert_generation() function in sql_authentication.cc and
@@ -132,13 +177,14 @@ static Sys_var_charptr Sys_ssl_cipher(
     "ssl_cipher", "SSL cipher to use (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cipher),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_ssl_ctx);
+    &lock_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls12_ciphers));
 
 static Sys_var_charptr Sys_tls_ciphersuites(
     "tls_ciphersuites", "TLS v1.3 ciphersuite to use (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_ciphersuites),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET,
-    DEFAULT(nullptr), &lock_ssl_ctx);
+    DEFAULT(nullptr), &lock_ssl_ctx, NOT_IN_BINLOG,
+    ON_CHECK(check_tls13_ciphers));
 
 static Sys_var_charptr Sys_ssl_key("ssl_key",
                                    "X509 key in PEM format (implies --ssl)",
@@ -220,14 +266,15 @@ static Sys_var_charptr Sys_admin_ssl_cipher(
     "admin_ssl_cipher", "SSL cipher to use (implies --ssl) for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_ssl_cipher),
     CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(nullptr),
-    &lock_admin_ssl_ctx);
+    &lock_admin_ssl_ctx, NOT_IN_BINLOG, ON_CHECK(check_tls12_ciphers));
 
 static Sys_var_charptr Sys_admin_tls_ciphersuites(
     "admin_tls_ciphersuites",
     "TLS v1.3 ciphersuite to use (implies --ssl) for --admin-port",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_admin_tls_ciphersuites),
     CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET,
-    DEFAULT(nullptr), &lock_admin_ssl_ctx);
+    DEFAULT(nullptr), &lock_admin_ssl_ctx, NOT_IN_BINLOG,
+    ON_CHECK(check_tls13_ciphers));
 
 static Sys_var_charptr Sys_admin_ssl_key(
     "admin_ssl_key", "X509 key in PEM format (implies --ssl) for --admin-port",

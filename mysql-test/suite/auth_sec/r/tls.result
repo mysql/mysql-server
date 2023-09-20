@@ -14,7 +14,7 @@ Ssl_version	TLSv1.2
 #T9: Cipher which is not in the cipher list but not restricted permanently, setting the server cipher as well
 Restart server and provide ssl-cipher at server startup
 Variable_name	Value
-Ssl_cipher	CAMELLIA256-SHA
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
 #T10: Permanently restricted cipher, setting in the server as well
 Connection will be possible, but server will not be enabled with ssl and connection is not ssl-enabled
 Variable_name	Value

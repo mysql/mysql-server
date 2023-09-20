@@ -32,7 +32,7 @@ CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
 query_vertical SELECT User,plugin,ssl_type FROM mysql.user WHERE USER='u6';
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" PASSWORD EXPIRE NEVER;
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" PASSWORD EXPIRE NEVER;
 query_vertical SELECT User,plugin,ssl_type,
             ssl_cipher,x509_issuer,x509_subject,password_expired,password_lifetime FROM mysql.user WHERE USER='u7';
 
@@ -45,7 +45,7 @@ CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
 query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
@@ -180,7 +180,7 @@ query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u8';
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 # look for plugin,auth_string, password expired, SSL fields
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
@@ -198,7 +198,7 @@ plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
@@ -424,19 +424,19 @@ SHOW CREATE USER u4@localhost;
 CREATE USER u5@localhost REQUIRE SSL;
 --replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
-ALTER USER u5@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+ALTER USER u5@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
 --replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
 --replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
-ALTER USER u6@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA" WITH MAX_QUERIES_PER_HOUR 2;
+ALTER USER u6@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" WITH MAX_QUERIES_PER_HOUR 2;
 --replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
-            REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
+            REQUIRE CIPHER 'ECDHE-RSA-AES128-GCM-SHA256';
 SHOW CREATE USER u7@localhost;
 ALTER USER u7@localhost REQUIRE NONE WITH MAX_USER_CONNECTIONS 12;
 SHOW CREATE USER u7@localhost;
@@ -456,7 +456,7 @@ ALTER USER u9@localhost;
 SHOW CREATE USER u9@localhost;
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
             SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
 --replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
@@ -496,7 +496,7 @@ SHOW CREATE USER u14@localhost;
 
 CREATE USER u15@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB"
-            CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+            CIPHER 'ECDHE-RSA-AES128-GCM-SHA256' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 --replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u15@localhost;
 ALTER USER u15@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
@@ -630,7 +630,7 @@ ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 
 --error ER_PARSE_ERROR
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+      REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256" AND
       SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
 
 --error ER_PARSE_ERROR
