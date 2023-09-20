@@ -37,6 +37,4 @@ GENERATE_EXPORT_HEADER(router_openssl
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_openssl_export.h
   )
 
-STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 ADD_INSTALL_RPATH_FOR_OPENSSL(router_openssl)

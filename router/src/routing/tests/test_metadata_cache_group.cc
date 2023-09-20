@@ -98,28 +98,27 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
     instances_change_listener_ = nullptr;
   }
 
-  MOCK_METHOD1(add_acceptor_handler_listener,
-               void(metadata_cache::AcceptorUpdateHandlerInterface *));
-  MOCK_METHOD1(remove_acceptor_handler_listener,
-               void(metadata_cache::AcceptorUpdateHandlerInterface *));
-  MOCK_METHOD1(add_md_refresh_listener,
-               void(metadata_cache::MetadataRefreshListenerInterface *));
-  MOCK_METHOD1(remove_md_refresh_listener,
-               void(metadata_cache::MetadataRefreshListenerInterface *));
+  MOCK_METHOD(void, add_acceptor_handler_listener,
+              (metadata_cache::AcceptorUpdateHandlerInterface *), (override));
+  MOCK_METHOD(void, remove_acceptor_handler_listener,
+              (metadata_cache::AcceptorUpdateHandlerInterface *), (override));
+  MOCK_METHOD(void, add_md_refresh_listener,
+              (metadata_cache::MetadataRefreshListenerInterface *), (override));
+  MOCK_METHOD(void, remove_md_refresh_listener,
+              (metadata_cache::MetadataRefreshListenerInterface *), (override));
 
-  MOCK_METHOD0(enable_fetch_auth_metadata, void());
-  MOCK_METHOD0(force_cache_update, void());
-  MOCK_CONST_METHOD0(check_auth_metadata_timers, void());
+  MOCK_METHOD(void, enable_fetch_auth_metadata, (), (override));
+  MOCK_METHOD(void, force_cache_update, (), (override));
+  MOCK_METHOD(void, check_auth_metadata_timers, (), (const, override));
 
-  MOCK_CONST_METHOD1(
-      get_rest_user_auth_data,
-      std::pair<bool, std::pair<std::string, rapidjson::Document>>(
-          const std::string &));
+  MOCK_METHOD((std::pair<bool, std::pair<std::string, rapidjson::Document>>),
+              get_rest_user_auth_data, (const std::string &),
+              (const, override));
 
-  MOCK_METHOD2(wait_primary_failover,
-               bool(const std::string &, const std::chrono::seconds &));
+  MOCK_METHOD(bool, wait_primary_failover,
+              (const std::string &, const std::chrono::seconds &), (override));
 
-  MOCK_METHOD0(handle_sockets_acceptors_on_md_refresh, void());
+  MOCK_METHOD(void, handle_sockets_acceptors_on_md_refresh, (), (override));
 
   // cannot mock it as it has more than 10 parameters
   void cache_init(
@@ -141,7 +140,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
     return mysqlrouter::ClusterType::GR_V1;
   }
 
-  MOCK_METHOD0(cache_start, void());
+  MOCK_METHOD(void, cache_start, (), (override));
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
   bool is_initialized() noexcept override { return true; }
@@ -158,7 +157,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   RefreshStatus get_refresh_status() override { return {}; }
 
-  MOCK_METHOD1(set_instance_factory, void(metadata_factory_t cb));
+  MOCK_METHOD(void, set_instance_factory, (metadata_factory_t cb), (override));
 
  public:
   void fill_instance_vector(const InstanceVector &iv) {

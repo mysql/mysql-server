@@ -41,10 +41,10 @@ using ::testing::_;
 
 class Notifier {
  public:
-  MOCK_METHOD1(called_ctor, void(const std::string &));
-  MOCK_METHOD1(called_dtor, void(const std::string &));
-  MOCK_METHOD1(called_deleter, void(const std::string &));
-  MOCK_METHOD1(called_do_something, void(const std::string &));
+  MOCK_METHOD(void, called_ctor, (const std::string &));
+  MOCK_METHOD(void, called_dtor, (const std::string &));
+  MOCK_METHOD(void, called_deleter, (const std::string &));
+  MOCK_METHOD(void, called_do_something, (const std::string &));
 };
 
 // GMock objects cannot be global, because EXPECT_CALL()s are evaluated in their

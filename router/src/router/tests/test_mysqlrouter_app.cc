@@ -67,15 +67,15 @@ using mysqlrouter::SysUserOperationsBase;
 
 class MockSysUserOperations : public SysUserOperationsBase {
  public:
-  MOCK_METHOD2(initgroups, int(const char *, gid_type));
-  MOCK_METHOD1(setgid, int(gid_t));
-  MOCK_METHOD1(setuid, int(uid_t));
-  MOCK_METHOD1(setegid, int(gid_t));
-  MOCK_METHOD1(seteuid, int(uid_t));
-  MOCK_METHOD0(geteuid, uid_t());
-  MOCK_METHOD1(getpwnam, struct passwd *(const char *));
-  MOCK_METHOD1(getpwuid, struct passwd *(uid_t));
-  MOCK_METHOD3(chown, int(const char *, uid_t, gid_t));
+  MOCK_METHOD(int, initgroups, (const char *, gid_type), (override));
+  MOCK_METHOD(int, setgid, (gid_t), (override));
+  MOCK_METHOD(int, setuid, (uid_t), (override));
+  MOCK_METHOD(int, setegid, (gid_t), (override));
+  MOCK_METHOD(int, seteuid, (uid_t), (override));
+  MOCK_METHOD(uid_t, geteuid, (), (override));
+  MOCK_METHOD(struct passwd *, getpwnam, (const char *), (override));
+  MOCK_METHOD(struct passwd *, getpwuid, (uid_t), (override));
+  MOCK_METHOD(int, chown, (const char *, uid_t, gid_t), (override));
 };
 
 #endif  // #ifndef _WIN32

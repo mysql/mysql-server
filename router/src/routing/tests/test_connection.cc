@@ -53,10 +53,11 @@ class MockProtocol : public BaseProtocol {
  public:
   MockProtocol() : BaseProtocol(nullptr) {}
 
-  MOCK_METHOD2(on_block_client_host, bool(int, const std::string &));
-  MOCK_METHOD5(send_error, bool(int, unsigned short, const std::string &,
-                                const std::string &, const std::string &));
-  MOCK_METHOD0(get_type, BaseProtocol::Type());
+  MOCK_METHOD(bool, on_block_client_host, (int, const std::string &));
+  MOCK_METHOD(bool, send_error,
+              (int, unsigned short, const std::string &, const std::string &,
+               const std::string &));
+  MOCK_METHOD(BaseProtocol::Type, get_type, ());
 
   /* Mocking copy_packet triggers compilation error in VS so let's just stub it,
      it is good enough for our needs here. */

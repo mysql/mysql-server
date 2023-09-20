@@ -238,9 +238,6 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
-STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 # Use configuration file templates to generate configuration files
 SET(FILE_TEMPLATES
   mysqlrouter.conf.in

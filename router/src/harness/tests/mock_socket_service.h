@@ -37,96 +37,87 @@ class MockSocketService : public net::impl::socket::SocketServiceBase {
   using msghdr_base = net::impl::socket::msghdr_base;
   using wait_type = net::impl::socket::wait_type;
 
-  MOCK_CONST_METHOD3(socket,
-                     stdx::expected<native_handle_type, error_type>(int, int,
-                                                                    int));
+  MOCK_METHOD((stdx::expected<native_handle_type, error_type>), socket,
+              (int, int, int), (const, override));
 
-  MOCK_CONST_METHOD3(
-      socketpair,
-      stdx::expected<std::pair<native_handle_type, native_handle_type>,
-                     error_type>(int, int, int));
+  MOCK_METHOD((stdx::expected<std::pair<native_handle_type, native_handle_type>,
+                              error_type>),
+              socketpair, (int, int, int), (const, override));
 
-  MOCK_CONST_METHOD1(close,
-                     stdx::expected<void, error_type>(native_handle_type));
+  MOCK_METHOD((stdx::expected<void, error_type>), close, (native_handle_type),
+              (const, override));
 
-  MOCK_CONST_METHOD3(ioctl,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      unsigned long, void *));
+  MOCK_METHOD((stdx::expected<void, error_type>), ioctl,
+              (native_handle_type, unsigned long, void *), (const, override));
 
-  MOCK_CONST_METHOD1(native_non_blocking,
-                     stdx::expected<bool, error_type>(native_handle_type));
-  MOCK_CONST_METHOD2(native_non_blocking,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      bool));
+  MOCK_METHOD((stdx::expected<bool, error_type>), native_non_blocking,
+              (native_handle_type), (const, override));
+  MOCK_METHOD((stdx::expected<void, error_type>), native_non_blocking,
+              (native_handle_type, bool), (const, override));
 
-  MOCK_CONST_METHOD2(listen,
-                     stdx::expected<void, error_type>(native_handle_type, int));
+  MOCK_METHOD((stdx::expected<void, error_type>), listen,
+              (native_handle_type, int), (const, override));
 
-  MOCK_CONST_METHOD5(setsockopt,
-                     stdx::expected<void, error_type>(native_handle_type, int,
-                                                      int, const void *,
-                                                      socklen_t));
-  MOCK_CONST_METHOD5(getsockopt,
-                     stdx::expected<void, error_type>(native_handle_type, int,
-                                                      int, void *,
-                                                      socklen_t *));
+  MOCK_METHOD((stdx::expected<void, error_type>), setsockopt,
+              (native_handle_type, int, int, const void *, socklen_t),
+              (const, override));
 
-  MOCK_CONST_METHOD3(recvmsg,
-                     stdx::expected<size_t, error_type>(native_handle_type,
-                                                        msghdr_base &,
-                                                        message_flags));
-  MOCK_CONST_METHOD3(sendmsg,
-                     stdx::expected<size_t, error_type>(native_handle_type,
-                                                        msghdr_base &,
-                                                        message_flags));
-  MOCK_CONST_METHOD3(bind,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      const struct sockaddr *,
-                                                      size_t));
-  MOCK_CONST_METHOD3(connect,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      const struct sockaddr *,
-                                                      size_t));
-  MOCK_CONST_METHOD3(accept,
-                     stdx::expected<native_handle_type, error_type>(
-                         native_handle_type, struct sockaddr *, socklen_t *));
+  MOCK_METHOD((stdx::expected<void, error_type>), getsockopt,
+              (native_handle_type, int, int, void *, socklen_t *),
+              (const, override));
 
-  MOCK_CONST_METHOD4(accept4, stdx::expected<native_handle_type, error_type>(
-                                  native_handle_type, struct sockaddr *,
-                                  socklen_t *, int));
-  MOCK_CONST_METHOD3(getsockname,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      struct sockaddr *,
-                                                      size_t *));
-  MOCK_CONST_METHOD3(getpeername,
-                     stdx::expected<void, error_type>(native_handle_type,
-                                                      struct sockaddr *,
-                                                      size_t *));
+  MOCK_METHOD((stdx::expected<size_t, error_type>), recvmsg,
+              (native_handle_type, msghdr_base &, message_flags),
+              (const, override));
+  MOCK_METHOD((stdx::expected<size_t, error_type>), sendmsg,
+              (native_handle_type, msghdr_base &, message_flags),
+              (const, override));
+  MOCK_METHOD((stdx::expected<void, error_type>), bind,
+              (native_handle_type, const struct sockaddr *, size_t),
+              (const, override));
+  MOCK_METHOD((stdx::expected<void, error_type>), connect,
+              (native_handle_type, const struct sockaddr *, size_t),
+              (const, override));
+  MOCK_METHOD((stdx::expected<native_handle_type, error_type>), accept,
+              (native_handle_type, struct sockaddr *, socklen_t *),
+              (const, override));
 
-  MOCK_CONST_METHOD4(splice,
-                     stdx::expected<size_t, error_type>(native_handle_type,
-                                                        native_handle_type,
-                                                        size_t, int));
+  MOCK_METHOD((stdx::expected<native_handle_type, error_type>), accept4,
+              (native_handle_type, struct sockaddr *, socklen_t *, int),
+              (const, override));
+  MOCK_METHOD((stdx::expected<void, error_type>), getsockname,
+              (native_handle_type, struct sockaddr *, size_t *),
+              (const, override));
+  MOCK_METHOD((stdx::expected<void, error_type>), getpeername,
+              (native_handle_type, struct sockaddr *, size_t *),
+              (const, override));
 
-  MOCK_CONST_METHOD4(splice_to_pipe,
-                     stdx::expected<size_t, error_type>(
-                         native_handle_type, net::impl::file::file_handle_type,
-                         size_t, int));
+#ifdef __linux__
+  MOCK_METHOD((stdx::expected<size_t, error_type>), splice,
+              (native_handle_type, native_handle_type, size_t, int),
+              (const, override));
+#endif
 
-  MOCK_CONST_METHOD4(splice_from_pipe, stdx::expected<size_t, error_type>(
-                                           net::impl::file::file_handle_type,
-                                           native_handle_type, size_t, int));
+  MOCK_METHOD((stdx::expected<size_t, error_type>), splice_to_pipe,
+              (native_handle_type, net::impl::file::file_handle_type, size_t,
+               int),
+              (const, override));
 
-  MOCK_CONST_METHOD2(wait, stdx::expected<void, error_type>(native_handle_type,
-                                                            wait_type));
+  MOCK_METHOD((stdx::expected<size_t, error_type>), splice_from_pipe,
+              (net::impl::file::file_handle_type, native_handle_type, size_t,
+               int),
+              (const, override));
 
-  MOCK_CONST_METHOD2(shutdown,
-                     stdx::expected<void, error_type>(native_handle_type, int));
+  MOCK_METHOD((stdx::expected<void, error_type>), wait,
+              (native_handle_type, wait_type), (const, override));
 
-  MOCK_CONST_METHOD3(
-      getaddrinfo,
-      stdx::expected<std::unique_ptr<addrinfo, void (*)(addrinfo *)>,
-                     error_type>(const char *, const char *, const addrinfo *));
+  MOCK_METHOD((stdx::expected<void, error_type>), shutdown,
+              (native_handle_type, int), (const, override));
+
+  MOCK_METHOD((stdx::expected<std::unique_ptr<addrinfo, void (*)(addrinfo *)>,
+                              error_type>),
+              getaddrinfo, (const char *, const char *, const addrinfo *),
+              (const, override));
 };
 
 #endif
