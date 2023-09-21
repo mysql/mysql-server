@@ -4,19 +4,19 @@
 
 --echo "Create nodegroup with out-of-range node ID"
 --error 255
---exec $NDB_MGM -e "create nodegroup 112,113"
+--exec $NDB_MGM -e "create nodegroup 112,113" >> $NDB_TOOLS_OUTPUT
 --error 255
---exec $NDB_MGM -e "create nodegroup 4,112"
+--exec $NDB_MGM -e "create nodegroup 4,112" >> $NDB_TOOLS_OUTPUT
 
 --echo "Create nodegroup with in-range but inactive node ID"
 --error 255
---exec $NDB_MGM -e "create nodegroup 48,3"
+--exec $NDB_MGM -e "create nodegroup 48,3" >> $NDB_TOOLS_OUTPUT
 --error 255
---exec $NDB_MGM -e "create nodegroup 4,48"
+--exec $NDB_MGM -e "create nodegroup 4,48" >> $NDB_TOOLS_OUTPUT
 --error 255
---exec $NDB_MGM -e "create nodegroup 3,3"
+--exec $NDB_MGM -e "create nodegroup 3,3" >> $NDB_TOOLS_OUTPUT
 
---exec $NDB_MGM -e show
+#--exec $NDB_MGM -e show
 
 CREATE LOGFILE GROUP lg_1
     ADD UNDOFILE 'undo_1.dat'
@@ -54,21 +54,35 @@ select @init_t5_part_count:= count(1) as t5_part_count from information_schema.p
 select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
 
 ## Check details of t5 partitioning
---exec $NDB_DESC -dtest -p -n t5
+#--exec $NDB_DESC -dtest -p -n t5 
+let ndb_table= t5;
+--source show_partition_info.inc
+select count(0) as row_count from t5;
 
 ## Check details of t6 partitioning
---exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+#--exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+--echo T6
+let ndb_table= t6;
+--source show_partition_info.inc
+--echo $bt_test_t6_dat
+let ndb_table= $bt_test_t6_dat;
+--source show_partition_info.inc
+--echo $bt_test_t6_txt
+let ndb_table= $bt_test_t6_txt;
+--source show_partition_info.inc
+
+select count(0) as row_count from t6;
 
 ## Create nodegroup for "new" nodes
---exec $NDB_MGM -e "create nodegroup 3,4"
+--exec $NDB_MGM -e "create nodegroup 3,4" >> $NDB_TOOLS_OUTPUT
 
 # Cluster running after adding two ndbd nodes
---exec $NDB_MGM -e show
+# --exec $NDB_MGM -e show
 
 ## Drop
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1" >> $NDB_TOOLS_OUTPUT
 ## and create
---exec $NDB_MGM -e "create nodegroup 3,4"
+--exec $NDB_MGM -e "create nodegroup 3,4" >> $NDB_TOOLS_OUTPUT
 
 set @@new = 1;
 
@@ -98,10 +112,7 @@ alter table t1 algorithm=inplace, add column c int unsigned default null;
 alter table t1 reorganize partition;
 alter table t2 reorganize partition;
 alter table t5 algorithm=inplace, max_rows=300000000;
-if (!$DISABLE_BLOB_REORG)
-{
-  alter table t6 reorganize partition;
-}
+alter table t6 reorganize partition;
 
 select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
 select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
@@ -111,7 +122,10 @@ select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.
 select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
 
 ## Check details of t5 partitioning
---exec $NDB_DESC -dtest -p -n t5
+#--exec $NDB_DESC -dtest -p -n t5
+let ndb_table= t5;
+--source show_partition_info.inc
+select count(0) as row_count from t5;
 
 --let $t5_part_diff=query_get_value('select @reorg_t5_part_count-@init_t5_part_count as Value',Value,1)
 
@@ -124,7 +138,16 @@ if (!$t5_part_diff)
 select count(0) as row_count, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
 
 ## Check details of t6 partitioning
---exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+#--exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+--echo T6
+let ndb_table= t6;
+--source show_partition_info.inc
+--echo $bt_test_t6_dat
+let ndb_table= $bt_test_t6_dat;
+--source show_partition_info.inc
+--echo $bt_test_t6_txt
+let ndb_table= $bt_test_t6_txt;
+--source show_partition_info.inc
 
 # Check that main table and blob tables have same hashmap.
 let ndb_database= test;
@@ -135,18 +158,18 @@ let ndb_die_on_error= 1;
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze
 --error 0,255
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1" >> $NDB_TOOLS_OUTPUT
 
 ## Nodegroup with "new" nodes still exist after dropping it as shown:
---exec $NDB_MGM -e show
+# --exec $NDB_MGM -e show
 
 drop table t1,t2,t3,t4,t5,t6;
 
 ## Drop nodegroup with "new" nodes
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1" >> $NDB_TOOLS_OUTPUT
 
 ## Nodegroup with "new" nodes still exists after dropping it as shown:
---exec $NDB_MGM -e show
+#--exec $NDB_MGM -e show
 
 # Cleanup
 ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat' ENGINE NDB;

@@ -3470,6 +3470,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
 
+  ndbrequire(!(regTcPtr->m_special_op_flags &
+               (TcConnectRecord::SOF_REORG_COPY | 
+                TcConnectRecord::SOF_REORG_DELETE)));
+
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
   if (Treorg)
@@ -4454,7 +4458,19 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   }
   else if (Tspecial_op & TcConnectRecord::SOF_REORG_MOVING)
   {
-    reorg = ScanFragReq::REORG_MOVED;
+    if (Tspecial_op & TcConnectRecord::SOF_REORG_COPY)
+    {
+      /**
+       * Operation is part of reorg copy scan
+       * Inform LQH so that e.g. SUMA triggers are not fired
+       */
+      reorg = ScanFragReq::REORG_MOVED_COPY;
+    }
+    else
+    {
+      /* Operation is normal 'user' operation */
+      reorg = ScanFragReq::REORG_MOVED;
+    }
   }
 
   Uint32 inlineKeyLen= 0;

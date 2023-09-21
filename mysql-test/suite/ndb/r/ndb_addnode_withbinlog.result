@@ -1,0 +1,30 @@
+show variables like 'log_bin';
+Variable_name	Value
+log_bin	ON
+show variables like 'ndb_log_bin';
+Variable_name	Value
+ndb_log_bin	ON
+Test 1 : Show that reorg of table being Binlogged does not result 
+in any Binlog content
+create table t1 (a int primary key, b blob, c int, unique(c)) engine=ndb;
+Insert 8192 rows
+Show t1 distribution prior to reorg
+TABLE_INFO
+PartitionCount: 8
+Add new nodes
+Show empty binlog prior to reorg
+reset master;
+select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
+count(1)	sum(inserts)	sum(updates)	sum(deletes)
+0	NULL	NULL	NULL
+Reorg table to use new nodes
+alter table t1 reorganize partition;
+Show t1 distribution after reorg
+TABLE_INFO
+PartitionCount: 16
+Show empty binlog after reorg
+select count(1), sum(inserts), sum(updates), sum(deletes) from mysql.ndb_binlog_index;
+count(1)	sum(inserts)	sum(updates)	sum(deletes)
+0	NULL	NULL	NULL
+Cleanup
+drop table t1;

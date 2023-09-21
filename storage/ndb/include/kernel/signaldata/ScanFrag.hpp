@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,9 @@ public:
   enum ReorgFlag
   {
     REORG_ALL = 0
-    ,REORG_NOT_MOVED = 1 // Only return not moved rows
-    ,REORG_MOVED = 2    // Only return moved rows
+    ,REORG_NOT_MOVED = 1  // Only return not moved rows
+    ,REORG_MOVED = 2      // Only return moved rows
+    ,REORG_MOVED_COPY = 3 // Used in LQHKEYREQ - REORG_MOVED from copy scan 
   };
 
   Uint32 senderData;

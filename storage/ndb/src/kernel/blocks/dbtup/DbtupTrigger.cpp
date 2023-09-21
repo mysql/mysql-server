@@ -1339,7 +1339,8 @@ Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
   case Fragrecord::FS_REORG_COMMIT_NEW:
   case Fragrecord::FS_REORG_COMPLETE_NEW:
     jam();
-    if (flag == ScanFragReq::REORG_MOVED)
+    if ((flag == ScanFragReq::REORG_MOVED) ||
+        (flag == ScanFragReq::REORG_MOVED_COPY))
     {
       jam();
       return true;
@@ -1371,6 +1372,12 @@ Dbtup::check_fire_suma(const KeyReqStruct *req_struct,
     return false;
   case Fragrecord::FS_ONLINE:
     jam();
+    if (flag == ScanFragReq::REORG_MOVED_COPY)
+    {
+      jam();
+      /* Don't fire SUMA triggers */
+      return false;
+    }
     return true;
   case Fragrecord::FS_REORG_NEW:
     jam();
@@ -1490,7 +1497,8 @@ out:
     }
     jam();
   }
-  else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
+  else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE ||
+                    req_struct->m_reorg == ScanFragReq::REORG_MOVED_COPY))
   {
     if (!check_fire_trigger(regFragPtr.p, trigPtr, req_struct, regOperPtr))
     {

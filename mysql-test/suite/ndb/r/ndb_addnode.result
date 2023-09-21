@@ -1,0 +1,239 @@
+result_format: 2
+"Create nodegroup with out-of-range node ID"
+"Create nodegroup with in-range but inactive node ID"
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 4M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+
+CREATE TABLESPACE ts_1
+    ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 16M
+    ENGINE NDB;
+
+create table t1(id int, data char(8), id2 binary(80), primary key (id, id2)) engine=ndb;
+create table t2(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
+create table t6(id int not null primary key, dat blob, txt text) engine=ndb;
+
+
+
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n';
+Warnings:
+Warning	1261	Row 1 doesn't contain data for all columns
+Warning	1261	Row 2 doesn't contain data for all columns
+Warning	1261	Row 3 doesn't contain data for all columns
+Warning	1261	Row 4 doesn't contain data for all columns
+Warning	1261	Row 5 doesn't contain data for all columns
+Warning	1261	Row 6 doesn't contain data for all columns
+Warning	1261	Row 7 doesn't contain data for all columns
+Warning	1261	Row 8 doesn't contain data for all columns
+Warning	1261	Row 9 doesn't contain data for all columns
+Warning	1261	Row 10 doesn't contain data for all columns
+Warning	1261	Row 11 doesn't contain data for all columns
+Warning	1261	Row 12 doesn't contain data for all columns
+Warning	1261	Row 13 doesn't contain data for all columns
+Warning	1261	Row 14 doesn't contain data for all columns
+Warning	1261	Row 15 doesn't contain data for all columns
+Warning	1261	Row 16 doesn't contain data for all columns
+Warning	1261	Row 17 doesn't contain data for all columns
+Warning	1261	Row 18 doesn't contain data for all columns
+Warning	1261	Row 19 doesn't contain data for all columns
+Warning	1261	Row 20 doesn't contain data for all columns
+Warning	1261	Row 21 doesn't contain data for all columns
+Warning	1261	Row 22 doesn't contain data for all columns
+Warning	1261	Row 23 doesn't contain data for all columns
+Warning	1261	Row 24 doesn't contain data for all columns
+Warning	1261	Row 25 doesn't contain data for all columns
+Warning	1261	Row 26 doesn't contain data for all columns
+Warning	1261	Row 27 doesn't contain data for all columns
+Warning	1261	Row 28 doesn't contain data for all columns
+Warning	1261	Row 29 doesn't contain data for all columns
+Warning	1261	Row 30 doesn't contain data for all columns
+Warning	1261	Row 31 doesn't contain data for all columns
+Warning	1261	Row 32 doesn't contain data for all columns
+Warning	1261	Row 33 doesn't contain data for all columns
+Warning	1261	Row 34 doesn't contain data for all columns
+Warning	1261	Row 35 doesn't contain data for all columns
+Warning	1261	Row 36 doesn't contain data for all columns
+Warning	1261	Row 37 doesn't contain data for all columns
+Warning	1261	Row 38 doesn't contain data for all columns
+Warning	1261	Row 39 doesn't contain data for all columns
+Warning	1261	Row 40 doesn't contain data for all columns
+Warning	1261	Row 41 doesn't contain data for all columns
+Warning	1261	Row 42 doesn't contain data for all columns
+Warning	1261	Row 43 doesn't contain data for all columns
+Warning	1261	Row 44 doesn't contain data for all columns
+Warning	1261	Row 45 doesn't contain data for all columns
+Warning	1261	Row 46 doesn't contain data for all columns
+Warning	1261	Row 47 doesn't contain data for all columns
+Warning	1261	Row 48 doesn't contain data for all columns
+Warning	1261	Row 49 doesn't contain data for all columns
+Warning	1261	Row 50 doesn't contain data for all columns
+Warning	1261	Row 51 doesn't contain data for all columns
+Warning	1261	Row 52 doesn't contain data for all columns
+Warning	1261	Row 53 doesn't contain data for all columns
+Warning	1261	Row 54 doesn't contain data for all columns
+Warning	1261	Row 55 doesn't contain data for all columns
+Warning	1261	Row 56 doesn't contain data for all columns
+Warning	1261	Row 57 doesn't contain data for all columns
+Warning	1261	Row 58 doesn't contain data for all columns
+Warning	1261	Row 59 doesn't contain data for all columns
+Warning	1261	Row 60 doesn't contain data for all columns
+Warning	1261	Row 61 doesn't contain data for all columns
+Warning	1261	Row 62 doesn't contain data for all columns
+Warning	1261	Row 63 doesn't contain data for all columns
+Warning	1261	Row 64 doesn't contain data for all columns
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' (id, @data) set dat = repeat(@data, 100), txt = repeat(@data,100);
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+t1_part_count
+8
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+t2_part_count
+8
+select @init_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+t5_part_count
+8
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+t6_part_count
+8
+
+## Check details of t5 partitioning
+
+TABLE_INFO
+PartitionCount: 8
+
+select count(0) as row_count from t5;
+row_count
+10000
+
+## Check details of t6 partitioning
+T6
+
+TABLE_INFO
+PartitionCount: 8
+
+NDB$BLOB_20_1
+
+TABLE_INFO
+PartitionCount: 8
+
+NDB$BLOB_20_2
+
+TABLE_INFO
+PartitionCount: 8
+
+
+select count(0) as row_count from t6;
+row_count
+10000
+
+## Create nodegroup for "new" nodes
+## Drop
+## and create
+set @@new = 1;
+
+create table t7(id int primary key, uk int) engine=ndb
+  partition by list(id) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3),
+    partition p4 values in (4)
+  );
+drop table t7;
+
+create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t4(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+
+insert into t3(id, data) VALUES 
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+insert into t4(id, data) VALUES
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+
+alter table t1 algorithm=inplace, add column c int unsigned default null;
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+alter table t1 reorganize partition;
+alter table t2 reorganize partition;
+alter table t5 algorithm=inplace, max_rows=300000000;
+alter table t6 reorganize partition;
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+t1_part_count
+16
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+t2_part_count
+16
+select count(1) as t3_part_count from information_schema.partitions where table_schema='test' and table_name='t3';
+t3_part_count
+16
+select count(1) as t4_part_count from information_schema.partitions where table_schema='test' and table_name='t4';
+t4_part_count
+16
+select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+t5_part_count
+16
+select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+t6_part_count
+16
+
+## Check details of t5 partitioning
+
+TABLE_INFO
+PartitionCount: 16
+
+select count(0) as row_count from t5;
+row_count
+10000
+
+
+## Simple blob usage of t6
+select count(0) as row_count, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+row_count	data_length	text_length
+10000	3000000	3000000
+
+## Check details of t6 partitioning
+T6
+
+TABLE_INFO
+PartitionCount: 16
+
+NDB$BLOB_20_1
+
+TABLE_INFO
+PartitionCount: 16
+
+NDB$BLOB_20_2
+
+TABLE_INFO
+PartitionCount: 16
+
+
+Table: test.t6
+HashMap: DEFAULT-HASHMAP-3840-16
+dat Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_20_1
+HashMap: DEFAULT-HASHMAP-3840-16
+txt Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_20_2
+HashMap: DEFAULT-HASHMAP-3840-16
+
+
+## Drop nodegroup with "new" nodes is not allowed with data one those nodes
+## Nodegroup with "new" nodes still exist after dropping it as shown:
+drop table t1,t2,t3,t4,t5,t6;
+
+## Drop nodegroup with "new" nodes
+## Nodegroup with "new" nodes still exists after dropping it as shown:
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat' ENGINE NDB;
+DROP TABLESPACE ts_1 ENGINE NDB;
+DROP LOGFILE GROUP lg_1 ENGINE NDB;
+

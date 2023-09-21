@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -385,6 +385,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 
   if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
+    ndbassert(req_struct->m_reorg != ScanFragReq::REORG_MOVED_COPY);
     const Uint32 moved = bits & Tuple_header::REORG_MOVE;
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
@@ -1510,7 +1511,8 @@ handle_reorg(Dbtup::KeyReqStruct * req_struct,
       return;
     break;
   case Dbtup::Fragrecord::FS_ONLINE:
-    if (reorg != ScanFragReq::REORG_MOVED)
+    if (reorg != ScanFragReq::REORG_MOVED &&
+        reorg != ScanFragReq::REORG_MOVED_COPY)
       return;
     break;
   default:
