@@ -39,12 +39,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   provide. Usually the harness is test oriented and mocks the services so
   that the test can run.
 
-  @param test_service_t The service type of the service to test
-  @param component_name The name of the component to load, or nullptr to avoid
+  @tparam test_service_t The service type of the service to test
+  @tparam component_name The name of the component to load, or nullptr to avoid
   loading extra components
-  @param service_name The name of the service to instantiate, or nullptr to
+  @tparam service_name The name of the service to instantiate, or nullptr to
   avoid fetching service refs
-  @param component_instance The instance of the test harness component to load
+  @tparam component_instance The instance of the test harness component to load
   with the minchassis, or nullptr if none
 
   @sa @ref PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS.
