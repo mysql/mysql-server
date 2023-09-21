@@ -225,7 +225,7 @@ string HashJoinTypeToString(RelationalExpression::Type join_type,
    @param[in] item_arg The root of the Item tree to examine.
    @param[in] source_text A context description for the objects we add to
               'children'.
-   @param[in,out] children
+   @param[in,out] children TBD
    @returns 'true' if there was an error.
  */
 static bool AddSubqueryPaths(const Item *item_arg, const char *source_text,

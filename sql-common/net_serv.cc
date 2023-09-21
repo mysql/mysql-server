@@ -931,7 +931,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
   @retval
     0	ok
   @retval
-    1
+    1   error
 */
 
 static bool net_write_buff(NET *net, const uchar *packet, size_t len) {

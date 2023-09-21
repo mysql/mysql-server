@@ -24,8 +24,6 @@ ADD_WSHADOW_WARNING()
 
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-DISABLE_DOCUMENTATION_WARNINGS()
 
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)

@@ -300,7 +300,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /**
    * Read binary log stream header and Format_desc event from
    * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
-   * @param[in] binlog_file_reader
+   * @param[in] binlog_file_reader a Binlog_file_reader
    * @return true - LOG_EVENT_BINLOG_IN_USE_F is set
    *         false - LOG_EVENT_BINLOG_IN_USE_F is not set or an error occurred
    *                 while reading log events

@@ -645,7 +645,7 @@ bool Item_subselect::walk(Item_processor processor, enum_walk walk,
 
   @param arg    qep_row to which the subquery belongs
 
-  @retval false
+  @returns false
 
   @note We always return "false" as far as we don't want to dive deeper because
         we explain inner subqueries in their joins contexts.

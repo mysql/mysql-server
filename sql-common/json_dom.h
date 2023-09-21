@@ -267,9 +267,6 @@ class Json_dom {
 
     @param[in]  text   the JSON text
     @param[in]  length the length of the text
-    @param[out] errmsg any syntax error message (will be ignored if it is NULL)
-    @param[out] offset the position in the parsed string a syntax error was
-                       found (will be ignored if it is NULL)
     @param[in] error_handler Pointer to a function that should handle
                              reporting of parsing error.
     @param[in] depth_handler   Pointer to a function that should handle error
@@ -286,7 +283,6 @@ class Json_dom {
     Construct a DOM object based on a binary JSON value. The ownership
     of the returned object is henceforth with the caller.
 
-    @param thd  current session
     @param v    the binary value to parse
     @return a DOM representation of the binary value, or NULL on error
   */

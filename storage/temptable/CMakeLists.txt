@@ -21,10 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MSVC_CPPCHECK_DISABLE()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - include/sql_string.h
-# - sql/handler.h
-DISABLE_DOCUMENTATION_WARNINGS()
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include

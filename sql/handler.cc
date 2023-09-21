@@ -4712,7 +4712,7 @@ void handler::drop_table(const char *name) {
   @retval
     HA_ADMIN_NEEDS_ALTER      Table has structures requiring ALTER TABLE
   @retval
-    HA_ADMIN_NOT_IMPLEMENTED
+    HA_ADMIN_NOT_IMPLEMENTED  Not implemented
 */
 int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt) {
   int error;

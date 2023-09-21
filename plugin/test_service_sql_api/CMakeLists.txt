@@ -24,9 +24,6 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 MSVC_CPPCHECK_DISABLE()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - include/sql_string.h
-DISABLE_DOCUMENTATION_WARNINGS()
 
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc

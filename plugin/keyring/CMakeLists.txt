@@ -23,10 +23,6 @@
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file")
 
 DISABLE_MISSING_PROFILE_WARNING()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - include/sql_string.h
-# - sql/handler.h
-DISABLE_DOCUMENTATION_WARNINGS()
 
 MYSQL_ADD_PLUGIN(keyring_file
   buffer.cc

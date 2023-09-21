@@ -1313,7 +1313,7 @@ class Xa_state_list {
       the ability, for now, to set the transaction state to those values.
 
     @param xid The XID to be added (the key).
-    @param xid The state to be added (the value).
+    @param state The state to be added (the value).
 
     @return The current value of the transaction state if the XID has
             already been added, Ha_recover_states::NOT_FOUND otherwise.
@@ -1698,7 +1698,7 @@ typedef int (*table_exists_in_engine_t)(handlerton *hton, THD *thd,
     0     on success
     error otherwise
 */
-using push_to_engine_t = int (*)(THD *thd, AccessPath *query, JOIN *);
+using push_to_engine_t = int (*)(THD *thd, AccessPath *query, JOIN *join);
 
 /**
   Check if the given db.tablename is a system table for this SE.
@@ -2058,10 +2058,10 @@ typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
                             or was RENAMEd.
   @param notification_type  Indicates whether this is pre-RENAME TABLE or
                             post-RENAME TABLE notification.
-  @param old_db_name
-  @param old_table_name
-  @param new_db_name
-  @param new_table_name
+  @param old_db_name        old db name
+  @param old_table_name     old table name
+  @param new_db_name        new db name
+  @param new_table_name     new table name
 */
 typedef bool (*notify_rename_table_t)(THD *thd, const MDL_key *mdl_key,
                                       ha_notification_type notification_type,
@@ -2463,10 +2463,10 @@ using get_secondary_engine_offload_or_exec_fail_reason_t =
 
   @param thd thread context.
 
-  @param const char * as the offload failure reason.
+  @param reason as the offload failure reason.
 */
 using set_secondary_engine_offload_fail_reason_t = void (*)(THD *thd,
-                                                            const char *);
+                                                            const char *reason);
 enum class SecondaryEngineGraphSimplificationRequest {
   /** Continue optimization phase with current hypergraph. */
   kContinue = 0,

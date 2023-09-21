@@ -10174,11 +10174,12 @@ static char *add_quoted_string(char *to, const char *from, char *to_end) {
 /**
   Handle basic handling of services, like installation and removal.
 
-  @param argv             Pointer to argument list
+  @param argv           Pointer to argument list
   @param servicename    Internal name of service
   @param displayname    Display name of service (in taskbar ?)
-  @param file_path    Path to this program
-  @param startup_option Startup option to mysqld
+  @param file_path      Path to this program
+  @param extra_opt      Extra option after file path
+  @param account_name   NT Account
 
   @retval
     0   option handled

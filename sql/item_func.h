@@ -1459,7 +1459,7 @@ class Item_func_rand final : public Item_real_func {
     This function is non-deterministic and hence depends on the
     'RAND' pseudo-table.
 
-    @retval RAND_TABLE_BIT
+    @returns RAND_TABLE_BIT
   */
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;
@@ -2117,7 +2117,7 @@ class Item_func_sleep final : public Item_int_func {
     This function is non-deterministic and hence depends on the
     'RAND' pseudo-table.
 
-    @retval RAND_TABLE_BIT
+    @returns RAND_TABLE_BIT
   */
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;

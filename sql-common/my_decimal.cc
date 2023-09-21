@@ -115,11 +115,11 @@ int my_decimal::check_result(uint mask, int result) const {
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
   @param[out]  str         where to store the resulting string
 
-  @return error coce
-    @retval E_DEC_OK
-    @retval E_DEC_TRUNCATED
-    @retval E_DEC_OVERFLOW
-    @retval E_DEC_OOM
+  @return error code
+    @retval E_DEC_OK         ok
+    @retval E_DEC_TRUNCATED  truncated
+    @retval E_DEC_OVERFLOW   overflow
+    @retval E_DEC_OOM        out-of-memory
 */
 
 int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
@@ -159,10 +159,10 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
   @param[in]   decimals    round to desired number of decimals
 
   @return error code
-    @retval E_DEC_OK
-    @retval E_DEC_TRUNCATED
-    @retval E_DEC_OVERFLOW
-    @retval E_DEC_OOM
+    @retval E_DEC_OK         ok
+    @retval E_DEC_TRUNCATED  truncated
+    @retval E_DEC_OVERFLOW   overflow
+    @retval E_DEC_OOM        out-of-memory
 
   Would be great to make it a method of the String class,
   but this would need to include

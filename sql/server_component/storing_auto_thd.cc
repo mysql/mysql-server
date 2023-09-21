@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
    - instead, THD has minimal privileges needed to set system variables
    - a user name assigned, so the variables can be persisted with such THD
 
-  @param ctx: Security context smart pointer to be assigned.
+  @param ctx Security context smart pointer to be assigned.
   @retval THD object created
 */
 THD *create_internal_thd_ctx(Sctx_ptr<Security_context> &ctx) {
@@ -67,8 +67,8 @@ THD *create_internal_thd_ctx(Sctx_ptr<Security_context> &ctx) {
   Wrapper of destroy_internal_thd() function, safely destroying
   a temporary THD and its associated security context smart pointer.
 
-  @param thd: Pointer to THD object to be destroyed.
-  @param ctx: Security context smart pointer to be cleared.
+  @param thd Pointer to THD object to be destroyed.
+  @param ctx Security context smart pointer to be cleared.
 */
 void destroy_internal_thd_ctx(THD *thd, Sctx_ptr<Security_context> &ctx) {
   thd->free_items();

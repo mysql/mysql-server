@@ -2506,7 +2506,7 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
     only type is printed.
 
     @param[out] file the place where colume metadata is printed
-    @param[in]  The metadata extracted from optional metadata fields
+    @param[in]  fields The metadata extracted from optional metadata fields
    */
   void print_columns(IO_CACHE *file,
                      const Optional_metadata_fields &fields) const;
@@ -2517,7 +2517,7 @@ class Table_map_log_event : public mysql::binlog::event::Table_map_event,
     colume index is printed.
 
     @param[out] file the place where primary key is printed
-    @param[in]  The metadata extracted from optional metadata fields
+    @param[in]  fields The metadata extracted from optional metadata fields
    */
   void print_primary_key(IO_CACHE *file,
                          const Optional_metadata_fields &fields) const;

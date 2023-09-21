@@ -23,10 +23,6 @@
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 ADD_WSHADOW_WARNING()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - sql/handler.h
-# - libs/mysql/binlog/
-DISABLE_DOCUMENTATION_WARNINGS()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
 # but it is basically impossible to trace the actual origin.

@@ -615,7 +615,7 @@ class String {
   @param arg_length     Length of string to copy.
   @param from_cs        Character set to copy from
   @param to_cs          Character set to copy to
-  @param *offset	Returns number of unaligned characters.
+  @param[out] offset	Returns number of unaligned characters.
 
   @returns true if conversion is required, false otherwise.
 

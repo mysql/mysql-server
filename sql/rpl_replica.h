@@ -378,7 +378,7 @@ class ReplicaInitializer {
   /// @param[in] opt_skip_replica_start When true, skips the start of
   /// replication threads
   /// @param[in] filters Replication filters
-  /// @param[in] replica_skip_erors
+  /// @param[in] replica_skip_erors TBD
   ReplicaInitializer(bool opt_initialize, bool opt_skip_replica_start,
                      Rpl_channel_filters &filters, char **replica_skip_erors);
 
