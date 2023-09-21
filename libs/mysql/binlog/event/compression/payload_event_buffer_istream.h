@@ -237,8 +237,6 @@ class Payload_event_buffer_istream {
   ///
   /// @param[out] out The target buffer where this function will store
   /// the event data.
-  ///
-  /// @retval this
   Payload_event_buffer_istream &operator>>(Buffer_ptr_t &out);
 
   /// Read the next event into a Managed_buffer.

@@ -102,7 +102,7 @@ class Accessor;
 ///
 /// This class never throws any exception.
 ///
-/// @tparam Char_t the type of elements stored in the buffer:
+/// @tparam Char_tp the type of elements stored in the buffer:
 /// typically unsigned char.
 ///
 /// @tparam Container_tp The type of container to hold the buffers.
@@ -496,7 +496,6 @@ class Managed_buffer_sequence
   /// number of elements is at least twice this number, the vector
   /// size is reduced to this number.
   ///
-  /// @return Iterator to the end.
   static void reset_container(Vector_t &container,
                               Size_t keep_container_capacity) {
     if (container.capacity() > 2 * keep_container_capacity) {
@@ -515,7 +514,6 @@ class Managed_buffer_sequence
   /// @param keep_container_capacity Keep this number of elements in
   /// the list, in order to save future allocations of list nodes.
   ///
-  /// @return Iterator to one-past-the-end of the list.
   static void reset_container(List_t &container,
                               Size_t keep_container_capacity) {
     if (container.size() > keep_container_capacity)

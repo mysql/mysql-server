@@ -103,9 +103,7 @@ namespace mysql::binlog::event::compression::buffer {
 ///
 /// This class never throws any exception.
 ///
-/// @tparam Char_t The char type; usually char or unsigned char.
-///
-/// @tparam builtin_capacity Size of pre-allocated initial buffer.
+/// @tparam Char_tp The char type; usually char or unsigned char.
 template <class Char_tp = unsigned char>
 class Managed_buffer : public buffer::Rw_buffer<Char_tp> {
  public:
