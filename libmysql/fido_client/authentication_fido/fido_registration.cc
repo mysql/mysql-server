@@ -44,8 +44,6 @@ const unsigned int PIN_BUFFER_SIZE = 256;
   in fido_cred_t.
 
   @param [in] challenge   buffer holding the server challenge
-
-  @retval void
 */
 bool fido_registration::parse_challenge(const char *challenge) {
   /* decode received challenge from base64 */
