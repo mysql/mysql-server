@@ -204,6 +204,7 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 GET_TARGET_PROPERTY(lib_type ext::libprotobuf-lite TYPE)
 IF((SOLARIS OR LINUX) AND lib_type STREQUAL "STATIC_LIBRARY")
   SET(LINK_WHOLE_ARCHIVE "-Wl,--whole-archive")
+  SET(LINK_NO_WHOLE_ARCHIVE "-Wl,--no-whole-archive")
 ENDIF()
 
 # declare the plugin itself
@@ -215,7 +216,7 @@ MYSQL_ADD_PLUGIN(group_replication
   ext::zlib
   ext::zstd
   OpenSSL::SSL OpenSSL::Crypto
-  ${LINK_WHOLE_ARCHIVE} ext::libprotobuf-lite
+  ${LINK_WHOLE_ARCHIVE} ext::libprotobuf-lite ${LINK_NO_WHOLE_ARCHIVE}
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
   extra::rapidjson
