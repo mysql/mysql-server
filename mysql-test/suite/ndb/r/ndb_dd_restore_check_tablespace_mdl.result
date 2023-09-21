@@ -1,6 +1,8 @@
 # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 #                REFERRED BY A STATEMENT
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
@@ -19,6 +21,8 @@ PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 #############################################
 # Case1: Checking ALTER TABLE
 # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
@@ -94,6 +98,8 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 UNLOCK TABLES;
 # Cleanup
 set new=off;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 DROP TABLE t3;

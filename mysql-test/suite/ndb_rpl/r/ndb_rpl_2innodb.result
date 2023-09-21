@@ -14,6 +14,8 @@ end_pos BIGINT UNSIGNED NOT NULL,
 PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB
 CHARACTER SET latin1;
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 set default_storage_engine=ndbcluster;
 supports_native_partitioning: 1
 --- Start test 1 Basic testing ---

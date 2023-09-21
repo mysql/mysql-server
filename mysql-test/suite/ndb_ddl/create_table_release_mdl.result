@@ -14,6 +14,8 @@ ADD DATAFILE 'ts1_datafile1.dat'
 INITIAL_SIZE 64M
 ENGINE NDB;
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
 a INT NOT NULL,
 PRIMARY KEY (a)
