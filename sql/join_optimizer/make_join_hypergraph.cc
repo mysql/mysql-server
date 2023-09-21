@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <iterator>
 #include <numeric>
 #include <string>
@@ -65,8 +66,10 @@
 
 using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
+using hypergraph::IsSimpleEdge;
 using hypergraph::NodeMap;
 using std::array;
+using std::has_single_bit;
 using std::max;
 using std::min;
 using std::string;
@@ -267,7 +270,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
           table_map included_tables = 0;
           Item_field *base_item = nullptr;
           for (Item_field &field : equal->get_fields()) {
-            assert(IsSingleBitSet(field.used_tables()));
+            assert(has_single_bit(field.used_tables()));
             if (!IsSubset(field.used_tables(), tables_in_subtree) ||
                 Overlaps(field.used_tables(), included_tables)) {
               continue;
@@ -838,10 +841,10 @@ table_map CertainlyUsedTablesForCondition(const RelationalExpression &expr) {
     if (IsMultipleEquals(cond)) {
       table_map left_bits = this_used_tables & GetVisibleTables(expr.left);
       table_map right_bits = this_used_tables & GetVisibleTables(expr.right);
-      if (IsSingleBitSet(left_bits)) {
+      if (has_single_bit(left_bits)) {
         used_tables |= left_bits;
       }
-      if (IsSingleBitSet(right_bits)) {
+      if (has_single_bit(right_bits)) {
         used_tables |= right_bits;
       }
     } else {
@@ -2475,7 +2478,7 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
         expr->type == RelationalExpression::INNER_JOIN ? ",arrowhead=none" : "";
 
     // Output the edge.
-    if (IsSingleBitSet(e.left) && IsSingleBitSet(e.right)) {
+    if (IsSimpleEdge(e.left, e.right)) {
       // Simple edge.
       int left_node = FindLowestBitSet(e.left);
       int right_node = FindLowestBitSet(e.right);
@@ -2490,7 +2493,7 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
 
       // Print the label only once.
       string left_label, right_label;
-      if (IsSingleBitSet(e.right) && !IsSingleBitSet(e.left)) {
+      if (has_single_bit(e.right) && !has_single_bit(e.left)) {
         right_label = label;
       } else {
         left_label = label;
@@ -3058,8 +3061,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
 
     // Make this predicate potentially sargable (cycle edges are always
     // simple equalities).
-    assert(IsSingleBitSet(left));
-    assert(IsSingleBitSet(right));
+    assert(IsSimpleEdge(left, right));
     const int left_node_idx = *BitsSetIn(left).begin();
     const int right_node_idx = *BitsSetIn(right).begin();
     graph->nodes[left_node_idx].join_conditions_pushable_to_this.push_back(
@@ -3366,7 +3368,7 @@ table_map GetTablesInnerToOuterJoinOrAntiJoin(
 bool ExpandMultipleEqualsForSingleTable(Item_equal *equal,
                                         Mem_root_array<Item *> *conditions) {
   assert(!equal->const_item());
-  assert(IsSingleBitSet(equal->used_tables() & ~PSEUDO_TABLE_BITS));
+  assert(has_single_bit(equal->used_tables() & ~PSEUDO_TABLE_BITS));
   Item *const_arg = equal->const_arg();
   if (const_arg != nullptr) {
     for (Item_field &field : equal->get_fields()) {
@@ -3731,7 +3733,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     pred.used_nodes = pred.total_eligibility_set = GetNodeMapFromTableMap(
         condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT),
         graph->table_num_to_node_num);
-    assert(IsSingleBitSet(pred.total_eligibility_set));
+    assert(has_single_bit(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(
         thd, condition, *companion_collection.Find(condition->used_tables()),
         trace);

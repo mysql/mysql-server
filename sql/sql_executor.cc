@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -2952,7 +2953,7 @@ AccessPath *JOIN::attach_access_path_for_update_or_delete(
     const table_map target_tables = get_update_or_delete_target_tables(this);
     path = NewUpdateRowsAccessPath(
         thd, path, target_tables,
-        GetImmediateUpdateTable(this, IsSingleBitSet(target_tables)));
+        GetImmediateUpdateTable(this, std::has_single_bit(target_tables)));
   } else if (command == SQLCOM_DELETE_MULTI) {
     const table_map target_tables = get_update_or_delete_target_tables(this);
     path =

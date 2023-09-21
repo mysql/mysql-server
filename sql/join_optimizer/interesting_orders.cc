@@ -23,6 +23,7 @@
 #include "sql/join_optimizer/interesting_orders.h"
 
 #include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <functional>
 #include <type_traits>
@@ -42,7 +43,6 @@
 #include "sql/sql_executor.h"
 
 using std::all_of;
-using std::bind;
 using std::distance;
 using std::equal;
 using std::fill;
@@ -638,7 +638,7 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     const table_map used_tables = item->used_tables();
     if (item->type() == Item::FIELD_ITEM || item->has_aggregation() ||
         Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
-        !IsSingleBitSet(used_tables)) {
+        !std::has_single_bit(used_tables)) {
       continue;
     }
 

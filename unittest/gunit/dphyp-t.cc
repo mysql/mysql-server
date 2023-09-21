@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <bit>
 #include <bitset>
 #include <unordered_set>
 #include <vector>
@@ -493,8 +494,8 @@ TEST(DPhypTest, SmallStar) {
   EXPECT_CALL(mr, FoundSingleNode(2));
   EXPECT_CALL(mr, FoundSingleNode(3));
 
-  for (int i = 1; i < 16; ++i) {
-    if (IsSingleBitSet(i)) {
+  for (NodeMap i = 1; i < 16; ++i) {
+    if (std::has_single_bit(i)) {
       EXPECT_CALL(mr, HasSeen(i))
           .Times(AnyNumber())
           .WillRepeatedly(Return(true));
@@ -559,7 +560,7 @@ TEST(DPhypTest, Clique) {
 
   // Look at all possible non-zero subsets of the clique.
   for (NodeMap subset = 1; subset < (NodeMap{1} << num_elements); ++subset) {
-    if (IsSingleBitSet(subset)) {
+    if (std::has_single_bit(subset)) {
       // Single node, so should have a single single-node subplan.
       ASSERT_EQ(1, receiver.seen_subplans.count(subset));
       EXPECT_EQ(0, receiver.seen_subplans.find(subset)->second.left);

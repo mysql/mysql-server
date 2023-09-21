@@ -59,9 +59,8 @@ void Hypergraph::ModifyEdge(unsigned edge_idx, NodeMap new_left,
   NodeMap left = edges[edge_idx].left;
   NodeMap right = edges[edge_idx].right;
 
-  const bool old_is_simple = IsSingleBitSet(left) && IsSingleBitSet(right);
-  const bool new_is_simple =
-      IsSingleBitSet(new_left) && IsSingleBitSet(new_right);
+  const bool old_is_simple = IsSimpleEdge(left, right);
+  const bool new_is_simple = IsSimpleEdge(new_left, new_right);
 
   if (!old_is_simple && !new_is_simple) {
     // An optimized fast-path for changing a complex edge into
@@ -117,7 +116,7 @@ void Hypergraph::ModifyEdge(unsigned edge_idx, NodeMap new_left,
 void Hypergraph::AttachEdgeToNodes(size_t left_first_idx,
                                    size_t right_first_idx, NodeMap left,
                                    NodeMap right) {
-  if (IsSingleBitSet(left) && IsSingleBitSet(right)) {
+  if (IsSimpleEdge(left, right)) {
     size_t left_node = *BitsSetIn(left).begin();
     size_t right_node = *BitsSetIn(right).begin();
 

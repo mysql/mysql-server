@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <algorithm>
+#include <bit>
 #include <string>
 #include <utility>
 
@@ -63,6 +64,7 @@
 #include "template_utils.h"
 
 using hypergraph::NodeMap;
+using std::has_single_bit;
 using std::string;
 using std::swap;
 
@@ -198,7 +200,7 @@ static void CollectFunctionalDependenciesFromPredicates(
     Predicate &pred = graph->predicates[i];
     bool always_active =
         !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
-        IsSingleBitSet(pred.total_eligibility_set);
+        has_single_bit(pred.total_eligibility_set);
     int fd_idx = AddFunctionalDependencyFromCondition(thd, pred.condition,
                                                       always_active, orderings);
     if (fd_idx != -1) {

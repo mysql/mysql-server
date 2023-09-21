@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <new>
 #include <string>
@@ -57,11 +58,11 @@ using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::fill;
+using std::has_single_bit;
 using std::max;
 using std::min;
 using std::string;
 using std::swap;
-using std::vector;
 
 namespace {
 
@@ -252,7 +253,7 @@ double GetCardinality(NodeMap tables_to_join, const JoinHypergraph &graph,
       // so it doesn't matter when we apply them.
       component_cardinality[0] *= pred.selectivity;
     } else if (IsSubset(pred.total_eligibility_set, tables_to_join) &&
-               IsSingleBitSet(pred.total_eligibility_set)) {
+               has_single_bit(pred.total_eligibility_set)) {
       int node_idx = FindLowestBitSet(pred.total_eligibility_set);
       component_cardinality[node_idx] *= pred.selectivity;
     }

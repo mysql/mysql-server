@@ -31,6 +31,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <bit>
 #include <bitset>
 #include <initializer_list>
 #include <memory>
@@ -125,6 +126,7 @@ using hypergraph::Hyperedge;
 using hypergraph::Node;
 using hypergraph::NodeMap;
 using std::find_if;
+using std::has_single_bit;
 using std::min;
 using std::pair;
 using std::string;
@@ -2601,7 +2603,7 @@ bool CostingReceiver::ProposeRefAccess(
     }
 
     if (i < m_graph->num_where_predicates &&
-        !IsSingleBitSet(pred.total_eligibility_set)) {
+        !has_single_bit(pred.total_eligibility_set)) {
       // This is a WHERE condition that is either nondeterministic,
       // or after an outer join, so it is not sargable. (Having these
       // show up here is very rare, but will get more common when we
@@ -3511,7 +3513,7 @@ NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
     for (int edge_idx : nodes[node_idx].complex_edges) {
       if (IsSubset(edges[edge_idx].left, tables)) {
         NodeMap others = edges[edge_idx].right & ~tables;
-        if (IsSingleBitSet(others) && !Overlaps(others, reachable) &&
+        if (has_single_bit(others) && !Overlaps(others, reachable) &&
             PassesConflictRules(tables, graph.edges[edge_idx / 2].expr) &&
             LateralDependenciesAreSatisfied(FindLowestBitSet(others), tables,
                                             graph)) {
@@ -3765,7 +3767,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
   // Enforce that recursive references need to be leftmost.
   if (Overlaps(right, forced_leftmost_table)) {
     if (!is_commutative) {
-      assert(IsSingleBitSet(forced_leftmost_table));
+      assert(has_single_bit(forced_leftmost_table));
       const int node_idx = FindLowestBitSet(forced_leftmost_table);
       my_error(ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER, MYF(0),
                m_graph->nodes[node_idx].table->alias);
@@ -5735,7 +5737,7 @@ bool IsImmediateUpdateCandidate(const Table_ref *table_ref, int node_idx,
   // in the plan, we need to collect all fields of t1 which influence the
   // selection of rows from t2. If those fields are also updated, it will not be
   // possible to update t1 on the fly.
-  if (!IsSingleBitSet(target_tables)) {
+  if (!has_single_bit(target_tables)) {
     assert(bitmap_is_clear_all(&table->tmp_set));
     auto restore_tmp_set =
         create_scope_guard([table]() { bitmap_clear_all(&table->tmp_set); });
@@ -7016,7 +7018,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
   }
 
   for (unsigned i = 0; i < graph->num_where_predicates; ++i) {
-    if (IsSingleBitSet(graph->predicates[i].total_eligibility_set)) {
+    if (has_single_bit(graph->predicates[i].total_eligibility_set)) {
       PossiblyAddSargableCondition(thd, graph->predicates[i].condition,
                                    CompanionSet(),
                                    /*force_table=*/nullptr, i,

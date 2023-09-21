@@ -238,11 +238,6 @@ inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
 // Returns whether X has more than one bit set.
 inline bool AreMultipleBitsSet(uint64_t x) { return (x & (x - 1)) != 0; }
 
-// Returns whether X has exactly one bit set.
-inline bool IsSingleBitSet(uint64_t x) {
-  return x != 0 && !AreMultipleBitsSet(x);
-}
-
 // Returns whether the given bit is set in X.
 inline bool IsBitSet(int bit_num, uint64_t x) {
   return Overlaps(x, uint64_t{1} << bit_num);

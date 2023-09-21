@@ -38,6 +38,7 @@
 
 #include <stddef.h>
 #include <algorithm>
+#include <bit>
 #include <vector>
 
 #include "sql/join_optimizer/node_map.h"
@@ -105,6 +106,11 @@ struct Hypergraph {
   void AttachEdgeToNodes(size_t left_first_idx, size_t right_first_idx,
                          NodeMap left, NodeMap right);
 };
+
+/// Is an edge between "left" and "right" a simple edge?
+inline bool IsSimpleEdge(NodeMap left, NodeMap right) {
+  return std::has_single_bit(left) && std::has_single_bit(right);
+}
 
 }  // namespace hypergraph
 
