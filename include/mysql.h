@@ -591,7 +591,7 @@ enum enum_mysql_stmt_state {
   internally by the client library.
   Public members with their descriptions are listed below
   (conventionally `On input' refers to the binds given to
-  mysql_stmt_bind_param, `On output' refers to the binds given
+  mysql_stmt_bind_named_param, `On output' refers to the binds given
   to mysql_stmt_bind_result):
 
   buffer_type    - One of the MYSQL_* types, used to describe
@@ -604,7 +604,7 @@ enum enum_mysql_stmt_state {
                    output data.
                    The type of memory pointed by buffer must correspond
                    to buffer_type. See the correspondence table in
-                   the comment to mysql_stmt_bind_param.
+                   the comment to mysql_stmt_bind_named_param.
 
   The two above members are mandatory for any kind of bind.
 
@@ -760,11 +760,6 @@ bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
 bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
                                  enum enum_stmt_attr_type attr_type,
                                  void *attr);
-#if defined(__cplusplus) && (__cplusplus >= 201402L)
-[[deprecated("Use mysql_stmt_bind_named_param() instead.")]]
-#endif
-bool STDCALL
-mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bnd);
 bool STDCALL mysql_stmt_bind_named_param(MYSQL_STMT *stmt, MYSQL_BIND *binds,
                                          unsigned n_params, const char **names);
 bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bnd);

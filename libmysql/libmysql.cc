@@ -1313,7 +1313,7 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
   - then send the query to server and get back number of placeholders,
     number of columns in result set (if any), and result set metadata.
     At the same time allocate memory for input and output parameters
-    to have less checks in mysql_stmt_bind_{param, result}.
+    to have less checks in mysql_stmt_bind_{named_param, result}.
 
   RETURN VALUES
     0  success
@@ -2158,23 +2158,60 @@ uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
   return stmt->insert_id;
 }
 
+bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
+                              MYSQL_BIND *binds, const char **names) {
+  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
+
+  mysql_extension_bind_free(ext);
+
+  /* if any of the above is empty our work here is done */
+  if (!n_params || !binds || !names) return false;
+
+  ext->bind_info.n_params = n_params;
+  ext->bind_info.bind = (MYSQL_BIND *)my_malloc(
+      PSI_NOT_INSTRUMENTED, sizeof(MYSQL_BIND) * n_params, MYF(0));
+  ext->bind_info.names = (char **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                            sizeof(char *) * n_params, MYF(0));
+
+  memcpy(ext->bind_info.bind, binds, sizeof(MYSQL_BIND) * n_params);
+
+  MYSQL_BIND *param = ext->bind_info.bind;
+  for (uint idx = 0; idx < n_params; idx++, param++) {
+    ext->bind_info.names[idx] =
+        names[idx] ? my_strdup(PSI_NOT_INSTRUMENTED, names[idx], MYF(0))
+                   : nullptr;
+    if (fix_param_bind(param, idx)) {
+      my_stpcpy(mysql->net.sqlstate, unknown_sqlstate);
+      sprintf(mysql->net.last_error,
+              ER_CLIENT(mysql->net.last_errno = CR_UNSUPPORTED_PARAM_TYPE),
+              param->buffer_type, idx);
+      for (uint idx2 = 0; idx2 <= idx; idx2++)
+        my_free(ext->bind_info.names[idx2]);
+      my_free(ext->bind_info.names);
+      my_free(ext->bind_info.bind);
+      memset(&ext->bind_info, 0, sizeof(ext->bind_info));
+      return true;
+    }
+  }
+  return false;
+}
+
 /*
-  Set up input data buffers for a statement.
+  Set up input data buffers for a statement, supporting both named
+  (query attributes) and unnamed bind parameters.
 
   SYNOPSIS
-    mysql_stmt_bind_param()
+    mysql_stmt_bind_named_param()
     stmt    statement handle
             The statement must be prepared with mysql_stmt_prepare().
-    my_bind Array of mysql_stmt_param_count() bind parameters.
-            This function doesn't check that size of this argument
-            is >= mysql_stmt_field_count(): it's user's responsibility.
+    binds   Array of named bind parameters.
+    n_params Number of items within arrays.
+    names   Array of bind parameter names.
 
   DESCRIPTION
-    @deprecated This function is deprecated and will be removed in a future
-                version. Use mysq_stmt_bind_named_param() instead.
+   Use this call after mysql_stmt_prepare() to bind user variables to
+    placeholders, with added support for named binds (query attributes).
 
-    Use this call after mysql_stmt_prepare() to bind user variables to
-    placeholders.
     Each element of bind array stands for a placeholder. Placeholders
     are counted from 0.  For example statement
     'INSERT INTO t (a, b) VALUES (?, ?)'
@@ -2306,93 +2343,6 @@ uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
 
     After variables were bound, you can repeatedly set/change their
     values and mysql_stmt_execute() the statement.
-
-    See also: mysql_stmt_send_long_data() for sending long text/blob
-    data in pieces, examples in tests/mysql_client_test.c.
-    Next steps you might want to make:
-    - execute statement with mysql_stmt_execute(),
-    - reset statement using mysql_stmt_reset() or reprepare it with
-      another query using mysql_stmt_prepare()
-    - close statement with mysql_stmt_close().
-
-  IMPLEMENTATION
-    The function copies given bind array to internal storage of the
-    statement, and sets up typecode-specific handlers to perform
-    serialization of bound data. This means that although you don't need
-    to call this routine after each assignment to bind buffers, you
-    need to call it each time you change parameter typecodes, or other
-    members of MYSQL_BIND array.
-    This is a pure local call. Data types of client buffers are sent
-    along with buffers' data at first execution of the statement.
-
-  RETURN
-    0  success
-    1  error, can be retrieved with mysql_stmt_error.
-*/
-
-bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind) {
-  return mysql_stmt_bind_named_param(stmt, my_bind, stmt->param_count, nullptr);
-}
-
-bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
-                              MYSQL_BIND *binds, const char **names) {
-  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
-
-  mysql_extension_bind_free(ext);
-
-  /* if any of the above is empty our work here is done */
-  if (!n_params || !binds || !names) return false;
-
-  ext->bind_info.n_params = n_params;
-  ext->bind_info.bind = (MYSQL_BIND *)my_malloc(
-      PSI_NOT_INSTRUMENTED, sizeof(MYSQL_BIND) * n_params, MYF(0));
-  ext->bind_info.names = (char **)my_malloc(PSI_NOT_INSTRUMENTED,
-                                            sizeof(char *) * n_params, MYF(0));
-
-  memcpy(ext->bind_info.bind, binds, sizeof(MYSQL_BIND) * n_params);
-
-  MYSQL_BIND *param = ext->bind_info.bind;
-  for (uint idx = 0; idx < n_params; idx++, param++) {
-    ext->bind_info.names[idx] =
-        names[idx] ? my_strdup(PSI_NOT_INSTRUMENTED, names[idx], MYF(0))
-                   : nullptr;
-    if (fix_param_bind(param, idx)) {
-      my_stpcpy(mysql->net.sqlstate, unknown_sqlstate);
-      sprintf(mysql->net.last_error,
-              ER_CLIENT(mysql->net.last_errno = CR_UNSUPPORTED_PARAM_TYPE),
-              param->buffer_type, idx);
-      for (uint idx2 = 0; idx2 <= idx; idx2++)
-        my_free(ext->bind_info.names[idx2]);
-      my_free(ext->bind_info.names);
-      my_free(ext->bind_info.bind);
-      memset(&ext->bind_info, 0, sizeof(ext->bind_info));
-      return true;
-    }
-  }
-  return false;
-}
-
-/*
-  Set up unnamed and named (query attributes) bind parameters for a statement.
-
-  SYNOPSIS
-    mysql_stmt_bind_named_param()
-    stmt    statement handle
-            The statement must be prepared with mysql_stmt_prepare().
-    binds   Array of named bind parameters.
-    n_params Number of items within arrays.
-    names   Array of bind parameter names.
-
-  DESCRIPTION
-    Use this call after mysql_stmt_prepare() to store both named and
-    unnamed bind user variables (query attributes).
-
-    After variables were bound, you can repeatedly set/change their
-    values and mysql_stmt_execute() the statement.
-
-    Note that calling both mysql_stmt_bind_param() and
-  mysql_stmt_bind_named_param() is not additive, each call overwrites the
-  settings set by the previous call.
 
     See also: mysql_stmt_send_long_data() for sending long text/blob
     data in pieces, examples in tests/mysql_client_test.c.

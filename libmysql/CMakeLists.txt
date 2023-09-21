@@ -65,7 +65,6 @@ SET(CLIENT_API_FUNCTIONS
   mysql_ping
   mysql_query
   mysql_set_server_option
-  mysql_stmt_bind_param
   mysql_stmt_bind_named_param
   mysql_stmt_bind_result
   mysql_stmt_execute

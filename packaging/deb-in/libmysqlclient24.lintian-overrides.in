@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Additional license file is needed so overriding this warning
-libmysqlclient23: extra-license-file
+libmysqlclient24: extra-license-file
 
 # Due to static linking this cannot be avoided and hence being overridden
-libmysqlclient23: embedded-library
+libmysqlclient24: embedded-library

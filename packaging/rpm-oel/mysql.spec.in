@@ -1476,7 +1476,7 @@ fi
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.23*
+%{_libdir}/mysql/libmysqlclient.so.24*
 %if 0%{?ssl_bundled}
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
@@ -1868,6 +1868,9 @@ fi
 %endif # with_router
 
 %changelog
+* Fri Nov 17 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.4.0-1
+- mysql_stmt_bind_param C API removed, so increase the libmysqlclient major version to 24.
+
 * Tue Sep 19 2023 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.3.0-1
 - Some C API removed, so increase the libmysqlclient major version to 23.
 

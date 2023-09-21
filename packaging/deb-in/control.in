@@ -221,7 +221,7 @@ Description: MySQL Client Core Binaries
  Oracle. This package contains the MySQL client binaries.
 
 
-Package: libmysqlclient23
+Package: libmysqlclient24
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
@@ -266,7 +266,7 @@ Description: Common files shared between packages
 Package: libmysqlclient-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient23 (= ${binary:Version}),
+Depends: libmysqlclient24 (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Breaks: libmysqld-dev
 Replaces: mysql-client-5.6, mysql-client-core-5.6,
