@@ -160,6 +160,8 @@ id=255 (not connected, accepting connect from localhost)
 Drop Node Group 1 done
 Nodegroup 1 created
 set @@new = 1;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table t7(id int primary key, uk int) engine=ndb
 partition by list(id) (
 partition p0 values in (0),

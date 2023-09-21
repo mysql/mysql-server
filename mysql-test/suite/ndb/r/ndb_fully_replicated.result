@@ -331,6 +331,8 @@ key(b, a)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1,READ_BACKUP=0' ENGINE=ndbcluster;
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'READ_BACKUP=0 cannot be used for fully replicated tables'
 set session new = 1;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table t2 (
 a char(10) NOT NULL,
 b int not null primary key,

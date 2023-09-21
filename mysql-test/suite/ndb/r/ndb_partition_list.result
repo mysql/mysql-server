@@ -1,3 +1,5 @@
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 drop table if exists t1;
 CREATE TABLE t1 ( f_int1 INTEGER NOT NULL, f_int2 INTEGER NOT NULL, 
 f_char1 CHAR(10),
