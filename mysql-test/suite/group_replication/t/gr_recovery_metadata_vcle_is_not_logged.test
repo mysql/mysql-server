@@ -225,7 +225,7 @@ while ($start_count < 4)
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-010379' AND data LIKE "%Replica SQL thread stopped because it reached UNTIL SQL_AFTER_GTIDS %:1-101%"
 --source include/wait_condition.inc
 
---let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.error_log WHERE error_code='MY-015078' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-101 already has all the transactions of the donor's gtid set %:1-101.%"
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.error_log WHERE error_code='MY-015077' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-101 already has all the transactions of the donor's gtid set %:1-101.%"
 --source include/wait_condition.inc
 
 

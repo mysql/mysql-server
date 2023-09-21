@@ -107,16 +107,16 @@ SET @@GLOBAL.DEBUG='+d,gr_crash_before_recovery_metadata_send';
 SET GLOBAL group_replication_unreachable_majority_timeout= 1;
 
 
---let $warning_count_1_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
---let $warning_count_1_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $warning_count_1_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $warning_count_1_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
 SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_one_stored_metadata';
 
 --connection server$server_not_sending_metadata2
 
 SET GLOBAL group_replication_unreachable_majority_timeout= 1;
 
---let $warning_count_2_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
---let $warning_count_2_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $warning_count_2_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $warning_count_2_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
 SET @@GLOBAL.DEBUG='+d,group_replication_recovery_metadata_module_delete_one_stored_metadata';
 
 --echo
@@ -182,10 +182,10 @@ SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_module_delete_one_sto
 ## However there is a possibilty if joiner message is delayed in GCS metadata may be resent.
 ## Thanks to crash this possibility is minimum.
 --inc $warning_count_1_1
---let $wait_condition= SELECT COUNT(*)=$warning_count_1_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$warning_count_1_1 FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
---let $warning_count_1_2= SELECT COUNT(*)=$warning_count_1_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--let $warning_count_1_2= SELECT COUNT(*)=$warning_count_1_2 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= DEFAULT;
@@ -197,10 +197,10 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_recovery_metadata_module_
 SET @@GLOBAL.DEBUG='-d,group_replication_recovery_metadata_module_delete_one_stored_metadata';
 
 --inc $warning_count_2_1
---let $wait_condition= SELECT COUNT(*)=$warning_count_2_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$warning_count_2_1 FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
---let $warning_count_2_2= SELECT COUNT(*)=$warning_count_2_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--let $warning_count_2_2= SELECT COUNT(*)=$warning_count_2_2 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= DEFAULT;

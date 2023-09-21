@@ -79,7 +79,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_recovery_after_gtids_applier_stop_erro
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-011577' AND data LIKE "%Retrying group recovery connection with another donor. Attempt 2%"
 --source include/wait_condition.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015078' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-5 already has all the transactions of the donor's gtid set %:1-5%"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015077' AND data LIKE "%The group replication recovery is skipped as the joiner's gtid executed set %:1-5 already has all the transactions of the donor's gtid set %:1-5%"
 --source include/wait_condition.inc
 
 

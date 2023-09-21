@@ -82,7 +82,7 @@ SET SESSION sql_log_bin= 1;
 
 --source include/stop_group_replication.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015063' AND data LIKE "%Error received while the Recovery thread was waiting for the Recovery Metadata. The Recovery will be terminated.%"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015062' AND data LIKE "%Error received while the Recovery thread was waiting for the Recovery Metadata. The Recovery will be terminated.%"
 --source include/wait_condition.inc
 
 
@@ -95,7 +95,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015083' AND data LIKE "%Error while encoding Certification Information for the Recovery Metadata Message.%"
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-015082' AND data LIKE "%Error while encoding Certification Information for the Recovery Metadata Message.%"
 --source include/wait_condition.inc
 
 SET @@GLOBAL.DEBUG='-d,gr_compression_get_empty_buffer';

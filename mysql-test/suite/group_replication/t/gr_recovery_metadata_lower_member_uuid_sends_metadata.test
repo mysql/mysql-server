@@ -58,13 +58,13 @@ if ($metadata_donor == $member2_uuid) {
 }
 
 --connection server$server_not_sending_metadata
---let $recovery_metadata_not_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
---let $recovery_metadata_not_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_not_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_not_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
 
 
 --connection server$server_sending_metadata
---let $recovery_metadata_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
---let $recovery_metadata_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_sender_counter_1= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%', COUNT, 1)
+--let $recovery_metadata_sender_counter_2= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%', COUNT, 1)
 
 --echo
 --echo ############################################################
@@ -83,22 +83,22 @@ if ($metadata_donor == $member2_uuid) {
 
 # Sender send the metadata
 --inc $recovery_metadata_sender_counter_2
---let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 # Sender does not log other message
---let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 --connection server$server_not_sending_metadata
 
 # Non-sender log the message who is the recovery metadata sender.
 --inc $recovery_metadata_not_sender_counter_1
---let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_1 FROM performance_schema.error_log WHERE error_code='MY-015045' AND data LIKE '%The member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 # Non-sender does not log other message.
---let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015047' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
+--let $wait_condition= SELECT COUNT(*)=$recovery_metadata_not_sender_counter_2 FROM performance_schema.error_log WHERE error_code='MY-015046' AND data LIKE '%This member % will be the one sending the recovery metadata message.%'
 --source include/wait_condition.inc
 
 --echo

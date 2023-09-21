@@ -86,7 +86,7 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 call mtr.add_suppression("No donor available to provide the certification information, part of the required information to the new member join the group*");
 SET SESSION sql_log_bin= 1;
 
---let $assert_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015081' AND data LIKE '%No donor available to provide the certification information%', COUNT, 1)
+--let $assert_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015080' AND data LIKE '%No donor available to provide the certification information%', COUNT, 1)
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc
@@ -131,7 +131,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 
 --inc $assert_count
 --let $assert_text= No donor available to provide the certification information, error is logged.
---let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-015085\' AND data LIKE \"%No donor available to provide the certification information%\", count, 1]" = "$assert_count"
+--let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-015084\' AND data LIKE \"%No donor available to provide the certification information%\", count, 1]" = "$assert_count"
 --source include/assert.inc
 
 --echo

@@ -41,7 +41,7 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_version_with_vcle';
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $warning_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015059' AND data LIKE '%View_change_log_event will not be logged further on the binary log%', COUNT, 1)
+--let $warning_count= query_get_value(SELECT COUNT(*) AS COUNT FROM performance_schema.error_log WHERE error_code='MY-015058' AND data LIKE '%View_change_log_event will not be logged further on the binary log%', COUNT, 1)
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Member version is read compatible with the group.");
@@ -66,7 +66,7 @@ SET SESSION sql_log_bin = 1;
 --source include/rpl_connection.inc
 
 --inc $warning_count
---let $wait_condition= SELECT COUNT(*)=$warning_count FROM performance_schema.error_log WHERE error_code='MY-015060' AND data LIKE '%View_change_log_event will not be logged further on the binary log, as all members of the group are 8.3.0 or greater.%'
+--let $wait_condition= SELECT COUNT(*)=$warning_count FROM performance_schema.error_log WHERE error_code='MY-015059' AND data LIKE '%View_change_log_event will not be logged further on the binary log, as all members of the group are 8.3.0 or greater.%'
 --source include/wait_condition.inc
 
 --echo ############################################################
