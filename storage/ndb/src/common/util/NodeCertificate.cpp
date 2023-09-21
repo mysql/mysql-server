@@ -37,6 +37,7 @@
 #include "ndb_global.h"  // DIR_SEPARATOR, access()
 #include "ndb_limits.h"
 
+#include "debugger/EventLogger.hpp"
 #include "portlib/ndb_localtime.h"
 #include "util/File.hpp"
 #include "util/ndb_openssl3_compat.h"
@@ -56,6 +57,30 @@ inline void _putenv(const char *a) { putenv(const_cast<char *>(a)); }
 /* CN length is limited to 64 characters per RFC 5280:
 */
 static constexpr size_t CN_max_length = 65;
+
+static void handle_pem_error(const char fn_name[])
+{
+  int err = ERR_peek_last_error();
+  if (err != 0)
+  {
+    char buffer[256];
+    ERR_error_string_n(err, buffer, 256);
+    g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
+  }
+  else
+  {
+    // Expected some error
+    g_eventLogger->error("NDB TLS %s: Expected error but found none.", fn_name);
+  }
+  /*
+   * Check that this function are called for every failed function call that
+   * have set an error.
+   */
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+  require(ERR_get_error() != 0); // At least one error
+#endif
+  while (ERR_get_error() != 0) /* clear SSL error stack without checks */ ;
+}
 
 /*
  * Implementation of certificate and key file naming conventions
@@ -299,6 +324,7 @@ EVP_PKEY * PrivateKey::open(const char * path, char * passphrase) {
   FILE * fp = fopen(path, "r");
   if(fp != nullptr) {
     PEM_read_PrivateKey(fp, &key, nullptr, passphrase);
+    if(!key) handle_pem_error("PEM_read_PrivateKey");
     fclose(fp);
   }
   return key;
@@ -319,6 +345,7 @@ bool PrivateKey::store(EVP_PKEY * key, const PkiFile::PathName & path,
     return true;
   }
   else {
+    handle_pem_error("PEM_write_PKCS8PrivateKey");
     fclose(fp);
     PkiFile::remove(path);
     return false;
@@ -488,6 +515,7 @@ SigningRequest * SigningRequest::open(const char * file) {
 SigningRequest * SigningRequest::read(FILE * fp) {
   X509_REQ * req = nullptr;
   PEM_read_X509_REQ(fp, &req, nullptr, nullptr);
+  if (req == nullptr) handle_pem_error("PEM_read_X509_REQ");
   return req ? new SigningRequest(req) : nullptr;
 }
 
@@ -514,7 +542,9 @@ bool SigningRequest::store(const char * dir) const {
 }
 
 bool SigningRequest::write(FILE * fp) const {
-  return PEM_write_X509_REQ(fp, m_req);
+  bool ok = PEM_write_X509_REQ(fp, m_req);
+  if (!ok) handle_pem_error("PEM_write_X509_REQ");
+  return ok;
 }
 
 bool SigningRequest::verify() const {
@@ -621,6 +651,7 @@ bool Certificate::write(STACK_OF(X509) * certs, FILE * fp) {
   int r = 1;
   for(int i = 0 ; i < sk_X509_num(certs) && r == 1 ; i++)
     r = PEM_write_X509(fp, sk_X509_value(certs, i));
+  if (r != 1) handle_pem_error("PEM_writeX509");
   return r;
 }
 
@@ -669,22 +700,30 @@ STACK_OF(X509) * Certificate::open(const char * path) {
 
   if(fp) {
     certs = sk_X509_new_null();
-    Certificate::read(certs, fp);
+    bool ok = Certificate::read(certs, fp);
     fclose(fp);
-  }
 
-  if(sk_X509_num(certs) == 0) {
-    sk_X509_free(certs);
-    certs = nullptr;
+    if(!ok || sk_X509_num(certs) == 0) {
+      sk_X509_pop_free(certs, X509_free);
+      certs = nullptr;
+    }
   }
 
   return certs;
 }
 
-void Certificate::read(STACK_OF(X509) * certs, FILE * fp) {
+bool Certificate::read(STACK_OF(X509) * certs, FILE * fp) {
   X509 * cert;
   while((cert = PEM_read_X509(fp, nullptr, nullptr, nullptr)) != nullptr)
     sk_X509_push(certs, cert);
+  // Expect PEM_R_NO_START_LINE error
+  int err = ERR_peek_last_error();
+  if (ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    while (ERR_get_error() != 0) /* clear ssl errors */ ;
+    return true;
+  }
+  handle_pem_error("PEM_read_X509");
+  return false;
 }
 
 X509 * Certificate::open_one(const char * path) {
@@ -1277,10 +1316,7 @@ int NodeCertificate::stderr_callback(int result, X509_STORE_CTX * ctx) {
 bool NodeCertificate::verify_signature(EVP_PKEY * CA_key) const {
   int r0 = X509_verify(m_x509, CA_key);
   if (r0 != 1) {
-    char error_buf[256];
-    int er = ERR_get_error();
-    ERR_error_string_n(er, error_buf, 256);
-    fprintf(stderr, "X509_verify: %d (err %d: %s)\n", r0, er, error_buf);
+    handle_pem_error("X509_verify");
     return false;
   }
 

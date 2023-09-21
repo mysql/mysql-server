@@ -130,22 +130,6 @@ int NdbSocket::set_nonblocking(int on) const {
 
 /* NdbSocket private instance methods */
 
-// ssl_close
-void NdbSocket::ssl_close() {
-  Guard guard(mutex);
-  const int mode = SSL_get_shutdown(ssl);
-  if (!(mode & SSL_SENT_SHUTDOWN)) {
-    /*
-     * Do not call SSL_shutdown again if it already been called in
-     * NdbSocket::shutdown. In that case it could block waiting on
-     * SSL_RECEIVED_SHUTDOWN.
-     */
-    SSL_shutdown(ssl);
-  }
-  SSL_free(ssl);
-  ssl = nullptr;
-}
-
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
 
 static void log_ssl_error(const char * fn_name)
@@ -202,6 +186,28 @@ static ssize_t handle_ssl_error(int err, const char * fn) {
       assert(false);
       return -1;
   }
+}
+
+// ssl_close
+void NdbSocket::ssl_close() {
+  Guard guard(mutex);
+  const int mode = SSL_get_shutdown(ssl);
+  if (!(mode & SSL_SENT_SHUTDOWN)) {
+    /*
+     * Do not call SSL_shutdown again if it already been called in
+     * NdbSocket::shutdown. In that case it could block waiting on
+     * SSL_RECEIVED_SHUTDOWN.
+     */
+    int r = SSL_shutdown(ssl);
+    if (r < 0) {
+      // Clear errors
+      int err = SSL_get_error(ssl, r);
+      Debug_Log("SSL_shutdown(): ERR %d", err);
+      handle_ssl_error(err, "SSL_close");
+    }
+  }
+  SSL_free(ssl);
+  ssl = nullptr;
 }
 
 bool NdbSocket::update_keys(bool req_peer) const {
@@ -310,6 +316,7 @@ bool NdbSocket::key_update_pending() const { return false; }
 ssize_t NdbSocket::ssl_recv(char *, size_t) const { return too_old; }
 ssize_t NdbSocket::ssl_peek(char *, size_t) const { return too_old; }
 ssize_t NdbSocket::ssl_send(const char *, size_t) const { return too_old; }
+void NdbSocket::ssl_close() { }
 int NdbSocket::ssl_shutdown() const { return -1; }
 #endif
 

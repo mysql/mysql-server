@@ -173,7 +173,7 @@ public:
   static bool remove(const char * dir, const char * file);
 
   /* Read from file */
-  static void read(struct stack_st_X509 *, FILE *);
+  static bool read(struct stack_st_X509 *, FILE *);
   static struct stack_st_X509 * open(const char * path);
   static struct stack_st_X509 * open(const PkiFile::PathName &);
   static struct x509_st * open_one(const char * path);  // first cert in file

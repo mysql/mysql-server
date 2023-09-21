@@ -1202,13 +1202,17 @@ int remote_key_signing(const SigningRequest * csr, EVP_PKEY * key,
   fclose(wfp);
 
   /* Read certificate chain file from coprocess */
-  Certificate::read(all_certs, rfp);
+  bool read_certs_ok = Certificate::read(all_certs, rfp);
   fclose(rfp);
 
   /* Wait up to 10 seconds for coprocess to exit.
      Return value 137 will indicate that wait() has failed. */
   int r1 = 137;
   proc->wait(r1, 10000);
+
+  /* Check if any failure when certs were read */
+  if (!read_certs_ok)
+    return 138;
 
   /* Check if any certs were read */
   int ncerts = sk_X509_num(all_certs);
@@ -1247,6 +1251,7 @@ const NodeCertificate * sign_remote(const SigningRequest * csr,
   int rs = remote_key_signing(csr, csr->key(), cluster_certs, all_certs);
   if(rs == 0)
     return NodeCertificate::from_credentials(all_certs, csr->key());
+  sk_X509_pop_free(all_certs, X509_free);
   fprintf(stderr, "Remote key signing error: %d\n", rs);
   return nullptr;
 }
