@@ -1,4 +1,6 @@
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
 a int not null,
 b int not null,

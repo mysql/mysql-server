@@ -323,6 +323,8 @@ ERROR HY000: Cannot change table's storage engine because the table participates
 drop table t1;
 # bug#16275509 - case: allow FKs on partitioned
 set new=on;
+Warnings:
+Warning	1287	'@@new' is deprecated and will be removed in a future release.
 create table t1 (
 a int primary key
 ) engine=ndb
