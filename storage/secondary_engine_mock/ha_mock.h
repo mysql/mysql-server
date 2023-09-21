@@ -102,8 +102,8 @@ class ha_mock : public handler {
   /**
    * Unload the table from secondary engine
    *
-   * @param[in] db_name
-   * @param[in] table_name
+   * @param[in] db_name     database name
+   * @param[in] table_name  table name
    * @param[in] error_if_not_loaded - whether to report an error if the table is
    * already not present in the secondary engine.
    * @return 0 if success
