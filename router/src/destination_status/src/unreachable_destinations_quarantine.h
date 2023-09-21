@@ -72,8 +72,6 @@ class UnreachableDestinationsQuarantine {
   void register_route(const std::string &route_name);
 
   /**
-   * @brief
-   *
    * Register the connection error or success to a given destination.
    *
    * If registering a success it will set the number of reported errors to a
