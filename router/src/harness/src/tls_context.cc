@@ -38,6 +38,41 @@
 #include "mysql/harness/tls_types.h"
 #include "openssl_version.h"
 
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+#include <openssl/core_names.h>  // OSSL_PKEY_...
+#include <openssl/decoder.h>     // OSSL_DECODER...
+#endif
+
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
+#define RSA_bits(rsa) BN_num_bits(rsa->n)
+#define DH_bits(dh) BN_num_bits(dh->p)
+#endif
+
+// type == decltype(BN_num_bits())
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+constexpr int kMinRsaKeySize{2048};
+#endif
+
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
+namespace {
+template <class T>
+struct OsslDeleter;
+
+template <class T>
+using OsslUniquePtr = std::unique_ptr<T, OsslDeleter<T>>;
+
+template <>
+struct OsslDeleter<EVP_PKEY> {
+  void operator()(EVP_PKEY *pkey) { EVP_PKEY_free(pkey); }
+};
+
+template <>
+struct OsslDeleter<RSA> {
+  void operator()(RSA *rsa) { RSA_free(rsa); }
+};
+}  // namespace
+#endif
+
 /*
   OpenSSL 1.1 supports native platform threads,
   so we don't need the following callback functions.
@@ -373,6 +408,109 @@ void TlsContext::info_callback(TlsContext::InfoCallback cb) {
 
 TlsContext::InfoCallback TlsContext::info_callback() const {
   return SSL_CTX_get_info_callback(ssl_ctx_.get());
+}
+
+/**
+ * get the key size of an RSA key.
+ *
+ * @param x509 a non-null pointer to RSA-key wrapped in a X509 struct.
+ *
+ * @returns a key-size of RSA key on success, a std::error_code on failure.
+ */
+[[maybe_unused]]  // unused with openssl == 1.0.1 (RHEL6)
+static stdx::expected<int, std::error_code>
+get_rsa_key_size(X509 *x509) {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  EVP_PKEY *public_key = X509_get0_pubkey(x509);
+#else
+  // if X509_get0_pubkey() isn't available, fall back to X509_get_pubkey() which
+  // increments the ref-count.
+  OsslUniquePtr<EVP_PKEY> public_key_storage(X509_get_pubkey(x509));
+
+  EVP_PKEY *public_key = public_key_storage.get();
+#endif
+  if (public_key == nullptr) {
+    return stdx::make_unexpected(
+        make_error_code(TlsCertErrc::kNotACertificate));
+  }
+
+  if (EVP_PKEY_base_id(public_key) != EVP_PKEY_RSA) {
+    return stdx::make_unexpected(make_error_code(TlsCertErrc::kNoRSACert));
+  }
+
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+  int key_bits;
+  if (!EVP_PKEY_get_int_param(public_key, OSSL_PKEY_PARAM_BITS, &key_bits)) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+
+  return key_bits;
+#else
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  RSA *rsa_key = EVP_PKEY_get0_RSA(public_key);
+#else
+  // if EVP_PKEY_get0_RSA() isn't available, fall back to EVP_PKEY_get1_RSA()
+  // which increments the ref-count.
+  OsslUniquePtr<RSA> rsa_key_storage(EVP_PKEY_get1_RSA(public_key));
+
+  RSA *rsa_key = rsa_key_storage.get();
+#endif
+  if (!rsa_key) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+  return RSA_bits(rsa_key);
+#endif
+}
+
+stdx::expected<void, std::error_code> TlsContext::load_key_and_cert(
+    const std::string &private_key_file, const std::string &cert_chain_file) {
+  // load cert and key
+  if (!cert_chain_file.empty()) {
+    if (1 != SSL_CTX_use_certificate_chain_file(ssl_ctx_.get(),
+                                                cert_chain_file.c_str())) {
+      return stdx::make_unexpected(make_tls_error());
+    }
+  }
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+  // openssl 1.0.1 has no SSL_CTX_get0_certificate() and doesn't allow
+  // to access ctx->cert->key->x509 as cert_st is opaque to us.
+
+  // internal pointer, don't free
+  if (X509 *x509 = SSL_CTX_get0_certificate(ssl_ctx_.get())) {
+    auto key_size_res = get_rsa_key_size(x509);
+    if (!key_size_res) {
+      auto ec = key_size_res.error();
+
+      if (ec != TlsCertErrc::kNoRSACert) {
+        return stdx::make_unexpected(key_size_res.error());
+      }
+
+      // if it isn't a RSA Key ... just continue.
+    } else {
+      const auto key_size = *key_size_res;
+
+      if (key_size < kMinRsaKeySize) {
+        return stdx::make_unexpected(
+            make_error_code(TlsCertErrc::kRSAKeySizeToSmall));
+      }
+    }
+  } else {
+    // doesn't exist
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
+  }
+#endif
+  if (1 != SSL_CTX_use_PrivateKey_file(ssl_ctx_.get(), private_key_file.c_str(),
+                                       SSL_FILETYPE_PEM)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+  if (1 != SSL_CTX_check_private_key(ssl_ctx_.get())) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  return {};
 }
 
 int TlsContext::security_level() const {

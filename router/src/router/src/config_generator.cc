@@ -2175,17 +2175,20 @@ class ConfigSectionPrinter {
   }
 
   ConfigSectionPrinter &add_line(const std::string &key,
-                                 const std::string &value) {
+                                 const std::string &value,
+                                 bool force_empty = false) {
     std::string cmdln_option_key = section_name_ + "." + key;
     std::transform(cmdln_option_key.begin(), cmdln_option_key.end(),
                    cmdln_option_key.begin(), ::tolower);
-    if (config_cmdln_options_.count(cmdln_option_key) > 0) {
-      section_options_.push_back(
-          {key, config_cmdln_options_.at(cmdln_option_key)});
+
+    // cmdline options overwrite internal defaults.
+    if (config_cmdln_options_.contains(cmdln_option_key)) {
+      section_options_.emplace_back(key,
+                                    config_cmdln_options_.at(cmdln_option_key));
 
       used_cmdln_options_.insert(key);
-    } else if (!value.empty()) {
-      section_options_.push_back({key, value});
+    } else if (!value.empty() || force_empty) {
+      section_options_.emplace_back(key, value);
     }
 
     return *this;
@@ -2210,8 +2213,8 @@ class ConfigSectionPrinter {
       const std::string option =
           cmdln_option_key.substr(dot + 1, cmdln_option_key.length() - dot - 1);
 
-      if (used_cmdln_options_.count(option) == 0)
-        section_options_.push_back({option, cmdln_option.second});
+      if (!used_cmdln_options_.contains(option))
+        section_options_.emplace_back(option, cmdln_option.second);
     }
 
     ostream_ << ConfigBuilder::build_section(section_name_, section_options_);
@@ -2229,7 +2232,7 @@ class ConfigSectionPrinter {
       // that should be checked before
       assert(dot != std::string::npos);
       const std::string section_name = cmdln_option_key.substr(0, dot);
-      if (used_sections_.count(section_name) > 0) {
+      if (used_sections_.contains(section_name)) {
         continue;
       }
 
@@ -2245,7 +2248,7 @@ class ConfigSectionPrinter {
       const std::string option =
           cmdln_option_key.substr(dot + 1, cmdln_option_key.length() - dot - 1);
 
-      section_options.push_back({option, cmdln_option.second});
+      section_options.emplace_back(option, cmdln_option.second);
     }
 
     if (!current_section.empty()) {
@@ -2270,7 +2273,12 @@ using mysql_harness::loader_supported_options;
 
 #define ADD_CONFIG_LINE_CHECKED(section, option, value, supported_options)    \
   static_assert(mysql_harness::str_in_collection(supported_options, option)); \
-  section.add_line(option, value);
+  (section).add_line(option, value);
+
+#define ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(section, option, value,            \
+                                           supported_options)                 \
+  static_assert(mysql_harness::str_in_collection(supported_options, option)); \
+  (section).add_line(option, value, true);
 
 void add_endpoint_option(ConfigSectionPrinter &routing_section,
                          const ConfigGenerator::Options &options,
@@ -2344,6 +2352,19 @@ void add_metadata_cache_routing_section(
                           routing_supported_options);
   ADD_CONFIG_LINE_CHECKED(routing_section, "protocol", protocol,
                           routing_supported_options);
+
+  if (options.client_ssl_mode == "PASSTHROUGH" || !is_classic) {
+    ADD_CONFIG_LINE_CHECKED(routing_section, "router_require_enforce", "0",
+                            routing_supported_options);
+    // write empty ssl-options to force them to empty.
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "client_ssl_ca", "",
+                                       routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "server_ssl_key", "",
+                                       routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED_WITH_EMPTY(routing_section, "server_ssl_cert", "",
+                                       routing_supported_options);
+  }
+
   if (endpoint_mode == EndpointMode::kEndpointModeRWSplit) {
     ADD_CONFIG_LINE_CHECKED(routing_section, "connection_sharing", "1",
                             routing_supported_options);
@@ -2583,6 +2604,8 @@ void ConfigGenerator::create_config(
                             loader_supported_options);
     ADD_CONFIG_LINE_CHECKED(default_section, "max_idle_server_connections",
                             "64", connection_pool_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "router_require_enforce", "1",
+                            routing_supported_options);
   }
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,

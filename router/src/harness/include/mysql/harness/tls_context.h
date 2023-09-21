@@ -209,6 +209,17 @@ class HARNESS_TLS_EXPORT TlsContext {
    */
   long session_cache_hits() const;
 
+  /**
+   * load key and cert.
+   *
+   * cerifiticate is verified against the key
+   *
+   * @param private_key_file filename of a PEM file containing a key
+   * @param cert_chain_file filename of a PEM file containing a certificate
+   */
+  stdx::expected<void, std::error_code> load_key_and_cert(
+      const std::string &private_key_file, const std::string &cert_chain_file);
+
  protected:
   std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> ssl_ctx_{nullptr,
                                                              &SSL_CTX_free};

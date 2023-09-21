@@ -27,6 +27,7 @@
 #include <cctype>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <random>  // uniform_int_distribution
 #include <sstream>
 #include <system_error>
@@ -47,6 +48,7 @@
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
+#include "classic_query_sender.h"
 #include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logger.h"
@@ -56,10 +58,12 @@
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
 #include "mysqlrouter/classic_protocol_constants.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/connection_base.h"
 #include "openssl_msg.h"
 #include "openssl_version.h"
 #include "processor.h"
+#include "router_require.h"
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
@@ -904,9 +908,14 @@ ServerGreetor::tls_connect_init() {
   SSL_set_msg_callback(dst_channel->ssl(), ssl_msg_cb);
   SSL_set_msg_callback_arg(dst_channel->ssl(), connection());
 
-  // when a connection is taken from the pool for this client-connection, make
-  // sure it is TLS again.
+  // when a connection is taken from the pool for this client-connection ...
+
+  // ... ensure it is TLS again.
   connection()->requires_tls(true);
+
+  // ... ensure it has/hasn't a client cert.
+  connection()->requires_client_cert(SSL_get_certificate(dst_channel->ssl()) !=
+                                     nullptr);
 
   trace_event_tls_connect_ =
       trace_span(trace_event_client_greeting_, "mysql/tls_connect");
@@ -1191,7 +1200,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
   auto msg = *msg_res;
 
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("server::auth::error"));
+    tr.trace(Tracer::Event().stage("server::auth::error: " +
+                                   std::to_string(msg.error_code())));
   }
 
   trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kError);
@@ -1250,12 +1260,6 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
   }
 
   stage(Stage::Ok);
-
-  trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kOk);
-
-  if (in_handshake_) {
-    return forward_server_to_client();
-  }
 
   discard_current_msg(src_channel, src_protocol);
   return Result::Again;
@@ -1407,6 +1411,10 @@ ServerFirstAuthenticator::process() {
       return auth_error();
     case Stage::AuthOk:
       return auth_ok();
+    case Stage::FetchUserAttrs:
+      return fetch_user_attrs();
+    case Stage::FetchUserAttrsDone:
+      return fetch_user_attrs_done();
 
       // the two exit-stages:
       // - Error
@@ -1840,7 +1848,14 @@ ServerFirstAuthenticator::tls_connect_init() {
   SSL_set_msg_callback(dst_channel->ssl(), ssl_msg_cb);
   SSL_set_msg_callback_arg(dst_channel->ssl(), connection());
 
+  // when a connection is taken from the pool for this client-connection ...
+
+  // ... ensure it is TLS again.
   connection()->requires_tls(true);
+
+  // ... ensure it has/hasn't a client cert.
+  connection()->requires_client_cert(SSL_get_certificate(dst_channel->ssl()) !=
+                                     nullptr);
 
   tls_client_ctx->get_session().and_then(
       [&](auto *sess) -> stdx::expected<void, std::error_code> {
@@ -2125,7 +2140,72 @@ ServerFirstAuthenticator::auth_ok() {
         src_protocol->shared_capabilities());
   }
 
+  if (connection()->context().router_require_enforce()) {
+    discard_current_msg(src_channel, src_protocol);
+
+    // fetch the user-vars.
+
+    stage(Stage::FetchUserAttrs);
+
+    return Result::Again;
+  }
+
   stage(Stage::Ok);
 
   return forward_server_to_client();
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ServerFirstAuthenticator::fetch_user_attrs() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::fetch_user_attrs"));
+  }
+
+  RouterRequireFetcher::push_processor(
+      connection(), required_connection_attributes_fetcher_result_);
+
+  stage(Stage::FetchUserAttrsDone);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ServerFirstAuthenticator::fetch_user_attrs_done() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::fetch_user_attrs::done"));
+  }
+
+  if (!required_connection_attributes_fetcher_result_) {
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        dst_channel, dst_protocol, {1045, "Access denied", "28000"});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    stage(Stage::Error);
+    return Result::SendToClient;
+  }
+
+  auto enforce_res =
+      RouterRequire::enforce(connection()->socket_splicer()->client_channel(),
+                             *required_connection_attributes_fetcher_result_);
+  if (!enforce_res) {
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        dst_channel, dst_protocol, {1045, "Access denied", "28000"});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    stage(Stage::Error);
+    return Result::SendToClient;
+  }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
+          dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  stage(Stage::Ok);
+  return Result::SendToClient;
 }

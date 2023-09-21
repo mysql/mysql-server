@@ -25,6 +25,7 @@ ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
     test_routing_direct.cc
     test_routing_reuse.cc
+    test_routing_router_require.cc
     test_routing_sharing.cc
     test_routing_sharing_constrained_pools.cc
     test_routing_sharing_restart.cc

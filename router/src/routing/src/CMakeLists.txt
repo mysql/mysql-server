@@ -122,6 +122,7 @@ ADD_LIBRARY(routing SHARED
   sql_value.cc
   start_transaction_parser.cc
   implicit_commit_parser.cc
+  router_require.cc
 
   openssl_msg.cc
 )

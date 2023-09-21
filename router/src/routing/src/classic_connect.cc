@@ -343,7 +343,9 @@ ConnectProcessor::from_pool() {
 
     auto pool_res = pool->pop_if(
         [client_caps, ep = mysqlrouter::to_string(server_endpoint_),
-         requires_tls = connection()->requires_tls()](const auto &pooled_conn) {
+         requires_tls = connection()->requires_tls(),
+         requires_client_cert =
+             connection()->requires_client_cert()](const auto &pooled_conn) {
           auto pooled_caps = pooled_conn.shared_capabilities();
 
           pooled_caps.reset(classic_protocol::capabilities::pos::ssl)
@@ -355,9 +357,14 @@ ConnectProcessor::from_pool() {
                          text_result_with_session_tracking)
               .reset(classic_protocol::capabilities::pos::multi_statements);
 
+          bool has_client_cert =
+              pooled_conn.ssl() &&
+              (SSL_get_certificate(pooled_conn.ssl().get()) != nullptr);
+
           return (pooled_conn.endpoint() == ep &&  //
                   client_caps == pooled_caps &&    //
-                  (requires_tls == (bool)pooled_conn.ssl()));
+                  (requires_tls == static_cast<bool>(pooled_conn.ssl())) &&
+                  (requires_client_cert == has_client_cert));
         });
 
     if (pool_res) {

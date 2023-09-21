@@ -379,12 +379,8 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
 
   stage(Stage::Done);
 
-  if (!in_handshake_) {
-    discard_current_msg(src_channel, src_protocol);
-    return Result::Again;
-  }
-
-  return forward_server_to_client();
+  discard_current_msg(src_channel, src_protocol);
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {

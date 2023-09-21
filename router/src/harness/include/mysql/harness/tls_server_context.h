@@ -68,17 +68,6 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
                    unsigned int session_cache_timeout = 0);
 
   /**
-   * load key and cert.
-   *
-   * cerifiticate is verified against the key
-   *
-   * @param private_key_file filename of a PEM file containing a key
-   * @param cert_chain_file filename of a PEM file containing a certificate
-   */
-  stdx::expected<void, std::error_code> load_key_and_cert(
-      const std::string &private_key_file, const std::string &cert_chain_file);
-
-  /**
    * init temporary DH parameters.
    *
    * @param dh_params filename of a PEM file with DH parameters

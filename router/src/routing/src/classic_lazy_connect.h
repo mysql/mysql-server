@@ -29,6 +29,7 @@
 
 #include "forwarding_processor.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "router_require.h"
 
 /**
  * attach a server connection and initialize it.
@@ -72,6 +73,9 @@ class LazyConnector : public ForwardingProcessor {
     Connect,
     Connected,
     Authenticated,
+    FetchUserAttrs,
+    FetchUserAttrsDone,
+    SendAuthOk,
     SetVars,
     SetVarsDone,
     SetServerOption,
@@ -98,6 +102,13 @@ class LazyConnector : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  struct RequiredConnectionAttributes {
+    std::optional<bool> ssl;
+    std::optional<bool> x509;
+    std::optional<std::string> issuer;
+    std::optional<std::string> subject;
+  };
+
   void failed(
       const std::optional<classic_protocol::message::server::Error> &err) {
     failed_ = err;
@@ -111,6 +122,9 @@ class LazyConnector : public ForwardingProcessor {
   stdx::expected<Processor::Result, std::error_code> connect();
   stdx::expected<Processor::Result, std::error_code> connected();
   stdx::expected<Processor::Result, std::error_code> authenticated();
+  stdx::expected<Processor::Result, std::error_code> fetch_user_attrs();
+  stdx::expected<Processor::Result, std::error_code> fetch_user_attrs_done();
+  stdx::expected<Processor::Result, std::error_code> send_auth_ok();
   stdx::expected<Processor::Result, std::error_code> set_vars();
   stdx::expected<Processor::Result, std::error_code> set_vars_done();
   stdx::expected<Processor::Result, std::error_code> set_server_option();
@@ -133,6 +147,8 @@ class LazyConnector : public ForwardingProcessor {
   Stage stage_{Stage::Connect};
 
   bool in_handshake_;
+
+  RouterRequireFetcher::Result required_connection_attributes_fetcher_result_;
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;

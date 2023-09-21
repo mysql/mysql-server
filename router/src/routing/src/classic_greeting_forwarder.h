@@ -27,6 +27,8 @@
 
 #include "forwarding_processor.h"
 
+#include "router_require.h"
+
 /**
  * classic protocol handshake between client<->router and router<->server.
  */
@@ -97,6 +99,15 @@ class ServerGreetor : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  void failed(
+      const std::optional<classic_protocol::message::server::Error> &err) {
+    failed_ = err;
+  }
+
+  std::optional<classic_protocol::message::server::Error> failed() const {
+    return failed_;
+  }
+
  private:
   stdx::expected<Result, std::error_code> server_greeting();
   stdx::expected<Result, std::error_code> server_greeting_greeting();
@@ -119,6 +130,8 @@ class ServerGreetor : public ForwardingProcessor {
   bool in_handshake_;
 
   Stage stage_{Stage::ServerGreeting};
+
+  std::optional<classic_protocol::message::server::Error> failed_;
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
@@ -207,6 +220,8 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
     FinalResponse,
     AuthOk,
     AuthError,
+    FetchUserAttrs,
+    FetchUserAttrsDone,
 
     Error,
     Ok,
@@ -216,6 +231,15 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
 
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
+
+  void failed(
+      const std::optional<classic_protocol::message::server::Error> &err) {
+    failed_ = err;
+  }
+
+  std::optional<classic_protocol::message::server::Error> failed() const {
+    return failed_;
+  }
 
  private:
   stdx::expected<Result, std::error_code> client_greeting();
@@ -230,6 +254,8 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> final_response();
   stdx::expected<Result, std::error_code> auth_error();
   stdx::expected<Result, std::error_code> auth_ok();
+  stdx::expected<Result, std::error_code> fetch_user_attrs();
+  stdx::expected<Result, std::error_code> fetch_user_attrs_done();
 
   void client_greeting_server_adjust_caps(ClassicProtocolState *src_protocol,
                                           ClassicProtocolState *dst_protocol);
@@ -238,6 +264,10 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
   size_t client_last_send_buf_size_{};
   size_t server_last_recv_buf_size_{};
   size_t server_last_send_buf_size_{};
+
+  std::optional<classic_protocol::message::server::Error> failed_;
+
+  RouterRequireFetcher::Result required_connection_attributes_fetcher_result_;
 
   Stage stage_{Stage::ClientGreeting};
 

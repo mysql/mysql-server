@@ -42,6 +42,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
+#include "router_require.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -91,6 +92,12 @@ ChangeUserForwarder::process() {
       return connected();
     case Stage::Response:
       return response();
+    case Stage::FetchUserAttrs:
+      return fetch_user_attrs();
+    case Stage::FetchUserAttrsDone:
+      return fetch_user_attrs_done();
+    case Stage::SendAuthOk:
+      return send_auth_ok();
     case Stage::Ok:
       return ok();
     case Stage::Error:
@@ -233,18 +240,90 @@ ChangeUserForwarder::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserForwarder::response() {
-  if (!connection()->authenticated()) {
-    auto *socket_splicer = connection()->socket_splicer();
-    auto *src_channel = socket_splicer->client_channel();
-    auto *src_protocol = connection()->client_protocol();
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
 
+  if (!connection()->authenticated()) {
     stage(Stage::Error);
 
     return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
-  stage(Stage::Ok);
+  stage(Stage::FetchUserAttrs);
   return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ChangeUserForwarder::fetch_user_attrs() {
+  if (!connection()->context().router_require_enforce()) {
+    stage(Stage::SendAuthOk);
+    return Result::Again;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs"));
+  }
+
+  RouterRequireFetcher::push_processor(
+      connection(), required_connection_attributes_fetcher_result_);
+
+  stage(Stage::FetchUserAttrsDone);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ChangeUserForwarder::fetch_user_attrs_done() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs::done"));
+  }
+
+  if (!required_connection_attributes_fetcher_result_) {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol, {1045, "Access denied", "28000"});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    stage(Stage::Error);
+    return Result::Again;
+  }
+
+  auto enforce_res =
+      RouterRequire::enforce(connection()->socket_splicer()->client_channel(),
+                             *required_connection_attributes_fetcher_result_);
+  if (!enforce_res) {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol, {1045, "Access denied", "28000"});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    stage(Stage::Error);
+    return Result::SendToClient;
+  }
+
+  stage(Stage::SendAuthOk);
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ChangeUserForwarder::send_auth_ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
+  // tell the client that everything is ok.
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol, {0, 0, src_protocol->status_flags(), 0});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  stage(Stage::Ok);
+  return Result::SendToClient;
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserForwarder::ok() {

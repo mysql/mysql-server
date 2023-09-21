@@ -853,6 +853,11 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
                                 (source_ssl_mode == SslMode::kPreferred ||
                                  source_ssl_mode == SslMode::kRequired)));
 
+    if (connection()->requires_tls() &&
+        !connection()->context().dest_ssl_cert().empty()) {
+      connection()->requires_client_cert(true);
+    }
+
     if (connection()->context().access_mode() == routing::AccessMode::kAuto &&
         !src_protocol->password().has_value()) {
       // by default, authentication can be done on any server if rw-splitting is

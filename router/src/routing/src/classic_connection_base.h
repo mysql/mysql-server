@@ -569,9 +569,17 @@ class MysqlRoutingClassicConnectionBase
               dest_ssl_mode() == SslMode::kAsClient));
   }
 
+  /// set if the server-connection requires TLS
   void requires_tls(bool v) { requires_tls_ = v; }
 
+  /// get if the server-connection requires TLS
   bool requires_tls() const { return requires_tls_; }
+
+  /// set if the server-connection requires a client cert
+  void requires_client_cert(bool v) { requires_client_cert_ = v; }
+
+  /// get if the server-connection requires a client cert
+  bool requires_client_cert() const { return requires_client_cert_; }
 
   void some_state_changed(bool v) { some_state_changed_ = v; }
 
@@ -640,6 +648,8 @@ class MysqlRoutingClassicConnectionBase
   bool collation_connection_maybe_dirty_{false};
 
   bool requires_tls_{true};
+
+  bool requires_client_cert_{false};
 
  public:
   ExecutionContext &execution_context() { return exec_ctx_; }

@@ -60,8 +60,17 @@ class RoutingConfig {
   std::string source_ssl_cipher;     //!< allowed TLS ciphers
   std::string source_ssl_curves;     //!< allowed TLS curves
   std::string source_ssl_dh_params;  //!< DH params
+  std::string
+      source_ssl_ca_file;  //!< CA file to used to verify sources' identity
+  std::string source_ssl_ca_dir;  //!< directory of CA files used to verify
+                                  //!< sources' identity
+  std::string
+      source_ssl_crl_file;  //!< CRL file used to check revoked certificates
+  std::string source_ssl_crl_dir;  //!< directory of CRL files
 
   SslMode dest_ssl_mode{};      //!< SslMode of the server side connection.
+  std::string dest_ssl_cert;    //!< Cert file
+  std::string dest_ssl_key;     //!< Key file
   SslVerify dest_ssl_verify{};  //!< How to verify the server-side cert.
   std::string dest_ssl_cipher;  //!< allowed TLS ciphers
   std::string
@@ -97,6 +106,15 @@ class RoutingConfig {
   std::chrono::seconds
       wait_for_my_writes_timeout{};  //!< how long to wait for writes to be
                                      //!< applied before reads.
+
+  /*
+   * read the users routing_require attribute from
+   *
+   *   information_schema.user_attributes
+   *
+   * and enforce them.
+   */
+  bool router_require_enforce{true};
 };
 
 #endif  // ROUTING_CONFIG_INCLUDED

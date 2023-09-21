@@ -28,7 +28,7 @@
 #include <array>
 #include <string_view>
 
-static constexpr std::array<const char *, 41> routing_supported_options{
+static constexpr std::array<const char *, 48> routing_supported_options{
     "protocol",
     "destinations",
     "bind_port",
@@ -46,9 +46,15 @@ static constexpr std::array<const char *, 41> routing_supported_options{
     "client_ssl_cert",
     "client_ssl_key",
     "client_ssl_cipher",
+    "client_ssl_ca",
+    "client_ssl_capath",
+    "client_ssl_crl",
+    "client_ssl_crlpath",
     "client_ssl_curves",
     "client_ssl_dh_params",
     "server_ssl_mode",
+    "server_ssl_cert",
+    "server_ssl_key",
     "server_ssl_verify",
     "disabled",
     "server_ssl_cipher",
@@ -72,6 +78,7 @@ static constexpr std::array<const char *, 41> routing_supported_options{
     "access_mode",
     "wait_for_my_writes",
     "wait_for_my_writes_timeout",
+    "router_require_enforce",
 };
 
 #endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */

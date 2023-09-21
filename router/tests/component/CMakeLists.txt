@@ -77,6 +77,7 @@ FOREACH(test_file
     test_routing_connection.cc
     test_routing_connection_errors.cc
     test_routing_retry.cc
+    test_routing_router_require.cc
     test_routing_strategy.cc
     test_routing_sharing.cc
     test_routing_splitting.cc

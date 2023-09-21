@@ -82,6 +82,11 @@ class ROUTING_EXPORT DestinationTlsContext {
   void ciphers(const std::string &ciphers);
 
   /**
+   * set client-key and its cert.
+   */
+  void client_key_and_cert_file(std::string key, std::string cert);
+
+  /**
    * get a TlsClientContent for a destination.
    *
    * If no TlsClientContext exists for the destination, creates a
@@ -115,6 +120,9 @@ class ROUTING_EXPORT DestinationTlsContext {
   std::string crl_path_;
   std::string curves_;
   std::string ciphers_;
+
+  std::string cert_file_;
+  std::string key_file_;
 
   std::map<std::string, std::unique_ptr<TlsClientContext>> tls_contexts_;
 

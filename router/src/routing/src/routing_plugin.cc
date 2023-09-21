@@ -270,6 +270,17 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   try {
     RoutingPluginConfig config(section);
 
+    if (config.router_require_enforce != 0) {
+      if (config.source_ssl_ca_file.empty() &&
+          config.source_ssl_ca_dir.empty()) {
+        log_info(
+            "[%s] %s", name.c_str(),
+            "'router_require_enforce=1', but neither 'client_ssl_ca' nor "
+            "'client_ssl_cadir' are set. MySQL account with ATTRIBUTE "
+            "'{ \"router_require\": { \"x509\": true } }' will fail to auth.");
+      }
+    }
+
     // client side TlsContext.
     TlsServerContext source_tls_ctx{TlsVersion::TLS_1_2, TlsVersion::AUTO,
                                     config.client_ssl_session_cache_mode,
@@ -330,6 +341,59 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         if (!res) {
           throw std::system_error(res.error(), "setting client_ssl_cipher=" +
                                                    ssl_cipher + " failed");
+        }
+      }
+
+      if (!config.source_ssl_ca_file.empty() ||
+          !config.source_ssl_ca_dir.empty()) {
+        if (!config.source_ssl_ca_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("client_ssl_capath",
+                                    config.source_ssl_ca_dir);
+        }
+        {
+          const auto res = source_tls_ctx.ssl_ca(config.source_ssl_ca_file,
+                                                 config.source_ssl_ca_dir);
+          if (!res) {
+            throw std::system_error(
+                res.error(),
+                "setting client_ssl_ca=" + config.source_ssl_ca_file +
+                    " and client_ssl_capath=" + config.source_ssl_ca_dir +
+                    " failed");
+          }
+        }
+
+        if (!config.source_ssl_crl_file.empty() ||
+            !config.source_ssl_crl_dir.empty()) {
+          const auto res = source_tls_ctx.crl(config.source_ssl_crl_file,
+                                              config.source_ssl_crl_dir);
+          if (!res) {
+            throw std::system_error(
+                res.error(),
+                "setting client_ssl_crl=" + config.source_ssl_crl_file +
+                    " and client_ssl_crlpath=" + config.source_ssl_crl_dir +
+                    " failed");
+          }
+        }
+
+        source_tls_ctx.verify(TlsVerify::PEER, TlsVerifyOpts::kClientOnce);
+      }
+
+      if (!config.source_ssl_crl_file.empty() ||
+          !config.source_ssl_crl_dir.empty()) {
+        if (!config.source_ssl_crl_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("client_ssl_crlpath",
+                                    config.source_ssl_crl_dir);
+        }
+        const auto res = source_tls_ctx.crl(config.source_ssl_crl_file,
+                                            config.source_ssl_crl_dir);
+        if (!res) {
+          throw std::system_error(
+              res.error(),
+              "setting client_ssl_crl=" + config.source_ssl_crl_file +
+                  " and client_ssl_crlpath=" + config.source_ssl_crl_dir +
+                  " failed");
         }
       }
     }
@@ -410,6 +474,18 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
 
       dest_tls_context->verify(config.dest_ssl_verify);
+
+      if (!config.dest_ssl_key.empty() && !config.dest_ssl_cert.empty()) {
+        dest_tls_context->client_key_and_cert_file(config.dest_ssl_key,
+                                                   config.dest_ssl_cert);
+      } else if (config.dest_ssl_cert.empty() && config.dest_ssl_key.empty()) {
+        // ok
+      } else {
+        throw std::system_error(
+            make_error_code(std::errc::invalid_argument),
+            "setting server_ssl_key=" + config.dest_ssl_key +
+                " and server_ssl_cert=" + config.dest_ssl_cert + " failed");
+      }
     }
 
     if (config.connection_sharing == 1) {

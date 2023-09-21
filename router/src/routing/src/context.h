@@ -175,6 +175,13 @@ class MySQLRoutingContext {
     return routing_config_.wait_for_my_writes_timeout;
   }
 
+  std::string dest_ssl_key() const { return routing_config_.dest_ssl_key; }
+  std::string dest_ssl_cert() const { return routing_config_.dest_ssl_cert; }
+
+  bool router_require_enforce() const {
+    return routing_config_.router_require_enforce;
+  }
+
  private:
   const RoutingConfig routing_config_;
 

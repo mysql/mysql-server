@@ -34,6 +34,7 @@
 #include "classic_change_user_sender.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
+#include "classic_frame.h"
 #include "classic_greeting_forwarder.h"  // ServerGreetor
 #include "classic_init_schema_sender.h"
 #include "classic_query_sender.h"
@@ -45,6 +46,7 @@
 #include "mysql_com.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "router_require.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -226,6 +228,12 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return connected();
     case Stage::Authenticated:
       return authenticated();
+    case Stage::FetchUserAttrs:
+      return fetch_user_attrs();
+    case Stage::FetchUserAttrsDone:
+      return fetch_user_attrs_done();
+    case Stage::SendAuthOk:
+      return send_auth_ok();
     case Stage::SetSchema:
       return set_schema();
     case Stage::SetSchemaDone:
@@ -443,18 +451,86 @@ LazyConnector::authenticated() {
 
     stage(Stage::Done);
     return Result::Again;
-  } else {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("connect::authenticate::ok"));
-    }
-
-    if (auto *ev = trace_event_authenticate_) {
-      trace_span_end(ev);
-    }
-
-    stage(Stage::SetVars);
   }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::authenticate::ok"));
+  }
+
+  if (auto *ev = trace_event_authenticate_) {
+    trace_span_end(ev);
+  }
+
+  stage(Stage::FetchUserAttrs);
   return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::fetch_user_attrs() {
+  if (!connection()->context().router_require_enforce()) {
+    stage(Stage::SendAuthOk);
+    return Result::Again;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs"));
+  }
+
+  RouterRequireFetcher::push_processor(
+      connection(), required_connection_attributes_fetcher_result_);
+
+  stage(Stage::FetchUserAttrsDone);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::fetch_user_attrs_done() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::fetch_user_attrs::done"));
+  }
+
+  if (!required_connection_attributes_fetcher_result_) {
+    failed(classic_protocol::message::server::Error{1045, "Access denied",
+                                                    "28000"});
+
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
+  auto enforce_res =
+      RouterRequire::enforce(connection()->socket_splicer()->client_channel(),
+                             *required_connection_attributes_fetcher_result_);
+  if (!enforce_res) {
+    failed(classic_protocol::message::server::Error{1045, "Access denied",
+                                                    "28000"});
+    stage(Stage::Done);
+    return Result::Again;
+  }
+
+  stage(Stage::SendAuthOk);
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::send_auth_ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
+
+  stage(Stage::SetVars);
+
+  if (in_handshake_) {
+    // tell the client that everything is ok.
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::borrowed::message::server::Ok>(
+            dst_channel, dst_protocol, {0, 0, dst_protocol->status_flags(), 0});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return Result::SendToClient;
+  } else {
+    return Result::Again;
+  }
 }
 
 namespace {

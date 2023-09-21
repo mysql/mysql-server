@@ -475,6 +475,14 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(source_ssl_key, section, "client_ssl_key", StringOption{});
   GET_OPTION_CHECKED(source_ssl_cipher, section, "client_ssl_cipher",
                      StringOption{});
+  GET_OPTION_CHECKED(source_ssl_ca_file, section, "client_ssl_ca",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_ca_dir, section, "client_ssl_capath",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_crl_file, section, "client_ssl_crl",
+                     StringOption{});
+  GET_OPTION_CHECKED(source_ssl_crl_dir, section, "client_ssl_crlpath",
+                     StringOption{});
   GET_OPTION_CHECKED(source_ssl_curves, section, "client_ssl_curves",
                      StringOption{});
   GET_OPTION_CHECKED(source_ssl_dh_params, section, "client_ssl_dh_params",
@@ -483,6 +491,8 @@ RoutingPluginConfig::RoutingPluginConfig(
                                         SslMode::kRequired, SslMode::kAsClient};
   GET_OPTION_CHECKED(dest_ssl_mode, section, "server_ssl_mode",
                      dest_ssl_mode_op);
+  GET_OPTION_CHECKED(dest_ssl_cert, section, "server_ssl_cert", StringOption{});
+  GET_OPTION_CHECKED(dest_ssl_key, section, "server_ssl_key", StringOption{});
   auto dest_ssl_verify_op = SslVerifyOption{
       SslVerify::kDisabled, SslVerify::kVerifyCa, SslVerify::kVerifyIdentity};
   GET_OPTION_CHECKED(dest_ssl_verify, section, "server_ssl_verify",
@@ -517,6 +527,8 @@ RoutingPluginConfig::RoutingPluginConfig(
   GET_OPTION_CHECKED(server_ssl_session_cache_timeout, section,
                      "server_ssl_session_cache_timeout",
                      ssl_session_cache_timeout_op);
+  GET_OPTION_CHECKED(router_require_enforce, section, "router_require_enforce",
+                     BoolOption{});
 
   if (get_option(section, "unreachable_destination_refresh_interval",
                  StringOption{}) != "") {
@@ -639,6 +651,126 @@ RoutingPluginConfig::RoutingPluginConfig(
           ssl_verify_to_string(dest_ssl_verify) + "'.");
     }
   }
+
+  if (source_ssl_mode == SslMode::kPassthrough) {
+    if (!source_ssl_ca_file.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "client_ssl_ca=" +
+          source_ssl_ca_file);
+    }
+    if (!source_ssl_ca_dir.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "client_ssl_capath=" +
+          source_ssl_ca_dir);
+    }
+    if (!source_ssl_crl_file.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "client_ssl_crl=" +
+          source_ssl_crl_file);
+    }
+    if (!source_ssl_crl_dir.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "client_ssl_crlpath=" +
+          source_ssl_crl_dir);
+    }
+    if (!dest_ssl_key.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "server_ssl_key=" +
+          dest_ssl_key);
+    }
+    if (!dest_ssl_cert.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "server_ssl_cert=" +
+          dest_ssl_cert);
+    }
+    if (router_require_enforce != 0) {
+      throw std::invalid_argument(
+          "client_ssl_mode=PASSTHROUGH can not be combined with "
+          "router_require_enforce=" +
+          std::to_string(router_require_enforce));
+    }
+  } else if (source_ssl_mode == SslMode::kDisabled) {
+    if (!source_ssl_ca_file.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=DISABLED can not be combined with "
+          "client_ssl_ca=" +
+          source_ssl_ca_file);
+    }
+    if (!source_ssl_ca_dir.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=DISABLED can not be combined with "
+          "client_ssl_capath=" +
+          source_ssl_ca_dir);
+    }
+    if (!source_ssl_crl_file.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=DISABLED can not be combined with "
+          "client_ssl_crl=" +
+          source_ssl_crl_file);
+    }
+    if (!source_ssl_crl_dir.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_mode=DISABLED can not be combined with "
+          "client_ssl_crlpath=" +
+          source_ssl_crl_dir);
+    }
+  }
+
+  if (dest_ssl_mode == SslMode::kDisabled ||
+      (source_ssl_mode == SslMode::kDisabled &&
+       dest_ssl_mode == SslMode::kAsClient)) {
+    if (!dest_ssl_key.empty()) {
+      throw std::invalid_argument(
+          "server_ssl_mode=DISABLED can not be combined with "
+          "server_ssl_key=" +
+          dest_ssl_key);
+    }
+    if (!dest_ssl_cert.empty()) {
+      throw std::invalid_argument(
+          "server_ssl_mode=DISABLED can not be combined with "
+          "server_ssl_cert=" +
+          dest_ssl_cert);
+    }
+  }
+
+  if (protocol == Protocol::Type::kXProtocol) {
+    if (!source_ssl_ca_file.empty()) {
+      throw std::invalid_argument(
+          "protocol=x can not be combined with "
+          "client_ssl_ca=" +
+          source_ssl_ca_file);
+    }
+    if (!source_ssl_ca_dir.empty()) {
+      throw std::invalid_argument(
+          "protocol=x can not be combined with "
+          "client_ssl_capath=" +
+          source_ssl_ca_dir);
+    }
+    if (!source_ssl_crl_file.empty()) {
+      throw std::invalid_argument(
+          "protocol=x can not be combined with "
+          "client_ssl_crl=" +
+          source_ssl_crl_file);
+    }
+    if (!source_ssl_crl_dir.empty()) {
+      throw std::invalid_argument(
+          "protocol=x can not be combined with "
+          "client_ssl_crlpath=" +
+          source_ssl_crl_dir);
+    }
+    if (router_require_enforce != 0) {
+      throw std::invalid_argument(
+          "protocol=x can not be combined with "
+          "router_require_enforce=" +
+          std::to_string(router_require_enforce));
+    }
+  }
 }
 
 std::string RoutingPluginConfig::get_default(const std::string &option) const {
@@ -675,6 +807,7 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
       {"wait_for_my_writes", std::to_string(routing::kDefaultWaitForMyWrites)},
       {"wait_for_my_writes_timeout",
        std::to_string(routing::kDefaultWaitForMyWritesTimeout.count())},
+      {"router_require_enforce", "0"},
   };
 
   const auto it = defaults.find(option);

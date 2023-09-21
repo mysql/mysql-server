@@ -27,6 +27,8 @@
 
 #include "forwarding_processor.h"
 
+#include "router_require.h"
+
 /**
  * forwards COM_CHANGE_USER from client to the server.
  */
@@ -39,6 +41,9 @@ class ChangeUserForwarder : public ForwardingProcessor {
     Connect,
     Connected,
     Response,
+    FetchUserAttrs,
+    FetchUserAttrsDone,
+    SendAuthOk,
     Ok,
     Error,
     Done,
@@ -53,9 +58,14 @@ class ChangeUserForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
+  stdx::expected<Result, std::error_code> fetch_user_attrs();
+  stdx::expected<Result, std::error_code> fetch_user_attrs_done();
+  stdx::expected<Result, std::error_code> send_auth_ok();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> ok();
   stdx::expected<Result, std::error_code> error();
+
+  RouterRequireFetcher::Result required_connection_attributes_fetcher_result_;
 
   Stage stage_{Stage::Command};
 

@@ -184,133 +184,163 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type, {},
                                              EXIT_SUCCESS, expected_output));
 
-  // let's check if the actual config file output is what we expect:
-
-  const char *expected_config_default_part = "unknown_config_option=error";
-
-  const char *expected_config_gr_part1 =
-      R"([metadata_cache:bootstrap]
-cluster_type=gr
-router_id=1)";
-  // we skip user as it is random and would require regex matching which would
-  // require tons of escaping
-  // user=mysql_router1_daxi69tk9btt
-  const char *expected_config_gr_part2 =
-      R"(metadata_cluster=mycluster
-ttl=0.5
-auth_cache_ttl=-1
-auth_cache_refresh_interval=2
-use_gr_notifications=0
-
-[routing:bootstrap_rw]
-bind_address=0.0.0.0
-bind_port=6446
-destinations=metadata-cache://mycluster/?role=PRIMARY
-routing_strategy=first-available
-protocol=classic
-
-[routing:bootstrap_ro]
-bind_address=0.0.0.0
-bind_port=6447
-destinations=metadata-cache://mycluster/?role=SECONDARY
-routing_strategy=round-robin-with-fallback
-protocol=classic
-
-[routing:bootstrap_rw_split]
-bind_address=0.0.0.0
-bind_port=6450
-destinations=metadata-cache://mycluster/?role=PRIMARY_AND_SECONDARY
-routing_strategy=round-robin
-protocol=classic
-connection_sharing=1
-client_ssl_mode=PREFERRED
-server_ssl_mode=PREFERRED
-access_mode=auto
-
-[routing:bootstrap_x_rw]
-bind_address=0.0.0.0
-bind_port=6448
-destinations=metadata-cache://mycluster/?role=PRIMARY
-routing_strategy=first-available
-protocol=x
-
-[routing:bootstrap_x_ro]
-bind_address=0.0.0.0
-bind_port=6449
-destinations=metadata-cache://mycluster/?role=SECONDARY
-routing_strategy=round-robin-with-fallback
-protocol=x)";
-
-  const char *expected_config_ar_part1 =
-      R"([metadata_cache:bootstrap]
-cluster_type=rs
-router_id=1)";
-  // we skip user as it is random and would require regex matching which would
-  // require tons of escaping
-  // user=mysql_router1_ritc56yrjz42
-  const char *expected_config_ar_part2 =
-      R"(metadata_cluster=mycluster
-ttl=0.5
-auth_cache_ttl=-1
-auth_cache_refresh_interval=2
-
-[routing:bootstrap_rw]
-bind_address=0.0.0.0
-bind_port=6446
-destinations=metadata-cache://mycluster/?role=PRIMARY
-routing_strategy=first-available
-protocol=classic
-
-[routing:bootstrap_ro]
-bind_address=0.0.0.0
-bind_port=6447
-destinations=metadata-cache://mycluster/?role=SECONDARY
-routing_strategy=round-robin-with-fallback
-protocol=classic
-
-[routing:bootstrap_rw_split]
-bind_address=0.0.0.0
-bind_port=6450
-destinations=metadata-cache://mycluster/?role=PRIMARY_AND_SECONDARY
-routing_strategy=round-robin
-protocol=classic
-connection_sharing=1
-client_ssl_mode=PREFERRED
-server_ssl_mode=PREFERRED
-access_mode=auto
-
-[routing:bootstrap_x_rw]
-bind_address=0.0.0.0
-bind_port=6448
-destinations=metadata-cache://mycluster/?role=PRIMARY
-routing_strategy=first-available
-protocol=x
-
-[routing:bootstrap_x_ro]
-bind_address=0.0.0.0
-bind_port=6449
-destinations=metadata-cache://mycluster/?role=SECONDARY
-routing_strategy=round-robin-with-fallback
-protocol=x)";
-
-  const std::string config_file_expected1 =
-      GetParam().cluster_type == ClusterType::RS_V2 ? expected_config_ar_part1
-                                                    : expected_config_gr_part1;
-
-  const std::string config_file_expected2 =
-      GetParam().cluster_type == ClusterType::RS_V2 ? expected_config_ar_part2
-                                                    : expected_config_gr_part2;
-
   // 'config_file' is set as side-effect of bootstrap_failover()
   ASSERT_THAT(config_file, ::testing::Not(::testing::IsEmpty()));
 
   const std::string config_file_str = get_file_output(config_file);
 
+  std::map<std::string, std::vector<std::string>> sections;
+
+  {
+    std::istringstream iss(config_file_str);
+    std::string section_name;
+    std::vector<std::string> kvs;
+    for (std::string line; std::getline(iss, line);) {
+      if (line.empty()) continue;
+      if (line.front() == '#') continue;
+
+      if (line.front() == '[' && line.back() == ']') {
+        if (!section_name.empty()) {
+          sections[section_name] = kvs;
+          kvs.clear();
+        }
+        section_name = line.substr(1, line.size() - 2);
+      } else {
+        ASSERT_THAT(line, ::testing::HasSubstr("="));
+
+        kvs.emplace_back(line);
+      }
+    }
+
+    if (!section_name.empty()) {
+      sections[section_name] = kvs;
+      kvs.clear();
+    }
+  }
+
+  using testing::ElementsAre;
+  using testing::Eq;
+  using testing::Key;
+  using testing::StartsWith;
+
+  ASSERT_THAT(sections,
+              ElementsAre(                            //
+                  Key("DEFAULT"),                     //
+                  Key("logger"),                      //
+                  Key("metadata_cache:bootstrap"),    //
+                  Key("routing:bootstrap_ro"),        //
+                  Key("routing:bootstrap_rw"),        //
+                  Key("routing:bootstrap_rw_split"),  //
+                  Key("routing:bootstrap_x_ro"),      //
+                  Key("routing:bootstrap_x_rw")       //
+                  ));
+
+  EXPECT_THAT(sections["DEFAULT"],
+              ElementsAre(                               //
+                  StartsWith("logging_folder="),         //
+                  StartsWith("runtime_folder="),         //
+                  StartsWith("data_folder="),            //
+                  StartsWith("keyring_path="),           //
+                  StartsWith("master_key_path="),        //
+                  Eq("connect_timeout=1"),               //
+                  Eq("read_timeout=30"),                 //
+                  StartsWith("dynamic_state="),          //
+                  StartsWith("client_ssl_cert="),        //
+                  StartsWith("client_ssl_key="),         //
+                  Eq("client_ssl_mode=PREFERRED"),       //
+                  Eq("server_ssl_mode=PREFERRED"),       //
+                  Eq("server_ssl_verify=DISABLED"),      //
+                  Eq("unknown_config_option=error"),     //
+                  Eq("max_idle_server_connections=64"),  //
+                  Eq("router_require_enforce=1")         //
+                  ));
+
+  if (GetParam().cluster_type == ClusterType::RS_V2) {
+    EXPECT_THAT(sections["metadata_cache:bootstrap"],
+                ElementsAre(                             //
+                    Eq("cluster_type=rs"),               //
+                    Eq("router_id=1"),                   //
+                    StartsWith("user="),                 //
+                    Eq("metadata_cluster=mycluster"),    //
+                    Eq("ttl=0.5"),                       //
+                    Eq("auth_cache_ttl=-1"),             //
+                    Eq("auth_cache_refresh_interval=2")  //
+                    ));
+  } else {
+    EXPECT_THAT(sections["metadata_cache:bootstrap"],
+                ElementsAre(                              //
+                    Eq("cluster_type=gr"),                //
+                    Eq("router_id=1"),                    //
+                    StartsWith("user="),                  //
+                    Eq("metadata_cluster=mycluster"),     //
+                    Eq("ttl=0.5"),                        //
+                    Eq("auth_cache_ttl=-1"),              //
+                    Eq("auth_cache_refresh_interval=2"),  //
+                    Eq("use_gr_notifications=0")          //
+                    ));
+  }
+
+  EXPECT_THAT(sections["routing:bootstrap_rw"],
+              ElementsAre(                     //
+                  Eq("bind_address=0.0.0.0"),  //
+                  Eq("bind_port=6446"),        //
+                  Eq("destinations=metadata-cache://mycluster/"
+                     "?role=PRIMARY"),                     //
+                  Eq("routing_strategy=first-available"),  //
+                  Eq("protocol=classic")                   //
+                  ));
+
+  EXPECT_THAT(sections["routing:bootstrap_ro"],
+              ElementsAre(                     //
+                  Eq("bind_address=0.0.0.0"),  //
+                  Eq("bind_port=6447"),        //
+                  Eq("destinations=metadata-cache://mycluster/"
+                     "?role=SECONDARY"),                             //
+                  Eq("routing_strategy=round-robin-with-fallback"),  //
+                  Eq("protocol=classic")                             //
+                  ));
+
+  EXPECT_THAT(sections["routing:bootstrap_rw_split"],
+              ElementsAre(                     //
+                  Eq("bind_address=0.0.0.0"),  //
+                  Eq("bind_port=6450"),        //
+                  Eq("destinations=metadata-cache://mycluster/"
+                     "?role=PRIMARY_AND_SECONDARY"),   //
+                  Eq("routing_strategy=round-robin"),  //
+                  Eq("protocol=classic"),              //
+                  Eq("connection_sharing=1"),          //
+                  Eq("client_ssl_mode=PREFERRED"),     //
+                  Eq("server_ssl_mode=PREFERRED"),     //
+                  Eq("access_mode=auto")               //
+                  ));
+
   EXPECT_THAT(
-      config_file_str,
-      ::testing::AllOf(::testing::HasSubstr(expected_config_default_part),
-                       ::testing::HasSubstr(config_file_expected1),
-                       ::testing::HasSubstr(config_file_expected2)));
+      sections["routing:bootstrap_x_rw"],
+      ElementsAre(                                                      //
+          Eq("bind_address=0.0.0.0"),                                   //
+          Eq("bind_port=6448"),                                         //
+          Eq("destinations=metadata-cache://mycluster/?role=PRIMARY"),  //
+          Eq("routing_strategy=first-available"),                       //
+          Eq("protocol=x"),                                             //
+          Eq("router_require_enforce=0"),                               //
+          Eq("client_ssl_ca="),                                         //
+          Eq("server_ssl_key="),                                        //
+          Eq("server_ssl_cert=")                                        //
+          ));
+
+  EXPECT_THAT(
+      sections["routing:bootstrap_x_ro"],
+      ElementsAre(                                                        //
+          Eq("bind_address=0.0.0.0"),                                     //
+          Eq("bind_port=6449"),                                           //
+          Eq("destinations=metadata-cache://mycluster/?role=SECONDARY"),  //
+          Eq("routing_strategy=round-robin-with-fallback"),               //
+          Eq("protocol=x"),                                               //
+          Eq("router_require_enforce=0"),                                 //
+          Eq("client_ssl_ca="),                                           //
+          Eq("server_ssl_key="),                                          //
+          Eq("server_ssl_cert=")                                          //
+          ));
 }
 
 INSTANTIATE_TEST_SUITE_P(
