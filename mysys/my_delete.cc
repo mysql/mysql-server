@@ -74,9 +74,9 @@ int my_delete(const char *name, myf MyFlags) {
   file, <num> - a hexadecimal number chosen to make the temporal name to
   be unique.
 
-  @param the name of the being deleted file
-  @param the flags instructing how to react on an error internally in
-         the function
+  @param name    the name of the being deleted file
+  @param MyFlags the flags instructing how to react on an error internally in
+                 the function
 
   @note The per-thread @c my_errno holds additional info for a caller to
         decide how critical the error can be.

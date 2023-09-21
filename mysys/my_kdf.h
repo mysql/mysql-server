@@ -69,9 +69,9 @@ class Key_hkdf_function : public Key_derivation_function {
 
  public:
   /**
-     hkdf Constructor
+     hkdf Constructor.
 
-     @param kdf_options
+     @param kdf_options options
 
      kdf_options has following KDF options:
 
@@ -98,9 +98,9 @@ class Key_pbkdf2_hmac_function : public Key_derivation_function {
 
  public:
   /**
-     pbkdf2_hmac Constructor
+     pbkdf2_hmac Constructor.
 
-     @param kdf_options
+     @param kdf_options options
 
      kdf_options has following KDF options:
 

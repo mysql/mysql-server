@@ -186,6 +186,9 @@ err:
 
 #ifdef _WIN32
 
+const char registry_prefix[] =
+    "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
+
 /**
    Create a key in the Windows registry.
    We'll setup a "MySQL" key in the EventLog branch (RegCreateKey),
@@ -204,9 +207,6 @@ err:
      0 Success
     -1 Error
 */
-
-const char registry_prefix[] =
-    "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
 
 static int windows_eventlog_create_registry_entry(const char *key) {
   HKEY hRegKey = nullptr;

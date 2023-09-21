@@ -55,7 +55,6 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 
   @param file Input stream
 
-  @return
   @retval  0 if file is not Windows console
   @retval  1 if file is Windows console
 */
@@ -246,7 +245,7 @@ void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt,
   (Typically to utf8mb4).
   Translated parameters are allocated using my_once_alloc().
 
-  @param      tocs    Character set to convert parameters to.
+  @param      cs      Character set to convert parameters to.
   @param[out] argc    Write number of parameters here
   @param[out] argv    Write pointer to allocated parameters here.
 */
