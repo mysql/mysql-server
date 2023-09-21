@@ -1089,8 +1089,6 @@ class Gcs_xcom_app_cfg {
   /**
    * @brief Set XCom's.
    *  statists storage implementation
-   *
-   * @param stats_storage
    */
   void set_statists_storage_implementation(
       Xcom_statistics_storage_interface *stats_storage);

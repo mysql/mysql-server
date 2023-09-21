@@ -361,7 +361,7 @@ class Network_provider {
    * @param port port of the remote endpoint
    * @param security_credentials security credentials to connect to the remote
    *                             endpoint
-   * @param connection_timeout
+   * @param connection_timeout connection timeout
    * @return std::unique_ptr<Network_connection> an established connection.
    *                                                 nullptr in case of failure.
    */

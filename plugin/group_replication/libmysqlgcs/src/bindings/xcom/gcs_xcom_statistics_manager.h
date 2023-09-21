@@ -125,7 +125,6 @@ class Gcs_xcom_statistics_manager_interface {
    *
    * @param to_set The statistic to set.
    * @param new_value The new value of that statistic.
-   * @return
    */
   virtual void set_timestamp_var_value(Gcs_time_statistics_enum to_set,
                                        unsigned long long new_value) = 0;

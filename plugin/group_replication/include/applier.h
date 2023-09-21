@@ -91,8 +91,6 @@ class Recovery_metadata_processing_packets : public Packet {
  public:
   /**
     Create a new data packet with associated data.
-
-    @param  view_id_arg    The view id associated to this view
   */
   Recovery_metadata_processing_packets()
       : Packet(RECOVERY_METADATA_PROCESSING_PACKET_TYPE) {}

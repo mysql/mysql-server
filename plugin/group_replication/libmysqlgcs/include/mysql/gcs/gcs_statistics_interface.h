@@ -99,9 +99,6 @@ class Gcs_statistics_interface {
    *
    * Any client calling this API must filter out or add in any information
    * that finds suitable to present to an end user.
-   *
-   * @return std::list<gcs_node_suspicious> the list of suspicious counters
-   *                                        for all nodes.
    */
   virtual void get_suspicious_count(
       std::list<Gcs_node_suspicious> &suspicious) const = 0;

@@ -73,7 +73,9 @@ class Gcs_mysql_network_provider_auth_interface_impl
   virtual ~Gcs_mysql_network_provider_auth_interface_impl() override {}
 
   /**
-   * @brief @see Gcs_mysql_network_provider_auth_interface#get_credentials
+   * @brief Get the user credentials needed to establish MySQL connections.
+   *
+   * @see Gcs_mysql_network_provider_auth_interface#get_credentials
    */
   bool get_credentials(std::string &username, std::string &password) override;
 

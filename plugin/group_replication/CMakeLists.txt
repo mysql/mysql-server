@@ -139,11 +139,6 @@ IF(HAS_WARN_FLAG)
     COMPILE_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-# TODO: remove when all -Wdocumentation warnings are fixed.
-# - plugin/group_replication/include/applier.h
-DISABLE_DOCUMENTATION_WARNINGS()
-
-
 # Allow both WITHOUT_GROUP_REPLICATION=1 and WITH_GROUP_REPLICATION=0 to be
 # specified.
 # Furthermore, the MYSQL_ADD_PLUGIN will replace them with

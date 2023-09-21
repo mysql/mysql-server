@@ -73,15 +73,11 @@ class Xcom_statistics_storage_interface {
 
   /**
    * @brief Adds to bytes received in this member
-   *
-   * @param bytes_received
    */
   virtual void add_bytes_received(uint64_t bytes_received) = 0;
 
   /**
    * @brief Sets the last proposal time
-   *
-   * @param proposal_time
    */
   virtual void set_last_proposal_time(unsigned long long proposal_time) = 0;
 };
