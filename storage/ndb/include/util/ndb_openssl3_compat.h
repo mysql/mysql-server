@@ -32,6 +32,11 @@
 #include <openssl/ssl.h>
 #include "portlib/ndb_openssl_version.h"
 
+#ifndef SSL_R_UNEXPECTED_EOF_WHILE_READING
+// Macro not defined in OpenSSL 1.x headers (Brought in via ssl.h for OSSL3.0)
+#define SSL_R_UNEXPECTED_EOF_WHILE_READING 294
+#endif
+
 #if OPENSSL_VERSION_NUMBER < 0x30000000L && OPENSSL_VERSION_NUMBER > 0x10002000L
 
 EVP_PKEY * EVP_RSA_gen(unsigned int bits);

@@ -27,13 +27,12 @@
 #include "openssl/err.h"
 
 #include "debugger/EventLogger.hpp"
-#include "portlib/NdbTick.h"
-
-#include "util/require.h"
-#include "util/NdbSocket.h"
-#include "util/socket_io.h"
-
 #include "portlib/ndb_openssl_version.h"
+#include "portlib/NdbTick.h"
+#include "util/ndb_openssl3_compat.h"
+#include "util/NdbSocket.h"
+#include "util/require.h"
+#include "util/socket_io.h"
 
 static constexpr bool openssl_version_ok =
   (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
@@ -134,31 +133,24 @@ int NdbSocket::set_nonblocking(int on) const {
 
 static void log_ssl_error(const char * fn_name)
 {
-  char buffer[512];
-  int code;
-  while((code = ERR_get_error()) != 0) {
-    ERR_error_string_n(code, buffer, sizeof(buffer));
-    g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
+  const int code = ERR_peek_last_error();
+  if (ERR_GET_REASON(code) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
+    /*
+     * "unexpected eof while reading" are in general expected to happen now and
+     * then when network or peer breaks - logging is suppressed to limit
+     * harmless noise.
+     */
+    while (ERR_get_error() != 0) /* clear queued errors */ ;
+    return ;
   }
-}
-
-bool NdbSocket::ssl_handshake() {
-  /* Check for non-blocking socket (see set_nonblocking): */
-  if(SSL_get_mode(ssl) & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER) return false;
-  assert(SSL_get_mode(ssl) & SSL_MODE_AUTO_RETRY);
-
-  int r = SSL_do_handshake(ssl);
-  if(r == 1) return true;
-
-  int err = SSL_get_error(ssl, r);
-  require(err != SSL_ERROR_WANT_READ); // always use blocking I/O for handshake
-  require(err != SSL_ERROR_WANT_WRITE);
-  const char * desc = SSL_is_server(ssl) ?
-    "handshake failed in server" : "handshake failed in client";
-
-  log_ssl_error(desc);
-  close();
-  return false;
+  char buffer[512];
+  ERR_error_string_n(code, buffer, sizeof(buffer));
+  g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
+  /* Check that there is at least one error in queue. */
+  require(ERR_get_error() != 0);
+#endif
+  while (ERR_get_error() != 0) /* clear queued errors */ ;
 }
 
 /* This is only used by read & write routines */
@@ -188,22 +180,43 @@ static ssize_t handle_ssl_error(int err, const char * fn) {
   }
 }
 
+bool NdbSocket::ssl_handshake() {
+  /* Check for non-blocking socket (see set_nonblocking): */
+  if(SSL_get_mode(ssl) & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER) return false;
+  assert(SSL_get_mode(ssl) & SSL_MODE_AUTO_RETRY);
+
+  int r = SSL_do_handshake(ssl);
+  if(r == 1) return true;
+
+  int err = SSL_get_error(ssl, r);
+  require(err != SSL_ERROR_WANT_READ); // always use blocking I/O for handshake
+  require(err != SSL_ERROR_WANT_WRITE);
+  const char * desc = SSL_is_server(ssl) ?
+    "handshake failed in server" : "handshake failed in client";
+
+  handle_ssl_error(err, desc);
+  close();
+  return false;
+}
+
 // ssl_close
 void NdbSocket::ssl_close() {
   Guard guard(mutex);
-  const int mode = SSL_get_shutdown(ssl);
-  if (!(mode & SSL_SENT_SHUTDOWN)) {
-    /*
-     * Do not call SSL_shutdown again if it already been called in
-     * NdbSocket::shutdown. In that case it could block waiting on
-     * SSL_RECEIVED_SHUTDOWN.
-     */
-    int r = SSL_shutdown(ssl);
-    if (r < 0) {
-      // Clear errors
-      int err = SSL_get_error(ssl, r);
-      Debug_Log("SSL_shutdown(): ERR %d", err);
-      handle_ssl_error(err, "SSL_close");
+  if (SSL_is_init_finished(ssl)) {
+    const int mode = SSL_get_shutdown(ssl);
+    if (!(mode & SSL_SENT_SHUTDOWN)) {
+      /*
+       * Do not call SSL_shutdown again if it already been called in
+       * NdbSocket::shutdown. In that case it could block waiting on
+       * SSL_RECEIVED_SHUTDOWN.
+       */
+      int r = SSL_shutdown(ssl);
+      if (r < 0) {
+        // Clear errors
+        int err = SSL_get_error(ssl, r);
+        Debug_Log("SSL_shutdown(): ERR %d", err);
+        handle_ssl_error(err, "SSL_close");
+      }
     }
   }
   SSL_free(ssl);
@@ -237,6 +250,11 @@ int NdbSocket::ssl_shutdown() const {
   int err;
   {
     Guard guard(mutex);
+    /*
+     * SSL_is_init_finished may return false if either TLS handshake have not
+     * finished, or an unexpected eof was seen.
+     */
+    if (!SSL_is_init_finished(ssl)) return 0;
     const int mode = SSL_get_shutdown(ssl);
     assert(!(mode & SSL_SENT_SHUTDOWN));
     if (unlikely(mode & SSL_SENT_SHUTDOWN)) return 0;
@@ -255,7 +273,7 @@ ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
   int err;
   {
     Guard guard(mutex);
-    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN))
       return 0;
 
     r = SSL_read_ex(ssl, buf, len, &nread);
@@ -274,7 +292,7 @@ ssize_t NdbSocket::ssl_peek(char *buf, size_t len) const
   int err;
   {
     Guard guard(mutex);
-    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN))
       return 0;
 
     r = SSL_peek_ex(ssl, buf, len, &nread);
@@ -294,7 +312,7 @@ ssize_t NdbSocket::ssl_send(const char * buf, size_t len) const
   /* Locked section */
   {
     Guard guard(mutex);
-    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl)))
+    if(unlikely(ssl == nullptr || SSL_get_shutdown(ssl) & SSL_SENT_SHUTDOWN))
       return -1;
 
     if(SSL_write_ex(ssl, buf, len, &nwrite))
