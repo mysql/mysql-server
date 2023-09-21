@@ -320,10 +320,14 @@ void Connection_manager::set_active(const std::string &name,
                                     const bool be_quiet) {
   if (m_session_holders.count(name) == 0) {
     std::string slist;
+    bool first = true;
     for (auto it = m_session_holders.begin(); it != m_session_holders.end();
-         ++it)
-      slist.append(it->first).append(", ");
-    if (!slist.empty()) slist.resize(slist.length() - 2);
+         ++it) {
+      if (!first) slist.append(", ");
+      slist.append(it->first);
+      first = false;
+    }
+
     throw std::runtime_error("no session named '" + name + "': " + slist);
   }
   m_active_holder = m_session_holders[name];
