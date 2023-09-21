@@ -21,6 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+DISABLE_DOCUMENTATION_WARNINGS()
 
 SET(STRINGS_SOURCES
   collations.cc

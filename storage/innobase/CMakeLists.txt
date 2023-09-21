@@ -25,6 +25,8 @@
 INCLUDE(innodb.cmake)
 
 MSVC_CPPCHECK_DISABLE()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+DISABLE_DOCUMENTATION_WARNINGS()
 
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 

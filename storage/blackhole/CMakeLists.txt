@@ -20,6 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - sql/handler.h
+# - include/sql_string.h
+DISABLE_DOCUMENTATION_WARNINGS()
+
 MYSQL_ADD_PLUGIN(blackhole ha_blackhole.cc
   DEFAULT_LEGACY_ENGINE STORAGE_ENGINE
   LINK_LIBRARIES extra::rapidjson ext::zlib

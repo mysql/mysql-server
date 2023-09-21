@@ -26,6 +26,10 @@ ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
 MSVC_CPPCHECK_DISABLE()
 
 DISABLE_MISSING_PROFILE_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - sql/handler.h
+# - include/sql_string.h
+DISABLE_DOCUMENTATION_WARNINGS()
 
 MYSQL_ADD_PLUGIN(semisync_source
   semisync.cc

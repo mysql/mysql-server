@@ -28,6 +28,9 @@ SET(MYSQLX_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 SET(MYSQLX_PLUGIN_NAME "mysqlx")
 
 MSVC_CPPCHECK_DISABLE()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - include/sql_string.h
+DISABLE_DOCUMENTATION_WARNINGS()
 
 IF(WIN32)
   # Activate necessary dllexport/dllimport declarations.

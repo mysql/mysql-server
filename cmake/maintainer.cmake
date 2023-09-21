@@ -34,6 +34,11 @@ MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
   ENDIF()
 ENDMACRO()
 
+MACRO(DISABLE_DOCUMENTATION_WARNINGS)
+  STRING(REPLACE "-Wdocumentation" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  STRING(REPLACE "-Wdocumentation" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ENDMACRO()
+
 #
 # Common flags for all versions/compilers
 #
@@ -86,6 +91,17 @@ IF(MY_COMPILER_IS_CLANG)
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
   MY_ADD_C_WARNING_FLAG("Wstring-concatenation")
 
+  IF(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+    # require clang-11 or later when enabling -Wdocumentation to workaround
+    #
+    # https://bugs.llvm.org/show_bug.cgi?id=38905
+    MY_ADD_C_WARNING_FLAG("Wdocumentation")
+
+    # -Wdocumentation enables -Wdocumentation-deprecated-sync
+    # which currently raises to many warnings
+    MY_ADD_C_WARNING_FLAG("Wno-documentation-deprecated-sync")
+  ENDIF()
+
   # Disable a few default Clang++ warnings
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-private-field")
@@ -113,6 +129,15 @@ IF(MY_COMPILER_IS_CLANG)
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-override")
   MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
   MY_ADD_CXX_WARNING_FLAG("Wstring-concatenation")
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+    # require clang-11 or later when enabling -Wdocumentation to workaround
+    #
+    # https://bugs.llvm.org/show_bug.cgi?id=38905
+    MY_ADD_CXX_WARNING_FLAG("Wdocumentation")
+    # -Wdocumentation enables -Wdocumentation-deprecated-sync
+    # which currently raises to many warnings
+    MY_ADD_CXX_WARNING_FLAG("Wno-documentation-deprecated-sync")
+  ENDIF()
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
@@ -125,7 +150,6 @@ IF(MY_COMPILER_IS_CLANG)
   # -Wcovered-switch-default
   # -Wdeprecated-dynamic-exception-spec
   # -Wdisabled-macro-expansion
-  # -Wdocumentation
   # -Wdocumentation-pedantic
   # -Wdocumentation-unknown-command
   # -Wdouble-promotion

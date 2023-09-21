@@ -76,6 +76,10 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
     STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-but-set-variable")
   ENDIF()
 
+  # TODO: remove when all -Wdocumentation warnings are fixed.
+  # - plugin/innodb_memcached/daemon_memcached/daemon/cache.h
+  DISABLE_DOCUMENTATION_WARNINGS()
+
   # -Werror=lto-type-mismatch for misc functions.
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")

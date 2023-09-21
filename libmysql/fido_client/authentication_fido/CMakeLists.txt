@@ -46,6 +46,9 @@ INCLUDE_DIRECTORIES(
   )
 
 DISABLE_MISSING_PROFILE_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - libmysql/fido_client/authentication_fido/fido_registration.cc
+DISABLE_DOCUMENTATION_WARNINGS()
 
 MYSQL_ADD_PLUGIN(authentication_fido_client
   fido_registration.cc

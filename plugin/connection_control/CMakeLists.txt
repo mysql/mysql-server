@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# TODO: remove when all -Wdocumentation warnings are fixed.
+#  - libs/mysql/binlog/
+DISABLE_DOCUMENTATION_WARNINGS()
+
 MYSQL_ADD_PLUGIN(connection_control
   connection_control_coordinator.cc
   connection_control.cc

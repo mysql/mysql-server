@@ -21,6 +21,10 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 DISABLE_MISSING_PROFILE_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - storage/secondary_engine_mock/ha_mock.h
+DISABLE_DOCUMENTATION_WARNINGS()
+
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 IF(WITH_MOCK_SECONDARY_STORAGE_ENGINE AND

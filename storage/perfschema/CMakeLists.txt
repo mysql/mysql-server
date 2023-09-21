@@ -23,6 +23,9 @@
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
+# TODO: remove when all -Wdocumentation warnings are fixed.
+DISABLE_DOCUMENTATION_WARNINGS()
+
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
 # Tip: ls -1 *.h, ls -1 *.cc

@@ -20,6 +20,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - include/sql_string.h
+# - sql/handler.h
+# - libs/mysql/binlog/
+DISABLE_DOCUMENTATION_WARNINGS()
+
 MSVC_CPPCHECK_DISABLE()
 
 MYSQL_ADD_PLUGIN(archive azio.cc ha_archive.cc

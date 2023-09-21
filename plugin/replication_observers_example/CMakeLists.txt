@@ -21,6 +21,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 DISABLE_MISSING_PROFILE_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - sql/handler.h
+# - include/sql_string.h
+DISABLE_DOCUMENTATION_WARNINGS()
+
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="replication_observers_example")
 
 MYSQL_ADD_PLUGIN(replication_observers_example

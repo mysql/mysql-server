@@ -21,6 +21,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+# TODO: remove when all -Wdocumentation warnings are fixed.
+# - mysys/my_kdf.h:101
+DISABLE_DOCUMENTATION_WARNINGS()
 
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
