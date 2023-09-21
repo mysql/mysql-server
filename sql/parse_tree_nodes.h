@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
+#include <bit>
 #include <cctype>  // std::isspace
 #include <cstddef>
 #include <memory>
@@ -33,7 +34,6 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_bit.h"  // is_single_bit
 
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
@@ -588,11 +588,12 @@ class PT_joined_table : public PT_table_reference {
         m_join_pos(join_pos_arg),
         m_type(type),
         m_right_pt_table(tab2_node_arg) {
-    static_assert(is_single_bit(JTT_INNER), "not a single bit");
-    static_assert(is_single_bit(JTT_STRAIGHT), "not a single bit");
-    static_assert(is_single_bit(JTT_NATURAL), "not a single bit");
-    static_assert(is_single_bit(JTT_LEFT), "not a single bit");
-    static_assert(is_single_bit(JTT_RIGHT), "not a single bit");
+    using std::has_single_bit;
+    static_assert(has_single_bit(unsigned{JTT_INNER}), "not a single bit");
+    static_assert(has_single_bit(unsigned{JTT_STRAIGHT}), "not a single bit");
+    static_assert(has_single_bit(unsigned{JTT_NATURAL}), "not a single bit");
+    static_assert(has_single_bit(unsigned{JTT_LEFT}), "not a single bit");
+    static_assert(has_single_bit(unsigned{JTT_RIGHT}), "not a single bit");
 
     assert(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
            type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||

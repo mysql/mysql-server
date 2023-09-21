@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include <algorithm>
+#include <bit>
 
 /* Include necessary SQL headers */
 #include <assert.h>
@@ -36,7 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #include <key_spec.h>
 #include <log.h>
-#include <my_bit.h>
 #include <mysql/plugin.h>
 #include <sql_class.h>
 #include <sql_lex.h>
@@ -10192,8 +10192,8 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
     and ALTER_TABLE_REORG;
     The ALTER_ALL_PARTITION should be screened out, which could only
     be set along with the REBUILD PARTITION */
-    ut_ad(is_single_bit(ha_alter_info->handler_flags &
-                        ~Alter_inplace_info::ALTER_ALL_PARTITION) ||
+    ut_ad(std::has_single_bit(ha_alter_info->handler_flags &
+                              ~Alter_inplace_info::ALTER_ALL_PARTITION) ||
           ha_alter_info->handler_flags ==
               (Alter_inplace_info::COALESCE_PARTITION |
                Alter_inplace_info::ALTER_TABLE_REORG));
