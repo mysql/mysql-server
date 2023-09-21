@@ -1284,7 +1284,7 @@ EXPLAIN FORMAT=json
 SELECT i1
 FROM t1
 WHERE EXISTS (SELECT t2.c1
-FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1))
 WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
 FROM t3));
 EXPLAIN
@@ -1440,8 +1440,8 @@ INSERT INTO t4 SELECT * FROM t2;
 CREATE TABLE t5 (c INT);
 INSERT INTO t5 VALUES (1), (2), (3);
 # This should show two materialization groups where applicable
-EXPLAIN SELECT * FROM t5 
-WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
+EXPLAIN SELECT * FROM t5
+WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
@@ -1451,8 +1451,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	c_key	c_key	5	test.t2.c_key	2	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
-EXPLAIN FORMAT=JSON SELECT * FROM t5 
-WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
+EXPLAIN FORMAT=JSON SELECT * FROM t5
+WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 EXPLAIN
 {
@@ -1932,7 +1932,7 @@ Warnings:
 Note	1003	insert into `test`.`t3` values ((/* select#2 */ select `test`.`t1`.`i` from `test`.`t1`)),((/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))
 DROP TABLE t1, t2, t3;
 # Various queries
-EXPLAIN SELECT a, b FROM 
+EXPLAIN SELECT a, b FROM
 (SELECT 1 AS a, 2 AS b
 UNION ALL
 SELECT 1 AS a, 2 AS b) t1
@@ -1944,7 +1944,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (/* select#2 */ select 1 AS `a`,2 AS `b` union all /* select#3 */ select 1 AS `a`,2 AS `b`) `t1` group by `t1`.`a` order by `t1`.`b` desc
-EXPLAIN FORMAT=JSON SELECT a, b FROM 
+EXPLAIN FORMAT=JSON SELECT a, b FROM
 (SELECT 1 AS a, 2 AS b
 UNION ALL
 SELECT 1 AS a, 2 AS b) t1
@@ -8827,4 +8827,125 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `pk` from `test`.`t` join `test`.`t` `alias2` where (<in_optimizer>(NULL,<exists>(/* select#3 */ select 2 having (<cache>(NULL) = <ref_null_helper>(2)) intersect /* select#4 */ select 1 having (<cache>(NULL) = <ref_null_helper>(1))) is false) and multiple equal(105, NULL))
 DROP TABLE t;
+#
+#  WL#15684 System variable to select JSON EXPLAIN format
+#
+SET @saved_json_format_version = @@explain_json_format_version;
+SET @@end_markers_in_json=OFF;
+SET @@explain_json_format_version = 1;
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.80"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 1,
+      "filtered": "50.00",
+      "cost_info": {
+        "read_cost": "0.65",
+        "eval_cost": "0.15",
+        "prefix_cost": "0.80",
+        "data_read_per_join": "12"
+      },
+      "used_columns": [
+        "i"
+      ],
+      "attached_condition": "(`test`.`t`.`i` in (2,3))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` in (2,3)) limit 1
+SET @@explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+EXPLAIN
+{
+  "limit": 1,
+  "query": "/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` in (2,3)) limit 1",
+  "inputs": [
+    {
+      "inputs": [
+        {
+          "operation": "Table scan on t",
+          "table_name": "t",
+          "access_type": "table",
+          "estimated_rows": 3.0,
+          "estimated_total_cost": 0.8012817382812502
+        }
+      ],
+      "condition": "(t.i in (2,3))",
+      "operation": "Filter: (t.i in (2,3))",
+      "access_type": "filter",
+      "estimated_rows": 1.5,
+      "estimated_total_cost": 0.8012817382812502
+    }
+  ],
+  "operation": "Limit: 1 row(s)",
+  "access_type": "limit",
+  "limit_offset": 0,
+  "estimated_rows": 1.0,
+  "estimated_total_cost": 0.8012817382812502
+}
+SET @@explain_json_format_version = 1;
+# Check changing system variable in stored procedure works as expected.
+CREATE PROCEDURE p (json_format_version INT) BEGIN
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+SET @stmt_txt = 'EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1';
+PREPARE stmt FROM @stmt_txt;
+EXECUTE stmt;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+SET @@explain_json_format_version = json_format_version;
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+EXECUTE stmt;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+PREPARE stmt FROM @stmt_txt;
+EXECUTE stmt;
+SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+END|
+SET @@explain_json_format_version = 2;
+CALL p(1);
+explain_json_format_version
+2
+explain_json_format_version
+2
+explain_json_format_version
+2
+explain_json_format_version
+2
+explain_json_format_version
+1
+SELECT @@explain_json_format_version;
+@@explain_json_format_version
+1
+CALL p(2);
+explain_json_format_version
+2
+explain_json_format_version
+1
+explain_json_format_version
+2
+explain_json_format_version
+1
+explain_json_format_version
+2
+SELECT @@explain_json_format_version;
+@@explain_json_format_version
+2
+DROP PROCEDURE p;
+DROP TABLE t;
+SET @@end_markers_in_json=ON;
+SET @@explain_json_format_version = @saved_json_format_version;
 set optimizer_switch=default;

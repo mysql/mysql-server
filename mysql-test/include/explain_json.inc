@@ -186,9 +186,9 @@ EXPLAIN FORMAT=json
 SELECT i1
 FROM t1
 WHERE EXISTS (SELECT t2.c1
-              FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+              FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1))
               WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
-                                                FROM t3)); 
+                                                FROM t3));
 
 DROP TABLE t1, t2, t3;
 
@@ -207,8 +207,8 @@ INSERT INTO t5 VALUES (1), (2), (3);
 
 --echo # This should show two materialization groups where applicable
 
-let $query=SELECT * FROM t5 
-  WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
+let $query=SELECT * FROM t5
+  WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
     AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 --eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
@@ -258,7 +258,7 @@ DROP TABLE t1, t2, t3;
 
 --source include/turn_off_only_full_group_by.inc
 let $query=
-  SELECT a, b FROM 
+  SELECT a, b FROM
     (SELECT 1 AS a, 2 AS b
      UNION ALL
      SELECT 1 AS a, 2 AS b) t1
@@ -457,3 +457,63 @@ SELECT * FROM (SELECT * FROM t) AS alias1
 WHERE alias1.pk NOT IN (SELECT 2 INTERSECT SELECT 1) AND
       alias1.pk = 105;
 DROP TABLE t;
+
+--echo #
+--echo #  WL#15684 System variable to select JSON EXPLAIN format
+--echo #
+SET @saved_json_format_version = @@explain_json_format_version;
+SET @@end_markers_in_json=OFF;
+SET @@explain_json_format_version = 1;
+
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+
+EXPLAIN FORMAT=JSON SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+
+SET @@explain_json_format_version = 2;
+
+EXPLAIN FORMAT=JSON SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+
+SET @@explain_json_format_version = 1;
+
+DELIMITER |;
+--echo # Check changing system variable in stored procedure works as expected.
+# First and third EXPLAIN use the session value for explain_json_format_version from when the procedure was prepared.
+# Second and fourth EXPLAIN use the session value for explain_json_format_version from the first PREPARE.
+# Fifth EXPLAIN uses the passed json_format_version value for explain_json_format_version.
+# JSON format version 2 contains a top level "query" field that version 1 does not.
+CREATE PROCEDURE p (json_format_version INT) BEGIN
+  EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+  SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+
+  SET @stmt_txt = 'EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1';
+  PREPARE stmt FROM @stmt_txt;
+  EXECUTE stmt;
+  SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+
+  SET @@explain_json_format_version = json_format_version;
+  EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t WHERE i IN (2, 3) LIMIT 1;
+  SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+
+  EXECUTE stmt;
+  SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+
+  PREPARE stmt FROM @stmt_txt;
+  EXECUTE stmt;
+  SELECT JSON_CONTAINS_PATH(@v1, 'one', '$.query') + 1 AS explain_json_format_version;
+END|
+DELIMITER ;|
+
+SET @@explain_json_format_version = 2;
+
+# Expect the system variable to be set by the procedure.
+CALL p(1);
+SELECT @@explain_json_format_version;
+CALL p(2);
+SELECT @@explain_json_format_version;
+
+DROP PROCEDURE p;
+DROP TABLE t;
+SET @@end_markers_in_json=ON;
+SET @@explain_json_format_version = @saved_json_format_version;

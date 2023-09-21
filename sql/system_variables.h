@@ -498,6 +498,13 @@ struct System_variables {
    */
   Explain_format_type explain_format;
 
+  /**
+    Used to specify the JSON format version used by EXPLAIN FORMAT=JSON with
+    the old (non-hypergraph) join optimizer.
+    @sa Sys_explain_json_format_version
+   */
+  uint explain_json_format_version;
+
   /// Max size of set operations hash buffer size.
   ulonglong set_operations_buffer_size;
 #ifndef NDEBUG

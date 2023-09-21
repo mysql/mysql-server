@@ -7451,6 +7451,14 @@ static Sys_var_enum Sys_explain_format(
     DEFAULT(static_cast<ulong>(Explain_format_type::TRADITIONAL)),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
+static Sys_var_uint Sys_explain_json_format_version(
+    "explain_json_format_version",
+    "The JSON format version for EXPLAIN FORMAT=JSON queries with the old "
+    "(non-hypergraph) join optimizer. "
+    "Valid values are 1 and 2.",
+    SESSION_VAR(explain_json_format_version), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 2), DEFAULT(1), BLOCK_SIZE(1));
+
 static Sys_var_bool Sys_tls_certificates_enforced_validation(
     "tls_certificates_enforced_validation",
     "If set to TRUE, server stops execution at the start up in case of invalid "

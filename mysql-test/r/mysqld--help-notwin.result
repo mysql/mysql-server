@@ -364,6 +364,10 @@ The following options may be given as the first argument:
  (default), TREE, JSON and TRADITIONAL_STRICT.
  TRADITIONAL_STRICT is only used internally by the mtr
  test suite, and is not meant to be used anywhere else.
+ --explain-json-format-version=# 
+ The JSON format version for EXPLAIN FORMAT=JSON queries
+ with the old (non-hypergraph) join optimizer. Valid
+ values are 1 and 2.
  --explicit-defaults-for-timestamp 
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
@@ -1697,6 +1701,7 @@ enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler ON
 explain-format TRADITIONAL
+explain-json-format-version 1
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE

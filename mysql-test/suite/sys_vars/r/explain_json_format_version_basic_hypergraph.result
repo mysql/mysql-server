@@ -1,0 +1,136 @@
+SET @global_start_val = @@global.explain_json_format_version;
+SET @session_start_val = @@session.explain_json_format_version;
+SELECT @global_start_val, @@global.explain_json_format_version, @session_start_val, @@session.explain_json_format_version;
+@global_start_val	@@global.explain_json_format_version	@session_start_val	@@session.explain_json_format_version
+1	1	1	1
+# GLOBAL assignment
+SET @@global.explain_json_format_version = DEFAULT;
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+SET GLOBAL explain_json_format_version = DEFAULT;
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+SET @@global.explain_json_format_version = 1;
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+SET @@global.explain_json_format_version = 2;
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+2
+# Warnings for out of bounds values
+SET @@global.explain_json_format_version = 0;
+Warnings:
+Warning	1292	Truncated incorrect explain_json_format_version value: '0'
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+SET @@global.explain_json_format_version = 3;
+Warnings:
+Warning	1292	Truncated incorrect explain_json_format_version value: '3'
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+2
+SET @@global.explain_json_format_version = DEFAULT;
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+# Errors for invalid values
+SET @@global.explain_json_format_version = '1';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = '2';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = 'NO';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = 'YES';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+# Errors for invalid values in strict mode
+SET @@global.explain_json_format_version = 0;
+ERROR 42000: Variable 'explain_json_format_version' can't be set to the value of '0'
+SET @@global.explain_json_format_version = 3;
+ERROR 42000: Variable 'explain_json_format_version' can't be set to the value of '3'
+SET @@global.explain_json_format_version = '1';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = '2';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = 'NO';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@global.explain_json_format_version = 'YES';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SELECT @@global.explain_json_format_version;
+@@global.explain_json_format_version
+1
+SET @@global.explain_json_format_version = @global_start_val;
+
+# SESSION assignment
+SET @@session.explain_json_format_version = DEFAULT;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET SESSION explain_json_format_version = DEFAULT;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET explain_json_format_version = DEFAULT;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET @@session.explain_json_format_version = 1;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET @@session.explain_json_format_version = 2;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+2
+# Warnings for out of bounds values
+SET @@session.explain_json_format_version = 0;
+Warnings:
+Warning	1292	Truncated incorrect explain_json_format_version value: '0'
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET @@session.explain_json_format_version = 3;
+Warnings:
+Warning	1292	Truncated incorrect explain_json_format_version value: '3'
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+2
+SET @@session.explain_json_format_version = DEFAULT;
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+# Errors for invalid values
+SET @@session.explain_json_format_version = '1';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = '2';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = 'NO';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = 'YES';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+# Errors for invalid values in strict mode
+SET @@session.explain_json_format_version = 0;
+ERROR 42000: Variable 'explain_json_format_version' can't be set to the value of '0'
+SET @@session.explain_json_format_version = 3;
+ERROR 42000: Variable 'explain_json_format_version' can't be set to the value of '3'
+SET @@session.explain_json_format_version = '1';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = '2';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = 'NO';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SET @@session.explain_json_format_version = 'YES';
+ERROR 42000: Incorrect argument type to variable 'explain_json_format_version'
+SELECT @@session.explain_json_format_version;
+@@session.explain_json_format_version
+1
+SET @@session.explain_json_format_version = @session_start_val;
