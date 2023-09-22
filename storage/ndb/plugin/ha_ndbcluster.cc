@@ -1974,7 +1974,7 @@ NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
 /**
    @brief Create Attrid_map for mapping the columns of KEY to a NDB table.
    @param key_info key to create mapping for
-   @param index NDB table definition
+   @param table NDB table definition
  */
 NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
                                        const NdbDictionary::Table *table) {

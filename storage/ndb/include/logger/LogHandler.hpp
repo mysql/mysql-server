@@ -177,7 +177,7 @@ public:
    *
    * @param config where to store parameters
    */
-  virtual bool getParams(BaseString &/*config*/) {return false;}
+  virtual bool getParams(BaseString &config [[maybe_unused]]) {return false;}
 
   virtual ndb_off_t getCurrentSize() {return -1;}
   virtual ndb_off_t getMaxSize() {return -1;}

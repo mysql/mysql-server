@@ -6134,7 +6134,7 @@ static inline ndb_binlog_index_row *ndb_find_binlog_index_row(
 /**
    @brief Check that expected columns for specific key are defined
    @param defined               Bitmap of defined (received from NDB) columns
-   @param key                   The key to check columns for
+   @param key_info              The key to check columns for
    @return true if all expected key columns have been recieved
  */
 static bool check_key_defined(MY_BITMAP *defined, const KEY *const key_info) {

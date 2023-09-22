@@ -1659,7 +1659,7 @@ struct ssl_ctx_st;
    *                        12 if handle is using TLS version 1.2
    *                        13 if handle is using TLS version 1.3
    */
-  int ndb_mgm_has_tls(NdbMgmHandle);
+  int ndb_mgm_has_tls(NdbMgmHandle handle);
 
   /**
    * Struct ndb\_mgm\_cert\_table is a linked structure describing a
@@ -1687,7 +1687,7 @@ struct ssl_ctx_st;
    * On return, list will be populated with a pointer to a table. The table
    * should be freed after use by calling ndb\_mgm\_cert\_table\_free().
    */
-  int ndb_mgm_list_certs(NdbMgmHandle, struct ndb_mgm_cert_table ** list);
+  int ndb_mgm_list_certs(NdbMgmHandle handle, struct ndb_mgm_cert_table ** list);
 
   /**
    * Free a linked list of certificate descriptions.

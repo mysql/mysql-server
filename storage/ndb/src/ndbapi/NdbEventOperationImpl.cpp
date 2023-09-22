@@ -476,7 +476,7 @@ NdbEventOperationImpl::get_blob_part_no(bool hasDist)
    data are stored
 
    @param blob           The blob column to print
-   @param event_buf_data Pointer to first event data buffer
+   @param event_data_buf Pointer to first event data buffer
    @param hasDist        Some variability for fuziness
    @param part_start     Number of the first blob part requested
    @param part_count     Count of blob parts requested

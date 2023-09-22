@@ -199,7 +199,6 @@ class Ndb_replica {
 
     /**
        @brief Get the current max applied epoch for channel
-       @return
      */
     Uint64 get_max_rep_epoch() const {
       std::lock_guard<std::mutex> lock(m_global_mutex);

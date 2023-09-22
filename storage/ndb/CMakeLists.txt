@@ -30,8 +30,6 @@ INCLUDE(ndb_add_executable)
 
 MSVC_CPPCHECK_DISABLE()
 DISABLE_MISSING_PROFILE_WARNING()
-# TODO: remove when all -Wdocumentation warnings are fixed.
-DISABLE_DOCUMENTATION_WARNINGS()
 
 IF(NOT WITHOUT_SERVER)
   IF(WIN32)

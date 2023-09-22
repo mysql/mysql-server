@@ -127,7 +127,6 @@ bool ndbcluster_binlog_check_schema_async(const std::string &schema_name);
 /**
  @brief Retrieve information about objects currently excluded from sync
  @param excluded_table  Pointer to excluded objects table object
- @return void
 */
 void ndbcluster_binlog_retrieve_sync_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table);
@@ -141,7 +140,6 @@ unsigned int ndbcluster_binlog_get_sync_excluded_objects_count();
 /**
  @brief Retrieve information about objects currently pending sync
  @param pending_table  Pointer to pending objects table object
- @return void
 */
 void ndbcluster_binlog_retrieve_sync_pending_objects(
     Ndb_sync_pending_objects_table *pending_table);
