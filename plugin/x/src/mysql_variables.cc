@@ -41,4 +41,6 @@ const CHARSET_INFO *get_default_charset() {
   return &my_charset_utf8mb4_0900_ai_ci;
 }
 
+sigset_t get_mysqld_signal_mask() { return mysqld_signal_mask; }
+
 }  // namespace mysqld

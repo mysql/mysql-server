@@ -31,6 +31,7 @@
 #include "violite.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/interface/connection_acceptor.h"
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/ngs/socket_events.h"
 #include "plugin/x/src/operations_factory.h"
@@ -92,6 +93,10 @@ class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
     vio = mysql_socket_vio_new(sock,
                                is_tcpip ? VIO_TYPE_TCPIP : VIO_TYPE_SOCKET, 0);
     if (!vio) throw std::bad_alloc();
+
+#ifdef USE_PPOLL_IN_VIO
+    vio->signal_mask = mysqld::get_mysqld_signal_mask();
+#endif
 
     // enable TCP_NODELAY
     vio_fastsend(vio);

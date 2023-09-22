@@ -25,6 +25,9 @@
 #ifndef PLUGIN_X_SRC_MYSQL_VARIABLES_H_
 #define PLUGIN_X_SRC_MYSQL_VARIABLES_H_
 
+#include <signal.h>
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+
 struct CHARSET_INFO;
 
 namespace mysqld {
@@ -35,6 +38,7 @@ bool is_terminating();
 bool get_initialize();
 const char *get_my_localhost();
 const CHARSET_INFO *get_default_charset();
+sigset_t get_mysqld_signal_mask();
 
 }  // namespace mysqld
 
