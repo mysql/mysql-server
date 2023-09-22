@@ -457,7 +457,7 @@ const char *STDCALL mysql_character_set_name(MYSQL *mysql);
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *csname);
 
 MYSQL *STDCALL mysql_init(MYSQL *mysql);
-#ifdef __cplusplus
+#if defined(__cplusplus) && (__cplusplus >= 201402L)
 [[deprecated("Use mysql_options() instead.")]]
 #endif
 bool STDCALL
